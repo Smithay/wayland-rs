@@ -1,3 +1,6 @@
+#![feature(collections)]
+
 extern crate libc;
 
-pub mod ffi;
+mod ffi;
+pub mod interfaces;
