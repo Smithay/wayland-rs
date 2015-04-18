@@ -10,13 +10,18 @@ pub use ffi::enums::wl_shm_format as ShmFormat;
 
 /// The shared memory controller.
 ///
-/// This object can be queried for memory_pools used forthe buffers.
+/// This object can be queried for memory_pools used for the buffers.
 pub struct Shm<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_shm
 }
 
 impl<'a> Shm<'a> {
+    /// Creates a shared memory pool from given file descriptor.
+    ///
+    /// The server will internally `mmap` the sepcified `size` number of bytes from
+    /// this file descriptor.
+    /// The created ShmPool will have access to these bytes exactly.
     pub fn pool_from_fd<'b, F: AsRawFd>(&'b self, fd: &F, size: i32) -> ShmPool<'b> {
         From::from((self, fd.as_raw_fd(), size))
     }

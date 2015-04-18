@@ -5,16 +5,26 @@ use ffi::interfaces::surface::{wl_surface, wl_surface_destroy, wl_surface_attach
                                wl_surface_commit};
 use ffi::FFI;
 
+/// A wayland Surface.
+///
+/// This is the basic drawing surface. A surface needs to be assigned
+/// a role and a buffer to be properly drawn on screen.
 pub struct Surface<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_surface
 }
 
 impl<'a> Surface<'a> {
+    /// Attaches given buffer to be the content of the image.
+    ///
+    /// The buffer is read once by the server to display it. If the contents
+    /// of the buffer change and the surface should be updated, then the buffer
+    /// should be attached again and the function `commit(..)` must be called.
     pub fn attach(&self, buffer: &Buffer, x: i32, y: i32) {
         unsafe { wl_surface_attach(self.ptr, buffer.ptr_mut(), x, y) }
     }
 
+    /// Atomically apply all the pending changes on this surface.
     pub fn commit(&self) {
         unsafe { wl_surface_commit(self.ptr) }
     }

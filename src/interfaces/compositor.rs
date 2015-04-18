@@ -13,10 +13,12 @@ pub struct Compositor<'a> {
 }
 
 impl<'a> Compositor<'a> {
+    /// Creates a new surface to draw on.
     pub fn create_surface<'b>(&'b self) -> Surface<'b> {
         From::from(self)
     }
 
+    /// Creates a new region.
     pub fn create_region<'b>(&'b self) -> Region<'b> {
         From::from(self)
     }

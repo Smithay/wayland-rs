@@ -4,6 +4,12 @@ use ffi::interfaces::shm_pool::wl_shm_pool_create_buffer;
 use ffi::interfaces::buffer::{wl_buffer, wl_buffer_destroy};
 use ffi::FFI;
 
+/// A view into a memory pool.
+///
+/// A buffer represents a given view into a memory pool. They only
+/// serve to notify the wayland server about how the contents of the
+/// memory pool must be read. To actually modify the data, you need
+/// to directly access the object you created the memory pool from.
 pub struct Buffer<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_buffer

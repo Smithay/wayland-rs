@@ -7,6 +7,10 @@ use ffi::FFI;
 
 use super::{From, Registry};
 
+/// A wayland Display.
+///
+/// This is the connexion to the wayland server, once it
+/// goes out of scope the connexion will be closed.
 pub struct Display {
     ptr: *mut wl_display
 }

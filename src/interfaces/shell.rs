@@ -14,6 +14,10 @@ pub struct Shell<'a> {
 }
 
 impl<'a> Shell<'a> {
+    /// Assigns the `shell_surface` role to given surface.
+    ///
+    /// The surface will now behave as a generic window, see ShellSurface
+    /// documentation for more details.
     pub fn get_shell_surface<'b, 'c>(&'b self, surface: Surface<'c>) -> ShellSurface<'b, 'c> {
         From::from((self, surface))
     }
