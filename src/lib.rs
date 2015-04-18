@@ -1,5 +1,3 @@
-#![feature(collections)]
-
 extern crate libc;
 
 mod ffi;

@@ -9,7 +9,7 @@ fn main() {
 
     display.sync_roundtrip();
 
-    for (i , (s,v)) in registry.get_global_objects() {
+    for (i, s, v) in registry.get_global_objects() {
         println!("id {} : {} ({})", i, s, v);
     }
 }

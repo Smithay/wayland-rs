@@ -1,5 +1,4 @@
 use std::cell::{Cell, RefCell};
-use std::collections::VecMap;
 use std::ffi::CStr;
 use std::rc::Rc;
 
@@ -15,7 +14,7 @@ use ffi::FFI;
 /// The internal data of the registry, wrapped into a separate
 /// struct to give it easy access to the callbacks.
 struct RegistryData {
-    global_objects: RefCell<VecMap<(String, u32)>>,
+    global_objects: RefCell<Vec<(u32, String, u32)>>,
     // the compositor is always unique
     compositor: Cell<Option<(u32, u32)>>,
     // the `wl_shell` is always unique
@@ -27,7 +26,7 @@ struct RegistryData {
 impl RegistryData {
     fn new() -> RegistryData {
         RegistryData {
-            global_objects: RefCell::new(VecMap::new()),
+            global_objects: RefCell::new(Vec::new()),
             compositor: Cell::new(None),
             shell: Cell::new(None),
             shm: Cell::new(None)
@@ -42,14 +41,17 @@ impl RegistryData {
             _ => {}
         }
         // register it anyway
-        self.global_objects.borrow_mut().insert(
-            id as usize,
-            (String::from_utf8_lossy(interface).into_owned(), version)
+        self.global_objects.borrow_mut().push(
+            (id, String::from_utf8_lossy(interface).into_owned(), version)
         );
     }
 
     fn unregister_object(&self, id: u32) {
-        self.global_objects.borrow_mut().remove(&(id as usize));
+        let mut o = self.global_objects.borrow_mut();
+        match o.iter().position(|e| e.0 == id) {
+            Some(i) => { o.swap_remove(i); },
+            None => {}
+        }
     }
 }
 
@@ -91,9 +93,8 @@ pub struct Registry<'a> {
 
 impl<'a> Registry<'a>{
     /// Returns a `Vec` of all global objects and their interface.
-    pub fn get_global_objects(&self) -> Vec<(usize, (String, u32))> {
-        self.registry_data.global_objects.borrow()
-            .iter().map(|(i, &(ref s, v))| { (i, (s.clone(), v))} ).collect()
+    pub fn get_global_objects(&self) -> Vec<(u32, String, u32)> {
+        self.registry_data.global_objects.borrow().clone()
     }
 
     /// Retrives a handle to the global compositor
