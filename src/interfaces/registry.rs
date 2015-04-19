@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use libc::{c_void, c_char, uint32_t};
 
-use super::{From, Compositor, Display, Shell, Shm};
+use super::{From, Compositor, Display, Shell, Shm, SubCompositor};
 
 use ffi::interfaces::display::wl_display_get_registry;
 use ffi::interfaces::registry::{wl_registry, wl_registry_destroy,
@@ -21,6 +21,8 @@ struct RegistryData {
     shell: Cell<Option<(u32, u32)>>,
     // the `wl_shm` is always unique
     shm: Cell<Option<(u32, u32)>>,
+    // the subcompositor is always unique
+    subcompositor: Cell<Option<(u32, u32)>>,
 }
 
 impl RegistryData {
@@ -29,7 +31,8 @@ impl RegistryData {
             global_objects: RefCell::new(Vec::new()),
             compositor: Cell::new(None),
             shell: Cell::new(None),
-            shm: Cell::new(None)
+            shm: Cell::new(None),
+            subcompositor: Cell::new(None),
         }
     }
 
@@ -38,6 +41,7 @@ impl RegistryData {
             b"wl_compositor" => self.compositor.set(Some((id, version))),
             b"wl_shell" => self.shell.set(Some((id, version))),
             b"wl_shm" => self.shm.set(Some((id, version))),
+            b"wl_subcompositor" => self.subcompositor.set(Some((id, version))),
             _ => {}
         }
         // register it anyway
@@ -116,6 +120,14 @@ impl<'a> Registry<'a>{
     /// Retrives a handle to the global shm
     pub fn get_shm<'b>(&'b self) -> Option<Shm<'b>> {
         match self.registry_data.shm.get() {
+            Some((id, version)) => Some(From::from((self, id, version))),
+            None => None
+        }
+    }
+
+    /// Retrives a handle to the global subcompositor
+    pub fn get_subcompositor<'b>(&'b self) -> Option<SubCompositor<'b>> {
+        match self.registry_data.subcompositor.get() {
             Some((id, version)) => Some(From::from((self, id, version))),
             None => None
         }

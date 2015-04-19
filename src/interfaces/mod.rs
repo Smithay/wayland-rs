@@ -7,6 +7,8 @@ pub use self::shell::Shell;
 pub use self::shell_surface::ShellSurface;
 pub use self::shm::Shm;
 pub use self::shm_pool::ShmPool;
+pub use self::subcompositor::SubCompositor;
+pub use self::subsurface::SubSurface;
 pub use self::surface::Surface;
 
 pub use self::output::OutputTransform as OutputTransform;
@@ -22,6 +24,8 @@ mod shell;
 mod shell_surface;
 mod shm;
 mod shm_pool;
+mod subcompositor;
+mod subsurface;
 mod surface;
 
 /// A trait for creating Wayland interfaces from each other, for
