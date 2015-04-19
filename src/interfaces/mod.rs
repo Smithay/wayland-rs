@@ -9,11 +9,13 @@ pub use self::shm::Shm;
 pub use self::shm_pool::ShmPool;
 pub use self::surface::Surface;
 
+pub use self::output::OutputTransform as OutputTransform;
 pub use self::shm::ShmFormat as ShmFormat;
 
 mod buffer;
 mod compositor;
 mod display;
+mod output;
 mod region;
 mod registry;
 mod shell;

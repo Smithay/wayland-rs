@@ -39,7 +39,7 @@ pub enum wl_output_subpixel {
     WL_OUTPUT_SUBPIXEL_VERTICAL_BGR = 5,
 }
 
-#[repr(u32)]
+#[repr(i32)]
 pub enum wl_output_transform {
     WL_OUTPUT_TRANSFORM_NORMAL = 0,
     WL_OUTPUT_TRANSFORM_90 = 1,
