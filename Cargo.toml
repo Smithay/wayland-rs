@@ -9,3 +9,7 @@ libc = "0.1"
 [dev-dependencies]
 byteorder = "0.3"
 tempfile = "*"
+
+[features]
+all = ["wl_egl"]
+wl_egl = []
