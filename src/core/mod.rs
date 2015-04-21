@@ -1,3 +1,7 @@
+//! The core wayland protocol.
+//!
+//! This module covers the core part of the wayland protocol.
+
 pub use self::buffer::Buffer;
 pub use self::compositor::Compositor;
 pub use self::display::{Display, default_display};
@@ -9,7 +13,7 @@ pub use self::shm::Shm;
 pub use self::shm_pool::ShmPool;
 pub use self::subcompositor::SubCompositor;
 pub use self::subsurface::SubSurface;
-pub use self::surface::Surface;
+pub use self::surface::{Surface, WSurface};
 
 pub use self::output::OutputTransform as OutputTransform;
 pub use self::shm::ShmFormat as ShmFormat;

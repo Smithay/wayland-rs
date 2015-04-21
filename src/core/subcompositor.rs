@@ -1,4 +1,4 @@
-use super::{From, Registry, Surface, SubSurface};
+use super::{From, Registry, Surface, SubSurface, WSurface};
 
 use ffi::interfaces::subcompositor::{wl_subcompositor, wl_subcompositor_destroy};
 use ffi::interfaces::registry::wl_registry_bind;
@@ -13,7 +13,10 @@ pub struct SubCompositor<'a> {
 }
 
 impl<'a> SubCompositor<'a> {
-    pub fn get_subsurface<'b, 'c, 'd>(&'b self, surface: Surface<'c>, parent: &'d Surface<'d>) -> SubSurface<'b, 'c, 'd> {
+    pub fn get_subsurface<'b, 'c, 'd, S>(&'b self, surface: S, parent: &'d WSurface<'d>)
+        -> SubSurface<'b, 'c, 'd, S>
+        where S: Surface<'c>
+    {
         From::from((self, surface, parent))
     }
 }

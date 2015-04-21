@@ -18,7 +18,10 @@ impl<'a> Shell<'a> {
     ///
     /// The surface will now behave as a generic window, see ShellSurface
     /// documentation for more details.
-    pub fn get_shell_surface<'b, 'c>(&'b self, surface: Surface<'c>) -> ShellSurface<'b, 'c> {
+    pub fn get_shell_surface<'b, 'c, S>(&'b self, surface: S)
+        -> ShellSurface<'b, 'c, S>
+        where S: Surface<'c>
+    {
         From::from((self, surface))
     }
 }

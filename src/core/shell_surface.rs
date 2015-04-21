@@ -15,15 +15,16 @@ use ffi::FFI;
 /// A Surface is wrapped inside this object and accessible through
 /// `Deref`, so you can use a `ShellSurface` directly to update the
 /// uderlying `Surface`.
-pub struct ShellSurface<'a, 'b> {
+pub struct ShellSurface<'a, 'b, S: Surface<'b>> {
     _t: ::std::marker::PhantomData<&'a ()>,
+    _s: ::std::marker::PhantomData<&'b ()>,
     ptr: *mut wl_shell_surface,
-    surface: Surface<'b>
+    surface: S
 }
 
-impl<'a, 'b> ShellSurface<'a, 'b> {
+impl<'a, 'b, S: Surface<'b>> ShellSurface<'a, 'b, S> {
     /// Frees the `Surface` from its role of `shell_surface` and returns it.
-    pub fn destroy(mut self) -> Surface<'b> {
+    pub fn destroy(mut self) -> S {
         use std::mem::{forget, replace, uninitialized};
         unsafe {
             let surface = replace(&mut self.surface, uninitialized());
@@ -41,32 +42,33 @@ impl<'a, 'b> ShellSurface<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Deref for ShellSurface<'a, 'b> {
-    type Target = Surface<'b>;
+impl<'a, 'b, S: Surface<'b>> Deref for ShellSurface<'a, 'b, S> {
+    type Target = S;
 
-    fn deref<'c>(&'c self) -> &'c Surface<'b> {
+    fn deref<'c>(&'c self) -> &'c S {
         &self.surface
     }
 }
 
-impl<'a, 'b, 'c> From<(&'a Shell<'c>, Surface<'b>)> for ShellSurface<'a, 'b> {
-    fn from((shell, surface): (&'a Shell<'c>, Surface<'b>)) -> ShellSurface<'a, 'b> {
-        let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.ptr_mut()) };
+impl<'a, 'b, 'c, S: Surface<'b>> From<(&'a Shell<'c>, S)> for ShellSurface<'a, 'b, S> {
+    fn from((shell, surface): (&'a Shell<'c>, S)) -> ShellSurface<'a, 'b, S> {
+        let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.get_wsurface().ptr_mut()) };
         ShellSurface {
             _t: ::std::marker::PhantomData,
+            _s: ::std::marker::PhantomData,
             ptr: ptr,
             surface: surface
         }
     }
 }
 
-impl<'a, 'b> Drop for ShellSurface<'a, 'b> {
+impl<'a, 'b, S: Surface<'b>> Drop for ShellSurface<'a, 'b, S> {
     fn drop(&mut self) {
         unsafe { wl_shell_surface_destroy(self.ptr) };
     }
 }
 
-impl<'a, 'b> FFI<wl_shell_surface> for ShellSurface<'a, 'b> {
+impl<'a, 'b, S: Surface<'b>> FFI<wl_shell_surface> for ShellSurface<'a, 'b, S> {
     fn ptr(&self) -> *const wl_shell_surface {
         self.ptr as *const wl_shell_surface
     }

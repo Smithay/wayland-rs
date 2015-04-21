@@ -12,12 +12,12 @@ use ffi::FFI;
 ///
 /// This is the basic drawing surface. A surface needs to be assigned
 /// a role and a buffer to be properly drawn on screen.
-pub struct Surface<'a> {
+pub struct WSurface<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_surface
 }
 
-impl<'a> Surface<'a> {
+impl<'a> WSurface<'a> {
     /// Attaches given buffer to be the content of the image.
     ///
     /// The buffer is by the server to display it. If the content of the buffer
@@ -96,28 +96,40 @@ impl<'a> Surface<'a> {
     }
 }
 
-impl<'a, 'b> From<&'a Compositor<'b>> for Surface<'a> {
-    fn from(compositor: &'a Compositor<'b>) -> Surface<'a> {
+impl<'a, 'b> From<&'a Compositor<'b>> for WSurface<'a> {
+    fn from(compositor: &'a Compositor<'b>) -> WSurface<'a> {
         let ptr = unsafe { wl_compositor_create_surface(compositor.ptr_mut()) };
-        Surface {
+        WSurface {
             _t: ::std::marker::PhantomData,
             ptr: ptr
         }
     }
 }
 
-impl<'a> Drop for Surface<'a> {
+impl<'a> Drop for WSurface<'a> {
     fn drop(&mut self) {
         unsafe { wl_surface_destroy(self.ptr) };
     }
 }
 
-impl<'a> FFI<wl_surface> for Surface<'a> {
+impl<'a> FFI<wl_surface> for WSurface<'a> {
     fn ptr(&self) -> *const wl_surface {
         self.ptr as *const wl_surface
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_surface {
         self.ptr
+    }
+}
+
+/// A trait representing whatever can be used a a surface. Protocol extentions
+/// surch as EGL can define their own kind of surfaces, but they wrap a `WSurface`.
+pub trait Surface<'a> {
+    fn get_wsurface(&self) -> &WSurface<'a>;
+}
+
+impl<'a> Surface<'a> for WSurface<'a> {
+    fn get_wsurface(&self) -> &WSurface<'a> {
+        self
     }
 }

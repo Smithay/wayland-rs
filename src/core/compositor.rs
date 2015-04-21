@@ -1,4 +1,4 @@
-use super::{From, Region, Registry, Surface};
+use super::{From, Region, Registry, WSurface};
 
 use ffi::interfaces::compositor::{wl_compositor, wl_compositor_destroy};
 use ffi::interfaces::registry::wl_registry_bind;
@@ -14,7 +14,7 @@ pub struct Compositor<'a> {
 
 impl<'a> Compositor<'a> {
     /// Creates a new surface to draw on.
-    pub fn create_surface<'b>(&'b self) -> Surface<'b> {
+    pub fn create_surface<'b>(&'b self) -> WSurface<'b> {
         From::from(self)
     }
 
