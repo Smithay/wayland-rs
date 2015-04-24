@@ -48,7 +48,9 @@ impl<'a> Drop for ShmPool<'a> {
     }
 }
 
-impl<'a> FFI<wl_shm_pool> for ShmPool<'a> {
+impl<'a> FFI for ShmPool<'a> {
+    type Ptr = wl_shm_pool;
+
     fn ptr(&self) -> *const wl_shm_pool {
         self.ptr as *const wl_shm_pool
     }

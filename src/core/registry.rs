@@ -8,8 +8,9 @@ use super::{From, Compositor, Display, Shell, Shm, SubCompositor};
 
 use ffi::interfaces::display::wl_display_get_registry;
 use ffi::interfaces::registry::{wl_registry, wl_registry_destroy,
-                                wl_registry_listener, wl_registry_add_listener};
-use ffi::FFI;
+                                wl_registry_listener, wl_registry_add_listener,
+                                wl_registry_bind};
+use ffi::{FFI, Bind};
 
 /// The internal data of the registry, wrapped into a separate
 /// struct to give it easy access to the callbacks.
@@ -95,6 +96,17 @@ pub struct Registry<'a> {
     registry_data: Rc<RegistryData>
 }
 
+macro_rules! binder {
+    ($m: expr, $f: expr) => (
+        match $f.get() {
+            Some((id, version)) => Some(
+                unsafe { $m.bind(id, version) }
+            ),
+            None => None
+        }
+    )
+}
+
 impl<'a> Registry<'a>{
     /// Returns a `Vec` of all global objects and their interface.
     pub fn get_global_objects(&self) -> Vec<(u32, String, u32)> {
@@ -103,34 +115,34 @@ impl<'a> Registry<'a>{
 
     /// Retrives a handle to the global compositor
     pub fn get_compositor<'b>(&'b self) -> Option<Compositor<'b>> {
-        match self.registry_data.compositor.get() {
-            Some((id, version)) => Some(From::from((self, id, version))),
-            None => None
-        }
+        binder!(self, self.registry_data.compositor)
     }
 
     /// Retrives a handle to the global shell
     pub fn get_shell<'b>(&'b self) -> Option<Shell<'b>> {
-        match self.registry_data.shell.get() {
-            Some((id, version)) => Some(From::from((self, id, version))),
-            None => None
-        }
+        binder!(self, self.registry_data.shell)
     }
 
     /// Retrives a handle to the global shm
     pub fn get_shm<'b>(&'b self) -> Option<Shm<'b>> {
-        match self.registry_data.shm.get() {
-            Some((id, version)) => Some(From::from((self, id, version))),
-            None => None
-        }
+        binder!(self, self.registry_data.shm)
     }
 
     /// Retrives a handle to the global subcompositor
     pub fn get_subcompositor<'b>(&'b self) -> Option<SubCompositor<'b>> {
-        match self.registry_data.subcompositor.get() {
-            Some((id, version)) => Some(From::from((self, id, version))),
-            None => None
-        }
+        binder!(self, self.registry_data.subcompositor)
+    }
+
+    pub unsafe fn bind<'b, T>(&'b self, id: u32, version: u32) -> T
+        where T:  Bind<'b, Registry<'a>>
+    {
+        let ptr = wl_registry_bind(
+            self.ptr,
+            id,
+            <T as Bind<Registry<'a>>>::interface(),
+            version
+        );
+        <T as Bind<Registry<'a>>>::wrap(ptr as *mut _, self)
     }
 }
 
@@ -162,7 +174,9 @@ impl<'a> Drop for Registry<'a> {
     }
 }
 
-impl<'a> FFI<wl_registry> for Registry<'a> {
+impl<'a> FFI for Registry<'a> {
+    type Ptr = wl_registry;
+
     fn ptr(&self) -> *const wl_registry {
         self.ptr as *const wl_registry
     }

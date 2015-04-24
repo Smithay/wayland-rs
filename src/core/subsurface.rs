@@ -96,7 +96,9 @@ impl<'a, 'b, 'c, S: Surface<'b>> Drop for SubSurface<'a, 'b, 'c, S> {
     }
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> FFI<wl_subsurface> for SubSurface<'a, 'b, 'c, S> {
+impl<'a, 'b, 'c, S: Surface<'b>> FFI for SubSurface<'a, 'b, 'c, S> {
+    type Ptr = wl_subsurface;
+
     fn ptr(&self) -> *const wl_subsurface {
         self.ptr as *const wl_subsurface
     }

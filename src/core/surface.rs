@@ -112,7 +112,9 @@ impl<'a> Drop for WSurface<'a> {
     }
 }
 
-impl<'a> FFI<wl_surface> for WSurface<'a> {
+impl<'a> FFI for WSurface<'a> {
+    type Ptr = wl_surface;
+
     fn ptr(&self) -> *const wl_surface {
         self.ptr as *const wl_surface
     }

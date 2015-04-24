@@ -38,7 +38,9 @@ impl<'a> Drop for Buffer<'a> {
 }
 
 
-impl<'a> FFI<wl_buffer> for Buffer<'a> {
+impl<'a> FFI for Buffer<'a> {
+    type Ptr = wl_buffer;
+
     fn ptr(&self) -> *const wl_buffer {
         self.ptr as *const wl_buffer
     }

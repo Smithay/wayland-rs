@@ -1,10 +1,9 @@
 use std::os::unix::io::AsRawFd;
 
-use super::{From, Registry, ShmPool};
+use super::{From, ShmPool};
 
 use ffi::interfaces::shm::{wl_shm, wl_shm_destroy};
-use ffi::interfaces::registry::wl_registry_bind;
-use ffi::{FFI, abi};
+use ffi::{FFI, Bind, abi};
 
 pub use ffi::enums::wl_shm_format as ShmFormat;
 
@@ -27,15 +26,12 @@ impl<'a> Shm<'a> {
     }
 }
 
-impl<'a, 'b> From<(&'a Registry<'b>, u32, u32)> for Shm<'a> {
-    fn from((registry, id, version): (&'a Registry, u32, u32)) -> Shm<'a> {
-        let ptr = unsafe { wl_registry_bind(
-            registry.ptr_mut(),
-            id,
-            &abi::wl_shm_interface,
-            version
-        ) as *mut wl_shm };
+impl<'a, R> Bind<'a, R> for Shm<'a> {
+    fn interface() -> &'static abi::wl_interface {
+        &abi::wl_shm_interface
+    }
 
+    unsafe fn wrap(ptr: *mut wl_shm, _parent: &'a R) -> Shm<'a> {
         Shm {
             _t: ::std::marker::PhantomData,
             ptr: ptr
@@ -49,8 +45,9 @@ impl<'a> Drop for Shm<'a> {
     }
 }
 
-impl<'a> FFI<wl_shm> for Shm<'a> {
-    fn ptr(&self) -> *const wl_shm {
+impl<'a> FFI for Shm<'a> {
+    type Ptr = wl_shm;
+   fn ptr(&self) -> *const wl_shm {
         self.ptr as *const wl_shm
     }
 

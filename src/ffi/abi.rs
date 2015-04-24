@@ -12,6 +12,10 @@ pub struct wl_array {
 #[repr(C)] pub struct wl_display;
 #[repr(C)] pub struct wl_event_queue;
 
+/// Type representing an interface in the `libwayland-client.so` ABI.
+///
+/// This type allows you to manually bind to a wayland protocol extension
+/// not supported by this library, via the `FFI` and `Bind` traits.
 #[repr(C)]
 pub struct wl_interface {
     pub name: *const char,

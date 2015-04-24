@@ -1,8 +1,7 @@
-use super::{From, Registry, Surface, SubSurface, WSurface};
+use super::{From, Surface, SubSurface, WSurface};
 
 use ffi::interfaces::subcompositor::{wl_subcompositor, wl_subcompositor_destroy};
-use ffi::interfaces::registry::wl_registry_bind;
-use ffi::{FFI, abi};
+use ffi::{FFI, Bind, abi};
 
 /// A wayland subcompositor.
 ///
@@ -27,15 +26,12 @@ impl<'a> Drop for SubCompositor<'a> {
     }
 }
 
-impl<'a, 'b> From<(&'a Registry<'b>, u32, u32)> for SubCompositor<'a> {
-    fn from((registry, id, version): (&'a Registry, u32, u32)) -> SubCompositor<'a> {
-        let ptr = unsafe { wl_registry_bind(
-            registry.ptr_mut(),
-            id,
-            &abi::wl_subcompositor_interface,
-            version
-        ) as *mut wl_subcompositor };
+impl<'a, R> Bind<'a, R> for SubCompositor<'a> {
+    fn interface() -> &'static abi::wl_interface {
+        &abi::wl_subcompositor_interface
+    }
 
+    unsafe fn wrap(ptr: *mut wl_subcompositor, _parent: &'a R) -> SubCompositor<'a> {
         SubCompositor {
             _t: ::std::marker::PhantomData,
             ptr: ptr
@@ -43,7 +39,9 @@ impl<'a, 'b> From<(&'a Registry<'b>, u32, u32)> for SubCompositor<'a> {
     }
 }
 
-impl<'a> FFI<wl_subcompositor> for SubCompositor<'a> {
+impl<'a> FFI for SubCompositor<'a> {
+    type Ptr = wl_subcompositor;
+
     fn ptr(&self) -> *const wl_subcompositor {
         self.ptr as *const wl_subcompositor
     }

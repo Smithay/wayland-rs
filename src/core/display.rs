@@ -40,7 +40,9 @@ impl Drop for Display {
     }
 }
 
-impl FFI<wl_display> for Display {
+impl FFI for Display {
+    type Ptr = wl_display;
+
     fn ptr(&self) -> *const wl_display {
         self.ptr as *const wl_display
     }

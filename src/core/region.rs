@@ -48,7 +48,9 @@ impl<'a> Drop for Region<'a> {
     }
 }
 
-impl<'a> FFI<wl_region> for Region<'a> {
+impl<'a> FFI for Region<'a> {
+    type Ptr = wl_region;
+
     fn ptr(&self) -> *const wl_region {
         self.ptr as *const wl_region
     }

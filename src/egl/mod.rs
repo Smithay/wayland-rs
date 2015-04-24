@@ -94,7 +94,9 @@ impl<'a> Drop for EGLSurface<'a> {
     }
 }
 
-impl<'a> FFI<wl_egl_window> for EGLSurface<'a> {
+impl<'a> FFI for EGLSurface<'a> {
+    type Ptr = wl_egl_window;
+
     fn ptr(&self) -> *const wl_egl_window {
         self.ptr as *const wl_egl_window
     }

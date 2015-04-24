@@ -68,7 +68,9 @@ impl<'a, 'b, S: Surface<'b>> Drop for ShellSurface<'a, 'b, S> {
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> FFI<wl_shell_surface> for ShellSurface<'a, 'b, S> {
+impl<'a, 'b, S: Surface<'b>> FFI for ShellSurface<'a, 'b, S> {
+    type Ptr = wl_shell_surface;
+
     fn ptr(&self) -> *const wl_shell_surface {
         self.ptr as *const wl_shell_surface
     }
