@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
-use std::rc::Rc;
 
 use libc::{c_void, c_char, uint32_t};
 
@@ -61,18 +60,18 @@ impl RegistryData {
 }
 
 /// The data used by the listener callbacks.
-struct ListenerData {
+struct RegistryListener {
     /// Handler of the "new global object" event
     global_handler: Box<Fn(u32, &[u8], u32, &RegistryData)>,
     /// Handler of the "removed global handler" event
     global_remover: Box<Fn(u32, &RegistryData)>,
     /// access to the data
-    data: Rc<RegistryData>
+    data: RegistryData
 }
 
-impl ListenerData {
-    fn default_handlers(data: Rc<RegistryData>) -> ListenerData {
-        ListenerData {
+impl RegistryListener {
+    fn default_handlers(data: RegistryData) -> RegistryListener {
+        RegistryListener {
             global_handler: Box::new(move |id, interface, version, data| {
                 data.register_object(id, interface, version);
             }),
@@ -92,8 +91,7 @@ impl ListenerData {
 pub struct Registry<'a> {
     _m: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_registry,
-    listener_data: Box<ListenerData>,
-    registry_data: Rc<RegistryData>
+    listener: Box<RegistryListener>,
 }
 
 macro_rules! binder {
@@ -109,28 +107,43 @@ macro_rules! binder {
 
 impl<'a> Registry<'a>{
     /// Returns a `Vec` of all global objects and their interface.
+    ///
+    /// Each entry is a tuple `(id, interface, version)`.
     pub fn get_global_objects(&self) -> Vec<(u32, String, u32)> {
-        self.registry_data.global_objects.borrow().clone()
+        self.listener.data.global_objects.borrow().clone()
     }
 
-    /// Retrives a handle to the global compositor
+    /// Returns a `Vec` of all global objects implementing given interface.
+    ///
+    /// Each entry is a tuple `(id, version)`.
+    pub fn get_objects_with_interface(&self, interface: &str) -> Vec<(u32, u32)> {
+        self.listener.data.global_objects.borrow().iter().filter_map(|&(id, ref iface, v)| {
+            if iface == interface {
+                Some((id, v))
+            } else {
+                None
+            }
+        }).collect()
+    }
+
+    /// Retrieves a handle to the global compositor
     pub fn get_compositor<'b>(&'b self) -> Option<Compositor<'b>> {
-        binder!(self, self.registry_data.compositor)
+        binder!(self, self.listener.data.compositor)
     }
 
-    /// Retrives a handle to the global shell
+    /// Retrieves a handle to the global shell
     pub fn get_shell<'b>(&'b self) -> Option<Shell<'b>> {
-        binder!(self, self.registry_data.shell)
+        binder!(self, self.listener.data.shell)
     }
 
-    /// Retrives a handle to the global shm
+    /// Retrieves a handle to the global shm
     pub fn get_shm<'b>(&'b self) -> Option<Shm<'b>> {
-        binder!(self, self.registry_data.shm)
+        binder!(self, self.listener.data.shm)
     }
 
-    /// Retrives a handle to the global subcompositor
+    /// Retrieves a handle to the global subcompositor
     pub fn get_subcompositor<'b>(&'b self) -> Option<SubCompositor<'b>> {
-        binder!(self, self.registry_data.subcompositor)
+        binder!(self, self.listener.data.subcompositor)
     }
 
     pub unsafe fn bind<'b, T>(&'b self, id: u32, version: u32) -> T
@@ -149,19 +162,17 @@ impl<'a> Registry<'a>{
 impl<'a> From<&'a Display> for Registry<'a> {
     fn from(other: &'a Display) -> Registry<'a> {
         let ptr = unsafe { wl_display_get_registry(other.ptr_mut()) };
-        let registry_data = Rc::new(RegistryData::new());
-        let listener_data = ListenerData::default_handlers(registry_data.clone());
+        let listener = RegistryListener::default_handlers(RegistryData::new());
         let r = Registry {
             _m: ::std::marker::PhantomData,
             ptr: ptr,
-            listener_data: Box::new(listener_data),
-            registry_data: registry_data
+            listener: Box::new(listener),
         };
         unsafe {
             wl_registry_add_listener(
                 r.ptr,
                 &REGISTRY_LISTENER as *const _,
-                &*r.listener_data as *const _ as *mut _
+                &*r.listener as *const _ as *mut _
             )
         };
         r
@@ -195,7 +206,7 @@ extern "C" fn registry_global_handler(data: *mut c_void,
                                       interface: *const c_char,
                                       version: uint32_t
                                      ) {
-    let listener_data = unsafe { &*(data as *const ListenerData) };
+    let listener_data = unsafe { &*(data as *const RegistryListener) };
     let interface_str = unsafe { CStr::from_ptr(interface) };
     (listener_data.global_handler)(name, interface_str.to_bytes(), version, &listener_data.data);
 }
@@ -204,7 +215,7 @@ extern "C" fn registry_global_remover(data: *mut c_void,
                                       _registry: *mut wl_registry,
                                       name: uint32_t
                                      ) {
-    let listener_data = unsafe { &*(data as *const ListenerData) };
+    let listener_data = unsafe { &*(data as *const RegistryListener) };
     (listener_data.global_remover)(name, &listener_data.data);
 }
 
