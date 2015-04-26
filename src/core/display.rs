@@ -1,3 +1,4 @@
+use std::io::Error as IoError;
 use std::ptr;
 
 use ffi::interfaces::display::wl_display;
@@ -28,6 +29,36 @@ impl Display {
     pub fn sync_roundtrip(&self) {
         unsafe {
             abi::wl_display_roundtrip(self.ptr);
+        }
+    }
+
+    /// Dispatches all pending events to their appropriate callbacks.
+    ///
+    /// Does not block if no events are available.
+    pub fn dispatch_pending(&self) {
+        unsafe {
+            abi::wl_display_dispatch_pending(self.ptr);
+        }
+    }
+
+    /// Dispatches all pending events to their appropriate callbacks.
+    ///
+    /// If no events are available, blocks until one is received.
+    pub fn dispatch(&self) {
+        unsafe {
+            abi::wl_display_dispatch(self.ptr);
+        }
+    }
+
+    /// Send as much requests to the server as possible.
+    ///
+    /// Never blocks, but may not send everything. In which case returns
+    /// a `WouldBlock` error.
+    pub fn flush(&self) -> Result<(), IoError> {
+        if unsafe { abi::wl_display_flush(self.ptr) } < 0 {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(())
         }
     }
 }
