@@ -3,7 +3,7 @@ use std::ffi::CStr;
 
 use libc::{c_void, c_char, uint32_t};
 
-use super::{From, Compositor, Display, Shell, Shm, SubCompositor};
+use super::{From, Compositor, Display, Seat, Shell, Shm, SubCompositor};
 
 use ffi::interfaces::display::wl_display_get_registry;
 use ffi::interfaces::registry::{wl_registry, wl_registry_destroy,
@@ -129,6 +129,16 @@ impl<'a> Registry<'a>{
     /// Retrieves a handle to the global compositor
     pub fn get_compositor<'b>(&'b self) -> Option<Compositor<'b>> {
         binder!(self, self.listener.data.compositor)
+    }
+
+    /// Retrieve handles to all available seats
+    ///
+    /// A classic configuration is likely to have a single seat, but it is
+    /// not garanteed.
+    pub fn get_seats<'b>(&'b self) -> Vec<Seat<'b>> {
+        self.get_objects_with_interface("wl_seat").into_iter().map(|(id, v)| {
+            unsafe { self.bind(id, v) }
+        }).collect()
     }
 
     /// Retrieves a handle to the global shell

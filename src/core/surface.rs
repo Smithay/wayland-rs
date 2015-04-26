@@ -4,6 +4,7 @@ use ffi::interfaces::compositor::wl_compositor_create_surface;
 use ffi::interfaces::surface::{wl_surface, wl_surface_destroy, wl_surface_attach,
                                wl_surface_commit, wl_surface_damage,
                                wl_surface_set_opaque_region,
+                               wl_surface_set_input_region,
                                wl_surface_set_buffer_transform,
                                wl_surface_set_buffer_scale};
 use ffi::FFI;
@@ -15,6 +16,17 @@ use ffi::FFI;
 pub struct WSurface<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_surface
+}
+
+/// An opaque unique identifier to a surface, can be tested for equality.
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub struct SurfaceId {
+    p: usize
+}
+
+#[inline]
+pub fn wrap_surface_id(p: usize) -> SurfaceId {
+    SurfaceId { p: p }
 }
 
 impl<'a> WSurface<'a> {
@@ -56,6 +68,14 @@ impl<'a> WSurface<'a> {
         unsafe { wl_surface_damage(self.ptr, x, y, width, height) }
     }
 
+    /// Returns the unique `SurfaceId` associated to this surface.
+    ///
+    /// This struct can be tested for equality, and will be provided in event callbacks
+    /// as a mean to identify the surface associated with the events.
+    pub fn get_id(&self) -> SurfaceId {
+        wrap_surface_id(self.ptr as usize)
+    }
+
     /// Sets the opaque region of this surface.
     ///
     /// Marking part of a region as opaque allow the compositer to make optimisations
@@ -71,6 +91,16 @@ impl<'a> WSurface<'a> {
     /// be applied.
     pub fn set_opaque_region(&self, region: &Region) {
         unsafe { wl_surface_set_opaque_region(self.ptr, region.ptr_mut()) }
+    }
+
+    /// Sets the input region of this surface.
+    ///
+    /// By default the surface has no input region.
+    ///
+    /// This state is double-buffered, and require a call to `Surface::commit()` to
+    /// be applied.
+    pub fn set_input_region(&self, region: &Region) {
+        unsafe { wl_surface_set_input_region(self.ptr, region.ptr_mut()) }
     }
 
     /// Sets the transformation the server will apply to the buffer.

@@ -2,6 +2,8 @@ use libc::{c_int, c_void, uint32_t, int32_t};
 
 use ffi::abi::{self, wl_proxy, wl_fixed_t};
 
+use ffi::enums::{wl_pointer_button_state, wl_pointer_axis};
+
 use super::surface::wl_surface;
 
 #[repr(C)] pub struct wl_pointer;
@@ -31,12 +33,12 @@ pub struct wl_pointer_listener {
                           serial: uint32_t,
                           time: uint32_t,
                           button: uint32_t,
-                          state: uint32_t
+                          state: wl_pointer_button_state
                          ),
     pub axis: extern fn(data: *mut c_void,
                         pointer: *mut wl_pointer,
                         time: uint32_t,
-                        axis: uint32_t,
+                        axis: wl_pointer_axis,
                         value: abi::wl_fixed_t
                        )
 }

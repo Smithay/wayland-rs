@@ -1,10 +1,14 @@
 use std::ops::Deref;
 
+use libc::c_void;
+
 use super::{From, Shell, Surface};
 
 use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
-                                     wl_shell_surface_set_toplevel};
+                                     wl_shell_surface_set_toplevel,
+                                     wl_shell_surface_pong, wl_shell_surface_listener,
+                                     wl_shell_surface_add_listener};
 use ffi::FFI;
 
 /// A wayland `shell_surface`.
@@ -53,12 +57,16 @@ impl<'a, 'b, S: Surface<'b>> Deref for ShellSurface<'a, 'b, S> {
 impl<'a, 'b, 'c, S: Surface<'b>> From<(&'a Shell<'c>, S)> for ShellSurface<'a, 'b, S> {
     fn from((shell, surface): (&'a Shell<'c>, S)) -> ShellSurface<'a, 'b, S> {
         let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.get_wsurface().ptr_mut()) };
-        ShellSurface {
+        let s = ShellSurface {
             _t: ::std::marker::PhantomData,
             _s: ::std::marker::PhantomData,
             ptr: ptr,
             surface: surface
+        };
+        unsafe {
+            wl_shell_surface_add_listener(s.ptr, &SHELL_SURFACE_LISTENER, ::std::ptr::null_mut());
         }
+        s
     }
 }
 
@@ -79,3 +87,33 @@ impl<'a, 'b, S: Surface<'b>> FFI for ShellSurface<'a, 'b, S> {
         self.ptr
     }
 }
+
+
+//
+// C-wrappers for the callback closures, to send to wayland
+//
+extern "C" fn shell_surface_ping(_data: *mut c_void,
+                                 shell_surface: *mut wl_shell_surface,
+                                 serial: u32
+                                ) {
+    unsafe { wl_shell_surface_pong(shell_surface, serial) }
+}
+
+extern "C" fn shell_surface_configure(_data: *mut c_void,
+                                      _shell_surface: *mut wl_shell_surface,
+                                      _edges: u32,
+                                      _width: i32,
+                                      _height: i32
+                                     ) {
+}
+
+extern "C" fn shell_surface_popup_done(_data: *mut c_void,
+                                       _shell_surface: *mut wl_shell_surface,
+                                      ) {
+}
+
+static SHELL_SURFACE_LISTENER: wl_shell_surface_listener = wl_shell_surface_listener {
+    ping: shell_surface_ping,
+    configure: shell_surface_configure,
+    popup_done: shell_surface_popup_done
+};
