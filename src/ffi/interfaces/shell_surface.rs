@@ -1,6 +1,7 @@
 use libc::{c_int, c_void, c_char, uint32_t, int32_t};
 
-use ffi::abi::{self, wl_proxy};
+use ffi::abi::wl_proxy;
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::output::wl_output;
 use super::seat::wl_seat;
@@ -41,7 +42,7 @@ pub unsafe fn wl_shell_surface_add_listener(shell_surface: *mut wl_shell_surface
                                             listener: *const wl_shell_surface_listener,
                                             data: *mut c_void
                                            ) -> c_int {
-    abi::wl_proxy_add_listener(
+    (WCH.wl_proxy_add_listener)(
         shell_surface as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -52,22 +53,22 @@ pub unsafe fn wl_shell_surface_add_listener(shell_surface: *mut wl_shell_surface
 pub unsafe fn wl_shell_surface_set_user_data(shell_surface: *mut wl_shell_surface,
                                              data: *mut c_void
                                             ) {
-    abi::wl_proxy_set_user_data(shell_surface as *mut wl_proxy, data)
+    (WCH.wl_proxy_set_user_data)(shell_surface as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_get_user_data(shell_surface: *mut wl_shell_surface) -> *mut c_void {
-    abi::wl_proxy_get_user_data(shell_surface as *mut wl_proxy)
+    (WCH.wl_proxy_get_user_data)(shell_surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_destroy(shell_surface: *mut wl_shell_surface) {
-    abi::wl_proxy_destroy(shell_surface as *mut wl_proxy)
+    (WCH.wl_proxy_destroy)(shell_surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_pong(shell_surface: *mut wl_shell_surface, serial: uint32_t) {
-    abi::wl_proxy_marshal(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_PONG, serial)
+    (WCH.wl_proxy_marshal)(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_PONG, serial)
 }
 
 #[inline(always)]
@@ -75,7 +76,7 @@ pub unsafe fn wl_shell_surface_move(shell_surface: *mut wl_shell_surface,
                                     seat: *mut wl_seat,
                                     serial: uint32_t
                                    ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_MOVE,
         seat,
@@ -89,7 +90,7 @@ pub unsafe fn wl_shell_surface_resize(shell_surface: *mut wl_shell_surface,
                                       serial: uint32_t,
                                       edges: uint32_t
                                      ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_RESIZE,
         seat,
@@ -100,7 +101,7 @@ pub unsafe fn wl_shell_surface_resize(shell_surface: *mut wl_shell_surface,
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_set_toplevel(shell_surface: *mut wl_shell_surface) {
-    abi::wl_proxy_marshal(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_SET_TOPLEVEL)
+    (WCH.wl_proxy_marshal)(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_SET_TOPLEVEL)
 }
 
 #[inline(always)]
@@ -110,7 +111,7 @@ pub unsafe fn wl_shell_surface_set_transient(shell_surface: *mut wl_shell_surfac
                                              y: int32_t,
                                              flags: uint32_t
                                             ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_TRANSIENT,
         parent,
@@ -126,7 +127,7 @@ pub unsafe fn wl_shell_surface_set_fullscreen(shell_surface: *mut wl_shell_surfa
                                               framerate: uint32_t,
                                               output: *mut wl_output
                                              ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_FULLSCREEN,
         method,
@@ -144,7 +145,7 @@ pub unsafe fn wl_shell_surface_set_popup(shell_surface: *mut wl_shell_surface,
                                          y: int32_t,
                                          flags: uint32_t
                                         ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_POPUP,
         seat,
@@ -160,7 +161,7 @@ pub unsafe fn wl_shell_surface_set_popup(shell_surface: *mut wl_shell_surface,
 pub unsafe fn wl_shell_surface_set_maximized(shell_surface: *mut wl_shell_surface,
                                              output: *mut wl_output
                                             ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_MAXIMIZED,
         output
@@ -171,7 +172,7 @@ pub unsafe fn wl_shell_surface_set_maximized(shell_surface: *mut wl_shell_surfac
 pub unsafe fn wl_shell_surface_set_title(shell_surface: *mut wl_shell_surface,
                                          title: *const c_char
                                         ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_TITLE,
         title
@@ -182,7 +183,7 @@ pub unsafe fn wl_shell_surface_set_title(shell_surface: *mut wl_shell_surface,
 pub unsafe fn wl_shell_surface_set_class(shell_surface: *mut wl_shell_surface,
                                          class_: *const c_char
                                         ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_CLASS,
         class_

@@ -1,6 +1,7 @@
 use libc::{c_int, c_void, uint32_t, int32_t};
 
-use ffi::abi::{self, wl_proxy, wl_array};
+use ffi::abi::{wl_proxy, wl_array};
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::surface::wl_surface;
 
@@ -54,7 +55,7 @@ pub unsafe fn wl_keyboard_add_listener(keyboard: *mut wl_keyboard,
                                        listener: *const wl_keyboard_listener,
                                        data: *mut c_void
                                       ) -> c_int {
-    abi::wl_proxy_add_listener(
+    (WCH.wl_proxy_add_listener)(
         keyboard as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -63,21 +64,21 @@ pub unsafe fn wl_keyboard_add_listener(keyboard: *mut wl_keyboard,
 
 #[inline(always)]
 pub unsafe fn wl_keyboard_set_user_data(keyboard: *mut wl_keyboard, data: *mut c_void) {
-    abi::wl_proxy_set_user_data(keyboard as *mut wl_proxy, data)
+    (WCH.wl_proxy_set_user_data)(keyboard as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_keyboard_get_user_data(keyboard: *mut wl_keyboard) -> *mut c_void {
-    abi::wl_proxy_get_user_data(keyboard as *mut wl_proxy)
+    (WCH.wl_proxy_get_user_data)(keyboard as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_keyboard_destroy(keyboard: *mut wl_keyboard) {
-    abi::wl_proxy_destroy(keyboard as *mut wl_proxy)
+    (WCH.wl_proxy_destroy)(keyboard as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_keyboard_release(keyboard: *mut wl_keyboard) {
-    abi::wl_proxy_marshal(keyboard as *mut wl_proxy, WL_KEYBOARD_RELEASE);
-    abi::wl_proxy_destroy(keyboard as *mut wl_proxy)
+    (WCH.wl_proxy_marshal)(keyboard as *mut wl_proxy, WL_KEYBOARD_RELEASE);
+    (WCH.wl_proxy_destroy)(keyboard as *mut wl_proxy)
 }

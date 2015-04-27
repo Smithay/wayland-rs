@@ -25,7 +25,7 @@ impl<'a> Compositor<'a> {
 
 impl<'a, R> Bind<'a, R> for Compositor<'a> {
     fn interface() -> &'static abi::wl_interface {
-        &abi::wl_compositor_interface
+        abi::WAYLAND_CLIENT_HANDLE.wl_compositor_interface
     }
 
     unsafe fn wrap(ptr: *mut wl_compositor, _parent: &'a R) -> Compositor<'a> {

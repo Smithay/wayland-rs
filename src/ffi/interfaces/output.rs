@@ -1,6 +1,7 @@
 use libc::{c_int, c_void, c_char, uint32_t, int32_t};
 
-use ffi::abi::{self, wl_proxy};
+use ffi::abi::wl_proxy;
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 #[repr(C)] pub struct wl_output;
 
@@ -36,7 +37,7 @@ pub unsafe fn wl_output_add_listener(output: *mut wl_output,
                                      listener: *const wl_output_listener,
                                      data: *mut c_void
                                     ) -> c_int {
-    abi::wl_proxy_add_listener(
+    (WCH.wl_proxy_add_listener)(
         output as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -45,15 +46,15 @@ pub unsafe fn wl_output_add_listener(output: *mut wl_output,
 
 #[inline(always)]
 pub unsafe fn wl_output_set_user_data(output: *mut wl_output, data: *mut c_void) {
-    abi::wl_proxy_set_user_data(output as *mut wl_proxy, data)
+    (WCH.wl_proxy_set_user_data)(output as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_output_get_user_data(output: *mut wl_output) -> *mut c_void {
-    abi::wl_proxy_get_user_data(output as *mut wl_proxy)
+    (WCH.wl_proxy_get_user_data)(output as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_output_destroy(output: *mut wl_output) {
-    abi::wl_proxy_destroy(output as *mut wl_proxy)
+    (WCH.wl_proxy_destroy)(output as *mut wl_proxy)
 }

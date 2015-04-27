@@ -80,7 +80,7 @@ impl<'a> Seat<'a> {
 
 impl<'a, R> Bind<'a, R> for Seat<'a> {
     fn interface() -> &'static abi::wl_interface {
-        &abi::wl_seat_interface
+        abi::WAYLAND_CLIENT_HANDLE.wl_seat_interface
     }
 
     unsafe fn wrap(ptr: *mut wl_seat, _parent: &'a R) -> Seat<'a> {

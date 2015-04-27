@@ -27,7 +27,7 @@ impl<'a> Shell<'a> {
 
 impl<'a, R> Bind<'a, R> for Shell<'a> {
     fn interface() -> &'static abi::wl_interface {
-        &abi::wl_shell_interface
+        abi::WAYLAND_CLIENT_HANDLE.wl_shell_interface
     }
 
     unsafe fn wrap(ptr: *mut wl_shell, _parent: &'a R) -> Shell<'a> {

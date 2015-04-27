@@ -12,21 +12,33 @@ use ffi::FFI;
 /// Its sole purpose is to provide a pointer to feed to EGL.
 #[repr(C)] pub struct wl_egl_window;
 
-#[link(name = "wayland-egl")]
-extern {
-    fn wl_egl_window_create(surface: *mut wl_surface,
-                            width: i32,
-                            height: i32
-                           ) -> *mut wl_egl_window;
-    fn wl_egl_window_destroy(window: *mut wl_egl_window);
-    fn wl_egl_window_resize(window: *mut wl_egl_window,
-                            width: i32,
-                            height: i32,
-                            dx: i32,
-                            dy: i32);
-    fn wl_egl_window_get_attached_size(window: *mut wl_egl_window,
-                                       width: *mut i32,
-                                       height: *mut i32);
+external_library!(WaylandEGL,
+    wl_egl_window_create: unsafe extern fn(surface: *mut wl_surface,
+                                           width: i32,
+                                           height: i32
+                                          ) -> *mut wl_egl_window,
+    wl_egl_window_destroy: unsafe extern fn(window: *mut wl_egl_window),
+    wl_egl_window_resize: unsafe extern fn(window: *mut wl_egl_window,
+                                           width: i32,
+                                           height: i32,
+                                           dx: i32,
+                                           dy: i32),
+    wl_egl_window_get_attached_size: unsafe extern fn(window: *mut wl_egl_window,
+                                                      width: *mut i32,
+                                                      height: *mut i32)
+);
+
+lazy_static!(
+    pub static ref WAYLAND_EGL_OPTION: Option<WaylandEGL> = { 
+        WaylandEGL::open("libwayland-egl.so")
+    };
+    pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEGL = {
+        WAYLAND_EGL_OPTION.as_ref().unwrap()
+    };
+);
+
+pub fn is_egl_available() -> bool {
+    WAYLAND_EGL_OPTION.is_some()
 }
 
 pub struct EGLSurface<'a> {
@@ -37,7 +49,7 @@ pub struct EGLSurface<'a> {
 impl<'a> EGLSurface<'a> {
     /// Creates a new EGL surface on a wayland surface.
     pub fn new(surface: WSurface<'a>, width: i32, height: i32) -> EGLSurface<'a> {
-        let ptr = unsafe { wl_egl_window_create(surface.ptr_mut(), width, height) };
+        let ptr = unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_create)(surface.ptr_mut(), width, height) };
         EGLSurface {
             ptr: ptr,
             surface: surface
@@ -49,7 +61,7 @@ impl<'a> EGLSurface<'a> {
         use std::mem::{forget, replace, uninitialized};
         unsafe {
             let surface = replace(&mut self.surface, uninitialized());
-            wl_egl_window_destroy(self.ptr);
+            (WAYLAND_EGL_HANDLE.wl_egl_window_destroy)(self.ptr);
             forget(self);
             surface
         }
@@ -64,14 +76,14 @@ impl<'a> EGLSurface<'a> {
     }
 
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
-        unsafe { wl_egl_window_resize(self.ptr, width, height, dx, dy) }
+        unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_resize)(self.ptr, width, height, dx, dy) }
     }
 
     pub fn get_attached_size(&self) -> (i32, i32) {
         let mut width = 0;
         let mut height = 0;
         unsafe {
-            wl_egl_window_get_attached_size(
+            (WAYLAND_EGL_HANDLE.wl_egl_window_get_attached_size)(
                 self.ptr,
                 &mut width as &mut i32,
                 &mut height as &mut i32
@@ -90,7 +102,7 @@ impl<'a> Surface<'a> for EGLSurface<'a> {
 
 impl<'a> Drop for EGLSurface<'a> {
     fn drop(&mut self) {
-        unsafe { wl_egl_window_destroy(self.ptr) }
+        unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_destroy)(self.ptr) }
     }
 }
 

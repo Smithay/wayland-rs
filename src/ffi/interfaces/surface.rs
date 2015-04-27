@@ -2,7 +2,8 @@ use std::ptr;
 
 use libc::{c_int, c_void, int32_t, uint32_t};
 
-use ffi::abi::{self, wl_proxy};
+use ffi::abi::wl_proxy;
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::buffer::wl_buffer;
 use super::callback::wl_callback;
@@ -38,7 +39,7 @@ pub unsafe fn wl_surface_add_listener(surface: *mut wl_surface,
                                       listener: *const wl_surface_listener,
                                       data: *mut c_void
                                      ) -> c_int {
-    abi::wl_proxy_add_listener(
+    (WCH.wl_proxy_add_listener)(
         surface as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -47,18 +48,18 @@ pub unsafe fn wl_surface_add_listener(surface: *mut wl_surface,
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_user_data(surface: *mut wl_surface, data: *mut c_void) {
-    abi::wl_proxy_set_user_data(surface as *mut wl_proxy, data)
+    (WCH.wl_proxy_set_user_data)(surface as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_get_user_data(surface: *mut wl_surface) -> *mut c_void {
-    abi::wl_proxy_get_user_data(surface as *mut wl_proxy)
+    (WCH.wl_proxy_get_user_data)(surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_destroy(surface: *mut wl_surface) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_DESTROY);
-    abi::wl_proxy_destroy(surface as *mut wl_proxy)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_DESTROY);
+    (WCH.wl_proxy_destroy)(surface as *mut wl_proxy)
 }
 
 #[inline(always)]
@@ -67,7 +68,7 @@ pub unsafe fn wl_surface_attach(surface: *mut wl_surface,
                                 x: int32_t,
                                 y: int32_t
                                ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         surface as *mut wl_proxy,
         WL_SURFACE_ATTACH,
         buffer,
@@ -83,7 +84,7 @@ pub unsafe fn wl_surface_damage(surface: *mut wl_surface,
                                 width: int32_t,
                                 height: int32_t
                                ) {
-    abi::wl_proxy_marshal(
+    (WCH.wl_proxy_marshal)(
         surface as *mut wl_proxy,
         WL_SURFACE_DAMAGE,
         x,
@@ -95,35 +96,35 @@ pub unsafe fn wl_surface_damage(surface: *mut wl_surface,
 
 #[inline(always)]
 pub unsafe fn wl_surface_frame(surface: *mut wl_surface) -> *mut wl_callback {
-    abi::wl_proxy_marshal_constructor(
+    (WCH.wl_proxy_marshal_constructor)(
         surface as *mut wl_proxy,
         WL_SURFACE_FRAME,
-        &abi::wl_callback_interface,
+        WCH.wl_callback_interface,
         ptr::null_mut::<c_void>()
     ) as *mut wl_callback
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_opaque_region(surface: *mut wl_surface, region: *mut wl_region) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_SET_OPAQUE_REGION, region)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_OPAQUE_REGION, region)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_input_region(surface: *mut wl_surface, region: *mut wl_region) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_SET_INPUT_REGION, region)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_INPUT_REGION, region)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_commit(surface: *mut wl_surface) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_COMMIT)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_COMMIT)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_buffer_transform(surface: *mut wl_surface, transform: int32_t) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_TRANSFORM, transform)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_TRANSFORM, transform)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_buffer_scale(surface: *mut wl_surface, scale: int32_t) {
-    abi::wl_proxy_marshal(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_SCALE, scale)
+    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_SCALE, scale)
 }

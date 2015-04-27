@@ -13,9 +13,13 @@
 //! The special feature `all` can also be used to activate all
 
 extern crate libc;
+#[macro_use] extern crate lazy_static;
 
-mod ffi;
+#[macro_use] mod ffi;
 
 pub mod core;
-#[cfg(feature = "wl_egl")]
 pub mod egl;
+
+pub fn is_wayland_lib_available() -> bool {
+    ffi::abi::WAYLAND_CLIENT_OPTION.is_some()
+}

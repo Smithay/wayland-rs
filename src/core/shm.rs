@@ -28,7 +28,7 @@ impl<'a> Shm<'a> {
 
 impl<'a, R> Bind<'a, R> for Shm<'a> {
     fn interface() -> &'static abi::wl_interface {
-        &abi::wl_shm_interface
+        abi::WAYLAND_CLIENT_HANDLE.wl_shm_interface
     }
 
     unsafe fn wrap(ptr: *mut wl_shm, _parent: &'a R) -> Shm<'a> {

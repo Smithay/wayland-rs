@@ -5,11 +5,8 @@ authors = ["Victor Berger <victor.berger@m4x.org>"]
 
 [dependencies]
 libc = "0.1"
+lazy_static = "0.1"
 
 [dev-dependencies]
 byteorder = "0.3"
 tempfile = "*"
-
-[features]
-all = ["wl_egl"]
-wl_egl = []

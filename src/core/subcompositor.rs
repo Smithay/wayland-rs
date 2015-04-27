@@ -28,7 +28,7 @@ impl<'a> Drop for SubCompositor<'a> {
 
 impl<'a, R> Bind<'a, R> for SubCompositor<'a> {
     fn interface() -> &'static abi::wl_interface {
-        &abi::wl_subcompositor_interface
+        abi::WAYLAND_CLIENT_HANDLE.wl_subcompositor_interface
     }
 
     unsafe fn wrap(ptr: *mut wl_subcompositor, _parent: &'a R) -> SubCompositor<'a> {

@@ -3,6 +3,7 @@ use std::ptr;
 
 use ffi::interfaces::display::wl_display;
 use ffi::abi;
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use ffi::FFI;
 
@@ -28,7 +29,7 @@ impl Display {
     /// the queries from this Display instance.
     pub fn sync_roundtrip(&self) {
         unsafe {
-            abi::wl_display_roundtrip(self.ptr);
+            (WCH.wl_display_roundtrip)(self.ptr);
         }
     }
 
@@ -37,7 +38,7 @@ impl Display {
     /// Does not block if no events are available.
     pub fn dispatch_pending(&self) {
         unsafe {
-            abi::wl_display_dispatch_pending(self.ptr);
+            (WCH.wl_display_dispatch_pending)(self.ptr);
         }
     }
 
@@ -46,7 +47,7 @@ impl Display {
     /// If no events are available, blocks until one is received.
     pub fn dispatch(&self) {
         unsafe {
-            abi::wl_display_dispatch(self.ptr);
+            (WCH.wl_display_dispatch)(self.ptr);
         }
     }
 
@@ -55,7 +56,7 @@ impl Display {
     /// Never blocks, but may not send everything. In which case returns
     /// a `WouldBlock` error.
     pub fn flush(&self) -> Result<(), IoError> {
-        if unsafe { abi::wl_display_flush(self.ptr) } < 0 {
+        if unsafe { (WCH.wl_display_flush)(self.ptr) } < 0 {
             Err(IoError::last_os_error())
         } else {
             Ok(())
@@ -66,7 +67,7 @@ impl Display {
 impl Drop for Display {
     fn drop(&mut self) {
         unsafe {
-            abi::wl_display_disconnect(self.ptr);
+            (WCH.wl_display_disconnect)(self.ptr);
         }
     }
 }
@@ -89,7 +90,11 @@ impl FFI for Display {
 /// be used. Otherwise it defaults to `"wayland-0"`.
 pub fn default_display() -> Option<Display> {
     unsafe {
-        let ptr = abi::wl_display_connect(ptr::null_mut());
+        let handle = match abi::WAYLAND_CLIENT_OPTION.as_ref() {
+            Some(h) => h,
+            None => return None
+        };
+        let ptr = (handle.wl_display_connect)(ptr::null_mut());
         if ptr.is_null() {
             None
         } else {

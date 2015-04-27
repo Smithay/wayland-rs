@@ -1,6 +1,7 @@
 use libc::{c_int, c_void, uint32_t, int32_t};
 
-use ffi::abi::{self, wl_proxy, wl_fixed_t};
+use ffi::abi::{wl_proxy, wl_fixed_t};
+use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::surface::wl_surface;
 
@@ -41,7 +42,7 @@ pub unsafe fn wl_touch_add_listener(touch: *mut wl_touch,
                                     listener: *const wl_touch_listener,
                                     data: *mut c_void
                                    ) -> c_int {
-    abi::wl_proxy_add_listener(
+    (WCH.wl_proxy_add_listener)(
         touch as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -50,21 +51,21 @@ pub unsafe fn wl_touch_add_listener(touch: *mut wl_touch,
 
 #[inline(always)]
 pub unsafe fn wl_touch_set_user_data(touch: *mut wl_touch, data: *mut c_void) {
-    abi::wl_proxy_set_user_data(touch as *mut wl_proxy, data)
+    (WCH.wl_proxy_set_user_data)(touch as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_touch_get_user_data(touch: *mut wl_touch) -> *mut c_void {
-    abi::wl_proxy_get_user_data(touch as *mut wl_proxy)
+    (WCH.wl_proxy_get_user_data)(touch as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_touch_destroy(touch: *mut wl_touch) {
-    abi::wl_proxy_destroy(touch as *mut wl_proxy)
+    (WCH.wl_proxy_destroy)(touch as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_touch_release(touch: *mut wl_touch) {
-    abi::wl_proxy_marshal(touch as *mut wl_proxy, WL_TOUCH_RELEASE);
-    abi::wl_proxy_destroy(touch as *mut wl_proxy)
+    (WCH.wl_proxy_marshal)(touch as *mut wl_proxy, WL_TOUCH_RELEASE);
+    (WCH.wl_proxy_destroy)(touch as *mut wl_proxy)
 }
