@@ -24,6 +24,12 @@ extern crate libc;
 pub mod core;
 pub mod egl;
 
+pub mod internals {
+    //! Internal types and traits provided for special cases like custom protocol extensions.
+    pub use ffi::abi::{wl_interface, wl_message};
+    pub use ffi::{FFI, Bind};
+}
+
 /// Returns whether the library `libwayland-client.so` has been found and could be loaded.
 pub fn is_wayland_lib_available() -> bool {
     ffi::abi::WAYLAND_CLIENT_OPTION.is_some()

@@ -15,7 +15,7 @@ pub struct wl_array {
 /// Type representing an interface in the `libwayland-client.so` ABI.
 ///
 /// This type allows you to manually bind to a wayland protocol extension
-/// not supported by this library, via the `FFI` and `Bind` traits.
+/// not (yet?) supported by this library, via the `FFI` and `Bind` traits.
 #[repr(C)]
 pub struct wl_interface {
     pub name: *const char,
@@ -32,6 +32,7 @@ pub struct wl_list {
     pub next: *mut wl_list,
 }
 
+/// Type representing a message in the `libwayland-client.so` ABI.
 #[repr(C)]
 pub struct wl_message {
     pub name: *const c_char,
