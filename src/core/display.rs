@@ -88,6 +88,11 @@ impl FFI for Display {
 ///
 /// If the `WAYLAND_DISPLAY` environment variable is set, it will
 /// be used. Otherwise it defaults to `"wayland-0"`.
+///
+/// Will return `None` if either:
+///
+/// - the library `libwayland-client.so` is not available
+/// - the connexion to the wayland server could not be done.
 pub fn default_display() -> Option<Display> {
     unsafe {
         let handle = match abi::WAYLAND_CLIENT_OPTION.as_ref() {

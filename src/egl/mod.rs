@@ -1,42 +1,24 @@
 //! The EGL wayland protocol.
 //!
 //! This modules handles the creation of EGL surfaces in wayland.
+//!
+//! This module depends on he presence of `libwayland-egl.so` in the system,
+//! which should be provided by the graphics driver. If the library is not
+//! present, all methods of `EGLSurface` will panic.
+//!
+//! If the EGL support is not mandatory for your use, you can test the presence
+//! of the library with the function `is_egl_available()` before calling the
+//! other methods.
 
 use core::{WSurface, Surface};
 
-use ffi::interfaces::surface::wl_surface;
 use ffi::FFI;
 
-/// An opaque struct representing a native window for EGL.
-///
-/// Its sole purpose is to provide a pointer to feed to EGL.
-#[repr(C)] pub struct wl_egl_window;
+use self::eglffi::{WAYLAND_EGL_OPTION, WAYLAND_EGL_HANDLE};
+pub use self::eglffi::wl_egl_window;
 
-external_library!(WaylandEGL,
-    wl_egl_window_create: unsafe extern fn(surface: *mut wl_surface,
-                                           width: i32,
-                                           height: i32
-                                          ) -> *mut wl_egl_window,
-    wl_egl_window_destroy: unsafe extern fn(window: *mut wl_egl_window),
-    wl_egl_window_resize: unsafe extern fn(window: *mut wl_egl_window,
-                                           width: i32,
-                                           height: i32,
-                                           dx: i32,
-                                           dy: i32),
-    wl_egl_window_get_attached_size: unsafe extern fn(window: *mut wl_egl_window,
-                                                      width: *mut i32,
-                                                      height: *mut i32)
-);
 
-lazy_static!(
-    pub static ref WAYLAND_EGL_OPTION: Option<WaylandEGL> = { 
-        WaylandEGL::open("libwayland-egl.so")
-    };
-    pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEGL = {
-        WAYLAND_EGL_OPTION.as_ref().unwrap()
-    };
-);
-
+/// Returns whether the library `libwayland-egl.so` has been found and could be loaded.
 pub fn is_egl_available() -> bool {
     WAYLAND_EGL_OPTION.is_some()
 }
@@ -116,4 +98,38 @@ impl<'a> FFI for EGLSurface<'a> {
     unsafe fn ptr_mut(&self) -> *mut wl_egl_window {
         self.ptr
     }
+}
+
+mod eglffi {
+    use ffi::interfaces::surface::wl_surface;
+
+    /// An opaque struct representing a native window for EGL.
+    ///
+    /// Its sole purpose is to provide a pointer to feed to EGL.
+    #[repr(C)] pub struct wl_egl_window;
+
+    external_library!(WaylandEGL,
+        wl_egl_window_create: unsafe extern fn(surface: *mut wl_surface,
+                                               width: i32,
+                                               height: i32
+                                              ) -> *mut wl_egl_window,
+        wl_egl_window_destroy: unsafe extern fn(window: *mut wl_egl_window),
+        wl_egl_window_resize: unsafe extern fn(window: *mut wl_egl_window,
+                                               width: i32,
+                                               height: i32,
+                                               dx: i32,
+                                               dy: i32),
+        wl_egl_window_get_attached_size: unsafe extern fn(window: *mut wl_egl_window,
+                                                          width: *mut i32,
+                                                          height: *mut i32)
+    );
+
+    lazy_static!(
+        pub static ref WAYLAND_EGL_OPTION: Option<WaylandEGL> = { 
+            WaylandEGL::open("libwayland-egl.so")
+        };
+        pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEGL = {
+            WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
+        };
+    );
 }

@@ -180,6 +180,6 @@ lazy_static!(
         WaylandClient::open("libwayland-client.so")
     };
     pub static ref WAYLAND_CLIENT_HANDLE: &'static WaylandClient = {
-        WAYLAND_CLIENT_OPTION.as_ref().unwrap()
+        WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-client.so could not be loaded.")
     };
 );
