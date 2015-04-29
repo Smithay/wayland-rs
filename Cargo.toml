@@ -1,7 +1,11 @@
 [package]
 name = "wayland-client"
-version = "0.0.1"
+version = "0.1.0"
+documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
+repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
+license = "MIT"
+description = "Bindings to the standard C implementation of the wayland protocol."
 
 [dependencies]
 libc = "0.1"
@@ -9,4 +13,4 @@ lazy_static = "0.1"
 
 [dev-dependencies]
 byteorder = "0.3"
-tempfile = "*"
+tempfile = "0.1.0"
