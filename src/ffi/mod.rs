@@ -10,7 +10,7 @@ pub mod interfaces;
 
 /// A trait for structures wrapping a FFI pointer, to access the pointer.
 ///
-/// Normal is of the library does not require using this trait, it is only
+/// Normal use of the library does not require using this trait, it is only
 /// provided for special situations like EGL requiring the pointer to the
 /// `wl_display`, or implementing custom protocol extentions.
 pub trait FFI {

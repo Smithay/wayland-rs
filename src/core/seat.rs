@@ -61,6 +61,10 @@ impl SeatListener {
     }
 }
 
+/// A global wayland Seat.
+///
+/// This structure is a handle to a wayland seat, which can up to a pointer, a keyboard
+/// and a touch device.
 pub struct Seat<'a> {
     _t: ::std::marker::PhantomData<&'a ()>,
     ptr: *mut wl_seat,
