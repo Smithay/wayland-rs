@@ -54,6 +54,9 @@ fn main() {
     pointer.set_motion_action(move |_, _, x, y| {
         println!("Pointer moved to ({}, {}).", x, y);
     });
+    pointer.set_button_action(move |_, _, b, s| {
+        println!("Button {} is now in state {}.", b as u32, s as u32);
+    });
 
     loop {
         let _ = display.flush();

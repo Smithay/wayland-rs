@@ -52,6 +52,14 @@ pub struct wl_message {
 
 #[repr(C)] pub type wl_fixed_t = int32_t;
 
+pub fn wl_fixed_to_double(f: wl_fixed_t) -> f64 {
+    f as f64 / 256.
+}
+
+pub fn wl_fixed_from_double(d: f64) -> wl_fixed_t {
+    (d * 256.) as i32
+}
+
 external_library!(WaylandClient,
     // interfaces
     wl_buffer_interface: &'static wl_interface,

@@ -8,6 +8,7 @@ use ffi::interfaces::pointer::{wl_pointer, wl_pointer_destroy, wl_pointer_set_cu
                                wl_pointer_add_listener};
 use ffi::interfaces::seat::wl_seat_get_pointer;
 use ffi::interfaces::surface::wl_surface;
+use ffi::abi::wl_fixed_to_double;
 
 pub use ffi::enums::wl_pointer_button_state as ButtonState;
 pub use ffi::enums::wl_pointer_axis as ScrollAxis;
@@ -69,11 +70,11 @@ impl<S: Surface> CursorAdvertising for PointerData<S> {
 
 struct PointerListener {
     data: &'static CursorAdvertising,
-    enter_handler: Box<Fn(PointerId, SurfaceId, i32, i32) + 'static>,
+    enter_handler: Box<Fn(PointerId, SurfaceId, f64, f64) + 'static>,
     leave_handler: Box<Fn(PointerId, SurfaceId) + 'static>,
-    motion_handler: Box<Fn(PointerId, u32, i32, i32) + 'static>,
+    motion_handler: Box<Fn(PointerId, u32, f64, f64) + 'static>,
     button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'static>,
-    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, i32) + 'static>
+    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, f64) + 'static>
 }
 
 impl PointerListener {
@@ -150,8 +151,8 @@ impl<S: Surface> Pointer<S> {
     /// If surface is `None`, the cursor display won't be changed when it enters a
     /// surface of this application.
     pub fn set_cursor<NS: Surface>(mut self,
-                                           surface: Option<NS>, 
-                                           hotspot: (i32, i32))
+                                   surface: Option<NS>,
+                                   hotspot: (i32, i32))
         -> (Pointer<NS>, Option<S>)
     {
         unsafe {
@@ -198,7 +199,7 @@ impl<S: Surface> Pointer<S> {
     /// - Id of the surface
     /// - x and y, coordinates of the surface where the cursor entered
     pub fn set_enter_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId, i32, i32) + 'static
+        where F: Fn(PointerId, SurfaceId, f64, f64) + 'static
     {
         self.listener.enter_handler = Box::new(f)
     }
@@ -226,7 +227,7 @@ impl<S: Surface> Pointer<S> {
     /// - time of the event
     /// - x and y, new coordinates of the cursor relative to the current surface
     pub fn set_motion_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, i32, i32) + 'static
+        where F: Fn(PointerId, u32, f64, f64) + 'static
     {
         self.listener.motion_handler = Box::new(f)
     }
@@ -254,7 +255,7 @@ impl<S: Surface> Pointer<S> {
     /// - the axis that is scrolled
     /// - the amplitude of the scrolling
     pub fn set_axis_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, ScrollAxis, i32) + 'static
+        where F: Fn(PointerId, u32, ScrollAxis, f64) + 'static
     {
         self.listener.axis_handler = Box::new(f)
     }
@@ -292,8 +293,8 @@ extern "C" fn pointer_enter_handler(data: *mut c_void,
     (*listener.enter_handler)(
         wrap_pointer_id(pointer as usize),
         wrap_surface_id(surface as usize),
-        surface_x,
-        surface_y
+        wl_fixed_to_double(surface_x),
+        wl_fixed_to_double(surface_y)
     );
     unsafe { listener.data.advertise_cursor(serial, pointer) }
 }
@@ -320,8 +321,8 @@ extern "C" fn pointer_motion_handler(data: *mut c_void,
     (*listener.motion_handler)(
         wrap_pointer_id(pointer as usize),
         time,
-        surface_x,
-        surface_y
+        wl_fixed_to_double(surface_x),
+        wl_fixed_to_double(surface_y)
     );
 }
 
@@ -352,7 +353,7 @@ extern "C" fn pointer_axis_handler(data: *mut c_void,
         wrap_pointer_id(pointer as usize),
         time,
         axis,
-        value
+        wl_fixed_to_double(value)
     );
 }
 

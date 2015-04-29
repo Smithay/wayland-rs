@@ -1,6 +1,6 @@
 use libc::{c_int, c_void, uint32_t, int32_t};
 
-use ffi::abi::{self, wl_proxy, wl_fixed_t};
+use ffi::abi::{wl_proxy, wl_fixed_t};
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::{wl_pointer_button_state, wl_pointer_axis};
 
@@ -39,7 +39,7 @@ pub struct wl_pointer_listener {
                         pointer: *mut wl_pointer,
                         time: uint32_t,
                         axis: wl_pointer_axis,
-                        value: abi::wl_fixed_t
+                        value: wl_fixed_t
                        )
 }
 
