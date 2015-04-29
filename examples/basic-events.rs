@@ -41,17 +41,17 @@ fn main() {
     // now, lets handle the pointer
     let mut pointer = seat.get_pointer().expect("Unable to get the pointer.");
     let my_surface_id = shell_surface.get_id();
-    pointer.set_enter_action(move |id, x, y| {
+    pointer.set_enter_action(move |_, id, x, y| {
         if my_surface_id == id {
             println!("Pointer entered surface at ({},{}).", x, y);
         }
     });
-    pointer.set_leave_action(move |id| {
+    pointer.set_leave_action(move |_, id| {
         if my_surface_id == id {
             println!("Pointer left surface.");
         }
     });
-    pointer.set_motion_action(move |_, x, y| {
+    pointer.set_motion_action(move |_, _, x, y| {
         println!("Pointer moved to ({}, {}).", x, y);
     });
 
