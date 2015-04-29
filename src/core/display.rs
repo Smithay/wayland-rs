@@ -1,5 +1,6 @@
 use std::io::Error as IoError;
 use std::ptr;
+use std::rc::Rc;
 
 use ffi::interfaces::display::wl_display;
 use ffi::abi;
@@ -9,18 +10,26 @@ use ffi::FFI;
 
 use super::{From, Registry};
 
+struct InternalDisplay {
+    ptr: *mut wl_display
+}
+
 /// A wayland Display.
 ///
-/// This is the connexion to the wayland server, once it
-/// goes out of scope the connexion will be closed.
+/// This is the connexion to the wayland server, it can be cloned, and the
+/// connexion is closed once all clones are destroyed.
+#[derive(Clone)]
 pub struct Display {
-    ptr: *mut wl_display
+    internal: Rc<InternalDisplay>
 }
 
 impl Display {
     /// Creates a Registry associated to this Display and returns it.
-    pub fn get_registry<'a>(&'a self) -> Registry<'a> {
-        From::from(self)
+    ///
+    /// The registry holds a clone of the Display, and thus will maintain the
+    /// connexion alive.
+    pub fn get_registry(&self) -> Registry {
+        From::from(self.clone())
     }
 
     /// Performs a blocking synchronisation of the events of the server.
@@ -29,7 +38,7 @@ impl Display {
     /// the queries from this Display instance.
     pub fn sync_roundtrip(&self) {
         unsafe {
-            (WCH.wl_display_roundtrip)(self.ptr);
+            (WCH.wl_display_roundtrip)(self.internal.ptr);
         }
     }
 
@@ -38,7 +47,7 @@ impl Display {
     /// Does not block if no events are available.
     pub fn dispatch_pending(&self) {
         unsafe {
-            (WCH.wl_display_dispatch_pending)(self.ptr);
+            (WCH.wl_display_dispatch_pending)(self.internal.ptr);
         }
     }
 
@@ -47,7 +56,7 @@ impl Display {
     /// If no events are available, blocks until one is received.
     pub fn dispatch(&self) {
         unsafe {
-            (WCH.wl_display_dispatch)(self.ptr);
+            (WCH.wl_display_dispatch)(self.internal.ptr);
         }
     }
 
@@ -56,7 +65,7 @@ impl Display {
     /// Never blocks, but may not send everything. In which case returns
     /// a `WouldBlock` error.
     pub fn flush(&self) -> Result<(), IoError> {
-        if unsafe { (WCH.wl_display_flush)(self.ptr) } < 0 {
+        if unsafe { (WCH.wl_display_flush)(self.internal.ptr) } < 0 {
             Err(IoError::last_os_error())
         } else {
             Ok(())
@@ -64,7 +73,7 @@ impl Display {
     }
 }
 
-impl Drop for Display {
+impl Drop for InternalDisplay {
     fn drop(&mut self) {
         unsafe {
             (WCH.wl_display_disconnect)(self.ptr);
@@ -76,11 +85,11 @@ impl FFI for Display {
     type Ptr = wl_display;
 
     fn ptr(&self) -> *const wl_display {
-        self.ptr as *const wl_display
+        self.internal.ptr as *const wl_display
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_display {
-        self.ptr
+        self.internal.ptr
     }
 }
 
@@ -104,7 +113,7 @@ pub fn default_display() -> Option<Display> {
             None
         } else {
             Some(Display {
-                ptr: ptr
+                internal: Rc::new(InternalDisplay{ ptr: ptr})
             })
         }
     }

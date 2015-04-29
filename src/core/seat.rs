@@ -1,9 +1,10 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
+use std::rc::Rc;
 
 use libc::{c_void, c_char, uint32_t};
 
-use super::{From, Pointer, WSurface};
+use super::{From, Registry, Pointer, WSurface};
 
 use ffi::interfaces::seat::{wl_seat, wl_seat_destroy, wl_seat_listener, wl_seat_add_listener};
 use ffi::enums::wl_seat_capability;
@@ -61,20 +62,27 @@ impl SeatListener {
     }
 }
 
-/// A global wayland Seat.
-///
-/// This structure is a handle to a wayland seat, which can up to a pointer, a keyboard
-/// and a touch device.
-pub struct Seat<'a> {
-    _t: ::std::marker::PhantomData<&'a ()>,
+struct InternalSeat {
+    _registry: Registry,
     ptr: *mut wl_seat,
     listener: Box<SeatListener>
 }
 
-impl<'a> Seat<'a> {
-    pub fn get_pointer<'b>(&'b self) -> Option<Pointer<'b, 'static, WSurface<'static>>> {
-        if self.listener.data.pointer.get() {
-            Some(From::from(self))
+/// A global wayland Seat.
+///
+/// This structure is a handle to a wayland seat, which can up to a pointer, a keyboard
+/// and a touch device.
+///
+/// Like other global objects, this handle can be cloned.
+#[derive(Clone)]
+pub struct Seat {
+    internal: Rc<InternalSeat>
+}
+
+impl Seat {
+    pub fn get_pointer(&self) -> Option<Pointer<WSurface>> {
+        if self.internal.listener.data.pointer.get() {
+            Some(From::from(self.clone()))
         } else {
             None
         }
@@ -82,42 +90,44 @@ impl<'a> Seat<'a> {
 }
 
 
-impl<'a, R> Bind<'a, R> for Seat<'a> {
+impl Bind<Registry> for Seat {
     fn interface() -> &'static abi::wl_interface {
         abi::WAYLAND_CLIENT_HANDLE.wl_seat_interface
     }
 
-    unsafe fn wrap(ptr: *mut wl_seat, _parent: &'a R) -> Seat<'a> {
+    unsafe fn wrap(ptr: *mut wl_seat, registry: Registry) -> Seat {
         let listener_data = SeatListener::default_handlers(SeatData::new());
         let s = Seat {
-            _t: ::std::marker::PhantomData,
-            ptr: ptr,
-            listener: Box::new(listener_data),
+            internal: Rc::new(InternalSeat {
+                _registry: registry,
+                ptr: ptr,
+                listener: Box::new(listener_data)
+            })
         };
         wl_seat_add_listener(
-            s.ptr,
+            s.internal.ptr,
             &SEAT_LISTENER as *const _,
-            &*s.listener as *const _ as *mut _
+            &*s.internal.listener as *const _ as *mut _
         );
         s
     }
 }
 
-impl<'a> Drop for Seat<'a> {
+impl Drop for InternalSeat {
     fn drop(&mut self) {
-        unsafe { wl_seat_destroy(self.ptr_mut()) };
+        unsafe { wl_seat_destroy(self.ptr) };
     }
 }
 
-impl<'a> FFI for Seat<'a> {
+impl FFI for Seat {
     type Ptr = wl_seat;
 
     fn ptr(&self) -> *const wl_seat {
-        self.ptr as *const wl_seat
+        self.internal.ptr as *const wl_seat
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_seat {
-        self.ptr
+        self.internal.ptr
     }
 }
 

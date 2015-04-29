@@ -12,15 +12,14 @@ use ffi::FFI;
 /// A wayland subsurface.
 ///
 /// It wraps a surface, to be integrated into a parent surface.
-pub struct SubSurface<'a, 'b, 'c, S: Surface<'b>> {
-    _t: ::std::marker::PhantomData<&'a ()>,
-    _s: ::std::marker::PhantomData<&'b ()>,
+pub struct SubSurface<'p, S: Surface> {
+    _subcompositor: SubCompositor,
     ptr: *mut wl_subsurface,
     surface: S,
-    _parent: &'c WSurface<'c>
+    _parent: &'p WSurface
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> SubSurface<'a, 'b, 'c, S> {
+impl<'p, S: Surface> SubSurface<'p, S> {
     /// Frees the `Surface` from its role of `subsurface` and returns it.
     pub fn destroy(mut self) -> S {
         use std::mem::{forget, replace, uninitialized};
@@ -59,7 +58,7 @@ impl<'a, 'b, 'c, S: Surface<'b>> SubSurface<'a, 'b, 'c, S> {
 
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> Deref for SubSurface<'a, 'b, 'c, S> {
+impl<'p, S: Surface> Deref for SubSurface<'p, S> {
     type Target = S;
 
     fn deref<'d>(&'d self) -> &'d S {
@@ -67,22 +66,21 @@ impl<'a, 'b, 'c, S: Surface<'b>> Deref for SubSurface<'a, 'b, 'c, S> {
     }
 }
 
-impl<'a, 'b, 'c, 'd, S> From<(&'a SubCompositor<'d>, S, &'c WSurface<'c>)> for SubSurface<'a, 'b, 'c, S>
-    where S: Surface<'b>
+impl<'p, S> From<(SubCompositor, S, &'p WSurface)> for SubSurface<'p, S>
+    where S: Surface
 {
-    fn from((shell, surface, parent): (&'a SubCompositor<'d>, S, &'c WSurface<'c>))
-        -> SubSurface<'a, 'b, 'c, S>
+    fn from((subcompositor, surface, parent): (SubCompositor, S, &'p WSurface))
+        -> SubSurface<'p, S>
     {
         let ptr = unsafe {
             wl_subcompositor_get_subsurface(
-                shell.ptr_mut(),
+                subcompositor.ptr_mut(),
                 surface.get_wsurface().ptr_mut(),
                 parent.ptr_mut()
             )
         };
         SubSurface {
-            _t: ::std::marker::PhantomData,
-            _s: ::std::marker::PhantomData,
+            _subcompositor: subcompositor,
             ptr: ptr,
             surface: surface,
             _parent: parent,
@@ -90,13 +88,13 @@ impl<'a, 'b, 'c, 'd, S> From<(&'a SubCompositor<'d>, S, &'c WSurface<'c>)> for S
     }
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> Drop for SubSurface<'a, 'b, 'c, S> {
+impl<'p, S: Surface> Drop for SubSurface<'p, S> {
     fn drop(&mut self) {
         unsafe { wl_subsurface_destroy(self.ptr) };
     }
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> FFI for SubSurface<'a, 'b, 'c, S> {
+impl<'p, S: Surface> FFI for SubSurface<'p, S> {
     type Ptr = wl_subsurface;
 
     fn ptr(&self) -> *const wl_subsurface {

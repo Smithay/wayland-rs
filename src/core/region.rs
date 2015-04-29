@@ -11,12 +11,12 @@ use ffi::FFI;
 ///
 /// They are created independently of the Surface, and then attached to it.
 /// (see the the documentation of Surface for methos requiring a Region)
-pub struct Region<'a> {
-    _t: ::std::marker::PhantomData<&'a ()>,
+pub struct Region {
+    _compositor: Compositor,
     ptr: *mut wl_region
 }
 
-impl<'a> Region<'a> {
+impl Region {
     /// Adds given rectangle to the region.
     ///
     /// (x, y) are he coordinate of the top-left corner.
@@ -32,23 +32,23 @@ impl<'a> Region<'a> {
     }
 }
 
-impl<'a, 'b> From<&'a Compositor<'b>> for Region<'a> {
-    fn from(compositor: &'a Compositor<'b>) -> Region<'a> {
+impl From<Compositor> for Region {
+    fn from(compositor: Compositor) -> Region {
         let ptr = unsafe { wl_compositor_create_region(compositor.ptr_mut()) };
         Region {
-            _t: ::std::marker::PhantomData,
+            _compositor: compositor,
             ptr: ptr
         }
     }
 }
 
-impl<'a> Drop for Region<'a> {
+impl Drop for Region {
     fn drop(&mut self) {
         unsafe { wl_region_destroy(self.ptr) };
     }
 }
 
-impl<'a> FFI for Region<'a> {
+impl FFI for Region {
     type Ptr = wl_region;
 
     fn ptr(&self) -> *const wl_region {

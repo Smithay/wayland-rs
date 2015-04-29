@@ -10,35 +10,33 @@ use ffi::FFI;
 /// serve to notify the wayland server about how the contents of the
 /// memory pool must be read. To actually modify the data, you need
 /// to directly access the object you created the memory pool from.
-pub struct Buffer<'a> {
-    _t: ::std::marker::PhantomData<&'a ()>,
+pub struct Buffer {
     ptr: *mut wl_buffer
 }
 
-impl<'a, 'b> FromOpt<(&'b ShmPool<'a>, i32, i32, i32, i32, u32)> for Buffer<'a> {
-    fn from((pool, offset, width, height, stride, format): (&ShmPool<'a>, i32, i32, i32, i32, u32))
-            -> Option<Buffer<'a>> {
+impl<'a> FromOpt<(&'a ShmPool, i32, i32, i32, i32, u32)> for Buffer {
+    fn from((pool, offset, width, height, stride, format): (&'a ShmPool, i32, i32, i32, i32, u32))
+            -> Option<Buffer> {
         let ptr = unsafe { wl_shm_pool_create_buffer(
             pool.ptr_mut(), offset, width, height, stride, format) };
         if ptr.is_null() {
             None
         } else {
             Some(Buffer {
-                _t: ::std::marker::PhantomData,
                 ptr: ptr
             })
         }
     }
 }
 
-impl<'a> Drop for Buffer<'a> {
+impl Drop for Buffer {
     fn drop(&mut self) {
         unsafe { wl_buffer_destroy(self.ptr) };
     }
 }
 
 
-impl<'a> FFI for Buffer<'a> {
+impl FFI for Buffer {
     type Ptr = wl_buffer;
 
     fn ptr(&self) -> *const wl_buffer {

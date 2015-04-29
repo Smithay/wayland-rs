@@ -14,7 +14,7 @@ pub use ffi::enums::wl_pointer_axis as ScrollAxis;
 
 use ffi::FFI;
 
-/// An opaque unique identifier to a surface, can be tested for equality.
+/// An opaque unique identifier to a pointer, can be tested for equality.
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub struct PointerId {
     p: usize
@@ -25,17 +25,15 @@ pub fn wrap_pointer_id(p: usize) -> PointerId {
     PointerId { p: p }
 }
 
-struct PointerData<'b, S: Surface<'b>> {
-    _s: ::std::marker::PhantomData<&'b ()>,
+struct PointerData<S: Surface> {
     pub surface: Option<S>,
     pub hidden: bool,
     pub hotspot: (i32, i32)
 }
 
-impl<'b, S: Surface<'b>> PointerData<'b, S> {
-    fn new(surface: Option<S>, hotspot: (i32, i32)) -> PointerData<'b, S> {
+impl<S: Surface> PointerData<S> {
+    fn new(surface: Option<S>, hotspot: (i32, i32)) -> PointerData<S> {
         PointerData {
-            _s: ::std::marker::PhantomData,
             surface: surface,
             hidden: false,
             hotspot: hotspot
@@ -51,7 +49,7 @@ trait CursorAdvertising {
     unsafe fn advertise_cursor(&self, serial: u32, pointer: *mut wl_pointer);
 }
 
-impl<'b, S: Surface<'b>> CursorAdvertising for PointerData<'b, S> {
+impl<S: Surface> CursorAdvertising for PointerData<S> {
         unsafe fn advertise_cursor(&self, serial: u32, pointer: *mut wl_pointer) {
         if let Some(ref s) = self.surface {
             wl_pointer_set_cursor(
@@ -69,17 +67,17 @@ impl<'b, S: Surface<'b>> CursorAdvertising for PointerData<'b, S> {
 
 
 
-struct PointerListener<'a> {
+struct PointerListener {
     data: &'static CursorAdvertising,
-    enter_handler: Box<Fn(PointerId, SurfaceId, i32, i32) + 'a>,
-    leave_handler: Box<Fn(PointerId, SurfaceId) + 'a>,
-    motion_handler: Box<Fn(PointerId, u32, i32, i32) + 'a>,
-    button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'a>,
-    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, i32) + 'a>
+    enter_handler: Box<Fn(PointerId, SurfaceId, i32, i32) + 'static>,
+    leave_handler: Box<Fn(PointerId, SurfaceId) + 'static>,
+    motion_handler: Box<Fn(PointerId, u32, i32, i32) + 'static>,
+    button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'static>,
+    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, i32) + 'static>
 }
 
-impl<'a> PointerListener<'a> {
-    pub fn new(data: &'static CursorAdvertising) -> PointerListener<'a> {
+impl PointerListener {
+    pub fn new(data: &'static CursorAdvertising) -> PointerListener {
         PointerListener {
             data: data,
             enter_handler: Box::new(move |_,_,_,_| {}),
@@ -100,19 +98,19 @@ impl<'a> PointerListener<'a> {
 /// a `PointerId` identifying the pointer. This is to allow specific situation where
 /// you need the pointer to not be borrowed (to change its surface for example) and
 /// have more than one cursor.
-pub struct Pointer<'a, 'b, S: Surface<'b>> {
-    _t: ::std::marker::PhantomData<&'a ()>,
+pub struct Pointer<S: Surface> {
+    seat: Seat,
     ptr: *mut wl_pointer,
-    listener: Box<PointerListener<'a>>,
-    data: Box<PointerData<'b, S>>
+    listener: Box<PointerListener>,
+    data: Box<PointerData<S>>
 }
 
-impl<'a, 'b> From<&'a Seat<'b>> for Pointer<'a, 'static, WSurface<'static>> {
-    fn from(seat: &'a Seat<'b>) -> Pointer<'a, 'static, WSurface<'static>> {
+impl From<Seat> for Pointer<WSurface> {
+    fn from(seat: Seat) -> Pointer<WSurface> {
         let ptr = unsafe { wl_seat_get_pointer(seat.ptr_mut()) };
         let data = Box::new(PointerData::new(None, (0,0)));
         let p = Pointer {
-            _t: ::std::marker::PhantomData,
+            seat: seat,
             ptr: ptr,
             listener: Box::new(PointerListener::new(
                 unsafe { ::std::mem::transmute(&*data as &CursorAdvertising) }
@@ -130,7 +128,7 @@ impl<'a, 'b> From<&'a Seat<'b>> for Pointer<'a, 'static, WSurface<'static>> {
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
+impl<S: Surface> Pointer<S> {
     /// Returns the unique `PointerId` associated to this pointer.
     ///
     /// This struct can be tested for equality, and will be provided in event callbacks
@@ -146,15 +144,15 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// the cursor surface in the `enter` event, which is processed before the
     /// surface is transmitted to the wayland server.
     ///
-    /// This method consumes the `Pointer`object to create a new one, bound to
-    /// the lifetime of the new surface and releasing the previous one.
+    /// This method consumes the `Pointer`object to create a new one and releasing 
+    /// the previous surface.
     ///
     /// If surface is `None`, the cursor display won't be changed when it enters a
     /// surface of this application.
-    pub fn set_cursor<'c, NS: Surface<'c>>(mut self,
+    pub fn set_cursor<NS: Surface>(mut self,
                                            surface: Option<NS>, 
                                            hotspot: (i32, i32))
-        -> (Pointer<'a, 'c, NS>, Option<S>)
+        -> (Pointer<NS>, Option<S>)
     {
         unsafe {
             let old_surface = self.data.unwrap_surface();
@@ -162,7 +160,7 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
             let mut listener = ::std::mem::replace(&mut self.listener, ::std::mem::uninitialized() );
             listener.data = ::std::mem::transmute(&*new_data as &CursorAdvertising) ;
             let new_pointer = Pointer {
-                _t: ::std::marker::PhantomData,
+                seat: self.seat.clone(),
                 ptr: self.ptr,
                 listener: listener,
                 data: new_data
@@ -200,7 +198,7 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// - Id of the surface
     /// - x and y, coordinates of the surface where the cursor entered
     pub fn set_enter_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId, i32, i32) + 'a
+        where F: Fn(PointerId, SurfaceId, i32, i32) + 'static
     {
         self.listener.enter_handler = Box::new(f)
     }
@@ -215,7 +213,7 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// - Id of the pointer
     /// - Id of the surface
     pub fn set_leave_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId) + 'a
+        where F: Fn(PointerId, SurfaceId) + 'static
     {
         self.listener.leave_handler = Box::new(f)
     }
@@ -228,7 +226,7 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// - time of the event
     /// - x and y, new coordinates of the cursor relative to the current surface
     pub fn set_motion_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, i32, i32) + 'a
+        where F: Fn(PointerId, u32, i32, i32) + 'static
     {
         self.listener.motion_handler = Box::new(f)
     }
@@ -242,7 +240,7 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// - button of the event,
     /// - new state of the button
     pub fn set_button_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, u32, ButtonState) + 'a
+        where F: Fn(PointerId, u32, u32, ButtonState) + 'static
     {
         self.listener.button_handler = Box::new(f)
     }
@@ -256,19 +254,19 @@ impl<'a, 'b, S: Surface<'b>> Pointer<'a, 'b, S> {
     /// - the axis that is scrolled
     /// - the amplitude of the scrolling
     pub fn set_axis_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, ScrollAxis, i32) + 'a
+        where F: Fn(PointerId, u32, ScrollAxis, i32) + 'static
     {
         self.listener.axis_handler = Box::new(f)
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> Drop for Pointer<'a, 'b, S> {
+impl<S: Surface> Drop for Pointer<S> {
     fn drop(&mut self) {
         unsafe { wl_pointer_destroy(self.ptr) };
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> FFI for Pointer<'a, 'b, S> {
+impl<S: Surface> FFI for Pointer<S> {
     type Ptr = wl_pointer;
 
     fn ptr(&self) -> *const wl_pointer {

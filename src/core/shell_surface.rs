@@ -19,14 +19,13 @@ use ffi::FFI;
 /// A Surface is wrapped inside this object and accessible through
 /// `Deref`, so you can use a `ShellSurface` directly to update the
 /// uderlying `Surface`.
-pub struct ShellSurface<'a, 'b, S: Surface<'b>> {
-    _t: ::std::marker::PhantomData<&'a ()>,
-    _s: ::std::marker::PhantomData<&'b ()>,
+pub struct ShellSurface<S: Surface> {
+    _shell: Shell,
     ptr: *mut wl_shell_surface,
     surface: S
 }
 
-impl<'a, 'b, S: Surface<'b>> ShellSurface<'a, 'b, S> {
+impl<S: Surface> ShellSurface<S> {
     /// Frees the `Surface` from its role of `shell_surface` and returns it.
     pub fn destroy(mut self) -> S {
         use std::mem::{forget, replace, uninitialized};
@@ -46,7 +45,7 @@ impl<'a, 'b, S: Surface<'b>> ShellSurface<'a, 'b, S> {
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> Deref for ShellSurface<'a, 'b, S> {
+impl<S: Surface> Deref for ShellSurface<S> {
     type Target = S;
 
     fn deref<'c>(&'c self) -> &'c S {
@@ -54,12 +53,11 @@ impl<'a, 'b, S: Surface<'b>> Deref for ShellSurface<'a, 'b, S> {
     }
 }
 
-impl<'a, 'b, 'c, S: Surface<'b>> From<(&'a Shell<'c>, S)> for ShellSurface<'a, 'b, S> {
-    fn from((shell, surface): (&'a Shell<'c>, S)) -> ShellSurface<'a, 'b, S> {
+impl<S: Surface> From<(Shell, S)> for ShellSurface<S> {
+    fn from((shell, surface): (Shell, S)) -> ShellSurface<S> {
         let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.get_wsurface().ptr_mut()) };
         let s = ShellSurface {
-            _t: ::std::marker::PhantomData,
-            _s: ::std::marker::PhantomData,
+            _shell: shell,
             ptr: ptr,
             surface: surface
         };
@@ -70,13 +68,13 @@ impl<'a, 'b, 'c, S: Surface<'b>> From<(&'a Shell<'c>, S)> for ShellSurface<'a, '
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> Drop for ShellSurface<'a, 'b, S> {
+impl<S: Surface> Drop for ShellSurface<S> {
     fn drop(&mut self) {
         unsafe { wl_shell_surface_destroy(self.ptr) };
     }
 }
 
-impl<'a, 'b, S: Surface<'b>> FFI for ShellSurface<'a, 'b, S> {
+impl<S: Surface> FFI for ShellSurface<S> {
     type Ptr = wl_shell_surface;
 
     fn ptr(&self) -> *const wl_shell_surface {

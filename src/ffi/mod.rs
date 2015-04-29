@@ -26,7 +26,7 @@ pub trait FFI {
 ///
 /// Normal use of the library does not require using this trait, it is only
 /// provided for special situations like implementing custom protocol extentions.
-pub trait Bind<'a, R> : FFI {
+pub trait Bind<R> : FFI {
     /// The `wl_interface` used to create this object in the registry.
     #[inline]
     fn interface() -> &'static abi::wl_interface;
@@ -35,7 +35,7 @@ pub trait Bind<'a, R> : FFI {
     /// `parent` is a reference to the registry, its primary role is to allow
     /// coupling the lifetime of the newly created object to the registry.
     #[inline]
-    unsafe fn wrap(ptr: *mut <Self as FFI>::Ptr, parent: &'a R) -> Self;
+    unsafe fn wrap(ptr: *mut <Self as FFI>::Ptr, parent: R) -> Self;
 }
 
 extern {

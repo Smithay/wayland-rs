@@ -23,14 +23,14 @@ pub fn is_egl_available() -> bool {
     WAYLAND_EGL_OPTION.is_some()
 }
 
-pub struct EGLSurface<'a> {
+pub struct EGLSurface {
     ptr: *mut wl_egl_window,
-    surface: WSurface<'a>
+    surface: WSurface
 }
 
-impl<'a> EGLSurface<'a> {
+impl EGLSurface {
     /// Creates a new EGL surface on a wayland surface.
-    pub fn new(surface: WSurface<'a>, width: i32, height: i32) -> EGLSurface<'a> {
+    pub fn new(surface: WSurface, width: i32, height: i32) -> EGLSurface {
         let ptr = unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_create)(surface.ptr_mut(), width, height) };
         EGLSurface {
             ptr: ptr,
@@ -39,7 +39,7 @@ impl<'a> EGLSurface<'a> {
     }
 
     /// Destroys the EGL association to this `WSurface` and returns it.
-    pub fn destroy(mut self) -> WSurface<'a> {
+    pub fn destroy(mut self) -> WSurface {
         use std::mem::{forget, replace, uninitialized};
         unsafe {
             let surface = replace(&mut self.surface, uninitialized());
@@ -76,19 +76,19 @@ impl<'a> EGLSurface<'a> {
 
 }
 
-impl<'a> Surface<'a> for EGLSurface<'a> {
-    fn get_wsurface(&self) -> &WSurface<'a> {
+impl Surface for EGLSurface {
+    fn get_wsurface(&self) -> &WSurface {
         &self.surface
     }
 }
 
-impl<'a> Drop for EGLSurface<'a> {
+impl Drop for EGLSurface {
     fn drop(&mut self) {
         unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_destroy)(self.ptr) }
     }
 }
 
-impl<'a> FFI for EGLSurface<'a> {
+impl FFI for EGLSurface {
     type Ptr = wl_egl_window;
 
     fn ptr(&self) -> *const wl_egl_window {

@@ -1,57 +1,68 @@
 use std::os::unix::io::AsRawFd;
+use std::rc::Rc;
 
-use super::{From, ShmPool};
+use super::{From, Registry, ShmPool};
 
 use ffi::interfaces::shm::{wl_shm, wl_shm_destroy};
 use ffi::{FFI, Bind, abi};
 
 pub use ffi::enums::wl_shm_format as ShmFormat;
 
+struct InternalShm {
+    _registry: Registry,
+    ptr: *mut wl_shm
+
+}
+
 /// The shared memory controller.
 ///
 /// This object can be queried for memory_pools used for the buffers.
-pub struct Shm<'a> {
-    _t: ::std::marker::PhantomData<&'a ()>,
-    ptr: *mut wl_shm
+///
+/// Like other global objects, this handle can be cloned.
+#[derive(Clone)]
+pub struct Shm {
+    internal: Rc<InternalShm>
 }
 
-impl<'a> Shm<'a> {
+impl Shm {
     /// Creates a shared memory pool from given file descriptor.
     ///
     /// The server will internally `mmap` the sepcified `size` number of bytes from
     /// this file descriptor.
     /// The created ShmPool will have access to these bytes exactly.
-    pub fn pool_from_fd<'b, F: AsRawFd>(&'b self, fd: &F, size: i32) -> ShmPool<'b> {
-        From::from((self, fd.as_raw_fd(), size))
+    pub fn pool_from_fd<F: AsRawFd>(&self, fd: &F, size: i32) -> ShmPool {
+        From::from((self.clone(), fd.as_raw_fd(), size))
     }
 }
 
-impl<'a, R> Bind<'a, R> for Shm<'a> {
+impl Bind<Registry> for Shm {
     fn interface() -> &'static abi::wl_interface {
         abi::WAYLAND_CLIENT_HANDLE.wl_shm_interface
     }
 
-    unsafe fn wrap(ptr: *mut wl_shm, _parent: &'a R) -> Shm<'a> {
+    unsafe fn wrap(ptr: *mut wl_shm, registry: Registry) -> Shm {
         Shm {
-            _t: ::std::marker::PhantomData,
-            ptr: ptr
+            internal: Rc::new(InternalShm {
+                _registry:registry,
+                ptr: ptr
+            })
         }
     }
 }
 
-impl<'a> Drop for Shm<'a> {
+impl Drop for InternalShm {
     fn drop(&mut self) {
-        unsafe { wl_shm_destroy(self.ptr_mut()) };
+        unsafe { wl_shm_destroy(self.ptr) };
     }
 }
 
-impl<'a> FFI for Shm<'a> {
+impl FFI for Shm {
     type Ptr = wl_shm;
    fn ptr(&self) -> *const wl_shm {
-        self.ptr as *const wl_shm
+        self.internal.ptr as *const wl_shm
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_shm {
-        self.ptr
+        self.internal.ptr
     }
 }
