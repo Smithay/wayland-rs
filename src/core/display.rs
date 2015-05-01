@@ -40,8 +40,9 @@ impl Display {
     /// This call will block until the wayland server has processed all
     /// the queries from this Display instance.
     pub fn sync_roundtrip(&self) {
+        let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_roundtrip)(self.internal.lock().unwrap().ptr);
+            (WCH.wl_display_roundtrip)(internal.ptr);
         }
     }
 
@@ -49,8 +50,9 @@ impl Display {
     ///
     /// Does not block if no events are available.
     pub fn dispatch_pending(&self) {
+        let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_dispatch_pending)(self.internal.lock().unwrap().ptr);
+            (WCH.wl_display_dispatch_pending)(internal.ptr);
         }
     }
 
@@ -58,8 +60,9 @@ impl Display {
     ///
     /// If no events are available, blocks until one is received.
     pub fn dispatch(&self) {
+        let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_dispatch)(self.internal.lock().unwrap().ptr);
+            (WCH.wl_display_dispatch)(internal.ptr);
         }
     }
 
@@ -68,7 +71,8 @@ impl Display {
     /// Never blocks, but may not send everything. In which case returns
     /// a `WouldBlock` error.
     pub fn flush(&self) -> Result<(), IoError> {
-        if unsafe { (WCH.wl_display_flush)(self.internal.lock().unwrap().ptr) } < 0 {
+        let internal = self.internal.lock().unwrap();
+        if unsafe { (WCH.wl_display_flush)(internal.ptr) } < 0 {
             Err(IoError::last_os_error())
         } else {
             Ok(())
