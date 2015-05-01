@@ -24,7 +24,7 @@ unsafe impl Send for WSurface {}
 unsafe impl Sync for WSurface {}
 
 /// An opaque unique identifier to a surface, can be tested for equality.
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Hash)]
 pub struct SurfaceId {
     p: usize
 }

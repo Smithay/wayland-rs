@@ -16,7 +16,7 @@ pub use ffi::enums::wl_pointer_axis as ScrollAxis;
 use ffi::FFI;
 
 /// An opaque unique identifier to a pointer, can be tested for equality.
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Hash)]
 pub struct PointerId {
     p: usize
 }

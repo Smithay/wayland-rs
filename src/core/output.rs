@@ -14,7 +14,7 @@ use ffi::interfaces::output::{wl_output, wl_output_listener, wl_output_add_liste
                               wl_output_destroy};
 
 /// An opaque unique identifier to an output, can be tested for equality.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct OutputId {
     p: usize
 }
