@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use super::{From, Registry, ShellSurface, Surface};
 
@@ -10,6 +10,9 @@ struct InternalShell {
     ptr: *mut wl_shell
 }
 
+// InternalShell is self owned
+unsafe impl Send for InternalShell {}
+
 /// A handle to a wayland `wl_shell`.
 ///
 /// This reprensent the desktop window. A surface must be bound to
@@ -18,7 +21,7 @@ struct InternalShell {
 /// Like other global objects, this handle can be cloned.
 #[derive(Clone)]
 pub struct Shell {
-    internal: Rc<InternalShell>
+    internal: Arc<Mutex<InternalShell>>
 }
 
 impl Shell {
@@ -41,10 +44,10 @@ impl Bind<Registry> for Shell {
 
     unsafe fn wrap(ptr: *mut wl_shell, registry: Registry) -> Shell {
         Shell {
-            internal: Rc::new(InternalShell {
+            internal: Arc::new(Mutex::new(InternalShell {
                 _registry: registry,
                 ptr: ptr
-            })
+            }))
         }
     }
 }
@@ -59,10 +62,10 @@ impl FFI for Shell {
     type Ptr = wl_shell;
 
     fn ptr(&self) -> *const wl_shell {
-        self.internal.ptr as *const wl_shell
+        self.internal.lock().unwrap().ptr as *const wl_shell
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_shell {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use super::{From, Registry, Region, WSurface};
 
@@ -10,6 +10,9 @@ struct CompositorInternal {
     ptr: *mut wl_compositor
 }
 
+// CompositorInternal is owning
+unsafe impl Send for CompositorInternal {}
+
 /// A wayland compositor.
 ///
 /// This is the back-end that will be used for all drawing.
@@ -17,7 +20,7 @@ struct CompositorInternal {
 /// Like other global objects, this handle can be cloned.
 #[derive(Clone)]
 pub struct Compositor {
-    internal: Rc<CompositorInternal>
+    internal: Arc<Mutex<CompositorInternal>>
 }
 
 impl Compositor {
@@ -39,10 +42,10 @@ impl Bind<Registry> for Compositor {
 
     unsafe fn wrap(ptr: *mut wl_compositor, registry: Registry) -> Compositor {
         Compositor {
-            internal: Rc::new(CompositorInternal { 
+            internal: Arc::new(Mutex::new(CompositorInternal {
                 _registry: registry,
                 ptr: ptr
-            })
+            }))
         }
     }
 }
@@ -57,10 +60,10 @@ impl FFI for Compositor {
     type Ptr = wl_compositor;
 
     fn ptr(&self) -> *const wl_compositor {
-        self.internal.ptr as *const wl_compositor
+        self.internal.lock().unwrap().ptr as *const wl_compositor
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_compositor {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }

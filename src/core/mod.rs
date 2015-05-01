@@ -51,3 +51,35 @@ trait From<T> {
 trait FromOpt<T> {
     fn from(other: T) -> Option<Self>;
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(dead_code)]
+
+    use super::{Buffer, Compositor, Display, Output, Pointer, Region, Registry, Seat, Shell,
+                Shm, ShmPool, SubSurface, WSurface, Surface};
+
+    fn require_send_sync<T: Send + Sync>() {}
+
+    fn require_send_sync_pointer<T: Send + Sync + Surface>() {
+        require_send_sync::<Pointer<T>>()
+    }
+
+    fn require_send_sync_subsurface<T: Send + Sync + Surface>() {
+        require_send_sync::<SubSurface<T>>()
+    }
+
+    fn sends_syncs() {
+        require_send_sync::<Buffer>();
+        require_send_sync::<Compositor>();
+        require_send_sync::<Display>();
+        require_send_sync::<Output>();
+        require_send_sync::<Region>();
+        require_send_sync::<Registry>();
+        require_send_sync::<Seat>();
+        require_send_sync::<Shell>();
+        require_send_sync::<Shm>();
+        require_send_sync::<ShmPool>();
+        require_send_sync::<WSurface>();
+    }
+}

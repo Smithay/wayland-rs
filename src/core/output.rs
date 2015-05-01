@@ -1,5 +1,5 @@
-use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
+use std::sync::Mutex;
 
 use libc::{c_char, c_void};
 
@@ -42,53 +42,52 @@ impl OutputMode {
 }
 
 struct OutputData {
-    position: Cell<(i32, i32)>,
-    dimensions: Cell<(i32, i32)>,
-    subpixel: Cell<OutputSubpixel>,
-    manufacturer: RefCell<String>,
-    model: RefCell<String>,
-    transform: Cell<OutputTransform>,
-    modes: RefCell<Vec<OutputMode>>,
-    scale: Cell<i32>,
+    position: (i32, i32),
+    dimensions: (i32, i32),
+    subpixel: OutputSubpixel,
+    manufacturer: String,
+    model: String,
+    transform: OutputTransform,
+    modes: Vec<OutputMode>,
+    scale: i32,
 }
 
 impl OutputData {
     fn new() -> OutputData {
         OutputData {
-            position: Cell::new((0,0)),
-            dimensions: Cell::new((0,0)),
-            subpixel: Cell::new(OutputSubpixel::WL_OUTPUT_SUBPIXEL_UNKNOWN),
-            manufacturer: RefCell::new(String::new()),
-            model: RefCell::new(String::new()),
-            transform: Cell::new(OutputTransform::WL_OUTPUT_TRANSFORM_NORMAL),
-            modes: RefCell::new(Vec::new()),
-            scale: Cell::new(1)
+            position: (0,0),
+            dimensions: (0,0),
+            subpixel: OutputSubpixel::WL_OUTPUT_SUBPIXEL_UNKNOWN,
+            manufacturer: String::new(),
+            model: String::new(),
+            transform: OutputTransform::WL_OUTPUT_TRANSFORM_NORMAL,
+            modes: Vec::new(),
+            scale: 1
         }
     }
 
-    fn handle_geometry(&self, position: (i32, i32),
-                              dimensions: (i32, i32),
-                              subpixel: OutputSubpixel,
-                              manufacturer: String,
-                              model: String,
-                              transform: OutputTransform) {
-        self.position.set(position);
-        self.dimensions.set(dimensions);
-        self.subpixel.set(subpixel);
-        *self.manufacturer.borrow_mut() = manufacturer;
-        *self.model.borrow_mut() = model;
-        self.transform.set(transform);
+    fn handle_geometry(&mut self, position: (i32, i32),
+                                  dimensions: (i32, i32),
+                                  subpixel: OutputSubpixel,
+                                  manufacturer: String,
+                                  model: String,
+                                  transform: OutputTransform) {
+        self.position = position;
+        self.dimensions = dimensions;
+        self.subpixel = subpixel;
+        self.manufacturer = manufacturer;
+        self.model = model;
+        self.transform = transform;
     }
 
-    fn handle_mode(&self, output_mode: wl_output_mode, width: i32, height: i32, refresh: i32) {
-        let mut guard = self.modes.borrow_mut();
-        for mode in &mut *guard {
+    fn handle_mode(&mut self, output_mode: wl_output_mode, width: i32, height: i32, refresh: i32) {
+        for mode in &mut self.modes {
             if mode.width == width && mode.height == height && mode.refresh == refresh {
                 mode.mode = output_mode;
                 return;
             }
         }
-        guard.push(OutputMode {
+        self.modes.push(OutputMode {
             mode: output_mode,
             width: width,
             height: height,
@@ -96,17 +95,17 @@ impl OutputData {
         });
     }
 
-    fn handle_scale(&self, scale: i32) {
-        self.scale.set(scale);
+    fn handle_scale(&mut self, scale: i32) {
+        self.scale = scale;
     }
 }
 
 struct OutputListener {
-    geometry_handler: Box<Fn(i32, i32, i32, i32, OutputSubpixel, &[u8], &[u8], OutputTransform, &OutputData)>,
-    mode_handler: Box<Fn(wl_output_mode, i32, i32, i32, &OutputData)>,
-    done_handler: Box<Fn(&OutputData)>,
-    scale_handler: Box<Fn(i32, &OutputData)>,
-    data: OutputData
+    geometry_handler: Box<Fn(i32, i32, i32, i32, OutputSubpixel, &[u8], &[u8], OutputTransform, &mut OutputData) + Send + Sync>,
+    mode_handler: Box<Fn(wl_output_mode, i32, i32, i32, &mut OutputData) + Send + Sync>,
+    done_handler: Box<Fn(&OutputData) + Send + Sync>,
+    scale_handler: Box<Fn(i32, &mut OutputData) + Send + Sync>,
+    data: Mutex<OutputData>
 }
 
 impl OutputListener {
@@ -129,7 +128,7 @@ impl OutputListener {
             scale_handler: Box::new(|s, data| {
                 data.handle_scale(s)
             }),
-            data: data
+            data: Mutex::new(data)
         }
     }
 }
@@ -141,46 +140,50 @@ pub struct Output {
     listener: Box<OutputListener>
 }
 
+// Output is self-owned
+unsafe impl Send for Output {}
+unsafe impl Sync for Output {}
+
 impl Output {
     /// The location of the top-left corner of this output in the
     /// compositor space.
     pub fn position(&self) -> (i32, i32) {
-        self.listener.data.position.get()
+        self.listener.data.lock().unwrap().position
     }
 
     /// The dimensions (width, height) of this output, in milimeters
     pub fn dimensions(&self) -> (i32, i32) {
-        self.listener.data.dimensions.get()
+        self.listener.data.lock().unwrap().dimensions
     }
 
     /// The subpixel orientation of this output
     pub fn subpixel(&self) -> OutputSubpixel {
-        self.listener.data.subpixel.get()
+        self.listener.data.lock().unwrap().subpixel
     }
 
     /// The current transform of this output
     pub fn transform(&self) -> OutputTransform {
-        self.listener.data.transform.get()
+        self.listener.data.lock().unwrap().transform
     }
 
     /// The manufacturer of this output
     pub fn manufacturer(&self) -> String {
-        self.listener.data.manufacturer.borrow().clone()
+        self.listener.data.lock().unwrap().manufacturer.clone()
     }
 
     /// The model of this output
     pub fn model(&self) -> String {
-        self.listener.data.model.borrow().clone()
+        self.listener.data.lock().unwrap().model.clone()
     }
 
     /// The current scaling factor of this output
     pub fn scale(&self) -> i32 {
-        self.listener.data.scale.get()
+        self.listener.data.lock().unwrap().scale
     }
 
     /// The modes of this output
     pub fn modes(&self) -> Vec<OutputMode> {
-        self.listener.data.modes.borrow().clone()
+        self.listener.data.lock().unwrap().modes.clone()
     }
 }
 
@@ -240,10 +243,11 @@ extern "C" fn output_geometry_handler(data: *mut c_void,
     let listener = unsafe { &*(data as *const OutputListener) };
     let manu_str = unsafe { CStr::from_ptr(manufacturer) };
     let model_str = unsafe { CStr::from_ptr(model) };
+    let mut data = listener.data.lock().unwrap();
     (*listener.geometry_handler)(
         x, y, width, height, subpixel,
         manu_str.to_bytes(),model_str.to_bytes(), transform,
-        &listener.data
+        &mut *data
     );
 }
 
@@ -255,9 +259,10 @@ extern "C" fn output_mode_handler(data: *mut c_void,
                                   refresh: i32
                                  ) {
     let listener = unsafe { &*(data as *const OutputListener) };
+    let mut data = listener.data.lock().unwrap();
     (*listener.mode_handler)(
         flags, width, height, refresh,
-        &listener.data
+        &mut *data
     );
 }
 
@@ -265,7 +270,8 @@ extern "C" fn output_done_handler(data: *mut c_void,
                                   _output: *mut wl_output
                                  ) {
     let listener = unsafe { &*(data as *const OutputListener) };
-    (*listener.done_handler)(&listener.data);
+    let mut data = listener.data.lock().unwrap();
+    (*listener.done_handler)(&mut *data);
 }
 
 extern "C" fn output_scale_handler(data: *mut c_void,
@@ -273,7 +279,8 @@ extern "C" fn output_scale_handler(data: *mut c_void,
                                    scale: i32
                                   ) {
     let listener = unsafe { &*(data as *const OutputListener) };
-    (*listener.scale_handler)(scale, &listener.data);
+    let mut data = listener.data.lock().unwrap();
+    (*listener.scale_handler)(scale, &mut *data);
 }
 
 static OUTPUT_LISTENER: wl_output_listener = wl_output_listener {

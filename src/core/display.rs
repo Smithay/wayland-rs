@@ -1,6 +1,6 @@
 use std::io::Error as IoError;
 use std::ptr;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use ffi::interfaces::display::wl_display;
 use ffi::abi;
@@ -14,13 +14,16 @@ struct InternalDisplay {
     ptr: *mut wl_display
 }
 
+/// InternalDisplay is owning
+unsafe impl Send for InternalDisplay {}
+
 /// A wayland Display.
 ///
 /// This is the connexion to the wayland server, it can be cloned, and the
 /// connexion is closed once all clones are destroyed.
 #[derive(Clone)]
 pub struct Display {
-    internal: Rc<InternalDisplay>
+    internal: Arc<Mutex<InternalDisplay>>
 }
 
 impl Display {
@@ -38,7 +41,7 @@ impl Display {
     /// the queries from this Display instance.
     pub fn sync_roundtrip(&self) {
         unsafe {
-            (WCH.wl_display_roundtrip)(self.internal.ptr);
+            (WCH.wl_display_roundtrip)(self.internal.lock().unwrap().ptr);
         }
     }
 
@@ -47,7 +50,7 @@ impl Display {
     /// Does not block if no events are available.
     pub fn dispatch_pending(&self) {
         unsafe {
-            (WCH.wl_display_dispatch_pending)(self.internal.ptr);
+            (WCH.wl_display_dispatch_pending)(self.internal.lock().unwrap().ptr);
         }
     }
 
@@ -56,7 +59,7 @@ impl Display {
     /// If no events are available, blocks until one is received.
     pub fn dispatch(&self) {
         unsafe {
-            (WCH.wl_display_dispatch)(self.internal.ptr);
+            (WCH.wl_display_dispatch)(self.internal.lock().unwrap().ptr);
         }
     }
 
@@ -65,7 +68,7 @@ impl Display {
     /// Never blocks, but may not send everything. In which case returns
     /// a `WouldBlock` error.
     pub fn flush(&self) -> Result<(), IoError> {
-        if unsafe { (WCH.wl_display_flush)(self.internal.ptr) } < 0 {
+        if unsafe { (WCH.wl_display_flush)(self.internal.lock().unwrap().ptr) } < 0 {
             Err(IoError::last_os_error())
         } else {
             Ok(())
@@ -85,11 +88,11 @@ impl FFI for Display {
     type Ptr = wl_display;
 
     fn ptr(&self) -> *const wl_display {
-        self.internal.ptr as *const wl_display
+        self.internal.lock().unwrap().ptr as *const wl_display
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_display {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }
 
@@ -113,7 +116,7 @@ pub fn default_display() -> Option<Display> {
             None
         } else {
             Some(Display {
-                internal: Rc::new(InternalDisplay{ ptr: ptr})
+                internal: Arc::new(Mutex::new(InternalDisplay{ ptr: ptr}))
             })
         }
     }

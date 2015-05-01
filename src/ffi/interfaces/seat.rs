@@ -4,6 +4,7 @@ use libc::{c_int, c_void, c_char, uint32_t};
 
 use ffi::abi::wl_proxy;
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
+use ffi::enums::wl_seat_capability;
 
 use super::keyboard::wl_keyboard;
 use super::pointer::wl_pointer;
@@ -15,7 +16,7 @@ use super::touch::wl_touch;
 pub struct wl_seat_listener {
     pub capabilities: extern fn(data: *mut c_void,
                                 seat: *mut wl_seat,
-                                capabilities: uint32_t
+                                capabilities: wl_seat_capability
                                ),
     pub name: extern fn(data: *mut c_void,
                         seat: *mut wl_seat,

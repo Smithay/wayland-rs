@@ -70,11 +70,11 @@ impl<S: Surface> CursorAdvertising for PointerData<S> {
 
 struct PointerListener {
     data: &'static CursorAdvertising,
-    enter_handler: Box<Fn(PointerId, SurfaceId, f64, f64) + 'static>,
-    leave_handler: Box<Fn(PointerId, SurfaceId) + 'static>,
-    motion_handler: Box<Fn(PointerId, u32, f64, f64) + 'static>,
-    button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'static>,
-    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, f64) + 'static>
+    enter_handler: Box<Fn(PointerId, SurfaceId, f64, f64) + 'static + Send + Sync>,
+    leave_handler: Box<Fn(PointerId, SurfaceId) + 'static + Send + Sync>,
+    motion_handler: Box<Fn(PointerId, u32, f64, f64) + 'static + Send + Sync>,
+    button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'static + Send + Sync>,
+    axis_handler: Box<Fn(PointerId, u32, ScrollAxis, f64) + 'static + Send + Sync>
 }
 
 impl PointerListener {
@@ -105,6 +105,11 @@ pub struct Pointer<S: Surface> {
     listener: Box<PointerListener>,
     data: Box<PointerData<S>>
 }
+
+/// Pointer is self owned
+unsafe impl<S: Surface + Send> Send for Pointer<S> {}
+/// The wayland library guaranties this.
+unsafe impl<S: Surface + Sync> Sync for Pointer<S> {}
 
 impl From<Seat> for Pointer<WSurface> {
     fn from(seat: Seat) -> Pointer<WSurface> {
@@ -199,7 +204,7 @@ impl<S: Surface> Pointer<S> {
     /// - Id of the surface
     /// - x and y, coordinates of the surface where the cursor entered
     pub fn set_enter_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId, f64, f64) + 'static
+        where F: Fn(PointerId, SurfaceId, f64, f64) + 'static + Send + Sync
     {
         self.listener.enter_handler = Box::new(f)
     }
@@ -214,7 +219,7 @@ impl<S: Surface> Pointer<S> {
     /// - Id of the pointer
     /// - Id of the surface
     pub fn set_leave_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId) + 'static
+        where F: Fn(PointerId, SurfaceId) + 'static + Send + Sync
     {
         self.listener.leave_handler = Box::new(f)
     }
@@ -227,7 +232,7 @@ impl<S: Surface> Pointer<S> {
     /// - time of the event
     /// - x and y, new coordinates of the cursor relative to the current surface
     pub fn set_motion_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, f64, f64) + 'static
+        where F: Fn(PointerId, u32, f64, f64) + 'static + Send + Sync
     {
         self.listener.motion_handler = Box::new(f)
     }
@@ -241,7 +246,7 @@ impl<S: Surface> Pointer<S> {
     /// - button of the event,
     /// - new state of the button
     pub fn set_button_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, u32, ButtonState) + 'static
+        where F: Fn(PointerId, u32, u32, ButtonState) + 'static + Send + Sync
     {
         self.listener.button_handler = Box::new(f)
     }
@@ -255,7 +260,7 @@ impl<S: Surface> Pointer<S> {
     /// - the axis that is scrolled
     /// - the amplitude of the scrolling
     pub fn set_axis_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, ScrollAxis, f64) + 'static
+        where F: Fn(PointerId, u32, ScrollAxis, f64) + 'static + Send + Sync
     {
         self.listener.axis_handler = Box::new(f)
     }

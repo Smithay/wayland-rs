@@ -72,11 +72,12 @@ pub enum wl_pointer_error {
     _not_univariant = 0xffffffff
 }
 
-#[repr(u32)]
-pub enum wl_seat_capability {
-    WL_SEAT_CAPABILITY_POINTER = 1,
-    WL_SEAT_CAPABILITY_KEYBOARD = 2,
-    WL_SEAT_CAPABILITY_TOUCH = 4,
+bitflags! {
+    flags wl_seat_capability: u32 {
+        const WL_SEAT_CAPABILITY_POINTER = 1,
+        const WL_SEAT_CAPABILITY_KEYBOARD = 2,
+        const WL_SEAT_CAPABILITY_TOUCH = 4,
+    }
 }
 
 #[repr(u32)]

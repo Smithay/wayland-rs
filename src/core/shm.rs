@@ -1,5 +1,5 @@
 use std::os::unix::io::AsRawFd;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use super::{From, Registry, ShmPool};
 
@@ -11,8 +11,10 @@ pub use ffi::enums::wl_shm_format as ShmFormat;
 struct InternalShm {
     _registry: Registry,
     ptr: *mut wl_shm
-
 }
+
+// InternalShm is self-owned
+unsafe impl Send for InternalShm {}
 
 /// The shared memory controller.
 ///
@@ -21,7 +23,7 @@ struct InternalShm {
 /// Like other global objects, this handle can be cloned.
 #[derive(Clone)]
 pub struct Shm {
-    internal: Rc<InternalShm>
+    internal: Arc<Mutex<InternalShm>>
 }
 
 impl Shm {
@@ -42,10 +44,10 @@ impl Bind<Registry> for Shm {
 
     unsafe fn wrap(ptr: *mut wl_shm, registry: Registry) -> Shm {
         Shm {
-            internal: Rc::new(InternalShm {
+            internal: Arc::new(Mutex::new(InternalShm {
                 _registry:registry,
                 ptr: ptr
-            })
+            }))
         }
     }
 }
@@ -59,10 +61,10 @@ impl Drop for InternalShm {
 impl FFI for Shm {
     type Ptr = wl_shm;
    fn ptr(&self) -> *const wl_shm {
-        self.internal.ptr as *const wl_shm
+        self.internal.lock().unwrap().ptr as *const wl_shm
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_shm {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }

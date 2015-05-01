@@ -1,51 +1,51 @@
-use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
-use libc::{c_void, c_char, uint32_t};
+use libc::{c_void, c_char};
 
 use super::{From, Registry, Pointer, WSurface};
 
 use ffi::interfaces::seat::{wl_seat, wl_seat_destroy, wl_seat_listener, wl_seat_add_listener};
-use ffi::enums::wl_seat_capability;
+use ffi::enums::{wl_seat_capability, WL_SEAT_CAPABILITY_POINTER, WL_SEAT_CAPABILITY_KEYBOARD,
+                 WL_SEAT_CAPABILITY_TOUCH};
 use ffi::{FFI, Bind, abi};
 
 struct SeatData {
-    name: RefCell<Vec<u8>>,
-    pointer: Cell<bool>,
-    keyboard: Cell<bool>,
-    touch: Cell<bool>
+    name: String,
+    pointer: bool,
+    keyboard: bool,
+    touch: bool
 }
 
 impl SeatData {
     fn new() -> SeatData {
         SeatData {
-            name: RefCell::new(Vec::new()),
-            pointer: Cell::new(false),
-            keyboard: Cell::new(false),
-            touch: Cell::new(false)
+            name: String::new(),
+            pointer: false,
+            keyboard: false,
+            touch: false
         }
     }
 
-    fn set_caps(&self, caps: u32) {
-        self.pointer.set((caps & wl_seat_capability::WL_SEAT_CAPABILITY_POINTER as u32) != 0);
-        self.keyboard.set((caps & wl_seat_capability::WL_SEAT_CAPABILITY_KEYBOARD as u32) != 0);
-        self.touch.set((caps & wl_seat_capability::WL_SEAT_CAPABILITY_TOUCH as u32) != 0);
+    fn set_caps(&mut self, caps: wl_seat_capability) {
+        self.pointer = caps.intersects(WL_SEAT_CAPABILITY_POINTER);
+        self.keyboard = caps.intersects(WL_SEAT_CAPABILITY_KEYBOARD);
+        self.touch = caps.intersects(WL_SEAT_CAPABILITY_TOUCH);
     }
 
-    fn set_name(&self, name: &[u8]) {
-        *(self.name.borrow_mut()) = name.to_owned();
+    fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
 /// The data used by the listener callbacks.
 struct SeatListener {
     /// Handler of the "new global object" event
-    capabilities_handler: Box<Fn(u32, &SeatData)>,
+    capabilities_handler: Box<Fn(wl_seat_capability, &mut SeatData)>,
     /// Handler of the "removed global handler" event
-    name_handler: Box<Fn(&[u8], &SeatData)>,
+    name_handler: Box<Fn(&[u8], &mut SeatData)>,
     /// access to the data
-    pub data: SeatData
+    pub data: Mutex<SeatData>
 }
 
 impl SeatListener {
@@ -55,9 +55,9 @@ impl SeatListener {
                 data.set_caps(caps);
             }),
             name_handler: Box::new(move |name, data| {
-                data.set_name(name);
+                data.set_name(String::from_utf8_lossy(name).into_owned());
             }),
-            data: data
+            data: Mutex::new(data)
         }
     }
 }
@@ -68,6 +68,9 @@ struct InternalSeat {
     listener: Box<SeatListener>
 }
 
+/// InternalSeat is self owning
+unsafe impl Send for InternalSeat {}
+
 /// A global wayland Seat.
 ///
 /// This structure is a handle to a wayland seat, which can up to a pointer, a keyboard
@@ -76,12 +79,18 @@ struct InternalSeat {
 /// Like other global objects, this handle can be cloned.
 #[derive(Clone)]
 pub struct Seat {
-    internal: Rc<InternalSeat>
+    internal: Arc<Mutex<InternalSeat>>
 }
 
 impl Seat {
     pub fn get_pointer(&self) -> Option<Pointer<WSurface>> {
-        if self.internal.listener.data.pointer.get() {
+        // avoid deadlock
+        let has_pointer = {
+            let internal = self.internal.lock().unwrap();
+            let data = internal.listener.data.lock().unwrap();
+            data.pointer
+        };
+        if has_pointer {
             Some(From::from(self.clone()))
         } else {
             None
@@ -98,17 +107,20 @@ impl Bind<Registry> for Seat {
     unsafe fn wrap(ptr: *mut wl_seat, registry: Registry) -> Seat {
         let listener_data = SeatListener::default_handlers(SeatData::new());
         let s = Seat {
-            internal: Rc::new(InternalSeat {
+            internal: Arc::new(Mutex::new(InternalSeat {
                 _registry: registry,
                 ptr: ptr,
                 listener: Box::new(listener_data)
-            })
+            }))
         };
-        wl_seat_add_listener(
-            s.internal.ptr,
-            &SEAT_LISTENER as *const _,
-            &*s.internal.listener as *const _ as *mut _
-        );
+        {
+            let internal = s.internal.lock().unwrap();
+            wl_seat_add_listener(
+                internal.ptr,
+                &SEAT_LISTENER as *const _,
+                &*internal.listener as *const _ as *mut _
+            );
+        }
         s
     }
 }
@@ -123,11 +135,11 @@ impl FFI for Seat {
     type Ptr = wl_seat;
 
     fn ptr(&self) -> *const wl_seat {
-        self.internal.ptr as *const wl_seat
+        self.internal.lock().unwrap().ptr as *const wl_seat
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_seat {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }
 
@@ -137,10 +149,11 @@ impl FFI for Seat {
 //
 extern "C" fn seat_capabilities_handler(data: *mut c_void,
                                         _registry: *mut wl_seat,
-                                        capabilities: uint32_t,
+                                        capabilities: wl_seat_capability,
                                        ) {
     let listener = unsafe { &*(data as *const SeatListener) };
-    (listener.capabilities_handler)(capabilities, &listener.data);
+    let mut data = listener.data.lock().unwrap();
+    (listener.capabilities_handler)(capabilities, &mut *data);
 }
 
 extern "C" fn seat_name_handler(data: *mut c_void,
@@ -149,7 +162,8 @@ extern "C" fn seat_name_handler(data: *mut c_void,
                                ) {
     let listener = unsafe { &*(data as *const SeatListener) };
     let name_str = unsafe { CStr::from_ptr(name) };
-    (listener.name_handler)(name_str.to_bytes(), &listener.data);
+    let mut data = listener.data.lock().unwrap();
+    (listener.name_handler)(name_str.to_bytes(), &mut *data);
 }
 
 static SEAT_LISTENER: wl_seat_listener = wl_seat_listener {

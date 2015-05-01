@@ -1,6 +1,5 @@
-use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use libc::{c_void, c_char, uint32_t};
 
@@ -15,59 +14,48 @@ use ffi::{FFI, Bind};
 /// The internal data of the registry, wrapped into a separate
 /// struct to give it easy access to the callbacks.
 struct RegistryData {
-    global_objects: RefCell<Vec<(u32, String, u32)>>,
-    // the compositor is always unique
-    compositor: Cell<Option<(u32, u32)>>,
-    // the `wl_shell` is always unique
-    shell: Cell<Option<(u32, u32)>>,
-    // the `wl_shm` is always unique
-    shm: Cell<Option<(u32, u32)>>,
-    // the subcompositor is always unique
-    subcompositor: Cell<Option<(u32, u32)>>,
+    global_objects: Vec<(u32, String, u32)>,
 }
 
 impl RegistryData {
     fn new() -> RegistryData {
         RegistryData {
-            global_objects: RefCell::new(Vec::new()),
-            compositor: Cell::new(None),
-            shell: Cell::new(None),
-            shm: Cell::new(None),
-            subcompositor: Cell::new(None),
+            global_objects: Vec::new(),
         }
     }
 
-    fn register_object(&self, id: u32, interface: &[u8], version: u32) {
-        match interface {
-            b"wl_compositor" => self.compositor.set(Some((id, version))),
-            b"wl_shell" => self.shell.set(Some((id, version))),
-            b"wl_shm" => self.shm.set(Some((id, version))),
-            b"wl_subcompositor" => self.subcompositor.set(Some((id, version))),
-            _ => {}
-        }
-        // register it anyway
-        self.global_objects.borrow_mut().push(
+    fn register_object(&mut self, id: u32, interface: &[u8], version: u32) {
+        self.global_objects.push(
             (id, String::from_utf8_lossy(interface).into_owned(), version)
         );
     }
 
-    fn unregister_object(&self, id: u32) {
-        let mut o = self.global_objects.borrow_mut();
-        match o.iter().position(|e| e.0 == id) {
-            Some(i) => { o.swap_remove(i); },
+    fn unregister_object(&mut self, id: u32) {
+        match self.global_objects.iter().position(|e| e.0 == id) {
+            Some(i) => { self.global_objects.swap_remove(i); },
             None => {}
         }
+    }
+
+    fn get_objects_with_interface(&self, interface: &str) -> Vec<(u32, u32)> {
+        self.global_objects.iter().filter_map(|&(id, ref iface, v)| {
+            if iface == interface {
+                Some((id, v))
+            } else {
+                None
+            }
+        }).collect()
     }
 }
 
 /// The data used by the listener callbacks.
 struct RegistryListener {
     /// Handler of the "new global object" event
-    global_handler: Box<Fn(u32, &[u8], u32, &RegistryData)>,
+    global_handler: Box<Fn(u32, &[u8], u32, &mut RegistryData)>,
     /// Handler of the "removed global handler" event
-    global_remover: Box<Fn(u32, &RegistryData)>,
+    global_remover: Box<Fn(u32, &mut RegistryData)>,
     /// access to the data
-    data: RegistryData
+    data: Mutex<RegistryData>
 }
 
 impl RegistryListener {
@@ -79,7 +67,7 @@ impl RegistryListener {
             global_remover: Box::new(move |id, data| {
                 data.unregister_object(id);
             }),
-            data: data
+            data: Mutex::new(data)
         }
     }
 }
@@ -89,6 +77,9 @@ struct RegistryInternal {
     pub ptr: *mut wl_registry,
     pub listener: Box<RegistryListener>,
 }
+
+/// RegistryInternal is owning
+unsafe impl Send for RegistryInternal {}
 
 /// A Registry, giving access to the global wayland objects.
 ///
@@ -103,57 +94,41 @@ struct RegistryInternal {
 /// it alive.
 #[derive(Clone)]
 pub struct Registry {
-    internal: Rc<RegistryInternal>
-}
-
-macro_rules! binder {
-    ($m: expr, $f: expr) => (
-        match $f.get() {
-            Some((id, version)) => Some(
-                unsafe { $m.bind(id, version) }
-            ),
-            None => None
-        }
-    )
+    internal: Arc<Mutex<RegistryInternal>>
 }
 
 impl Registry{
     /// Returns a handle to the Display associated with this registry.
     pub fn get_display(&self) -> Display {
-        self.internal.display.clone()
+        self.internal.lock().unwrap().display.clone()
     }
 
     /// Returns a `Vec` of all global objects and their interface.
     ///
     /// Each entry is a tuple `(id, interface, version)`.
     pub fn get_global_objects(&self) -> Vec<(u32, String, u32)> {
-        self.internal.listener.data.global_objects.borrow().clone()
+        let internal = self.internal.lock().unwrap();
+        let v = internal.listener.data.lock().unwrap().global_objects.clone();
+        v
     }
 
     /// Returns a `Vec` of all global objects implementing given interface.
     ///
     /// Each entry is a tuple `(id, version)`.
     pub fn get_objects_with_interface(&self, interface: &str) -> Vec<(u32, u32)> {
-        self.internal.listener.data.global_objects.borrow()
-            .iter().filter_map(|&(id, ref iface, v)| {
-            if iface == interface {
-                Some((id, v))
-            } else {
-                None
-            }
-        }).collect()
+        let internal = self.internal.lock().unwrap();
+        let data = internal.listener.data.lock().unwrap();
+        data.get_objects_with_interface(interface)
     }
 
     /// Retrieves a handle to the global compositor
     pub fn get_compositor(&self) -> Option<Compositor> {
-        binder!(self, self.internal.listener.data.compositor)
+        self.bind_with_interface("wl_compositor").into_iter().next()
     }
 
     /// Retrieve handles to all available outputs
     pub fn get_outputs(&self) -> Vec<Output> {
-        self.get_objects_with_interface("wl_output").into_iter().map(|(id, v)| {
-            unsafe { self.bind(id, v) }
-        }).collect()
+        self.bind_with_interface("wl_output")
     }
 
     /// Retrieve handles to all available seats
@@ -161,36 +136,53 @@ impl Registry{
     /// A classic configuration is likely to have a single seat, but it is
     /// not garanteed.
     pub fn get_seats(&self) -> Vec<Seat> {
-        self.get_objects_with_interface("wl_seat").into_iter().map(|(id, v)| {
-            unsafe { self.bind(id, v) }
-        }).collect()
+        self.bind_with_interface("wl_seat")
     }
 
     /// Retrieves a handle to the global shell
     pub fn get_shell(&self) -> Option<Shell> {
-        binder!(self, self.internal.listener.data.shell)
+        self.bind_with_interface("wl_shell").into_iter().next()
     }
 
     /// Retrieves a handle to the global shm
     pub fn get_shm(&self) -> Option<Shm> {
-        binder!(self, self.internal.listener.data.shm)
+        self.bind_with_interface("wl_shm").into_iter().next()
     }
 
     /// Retrieves a handle to the global subcompositor
     pub fn get_subcompositor(&self) -> Option<SubCompositor> {
-        binder!(self, self.internal.listener.data.subcompositor)
+        self.bind_with_interface("wl_subcompositor").into_iter().next()
     }
 
     pub unsafe fn bind<T>(&self, id: u32, version: u32) -> T
         where T:  Bind<Registry>
     {
         let ptr = wl_registry_bind(
-            self.internal.ptr,
+            self.internal.lock().unwrap().ptr,
             id,
             <T as Bind<Registry>>::interface(),
             version
         );
         <T as Bind<Registry>>::wrap(ptr as *mut _, self.clone())
+    }
+
+    fn bind_with_interface<T>(&self, interface: &str) -> Vec<T>
+        where T:  Bind<Registry>
+    {
+        let internal = self.internal.lock().unwrap();
+        let data = internal.listener.data.lock().unwrap();
+        let v = data.get_objects_with_interface(interface);
+        v.into_iter().map(|(id, version)| {
+            unsafe {
+                let ptr = wl_registry_bind(
+                    internal.ptr,
+                    id,
+                    <T as Bind<Registry>>::interface(),
+                    version
+                );
+                <T as Bind<Registry>>::wrap(ptr as *mut _, self.clone())
+            }
+        }).collect()
     }
 }
 
@@ -199,19 +191,22 @@ impl From<Display> for Registry {
         let ptr = unsafe { wl_display_get_registry(display.ptr_mut()) };
         let listener = RegistryListener::default_handlers(RegistryData::new());
         let r = Registry {
-            internal : Rc::new(RegistryInternal {
+            internal : Arc::new(Mutex::new(RegistryInternal {
                 display: display,
                 ptr: ptr,
                 listener: Box::new(listener)
-            })
+            }))
         };
-        unsafe {
-            wl_registry_add_listener(
-                r.internal.ptr,
-                &REGISTRY_LISTENER as *const _,
-                &*r.internal.listener as *const _ as *mut _
-            )
-        };
+        {
+            let internal = r.internal.lock().unwrap();
+            unsafe {
+                wl_registry_add_listener(
+                    internal.ptr,
+                    &REGISTRY_LISTENER as *const _,
+                    &*internal.listener as *const _ as *mut _
+                )
+            };
+        }
         r
     }
 }
@@ -226,11 +221,11 @@ impl FFI for Registry {
     type Ptr = wl_registry;
 
     fn ptr(&self) -> *const wl_registry {
-        self.internal.ptr as *const wl_registry
+        self.internal.lock().unwrap().ptr as *const wl_registry
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_registry {
-        self.internal.ptr
+        self.internal.lock().unwrap().ptr
     }
 }
 
@@ -243,17 +238,19 @@ extern "C" fn registry_global_handler(data: *mut c_void,
                                       interface: *const c_char,
                                       version: uint32_t
                                      ) {
-    let listener_data = unsafe { &*(data as *const RegistryListener) };
+    let listener = unsafe { &*(data as *const RegistryListener) };
     let interface_str = unsafe { CStr::from_ptr(interface) };
-    (listener_data.global_handler)(name, interface_str.to_bytes(), version, &listener_data.data);
+    let mut data = listener.data.lock().unwrap();
+    (listener.global_handler)(name, interface_str.to_bytes(), version, &mut *data);
 }
 
 extern "C" fn registry_global_remover(data: *mut c_void,
                                       _registry: *mut wl_registry,
                                       name: uint32_t
                                      ) {
-    let listener_data = unsafe { &*(data as *const RegistryListener) };
-    (listener_data.global_remover)(name, &listener_data.data);
+    let listener = unsafe { &*(data as *const RegistryListener) };
+    let mut data = listener.data.lock().unwrap();
+    (listener.global_remover)(name, &mut *data);
 }
 
 static REGISTRY_LISTENER: wl_registry_listener = wl_registry_listener {

@@ -14,6 +14,11 @@ pub struct Buffer {
     ptr: *mut wl_buffer
 }
 
+/// Buffer is self owned
+unsafe impl Send for Buffer {}
+/// The wayland library guaranties this.
+unsafe impl Sync for Buffer {}
+
 impl<'a> FromOpt<(&'a ShmPool, i32, i32, i32, i32, u32)> for Buffer {
     fn from((pool, offset, width, height, stride, format): (&'a ShmPool, i32, i32, i32, i32, u32))
             -> Option<Buffer> {
