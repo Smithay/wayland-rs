@@ -1,7 +1,8 @@
-use libc::{c_int, c_void, c_char, uint32_t, int32_t};
+use libc::{c_int, c_void, c_char, int32_t};
 
 use ffi::abi::wl_proxy;
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
+use ffi::enums::{wl_output_mode, wl_output_subpixel, wl_output_transform};
 
 #[repr(C)] pub struct wl_output;
 
@@ -13,14 +14,14 @@ pub struct wl_output_listener {
                             y: int32_t,
                             physical_width: int32_t,
                             physical_height: int32_t,
-                            subpixel: int32_t,
+                            subpixel: wl_output_subpixel,
                             make: *const c_char,
                             model: *const c_char,
-                            transform: int32_t
+                            transform: wl_output_transform
                            ),
     pub mode: extern fn(data: *mut c_void,
                         output: *mut wl_output,
-                        flags: uint32_t,
+                        flags: wl_output_mode,
                         width: int32_t,
                         height: int32_t,
                         refresh: int32_t

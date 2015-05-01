@@ -23,13 +23,15 @@ pub enum wl_keyboard_keymap_format {
     WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1 = 1,
 }
 
-#[repr(u32)]
-pub enum wl_output_mode {
-    WL_OUTPUT_MODE_CURRENT = 0x1,
-    WL_OUTPUT_MODE_PREFERRED = 0x2,
-}
+bitflags!(
+    flags wl_output_mode: u32 {
+        const WL_OUTPUT_MODE_CURRENT = 0x1,
+        const WL_OUTPUT_MODE_PREFERRED = 0x2,
+    }
+);
 
-#[repr(u32)]
+#[repr(i32)]
+#[derive(Copy, Clone)]
 pub enum wl_output_subpixel {
     WL_OUTPUT_SUBPIXEL_UNKNOWN = 0,
     WL_OUTPUT_SUBPIXEL_NONE = 1,
@@ -40,6 +42,7 @@ pub enum wl_output_subpixel {
 }
 
 #[repr(i32)]
+#[derive(Copy, Clone)]
 pub enum wl_output_transform {
     WL_OUTPUT_TRANSFORM_NORMAL = 0,
     WL_OUTPUT_TRANSFORM_90 = 1,

@@ -7,6 +7,7 @@ pub use self::compositor::Compositor;
 pub use self::display::{Display, default_display};
 pub use self::region::Region;
 pub use self::registry::Registry;
+pub use self::output::{Output, OutputMode, OutputId};
 pub use self::pointer::{Pointer, PointerId};
 pub use self::seat::Seat;
 pub use self::shell::Shell;
@@ -20,6 +21,7 @@ pub use self::surface::{Surface, WSurface, SurfaceId};
 pub use self::pointer::ScrollAxis as ScrollAxis;
 pub use self::pointer::ButtonState as ButtonState;
 pub use self::output::OutputTransform as OutputTransform;
+pub use self::output::OutputSubpixel as OutputSubpixel;
 pub use self::shm::ShmFormat as ShmFormat;
 
 mod buffer;

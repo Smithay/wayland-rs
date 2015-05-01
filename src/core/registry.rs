@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use libc::{c_void, c_char, uint32_t};
 
-use super::{From, Compositor, Display, Seat, Shell, Shm, SubCompositor};
+use super::{From, Compositor, Display, Output, Seat, Shell, Shm, SubCompositor};
 
 use ffi::interfaces::display::wl_display_get_registry;
 use ffi::interfaces::registry::{wl_registry, wl_registry_destroy,
@@ -147,6 +147,13 @@ impl Registry{
     /// Retrieves a handle to the global compositor
     pub fn get_compositor(&self) -> Option<Compositor> {
         binder!(self, self.internal.listener.data.compositor)
+    }
+
+    /// Retrieve handles to all available outputs
+    pub fn get_outputs(&self) -> Vec<Output> {
+        self.get_objects_with_interface("wl_output").into_iter().map(|(id, v)| {
+            unsafe { self.bind(id, v) }
+        }).collect()
     }
 
     /// Retrieve handles to all available seats
