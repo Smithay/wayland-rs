@@ -19,6 +19,10 @@ pub struct OutputId {
     p: usize
 }
 
+pub fn wrap_output_id(p: usize) -> OutputId {
+    OutputId { p: p }
+}
+
 /// Representation of an output mode
 #[derive(Copy, Clone)]
 pub struct OutputMode {
@@ -145,6 +149,10 @@ unsafe impl Send for Output {}
 unsafe impl Sync for Output {}
 
 impl Output {
+    /// The unique Id representing this output
+    pub fn get_id(&self) -> OutputId {
+        wrap_output_id(self.ptr as usize)
+    }
     /// The location of the top-left corner of this output in the
     /// compositor space.
     pub fn position(&self) -> (i32, i32) {
