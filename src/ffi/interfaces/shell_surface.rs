@@ -2,6 +2,7 @@ use libc::{c_int, c_void, c_char, uint32_t, int32_t};
 
 use ffi::abi::wl_proxy;
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
+use ffi::enums::wl_shell_surface_fullscreen_method;
 
 use super::output::wl_output;
 use super::seat::wl_seat;
@@ -123,7 +124,7 @@ pub unsafe fn wl_shell_surface_set_transient(shell_surface: *mut wl_shell_surfac
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_set_fullscreen(shell_surface: *mut wl_shell_surface,
-                                              method: uint32_t,
+                                              method: wl_shell_surface_fullscreen_method,
                                               framerate: uint32_t,
                                               output: *mut wl_output
                                              ) {

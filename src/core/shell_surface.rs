@@ -1,15 +1,33 @@
 use std::ops::Deref;
+use std::ptr;
 
 use libc::c_void;
 
-use super::{From, Shell, Surface};
+use super::{From, Output, Shell, Surface};
 
+use ffi::enums::wl_shell_surface_fullscreen_method;
 use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
                                      wl_shell_surface_set_toplevel,
                                      wl_shell_surface_pong, wl_shell_surface_listener,
-                                     wl_shell_surface_add_listener};
+                                     wl_shell_surface_add_listener, wl_shell_surface_set_fullscreen};
 use ffi::FFI;
+
+/// Different methods of fullscreen for a shell surface.
+pub enum ShellFullscreenMethod {
+    /// Default method: let the compositor decide.
+    Default,
+    /// Match the sizes by scaling the content of the window to fit
+    /// the output dimensions.
+    Scale,
+    /// Match the sizes by changing the video mode of the graphic driver.
+    /// An optionnal framerate can be provided, if not the compositor will it.
+    /// The framerate is provided in mHz.
+    Driver(Option<u32>),
+    /// Buffer is not scaled (but its intrisic scaling is still applied), unless
+    /// it is bigger than the output: the compositor is then allowed to scale it down.
+    Fill
+}
 
 /// A wayland `shell_surface`.
 ///
@@ -42,6 +60,36 @@ impl<S: Surface> ShellSurface<S> {
     /// It is the most classic window kind.
     pub fn set_toplevel(&self) {
         unsafe { wl_shell_surface_set_toplevel(self.ptr) }
+    }
+
+    /// Set this shell surface as being fullscreen.
+    ///
+    /// If no output is provided, the compositor will choose the output itself.
+    pub fn set_fullscreen(&self, method: ShellFullscreenMethod, output: Option<&Output>) {
+        let (wl_method, framerate) = match method {
+            ShellFullscreenMethod::Default => (
+                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT,
+                0
+            ),
+            ShellFullscreenMethod::Scale => (
+                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
+                0
+            ),
+            ShellFullscreenMethod::Driver(f) => (
+                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_DRIVER,
+                f.unwrap_or(0)
+            ),
+            ShellFullscreenMethod::Fill => (
+                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_FILL,
+                0
+            ),
+        };
+        unsafe { wl_shell_surface_set_fullscreen(
+            self.ptr,
+            wl_method,
+            framerate,
+            output.map(|o| o.ptr_mut()).unwrap_or(ptr::null_mut())
+        )};
     }
 }
 

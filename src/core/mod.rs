@@ -11,7 +11,7 @@ pub use self::output::{Output, OutputMode, OutputId};
 pub use self::pointer::{Pointer, PointerId};
 pub use self::seat::Seat;
 pub use self::shell::Shell;
-pub use self::shell_surface::ShellSurface;
+pub use self::shell_surface::{ShellSurface, ShellFullscreenMethod};
 pub use self::shm::Shm;
 pub use self::shm_pool::ShmPool;
 pub use self::subcompositor::SubCompositor;
