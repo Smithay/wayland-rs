@@ -2,7 +2,10 @@ use std::io::Error as IoError;
 use std::ptr;
 use std::sync::{Arc, Mutex};
 
-use ffi::interfaces::display::wl_display;
+use libc::{c_void, uint32_t};
+
+use ffi::interfaces::callback::{wl_callback, wl_callback_listener, wl_callback_add_listener};
+use ffi::interfaces::display::{wl_display, wl_display_sync};
 use ffi::abi;
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
@@ -11,7 +14,8 @@ use ffi::FFI;
 use super::{From, Registry};
 
 struct InternalDisplay {
-    ptr: *mut wl_display
+    ptr: *mut wl_display,
+    listener: Box<DisplayListener>
 }
 
 /// InternalDisplay is owning
@@ -78,6 +82,31 @@ impl Display {
             Ok(())
         }
     }
+
+    /// Send a `sync` message to the server.
+    ///
+    /// It will then anwser with a `done`message. Once the `done` message is received,
+    /// the callback provided to `set_sync_callback` will be called.
+    ///
+    /// As the server processes event sequentially, the callback is thus called once
+    /// all pending events have been processed.
+    pub fn sync(&self) {
+        let internal = self.internal.lock().unwrap();
+        unsafe {
+            let callback = wl_display_sync(internal.ptr);
+            wl_callback_add_listener(
+                callback,
+                &DONE_LISTENER as *const _,
+                &*internal.listener as *const _ as *mut _
+            );
+        }
+    }
+
+    /// Sets the callback of a `done` event.
+    pub fn set_sync_callback<F: Fn() + 'static>(&self, f: F) {
+        let mut internal = self.internal.lock().unwrap();
+        *internal.listener.done.lock().unwrap() = Box::new(f);
+    }
 }
 
 impl Drop for InternalDisplay {
@@ -120,8 +149,33 @@ pub fn default_display() -> Option<Display> {
             None
         } else {
             Some(Display {
-                internal: Arc::new(Mutex::new(InternalDisplay{ ptr: ptr}))
+                internal: Arc::new(Mutex::new(InternalDisplay{
+                    ptr: ptr,
+                    listener: Box::new(DisplayListener::default_handlers())
+                }))
             })
         }
     }
 }
+
+struct DisplayListener {
+    /// Handler of the "removed global handler" event
+    done: Mutex<Box<Fn()>>,
+}
+
+impl DisplayListener {
+    fn default_handlers() -> DisplayListener {
+        DisplayListener {
+            done: Mutex::new(Box::new(move || {}))
+        }
+    }
+}
+
+extern "C" fn display_done(data: *mut c_void, _callback: *mut wl_callback, _data: uint32_t) {
+    let listener = unsafe { &*(data as *const DisplayListener) };
+    (listener.done.lock().unwrap())();
+}
+
+static DONE_LISTENER: wl_callback_listener = wl_callback_listener {
+    done: display_done,
+};
