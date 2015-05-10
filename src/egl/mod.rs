@@ -57,10 +57,16 @@ impl EGLSurface {
         self.ptr
     }
 
+    /// Resizes the egl surface.
+    ///
+    /// `(dx, dy)` are the new coordinates of the top-left corner, relative to the current
+    /// position.
+    /// It allow you to control the direction of the growth or the shrinking of the surface.
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
         unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_resize)(self.ptr, width, height, dx, dy) }
     }
 
+    /// The size of the EGL buffer attached to this surface.
     pub fn get_attached_size(&self) -> (i32, i32) {
         let mut width = 0;
         let mut height = 0;
