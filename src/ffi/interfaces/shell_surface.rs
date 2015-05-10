@@ -3,6 +3,7 @@ use libc::{c_int, c_void, c_char, uint32_t, int32_t};
 use ffi::abi::wl_proxy;
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::wl_shell_surface_fullscreen_method;
+use ffi::enums::wl_shell_surface_resize as wl_shell_surface_resize_e;
 
 use super::output::wl_output;
 use super::seat::wl_seat;
@@ -18,7 +19,7 @@ pub struct wl_shell_surface_listener {
                        ),
     pub configure: extern fn(data: *mut c_void,
                              shell_surface: *mut wl_shell_surface,
-                             edges: uint32_t,
+                             edges: wl_shell_surface_resize_e,
                              width: int32_t,
                              height: int32_t
                             ),

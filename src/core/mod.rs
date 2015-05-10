@@ -22,6 +22,7 @@ pub use self::pointer::ScrollAxis as ScrollAxis;
 pub use self::pointer::ButtonState as ButtonState;
 pub use self::output::OutputTransform as OutputTransform;
 pub use self::output::OutputSubpixel as OutputSubpixel;
+pub use self::shell_surface::ShellSurfaceResize as ShellSurfaceResize;
 pub use self::shm::ShmFormat as ShmFormat;
 
 mod buffer;

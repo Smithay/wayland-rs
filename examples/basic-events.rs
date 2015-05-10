@@ -22,7 +22,7 @@ fn main() {
     // first, create a simple surface like in simple-connect
     let surface = compositor.create_surface();
     let shell = registry.get_shell().expect("Unable to get the shell.");
-    let shell_surface = shell.get_shell_surface(surface);
+    let mut shell_surface = shell.get_shell_surface(surface);
     let shm = registry.get_shm().expect("Unable to get the shm.");
     let mut tmp = tempfile::TempFile::new().ok().expect("Unable to create a tempfile.");
     for _ in 0..10_000 {
@@ -32,6 +32,11 @@ fn main() {
     let pool = shm.pool_from_fd(&tmp, 40_000);
     let buffer = pool.create_buffer(0, 100, 100, 400, ShmFormat::WL_SHM_FORMAT_ARGB8888)
                      .expect("Could not create buffer.");
+
+    shell_surface.set_configure_callback(|_, w, h| {
+        println!("Window was resized to {}x{}", w, h);
+    });
+
     shell_surface.set_toplevel();
     shell_surface.attach(&buffer, 0, 0);
     shell_surface.commit();
@@ -56,6 +61,9 @@ fn main() {
     });
     pointer.set_button_action(move |_, _, b, s| {
         println!("Button {} is now in state {}.", b as u32, s as u32);
+    });
+    pointer.set_axis_action(move |_, _, _, a| {
+        println!("Scrolled {}.", a);
     });
 
     loop {

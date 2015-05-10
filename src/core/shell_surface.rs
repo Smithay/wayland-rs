@@ -6,6 +6,7 @@ use libc::c_void;
 use super::{From, Output, Shell, Surface};
 
 use ffi::enums::wl_shell_surface_fullscreen_method;
+pub use ffi::enums::wl_shell_surface_resize as ShellSurfaceResize;
 use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
                                      wl_shell_surface_set_toplevel,
@@ -40,7 +41,8 @@ pub enum ShellFullscreenMethod {
 pub struct ShellSurface<S: Surface> {
     _shell: Shell,
     ptr: *mut wl_shell_surface,
-    surface: S
+    surface: S,
+    listener: Box<ShellSurfaceListener>
 }
 
 impl<S: Surface> ShellSurface<S> {
@@ -91,6 +93,23 @@ impl<S: Surface> ShellSurface<S> {
             output.map(|o| o.ptr_mut()).unwrap_or(ptr::null_mut())
         )};
     }
+
+    /// Sets the callback to be invoked when a `configure` event is received for this shell surface.
+    ///
+    /// These events are generated then the window is resized, and provide a hint of the new
+    /// expected size. It is not a mandatory size, the client can still do has it pleases.
+    ///
+    /// The arguments of the callback are:
+    ///
+    ///  - an enum `ShellSurfaceResize`, which is an hint about which border of the surface
+    ///    was resized
+    ///  - the new `width`
+    ///  - the new `height`
+    pub fn set_configure_callback<F>(&mut self, f: F)
+        where F: Fn(ShellSurfaceResize, i32, i32) + 'static
+    {
+        self.listener.configure_handler = Box::new(f);
+    }
 }
 
 impl<S: Surface> Deref for ShellSurface<S> {
@@ -104,13 +123,19 @@ impl<S: Surface> Deref for ShellSurface<S> {
 impl<S: Surface> From<(Shell, S)> for ShellSurface<S> {
     fn from((shell, surface): (Shell, S)) -> ShellSurface<S> {
         let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.get_wsurface().ptr_mut()) };
+        let listener = ShellSurfaceListener::default_handlers();
         let s = ShellSurface {
             _shell: shell,
             ptr: ptr,
-            surface: surface
+            surface: surface,
+            listener: Box::new(listener)
         };
         unsafe {
-            wl_shell_surface_add_listener(s.ptr, &SHELL_SURFACE_LISTENER, ::std::ptr::null_mut());
+            wl_shell_surface_add_listener(
+                s.ptr,
+                &SHELL_SURFACE_LISTENER,
+                &*s.listener as *const _ as *mut _
+            );
         }
         s
     }
@@ -134,6 +159,19 @@ impl<S: Surface> FFI for ShellSurface<S> {
     }
 }
 
+/// The data used by the listener callbacks.
+struct ShellSurfaceListener {
+    /// Handler of the "new global object" event
+    configure_handler: Box<Fn(ShellSurfaceResize, i32, i32)>
+}
+
+impl ShellSurfaceListener {
+    fn default_handlers() -> ShellSurfaceListener {
+        ShellSurfaceListener {
+            configure_handler: Box::new(move |_, _, _| {})
+        }
+    }
+}
 
 //
 // C-wrappers for the callback closures, to send to wayland
@@ -145,12 +183,14 @@ extern "C" fn shell_surface_ping(_data: *mut c_void,
     unsafe { wl_shell_surface_pong(shell_surface, serial) }
 }
 
-extern "C" fn shell_surface_configure(_data: *mut c_void,
+extern "C" fn shell_surface_configure(data: *mut c_void,
                                       _shell_surface: *mut wl_shell_surface,
-                                      _edges: u32,
-                                      _width: i32,
-                                      _height: i32
+                                      edges: ShellSurfaceResize,
+                                      width: i32,
+                                      height: i32
                                      ) {
+    let listener = unsafe { &*(data as *const ShellSurfaceListener) };
+    (listener.configure_handler)(edges, width,height);
 }
 
 extern "C" fn shell_surface_popup_done(_data: *mut c_void,
