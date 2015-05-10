@@ -28,6 +28,11 @@ pub struct EGLSurface {
     surface: WSurface
 }
 
+/// EGLSurface is self owned
+unsafe impl Send for EGLSurface {}
+/// The wayland library guaranties this.
+unsafe impl Sync for EGLSurface {}
+
 impl EGLSurface {
     /// Creates a new EGL surface on a wayland surface.
     pub fn new(surface: WSurface, width: i32, height: i32) -> EGLSurface {
@@ -138,4 +143,17 @@ mod eglffi {
             WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
         };
     );
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(dead_code)]
+
+    use super::EGLSurface;
+
+    fn require_send_sync<T: Send + Sync>() {}
+
+    fn send_sync() {
+        require_send_sync::<EGLSurface>();
+    }
 }

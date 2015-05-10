@@ -48,6 +48,12 @@ pub struct ShellSurface<S: Surface> {
     listener: Box<ShellSurfaceListener>
 }
 
+/// ShellSurface is self owned
+unsafe impl<S: Surface + Send> Send for ShellSurface<S> {}
+/// The wayland library guaranties this.
+unsafe impl<S: Surface + Sync> Sync for ShellSurface<S> {}
+
+
 impl<S: Surface> ShellSurface<S> {
     /// Frees the `Surface` from its role of `shell_surface` and returns it.
     pub fn destroy(mut self) -> S {
