@@ -1,3 +1,4 @@
+use std::ffi::CStr;
 use std::ops::Deref;
 use std::ptr;
 
@@ -11,7 +12,9 @@ use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
                                      wl_shell_surface_set_toplevel,
                                      wl_shell_surface_pong, wl_shell_surface_listener,
-                                     wl_shell_surface_add_listener, wl_shell_surface_set_fullscreen};
+                                     wl_shell_surface_add_listener, wl_shell_surface_set_fullscreen,
+                                     wl_shell_surface_set_maximized, wl_shell_surface_set_title,
+                                     wl_shell_surface_set_class};
 use ffi::FFI;
 
 /// Different methods of fullscreen for a shell surface.
@@ -94,6 +97,45 @@ impl<S: Surface> ShellSurface<S> {
         )};
     }
 
+    /// Set this shell surface as being maximised.
+    ///
+    /// If no output is provided, the compositor will choose the output itself.
+    pub fn set_maximised(&self, output: Option<&Output>) {
+        unsafe {
+            wl_shell_surface_set_maximized(
+                self.ptr,
+                output.map(|o| o.ptr_mut()).unwrap_or(ptr::null_mut())
+            );
+        }
+    }
+
+    /// Sets the shell surface title.
+    ///
+    /// This string may be used to identify the surface in a task bar, window list,
+    /// or other user interface elements provided by the compositor.
+    pub fn set_title(&self, title: &CStr) {
+        unsafe {
+            wl_shell_surface_set_title(
+                self.ptr,
+                title.as_ptr()
+            );
+        }
+    }
+
+    /// Sets the shell surface class.
+    ///
+    /// The surface class identifies the general class of applications to which the
+    /// surface belongs. A common convention is to use the file name of the application's
+    /// `.desktop` file as the class.
+    pub fn set_class(&self, title: &CStr) {
+        unsafe {
+            wl_shell_surface_set_class(
+                self.ptr,
+                title.as_ptr()
+            );
+        }
+    }
+
     /// Sets the callback to be invoked when a `configure` event is received for this shell surface.
     ///
     /// These events are generated then the window is resized, and provide a hint of the new
@@ -122,7 +164,10 @@ impl<S: Surface> Deref for ShellSurface<S> {
 
 impl<S: Surface> From<(Shell, S)> for ShellSurface<S> {
     fn from((shell, surface): (Shell, S)) -> ShellSurface<S> {
-        let ptr = unsafe { wl_shell_get_shell_surface(shell.ptr_mut(), surface.get_wsurface().ptr_mut()) };
+        let ptr = unsafe { wl_shell_get_shell_surface(
+            shell.ptr_mut(),
+            surface.get_wsurface().ptr_mut())
+        };
         let listener = ShellSurfaceListener::default_handlers();
         let s = ShellSurface {
             _shell: shell,
