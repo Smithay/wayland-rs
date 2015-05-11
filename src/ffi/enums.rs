@@ -12,12 +12,14 @@ pub enum wl_display_error {
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_keyboard_key_state {
     WL_KEYBOARD_KEY_STATE_RELEASED = 0,
     WL_KEYBOARD_KEY_STATE_PRESSED = 1,
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_keyboard_keymap_format {
     WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP = 0,
     WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1 = 1,
@@ -55,12 +57,14 @@ pub enum wl_output_transform {
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_pointer_axis {
     WL_POINTER_AXIS_VERTICAL_SCROLL = 0,
     WL_POINTER_AXIS_HORIZONTAL_SCROLL = 1,
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_pointer_button_state {
     WL_POINTER_BUTTON_STATE_RELEASED = 0,
     WL_POINTER_BUTTON_STATE_PRESSED = 1,
@@ -87,6 +91,7 @@ pub enum wl_shell_error {
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_shell_surface_fullscreen_method {
     WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT = 0,
     WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE = 1,
@@ -95,6 +100,7 @@ pub enum wl_shell_surface_fullscreen_method {
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_shell_surface_resize {
     WL_SHELL_SURFACE_RESIZE_NONE = 0,
     WL_SHELL_SURFACE_RESIZE_TOP = 1,
@@ -121,6 +127,7 @@ pub enum wl_shm_error {
 }
 
 #[repr(u32)]
+#[derive(PartialEq, Eq)]
 pub enum wl_shm_format {
     WL_SHM_FORMAT_ARGB8888 = 0,
     WL_SHM_FORMAT_XRGB8888 = 1,

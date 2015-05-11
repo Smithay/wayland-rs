@@ -3,6 +3,8 @@ use libc::{c_int, c_void, uint32_t, int32_t};
 use ffi::abi::{wl_proxy, wl_array};
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
+use ffi::enums::{wl_keyboard_keymap_format, wl_keyboard_key_state};
+
 use super::surface::wl_surface;
 
 #[repr(C)] pub struct wl_keyboard;
@@ -11,7 +13,7 @@ use super::surface::wl_surface;
 pub struct wl_keyboard_listener {
     pub keymap: extern fn(data: *mut c_void,
                           keyboard: *mut wl_keyboard,
-                          format: uint32_t,
+                          format: wl_keyboard_keymap_format,
                           fd: int32_t,
                           size: uint32_t
                          ),
@@ -31,7 +33,7 @@ pub struct wl_keyboard_listener {
                        serial: uint32_t,
                        time: uint32_t,
                        key: uint32_t,
-                       state: uint32_t
+                       state: wl_keyboard_key_state
                       ),
     pub modifiers: extern fn(data: *mut c_void,
                              keyboard: *mut wl_keyboard,

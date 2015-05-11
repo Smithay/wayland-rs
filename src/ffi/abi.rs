@@ -6,7 +6,7 @@ use libc::{c_int, c_char, c_void, int32_t, uint32_t, size_t};
 pub struct wl_array {
     pub size: size_t,
     pub alloc: size_t,
-    data: *mut c_void
+    pub data: *mut c_void
 }
 
 #[repr(C)] pub struct wl_display;

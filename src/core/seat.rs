@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use libc::{c_void, c_char};
 
-use super::{From, Registry, Pointer, WSurface};
+use super::{From, Registry, Pointer, WSurface, Keyboard};
 
 use ffi::interfaces::seat::{wl_seat, wl_seat_destroy, wl_seat_listener, wl_seat_add_listener};
 use ffi::enums::{wl_seat_capability, WL_SEAT_CAPABILITY_POINTER, WL_SEAT_CAPABILITY_KEYBOARD,
@@ -91,6 +91,20 @@ impl Seat {
             data.pointer
         };
         if has_pointer {
+            Some(From::from(self.clone()))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_keyboard(&self) -> Option<Keyboard> {
+        // avoid deadlock
+        let has_keyboard = {
+            let internal = self.internal.lock().unwrap();
+            let data = internal.listener.data.lock().unwrap();
+            data.keyboard
+        };
+        if has_keyboard {
             Some(From::from(self.clone()))
         } else {
             None

@@ -5,6 +5,7 @@
 pub use self::buffer::Buffer;
 pub use self::compositor::Compositor;
 pub use self::display::{Display, default_display};
+pub use self::keyboard::{Keyboard, KeyboardId};
 pub use self::region::Region;
 pub use self::registry::Registry;
 pub use self::output::{Output, OutputMode, OutputId};
@@ -18,6 +19,8 @@ pub use self::subcompositor::SubCompositor;
 pub use self::subsurface::SubSurface;
 pub use self::surface::{Surface, WSurface, SurfaceId};
 
+pub use self::keyboard::KeymapFormat as KeymapFormat;
+pub use self::keyboard::KeyState as KeyState;
 pub use self::pointer::ScrollAxis as ScrollAxis;
 pub use self::pointer::ButtonState as ButtonState;
 pub use self::output::OutputTransform as OutputTransform;
@@ -28,6 +31,7 @@ pub use self::shm::ShmFormat as ShmFormat;
 mod buffer;
 mod compositor;
 mod display;
+mod keyboard;
 mod output;
 mod pointer;
 mod region;
