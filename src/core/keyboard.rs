@@ -123,14 +123,17 @@ impl Keyboard {
     /// Provides the file descriptor giving access to the keymap definition
     /// currently used by the compositor for this keyboard.
     ///
-    /// Provided data is `(fd, size)`.
+    /// Provided data is `(fd, size)`. `size` being the number of bytes to read from `fd`.
     ///
-    /// Will return `None` if the event providing this information has not been received
+    /// It gives away ownership of the Fd, and thus other calls of this methos will
+    /// return `None`.
+    ///
+    /// Will also return `None` if the event providing this information has not been received
     /// yet. In such case you'll need to wait for more events to be processed. Using
     /// `Display::dispatch_pending()` for example.
     pub fn keymap_fd(&self) -> Option<(i32, u32)> {
-        let data = self.listener.data.lock().unwrap();
-        data.keymap
+        let mut data = self.listener.data.lock().unwrap();
+        data.keymap.take()
     }
 
     /// Provides the repeat information of this keayboard.
