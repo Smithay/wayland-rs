@@ -120,7 +120,32 @@ impl Keyboard {
         wrap_keyboard_id(self.ptr as usize)
     }
 
-   
+    /// Provides the file descriptor giving access to the keymap definition
+    /// currently used by the compositor for this keyboard.
+    ///
+    /// Provided data is `(fd, size)`.
+    ///
+    /// Will return `None` if the event providing this information has not been received
+    /// yet. In such case you'll need to wait for more events to be processed. Using
+    /// `Display::dispatch_pending()` for example.
+    pub fn keymap_fd(&self) -> Option<(i32, u32)> {
+        let data = self.listener.data.lock().unwrap();
+        data.keymap
+    }
+
+    /// Provides the repeat information of this keayboard.
+    ///
+    /// Provided data is `(rate, delay)`. `rate` is the rate of repeating keys, in characters
+    /// per second, and `delay` is the delay in miliseconds between the moment the key is
+    /// pressed and the moment it starts repeating.
+    ///
+    /// Will return `None` if the event providing this information has not been received
+    /// yet. In such case you'll need to wait for more events to be processed. Using
+    /// `Display::dispatch_pending()` for example.
+    pub fn repeat_info(&self) -> Option<(i32, i32)> {
+        let data = self.listener.data.lock().unwrap();
+        data.repeat_info
+    }
 
     pub fn release(self) {
         unsafe {
