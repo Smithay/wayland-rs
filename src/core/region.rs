@@ -16,9 +16,9 @@ pub struct Region {
     ptr: *mut wl_region
 }
 
-/// WSurface is self owned
+// Region is self owned
 unsafe impl Send for Region {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl Sync for Region {}
 
 impl Region {

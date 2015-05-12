@@ -18,9 +18,9 @@ pub struct WSurface {
     ptr: *mut wl_surface
 }
 
-/// WSurface is self owned
+// WSurface is self owned
 unsafe impl Send for WSurface {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl Sync for WSurface {}
 
 /// An opaque unique identifier to a surface, can be tested for equality.

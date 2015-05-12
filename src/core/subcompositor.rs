@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use super::{From, Registry, Surface, SubSurface, WSurface};
 
@@ -10,6 +11,9 @@ struct InternalSubCompositor {
     ptr: *mut wl_subcompositor
 }
 
+// InternalSubCompositor is self-owned
+unsafe impl Send for InternalSubCompositor {}
+
 /// A wayland subcompositor.
 ///
 /// This is the back-end used to create subsurfaces.
@@ -17,7 +21,7 @@ struct InternalSubCompositor {
 /// Like other global objects, this handle can be cloned.
 #[derive(Clone)]
 pub struct SubCompositor {
-    internal : Rc<InternalSubCompositor>
+    internal : Arc<Mutex<InternalSubCompositor>>
 }
 
 impl SubCompositor {
@@ -42,10 +46,10 @@ impl Bind<Registry> for SubCompositor {
 
     unsafe fn wrap(ptr: *mut wl_subcompositor, registry: Registry) -> SubCompositor {
         SubCompositor {
-            internal: Rc::new(InternalSubCompositor {
+            internal: Arc::new(Mutex::new(InternalSubCompositor {
                 _registry: registry,
                 ptr: ptr
-            })
+            }))
         }
     }
 }
@@ -54,10 +58,12 @@ impl FFI for SubCompositor {
     type Ptr = wl_subcompositor;
 
     fn ptr(&self) -> *const wl_subcompositor {
-        self.internal.ptr as *const wl_subcompositor
+        let internal = self.internal.lock().unwrap();
+        internal.ptr as *const wl_subcompositor
     }
 
     unsafe fn ptr_mut(&self) -> *mut wl_subcompositor {
-        self.internal.ptr
+        let internal = self.internal.lock().unwrap();
+        internal.ptr
     }
 }

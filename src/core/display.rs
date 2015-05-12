@@ -18,7 +18,7 @@ struct InternalDisplay {
     listener: Box<DisplayListener>
 }
 
-/// InternalDisplay is owning
+// InternalDisplay is owning
 unsafe impl Send for InternalDisplay {}
 
 /// A wayland Display.

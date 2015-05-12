@@ -14,9 +14,9 @@ pub struct Buffer {
     ptr: *mut wl_buffer
 }
 
-/// Buffer is self owned
+// Buffer is self owned
 unsafe impl Send for Buffer {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl Sync for Buffer {}
 
 impl<'a> FromOpt<(&'a ShmPool, i32, i32, i32, i32, u32)> for Buffer {

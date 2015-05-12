@@ -87,9 +87,9 @@ pub struct Keyboard {
     listener: Box<KeyboardListener>,
 }
 
-/// Keyboard is self owned
+// Keyboard is self owned
 unsafe impl Send for Keyboard {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl Sync for Keyboard {}
 
 impl From<Seat> for Keyboard {

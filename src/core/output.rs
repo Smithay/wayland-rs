@@ -146,6 +146,7 @@ pub struct Output {
 
 // Output is self-owned
 unsafe impl Send for Output {}
+// no method is modifying it
 unsafe impl Sync for Output {}
 
 impl Output {

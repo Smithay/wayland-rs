@@ -17,9 +17,9 @@ pub struct ShmPool {
     ptr: *mut wl_shm_pool
 }
 
-/// WSurface is self owned
+// ShmPool is self owned
 unsafe impl Send for ShmPool {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl Sync for ShmPool {}
 
 impl ShmPool {

@@ -68,7 +68,7 @@ struct InternalSeat {
     listener: Box<SeatListener>
 }
 
-/// InternalSeat is self owning
+// InternalSeat is self owning
 unsafe impl Send for InternalSeat {}
 
 /// A global wayland Seat.

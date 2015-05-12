@@ -48,9 +48,9 @@ pub struct ShellSurface<S: Surface> {
     listener: Box<ShellSurfaceListener>
 }
 
-/// ShellSurface is self owned
+// ShellSurface is self owned
 unsafe impl<S: Surface + Send> Send for ShellSurface<S> {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl<S: Surface + Sync> Sync for ShellSurface<S> {}
 
 

@@ -106,9 +106,9 @@ pub struct Pointer<S: Surface> {
     data: Box<PointerData<S>>
 }
 
-/// Pointer is self owned
+// Pointer is self owned
 unsafe impl<S: Surface + Send> Send for Pointer<S> {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl<S: Surface + Sync> Sync for Pointer<S> {}
 
 impl From<Seat> for Pointer<WSurface> {

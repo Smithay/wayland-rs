@@ -62,7 +62,7 @@ mod tests {
     #![allow(dead_code)]
 
     use super::{Buffer, Compositor, Display, Output, Pointer, Region, Registry, Seat, Shell,
-                ShellSurface, Shm, ShmPool, SubSurface, WSurface, Surface};
+                ShellSurface, Shm, ShmPool, SubCompositor, SubSurface, WSurface, Surface};
 
     fn require_send_sync<T: Send + Sync>() {}
 
@@ -89,6 +89,7 @@ mod tests {
         require_send_sync::<Shell>();
         require_send_sync::<Shm>();
         require_send_sync::<ShmPool>();
+        require_send_sync::<SubCompositor>();
         require_send_sync::<WSurface>();
     }
 }

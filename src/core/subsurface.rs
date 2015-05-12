@@ -19,9 +19,9 @@ pub struct SubSurface<'p, S: Surface> {
     _parent: &'p WSurface
 }
 
-/// WSurface is self owned
+// SubSurface is self owned
 unsafe impl<'p, S: Surface + Send> Send for SubSurface<'p, S> {}
-/// The wayland library guaranties this.
+// The wayland library guaranties this.
 unsafe impl<'p, S: Surface + Sync> Sync for SubSurface<'p, S> {}
 
 impl<'p, S: Surface> SubSurface<'p, S> {

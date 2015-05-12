@@ -78,7 +78,7 @@ struct RegistryInternal {
     pub listener: Box<RegistryListener>,
 }
 
-/// RegistryInternal is owning
+// RegistryInternal is owning
 unsafe impl Send for RegistryInternal {}
 
 /// A Registry, giving access to the global wayland objects.
