@@ -25,8 +25,11 @@ pub struct SubCompositor {
 }
 
 impl SubCompositor {
-    pub fn get_subsurface<'d, S>(&self, surface: S, parent: &'d WSurface)
-        -> SubSurface<'d, S>
+    /// Maps `surface` as a subsurface of `parent`.
+    ///
+    /// If `parent` is destroyed, the subsurface will not be displayed any more.
+    pub fn get_subsurface<S>(&self, surface: S, parent: &WSurface)
+        -> SubSurface<S>
         where S: Surface
     {
         From::from((self.clone(), surface, parent))

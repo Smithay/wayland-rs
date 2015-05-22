@@ -12,19 +12,18 @@ use ffi::FFI;
 /// A wayland subsurface.
 ///
 /// It wraps a surface, to be integrated into a parent surface.
-pub struct SubSurface<'p, S: Surface> {
+pub struct SubSurface<S: Surface> {
     _subcompositor: SubCompositor,
     ptr: *mut wl_subsurface,
     surface: S,
-    _parent: &'p WSurface
 }
 
 // SubSurface is self owned
-unsafe impl<'p, S: Surface + Send> Send for SubSurface<'p, S> {}
+unsafe impl<S: Surface + Send> Send for SubSurface<S> {}
 // The wayland library guaranties this.
-unsafe impl<'p, S: Surface + Sync> Sync for SubSurface<'p, S> {}
+unsafe impl<S: Surface + Sync> Sync for SubSurface<S> {}
 
-impl<'p, S: Surface> SubSurface<'p, S> {
+impl<S: Surface> SubSurface<S> {
     /// Frees the `Surface` from its role of `subsurface` and returns it.
     pub fn destroy(mut self) -> S {
         use std::mem::{forget, replace, uninitialized};
@@ -63,7 +62,7 @@ impl<'p, S: Surface> SubSurface<'p, S> {
 
 }
 
-impl<'p, S: Surface> Deref for SubSurface<'p, S> {
+impl<S: Surface> Deref for SubSurface<S> {
     type Target = S;
 
     fn deref<'d>(&'d self) -> &'d S {
@@ -71,11 +70,11 @@ impl<'p, S: Surface> Deref for SubSurface<'p, S> {
     }
 }
 
-impl<'p, S> From<(SubCompositor, S, &'p WSurface)> for SubSurface<'p, S>
+impl<'p, S> From<(SubCompositor, S, &'p WSurface)> for SubSurface<S>
     where S: Surface
 {
     fn from((subcompositor, surface, parent): (SubCompositor, S, &'p WSurface))
-        -> SubSurface<'p, S>
+        -> SubSurface<S>
     {
         let ptr = unsafe {
             wl_subcompositor_get_subsurface(
@@ -88,18 +87,17 @@ impl<'p, S> From<(SubCompositor, S, &'p WSurface)> for SubSurface<'p, S>
             _subcompositor: subcompositor,
             ptr: ptr,
             surface: surface,
-            _parent: parent,
         }
     }
 }
 
-impl<'p, S: Surface> Drop for SubSurface<'p, S> {
+impl<S: Surface> Drop for SubSurface<S> {
     fn drop(&mut self) {
         unsafe { wl_subsurface_destroy(self.ptr) };
     }
 }
 
-impl<'p, S: Surface> FFI for SubSurface<'p, S> {
+impl<S: Surface> FFI for SubSurface<S> {
     type Ptr = wl_subsurface;
 
     fn ptr(&self) -> *const wl_subsurface {
