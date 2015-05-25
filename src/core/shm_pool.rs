@@ -1,7 +1,7 @@
 use super::{From, FromOpt, Buffer, Shm, ShmFormat};
 
 use ffi::interfaces::shm::wl_shm_create_pool;
-use ffi::interfaces::shm_pool::{wl_shm_pool, wl_shm_pool_destroy};
+use ffi::interfaces::shm_pool::{wl_shm_pool, wl_shm_pool_destroy, wl_shm_pool_resize};
 use ffi::FFI;
 
 /// A shared memory pool.
@@ -34,6 +34,13 @@ impl ShmPool {
     pub fn create_buffer<'b>(&self, offset: i32, width: i32, height: i32, stride: i32, format: ShmFormat)
             -> Option<Buffer> {
         FromOpt::from((self, offset, width, height, stride, format as u32))
+    }
+
+    /// Resizes the memory pool to a new size.
+    ///
+    /// Can only be used to make the pool bigger
+    pub fn resize(&self, size: i32) {
+        unsafe { wl_shm_pool_resize(self.ptr, size); }
     }
 }
 
