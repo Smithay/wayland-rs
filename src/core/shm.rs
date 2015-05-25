@@ -1,6 +1,8 @@
 use std::os::unix::io::AsRawFd;
 use std::sync::{Arc, Mutex};
 
+use libc::c_int;
+
 use super::{From, Registry, ShmPool};
 
 use ffi::interfaces::shm::{wl_shm, wl_shm_destroy};
@@ -34,6 +36,13 @@ impl Shm {
     /// The created ShmPool will have access to these bytes exactly.
     pub fn pool_from_fd<F: AsRawFd>(&self, fd: &F, size: i32) -> ShmPool {
         From::from((self.clone(), fd.as_raw_fd(), size))
+    }
+
+    /// Creates a sahred memory pool from given raw file descriptor.
+    ///
+    /// Same as `pool_from_fd(..)` otherwise
+    pub fn pool_from_raw_fd(&self, fd: c_int, size: i32) -> ShmPool {
+        From::from((self.clone(), fd, size))
     }
 }
 
