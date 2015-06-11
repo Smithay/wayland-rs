@@ -14,3 +14,6 @@ lazy_static = "0.1"
 
 [dev-dependencies]
 byteorder = "0.3"
+
+[features]
+egl = []

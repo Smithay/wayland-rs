@@ -13,7 +13,7 @@
 //! a system library which they will try to load at first use.
 //!
 //! - module `egl`: it provides a mean to build EGL surfaces in a wayland context. It requires
-//!   the presence of `libwayland-egl.so`.
+//!   the presence of `libwayland-egl.so`. This module is activated by the `egl` feature.
 //!
 
 #[macro_use] extern crate bitflags;
@@ -23,6 +23,8 @@ extern crate libc;
 #[macro_use] mod ffi;
 
 pub mod core;
+
+#[cfg(feature = "egl")]
 pub mod egl;
 
 pub mod internals {
