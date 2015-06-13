@@ -47,8 +47,11 @@ impl Shm {
 }
 
 impl Bind<Registry> for Shm {
+
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_shm_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_shm_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_shm_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_shm, registry: Registry) -> Shm {

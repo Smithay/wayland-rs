@@ -39,7 +39,9 @@ impl Shell {
 
 impl Bind<Registry> for Shell {
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_shell_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_shell_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_shell_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_shell, registry: Registry) -> Shell {

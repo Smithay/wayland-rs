@@ -1,6 +1,10 @@
 use libc::{c_int, c_void, uint32_t, int32_t};
 
 use ffi::abi::{wl_proxy, wl_fixed_t};
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data, wl_proxy_marshal};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::{wl_pointer_button_state, wl_pointer_axis};
 
@@ -51,7 +55,7 @@ pub unsafe fn wl_pointer_add_listener(pointer: *mut wl_pointer,
                                       listener: *const wl_pointer_listener,
                                       data: *mut c_void
                                      ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         pointer as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -60,17 +64,17 @@ pub unsafe fn wl_pointer_add_listener(pointer: *mut wl_pointer,
 
 #[inline(always)]
 pub unsafe fn wl_pointer_set_user_data(pointer: *mut wl_pointer, data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(pointer as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,pointer as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_pointer_get_user_data(pointer: *mut wl_pointer) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(pointer as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,pointer as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_pointer_destroy(pointer: *mut wl_pointer) {
-    (WCH.wl_proxy_destroy)(pointer as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_destroy,pointer as *mut wl_proxy)
 }
 
 #[inline(always)]
@@ -80,7 +84,7 @@ pub unsafe fn wl_pointer_set_cursor(pointer: *mut wl_pointer,
                                     hotspot_x: int32_t,
                                     hotspot_y: int32_t
                                    ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         pointer as *mut wl_proxy,
         WL_POINTER_SET_CURSOR,
         serial,
@@ -92,6 +96,6 @@ pub unsafe fn wl_pointer_set_cursor(pointer: *mut wl_pointer,
 
 #[inline(always)]
 pub unsafe fn wl_pointer_release(pointer: *mut wl_pointer) {
-    (WCH.wl_proxy_marshal)(pointer as *mut wl_proxy, WL_POINTER_RELEASE);
-    (WCH.wl_proxy_destroy)(pointer as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_marshal,pointer as *mut wl_proxy, WL_POINTER_RELEASE);
+    ffi_dispatch!(WCH, wl_proxy_destroy,pointer as *mut wl_proxy)
 }

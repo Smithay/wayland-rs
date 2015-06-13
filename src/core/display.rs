@@ -7,7 +7,12 @@ use libc::{c_void, uint32_t};
 use ffi::interfaces::callback::{wl_callback, wl_callback_listener, wl_callback_add_listener};
 use ffi::interfaces::display::{wl_display, wl_display_sync};
 use ffi::abi;
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_display_connect, wl_display_disconnect, wl_display_flush,
+               wl_display_dispatch, wl_display_dispatch_pending,
+               wl_display_roundtrip};
 
 use ffi::FFI;
 
@@ -46,7 +51,7 @@ impl Display {
     pub fn sync_roundtrip(&self) {
         let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_roundtrip)(internal.ptr);
+            ffi_dispatch!(WCH, wl_display_roundtrip, internal.ptr);
         }
     }
 
@@ -56,7 +61,7 @@ impl Display {
     pub fn dispatch_pending(&self) {
         let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_dispatch_pending)(internal.ptr);
+            ffi_dispatch!(WCH, wl_display_dispatch_pending, internal.ptr);
         }
     }
 
@@ -66,7 +71,7 @@ impl Display {
     pub fn dispatch(&self) {
         let internal = self.internal.lock().unwrap();
         unsafe {
-            (WCH.wl_display_dispatch)(internal.ptr);
+            ffi_dispatch!(WCH, wl_display_dispatch, internal.ptr);
         }
     }
 
@@ -76,7 +81,7 @@ impl Display {
     /// a `WouldBlock` error.
     pub fn flush(&self) -> Result<(), IoError> {
         let internal = self.internal.lock().unwrap();
-        if unsafe { (WCH.wl_display_flush)(internal.ptr) } < 0 {
+        if unsafe { ffi_dispatch!(WCH, wl_display_flush, internal.ptr) } < 0 {
             Err(IoError::last_os_error())
         } else {
             Ok(())
@@ -112,7 +117,7 @@ impl Display {
 impl Drop for InternalDisplay {
     fn drop(&mut self) {
         unsafe {
-            (WCH.wl_display_disconnect)(self.ptr);
+            ffi_dispatch!(WCH, wl_display_disconnect, self.ptr);
         }
     }
 }
@@ -129,6 +134,7 @@ impl FFI for Display {
     }
 }
 
+#[cfg(feature = "dlopen")]
 /// Tries to connect to the default wayland display.
 ///
 /// If the `WAYLAND_DISPLAY` environment variable is set, it will
@@ -136,7 +142,7 @@ impl FFI for Display {
 ///
 /// Will return `None` if either:
 ///
-/// - the library `libwayland-client.so` is not available
+/// - the library `libwayland-client.so` is not available (if feature `dlopen` is activated)
 /// - the connexion to the wayland server could not be done.
 pub fn default_display() -> Option<Display> {
     unsafe {
@@ -145,6 +151,32 @@ pub fn default_display() -> Option<Display> {
             None => return None
         };
         let ptr = (handle.wl_display_connect)(ptr::null_mut());
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Display {
+                internal: Arc::new(Mutex::new(InternalDisplay{
+                    ptr: ptr,
+                    listener: Box::new(DisplayListener::default_handlers())
+                }))
+            })
+        }
+    }
+}
+
+#[cfg(not(feature = "dlopen"))]
+/// Tries to connect to the default wayland display.
+///
+/// If the `WAYLAND_DISPLAY` environment variable is set, it will
+/// be used. Otherwise it defaults to `"wayland-0"`.
+///
+/// Will return `None` if either:
+///
+/// - the library `libwayland-client.so` is not available (if feature `dlopen` is activated)
+/// - the connexion to the wayland server could not be done.
+pub fn default_display() -> Option<Display> {
+    unsafe {
+        let ptr = abi::wl_display_connect(ptr::null_mut());
         if ptr.is_null() {
             None
         } else {

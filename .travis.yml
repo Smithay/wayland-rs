@@ -8,3 +8,10 @@ rust:
 os:
   - linux
 
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq libwayland-client0 libwayland-egl1-mesa
+
+script:
+    - cargo test --features "egl"
+    - cargo test --features "dlopen egl"

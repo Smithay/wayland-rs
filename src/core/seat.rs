@@ -114,8 +114,11 @@ impl Seat {
 
 
 impl Bind<Registry> for Seat {
+
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_seat_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_seat_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_seat_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_seat, registry: Registry) -> Seat {

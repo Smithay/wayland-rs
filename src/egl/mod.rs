@@ -14,11 +14,18 @@ use core::{WSurface, Surface};
 
 use ffi::FFI;
 
+#[cfg(feature = "dlopen")]
 use self::eglffi::{WAYLAND_EGL_OPTION, WAYLAND_EGL_HANDLE};
+#[cfg(not(feature = "dlopen"))]
+use self::eglffi::{wl_egl_window_create, wl_egl_window_destroy,
+                   wl_egl_window_resize, wl_egl_window_get_attached_size};
+
 pub use self::eglffi::wl_egl_window;
 
-
+#[cfg(feature = "dlopen")]
 /// Returns whether the library `libwayland-egl.so` has been found and could be loaded.
+///
+/// This function is only presend with the feature `dlopen` activated.
 pub fn is_egl_available() -> bool {
     WAYLAND_EGL_OPTION.is_some()
 }
@@ -36,7 +43,10 @@ unsafe impl Sync for EGLSurface {}
 impl EGLSurface {
     /// Creates a new EGL surface on a wayland surface.
     pub fn new(surface: WSurface, width: i32, height: i32) -> EGLSurface {
-        let ptr = unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_create)(surface.ptr_mut(), width, height) };
+        let ptr = unsafe {
+            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_create,
+                            surface.ptr_mut(), width, height)
+        };
         EGLSurface {
             ptr: ptr,
             surface: surface
@@ -48,7 +58,7 @@ impl EGLSurface {
         use std::mem::{forget, replace, uninitialized};
         unsafe {
             let surface = replace(&mut self.surface, uninitialized());
-            (WAYLAND_EGL_HANDLE.wl_egl_window_destroy)(self.ptr);
+            ffi_dispatch!(WAYLAND_EGL_HANDLE,wl_egl_window_destroy,self.ptr);
             forget(self);
             surface
         }
@@ -68,7 +78,10 @@ impl EGLSurface {
     /// position.
     /// It allow you to control the direction of the growth or the shrinking of the surface.
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
-        unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_resize)(self.ptr, width, height, dx, dy) }
+        unsafe {
+            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_resize,
+                self.ptr, width, height, dx, dy)
+        }
     }
 
     /// The size of the EGL buffer attached to this surface.
@@ -76,7 +89,7 @@ impl EGLSurface {
         let mut width = 0;
         let mut height = 0;
         unsafe {
-            (WAYLAND_EGL_HANDLE.wl_egl_window_get_attached_size)(
+            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_get_attached_size,
                 self.ptr,
                 &mut width as &mut i32,
                 &mut height as &mut i32
@@ -95,7 +108,7 @@ impl Surface for EGLSurface {
 
 impl Drop for EGLSurface {
     fn drop(&mut self) {
-        unsafe { (WAYLAND_EGL_HANDLE.wl_egl_window_destroy)(self.ptr) }
+        unsafe { ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_destroy, self.ptr) }
     }
 }
 
@@ -111,6 +124,7 @@ impl FFI for EGLSurface {
     }
 }
 
+#[cfg(feature = "dlopen")]
 mod eglffi {
     use ffi::interfaces::surface::wl_surface;
 
@@ -143,6 +157,33 @@ mod eglffi {
             WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
         };
     );
+}
+
+#[cfg(not(feature = "dlopen"))]
+mod eglffi {
+    use ffi::interfaces::surface::wl_surface;
+
+    /// An opaque struct representing a native window for EGL.
+    ///
+    /// Its sole purpose is to provide a pointer to feed to EGL.
+    #[repr(C)] pub struct wl_egl_window;
+
+    #[link(name = "wayland-egl")]
+    extern {
+        pub fn wl_egl_window_create(surface: *mut wl_surface,
+                                    width: i32,
+                                    height: i32
+                                   ) -> *mut wl_egl_window;
+        pub fn wl_egl_window_destroy(window: *mut wl_egl_window);
+        pub fn wl_egl_window_resize(window: *mut wl_egl_window,
+                                    width: i32,
+                                    height: i32,
+                                    dx: i32,
+                                    dy: i32);
+        pub fn wl_egl_window_get_attached_size(window: *mut wl_egl_window,
+                                               width: *mut i32,
+                                               height: *mut i32);
+    }
 }
 
 #[cfg(test)]

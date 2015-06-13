@@ -1,6 +1,10 @@
 use libc::{c_void, int32_t, uint32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_set_user_data, wl_proxy_get_user_data,
+               wl_proxy_marshal};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::surface::wl_surface;
@@ -16,41 +20,41 @@ const WL_SUBSURFACE_SET_DESYNC: uint32_t = 5;
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_set_user_data(subsurface: *mut wl_subsurface, data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(subsurface as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,subsurface as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_get_user_data(subsurface: *mut wl_subsurface) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(subsurface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,subsurface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_destroy(subsurface: *mut wl_subsurface) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_DESTROY);
-    (WCH.wl_proxy_destroy)(subsurface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_DESTROY);
+    ffi_dispatch!(WCH, wl_proxy_destroy,subsurface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_set_position(subsurface: *mut wl_subsurface, x: int32_t, y: int32_t) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_POSITION, x, y)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_POSITION, x, y)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_place_above(subsurface: *mut wl_subsurface, sibling: *mut wl_surface) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_PLACE_ABOVE, sibling)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_PLACE_ABOVE, sibling)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_place_below(subsurface: *mut wl_subsurface, sibling: *mut wl_surface) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_PLACE_BELOW, sibling)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_PLACE_BELOW, sibling)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_set_sync(subsurface: *mut wl_subsurface) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_SYNC)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_SYNC)
 }
 
 #[inline(always)]
 pub unsafe fn wl_subsurface_set_desync(subsurface: *mut wl_subsurface) {
-    (WCH.wl_proxy_marshal)(subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_DESYNC)
+    ffi_dispatch!(WCH, wl_proxy_marshal,subsurface as *mut wl_proxy, WL_SUBSURFACE_SET_DESYNC)
 }

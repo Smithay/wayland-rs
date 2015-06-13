@@ -16,4 +16,5 @@ lazy_static = "0.1"
 byteorder = "0.3"
 
 [features]
+dlopen = []
 egl = []

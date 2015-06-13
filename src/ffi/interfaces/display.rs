@@ -3,6 +3,10 @@ use std::ptr;
 use libc::{c_int, c_void,c_char, uint32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_add_listener, wl_proxy_set_user_data, wl_proxy_get_user_data,
+               wl_proxy_marshal_constructor, wl_callback_interface, wl_registry_interface};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 pub use ffi::abi::wl_display;
@@ -32,7 +36,7 @@ pub unsafe fn wl_display_add_listener(display: *mut wl_display,
                                       listener: *const wl_display_listener,
                                       data: *mut c_void
                                      ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         display as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -41,30 +45,30 @@ pub unsafe fn wl_display_add_listener(display: *mut wl_display,
 
 #[inline(always)]
 pub unsafe fn wl_display_set_user_data(display: *mut wl_display, data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(display as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,display as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_display_get_user_data(display: *mut wl_display) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(display as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,display as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_display_sync(display: *mut wl_display) -> *mut wl_callback {
-    (WCH.wl_proxy_marshal_constructor)(
+    ffi_dispatch!(WCH, wl_proxy_marshal_constructor,
         display as *mut wl_proxy,
         WL_DISPLAY_SYNC,
-        WCH.wl_callback_interface,
+        ffi_dispatch_static!(WCH, wl_callback_interface),
         ptr::null_mut::<c_void>()
     ) as *mut wl_callback
 }
 
 #[inline(always)]
 pub unsafe fn wl_display_get_registry(display: *mut wl_display) -> *mut wl_registry {
-    (WCH.wl_proxy_marshal_constructor)(
+    ffi_dispatch!(WCH, wl_proxy_marshal_constructor,
         display as *mut wl_proxy,
         WL_DISPLAY_GET_REGISTRY,
-        WCH.wl_registry_interface,
+        ffi_dispatch_static!(WCH, wl_registry_interface),
         ptr::null_mut::<c_void>()
     ) as *mut wl_registry
 }

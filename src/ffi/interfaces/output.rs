@@ -1,6 +1,10 @@
 use libc::{c_int, c_void, c_char, int32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::{wl_output_mode, wl_output_subpixel, wl_output_transform};
 
@@ -38,7 +42,7 @@ pub unsafe fn wl_output_add_listener(output: *mut wl_output,
                                      listener: *const wl_output_listener,
                                      data: *mut c_void
                                     ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         output as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -47,15 +51,15 @@ pub unsafe fn wl_output_add_listener(output: *mut wl_output,
 
 #[inline(always)]
 pub unsafe fn wl_output_set_user_data(output: *mut wl_output, data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(output as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,output as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_output_get_user_data(output: *mut wl_output) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(output as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,output as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_output_destroy(output: *mut wl_output) {
-    (WCH.wl_proxy_destroy)(output as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_destroy,output as *mut wl_proxy)
 }
