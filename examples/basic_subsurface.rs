@@ -7,7 +7,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 use wayland::core::default_display;
-use wayland::core::ShmFormat;
+use wayland::core::shm::ShmFormat;
 
 fn main() {
     let display = default_display().expect("Unable to connect to Wayland server.");
@@ -42,9 +42,9 @@ fn main() {
     // create a shm_pool from this tempfile
     let pool = shm.pool_from_fd(&tmp, 40_400);
     // match a buffer on the part we wrote on
-    let buffer_parent = pool.create_buffer(0, 100, 100, 400, ShmFormat::WL_SHM_FORMAT_ARGB8888)
+    let buffer_parent = pool.create_buffer(0, 100, 100, 400, ShmFormat::ARGB8888)
                             .expect("Could not create buffer.");
-    let buffer_child = pool.create_buffer(40_000, 10, 10, 40, ShmFormat::WL_SHM_FORMAT_ARGB8888)
+    let buffer_child = pool.create_buffer(40_000, 10, 10, 40, ShmFormat::ARGB8888)
                            .expect("Could not create buffer.");
 
     // prepare child surface

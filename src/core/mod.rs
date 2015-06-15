@@ -43,8 +43,13 @@ pub trait Surface {
 mod tests {
     #![allow(dead_code)]
 
-    use super::{Buffer, Compositor, Display, Output, Pointer, Region, Registry, Seat, Shell,
-                ShellSurface, Shm, ShmPool, SubCompositor, SubSurface, WSurface, Surface};
+    use core::compositor::*;
+    use core::output::*;
+    use core::seat::*;
+    use core::shell::*;
+    use core::shm::*;
+    use core::subcompositor::*;
+    use super::{Display, Registry, Surface};
 
     fn require_send_sync<T: Send + Sync>() {}
 

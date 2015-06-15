@@ -6,7 +6,9 @@ use byteorder::{WriteBytesExt, NativeEndian};
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use wayland::core::{default_display, ShmFormat, KeyState};
+use wayland::core::default_display;
+use wayland::core::shm::ShmFormat;
+use wayland::core::seat::KeyState;
 
 fn main() {
     let display = default_display().expect("Unable to connect to Wayland server.");
@@ -31,7 +33,7 @@ fn main() {
     }
     let _ = tmp.flush();
     let pool = shm.pool_from_fd(&tmp, 40_000);
-    let buffer = pool.create_buffer(0, 100, 100, 400, ShmFormat::WL_SHM_FORMAT_ARGB8888)
+    let buffer = pool.create_buffer(0, 100, 100, 400, ShmFormat::ARGB8888)
                      .expect("Could not create buffer.");
 
     shell_surface.set_configure_callback(|_, w, h| {
@@ -69,7 +71,7 @@ fn main() {
 
     let mut keyboard = seat.get_keyboard().expect("Unable to get the keyboard.");
     keyboard.set_key_action(move |_, _, key, status| {
-        if status == KeyState::WL_KEYBOARD_KEY_STATE_RELEASED {
+        if status == KeyState::Released {
             println!("Key {} released.", key);
         } else {
             println!("Key {} pressed.", key);

@@ -7,7 +7,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 use wayland::core::default_display;
-use wayland::core::ShmFormat;
+use wayland::core::shm::ShmFormat;
 
 fn main() {
 
@@ -36,7 +36,7 @@ fn main() {
     // create a shm_pool from this tempfile
     let pool = shm.pool_from_fd(&tmp, 40_000);
     // match a buffer on the part we wrote on
-    let buffer = pool.create_buffer(0, 100, 100, 400, ShmFormat::WL_SHM_FORMAT_ARGB8888)
+    let buffer = pool.create_buffer(0, 100, 100, 400, ShmFormat::ARGB8888)
                      .expect("Could not create buffer.");
 
     // make our surface as a toplevel one
