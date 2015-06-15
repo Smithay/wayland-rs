@@ -1,49 +1,25 @@
 //! The core wayland protocol.
 //!
 //! This module covers the core part of the wayland protocol.
+//!
+//! The structures are organised in submodules depending on the
+//! global object used to create them.
 
-pub use self::buffer::Buffer;
-pub use self::compositor::Compositor;
 pub use self::display::{Display, default_display};
-pub use self::keyboard::{Keyboard, KeyboardId};
-pub use self::region::Region;
 pub use self::registry::Registry;
-pub use self::output::{Output, OutputMode, OutputId};
-pub use self::pointer::{Pointer, PointerId};
-pub use self::seat::Seat;
-pub use self::shell::Shell;
-pub use self::shell_surface::{ShellSurface, ShellFullscreenMethod};
-pub use self::shm::Shm;
-pub use self::shm_pool::ShmPool;
-pub use self::subcompositor::SubCompositor;
-pub use self::subsurface::SubSurface;
-pub use self::surface::{Surface, WSurface, SurfaceId};
 
-pub use self::keyboard::KeymapFormat;
-pub use self::keyboard::KeyState;
-pub use self::pointer::ScrollAxis;
-pub use self::pointer::ButtonState;
-pub use self::output::OutputTransform;
-pub use self::output::OutputSubpixel;
-pub use self::shell_surface::ShellSurfaceResize;
-pub use self::shm::ShmFormat;
+use self::compositor::WSurface;
 
-mod buffer;
-mod compositor;
 mod display;
-mod keyboard;
-mod output;
-mod pointer;
-mod region;
+mod ids;
 mod registry;
-mod seat;
-mod shell;
-mod shell_surface;
-mod shm;
-mod shm_pool;
-mod subcompositor;
-mod subsurface;
-mod surface;
+
+pub mod compositor;
+pub mod output;
+pub mod seat;
+pub mod shell;
+pub mod shm;
+pub mod subcompositor;
 
 /// A trait for creating Wayland interfaces from each other, for
 /// internal use of this library only.
@@ -55,6 +31,12 @@ trait From<T> {
 /// context where failure is possible, for internal use of this library only.
 trait FromOpt<T> {
     fn from(other: T) -> Option<Self>;
+}
+
+/// A trait representing whatever can be used a a surface. Protocol extentions
+/// surch as EGL can define their own kind of surfaces, but they wrap a `WSurface`.
+pub trait Surface {
+    fn get_wsurface(&self) -> &WSurface;
 }
 
 #[cfg(test)]

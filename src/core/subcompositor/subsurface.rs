@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use super::{From, SubCompositor, Surface, WSurface};
+use core::{From, Surface};
+use core::compositor::WSurface;
+use core::subcompositor::SubCompositor;
 
 use ffi::interfaces::subcompositor::wl_subcompositor_get_subsurface;
 use ffi::interfaces::subsurface::{wl_subsurface, wl_subsurface_destroy,

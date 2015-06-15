@@ -4,8 +4,10 @@ use std::cell::Cell;
 use std::collections::HashSet;
 use std::sync::Mutex;
 
-use super::{From, Seat, Surface, SurfaceId, WSurface};
-use super::surface::wrap_surface_id;
+use core::{From, Surface};
+use core::ids::{SurfaceId, wrap_surface_id};
+use core::seat::Seat;
+use core::compositor::WSurface;
 
 use ffi::interfaces::pointer::{wl_pointer, wl_pointer_destroy, wl_pointer_set_cursor,
                                wl_pointer_release, wl_pointer_listener,
@@ -14,8 +16,8 @@ use ffi::interfaces::seat::wl_seat_get_pointer;
 use ffi::interfaces::surface::wl_surface;
 use ffi::abi::wl_fixed_to_double;
 
-pub use ffi::enums::wl_pointer_button_state as ButtonState;
-pub use ffi::enums::wl_pointer_axis as ScrollAxis;
+pub use ffi::enums::ButtonState;
+pub use ffi::enums::ScrollAxis;
 
 use ffi::FFI;
 

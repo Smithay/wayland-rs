@@ -7,7 +7,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
-use ffi::enums::{wl_keyboard_keymap_format, wl_keyboard_key_state};
+use ffi::enums::{KeymapFormat, KeyState};
 
 use super::surface::wl_surface;
 
@@ -17,7 +17,7 @@ use super::surface::wl_surface;
 pub struct wl_keyboard_listener {
     pub keymap: extern fn(data: *mut c_void,
                           keyboard: *mut wl_keyboard,
-                          format: wl_keyboard_keymap_format,
+                          format: KeymapFormat,
                           fd: int32_t,
                           size: uint32_t
                          ),
@@ -37,7 +37,7 @@ pub struct wl_keyboard_listener {
                        serial: uint32_t,
                        time: uint32_t,
                        key: uint32_t,
-                       state: wl_keyboard_key_state
+                       state: KeyState
                       ),
     pub modifiers: extern fn(data: *mut c_void,
                              keyboard: *mut wl_keyboard,

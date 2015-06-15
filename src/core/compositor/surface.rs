@@ -1,4 +1,8 @@
-use super::{From, Buffer, Compositor, OutputTransform, Region};
+use core::{From, Surface};
+use core::compositor::{Compositor, Region};
+use core::output::OutputTransform;
+use core::shm::Buffer;
+use core::ids::{SurfaceId, wrap_surface_id};
 
 use ffi::interfaces::compositor::wl_compositor_create_surface;
 use ffi::interfaces::surface::{wl_surface, wl_surface_destroy, wl_surface_attach,
@@ -22,17 +26,6 @@ pub struct WSurface {
 unsafe impl Send for WSurface {}
 // The wayland library guaranties this.
 unsafe impl Sync for WSurface {}
-
-/// An opaque unique identifier to a surface, can be tested for equality.
-#[derive(PartialEq, Eq, Copy, Clone, Hash)]
-pub struct SurfaceId {
-    p: usize
-}
-
-#[inline]
-pub fn wrap_surface_id(p: usize) -> SurfaceId {
-    SurfaceId { p: p }
-}
 
 impl WSurface {
     /// Attaches given buffer to be the content of the image.
@@ -157,12 +150,6 @@ impl FFI for WSurface {
     unsafe fn ptr_mut(&self) -> *mut wl_surface {
         self.ptr
     }
-}
-
-/// A trait representing whatever can be used a a surface. Protocol extentions
-/// surch as EGL can define their own kind of surfaces, but they wrap a `WSurface`.
-pub trait Surface {
-    fn get_wsurface(&self) -> &WSurface;
 }
 
 impl Surface for WSurface {

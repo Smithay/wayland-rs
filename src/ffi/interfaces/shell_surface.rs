@@ -6,8 +6,8 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
                wl_proxy_get_user_data, wl_proxy_marshal};
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
-use ffi::enums::wl_shell_surface_fullscreen_method;
-use ffi::enums::wl_shell_surface_resize as wl_shell_surface_resize_e;
+use ffi::enums::FullscreenMethod;
+use ffi::enums::ShellSurfaceResize;
 
 use super::output::wl_output;
 use super::seat::wl_seat;
@@ -23,7 +23,7 @@ pub struct wl_shell_surface_listener {
                        ),
     pub configure: extern fn(data: *mut c_void,
                              shell_surface: *mut wl_shell_surface,
-                             edges: wl_shell_surface_resize_e,
+                             edges: ShellSurfaceResize,
                              width: int32_t,
                              height: int32_t
                             ),
@@ -129,7 +129,7 @@ pub unsafe fn wl_shell_surface_set_transient(shell_surface: *mut wl_shell_surfac
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_set_fullscreen(shell_surface: *mut wl_shell_surface,
-                                              method: wl_shell_surface_fullscreen_method,
+                                              method: FullscreenMethod,
                                               framerate: uint32_t,
                                               output: *mut wl_output
                                              ) {

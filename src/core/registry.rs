@@ -3,7 +3,13 @@ use std::sync::{Arc, Mutex};
 
 use libc::{c_void, c_char, uint32_t};
 
-use super::{From, Compositor, Display, Output, Seat, Shell, Shm, SubCompositor};
+use core::{From, Display};
+use core::compositor::Compositor;
+use core::output::Output;
+use core::seat::Seat;
+use core::shell::Shell;
+use core::shm::Shm;
+use core::subcompositor::SubCompositor;
 
 use ffi::interfaces::display::wl_display_get_registry;
 use ffi::interfaces::registry::{wl_registry, wl_registry_destroy,

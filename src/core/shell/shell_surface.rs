@@ -4,10 +4,12 @@ use std::ptr;
 
 use libc::c_void;
 
-use super::{From, Output, Shell, Surface};
+use core::{From, Surface};
+use core::output::Output;
+use core::shell::Shell;
 
-use ffi::enums::wl_shell_surface_fullscreen_method;
-pub use ffi::enums::wl_shell_surface_resize as ShellSurfaceResize;
+use ffi::enums::FullscreenMethod;
+pub use ffi::enums::ShellSurfaceResize;
 use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
                                      wl_shell_surface_set_toplevel,
@@ -79,19 +81,19 @@ impl<S: Surface> ShellSurface<S> {
     pub fn set_fullscreen(&self, method: ShellFullscreenMethod, output: Option<&Output>) {
         let (wl_method, framerate) = match method {
             ShellFullscreenMethod::Default => (
-                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT,
+                FullscreenMethod::Default,
                 0
             ),
             ShellFullscreenMethod::Scale => (
-                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_SCALE,
+                FullscreenMethod::Scale,
                 0
             ),
             ShellFullscreenMethod::Driver(f) => (
-                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_DRIVER,
+                FullscreenMethod::Driver,
                 f.unwrap_or(0)
             ),
             ShellFullscreenMethod::Fill => (
-                wl_shell_surface_fullscreen_method::WL_SHELL_SURFACE_FULLSCREEN_METHOD_FILL,
+                FullscreenMethod::Fill,
                 0
             ),
         };

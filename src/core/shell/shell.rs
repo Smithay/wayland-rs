@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use super::{From, Registry, ShellSurface, Surface};
+use core::{From, Registry, Surface};
+use core::shell::ShellSurface;
 
 use ffi::interfaces::shell::{wl_shell, wl_shell_destroy};
 use ffi::{FFI, Bind, abi};

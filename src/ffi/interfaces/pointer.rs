@@ -6,7 +6,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
                wl_proxy_get_user_data, wl_proxy_marshal};
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
-use ffi::enums::{wl_pointer_button_state, wl_pointer_axis};
+use ffi::enums::{ButtonState, ScrollAxis};
 
 use super::surface::wl_surface;
 
@@ -37,12 +37,12 @@ pub struct wl_pointer_listener {
                           serial: uint32_t,
                           time: uint32_t,
                           button: uint32_t,
-                          state: wl_pointer_button_state
+                          state: ButtonState
                          ),
     pub axis: extern fn(data: *mut c_void,
                         pointer: *mut wl_pointer,
                         time: uint32_t,
-                        axis: wl_pointer_axis,
+                        axis: ScrollAxis,
                         value: wl_fixed_t
                        )
 }

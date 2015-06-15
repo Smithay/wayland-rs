@@ -3,16 +3,17 @@ use std::sync::Mutex;
 
 use libc::c_void;
 
-use super::{From, Seat, SurfaceId};
-use super::surface::wrap_surface_id;
+use core::From;
+use core::seat::Seat;
+use core::ids::{SurfaceId, wrap_surface_id};
 
 use ffi::abi::wl_array;
 use ffi::interfaces::keyboard::{wl_keyboard, wl_keyboard_destroy, wl_keyboard_release,
                                 wl_keyboard_listener, wl_keyboard_add_listener};
 use ffi::interfaces::surface::wl_surface;
 use ffi::interfaces::seat::wl_seat_get_keyboard;
-pub use ffi::enums::wl_keyboard_keymap_format as KeymapFormat;
-pub use ffi::enums::wl_keyboard_key_state as KeyState;
+pub use ffi::enums::KeymapFormat;
+pub use ffi::enums::KeyState;
 
 use ffi::FFI;
 
@@ -36,7 +37,7 @@ struct KeyboardData {
 impl KeyboardData {
     fn new() -> KeyboardData {
         KeyboardData {
-            format: KeymapFormat::WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP,
+            format: KeymapFormat::NoKeymap,
             keymap: None,
             repeat_info: None
         }

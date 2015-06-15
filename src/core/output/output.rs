@@ -3,12 +3,12 @@ use std::sync::Mutex;
 
 use libc::{c_char, c_void};
 
-use super::Registry;
+use core::Registry;
 
 use ffi::{abi, FFI, Bind};
-use ffi::enums::{wl_output_mode, WL_OUTPUT_MODE_CURRENT, WL_OUTPUT_MODE_PREFERRED};
-pub use ffi::enums::wl_output_subpixel as OutputSubpixel;
-pub use ffi::enums::wl_output_transform as OutputTransform;
+use ffi::enums::OutputMode as OutputModeEnum;
+use ffi::enums::{MODE_CURRENT, MODE_PREFFERED};
+pub use ffi::enums::{OutputSubpixel, OutputTransform};
 
 use ffi::interfaces::output::{wl_output, wl_output_listener, wl_output_add_listener,
                               wl_output_destroy};
@@ -26,7 +26,7 @@ pub fn wrap_output_id(p: usize) -> OutputId {
 /// Representation of an output mode
 #[derive(Copy, Clone)]
 pub struct OutputMode {
-    mode: wl_output_mode,
+    mode: OutputModeEnum,
     /// width of the mode in hardware units
     pub width: i32,
     /// height of the mode in hardware units
@@ -37,11 +37,11 @@ pub struct OutputMode {
 
 impl OutputMode {
     pub fn is_current(&self) -> bool {
-        self.mode.intersects(WL_OUTPUT_MODE_CURRENT)
+        self.mode.intersects(MODE_CURRENT)
     }
 
     pub fn is_preferred(&self) -> bool {
-        self.mode.intersects(WL_OUTPUT_MODE_PREFERRED)
+        self.mode.intersects(MODE_PREFFERED)
     }
 }
 
@@ -61,10 +61,10 @@ impl OutputData {
         OutputData {
             position: (0,0),
             dimensions: (0,0),
-            subpixel: OutputSubpixel::WL_OUTPUT_SUBPIXEL_UNKNOWN,
+            subpixel: OutputSubpixel::Unknown,
             manufacturer: String::new(),
             model: String::new(),
-            transform: OutputTransform::WL_OUTPUT_TRANSFORM_NORMAL,
+            transform: OutputTransform::Normal,
             modes: Vec::new(),
             scale: 1
         }
@@ -84,7 +84,7 @@ impl OutputData {
         self.transform = transform;
     }
 
-    fn handle_mode(&mut self, output_mode: wl_output_mode, width: i32, height: i32, refresh: i32) {
+    fn handle_mode(&mut self, output_mode: OutputModeEnum, width: i32, height: i32, refresh: i32) {
         for mode in &mut self.modes {
             if mode.width == width && mode.height == height && mode.refresh == refresh {
                 mode.mode = output_mode;
@@ -106,7 +106,7 @@ impl OutputData {
 
 struct OutputListener {
     geometry_handler: Box<Fn(i32, i32, i32, i32, OutputSubpixel, &[u8], &[u8], OutputTransform, &mut OutputData) + Send + Sync>,
-    mode_handler: Box<Fn(wl_output_mode, i32, i32, i32, &mut OutputData) + Send + Sync>,
+    mode_handler: Box<Fn(OutputModeEnum, i32, i32, i32, &mut OutputData) + Send + Sync>,
     done_handler: Box<Fn(&OutputData) + Send + Sync>,
     scale_handler: Box<Fn(i32, &mut OutputData) + Send + Sync>,
     data: Mutex<OutputData>
@@ -265,7 +265,7 @@ extern "C" fn output_geometry_handler(data: *mut c_void,
 
 extern "C" fn output_mode_handler(data: *mut c_void,
                                   _output: *mut wl_output,
-                                  flags: wl_output_mode,
+                                  flags: OutputModeEnum,
                                   width: i32,
                                   height: i32,
                                   refresh: i32
