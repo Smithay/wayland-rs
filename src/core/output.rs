@@ -197,8 +197,11 @@ impl Output {
 }
 
 impl Bind<Registry> for Output {
+
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_output_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_output_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_output_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_output, registry: Registry) -> Output {

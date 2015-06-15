@@ -3,6 +3,11 @@ use std::ptr;
 use libc::{c_int, c_void, int32_t, uint32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data, wl_proxy_marshal, wl_proxy_marshal_constructor,
+               wl_callback_interface};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::buffer::wl_buffer;
@@ -39,7 +44,7 @@ pub unsafe fn wl_surface_add_listener(surface: *mut wl_surface,
                                       listener: *const wl_surface_listener,
                                       data: *mut c_void
                                      ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         surface as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -48,18 +53,18 @@ pub unsafe fn wl_surface_add_listener(surface: *mut wl_surface,
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_user_data(surface: *mut wl_surface, data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(surface as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,surface as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_get_user_data(surface: *mut wl_surface) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(surface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_destroy(surface: *mut wl_surface) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_DESTROY);
-    (WCH.wl_proxy_destroy)(surface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_DESTROY);
+    ffi_dispatch!(WCH, wl_proxy_destroy,surface as *mut wl_proxy)
 }
 
 #[inline(always)]
@@ -68,7 +73,7 @@ pub unsafe fn wl_surface_attach(surface: *mut wl_surface,
                                 x: int32_t,
                                 y: int32_t
                                ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         surface as *mut wl_proxy,
         WL_SURFACE_ATTACH,
         buffer,
@@ -84,7 +89,7 @@ pub unsafe fn wl_surface_damage(surface: *mut wl_surface,
                                 width: int32_t,
                                 height: int32_t
                                ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         surface as *mut wl_proxy,
         WL_SURFACE_DAMAGE,
         x,
@@ -96,35 +101,36 @@ pub unsafe fn wl_surface_damage(surface: *mut wl_surface,
 
 #[inline(always)]
 pub unsafe fn wl_surface_frame(surface: *mut wl_surface) -> *mut wl_callback {
-    (WCH.wl_proxy_marshal_constructor)(
+    ffi_dispatch!(WCH, wl_proxy_marshal_constructor,
         surface as *mut wl_proxy,
         WL_SURFACE_FRAME,
-        WCH.wl_callback_interface,
+        ffi_dispatch_static!(WCH, wl_callback_interface),
         ptr::null_mut::<c_void>()
     ) as *mut wl_callback
 }
 
+
 #[inline(always)]
 pub unsafe fn wl_surface_set_opaque_region(surface: *mut wl_surface, region: *mut wl_region) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_OPAQUE_REGION, region)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_SET_OPAQUE_REGION, region)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_input_region(surface: *mut wl_surface, region: *mut wl_region) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_INPUT_REGION, region)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_SET_INPUT_REGION, region)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_commit(surface: *mut wl_surface) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_COMMIT)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_COMMIT)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_buffer_transform(surface: *mut wl_surface, transform: int32_t) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_TRANSFORM, transform)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_TRANSFORM, transform)
 }
 
 #[inline(always)]
 pub unsafe fn wl_surface_set_buffer_scale(surface: *mut wl_surface, scale: int32_t) {
-    (WCH.wl_proxy_marshal)(surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_SCALE, scale)
+    ffi_dispatch!(WCH, wl_proxy_marshal,surface as *mut wl_proxy, WL_SURFACE_SET_BUFFER_SCALE, scale)
 }

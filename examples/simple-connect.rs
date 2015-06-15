@@ -11,9 +11,7 @@ use wayland::core::ShmFormat;
 
 fn main() {
 
-    assert!(wayland::is_wayland_lib_available(), "Wayland library could not be found.");
-
-    let display = default_display().expect("Unable to connect to Wayland server.");
+    let display = default_display().expect("Unable to connect to a Wayland server.");
 
     let registry = display.get_registry();
     display.sync_roundtrip();

@@ -1,6 +1,10 @@
 use libc::{c_int, c_void, uint32_t};
 
 use ffi::abi::{wl_proxy, wl_fixed_t};
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data, wl_proxy_marshal};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::data_offer::wl_data_offer;
@@ -50,7 +54,7 @@ pub unsafe fn wl_data_device_add_listener(data_device: *mut wl_data_device,
                                           listener: *const wl_data_device_listener,
                                           data: *mut c_void
                                          ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         data_device as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -61,17 +65,17 @@ pub unsafe fn wl_data_device_add_listener(data_device: *mut wl_data_device,
 pub unsafe fn wl_data_device_set_user_data(data_device: *mut wl_data_device,
                                            data: *mut c_void
                                           ) {
-    (WCH.wl_proxy_set_user_data)(data_device as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data, data_device as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_data_device_get_user_data(data_device: *mut wl_data_device) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(data_device as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data, data_device as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_data_device_destroy(data_device: *mut wl_data_device) {
-    (WCH.wl_proxy_destroy)(data_device as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_destroy, data_device as *mut wl_proxy)
 }
 
 #[inline(always)]
@@ -81,7 +85,7 @@ pub unsafe fn wl_data_device_start_drag(data_device: *mut wl_data_device,
                                         icon: *mut wl_surface,
                                         serial: uint32_t
                                        ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         data_device as *mut wl_proxy,
         WL_DATA_DEVICE_START_DRAG,
         source,
@@ -96,7 +100,7 @@ pub unsafe fn wl_data_device_set_selection(data_device: *mut wl_data_device,
                                            source: *mut wl_data_source,
                                            serial: uint32_t
                                           ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         data_device as *mut wl_proxy,
         WL_DATA_DEVICE_SET_SELECTION,
         source,
@@ -106,6 +110,6 @@ pub unsafe fn wl_data_device_set_selection(data_device: *mut wl_data_device,
 
 #[inline(always)]
 pub unsafe fn wl_data_device_release(data_device: *mut wl_data_device) {
-    (WCH.wl_proxy_marshal)(data_device as *mut wl_proxy, WL_DATA_DEVICE_RELEASE);
-    (WCH.wl_proxy_destroy)(data_device as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_marshal, data_device as *mut wl_proxy, WL_DATA_DEVICE_RELEASE);
+    ffi_dispatch!(WCH, wl_proxy_destroy, data_device as *mut wl_proxy)
 }

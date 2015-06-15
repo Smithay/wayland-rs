@@ -1,6 +1,10 @@
 use libc::{c_int, c_void, uint32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 #[repr(C)] pub struct wl_callback;
@@ -15,7 +19,7 @@ pub unsafe fn wl_callback_add_listener(callback: *mut wl_callback,
                                        listener: *const wl_callback_listener,
                                        data: *mut c_void
                                       ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         callback as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -24,15 +28,15 @@ pub unsafe fn wl_callback_add_listener(callback: *mut wl_callback,
 
 #[inline(always)]
 pub unsafe fn wl_callback_set_user_data(callback: *mut wl_callback, user_data: *mut c_void) {
-    (WCH.wl_proxy_set_user_data)(callback as *mut wl_proxy, user_data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data, callback as *mut wl_proxy, user_data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_callback_get_user_data(callback: *mut wl_callback) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(callback as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data, callback as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_callback_destroy(callback: *mut wl_callback) {
-    (WCH.wl_proxy_destroy)(callback as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_destroy, callback as *mut wl_proxy)
 }

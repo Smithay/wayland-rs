@@ -1,3 +1,36 @@
+#[cfg(feature = "dlopen")]
+#[macro_escape]
+macro_rules! ffi_dispatch(
+    ($handle: ident, $func: ident, $($arg: expr),*) => (
+        ($handle.$func)($($arg),*)
+    )
+);
+
+#[cfg(not(feature = "dlopen"))]
+#[macro_escape]
+macro_rules! ffi_dispatch(
+    ($handle: ident, $func: ident, $($arg: expr),*) => (
+        $func($($arg),*)
+    )
+);
+
+#[cfg(feature = "dlopen")]
+#[macro_escape]
+macro_rules! ffi_dispatch_static(
+    ($handle: ident, $name: ident) => (
+        $handle.$name
+    )
+);
+
+#[cfg(not(feature = "dlopen"))]
+#[macro_escape]
+macro_rules! ffi_dispatch_static(
+    ($handle: ident, $name: ident) => (
+        &$name
+    )
+);
+
+#[cfg(feature = "dlopen")]
 #[macro_escape]
 macro_rules! external_library(
     (__struct, $structname: ident, $($name: ident: $proto: ty),+) => (

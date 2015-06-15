@@ -36,8 +36,11 @@ impl Compositor {
 }
 
 impl Bind<Registry> for Compositor {
+
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_compositor_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_compositor_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_compositor_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_compositor, registry: Registry) -> Compositor {

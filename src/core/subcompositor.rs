@@ -43,8 +43,11 @@ impl Drop for InternalSubCompositor {
 }
 
 impl Bind<Registry> for SubCompositor {
+
     fn interface() -> &'static abi::wl_interface {
-        abi::WAYLAND_CLIENT_HANDLE.wl_subcompositor_interface
+        #[cfg(feature = "dlopen")] use ffi::abi::WAYLAND_CLIENT_HANDLE;
+        #[cfg(not(feature = "dlopen"))] use ffi::abi::wl_subcompositor_interface;
+        ffi_dispatch_static!(WAYLAND_CLIENT_HANDLE, wl_subcompositor_interface)
     }
 
     unsafe fn wrap(ptr: *mut wl_subcompositor, registry: Registry) -> SubCompositor {

@@ -19,14 +19,14 @@ pub use self::subcompositor::SubCompositor;
 pub use self::subsurface::SubSurface;
 pub use self::surface::{Surface, WSurface, SurfaceId};
 
-pub use self::keyboard::KeymapFormat as KeymapFormat;
-pub use self::keyboard::KeyState as KeyState;
-pub use self::pointer::ScrollAxis as ScrollAxis;
-pub use self::pointer::ButtonState as ButtonState;
-pub use self::output::OutputTransform as OutputTransform;
-pub use self::output::OutputSubpixel as OutputSubpixel;
-pub use self::shell_surface::ShellSurfaceResize as ShellSurfaceResize;
-pub use self::shm::ShmFormat as ShmFormat;
+pub use self::keyboard::KeymapFormat;
+pub use self::keyboard::KeyState;
+pub use self::pointer::ScrollAxis;
+pub use self::pointer::ButtonState;
+pub use self::output::OutputTransform;
+pub use self::output::OutputSubpixel;
+pub use self::shell_surface::ShellSurfaceResize;
+pub use self::shm::ShmFormat;
 
 mod buffer;
 mod compositor;

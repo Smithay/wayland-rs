@@ -1,6 +1,10 @@
 use libc::{c_int, c_void, c_char, uint32_t, int32_t};
 
 use ffi::abi::wl_proxy;
+#[cfg(not(feature = "dlopen"))]
+use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
+               wl_proxy_get_user_data, wl_proxy_marshal};
+#[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::wl_shell_surface_fullscreen_method;
 use ffi::enums::wl_shell_surface_resize as wl_shell_surface_resize_e;
@@ -44,7 +48,7 @@ pub unsafe fn wl_shell_surface_add_listener(shell_surface: *mut wl_shell_surface
                                             listener: *const wl_shell_surface_listener,
                                             data: *mut c_void
                                            ) -> c_int {
-    (WCH.wl_proxy_add_listener)(
+    ffi_dispatch!(WCH, wl_proxy_add_listener,
         shell_surface as *mut wl_proxy,
         listener as *mut extern fn(),
         data
@@ -55,22 +59,22 @@ pub unsafe fn wl_shell_surface_add_listener(shell_surface: *mut wl_shell_surface
 pub unsafe fn wl_shell_surface_set_user_data(shell_surface: *mut wl_shell_surface,
                                              data: *mut c_void
                                             ) {
-    (WCH.wl_proxy_set_user_data)(shell_surface as *mut wl_proxy, data)
+    ffi_dispatch!(WCH, wl_proxy_set_user_data,shell_surface as *mut wl_proxy, data)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_get_user_data(shell_surface: *mut wl_shell_surface) -> *mut c_void {
-    (WCH.wl_proxy_get_user_data)(shell_surface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_get_user_data,shell_surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_destroy(shell_surface: *mut wl_shell_surface) {
-    (WCH.wl_proxy_destroy)(shell_surface as *mut wl_proxy)
+    ffi_dispatch!(WCH, wl_proxy_destroy,shell_surface as *mut wl_proxy)
 }
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_pong(shell_surface: *mut wl_shell_surface, serial: uint32_t) {
-    (WCH.wl_proxy_marshal)(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_PONG, serial)
+    ffi_dispatch!(WCH, wl_proxy_marshal,shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_PONG, serial)
 }
 
 #[inline(always)]
@@ -78,7 +82,7 @@ pub unsafe fn wl_shell_surface_move(shell_surface: *mut wl_shell_surface,
                                     seat: *mut wl_seat,
                                     serial: uint32_t
                                    ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_MOVE,
         seat,
@@ -92,7 +96,7 @@ pub unsafe fn wl_shell_surface_resize(shell_surface: *mut wl_shell_surface,
                                       serial: uint32_t,
                                       edges: uint32_t
                                      ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_RESIZE,
         seat,
@@ -103,7 +107,7 @@ pub unsafe fn wl_shell_surface_resize(shell_surface: *mut wl_shell_surface,
 
 #[inline(always)]
 pub unsafe fn wl_shell_surface_set_toplevel(shell_surface: *mut wl_shell_surface) {
-    (WCH.wl_proxy_marshal)(shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_SET_TOPLEVEL)
+    ffi_dispatch!(WCH, wl_proxy_marshal,shell_surface as *mut wl_proxy, WL_SHELL_SURFACE_SET_TOPLEVEL)
 }
 
 #[inline(always)]
@@ -113,7 +117,7 @@ pub unsafe fn wl_shell_surface_set_transient(shell_surface: *mut wl_shell_surfac
                                              y: int32_t,
                                              flags: uint32_t
                                             ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_TRANSIENT,
         parent,
@@ -129,7 +133,7 @@ pub unsafe fn wl_shell_surface_set_fullscreen(shell_surface: *mut wl_shell_surfa
                                               framerate: uint32_t,
                                               output: *mut wl_output
                                              ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_FULLSCREEN,
         method,
@@ -147,7 +151,7 @@ pub unsafe fn wl_shell_surface_set_popup(shell_surface: *mut wl_shell_surface,
                                          y: int32_t,
                                          flags: uint32_t
                                         ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_POPUP,
         seat,
@@ -163,7 +167,7 @@ pub unsafe fn wl_shell_surface_set_popup(shell_surface: *mut wl_shell_surface,
 pub unsafe fn wl_shell_surface_set_maximized(shell_surface: *mut wl_shell_surface,
                                              output: *mut wl_output
                                             ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_MAXIMIZED,
         output
@@ -174,7 +178,7 @@ pub unsafe fn wl_shell_surface_set_maximized(shell_surface: *mut wl_shell_surfac
 pub unsafe fn wl_shell_surface_set_title(shell_surface: *mut wl_shell_surface,
                                          title: *const c_char
                                         ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_TITLE,
         title
@@ -185,7 +189,7 @@ pub unsafe fn wl_shell_surface_set_title(shell_surface: *mut wl_shell_surface,
 pub unsafe fn wl_shell_surface_set_class(shell_surface: *mut wl_shell_surface,
                                          class_: *const c_char
                                         ) {
-    (WCH.wl_proxy_marshal)(
+    ffi_dispatch!(WCH, wl_proxy_marshal,
         shell_surface as *mut wl_proxy,
         WL_SHELL_SURFACE_SET_CLASS,
         class_

@@ -8,3 +8,5 @@ rust:
 os:
   - linux
 
+script:
+    - cargo test --features "dlopen egl"
