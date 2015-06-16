@@ -49,12 +49,12 @@ fn main() {
     // now, lets handle the pointer
     let mut pointer = seat.get_pointer().expect("Unable to get the pointer.");
     let my_surface_id = shell_surface.get_id();
-    pointer.set_enter_action(move |_, id, x, y| {
+    pointer.set_enter_action(move |_, _, id, x, y| {
         if my_surface_id == id {
             println!("Pointer entered surface at ({},{}).", x, y);
         }
     });
-    pointer.set_leave_action(move |_, id| {
+    pointer.set_leave_action(move |_, _, id| {
         if my_surface_id == id {
             println!("Pointer left surface.");
         }
@@ -62,7 +62,7 @@ fn main() {
     pointer.set_motion_action(move |_, _, x, y| {
         println!("Pointer moved to ({}, {}).", x, y);
     });
-    pointer.set_button_action(move |_, _, b, s| {
+    pointer.set_button_action(move |_, _, _, b, s| {
         println!("Button {} is now in state {}.", b as u32, s as u32);
     });
     pointer.set_axis_action(move |_, _, _, a| {
@@ -70,7 +70,7 @@ fn main() {
     });
 
     let mut keyboard = seat.get_keyboard().expect("Unable to get the keyboard.");
-    keyboard.set_key_action(move |_, _, key, status| {
+    keyboard.set_key_action(move |_, _, _, key, status| {
         if status == KeyState::Released {
             println!("Key {} released.", key);
         } else {
