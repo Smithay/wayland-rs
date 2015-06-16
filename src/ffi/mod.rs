@@ -33,7 +33,8 @@ pub trait Bind<R> : FFI {
     /// Create the object by wraping the pointer returned by the registry.
     ///
     /// `parent` is a reference to the registry, its primary role is to allow
-    /// coupling the lifetime of the newly created object to the registry.
+    /// the newly created object to keep a clone of the regitry, in order
+    /// to keep the wayland connexion alive.
     #[inline]
     unsafe fn wrap(ptr: *mut <Self as FFI>::Ptr, parent: R) -> Self;
 }

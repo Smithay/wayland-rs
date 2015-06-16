@@ -1,13 +1,5 @@
 //! This library provides a Rust interface on the Wayland client library.
 //!
-//! To use it, you'll need to have `libwayland-client.so` available on your system.
-//! However, to allow for easy optionnal support of wayland in applications, the library
-//! is not linked, but will be opened at first use of a wayland method.
-//!
-//! You can check the presence of the library with the function `is_wayland_lib_available()`,
-//! and the methods creating the `Display` object will not panic if the library is absent, but
-//! return a failure (`None` or `Err(_)`).
-//!
 //! The module `core` provides support for the core features of the wayland protocol.
 //! Some protocol extentions are available, each as their own module. Some of them require
 //! a system library which they will try to load at first use.
@@ -20,6 +12,11 @@
 //! In this case, each module will provide a function allowing you to gracefully check if
 //! the load was successful. There is also the function `is_wayland_lib_available()` at the
 //! root of this crate, providing the same function for the core `libwayland-client.so`.
+//!
+//! The entry point of your wayland application will be `core::default_display()`, which will
+//! provide you with a `Display` object representing the connexion to the wayland server.
+//! This display will give you access to the `Registry`, which will then give you access to the
+//! various Wayland global objects.
 
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
@@ -33,7 +30,13 @@ pub mod core;
 pub mod egl;
 
 pub mod internals {
-    //! Internal types and traits provided for special cases like custom protocol extensions.
+    //! Internal types and traits provided for custom protocol extensions.
+    //!
+    //! You most likely won't need to use these, unless you plan to plug a custom
+    //! wayland protocol into this library, in which case this interface should be
+    //! enough to plug the Registry into working with it.
+    //!
+    //! If not, don't hesitate to open an issue on Github.
     pub use ffi::abi::{wl_interface, wl_message};
     pub use ffi::{FFI, Bind};
 }
