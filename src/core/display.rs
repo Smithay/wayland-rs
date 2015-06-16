@@ -40,6 +40,11 @@ impl Display {
     ///
     /// The registry holds a clone of the Display, and thus will maintain the
     /// connexion alive.
+    ///
+    /// The `Registry` object is cloneable, and cloning it should be preffered
+    /// to calling this method several times (the wayland protocol is not really
+    /// designed to have several registries active on the same connexion, and the
+    /// destruction of a registry before the end of a connexion is not defined).
     pub fn get_registry(&self) -> Registry {
         From::from(self.clone())
     }

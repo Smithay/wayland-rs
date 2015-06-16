@@ -5,7 +5,7 @@ use libc::c_void;
 
 use core::From;
 use core::seat::Seat;
-use core::ids::{SurfaceId, wrap_surface_id};
+use core::ids::{SurfaceId, wrap_surface_id, Serial, wrap_serial};
 
 use ffi::abi::wl_array;
 use ffi::interfaces::keyboard::{wl_keyboard, wl_keyboard_destroy, wl_keyboard_release,
@@ -47,10 +47,10 @@ impl KeyboardData {
 struct KeyboardListener {
     keymap_handler: Box<Fn(KeymapFormat, i32, u32, &mut KeyboardData) + 'static + Send + Sync>,
     repeat_info_handler: Box<Fn(i32, i32, &mut KeyboardData) + 'static + Send + Sync>,
-    enter_handler: Box<Fn(KeyboardId, SurfaceId, &[u32]) + 'static + Send + Sync>,
-    leave_handler: Box<Fn(KeyboardId, SurfaceId) + 'static + Send + Sync>,
-    key_handler: Box<Fn(KeyboardId, u32, u32, KeyState) + 'static + Send + Sync>,
-    modifiers_handler: Box<Fn(KeyboardId, u32, u32, u32, u32) + 'static + Send + Sync>,
+    enter_handler: Box<Fn(KeyboardId, Serial, SurfaceId, &[u32]) + 'static + Send + Sync>,
+    leave_handler: Box<Fn(KeyboardId, Serial, SurfaceId) + 'static + Send + Sync>,
+    key_handler: Box<Fn(KeyboardId, Serial, u32, u32, KeyState) + 'static + Send + Sync>,
+    modifiers_handler: Box<Fn(KeyboardId, Serial, u32, u32, u32, u32) + 'static + Send + Sync>,
     data: Mutex<Box<KeyboardData>>
 }
 
@@ -64,10 +64,10 @@ impl KeyboardListener {
             repeat_info_handler: Box::new(move |r, d, data| {
                 data.repeat_info = Some((r, d));
             }),
-            enter_handler: Box::new(move |_, _, _| {}),
-            leave_handler: Box::new(move |_, _| {}),
-            key_handler: Box::new(move |_, _, _, _| {}),
-            modifiers_handler: Box::new(move |_, _, _, _, _| {}),
+            enter_handler: Box::new(move |_, _, _, _| {}),
+            leave_handler: Box::new(move |_, _, _| {}),
+            key_handler: Box::new(move |_, _, _, _, _| {}),
+            modifiers_handler: Box::new(move |_, _, _, _, _, _| {}),
             data: Mutex::new(Box::new(data))
         }
     }
@@ -166,7 +166,7 @@ impl Keyboard {
     /// - Id of the surface
     /// - a slice of the keycodes of the currenlty pressed keys
     pub fn set_enter_action<F>(&mut self, f: F)
-        where F: Fn(KeyboardId, SurfaceId, &[u32]) + 'static + Send + Sync
+        where F: Fn(KeyboardId, Serial, SurfaceId, &[u32]) + 'static + Send + Sync
     {
         self.listener.enter_handler = Box::new(f)
     }
@@ -181,7 +181,7 @@ impl Keyboard {
     /// - Id of the keyboard
     /// - Id of the surface
     pub fn set_leave_action<F>(&mut self, f: F)
-        where F: Fn(KeyboardId, SurfaceId) + 'static + Send + Sync
+        where F: Fn(KeyboardId, Serial, SurfaceId) + 'static + Send + Sync
     {
         self.listener.leave_handler = Box::new(f)
     }
@@ -195,7 +195,7 @@ impl Keyboard {
     /// - raw keycode of the key
     /// - new key status
     pub fn set_key_action<F>(&mut self, f: F)
-        where F: Fn(KeyboardId, u32, u32, KeyState) + 'static + Send + Sync
+        where F: Fn(KeyboardId, Serial, u32, u32, KeyState) + 'static + Send + Sync
     {
         self.listener.key_handler = Box::new(f);
     }
@@ -212,7 +212,7 @@ impl Keyboard {
     /// - mods_locked
     /// - group
     pub fn set_modifiers_action<F>(&mut self, f: F)
-        where F: Fn(KeyboardId, u32, u32, u32, u32) + 'static + Send + Sync
+        where F: Fn(KeyboardId, Serial, u32, u32, u32, u32) + 'static + Send + Sync
     {
         self.listener.modifiers_handler = Box::new(f);
     }
@@ -253,7 +253,7 @@ extern "C" fn keyboard_keymap_handler(data: *mut c_void,
 
 extern "C" fn keyboard_enter_handler(data: *mut c_void,
                                      keyboard: *mut wl_keyboard,
-                                     _serial: u32,
+                                     serial: u32,
                                      surface: *mut wl_surface,
                                      keys: *mut wl_array,
                                    ) {
@@ -261,6 +261,7 @@ extern "C" fn keyboard_enter_handler(data: *mut c_void,
     let keys = unsafe { slice::from_raw_parts((*keys).data as *const _, (*keys).size as usize) };
     (*listener.enter_handler)(
         wrap_keyboard_id(keyboard as usize),
+        wrap_serial(serial),
         wrap_surface_id(surface as usize),
         keys
     );
@@ -268,19 +269,20 @@ extern "C" fn keyboard_enter_handler(data: *mut c_void,
 
 extern "C" fn keyboard_leave_handler(data: *mut c_void,
                                      keyboard: *mut wl_keyboard,
-                                     _serial: u32,
+                                     serial: u32,
                                      surface: *mut wl_surface
                                     ) {
     let listener = unsafe { &*(data as *const KeyboardListener) };
     (*listener.leave_handler)(
         wrap_keyboard_id(keyboard as usize),
+        wrap_serial(serial),
         wrap_surface_id(surface as usize)
     );
 }
 
 extern "C" fn keyboard_key_handler(data: *mut c_void,
                                    keyboard: *mut wl_keyboard,
-                                   _serial: u32,
+                                   serial: u32,
                                    time: u32,
                                    key: u32,
                                    state: KeyState
@@ -288,6 +290,7 @@ extern "C" fn keyboard_key_handler(data: *mut c_void,
     let listener = unsafe { &*(data as *const KeyboardListener) };
     (*listener.key_handler)(
         wrap_keyboard_id(keyboard as usize),
+        wrap_serial(serial),
         time,
         key,
         state
@@ -295,7 +298,7 @@ extern "C" fn keyboard_key_handler(data: *mut c_void,
 }
 extern "C" fn keyboard_modifiers_handler(data: *mut c_void,
                                          keyboard: *mut wl_keyboard,
-                                         _serial: u32,
+                                         serial: u32,
                                          mods_depressed: u32,
                                          mods_latched: u32,
                                          mods_locked: u32,
@@ -304,6 +307,7 @@ extern "C" fn keyboard_modifiers_handler(data: *mut c_void,
     let listener = unsafe { &*(data as *const KeyboardListener) };
     (*listener.modifiers_handler)(
         wrap_keyboard_id(keyboard as usize),
+        wrap_serial(serial),
         mods_depressed,
         mods_latched,
         mods_locked,

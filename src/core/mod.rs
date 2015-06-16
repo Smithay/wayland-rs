@@ -6,6 +6,7 @@
 //! global object used to create them.
 
 pub use self::display::{Display, default_display};
+pub use self::ids::Serial;
 pub use self::registry::Registry;
 
 use self::compositor::WSurface;

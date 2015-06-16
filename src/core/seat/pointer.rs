@@ -4,8 +4,8 @@ use std::cell::Cell;
 use std::collections::HashSet;
 use std::sync::Mutex;
 
-use core::{From, Surface};
-use core::ids::{SurfaceId, wrap_surface_id};
+use core::{From, Surface, Serial};
+use core::ids::{SurfaceId, wrap_surface_id, wrap_serial};
 use core::seat::Seat;
 use core::compositor::WSurface;
 
@@ -104,10 +104,10 @@ impl<S: Surface> CursorAdvertising for PointerData<S> {
 
 struct PointerListener {
     data: Mutex<&'static CursorAdvertising>,
-    enter_handler: Box<Fn(PointerId, SurfaceId, f64, f64) + 'static + Send + Sync>,
-    leave_handler: Box<Fn(PointerId, SurfaceId) + 'static + Send + Sync>,
+    enter_handler: Box<Fn(PointerId, Serial, SurfaceId, f64, f64) + 'static + Send + Sync>,
+    leave_handler: Box<Fn(PointerId, Serial, SurfaceId) + 'static + Send + Sync>,
     motion_handler: Box<Fn(PointerId, u32, f64, f64) + 'static + Send + Sync>,
-    button_handler: Box<Fn(PointerId, u32, u32, ButtonState) + 'static + Send + Sync>,
+    button_handler: Box<Fn(PointerId, Serial, u32, u32, ButtonState) + 'static + Send + Sync>,
     axis_handler: Box<Fn(PointerId, u32, ScrollAxis, f64) + 'static + Send + Sync>
 }
 
@@ -115,23 +115,23 @@ impl PointerListener {
     pub fn new(data: &'static CursorAdvertising) -> PointerListener {
         PointerListener {
             data: Mutex::new(data),
-            enter_handler: Box::new(move |_,_,_,_| {}),
-            leave_handler: Box::new(move |_,_| {}),
+            enter_handler: Box::new(move |_,_,_,_,_| {}),
+            leave_handler: Box::new(move |_,_,_| {}),
             motion_handler: Box::new(move |_,_,_,_| {}),
-            button_handler: Box::new(move |_,_,_,_| {}),
+            button_handler: Box::new(move |_,_,_,_,_| {}),
             axis_handler: Box::new(move |_,_,_,_| {}),
         }
     }
 
     pub fn set_enter_handler<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId, f64, f64) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, SurfaceId, f64, f64) + 'static + Send + Sync
     {
         let _lock = self.data.lock().unwrap();
         self.enter_handler = Box::new(f)
     }
 
     pub fn set_leave_handler<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, SurfaceId) + 'static + Send + Sync
     {
         let _lock = self.data.lock().unwrap();
         self.leave_handler = Box::new(f)
@@ -145,7 +145,7 @@ impl PointerListener {
     }
 
     pub fn set_button_handler<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, u32, ButtonState) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, u32, u32, ButtonState) + 'static + Send + Sync
     {
         let _lock = self.data.lock().unwrap();
         self.button_handler = Box::new(f)
@@ -315,7 +315,7 @@ impl<S: Surface> Pointer<S> {
     /// **Warning:** doing this from inside one of this pointer's event callabacks
     /// **will** result in a deadlock.
     pub fn set_enter_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId, f64, f64) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, SurfaceId, f64, f64) + 'static + Send + Sync
     {
         self.listener.set_enter_handler(f);
     }
@@ -333,7 +333,7 @@ impl<S: Surface> Pointer<S> {
     /// **Warning:** doing this from inside one of this pointer's event callabacks
     /// **will** result in a deadlock.
     pub fn set_leave_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, SurfaceId) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, SurfaceId) + 'static + Send + Sync
     {
         self.listener.set_leave_handler(f);
     }
@@ -366,7 +366,7 @@ impl<S: Surface> Pointer<S> {
     /// **Warning:** doing this from inside one of this pointer's event callabacks
     /// **will** result in a deadlock.
     pub fn set_button_action<F>(&mut self, f: F)
-        where F: Fn(PointerId, u32, u32, ButtonState) + 'static + Send + Sync
+        where F: Fn(PointerId, Serial, u32, u32, ButtonState) + 'static + Send + Sync
     {
         self.listener.set_button_handler(f);
     }
@@ -423,6 +423,7 @@ extern "C" fn pointer_enter_handler(data: *mut c_void,
     if lock.enter_surface(sid) {
         (*listener.enter_handler)(
             wrap_pointer_id(pointer as usize),
+            wrap_serial(serial),
             sid,
             wl_fixed_to_double(surface_x),
             wl_fixed_to_double(surface_y)
@@ -435,7 +436,7 @@ extern "C" fn pointer_enter_handler(data: *mut c_void,
 
 extern "C" fn pointer_leave_handler(data: *mut c_void,
                                     pointer: *mut wl_pointer,
-                                    _serial: u32,
+                                    serial: u32,
                                     surface: *mut wl_surface
                                    ) {
     let listener = unsafe { &*(data as *const PointerListener) };
@@ -443,6 +444,7 @@ extern "C" fn pointer_leave_handler(data: *mut c_void,
     if lock.leave_surface() {
         (*listener.leave_handler)(
             wrap_pointer_id(pointer as usize),
+            wrap_serial(serial),
             wrap_surface_id(surface as usize)
         );
     }
@@ -468,7 +470,7 @@ extern "C" fn pointer_motion_handler(data: *mut c_void,
 
 extern "C" fn pointer_button_handler(data: *mut c_void,
                                      pointer: *mut wl_pointer,
-                                     _serial: u32,
+                                     serial: u32,
                                      time: u32,
                                      button: u32,
                                      state: ButtonState
@@ -478,6 +480,7 @@ extern "C" fn pointer_button_handler(data: *mut c_void,
     if lock.is_on_handled_surface() {
         (*listener.button_handler)(
             wrap_pointer_id(pointer as usize),
+            wrap_serial(serial),
             time,
             button,
             state
