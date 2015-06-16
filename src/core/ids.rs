@@ -25,6 +25,8 @@ pub fn wrap_serial(s: u32) -> Serial {
     }
 }
 
+// will be useful in the future
+#[allow(dead_code)]
 #[inline]
 pub fn unwrap_serial(s: Serial) -> u32 {
     s.s
