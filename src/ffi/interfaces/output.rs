@@ -6,7 +6,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
                wl_proxy_get_user_data};
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
-use ffi::enums::{wl_output_mode, wl_output_subpixel, wl_output_transform};
+use ffi::enums::{OutputMode, OutputSubpixel, OutputTransform};
 
 #[repr(C)] pub struct wl_output;
 
@@ -18,14 +18,14 @@ pub struct wl_output_listener {
                             y: int32_t,
                             physical_width: int32_t,
                             physical_height: int32_t,
-                            subpixel: wl_output_subpixel,
+                            subpixel: OutputSubpixel,
                             make: *const c_char,
                             model: *const c_char,
-                            transform: wl_output_transform
+                            transform: OutputTransform
                            ),
     pub mode: extern fn(data: *mut c_void,
                         output: *mut wl_output,
-                        flags: wl_output_mode,
+                        flags: OutputMode,
                         width: int32_t,
                         height: int32_t,
                         refresh: int32_t

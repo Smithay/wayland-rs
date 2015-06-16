@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use super::{From, Registry, Region, WSurface};
+use core::{From, Registry};
+use core::compositor::{Region, WSurface};
 
 use ffi::interfaces::compositor::{wl_compositor, wl_compositor_destroy};
 use ffi::{FFI, Bind, abi};

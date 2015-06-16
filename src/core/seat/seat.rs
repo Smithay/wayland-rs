@@ -3,11 +3,12 @@ use std::sync::{Arc, Mutex};
 
 use libc::{c_void, c_char};
 
-use super::{From, Registry, Pointer, WSurface, Keyboard};
+use core::{From, Registry};
+use core::compositor::WSurface;
+use core::seat::{Pointer, Keyboard};
 
 use ffi::interfaces::seat::{wl_seat, wl_seat_destroy, wl_seat_listener, wl_seat_add_listener};
-use ffi::enums::{wl_seat_capability, WL_SEAT_CAPABILITY_POINTER, WL_SEAT_CAPABILITY_KEYBOARD,
-                 WL_SEAT_CAPABILITY_TOUCH};
+use ffi::enums::{SeatCapability, CAPABILITY_POINTER, CAPABILITY_KEYBOARD, CAPABILITY_TOUCH};
 use ffi::{FFI, Bind, abi};
 
 struct SeatData {
@@ -27,10 +28,10 @@ impl SeatData {
         }
     }
 
-    fn set_caps(&mut self, caps: wl_seat_capability) {
-        self.pointer = caps.intersects(WL_SEAT_CAPABILITY_POINTER);
-        self.keyboard = caps.intersects(WL_SEAT_CAPABILITY_KEYBOARD);
-        self.touch = caps.intersects(WL_SEAT_CAPABILITY_TOUCH);
+    fn set_caps(&mut self, caps: SeatCapability) {
+        self.pointer = caps.intersects(CAPABILITY_POINTER);
+        self.keyboard = caps.intersects(CAPABILITY_KEYBOARD);
+        self.touch = caps.intersects(CAPABILITY_TOUCH);
     }
 
     fn set_name(&mut self, name: String) {
@@ -41,7 +42,7 @@ impl SeatData {
 /// The data used by the listener callbacks.
 struct SeatListener {
     /// Handler of the "new global object" event
-    capabilities_handler: Box<Fn(wl_seat_capability, &mut SeatData)>,
+    capabilities_handler: Box<Fn(SeatCapability, &mut SeatData)>,
     /// Handler of the "removed global handler" event
     name_handler: Box<Fn(&[u8], &mut SeatData)>,
     /// access to the data
@@ -166,7 +167,7 @@ impl FFI for Seat {
 //
 extern "C" fn seat_capabilities_handler(data: *mut c_void,
                                         _registry: *mut wl_seat,
-                                        capabilities: wl_seat_capability,
+                                        capabilities: SeatCapability,
                                        ) {
     let listener = unsafe { &*(data as *const SeatListener) };
     let mut data = listener.data.lock().unwrap();

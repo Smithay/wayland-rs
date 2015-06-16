@@ -1,4 +1,5 @@
-use super::{From, Compositor};
+use core::From;
+use core::compositor::Compositor;
 
 use ffi::interfaces::compositor::wl_compositor_create_region;
 use ffi::interfaces::region::{wl_region, wl_region_destroy, wl_region_add, wl_region_subtract};

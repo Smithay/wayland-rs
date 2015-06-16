@@ -3,12 +3,13 @@ use std::sync::{Arc, Mutex};
 
 use libc::c_int;
 
-use super::{From, Registry, ShmPool};
+use core::{From, Registry};
+use core::shm::ShmPool;
 
 use ffi::interfaces::shm::{wl_shm, wl_shm_destroy};
 use ffi::{FFI, Bind, abi};
 
-pub use ffi::enums::wl_shm_format as ShmFormat;
+pub use ffi::enums::ShmFormat;
 
 struct InternalShm {
     _registry: Registry,

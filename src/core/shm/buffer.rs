@@ -1,4 +1,5 @@
-use super::{FromOpt, ShmPool};
+use core::FromOpt;
+use core::shm::ShmPool;
 
 use ffi::interfaces::shm_pool::wl_shm_pool_create_buffer;
 use ffi::interfaces::buffer::{wl_buffer, wl_buffer_destroy};

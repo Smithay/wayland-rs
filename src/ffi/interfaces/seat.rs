@@ -9,7 +9,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
                wl_pointer_interface, wl_keyboard_interface, wl_touch_interface};
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
-use ffi::enums::wl_seat_capability;
+use ffi::enums::SeatCapability;
 
 use super::keyboard::wl_keyboard;
 use super::pointer::wl_pointer;
@@ -21,7 +21,7 @@ use super::touch::wl_touch;
 pub struct wl_seat_listener {
     pub capabilities: extern fn(data: *mut c_void,
                                 seat: *mut wl_seat,
-                                capabilities: wl_seat_capability
+                                capabilities: SeatCapability
                                ),
     pub name: extern fn(data: *mut c_void,
                         seat: *mut wl_seat,

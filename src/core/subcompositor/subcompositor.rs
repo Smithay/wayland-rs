@@ -1,7 +1,9 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use super::{From, Registry, Surface, SubSurface, WSurface};
+use core::{From, Registry, Surface};
+use core::compositor::WSurface;
+use core::subcompositor::SubSurface;
 
 use ffi::interfaces::subcompositor::{wl_subcompositor, wl_subcompositor_destroy};
 use ffi::{FFI, Bind, abi};

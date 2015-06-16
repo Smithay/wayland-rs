@@ -10,7 +10,8 @@
 //! of the library with the function `is_egl_available()` before calling the
 //! other methods.
 
-use core::{WSurface, Surface};
+use core::Surface;
+use core::compositor::WSurface;
 
 use ffi::FFI;
 
