@@ -22,7 +22,7 @@ cd "$tmp"
 ln -s "$dir/target" "$tmp/target"
 
 msg "Generating documentation..."
-cargo doc --no-deps
+cargo doc --no-deps --features "egl dlopen"
 
 # Switch to pages
 msg "Replacing documentation..."
