@@ -1,9 +1,9 @@
 extern crate byteorder;
+extern crate tempfile;
 extern crate wayland_client as wayland;
 
 use byteorder::{WriteBytesExt, NativeEndian};
 
-use std::fs::OpenOptions;
 use std::io::Write;
 
 use wayland::core::default_display;
@@ -25,9 +25,8 @@ fn main() {
     let shell = registry.get_shell().expect("Unable to get the shell.");
     let mut shell_surface = shell.get_shell_surface(surface);
     let shm = registry.get_shm().expect("Unable to get the shm.");
-    // Not a good way to create a shared buffer, but this will do for this example.
-    let mut tmp = OpenOptions::new().read(true).write(true).create(true).truncate(true)
-                            .open("shm.tmp").ok().expect("Unable to create a tempfile.");
+    // create a tempfile as a shared buffer
+    let mut tmp = tempfile::TempFile::new().ok().expect("Unable to create a tempfile.");
     for _ in 0..10_000 {
         let _ = tmp.write_u32::<NativeEndian>(0xFF880000);
     }

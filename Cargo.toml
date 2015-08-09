@@ -14,6 +14,7 @@ lazy_static = "0.1"
 
 [dev-dependencies]
 byteorder = "0.3"
+tempfile = "1.1"
 
 [features]
 dlopen = []
