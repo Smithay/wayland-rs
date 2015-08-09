@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/vberger/wayland-client-rs.svg?branch=master)](https://travis-ci.org/vberger/wayland-client-rs)
+
 # Wayland_client
 
 These are bindings to the [reference implementation](http://wayland.freedesktop.org/)
