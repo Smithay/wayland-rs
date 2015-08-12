@@ -11,11 +11,12 @@ description = "Bindings to the standard C implementation of the wayland protocol
 bitflags = "0.1"
 libc = "0.1"
 lazy_static = "0.1"
+dlib = "0.1"
 
 [dev-dependencies]
 byteorder = "0.3"
 tempfile = "1.1"
 
 [features]
-dlopen = []
+dlopen = ["dlib/dlopen"]
 egl = []

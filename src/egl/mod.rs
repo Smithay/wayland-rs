@@ -125,7 +125,6 @@ impl FFI for EGLSurface {
     }
 }
 
-#[cfg(feature = "dlopen")]
 mod eglffi {
     use ffi::interfaces::surface::wl_surface;
 
@@ -134,57 +133,23 @@ mod eglffi {
     /// Its sole purpose is to provide a pointer to feed to EGL.
     #[repr(C)] pub struct wl_egl_window;
 
-    external_library!(WaylandEGL,
-        wl_egl_window_create: unsafe extern fn(surface: *mut wl_surface,
-                                               width: i32,
-                                               height: i32
-                                              ) -> *mut wl_egl_window,
-        wl_egl_window_destroy: unsafe extern fn(window: *mut wl_egl_window),
-        wl_egl_window_resize: unsafe extern fn(window: *mut wl_egl_window,
-                                               width: i32,
-                                               height: i32,
-                                               dx: i32,
-                                               dy: i32),
-        wl_egl_window_get_attached_size: unsafe extern fn(window: *mut wl_egl_window,
-                                                          width: *mut i32,
-                                                          height: *mut i32)
+    external_library!(WaylandEGL, "wayland-egl",
+        functions:
+            fn wl_egl_window_create(*mut wl_surface, i32, i32) -> *mut wl_egl_window,
+            fn wl_egl_window_destroy(*mut wl_egl_window) -> (),
+            fn wl_egl_window_resize(*mut wl_egl_window, i32, i32, i32, i32) -> (),
+            fn wl_egl_window_get_attached_size(*mut wl_egl_window, *mut i32, *mut i32) -> ()
     );
 
+    #[cfg(feature = "dlopen")]
     lazy_static!(
         pub static ref WAYLAND_EGL_OPTION: Option<WaylandEGL> = { 
-            WaylandEGL::open("libwayland-egl.so")
+            WaylandEGL::open("libwayland-egl.so").ok()
         };
         pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEGL = {
             WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
         };
     );
-}
-
-#[cfg(not(feature = "dlopen"))]
-mod eglffi {
-    use ffi::interfaces::surface::wl_surface;
-
-    /// An opaque struct representing a native window for EGL.
-    ///
-    /// Its sole purpose is to provide a pointer to feed to EGL.
-    #[repr(C)] pub struct wl_egl_window;
-
-    #[link(name = "wayland-egl")]
-    extern {
-        pub fn wl_egl_window_create(surface: *mut wl_surface,
-                                    width: i32,
-                                    height: i32
-                                   ) -> *mut wl_egl_window;
-        pub fn wl_egl_window_destroy(window: *mut wl_egl_window);
-        pub fn wl_egl_window_resize(window: *mut wl_egl_window,
-                                    width: i32,
-                                    height: i32,
-                                    dx: i32,
-                                    dy: i32);
-        pub fn wl_egl_window_get_attached_size(window: *mut wl_egl_window,
-                                               width: *mut i32,
-                                               height: *mut i32);
-    }
 }
 
 #[cfg(test)]
