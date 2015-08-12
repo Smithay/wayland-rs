@@ -24,13 +24,13 @@ pub mod subcompositor;
 
 /// A trait for creating Wayland interfaces from each other, for
 /// internal use of this library only.
-trait From<T> {
+trait From<T> where Self: Sized {
     fn from(other: T) -> Self;
 }
 
 /// A trait for creating Wayland interfaces from each other in a
 /// context where failure is possible, for internal use of this library only.
-trait FromOpt<T> {
+trait FromOpt<T> where Self: Sized {
     fn from(other: T) -> Option<Self>;
 }
 
