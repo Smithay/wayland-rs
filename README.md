@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/vberger/wayland-client-rs.svg?branch=master)](https://travis-ci.org/vberger/wayland-client-rs)
+[![](http://meritbadge.herokuapp.com/wayland-client)](https://crates.io/crates/wayland-client)
 
 # Wayland_client
 
