@@ -8,7 +8,7 @@
 //! not all parts of your UI need to be updated at the same time.
 
 pub use self::subcompositor::SubCompositor;
-pub use self::subsurface::SubSurface;
+pub use self::subsurface::{SubSurface, Stacking};
 
 mod subcompositor;
 mod subsurface;
