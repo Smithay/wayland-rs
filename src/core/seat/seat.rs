@@ -5,7 +5,7 @@ use libc::{c_void, c_char};
 
 use core::{From, Registry};
 use core::compositor::WSurface;
-use core::seat::{Pointer, Keyboard};
+use core::seat::{Pointer, Keyboard, Touch};
 
 use ffi::interfaces::seat::{wl_seat, wl_seat_destroy, wl_seat_listener, wl_seat_add_listener};
 use ffi::enums::{SeatCapability, CAPABILITY_POINTER, CAPABILITY_KEYBOARD, CAPABILITY_TOUCH};
@@ -106,6 +106,20 @@ impl Seat {
             data.keyboard
         };
         if has_keyboard {
+            Some(From::from(self.clone()))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_touch(&self) -> Option<Touch> {
+        // avoid deadlock
+        let has_touch = {
+            let internal = self.internal.lock().unwrap();
+            let data = internal.listener.data.lock().unwrap();
+            data.touch
+        };
+        if has_touch {
             Some(From::from(self.clone()))
         } else {
             None

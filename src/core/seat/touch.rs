@@ -1,6 +1,7 @@
 
 use libc::c_void;
 
+use core::From;
 use core::ids::{SurfaceId, Serial, wrap_serial, wrap_surface_id};
 use core::seat::Seat;
 
