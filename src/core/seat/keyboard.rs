@@ -83,7 +83,7 @@ impl KeyboardListener {
 /// you need the keyboard to not be borrowed (to change its surface for example) and
 /// have more than one cursor.
 pub struct Keyboard {
-    _seat: Seat,
+    seat: Seat,
     ptr: *mut wl_keyboard,
     listener: Box<KeyboardListener>,
 }
@@ -97,7 +97,7 @@ impl From<Seat> for Keyboard {
     fn from(seat: Seat) -> Keyboard {
         let ptr = unsafe { wl_seat_get_keyboard(seat.ptr_mut()) };
         let p = Keyboard {
-            _seat: seat,
+            seat: seat,
             ptr: ptr,
             listener: Box::new(KeyboardListener::new(KeyboardData::new()))
         };
@@ -119,6 +119,11 @@ impl Keyboard {
     /// as a mean to identify the keyboard associated with the events.
     pub fn get_id(&self) -> KeyboardId {
         wrap_keyboard_id(self.ptr as usize)
+    }
+
+    /// Get access to the seat associated with this keyboard
+    pub fn get_seat(&self) -> &Seat {
+        &self.seat
     }
 
     /// Provides the file descriptor giving access to the keymap definition

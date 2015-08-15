@@ -212,6 +212,11 @@ impl<S: Surface> Pointer<S> {
         wrap_pointer_id(self.ptr as usize)
     }
 
+    /// Get access to the seat associated with this keyboard
+    pub fn get_seat(&self) -> &Seat {
+        &self.seat
+    }
+
     /// Change the surface for drawing the cursor.
     ///
     /// This cursor will be changed to this new surface every time it enters

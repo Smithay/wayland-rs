@@ -47,7 +47,7 @@ impl TouchListener {
 //
 
 pub struct Touch {
-    _seat: Seat,
+    seat: Seat,
     ptr: *mut wl_touch,
     listener: Box<TouchListener>
 }
@@ -61,7 +61,7 @@ impl From<Seat> for Touch {
     fn from(seat: Seat) -> Touch {
         let ptr = unsafe { wl_seat_get_touch(seat.ptr_mut()) };
         let p = Touch {
-            _seat: seat,
+            seat: seat,
             ptr: ptr,
             listener: Box::new(TouchListener::new())
         };
@@ -83,6 +83,11 @@ impl Touch {
     /// as a mean to identify the toch device associated with the events.
     pub fn get_id(&self) -> TouchId {
         wrap_touch_id(self.ptr as usize)
+    }
+
+    /// Get access to the seat associated with this keyboard
+    pub fn get_seat(&self) -> &Seat {
+        &self.seat
     }
 
     pub fn release(self) {

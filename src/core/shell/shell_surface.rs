@@ -5,18 +5,22 @@ use std::ptr;
 use libc::c_void;
 
 use core::{From, Surface};
+use core::ids::{Serial, unwrap_serial};
 use core::output::Output;
+use core::seat::Seat;
 use core::shell::Shell;
 
 use ffi::enums::FullscreenMethod;
-pub use ffi::enums::ShellSurfaceResize;
+pub use ffi::enums::{ShellSurfaceResize, ShellSurfaceTransient};
 use ffi::interfaces::shell::wl_shell_get_shell_surface;
 use ffi::interfaces::shell_surface::{wl_shell_surface, wl_shell_surface_destroy,
                                      wl_shell_surface_set_toplevel,
                                      wl_shell_surface_pong, wl_shell_surface_listener,
                                      wl_shell_surface_add_listener, wl_shell_surface_set_fullscreen,
                                      wl_shell_surface_set_maximized, wl_shell_surface_set_title,
-                                     wl_shell_surface_set_class};
+                                     wl_shell_surface_set_class, wl_shell_surface_set_popup,
+                                     wl_shell_surface_set_transient, wl_shell_surface_move,
+                                     wl_shell_surface_resize};
 use ffi::FFI;
 
 /// Different methods of fullscreen for a shell surface.
@@ -68,11 +72,92 @@ impl<S: Surface> ShellSurface<S> {
         }
     }
 
+    /// Start an interactive move
+    ///
+    /// This method must be called in response of a button-press event,
+    /// and have the appropriate serial passed as well as the concerned `Seat`.
+    ///
+    /// The compositor is allowed to ignore the request depending on the state
+    /// of the surface.
+    pub fn start_move(&self, seat: &Seat, serial: Serial) {
+        unsafe { wl_shell_surface_move(self.ptr, seat.ptr_mut(), unwrap_serial(serial)) }
+    }
+
+    /// Start a pointer-driven resizing of the surface.
+    ///
+    /// This method must be called in response of a button-press event,
+    /// and have the appropriate serial passed as well as the concerned `Seat`.
+    ///
+    /// The compositor is allowed to ignore the request depending on the state
+    /// of the surface.
+    pub fn start_resize(&self, seat: &Seat, serial: Serial, edges: ShellSurfaceResize) {
+        unsafe {
+            wl_shell_surface_resize(
+                self.ptr,
+                seat.ptr_mut(),
+                unwrap_serial(serial),
+                edges as u32
+            )
+        }
+    }
+
     /// Set this shell surface as being a toplevel window.
     ///
     /// It is the most classic window kind.
     pub fn set_toplevel(&self) {
         unsafe { wl_shell_surface_set_toplevel(self.ptr) }
+    }
+
+    /// Set this shell surface as being a transient surface.
+    ///
+    /// This can be used for tooltip boxes for example.
+    /// Transient surfaces are mapped relative to a parent surface,
+    /// at coordinates `x` and `y`.
+    pub fn set_transient<R: Surface>(&self,
+                                     parent: &R,
+                                     x: i32,
+                                     y: i32,
+                                     flags: ShellSurfaceTransient) {
+        unsafe {
+            wl_shell_surface_set_transient(
+                self.ptr,
+                parent.get_wsurface().ptr_mut(),
+                x,
+                y,
+                flags.bits()
+            )
+        }
+    }
+
+    /// Set this shell surface as being a popup.
+    ///
+    /// Popups have an implicit pointer grab, linked to a given seat.
+    /// The initial location of the popup is set by coordinates `x` and `y`
+    /// relative to the `parent` surface.
+    ///
+    /// Popup creation must be done in reaction to and event and provide
+    /// its `Serial`.
+    ///
+    /// If the popup grab is broken (when the user clicks outside of this program's
+    /// surfaces), an event is generated. See the `popup_done` callback.
+    pub fn set_popup<R: Surface>(&self,
+                                 serial: Serial,
+                                 seat: &Seat,
+                                 parent: &R,
+                                 x: i32,
+                                 y: i32,
+                                 flags: ShellSurfaceTransient) {
+        unsafe {
+            wl_shell_surface_set_popup(
+                self.ptr,
+                seat.ptr_mut(),
+                unwrap_serial(serial),
+                parent.get_wsurface().ptr_mut(),
+                x,
+                y,
+                flags.bits()
+            )
+        }
     }
 
     /// Set this shell surface as being fullscreen.
@@ -156,9 +241,19 @@ impl<S: Surface> ShellSurface<S> {
     ///  - the new `width`
     ///  - the new `height`
     pub fn set_configure_callback<F>(&mut self, f: F)
-        where F: Fn(ShellSurfaceResize, i32, i32) + 'static
+        where F: Fn(ShellSurfaceResize, i32, i32) + 'static + Send + Sync
     {
         self.listener.configure_handler = Box::new(f);
+    }
+
+    /// Sets the callback to be invoked when the popup grab of this popup surface is
+    /// broken. See `set_popup()` for details.
+    ///
+    /// Will never be called if the surface is not a popup.
+    pub fn set_popup_done_callback<F>(&mut self, f: F)
+        where F: Fn() + 'static + Send + Sync
+    {
+        self.listener.popup_done_handler = Box::new(f);
     }
 }
 
@@ -214,14 +309,15 @@ impl<S: Surface> FFI for ShellSurface<S> {
 
 /// The data used by the listener callbacks.
 struct ShellSurfaceListener {
-    /// Handler of the "new global object" event
-    configure_handler: Box<Fn(ShellSurfaceResize, i32, i32)>
+    configure_handler: Box<Fn(ShellSurfaceResize, i32, i32) + 'static + Send + Sync>,
+    popup_done_handler: Box<Fn() + 'static + Send + Sync>
 }
 
 impl ShellSurfaceListener {
     fn default_handlers() -> ShellSurfaceListener {
         ShellSurfaceListener {
-            configure_handler: Box::new(move |_, _, _| {})
+            configure_handler: Box::new(move |_, _, _| {}),
+            popup_done_handler: Box::new(move || {})
         }
     }
 }
@@ -246,9 +342,11 @@ extern "C" fn shell_surface_configure(data: *mut c_void,
     (listener.configure_handler)(edges, width,height);
 }
 
-extern "C" fn shell_surface_popup_done(_data: *mut c_void,
+extern "C" fn shell_surface_popup_done(data: *mut c_void,
                                        _shell_surface: *mut wl_shell_surface,
                                       ) {
+    let listener = unsafe { &*(data as *const ShellSurfaceListener) };
+    (listener.popup_done_handler)();
 }
 
 static SHELL_SURFACE_LISTENER: wl_shell_surface_listener = wl_shell_surface_listener {

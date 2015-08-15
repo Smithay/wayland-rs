@@ -120,11 +120,16 @@ pub enum ShellSurfaceResize {
     BottomRight = 10,
 }
 
-#[repr(u32)]
-pub enum ShellSurfaceTransient {
-    Inactive = 0x1,
-    _not_univariant = 0xffffffff
+/// Describes the behavior of transient shell surfaces
+bitflags! {
+    flags ShellSurfaceTransient: u32 {
+        /// Default behavior
+        const NONE     = 0x0,
+        /// Does not net keyboard focus
+        const INACTIVE = 0x1,
+    }
 }
+
 
 #[repr(u32)]
 pub enum ShmError {
