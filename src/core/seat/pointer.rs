@@ -305,7 +305,7 @@ impl<S: Surface> Pointer<S> {
     ///
     /// If no surface is set (and thus the default cursor is used), returns
     /// `None`.
-    pub fn get_surface<'c>(&'c self) -> Option<&'c S> {
+    pub fn get_surface(&self) -> Option<&S> {
         self.data.surface.as_ref()
     }
 

@@ -116,7 +116,7 @@ impl<S: Surface> SubSurface<S> {
 impl<S: Surface> Deref for SubSurface<S> {
     type Target = S;
 
-    fn deref<'d>(&'d self) -> &'d S {
+    fn deref(&self) -> &S {
         &self.surface
     }
 }

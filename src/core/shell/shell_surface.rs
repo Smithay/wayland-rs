@@ -260,7 +260,7 @@ impl<S: Surface> ShellSurface<S> {
 impl<S: Surface> Deref for ShellSurface<S> {
     type Target = S;
 
-    fn deref<'c>(&'c self) -> &'c S {
+    fn deref(&self) -> &S {
         &self.surface
     }
 }
