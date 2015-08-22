@@ -7,7 +7,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
-#[repr(C)] pub struct wl_data_source;
+pub enum wl_data_source { }
 
 #[repr(C)]
 pub struct wl_data_source_listener {

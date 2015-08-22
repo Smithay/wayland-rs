@@ -15,7 +15,7 @@ use super::callback::wl_callback;
 use super::output::wl_output;
 use super::region::wl_region;
 
-#[repr(C)] pub struct wl_surface;
+pub enum wl_surface { }
 
 #[repr(C)]
 pub struct wl_surface_listener {

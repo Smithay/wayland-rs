@@ -15,7 +15,7 @@ use super::keyboard::wl_keyboard;
 use super::pointer::wl_pointer;
 use super::touch::wl_touch;
 
-#[repr(C)] pub struct wl_seat;
+pub enum wl_seat { }
 
 #[repr(C)]
 pub struct wl_seat_listener {

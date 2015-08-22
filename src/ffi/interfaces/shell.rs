@@ -12,7 +12,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use super::shell_surface::wl_shell_surface;
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_shell;
+pub enum wl_shell { }
 
 const WL_SHELL_GET_SHELL_SURFACE: uint32_t = 0;
 

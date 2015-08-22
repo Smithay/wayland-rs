@@ -7,7 +7,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_set_user_data,
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
-#[repr(C)] pub struct wl_region;
+pub enum wl_region { }
 
 const WL_REGION_DESTROY: uint32_t = 0;
 const WL_REGION_ADD: uint32_t = 1;

@@ -11,7 +11,7 @@ use super::data_offer::wl_data_offer;
 use super::data_source::wl_data_source;
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_data_device;
+pub enum wl_data_device { }
 
 #[repr(C)]
 pub struct wl_data_device_listener {

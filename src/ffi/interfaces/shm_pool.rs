@@ -11,7 +11,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::buffer::wl_buffer;
 
-#[repr(C)] pub struct wl_shm_pool;
+pub enum wl_shm_pool { }
 
 const WL_SHM_POOL_CREATE_BUFFER: uint32_t = 0;
 const WL_SHM_POOL_DESTROY: uint32_t = 1;

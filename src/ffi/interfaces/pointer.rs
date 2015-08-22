@@ -10,7 +10,7 @@ use ffi::enums::{ButtonState, ScrollAxis};
 
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_pointer;
+pub enum wl_pointer { }
 
 #[repr(C)]
 pub struct wl_pointer_listener {

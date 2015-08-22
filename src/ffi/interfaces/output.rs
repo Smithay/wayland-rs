@@ -8,7 +8,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use ffi::enums::{OutputMode, OutputSubpixel, OutputTransform};
 
-#[repr(C)] pub struct wl_output;
+pub enum wl_output { }
 
 #[repr(C)]
 pub struct wl_output_listener {

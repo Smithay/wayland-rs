@@ -11,7 +11,7 @@ use ffi::enums::{KeymapFormat, KeyState};
 
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_keyboard;
+pub enum wl_keyboard { }
 
 #[repr(C)]
 pub struct wl_keyboard_listener {

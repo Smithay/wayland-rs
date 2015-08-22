@@ -9,7 +9,7 @@ use ffi::abi::{wl_proxy_destroy, wl_proxy_add_listener, wl_proxy_set_user_data,
 #[cfg(feature = "dlopen")]
 use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
-#[repr(C)] pub struct wl_registry;
+pub enum wl_registry { }
 
 #[repr(C)]
 pub struct wl_registry_listener {

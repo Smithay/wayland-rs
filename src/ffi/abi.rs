@@ -1,6 +1,6 @@
 use libc::{c_int, c_char, c_void, int32_t, uint32_t, size_t};
 
-#[repr(C)] pub struct wl_argument;
+pub enum wl_argument { }
 
 #[repr(C)]
 pub struct wl_array {
@@ -9,8 +9,8 @@ pub struct wl_array {
     pub data: *mut c_void
 }
 
-#[repr(C)] pub struct wl_display;
-#[repr(C)] pub struct wl_event_queue;
+pub enum wl_display { }
+pub enum wl_event_queue { }
 
 /// Type representing an interface in the `libwayland-client.so` ABI.
 ///
@@ -18,7 +18,7 @@ pub struct wl_array {
 /// not (yet?) supported by this library, via the `FFI` and `Bind` traits.
 #[repr(C)]
 pub struct wl_interface {
-    pub name: *const char,
+    pub name: *const c_char,
     pub version: c_int,
     pub method_count: c_int,
     pub methods: *const wl_message,
@@ -40,7 +40,7 @@ pub struct wl_message {
     pub types: *const *mut wl_interface,
 }
 
-#[repr(C)] pub struct wl_proxy;
+pub enum wl_proxy { }
 
 #[repr(C)] pub type wl_dispatcher_func_t = extern fn(*const c_void, 
                                                      *mut c_void,
@@ -50,7 +50,7 @@ pub struct wl_message {
                                                     );
 #[repr(C)] pub type wl_log_func_t = extern fn(_: *const c_char, ...);
 
-#[repr(C)] pub type wl_fixed_t = int32_t;
+pub type wl_fixed_t = int32_t;
 
 pub fn wl_fixed_to_double(f: wl_fixed_t) -> f64 {
     f as f64 / 256.

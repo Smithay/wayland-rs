@@ -13,7 +13,7 @@ use super::output::wl_output;
 use super::seat::wl_seat;
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_shell_surface;
+pub enum wl_shell_surface { }
 
 #[repr(C)]
 pub struct wl_shell_surface_listener {

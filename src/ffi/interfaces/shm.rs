@@ -12,7 +12,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::shm_pool::wl_shm_pool;
 
-#[repr(C)] pub struct wl_shm;
+pub enum wl_shm { }
 
 #[repr(C)]
 pub struct wl_shm_listener {

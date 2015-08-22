@@ -12,7 +12,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use super::subsurface::wl_subsurface;
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_subcompositor;
+pub enum wl_subcompositor { }
 
 const WL_SUBCOMPOSITOR_DESTROY: uint32_t = 0;
 const WL_SUBCOMPOSITOR_GET_SUBSURFACE: uint32_t = 1;

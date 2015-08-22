@@ -9,7 +9,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_subsurface;
+pub enum wl_subsurface { }
 
 const WL_SUBSURFACE_DESTROY: uint32_t = 0;
 const WL_SUBSURFACE_SET_POSITION: uint32_t = 1;

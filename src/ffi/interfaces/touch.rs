@@ -9,7 +9,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_touch;
+pub enum wl_touch { }
 
 #[repr(C)]
 pub struct wl_touch_listener {

@@ -13,7 +13,7 @@ use super::data_device::wl_data_device;
 use super::data_source::wl_data_source;
 use super::seat::wl_seat;
 
-#[repr(C)] pub struct wl_data_device_manager;
+pub enum wl_data_device_manager { }
 
 const WL_DATA_DEVICE_MANAGER_CREATE_DATA_SOURCE: uint32_t = 0;
 const WL_DATA_DEVICE_MANAGER_GET_DATA_DEVICE: uint32_t = 1;

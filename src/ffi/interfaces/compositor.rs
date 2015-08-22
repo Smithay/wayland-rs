@@ -12,7 +12,7 @@ use ffi::abi::WAYLAND_CLIENT_HANDLE as WCH;
 use super::region::wl_region;
 use super::surface::wl_surface;
 
-#[repr(C)] pub struct wl_compositor;
+pub enum wl_compositor { }
 
 const WL_COMPOSITOR_CREATE_SURFACE: uint32_t = 0;
 const WL_COMPOSITOR_CREATE_REGION: uint32_t = 1;
