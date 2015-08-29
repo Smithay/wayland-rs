@@ -1,0 +1,9 @@
+[package]
+name = "wayland-rust-scanner"
+version = "0.1.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+repository = "https://github.com/vberger/wayland-client-rs"
+license = "MIT"
+
+[dependencies]
+xml-rs = "^0.1.26"
