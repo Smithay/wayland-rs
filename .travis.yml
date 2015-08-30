@@ -9,4 +9,4 @@ os:
   - linux
 
 script:
-    - cargo test
+    - cargo test --features "dlopen"

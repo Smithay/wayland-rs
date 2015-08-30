@@ -13,5 +13,3 @@ libc = "0.1"
 
 [features]
 dlopen = ["dlib/dlopen"]
-egl = []
-cursor = []
