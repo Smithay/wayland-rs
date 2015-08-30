@@ -62,9 +62,9 @@ pub fn generate_interfaces(protocol: Protocol) {
                 for arg in &msg.args {
                     match (arg.typ, &arg.interface) {
                         (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
-                           println!("unsafe {{ &{}_interface as *const wl_interface }},", inter)
+                           println!("    unsafe {{ &{}_interface as *const wl_interface }},", inter)
                         }
-                        _ => println!("NULLPTR as *const wl_interface,")
+                        _ => println!("    NULLPTR as *const wl_interface,")
                     }
                 }
                 println!("];");
@@ -95,9 +95,9 @@ pub fn generate_interfaces(protocol: Protocol) {
                 }
                 print!("\" as *const u8 as *const c_char, types: ");
                 if msg.all_null() {
-                    println!("unsafe {{ &types_null as *const _ }}");
+                    print!("unsafe {{ &types_null as *const _ }}");
                 } else {
-                    println!("unsafe {{ &{}_{}_{}_types as *const _ }}", $interface.name, stringify!($which), msg.name);
+                    print!("unsafe {{ &{}_{}_{}_types as *const _ }}", $interface.name, stringify!($which), msg.name);
                 }
                 println!(" }},");
             }
