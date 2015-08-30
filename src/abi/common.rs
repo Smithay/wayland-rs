@@ -2,32 +2,32 @@ use libc::{c_char, c_void, c_int, size_t};
 
 #[repr(C)]
 pub struct wl_message {
-    name: *const c_char,
-    signature: *const c_char,
-    types: *const *const wl_interface
+    pub name: *const c_char,
+    pub signature: *const c_char,
+    pub types: *const *const wl_interface
 }
 
 #[repr(C)]
 pub struct wl_interface {
-    name: *const c_char,
-    version: c_int,
-    method_count: c_int,
-    methods: *const wl_message,
-    event_count: c_int,
-    events: *const wl_message
+    pub name: *const c_char,
+    pub version: c_int,
+    pub request_count: c_int,
+    pub requests: *const wl_message,
+    pub event_count: c_int,
+    pub events: *const wl_message
 }
 
 #[repr(C)]
 pub struct wl_list {
-    prev: *mut wl_list,
-    next: *mut wl_list
+    pub prev: *mut wl_list,
+    pub next: *mut wl_list
 }
 
 #[repr(C)]
 pub struct wl_array {
-    size: size_t,
-    alloc: size_t,
-    data: *mut c_void
+    pub size: size_t,
+    pub alloc: size_t,
+    pub data: *mut c_void
 }
 
 pub type wl_fixed_t = i32;

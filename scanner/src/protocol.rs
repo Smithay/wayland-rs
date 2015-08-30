@@ -20,7 +20,7 @@ impl Protocol {
 pub struct Interface {
     pub name: String,
     pub version: u32,
-    pub description: Option<String>,
+    pub description: Option<(String, String)>,
     pub requests: Vec<Request>,
     pub events: Vec<Event>,
     pub enums: Vec<Enum>
@@ -30,7 +30,7 @@ impl Interface {
     pub fn new() -> Interface {
         Interface {
             name: String::new(),
-            version: 0,
+            version: 1,
             description: None,
             requests: Vec::new(),
             events: Vec::new(),
@@ -42,21 +42,27 @@ impl Interface {
 #[derive(Debug)]
 pub struct Request {
     pub name: String,
-    pub typ: Type,
+    pub typ: Option<Type>,
     pub since: u16,
-    pub description: Option<String>,
-    pub args: Vec<Arg>
+    pub description: Option<(String, String)>,
+    pub args: Vec<Arg>,
+    pub type_index: usize
 }
 
 impl Request {
     pub fn new() -> Request {
         Request {
             name: String::new(),
-            typ: Type::Void,
+            typ: None,
             since: 1,
             description: None,
-            args: Vec::new()
+            args: Vec::new(),
+            type_index: 0
         }
+    }
+
+    pub fn all_null(&self) -> bool {
+        self.args.iter().all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
     }
 }
 
@@ -64,8 +70,9 @@ impl Request {
 pub struct Event {
     pub name: String,
     pub since: u16,
-    pub description: Option<String>,
-    pub args: Vec<Arg>
+    pub description: Option<(String, String)>,
+    pub args: Vec<Arg>,
+    pub type_index: usize
 }
 
 impl Event {
@@ -74,8 +81,13 @@ impl Event {
             name: String::new(),
             since: 1,
             description: None,
-            args: Vec::new()
+            args: Vec::new(),
+            type_index: 0
         }
+    }
+
+    pub fn all_null(&self) -> bool {
+        self.args.iter().all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
     }
 }
 
@@ -85,7 +97,7 @@ pub struct Arg {
     pub typ: Type,
     pub interface: Option<String>,
     pub summary: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<(String, String)>,
     pub allow_null: bool
 }
 
@@ -93,7 +105,7 @@ impl Arg {
     pub fn new() -> Arg {
         Arg {
             name: String::new(),
-            typ: Type::Void,
+            typ: Type::Object,
             interface: None,
             summary: None,
             description: None,
@@ -106,7 +118,7 @@ impl Arg {
 pub struct Enum {
     pub name: String,
     pub since: u16,
-    pub description: Option<String>,
+    pub description: Option<(String, String)>,
     pub entries: Vec<Entry>
 }
 
@@ -126,7 +138,7 @@ pub struct Entry {
     pub name: String,
     pub value: String,
     pub since: u16,
-    pub description: Option<String>,
+    pub description: Option<(String, String)>,
     pub summary: Option<String>
 }
 
@@ -142,9 +154,8 @@ impl Entry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq,Copy,Clone)]
 pub enum Type {
-    Void,
     Int,
     Uint,
     Fixed,
@@ -154,4 +165,13 @@ pub enum Type {
     Array,
     Fd,
     Destructor
+}
+
+impl Type {
+    pub fn nullable(&self) -> bool {
+        match *self {
+            Type::String | Type::Object | Type::NewId | Type::Array => true,
+            _ => false
+        }
+    }
 }

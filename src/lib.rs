@@ -1,3 +1,5 @@
+#![feature(static_recursion)]
+
 #[macro_use]
 extern crate dlib;
 
