@@ -10,3 +10,9 @@ extern crate lazy_static;
 extern crate libc;
 
 mod abi;
+
+use libc::c_void;
+
+pub trait Proxy {
+    fn ptr(&self) -> *mut c_void;
+}
