@@ -50,8 +50,31 @@ pub fn generate_client_api(protocol: Protocol) {
                     println!("    {} = {},", variantname, entry.value);
                 }
             }
-            println!("}}");
+            println!("}}\n");
         }
+
+        // emit opcodes
+        let mut i = 0;
+        for req in &interface.requests {
+            println!("const {}_{}: u32 = {};", snake_to_screaming(&interface.name), snake_to_screaming(&req.name), i);
+            i += 1;
+        }
+        if i > 0 { println!("") }
+
+        // emit messages
+        println!("pub enum {}Event {{", snake_to_camel(&interface.name));
+        for evt in &interface.events {
+            print!("    {}", snake_to_camel(&evt.name));
+            if evt.args.len() > 0 {
+                print!("(");
+                for a in &evt.args {
+                    print!("{},", a.typ.rust_type());
+                }
+                print!(")");
+            }
+            println!(",");
+        }
+        println!("}}\n");
     }
     
 }
@@ -81,4 +104,8 @@ fn snake_to_camel(input: &str) -> String {
             }
         })
     }).collect()
+}
+
+fn snake_to_screaming(input: &str) -> String {
+    input.chars().map(|c| c.to_ascii_uppercase()).collect()
 }

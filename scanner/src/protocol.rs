@@ -174,4 +174,15 @@ impl Type {
             _ => false
         }
     }
+
+    pub fn rust_type(&self) -> &'static str {
+        match *self {
+            Type::Int => "i32",
+            Type::Uint => "u32",
+            Type::Fixed => "f32",
+            Type::Array => "wl_array",
+            Type::Fd => "::std::os::unix::io::RawFd",
+            _ => "FIXME"
+        }
+    }
 }
