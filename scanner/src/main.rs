@@ -23,12 +23,12 @@ fn main() {
 
     if action == 1 {
         // client-api generation
-        client_gen::generate_client_api(protocol);
+        client_gen::generate_client_api(protocol, &mut std::io::stdout());
     } else if action == 2 {
         // server api-generation
-        server_gen::generate_server_api(protocol);
+        server_gen::generate_server_api(protocol, &mut std::io::stdout());
     } else {
         // interfaces generation
-        interface_gen::generate_interfaces(protocol);
+        interface_gen::generate_interfaces(protocol, &mut std::io::stdout());
     }
 }

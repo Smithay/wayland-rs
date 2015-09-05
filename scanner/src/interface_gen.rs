@@ -1,4 +1,5 @@
 use std::cmp;
+use std::io::Write;
 
 use protocol::*;
 
@@ -13,17 +14,15 @@ macro_rules! for_requests_and_events_of_interface(
     );
 );
 
-pub fn generate_interfaces(protocol: Protocol) {
-    println!("//\n// This file was auto-generated, do not edit directly\n//\n");
+pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
+    writeln!(out, "//\n// This file was auto-generated, do not edit directly\n//\n").unwrap();
 
     if let Some(text) = protocol.copyright {
-        println!("/*\n{}\n*/\n", text);
+        writeln!(out, "/*\n{}\n*/\n", text).unwrap();
     }
 
-    println!("#![allow(dead_code,non_camel_case_types)]\n");
-
-    println!("use abi::common::*;\n");
-    println!("use libc::{{c_void, c_char}};\n");
+    writeln!(out, "use abi::common::*;\n").unwrap();
+    writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
 
     //
     // null types array
@@ -39,13 +38,13 @@ pub fn generate_interfaces(protocol: Protocol) {
         cmp::max(max, cmp::max(request_longest_null, events_longest_null))
     });
     
-    println!("const NULLPTR : *const c_void = 0 as *const c_void;\n");
+    writeln!(out, "const NULLPTR : *const c_void = 0 as *const c_void;\n").unwrap();
 
-    println!("static mut types_null: [*const wl_interface; {}] = [", longest_nulls);
+    writeln!(out, "static mut types_null: [*const wl_interface; {}] = [", longest_nulls).unwrap();
     for _ in 0..longest_nulls {
-        println!("    NULLPTR as *const wl_interface,");
+        writeln!(out, "    NULLPTR as *const wl_interface,").unwrap();
     }
-    println!("];\n");
+    writeln!(out, "];\n").unwrap();
 
     //
     // emit interfaces
@@ -57,78 +56,80 @@ pub fn generate_interfaces(protocol: Protocol) {
             // first, emit types arrays for the messages
             for msg in &$interface.$which {
                 if msg.all_null() { continue; }
-                println!("static mut {}_{}_{}_types: [*const wl_interface; {}] = [",
-                    $interface.name, stringify!($which), msg.name, msg.args.len());
+                writeln!(out, "static mut {}_{}_{}_types: [*const wl_interface; {}] = [",
+                    $interface.name, stringify!($which), msg.name, msg.args.len()).unwrap();
                 for arg in &msg.args {
                     match (arg.typ, &arg.interface) {
                         (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
-                           println!("    unsafe {{ &{}_interface as *const wl_interface }},", inter)
+                           writeln!(out, "    unsafe {{ &{}_interface as *const wl_interface }},", inter).unwrap()
                         }
-                        _ => println!("    NULLPTR as *const wl_interface,")
+                        _ => writeln!(out, "    NULLPTR as *const wl_interface,").unwrap()
                     }
                 }
-                println!("];");
+                writeln!(out, "];").unwrap();
             }
 
             // then, the message array
-            println!("pub static mut {}_{}: [wl_message; {}] = [",
-                $interface.name, stringify!($which), $interface.$which.len());
+            writeln!(out, "pub static mut {}_{}: [wl_message; {}] = [",
+                $interface.name, stringify!($which), $interface.$which.len()).unwrap();
             for msg in &$interface.$which {
-                print!("    wl_message {{ name: b\"{}\" as *const u8 as *const c_char, signature: b\"", msg.name);
-                if msg.since > 1 { print!("{}", msg.since); }
+                write!(out, "    wl_message {{ name: b\"{}\" as *const u8 as *const c_char, signature: b\"",
+                    msg.name).unwrap();
+                if msg.since > 1 { write!(out, "{}", msg.since).unwrap(); }
                 for arg in &msg.args {
-                    if arg.typ.nullable() && arg.allow_null { print!("?"); }
+                    if arg.typ.nullable() && arg.allow_null { write!(out, "?").unwrap(); }
                     match arg.typ {
                         Type::NewId => {
-                            if arg.interface.is_none() { print!("su"); }
-                            print!("n");
+                            if arg.interface.is_none() { write!(out, "su").unwrap(); }
+                            write!(out, "n").unwrap();
                         },
-                        Type::Uint => print!("u"),
-                        Type::Fixed => print!("f"),
-                        Type::String => print!("s"),
-                        Type::Object => print!("o"),
-                        Type::Array => print!("a"),
-                        Type::Fd => print!("h"),
-                        Type::Int => print!("i"),
+                        Type::Uint => write!(out, "u").unwrap(),
+                        Type::Fixed => write!(out, "f").unwrap(),
+                        Type::String => write!(out, "s").unwrap(),
+                        Type::Object => write!(out, "o").unwrap(),
+                        Type::Array => write!(out, "a").unwrap(),
+                        Type::Fd => write!(out, "h").unwrap(),
+                        Type::Int => write!(out, "i").unwrap(),
                         _ => {}
                     }
                 }
-                print!("\" as *const u8 as *const c_char, types: ");
+                write!(out, "\" as *const u8 as *const c_char, types: ").unwrap();
                 if msg.all_null() {
-                    print!("unsafe {{ &types_null as *const _ }}");
+                    write!(out, "unsafe {{ &types_null as *const _ }}").unwrap();
                 } else {
-                    print!("unsafe {{ &{}_{}_{}_types as *const _ }}", $interface.name, stringify!($which), msg.name);
+                    write!(out, "unsafe {{ &{}_{}_{}_types as *const _ }}",
+                        $interface.name, stringify!($which), msg.name).unwrap();
                 }
-                println!(" }},");
+                writeln!(out, " }},").unwrap();
             }
-            println!("];");
+            writeln!(out, "];").unwrap();
         });
     );
 
     for interface in &protocol.interfaces {
 
-        println!("// {}\n", interface.name);
+        writeln!(out, "// {}\n", interface.name).unwrap();
 
         emit_messages!(interface, requests);
         emit_messages!(interface, events);
 
-        println!("\nstatic mut {}_interface: wl_interface = wl_interface {{", interface.name);
-        println!("    name: b\"{}\" as *const u8  as *const c_char,", interface.name);
-        println!("    version: {},", interface.version);
-        println!("    request_count: {},", interface.requests.len());
+        writeln!(out, "\nstatic mut {}_interface: wl_interface = wl_interface {{", interface.name).unwrap();
+        writeln!(out, "    name: b\"{}\" as *const u8  as *const c_char,", interface.name).unwrap();
+        writeln!(out, "    version: {},", interface.version).unwrap();
+        writeln!(out, "    request_count: {},", interface.requests.len()).unwrap();
         if interface.requests.len() > 0 {
-            println!("    requests: unsafe {{ &{}_requests as *const _ }},", interface.name);
+            writeln!(out, "    requests: unsafe {{ &{}_requests as *const _ }},", interface.name).unwrap();
         } else {
-            println!("    requests: NULLPTR as *const wl_message,");
+            writeln!(out, "    requests: NULLPTR as *const wl_message,").unwrap();
         }
-        println!("    event_count: {},", interface.events.len());
+        writeln!(out, "    event_count: {},", interface.events.len()).unwrap();
         if interface.events.len() > 0 {
-            println!("    events: unsafe {{ &{}_events as *const _ }},", interface.name);
+            writeln!(out, "    events: unsafe {{ &{}_events as *const _ }},", interface.name).unwrap();
         } else {
-            println!("    events: NULLPTR as *const wl_message,");
+            writeln!(out, "    events: NULLPTR as *const wl_message,").unwrap();
         }
-        println!("}};");
+        writeln!(out, "}};").unwrap();
 
-        println!("");
+        writeln!(out, "").unwrap();
     }
 }

@@ -1,8 +1,12 @@
+use std::io::Write;
+
 use protocol::*;
 
-pub fn generate_server_api(protocol: Protocol) {
+pub fn generate_server_api<O: Write>(protocol: Protocol, out: &mut O) {
+    writeln!(out, "//\n// This file was auto-generated, do not edit directly\n//\n").unwrap();
+
     if let Some(text) = protocol.copyright {
-        println!("/*\n{}\n*/\n", text);
+        writeln!(out, "/*\n{}\n*/\n", text).unwrap();
     }
     
 }
