@@ -6,11 +6,15 @@ repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
 description = "Bindings to the standard C implementation of the wayland protocol."
+build = "build.rs"
 
 [dependencies]
 dlib = "0.1"
 libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
+
+[build-dependencies.wayland-rust-scanner]
+path = "./scanner"
 
 [features]
 dlopen = ["dlib/dlopen", "lazy_static"]

@@ -10,6 +10,7 @@ extern crate lazy_static;
 extern crate libc;
 
 mod abi;
+mod wayland;
 
 use libc::c_void;
 
