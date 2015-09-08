@@ -17,16 +17,17 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
 
     for interface in protocol.interfaces {
+        let snake_iname = snake_to_camel(&interface.name);
         writeln!(out, "//\n// interface {}\n//\n", interface.name).unwrap();
 
         if let Some((ref summary, ref desc)) = interface.description {
             write_doc(summary, desc, "", out)
         }
         writeln!(out, "pub struct {} {{\n    ptr: *mut c_void\n}}\n",
-            snake_to_camel(&interface.name)).unwrap();
+            snake_iname).unwrap();
 
         writeln!(out, "impl Proxy for {} {{ fn ptr(&self) -> *mut c_void {{ self.ptr }} }}\n",
-            snake_to_camel(&interface.name)).unwrap();
+            snake_iname).unwrap();
 
         // emit enums
         for enu in interface.enums {
@@ -56,6 +57,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         }
 
         // emit opcodes
+        writeln!(out, "// {} opcodes", interface.name).unwrap();
         let mut i = 0;
         for req in &interface.requests {
             writeln!(out, "const {}_{}: u32 = {};",
@@ -65,18 +67,34 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         if i > 0 { writeln!(out, "").unwrap() }
 
         // emit messages
-        writeln!(out, "pub enum {}Event {{", snake_to_camel(&interface.name)).unwrap();
-        for evt in &interface.events {
-            write!(out, "    {}", snake_to_camel(&evt.name)).unwrap();
-            if evt.args.len() > 0 {
-                write!(out, "(").unwrap();
-                for a in &evt.args {
-                    write!(out, "{},", a.typ.rust_type()).unwrap();
+        if interface.events.len() > 0 {
+            writeln!(out, "pub enum {}Event {{", snake_iname).unwrap();
+            for evt in &interface.events {
+                if let Some((ref summary, ref desc)) = evt.description {
+                    write_doc(summary, desc, "    ", out)
                 }
-                write!(out, ")").unwrap();
+                write!(out, "    {}", snake_to_camel(&evt.name)).unwrap();
+                if evt.args.len() > 0 {
+                    write!(out, "(").unwrap();
+                    for a in &evt.args {
+                        write!(out, "{},", a.typ.rust_type()).unwrap();
+                    }
+                    write!(out, ")").unwrap();
+                }
+                writeln!(out, ",").unwrap();
             }
-            writeln!(out, ",").unwrap();
+            writeln!(out, "}}\n").unwrap();
         }
+
+        // Id
+        writeln!(out, "#[derive(PartialEq,Eq,Copy,Clone)]").unwrap();
+        writeln!(out, "struct {}Id {{ id: usize }}\n", snake_iname).unwrap();
+
+        // impl
+        writeln!(out, "impl {} {{", snake_iname).unwrap();
+        // id
+        writeln!(out, "    fn id(&self) -> {}Id {{ {}Id {{ id: self.ptr as usize }} }}",
+            snake_iname, snake_iname).unwrap();
         writeln!(out, "}}\n").unwrap();
     }
     
