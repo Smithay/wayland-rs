@@ -12,7 +12,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     writeln!(out, "use abi::common::*;").unwrap();
     writeln!(out, "use abi::client::*;").unwrap();
-    writeln!(out, "use Proxy;").unwrap();
+    writeln!(out, "use {{Proxy, ProxyId}};").unwrap();
     writeln!(out, "// update if needed to the appropriate file\nuse super::interfaces::*;\n").unwrap();
     writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
 
@@ -89,6 +89,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         // Id
         writeln!(out, "#[derive(PartialEq,Eq,Copy,Clone)]").unwrap();
         writeln!(out, "struct {}Id {{ id: usize }}\n", snake_iname).unwrap();
+        writeln!(out, "impl {}Id {{ pub fn as_proxy_id(self) -> ProxyId {{ ProxyId {{ id: self.id }} }} }}", snake_iname).unwrap();
 
         // impl
         writeln!(out, "impl {} {{", snake_iname).unwrap();
