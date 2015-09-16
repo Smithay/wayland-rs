@@ -157,7 +157,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 match a.typ {
                     Type::String => {
                         if a.allow_null {
-                            writeln!(out, "        let {} = {}.map(|t| CString::new(t)).expect(\"Got a String with interior null.\");",
+                            writeln!(out, "        let {} = {}.map(|t| CString::new(t).expect(\"Got a String with interior null.\"));",
                                 a.name, a.name).unwrap();
                         } else {
                             writeln!(out, "        let {} = CString::new({}).expect(\"Got a String with interior null.\");",
