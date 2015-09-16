@@ -182,6 +182,7 @@ impl Type {
             Type::Fixed => "f32",
             Type::Array => "wl_array",
             Type::Fd => "::std::os::unix::io::RawFd",
+            Type::String => "String",
             _ => "()" // FIXME
         }
     }

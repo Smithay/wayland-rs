@@ -7,30 +7,6 @@ pub enum wl_display { }
 pub enum wl_event_queue { }
 
 external_library!(WaylandClient, "wayland-client",
-    statics:
-        wl_buffer_interface: wl_interface,
-        wl_callback_interface: wl_interface,
-        wl_compositor_interface: wl_interface,
-        wl_data_device_interface: wl_interface,
-        wl_data_device_manager_interface: wl_interface,
-        wl_data_offer_interface: wl_interface,
-        wl_data_source_interface: wl_interface,
-        wl_display_interface: wl_interface,
-        wl_keyboard_interface: wl_interface,
-        wl_output_interface: wl_interface,
-        wl_pointer_interface: wl_interface,
-        wl_region_interface: wl_interface,
-        wl_registry_interface: wl_interface,
-        wl_seat_interface: wl_interface,
-        wl_shell_interface: wl_interface,
-        wl_shell_surface_interface: wl_interface,
-        wl_shm_interface: wl_interface,
-        wl_shm_pool_interface: wl_interface,
-        wl_subcompositor_interface: wl_interface,
-        wl_subsurface_interface: wl_interface,
-        wl_surface_interface: wl_interface,
-        wl_touch_interface: wl_interface
-
     functions:
     // display creation and destruction
         fn wl_display_connect_to_fd(c_int) -> *mut wl_display,

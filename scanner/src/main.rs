@@ -1,5 +1,6 @@
 extern crate xml;
 
+mod util;
 mod parse;
 mod protocol;
 mod interface_gen;

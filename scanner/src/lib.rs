@@ -3,6 +3,7 @@ extern crate xml;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 
+mod util;
 mod parse;
 mod protocol;
 mod interface_gen;

@@ -1,4 +1,5 @@
 use std::ascii::AsciiExt;
+use std::borrow::Cow;
 use std::io::Write;
 
 use protocol::*;
@@ -17,17 +18,27 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
 
     for interface in protocol.interfaces {
-        let snake_iname = snake_to_camel(&interface.name);
+        let camel_iname = snake_to_camel(&interface.name);
         writeln!(out, "//\n// interface {}\n//\n", interface.name).unwrap();
 
         if let Some((ref summary, ref desc)) = interface.description {
             write_doc(summary, desc, "", out)
         }
         writeln!(out, "pub struct {} {{\n    ptr: *mut c_void\n}}\n",
-            snake_iname).unwrap();
+            camel_iname).unwrap();
 
-        writeln!(out, "impl Proxy for {} {{ fn ptr(&self) -> *mut c_void {{ self.ptr }} }}\n",
-            snake_iname).unwrap();
+        // Id
+        writeln!(out, "#[derive(PartialEq,Eq,Copy,Clone)]").unwrap();
+        writeln!(out, "struct {}Id {{ id: usize }}\n", camel_iname).unwrap();
+        writeln!(out, "impl From<{}Id> for ProxyId {{ fn from(other: {}Id) -> ProxyId {{ ProxyId {{ id: other.id }} }} }}", camel_iname, camel_iname).unwrap();
+
+        writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
+        writeln!(out, "    type Id = {}Id;", camel_iname).unwrap();
+        writeln!(out, "    fn ptr(&self) -> *mut c_void {{ self.ptr }}").unwrap();
+        writeln!(out, "    fn interface() -> *mut wl_interface {{ &mut {}_interface  as *mut wl_interface }}", interface.name).unwrap();
+        writeln!(out, "    fn id(&self) -> {}Id {{ {}Id {{ id: self.ptr as usize }} }}", camel_iname, camel_iname).unwrap();
+        writeln!(out, "}}").unwrap();
+            
 
         // emit enums
         for enu in interface.enums {
@@ -68,7 +79,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
 
         // emit messages
         if interface.events.len() > 0 {
-            writeln!(out, "pub enum {}Event {{", snake_iname).unwrap();
+            writeln!(out, "pub enum {}Event {{", camel_iname).unwrap();
             for evt in &interface.events {
                 if let Some((ref summary, ref desc)) = evt.description {
                     write_doc(summary, desc, "    ", out)
@@ -86,16 +97,54 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             writeln!(out, "}}\n").unwrap();
         }
 
-        // Id
-        writeln!(out, "#[derive(PartialEq,Eq,Copy,Clone)]").unwrap();
-        writeln!(out, "struct {}Id {{ id: usize }}\n", snake_iname).unwrap();
-        writeln!(out, "impl {}Id {{ pub fn as_proxy_id(self) -> ProxyId {{ ProxyId {{ id: self.id }} }} }}", snake_iname).unwrap();
-
         // impl
-        writeln!(out, "impl {} {{", snake_iname).unwrap();
-        // id
-        writeln!(out, "    fn id(&self) -> {}Id {{ {}Id {{ id: self.ptr as usize }} }}",
-            snake_iname, snake_iname).unwrap();
+        writeln!(out, "impl {} {{", camel_iname).unwrap();
+        // requests
+        for req in &interface.requests {
+            if req.typ == Some(Type::Destructor) {
+                // TODO
+                continue;
+            }
+            let new_id_interfaces: Vec<Option<String>> = req.args.iter()
+                .filter(|a| a.typ == Type::NewId)
+                .map(|a| a.interface.as_ref().map(|s| snake_to_camel(s)))
+                .collect();
+            if new_id_interfaces.len() > 1 {
+                // TODO: can we handle this properly ?
+                continue;
+            }
+            let ret = new_id_interfaces.into_iter().next();
+
+            writeln!(out, "").unwrap();
+
+            if let Some((ref summary, ref doc)) = req.description {
+                write_doc(summary, doc, "    ", out);
+            }
+            write!(out, "    pub fn {}{}(&self,", req.name, if ::util::is_keyword(&req.name) { "_" } else { "" }).unwrap();
+            for a in &req.args {
+                if a.typ == Type::NewId { continue; }
+                let typ: Cow<str> = if a.typ == Type::Object {
+                    a.interface.as_ref().map(|i| format!("&{}", snake_to_camel(i)).into()).unwrap_or("*mut ()".into())
+                } else {
+                    a.typ.rust_type().into()
+                };
+                if a.allow_null {
+                    write!(out, " {}: Option<{}>,", a.name, typ).unwrap();
+                } else {
+                    write!(out, " {}: {},", a.name, typ).unwrap();
+                }
+            }
+            write!(out, ")").unwrap();
+            if let Some(ref newint) = ret {
+                write!(out, " -> {}", newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("*mut ()".to_owned())).unwrap();
+            }
+            writeln!(out, " {{").unwrap();
+            writeln!(out, "        unimplemented!()").unwrap();
+            writeln!(out, "    }}").unwrap();
+        }
+
+        // TODO destroy/destructor
+
         writeln!(out, "}}\n").unwrap();
     }
     
