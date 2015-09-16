@@ -113,7 +113,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         emit_messages!(interface, requests);
         emit_messages!(interface, events);
 
-        writeln!(out, "\nstatic mut {}_interface: wl_interface = wl_interface {{", interface.name).unwrap();
+        writeln!(out, "\npub static mut {}_interface: wl_interface = wl_interface {{", interface.name).unwrap();
         writeln!(out, "    name: b\"{}\" as *const u8  as *const c_char,", interface.name).unwrap();
         writeln!(out, "    version: {},", interface.version).unwrap();
         writeln!(out, "    request_count: {},", interface.requests.len()).unwrap();
