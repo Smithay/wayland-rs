@@ -172,14 +172,14 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             }
             if let Some(ref newint) = ret {
                 if let &Some(ref name) = newint {
-                    writeln!(out, "        let ptr = unsafe {{ wl_proxy_marshal_constructor(self.ptr(), {}_{}, &{}_interface as *const wl_interface,",
+                    writeln!(out, "        let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface as *const wl_interface",
                         snake_to_screaming(&interface.name), snake_to_screaming(&req.name), name).unwrap();
                 } else {
-                    writeln!(out, "        let ptr = unsafe {{ wl_proxy_marshal_constructor(self.ptr(), {}_{}, <T as Proxy>::interface(),",
+                    writeln!(out, "        let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, <T as Proxy>::interface()",
                         snake_to_screaming(&interface.name), snake_to_screaming(&req.name)).unwrap();
                 }
             } else {
-                writeln!(out, "        unsafe {{ wl_proxy_marshal(self.ptr(), {}_{},",
+                writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), {}_{}",
                     snake_to_screaming(&interface.name), snake_to_screaming(&req.name)).unwrap();
             }
             write!(out, "           ").unwrap();
@@ -187,24 +187,24 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 if a.typ == Type::NewId {
                     if let Some(ref newint) = ret {
                         if newint.is_none() {
-                            write!(out, "(*<T as Proxy>::interface()).name, version, ").unwrap();
+                            write!(out, ", (*<T as Proxy>::interface()).name, version").unwrap();
                         }
                     }
-                    write!(out, "ptr::null_mut::<wl_proxy>(),").unwrap();
+                    write!(out, ", ptr::null_mut::<wl_proxy>()").unwrap();
                 } else if a.typ == Type::String {
                     if a.allow_null {
-                        write!(out, " {}.map(|s| s.as_ptr()).unwrap_or(ptr::null()),", a.name).unwrap();
+                        write!(out, ", {}.map(|s| s.as_ptr()).unwrap_or(ptr::null())", a.name).unwrap();
                     } else {
-                        write!(out, " {}.as_ptr(),", a.name).unwrap();
+                        write!(out, ", {}.as_ptr()", a.name).unwrap();
                     }
                 } else if a.typ == Type::Array {
                     if a.allow_null {
-                        write!(out, "{}.map(|a| &mut a as *mut wl_array).unwrap_or(ptr::null_mut())", a.name).unwrap();
+                        write!(out, ", {}.map(|a| &mut a as *mut wl_array).unwrap_or(ptr::null_mut())", a.name).unwrap();
                     } else {
-                        write!(out, " &mut {} as *mut wl_array,", a.name).unwrap();
+                        write!(out, ", &mut {} as *mut wl_array", a.name).unwrap();
                     }
                 } else {
-                    write!(out, " {},", a.name).unwrap();
+                    write!(out, ", {}", a.name).unwrap();
                 }
             }
             writeln!(out, ") }};").unwrap();
