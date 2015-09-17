@@ -28,16 +28,10 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy\n}}\n",
             camel_iname).unwrap();
 
-        // Id
-        writeln!(out, "#[derive(PartialEq,Eq,Copy,Clone)]").unwrap();
-        writeln!(out, "pub struct {}Id {{ id: usize }}\n", camel_iname).unwrap();
-        writeln!(out, "impl From<{}Id> for ProxyId {{ fn from(other: {}Id) -> ProxyId {{ ProxyId {{ id: other.id }} }} }}", camel_iname, camel_iname).unwrap();
-
         writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
-        writeln!(out, "    type Id = {}Id;", camel_iname).unwrap();
         writeln!(out, "    fn ptr(&self) -> *mut wl_proxy {{ self.ptr }}").unwrap();
         writeln!(out, "    fn interface() -> *mut wl_interface {{ unsafe {{ &mut {}_interface  as *mut wl_interface }} }}", interface.name).unwrap();
-        writeln!(out, "    fn id(&self) -> {}Id {{ {}Id {{ id: self.ptr as usize }} }}", camel_iname, camel_iname).unwrap();
+        writeln!(out, "    fn id(&self) -> ProxyId {{ ProxyId {{ id: self.ptr as usize }} }}").unwrap();
         writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_proxy) -> {} {{ {} {{ ptr: ptr }} }}", camel_iname, camel_iname).unwrap();
         writeln!(out, "}}").unwrap();
             
@@ -209,8 +203,18 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                     } else {
                         write!(out, ", &mut {} as *mut wl_array", a.name).unwrap();
                     }
+                } else if a.typ == Type::Object {
+                    if a.allow_null {
+                        write!(out, ", {}.map(Proxy::ptr).unwrap_or(ptr::null_mut())", a.name).unwrap();
+                    } else {
+                        write!(out, ", {}.ptr()", a.name).unwrap();
+                    }
                 } else {
-                    write!(out, ", {}", a.name).unwrap();
+                    if a.allow_null {
+                        write!(out, ", {}.unwrap_or(0)", a.name).unwrap();
+                    } else {
+                        write!(out, ", {}", a.name).unwrap();
+                    }
                 }
             }
             writeln!(out, ") }};").unwrap();
