@@ -122,7 +122,13 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             if let Some((ref summary, ref doc)) = req.description {
                 write_doc(summary, doc, "    ", out);
             }
-            write!(out, "    pub fn {}{}", req.name, if ::util::is_keyword(&req.name) { "_" } else { "" }).unwrap();
+            write!(out, "    #[allow(unused_unsafe)]\n    pub ").unwrap();
+            if let Some(ref newint) = ret {
+                if newint.is_none() {
+                    write!(out, "unsafe ").unwrap();
+                }
+            }
+            write!(out, "fn {}{}", req.name, if ::util::is_keyword(&req.name) { "_" } else { "" }).unwrap();
             if let Some(ref newint) = ret {
                 if newint.is_none() {
                     write!(out, "<T: Proxy>").unwrap();
