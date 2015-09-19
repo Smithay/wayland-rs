@@ -73,7 +73,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
             writeln!(out, "pub static mut {}_{}: [wl_message; {}] = [",
                 $interface.name, stringify!($which), $interface.$which.len()).unwrap();
             for msg in &$interface.$which {
-                write!(out, "    wl_message {{ name: b\"{}\" as *const u8 as *const c_char, signature: b\"",
+                write!(out, "    wl_message {{ name: b\"{}\\0\" as *const u8 as *const c_char, signature: b\"",
                     msg.name).unwrap();
                 if msg.since > 1 { write!(out, "{}", msg.since).unwrap(); }
                 for arg in &msg.args {
@@ -93,7 +93,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
                         _ => {}
                     }
                 }
-                write!(out, "\" as *const u8 as *const c_char, types: ").unwrap();
+                write!(out, "\\0\" as *const u8 as *const c_char, types: ").unwrap();
                 if msg.all_null() {
                     write!(out, "unsafe {{ &types_null as *const _ }}").unwrap();
                 } else {
@@ -114,7 +114,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         emit_messages!(interface, events);
 
         writeln!(out, "\npub static mut {}_interface: wl_interface = wl_interface {{", interface.name).unwrap();
-        writeln!(out, "    name: b\"{}\" as *const u8  as *const c_char,", interface.name).unwrap();
+        writeln!(out, "    name: b\"{}\\0\" as *const u8  as *const c_char,", interface.name).unwrap();
         writeln!(out, "    version: {},", interface.version).unwrap();
         writeln!(out, "    request_count: {},", interface.requests.len()).unwrap();
         if interface.requests.len() > 0 {
