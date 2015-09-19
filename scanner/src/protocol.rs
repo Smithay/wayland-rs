@@ -180,10 +180,11 @@ impl Type {
             Type::Int => "i32",
             Type::Uint => "u32",
             Type::Fixed => "f64",
-            Type::Array => "wl_array",
+            Type::Array => "Vec<u8>",
             Type::Fd => "::std::os::unix::io::RawFd",
             Type::String => "String",
-            _ => "()" // FIXME
+            Type::Object => "ProxyId",
+            _ => "()"
         }
     }
 }

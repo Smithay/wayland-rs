@@ -1,3 +1,5 @@
+use Proxy;
+
 pub mod compositor {
     pub use sys::wayland::client::{WlCompositor, WlRegion, WlSurface};
     pub use sys::wayland::client::WlSurfaceEvent;
@@ -37,3 +39,20 @@ pub mod subcompositor {
 
 pub use sys::wayland::client::{WlCallback, WlDisplay, WlRegistry};
 pub use sys::wayland::client::{WlCallbackEvent, WlDisplayEvent, WlRegistryEvent};
+
+pub use sys::wayland::client::WaylandProtocolEvent;
+
+pub fn get_display() -> Option<WlDisplay> {
+    let ptr = unsafe { ::abi::client::wl_display_connect(::std::ptr::null()) };
+    if ptr.is_null() {
+        None
+    } else {
+        Some(unsafe { WlDisplay::from_ptr(ptr as *mut _) })
+    }
+}
+
+impl WlDisplay {
+    pub fn sync_roundtrip(&self) -> i32 {
+        unsafe { ::abi::client::wl_display_roundtrip(self.ptr() as *mut _) }
+    }
+}

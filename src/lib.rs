@@ -24,5 +24,18 @@ pub trait Proxy {
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;
 }
 
-#[derive(Copy,Clone,PartialEq,Eq)]
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub struct ProxyId { id: usize }
+
+fn wrap_proxy(ptr: *mut wl_proxy) -> ProxyId {
+    ProxyId { id: ptr as usize}
+}
+
+#[derive(Debug)]
+pub enum Event {
+    Wayland(wayland::WaylandProtocolEvent)
+}
+
+fn dispatch_event(evt: Event) {
+    println!("event: {:?}", evt);
+}
