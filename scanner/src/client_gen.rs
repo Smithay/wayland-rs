@@ -69,6 +69,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
         writeln!(out, "    fn ptr(&self) -> *mut wl_proxy {{ self.ptr }}").unwrap();
         writeln!(out, "    fn interface() -> *mut wl_interface {{ unsafe {{ &mut {}_interface  as *mut wl_interface }} }}", interface.name).unwrap();
+        writeln!(out, "    fn version() -> u32 {{ {} }}", interface.version).unwrap();
         writeln!(out, "    fn id(&self) -> ProxyId {{ ProxyId {{ id: self.ptr as usize }} }}").unwrap();
         writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
         if interface.name != "wl_display" && interface.events.len() > 0 {
@@ -250,11 +251,6 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                     write!(out, " {}: {},", a.name, typ).unwrap();
                 }
             }
-            if let Some(ref newint) = ret {
-                if newint.is_none() {
-                    write!(out, "version: u32,").unwrap();
-                }
-            }
             write!(out, ")").unwrap();
             if let Some(ref newint) = ret {
                 write!(out, " -> {}", newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
@@ -295,7 +291,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 if a.typ == Type::NewId {
                     if let Some(ref newint) = ret {
                         if newint.is_none() {
-                            write!(out, ", (*<T as Proxy>::interface()).name, version").unwrap();
+                            write!(out, ", (*<T as Proxy>::interface()).name, <T as Proxy>::version()").unwrap();
                         }
                     }
                     write!(out, ", ptr::null_mut::<wl_proxy>()").unwrap();

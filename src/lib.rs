@@ -25,6 +25,7 @@ pub use events::{Event, EventIterator};
 pub trait Proxy {
     fn ptr(&self) -> *mut wl_proxy;
     fn interface() -> *mut wl_interface;
+    fn version() -> u32;
     fn id(&self) -> ProxyId;
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;
     fn set_evt_iterator(&mut self, iter: &EventIterator);
