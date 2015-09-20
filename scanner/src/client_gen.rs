@@ -44,7 +44,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     writeln!(out,
         "extern \"C\" fn event_dispatcher(implem: *const c_void, proxy: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) {{").unwrap();
-    writeln!(out, "    let userdata = unsafe {{ wl_proxy_get_user_data(proxy as *mut wl_proxy) }} as *const (EventFifo, AtomicBool);").unwrap();
+    writeln!(out, "    let userdata = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy as *mut wl_proxy) }} as *const (EventFifo, AtomicBool);").unwrap();
     writeln!(out, "    if userdata.is_null() {{ return; }}").unwrap();
     writeln!(out, "    let fifo: &(EventFifo, AtomicBool) = unsafe {{ &*userdata }};").unwrap();
     writeln!(out, "    if !fifo.1.load(Ordering::SeqCst) {{ return; }}").unwrap();
@@ -72,7 +72,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "    fn id(&self) -> ProxyId {{ ProxyId {{ id: self.ptr as usize }} }}").unwrap();
         writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
         if interface.name != "wl_display" && interface.events.len() > 0 {
-            writeln!(out, "        wl_proxy_add_dispatcher(ptr, event_dispatcher, {}_implem as *const c_void, ptr::null_mut());", interface.name).unwrap();
+            writeln!(out, "        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_add_dispatcher, ptr, event_dispatcher, {}_implem as *const c_void, ptr::null_mut());", interface.name).unwrap();
         }
         writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
         writeln!(out, "    }}").unwrap();
@@ -80,7 +80,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "        self.evq = get_eventiter_internals(evt);").unwrap();
         if interface.name != "wl_display" {
         writeln!(out, "        let ptr = &*self.evq as *const (EventFifo,AtomicBool);").unwrap();
-        writeln!(out, "        unsafe {{ wl_proxy_set_user_data(self.ptr, ptr as *const c_void as *mut c_void) }};").unwrap();
+        writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, self.ptr, ptr as *const c_void as *mut c_void) }};").unwrap();
         }
         writeln!(out, "    }}").unwrap();
         writeln!(out, "}}\n").unwrap();
