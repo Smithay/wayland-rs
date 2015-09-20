@@ -15,9 +15,12 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use abi::common::*;").unwrap();
     writeln!(out, "use abi::client::*;").unwrap();
     writeln!(out, "use {{Proxy, ProxyId, wrap_proxy}};").unwrap();
+    writeln!(out, "use events::{{EventIterator, EventFifo, get_eventiter_internals, eventiter_from_internals}};").unwrap();
     writeln!(out, "// update if needed to the appropriate file\nuse super::interfaces::*;\n").unwrap();
     writeln!(out, "use std::ffi::{{CString, CStr}};").unwrap();
     writeln!(out, "use std::ptr;").unwrap();
+    writeln!(out, "use std::sync::Arc;").unwrap();
+    writeln!(out, "use std::sync::atomic::{{AtomicBool, Ordering}};").unwrap();
     writeln!(out, "use libc::{{c_void, c_char}};").unwrap();
 
     // envent handling
@@ -41,11 +44,15 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     writeln!(out,
         "extern \"C\" fn event_dispatcher(implem: *const c_void, proxy: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) {{").unwrap();
+    writeln!(out, "    let userdata = unsafe {{ wl_proxy_get_user_data(proxy as *mut wl_proxy) }} as *const (EventFifo, AtomicBool);").unwrap();
+    writeln!(out, "    if userdata.is_null() {{ return; }}").unwrap();
+    writeln!(out, "    let fifo: &(EventFifo, AtomicBool) = unsafe {{ &*userdata }};").unwrap();
+    writeln!(out, "    if !fifo.1.load(Ordering::SeqCst) {{ return; }}").unwrap();
     writeln!(out, "    let implem = unsafe {{ ::std::mem::transmute::<_, {}_dispatcher_implem>(implem) }};",
         protocol.name).unwrap();
     writeln!(out, "    let event = implem(proxy as *mut wl_proxy, opcode, args);").unwrap();
     writeln!(out, "    if let Some(evt) = event {{").unwrap();
-    writeln!(out, "        ::dispatch_event(::Event::{}(evt));", snake_to_camel(&protocol.name)).unwrap();
+    writeln!(out, "        fifo.0.push(::Event::{}(evt));", snake_to_camel(&protocol.name)).unwrap();
     writeln!(out, "    }}").unwrap();
     writeln!(out, "}}").unwrap();
 
@@ -56,7 +63,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         if let Some((ref summary, ref desc)) = interface.description {
             write_doc(summary, desc, "", out)
         }
-        writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy\n}}\n",
+        writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy,\n    evq: Arc<(EventFifo,AtomicBool)>\n}}\n",
             camel_iname).unwrap();
 
         writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
@@ -67,7 +74,14 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         if interface.name != "wl_display" && interface.events.len() > 0 {
             writeln!(out, "        wl_proxy_add_dispatcher(ptr, event_dispatcher, {}_implem as *const c_void, ptr::null_mut());", interface.name).unwrap();
         }
-        writeln!(out, "        {} {{ ptr: ptr }}", camel_iname).unwrap();
+        writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
+        writeln!(out, "    }}").unwrap();
+        writeln!(out, "    fn set_evt_iterator(&mut self, evt: &EventIterator) {{").unwrap();
+        writeln!(out, "        self.evq = get_eventiter_internals(evt);").unwrap();
+        if interface.name != "wl_display" {
+        writeln!(out, "        let ptr = &*self.evq as *const (EventFifo,AtomicBool);").unwrap();
+        writeln!(out, "        unsafe {{ wl_proxy_set_user_data(self.ptr, ptr as *const c_void as *mut c_void) }};").unwrap();
+        }
         writeln!(out, "    }}").unwrap();
         writeln!(out, "}}\n").unwrap();
 
@@ -312,8 +326,13 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 }
             }
             writeln!(out, ") }};").unwrap();
-            if ret.is_some() {
-                writeln!(out, "        unsafe {{ Proxy::from_ptr(ptr) }}").unwrap();
+            if let Some(ref newint) = ret {
+                writeln!(out, "        let mut proxy: {} = unsafe {{ Proxy::from_ptr(ptr) }};",
+                    newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
+                writeln!(out, "        let evt_iter = eventiter_from_internals(self.evq.clone());").unwrap();
+                writeln!(out, "        proxy.set_evt_iterator(&evt_iter);").unwrap();
+                writeln!(out, "        ::std::mem::forget(evt_iter); // Don't run the destructor !").unwrap();
+                writeln!(out, "        proxy").unwrap();
             }
             writeln!(out, "    }}").unwrap();
         }
