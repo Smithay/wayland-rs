@@ -3,8 +3,20 @@ language: rust
 rust:
   - nightly
 
+before_script:
+  - |
+      pip install 'travis-cargo<0.2' --user &&
+      export PATH=$HOME/.local/bin:$PATH
+
 os:
   - linux
 
 script:
-    - cargo test --features "dlopen"
+  - |
+      travis-cargo build &&
+      travis-cargo test
+
+env:
+  global:
+    # override the default `--features unstable` used for the nightly branch (optional)
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
