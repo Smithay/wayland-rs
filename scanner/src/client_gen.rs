@@ -207,10 +207,6 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "impl {} {{", camel_iname).unwrap();
         // requests
         for req in &interface.requests {
-            if req.typ == Some(Type::Destructor) {
-                // TODO
-                continue;
-            }
             let new_id_interfaces: Vec<Option<String>> = req.args.iter()
                 .filter(|a| a.typ == Type::NewId)
                 .map(|a| a.interface.clone())
@@ -238,7 +234,11 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                     write!(out, "<T: Proxy>").unwrap();
                 }
             }
-            write!(out, "(&self,").unwrap();
+            if req.typ == Some(Type::Destructor) {
+                write!(out, "(self,").unwrap();
+            } else {
+                write!(out, "(&self,").unwrap();
+            }
             for a in &req.args {
                 if a.typ == Type::NewId { continue; }
                 let typ: Cow<str> = if a.typ == Type::Object {
@@ -323,6 +323,9 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 }
             }
             writeln!(out, ") }};").unwrap();
+            if req.typ == Some(Type::Destructor) {
+                writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }}").unwrap();
+            }
             if let Some(ref newint) = ret {
                 writeln!(out, "        let mut proxy: {} = unsafe {{ Proxy::from_ptr(ptr) }};",
                     newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
@@ -334,9 +337,15 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             writeln!(out, "    }}").unwrap();
         }
 
-        // TODO destroy/destructor
-
         writeln!(out, "}}\n").unwrap();
+
+        if interface.name != "wl_display" {
+            writeln!(out, "impl Drop for {} {{", camel_iname).unwrap();
+            writeln!(out, "    fn drop(&mut self) {{").unwrap();
+            writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }}").unwrap();
+            writeln!(out, "    }}").unwrap();
+            writeln!(out, "}}").unwrap();
+        }
     }
     
 }
