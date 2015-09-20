@@ -69,6 +69,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
         writeln!(out, "    fn ptr(&self) -> *mut wl_proxy {{ self.ptr }}").unwrap();
         writeln!(out, "    fn interface() -> *mut wl_interface {{ unsafe {{ &mut {}_interface  as *mut wl_interface }} }}", interface.name).unwrap();
+        writeln!(out, "    fn interface_name() -> &'static str {{ \"{}\" }}", interface.name).unwrap();
         writeln!(out, "    fn version() -> u32 {{ {} }}", interface.version).unwrap();
         writeln!(out, "    fn id(&self) -> ProxyId {{ ProxyId {{ id: self.ptr as usize }} }}").unwrap();
         writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
