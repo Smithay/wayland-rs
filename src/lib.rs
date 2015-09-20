@@ -1,5 +1,3 @@
-#![feature(static_recursion, result_expect)]
-
 extern crate crossbeam;
 
 #[macro_use]
