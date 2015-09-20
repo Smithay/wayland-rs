@@ -13,8 +13,7 @@ os:
 
 script:
   - |
-      travis-cargo build &&
-      travis-cargo test
+      travis-cargo test -- --features "dlopen"
 
 env:
   global:
