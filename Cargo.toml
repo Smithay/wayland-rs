@@ -9,7 +9,7 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-crossbeam = "0.1.4"
+crossbeam = "0.1.5"
 dlib = "0.1"
 libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
