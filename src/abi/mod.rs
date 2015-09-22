@@ -2,3 +2,6 @@
 
 pub mod common;
 pub mod client;
+
+#[cfg(feature = "egl")]
+pub mod egl;

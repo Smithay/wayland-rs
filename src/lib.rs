@@ -13,6 +13,9 @@ mod abi;
 mod events;
 mod sys;
 
+#[cfg(feature = "egl")]
+pub mod egl;
+
 pub mod wayland;
 
 use abi::client::wl_proxy;
