@@ -54,7 +54,25 @@ pub fn get_display() -> Option<WlDisplay> {
 }
 
 impl WlDisplay {
-    pub fn sync_roundtrip(&self) -> i32 {
+    pub fn sync_roundtrip(&mut self) -> i32 {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.ptr() as *mut _) }
+    }
+
+    pub fn dispatch(&mut self) -> i32 {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.ptr() as *mut _) }
+    }
+
+    pub fn dispatch_pending(&mut self) -> i32 {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending, self.ptr() as *mut _) }
+    }
+
+    pub fn flush(&mut self) -> i32 {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr() as *mut _) }
+    }
+}
+
+impl Drop for WlDisplay {
+    fn drop(&mut self) {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.ptr() as *mut _) }
     }
 }
