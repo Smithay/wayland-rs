@@ -45,6 +45,7 @@ pub use sys::wayland::client::{WlCallbackEvent, WlDisplayEvent, WlRegistryEvent}
 pub use sys::wayland::client::WaylandProtocolEvent;
 
 pub fn get_display() -> Option<WlDisplay> {
+    if !::abi::client::is_lib_available() { return None }
     let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null()) };
     if ptr.is_null() {
         None

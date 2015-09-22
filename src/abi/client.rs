@@ -81,3 +81,8 @@ lazy_static!(
         WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-client.so could not be loaded.")
     };
 );
+
+#[cfg(not(feature = "dlopen"))]
+pub fn is_lib_available() -> bool { true }
+#[cfg(feature = "dlopen")]
+pub fn is_lib_available() -> bool { WAYLAND_CLIENT_OPTION.is_some() }
