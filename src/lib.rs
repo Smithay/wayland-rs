@@ -26,7 +26,9 @@ pub use events::{Event, EventIterator};
 pub trait Proxy {
     fn ptr(&self) -> *mut wl_proxy;
     fn interface() -> *mut wl_interface;
+    /// The internal name of this interface, as advertized by the registry if it is a global.
     fn interface_name() -> &'static str;
+    /// The maximum version of this interface handled by the library.
     fn version() -> u32;
     fn id(&self) -> ProxyId;
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;

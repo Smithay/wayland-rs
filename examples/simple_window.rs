@@ -68,28 +68,18 @@ fn fetch_globals(evt_iter: &mut EventIterator, rgt: &WlRegistry) -> (WlComposito
         match evt {
             // Global advertising events are `WlRegistryEvent::Global`
             Event::Wayland(WaylandProtocolEvent::WlRegistry(
-                _, WlRegistryEvent::Global(name, interface, version)
-            )) => {
-                if interface == "wl_compositor" {
-                    if version < WlCompositor::version() {
-                        panic!("Compositor is too old to support wl_compositor version {}",
-                            WlCompositor::version())
-                    }
-                    compositor = Some(unsafe { rgt.bind::<WlCompositor>(name) });
-                } else if interface == "wl_shell" {
-                    if version < WlShell::version() {
-                        panic!("Compositor is too old to support wl_compositor version {}",
-                            WlShell::version())
-                    }
-                    shell = Some(unsafe { rgt.bind::<WlShell>(name) });
-                }
-                else if interface == "wl_shm" {
-                    if version < WlShm::version() {
-                        panic!("Compositor is too old to support wl_compositor version {}",
-                            WlShm::version())
-                    }
-                    shm = Some(unsafe { rgt.bind::<WlShm>(name) });
-                }
+                _, WlRegistryEvent::Global(name, interface, _version)
+            )) => match &interface[..] {
+                "wl_compositor" => {
+                    compositor = Some(unsafe { rgt.bind::<WlCompositor>(name, 1) });
+                },
+                "wl_shell" => {
+                    shell = Some(unsafe { rgt.bind::<WlShell>(name, 1) });
+                },
+                "wl_shm" => {
+                    shm = Some(unsafe { rgt.bind::<WlShm>(name, 1) });
+                },
+                _ => {}
             },
             // ignore everything else
             _ => {}

@@ -222,6 +222,9 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             if let Some((ref summary, ref doc)) = req.description {
                 write_doc(summary, doc, "    ", out);
             }
+            if req.since > 1 {
+                writeln!(out, "    ///\n    /// Requires interface version `>= {}`.", req.since).unwrap();
+            }
             write!(out, "    pub ").unwrap();
             if let Some(ref newint) = ret {
                 if newint.is_none() {
@@ -252,12 +255,24 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                     write!(out, " {}: {},", a.name, typ).unwrap();
                 }
             }
+            if let Some(ref newint) = ret {
+                if newint.is_none() {
+                    write!(out, "version: u32,").unwrap();
+                }
+            }
             write!(out, ")").unwrap();
             if let Some(ref newint) = ret {
                 write!(out, " -> {}", newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
             }
             writeln!(out, " {{").unwrap();
             // function body
+            if let Some(ref newint) = ret {
+                if newint.is_none() {
+                    writeln!(out, "        if version < <T as Proxy>::version() {{").unwrap();
+                    writeln!(out, "            panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::version())").unwrap();
+                    writeln!(out, "        }}").unwrap();
+                }
+            }
             for a in &req.args {
                 match a.typ {
                     Type::String => {
@@ -292,7 +307,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 if a.typ == Type::NewId {
                     if let Some(ref newint) = ret {
                         if newint.is_none() {
-                            write!(out, ", (*<T as Proxy>::interface()).name, <T as Proxy>::version()").unwrap();
+                            write!(out, ", (*<T as Proxy>::interface()).name, version").unwrap();
                         }
                     }
                     write!(out, ", ptr::null_mut::<wl_proxy>()").unwrap();

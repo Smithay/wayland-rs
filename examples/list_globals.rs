@@ -15,7 +15,7 @@ fn main() {
     display.set_evt_iterator(&evt_iter);
 
     // Get the registry, to generate the events advertizing global objects
-    let registry = display.get_registry();
+    let _registry = display.get_registry();
 
     // Roundtrip, to make sure all event are dispatched to us
     display.sync_roundtrip();
