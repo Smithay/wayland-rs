@@ -1,3 +1,5 @@
+use std::io;
+
 use Proxy;
 
 use abi::client::*;
@@ -55,25 +57,114 @@ pub fn get_display() -> Option<WlDisplay> {
 }
 
 impl WlDisplay {
-    pub fn sync_roundtrip(&mut self) -> i32 {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.ptr() as *mut _) }
+    /// Synchronous roundtrip
+    ///
+    /// This call will cause a synchonous roundtrip with the wayland server. I will block until all
+    /// pending requests are send to the server and it has processed all of them and send the
+    /// appropriate events.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.ptr() as *mut _) };
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
     }
 
-    pub fn dispatch(&mut self) -> i32 {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.ptr() as *mut _) }
+    /// Blocking dispatch
+    ///
+    /// Will dispatch all pending events from the internal buffer to the events iterators.
+    /// If the buffer was empty, will read new events from the server socket, blocking if necessary.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn dispatch(&mut self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.ptr() as *mut _) };
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
     }
 
-    pub fn dispatch_pending(&mut self) -> i32 {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending, self.ptr() as *mut _) }
+    /// Non-blocking dispatch
+    ///
+    /// Will dispatch all pending events from the internal buffer to the events iterators.
+    /// Will not try to read events from the server socket, hence never blocks.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn dispatch_pending(&self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending, self.ptr() as *mut _) };
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
     }
 
-    pub fn flush(&mut self) -> i32 {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr() as *mut _) }
+    /// Prepare an conccurent read
+    ///
+    /// Will declare your intention to read events from the server socket. Contrarily to `dispatch()`
+    /// or `sync_roundtrip()`, this method can be called several times conccurently.
+    ///
+    /// Will return `None` if there are still some events awaiting dispatch. In this case, you need
+    /// to call `dispatch_pending()` before calling this method again.
+    ///
+    /// As long as the returned guard is in scope, no events can be dispatched to any event iterator.
+    ///
+    /// The guard can then be destroyed by two means:
+    ///
+    ///  - Calling its `cancel()` method (or letting it go out of scope): the read intention will
+    ///    be cancelled
+    ///  - Calling its `read_events()` method: will block until all existing guards are destroyed
+    ///    by one of these methods, then events will be read and all blocked `read_events()` calls
+    ///    will return.
+    ///
+    /// This call will otherwise not block on the server socket if it is empty, and return
+    /// an io error `WouldBlock` in such cases.
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.ptr() as *mut _) };
+        if ret >= 0 { Some(ReadEventsGuard { display: self.ptr() as *mut _ }) } else { None }
+    }
+
+    /// Non-blocking write to the server
+    ///
+    /// Will write as many requests as possible to the server socket. Never blocks: if not all
+    /// requests coul be written, will return an io error `WouldBlock`.
+    ///
+    /// On success returns the number of written requests.
+    pub fn flush(&self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr() as *mut _) };
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
     }
 }
 
 impl Drop for WlDisplay {
     fn drop(&mut self) {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.ptr() as *mut _) }
+    }
+}
+
+/// A guard over a read intention.
+///
+/// See `WlDisplay::prepare_read()` for details about its use.
+pub struct ReadEventsGuard {
+    display: *mut wl_display
+}
+
+impl ReadEventsGuard {
+    /// Read events
+    ///
+    /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
+    /// until they are all destroyed.
+    pub fn read_events(self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
+        // Don't run destructor that would cancel the read intent
+        ::std::mem::forget(self);
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+    /// Cancel the read
+    ///
+    /// Will cancel the read intention associated with this guard. Never blocks.
+    ///
+    /// Has the same effet as letting the guard go out of scope.
+    pub fn cancel(self) {
+        // just run the destructor
+    }
+}
+
+impl Drop for ReadEventsGuard {
+    fn drop(&mut self) {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_cancel_read, self.display) }
     }
 }

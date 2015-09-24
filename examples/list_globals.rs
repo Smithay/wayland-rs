@@ -18,7 +18,7 @@ fn main() {
     let _registry = display.get_registry();
 
     // Roundtrip, to make sure all event are dispatched to us
-    display.sync_roundtrip();
+    display.sync_roundtrip().unwrap();
 
     for evt in evt_iter {
         match evt {
