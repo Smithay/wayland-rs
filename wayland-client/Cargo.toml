@@ -15,7 +15,7 @@ libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
 wayland-sys = { path = "../wayland-sys", features = ["client"] }
 
-[build-dependencies.wayland-rust-scanner]
+[build-dependencies.wayland-scanner]
 path = "../scanner"
 
 [dev-dependencies]
