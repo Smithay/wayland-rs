@@ -49,6 +49,8 @@ pub mod client;
 #[cfg(feature = "egl")]
 pub mod egl;
 
+// Small hack while #[macro_reexport] is not stable
+
 #[cfg(feature = "dlopen")]
 #[macro_export]
 macro_rules! ffi_dispatch(

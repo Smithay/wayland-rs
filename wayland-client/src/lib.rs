@@ -5,7 +5,7 @@ extern crate dlib;
 
 extern crate libc;
 
-extern crate wayland_sys as abi;
+extern crate wayland_sys;
 
 mod events;
 mod sys;
@@ -15,8 +15,8 @@ pub mod egl;
 
 pub mod wayland;
 
-use abi::client::wl_proxy;
-use abi::common::wl_interface;
+use wayland_sys::client::wl_proxy;
+use wayland_sys::common::wl_interface;
 
 pub use events::{Event, EventIterator};
 
