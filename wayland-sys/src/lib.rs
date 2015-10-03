@@ -16,7 +16,7 @@
 //! if `dlopen` is on, the extern function if not). The easiest way to do this is to glob import
 //! the appropriate module. For example:
 //!
-//! ```
+//! ```no_run
 //! #[macro_use] extern crate wayland_sys;
 //!
 //! use wayland_sys::client::*;
@@ -46,7 +46,7 @@ pub mod common;
 #[cfg(feature = "client")]
 pub mod client;
 
-#[cfg(feature = "egl")]
+#[cfg(all(feature = "egl", feature = "client"))]
 pub mod egl;
 
 // Small hack while #[macro_reexport] is not stable

@@ -1,0 +1,9 @@
+[package]
+name = "wayland-test"
+version = "0.0.1"
+description = "Automating tests for other crates. Not to be published"
+
+[dependencies]
+wayland-sys = { path = "wayland-sys" }
+wayland-scanner = { path = "scanner" }
+wayland-client = { path = "wayland-client" }
