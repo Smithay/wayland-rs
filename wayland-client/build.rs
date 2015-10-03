@@ -1,4 +1,4 @@
-extern crate wayland_rust_scanner as scanner;
+extern crate wayland_scanner as scanner;
 
 use std::env;
 use std::path::Path;
