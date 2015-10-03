@@ -1,5 +1,5 @@
 use libc::c_int;
-use abi::client::wl_proxy;
+use client::wl_proxy;
 
 pub enum wl_egl_window { }
 
@@ -14,10 +14,10 @@ external_library!(WaylandEgl, "wayland-egl",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_EGL_OPTION: Option<WaylandEgl> = { 
-        WaylandClient::open("libwayland-egl.so").ok()
+        WaylandEgl::open("libwayland-egl.so").ok()
     };
-    pub static ref WAYLAND_EGL_HANDLE: &'static WaylandClient = {
-        WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
+    pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEgl = {
+        WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
     };
 );
 

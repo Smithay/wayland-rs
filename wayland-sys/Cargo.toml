@@ -1,0 +1,13 @@
+[package]
+name = "wayland-sys"
+version = "0.1.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+
+[dependencies]
+dlib = "0.1"
+libc = "0.1"
+lazy_static = { version = "0.1", optional = true }
+
+[features]
+dlopen = ["dlib/dlopen", "lazy_static"]
+egl = []
