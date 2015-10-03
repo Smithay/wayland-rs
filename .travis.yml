@@ -19,6 +19,7 @@ os:
 
 script:
   - |
+      cd wayland-client &&
       travis-cargo test -- --features "dlopen"
 
 env:
