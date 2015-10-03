@@ -21,7 +21,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "/*\n{}\n*/\n", text).unwrap();
     }
 
-    writeln!(out, "use abi::common::*;\n").unwrap();
+    writeln!(out, "use wayland_sys::common::*;\n").unwrap();
     writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
 
     //

@@ -10,4 +10,5 @@ lazy_static = { version = "0.1", optional = true }
 
 [features]
 dlopen = ["dlib/dlopen", "lazy_static"]
+client = []
 egl = []

@@ -13,7 +13,7 @@ crossbeam = "0.1.5"
 dlib = "0.1"
 libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
-wayland-sys = { path = "../wayland-sys" }
+wayland-sys = { path = "../wayland-sys", features = ["client"] }
 
 [build-dependencies.wayland-rust-scanner]
 path = "../scanner"

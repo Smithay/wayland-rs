@@ -1,3 +1,9 @@
+//! Bindings to the EGL library `libwayland-egl.so`
+//!
+//! This lib allows to create EGL surfaces out of wayland surfaces.
+//!
+//! The created handle is named `WAYLAND_EGl_HANDLE`.
+
 use libc::c_int;
 use client::wl_proxy;
 

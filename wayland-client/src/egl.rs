@@ -1,7 +1,7 @@
 use libc::c_void;
 use std::ops::Deref;
 
-use abi::egl::*;
+use wayland_sys::egl::*;
 use sys::wayland::client::WlSurface;
 use Proxy;
 

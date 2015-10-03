@@ -12,8 +12,8 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "/*\n{}\n*/\n", text).unwrap();
     }
 
-    writeln!(out, "use abi::common::*;").unwrap();
-    writeln!(out, "use abi::client::*;").unwrap();
+    writeln!(out, "use wayland_sys::common::*;").unwrap();
+    writeln!(out, "use wayland_sys::client::*;").unwrap();
     writeln!(out, "use {{Proxy, ProxyId, wrap_proxy}};").unwrap();
     writeln!(out, "use events::{{EventIterator, EventFifo, get_eventiter_internals, eventiter_from_internals}};").unwrap();
     writeln!(out, "// update if needed to the appropriate file\nuse super::interfaces::*;\n").unwrap();
