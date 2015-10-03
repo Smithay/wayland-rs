@@ -19,8 +19,19 @@ os:
 
 script:
   - |
-      cd wayland-client &&
-      travis-cargo test -- --features "dlopen"
+      cd wayland-sys &&
+      travis-cargo test -- --features "dlopen egl client" &&
+      cd ../scanner &&
+      travis-cargo test &&
+      cd ../wayland-client &&
+      travis-cargo test -- --features "dlopen egl" &&
+      cd ..
+      travis-cargo --only stable doc -- -p wayland-sys --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-scanner --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-client --no-deps &&
+
+after_success:
+  - travis-cargo --only stable doc-upload
 
 env:
   global:
