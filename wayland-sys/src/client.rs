@@ -1,3 +1,7 @@
+//! Bindings to the client library `libwayland-client.so`
+//!
+//! The generated handle is named `WAYLAND_CLIENT_HANDLE`
+
 use libc::{c_char, c_void, c_int, size_t, uint32_t};
 
 use super::common::*;
