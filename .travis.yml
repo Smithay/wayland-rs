@@ -25,7 +25,7 @@ script:
       travis-cargo test &&
       cd ../wayland-client &&
       travis-cargo test -- --features "dlopen egl" &&
-      cd ..
+      cd .. &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-sys --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-scanner --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-client --no-deps &&
@@ -38,4 +38,4 @@ env:
   global:
     # override the default `--features unstable` used for the nightly branch (optional)
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""
-    - secure: bSJhatsn5fQU2Tb1I4d3oZTASoDRTKbxjB04wpeGNvm+gqacm8EwsnySykqAyY8rc9Q4FvT9nwz2sC0WOcQqQ6MY35MEyDm2dub9gD32cM7T25Y1CiHcEqLSHHvsJa9WWRviucUAEbtHB84C3CatqqZ4Jp0vhlp9gSSB0vlE3sNnG0wn2XcVebQbNmZaxj0U+KeAKZyZisXNyZbLUV8MkzZiV16NdOFfmvxavGJ/53mXpGOYg6tzaSz5mnKn0Lr6rmaROWSZIHAxrahRTi1EtyYfr4Y1zys5ngpEP4J4irHNW47pDwjE7SLoS1hFsnKUxIhDVu4TdTJgg+2zwfX8VioQoDfFP8t+M/GCj4YcFPABoJsVlF+tjddTcWVS1rbe1rM3d6hiqmxAo41a+rl+OBa4ec03zXrMAIG805QQ63WDotKrwS7lbH/StE4pVwDhtMcnh7G3cQkb7nxiSDXwGEt6tFWzUz1XiEDsBu9kcl/4xMAmE2TE66URkt+KSzraa4Av/kWjXcRmuyeICUBpBJftyCTrC6yzXBZ6ZSXeVX5i4vtzz1MesIDpWE7WfFAZmr2JMj/MVfsGiApsI6qbj1h/9gPOmKaPI4e7LCSlUa1QDa3Q+7H6QO5cisxX/EnxwqrLjEaBu0lS807qPawLBzU0a8x/o5je/GbKWWmW1CM=
+    - secure: A/zuPuIu03Z+rqnDS/NNNjbXrg8Nc9lEGKzcBdpHgnyd23z37zreEEAKzFhjJKMx0np0ntDo5LVeLgT6d7fGaDFsJrBZHej3pxuG81MAJdLEmJNaCLCc1eCbwDHgJkEJ5HsblHTrYK0RjBvNL5I8+URuzEqXkwVr7UHJv5px1ZA=
