@@ -13,14 +13,15 @@ crossbeam = "0.1.5"
 dlib = "0.1"
 libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
+wayland-sys = { path = "../wayland-sys" }
 
 [build-dependencies.wayland-rust-scanner]
-path = "./scanner"
+path = "../scanner"
 
 [dev-dependencies]
 byteorder = "0.3"
 tempfile = "1.1"
 
 [features]
-dlopen = ["dlib/dlopen", "lazy_static"]
-egl = []
+dlopen = ["dlib/dlopen", "wayland-sys/dlopen"]
+egl = ["wayland-sys/egl"]
