@@ -66,6 +66,9 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy,\n    evq: Arc<(EventFifo,AtomicBool)>\n}}\n",
             camel_iname).unwrap();
 
+        writeln!(out, "unsafe impl Sync for {} {{}}", camel_iname).unwrap();
+        writeln!(out, "unsafe impl Send for {} {{}}", camel_iname).unwrap();
+
         writeln!(out, "impl Proxy for {} {{", camel_iname).unwrap();
         writeln!(out, "    fn ptr(&self) -> *mut wl_proxy {{ self.ptr }}").unwrap();
         writeln!(out, "    fn interface() -> *mut wl_interface {{ unsafe {{ &mut {}_interface  as *mut wl_interface }} }}", interface.name).unwrap();
