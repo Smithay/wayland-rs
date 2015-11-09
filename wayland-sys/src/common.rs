@@ -1,7 +1,7 @@
 //! Various types and functions that are used by both the client and the server
 //! libraries.
 
-use libc::{c_char, c_void, c_int, size_t};
+use {c_char, c_void, c_int, size_t};
 
 #[repr(C)]
 pub struct wl_message {

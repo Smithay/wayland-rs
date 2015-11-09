@@ -49,6 +49,8 @@ pub mod client;
 #[cfg(all(feature = "egl", feature = "client"))]
 pub mod egl;
 
+pub use libc::{c_char, c_void, c_int, size_t, uint32_t};
+
 // Small hack while #[macro_reexport] is not stable
 
 #[cfg(feature = "dlopen")]
