@@ -2,7 +2,7 @@
 //!
 //! The generated handle is named `WAYLAND_CLIENT_HANDLE`
 
-use libc::{c_char, c_void, c_int, size_t, uint32_t};
+use {c_char, c_void, c_int, size_t, uint32_t};
 
 use super::common::*;
 
