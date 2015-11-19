@@ -11,12 +11,12 @@ build = "build.rs"
 [dependencies]
 crossbeam = "0.1.5"
 dlib = "0.1"
-libc = "0.1"
 lazy_static = { version = "0.1", optional = true }
 wayland-sys = { version = "0.1", features = ["client"] }
 
-[build-dependencies]
-wayland-scanner = "0.1"
+[build-dependencies.wayland-scanner]
+version = "0.1"
+path = "../scanner"
 
 [dev-dependencies]
 byteorder = "0.3"

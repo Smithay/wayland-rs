@@ -21,7 +21,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use std::ptr;").unwrap();
     writeln!(out, "use std::sync::Arc;").unwrap();
     writeln!(out, "use std::sync::atomic::{{AtomicBool, Ordering}};").unwrap();
-    writeln!(out, "use libc::{{c_void, c_char}};").unwrap();
+    writeln!(out, "use std::os::raw::{{c_void, c_char}};").unwrap();
 
     // envent handling
 

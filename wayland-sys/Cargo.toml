@@ -8,7 +8,6 @@ license = "MIT"
 
 [dependencies]
 dlib = "0.2"
-libc = "0.2"
 lazy_static = { version = "0.1", optional = true }
 
 [features]

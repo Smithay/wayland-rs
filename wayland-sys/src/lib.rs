@@ -39,8 +39,6 @@ extern crate dlib;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate libc;
-
 pub mod common;
 
 #[cfg(feature = "client")]
@@ -48,8 +46,6 @@ pub mod client;
 
 #[cfg(all(feature = "egl", feature = "client"))]
 pub mod egl;
-
-pub use libc::{c_char, c_void, c_int, size_t, uint32_t};
 
 // Small hack while #[macro_reexport] is not stable
 
