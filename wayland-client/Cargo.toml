@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.3.0"
+version = "0.4.0"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -9,6 +9,7 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
+bitflags = "0.3.3"
 crossbeam = "0.1.5"
 dlib = "0.1"
 libc = "0.1"
@@ -16,7 +17,7 @@ lazy_static = { version = "0.1", optional = true }
 wayland-sys = { version = "0.1", features = ["client"] }
 
 [build-dependencies]
-wayland-scanner = "0.1"
+wayland-scanner = "0.2"
 
 [dev-dependencies]
 byteorder = "0.3"

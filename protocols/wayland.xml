@@ -367,7 +367,7 @@
 	can be used for buffers. Known formats include
 	argb8888 and xrgb8888.
       </description>
-      <arg name="format" type="uint"/>
+      <arg name="format" type="uint" enum="format"/>
     </event>
   </interface>
 
@@ -746,7 +746,7 @@
       <arg name="serial" type="uint" summary="serial of the implicit grab on the pointer"/>
     </request>
 
-    <enum name="resize">
+    <enum name="resize" bitfield="true">
       <description summary="edge values for resizing">
 	These values are used to indicate which edge of a surface
 	is being dragged in a resize operation. The server may
@@ -774,7 +774,7 @@
       </description>
       <arg name="seat" type="object" interface="wl_seat" summary="the wl_seat whose pointer is used"/>
       <arg name="serial" type="uint" summary="serial of the implicit grab on the pointer"/>
-      <arg name="edges" type="uint" summary="which edge or corner is being dragged"/>
+      <arg name="edges" type="uint" enum="resize" summary="which edge or corner is being dragged"/>
     </request>
 
     <request name="set_toplevel">
@@ -785,7 +785,7 @@
       </description>
     </request>
 
-    <enum name="transient">
+    <enum name="transient" bitfield="true">
       <description summary="details of transient behaviour">
 	These flags specify details of the expected behaviour
 	of transient surfaces. Used in the set_transient request.
@@ -807,7 +807,7 @@
       <arg name="parent" type="object" interface="wl_surface"/>
       <arg name="x" type="int"/>
       <arg name="y" type="int"/>
-      <arg name="flags" type="uint"/>
+      <arg name="flags" type="uint" enum="transient"/>
     </request>
 
     <enum name="fullscreen_method">
@@ -858,7 +858,7 @@
 	with the dimensions for the output on which the surface will
 	be made fullscreen.
       </description>
-      <arg name="method" type="uint"/>
+      <arg name="method" type="uint" enum="fullscreen_method"/>
       <arg name="framerate" type="uint"/>
       <arg name="output" type="object" interface="wl_output" allow-null="true"/>
     </request>
@@ -891,7 +891,7 @@
       <arg name="parent" type="object" interface="wl_surface"/>
       <arg name="x" type="int"/>
       <arg name="y" type="int"/>
-      <arg name="flags" type="uint"/>
+      <arg name="flags" type="uint" enum="transient"/>
     </request>
 
     <request name="set_maximized">
@@ -972,7 +972,7 @@
 	in surface local coordinates.
       </description>
 
-      <arg name="edges" type="uint"/>
+      <arg name="edges" type="uint" enum="resize"/>
       <arg name="width" type="int"/>
       <arg name="height" type="int"/>
     </event>
@@ -1329,7 +1329,7 @@
     </request>
    </interface>
 
-  <interface name="wl_seat" version="4">
+  <interface name="wl_seat" version="5">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -1337,7 +1337,7 @@
       maintains a keyboard focus and a pointer focus.
     </description>
 
-    <enum name="capability">
+    <enum name="capability" bitfield="true">
       <description summary="seat capability bitmask">
         This is a bitmask of capabilities this seat has; if a member is
         set, then it is present on the seat.
@@ -1353,7 +1353,7 @@
 	keyboard or touch capabilities.  The argument is a capability
 	enum containing the complete set of capabilities this seat has.
       </description>
-      <arg name="capabilities" type="uint"/>
+      <arg name="capabilities" type="uint" enum="capability"/>
     </event>
 
     <request name="get_pointer">
@@ -1399,6 +1399,15 @@
       </description>
       <arg name="name" type="string"/>
     </event>
+
+    <!-- Version 5 additions -->
+
+    <request name="release" type="destructor" since="5">
+      <description summary="release the seat object">
+      Using this request client can tell the server that it is not going to
+	use the seat object anymore.
+      </description>
+    </request>
 
   </interface>
 
@@ -1521,7 +1530,7 @@
       <arg name="serial" type="uint"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="button" type="uint"/>
-      <arg name="state" type="uint"/>
+      <arg name="state" type="uint" enum="button_state"/>
     </event>
 
     <enum name="axis">
@@ -1553,7 +1562,7 @@
       </description>
 
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
-      <arg name="axis" type="uint"/>
+      <arg name="axis" type="uint" enum="axis"/>
       <arg name="value" type="fixed"/>
     </event>
 
@@ -1593,7 +1602,7 @@
 	This event provides a file descriptor to the client which can be
 	memory-mapped to provide a keyboard mapping description.
       </description>
-      <arg name="format" type="uint"/>
+      <arg name="format" type="uint" enum="keymap_format"/>
       <arg name="fd" type="fd"/>
       <arg name="size" type="uint"/>
     </event>
@@ -1638,7 +1647,7 @@
       <arg name="serial" type="uint"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="key" type="uint"/>
-      <arg name="state" type="uint"/>
+      <arg name="state" type="uint" enum="key_state"/>
     </event>
 
     <event name="modifiers">
@@ -1819,17 +1828,17 @@
 	   summary="width in millimeters of the output"/>
       <arg name="physical_height" type="int"
 	   summary="height in millimeters of the output"/>
-      <arg name="subpixel" type="int"
+      <arg name="subpixel" type="int" enum="subpixel"
 	   summary="subpixel orientation of the output"/>
       <arg name="make" type="string"
 	   summary="textual description of the manufacturer"/>
       <arg name="model" type="string"
 	   summary="textual description of the model"/>
-      <arg name="transform" type="int"
+      <arg name="transform" type="int" enum="transform"
 	   summary="transform that maps framebuffer to output"/>
     </event>
 
-    <enum name="mode">
+    <enum name="mode" bitfield="true">
       <description summary="mode information">
 	These flags describe properties of an output mode.
 	They are used in the flags bitfield of the mode event.
@@ -1856,7 +1865,7 @@
         the output may be scaled, as described in wl_output.scale,
         or transformed , as described in wl_output.transform.
       </description>
-      <arg name="flags" type="uint" summary="bitfield of mode flags"/>
+      <arg name="flags" type="uint" enum="mode" summary="bitfield of mode flags"/>
       <arg name="width" type="int" summary="width of the mode in hardware units"/>
       <arg name="height" type="int" summary="height of the mode in hardware units"/>
       <arg name="refresh" type="int" summary="vertical refresh rate in mHz"/>
