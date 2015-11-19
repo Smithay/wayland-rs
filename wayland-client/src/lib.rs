@@ -3,8 +3,6 @@ extern crate crossbeam;
 #[macro_use]
 extern crate dlib;
 
-extern crate libc;
-
 extern crate wayland_sys;
 
 mod events;
