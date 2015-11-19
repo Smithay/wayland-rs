@@ -350,7 +350,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             // function body
             if let Some(ref newint) = ret {
                 if newint.is_none() {
-                    writeln!(out, "        if version < <T as Proxy>::version() {{").unwrap();
+                    writeln!(out, "        if version > <T as Proxy>::version() {{").unwrap();
                     writeln!(out, "            panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::version())").unwrap();
                     writeln!(out, "        }}").unwrap();
                 }
