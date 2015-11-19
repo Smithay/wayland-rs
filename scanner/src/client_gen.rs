@@ -102,14 +102,10 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             if let Some((ref summary, ref desc)) = enu.description {
                 write_doc(summary, desc, "", out)
             }
-            writeln!(out, "#[repr(i32)]\npub enum {}{} {{",
+            writeln!(out, "#[repr(u32)]\n#[derive(Debug)]\npub enum {}{} {{",
                 snake_to_camel(&interface.name), snake_to_camel(&enu.name)).unwrap();
-            if enu.entries.len() == 1 {
-                writeln!(out, "    #[doc(hidden)]").unwrap();
-                writeln!(out, "    __not_univariant = -1,").unwrap();
-            }
-            for entry in enu.entries {
-                if let Some(summary) = entry.summary {
+            for entry in &enu.entries {
+                if let Some(ref summary) = entry.summary {
                     writeln!(out, "    /// {}", summary).unwrap();
                 }
                 let variantname = snake_to_camel(&entry.name);
@@ -121,6 +117,34 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                     writeln!(out, "    {} = {},", variantname, entry.value).unwrap();
                 }
             }
+            if enu.entries.len() == 1 {
+                writeln!(out, "    #[doc(hidden)]").unwrap();
+                writeln!(out, "    __not_univariant,").unwrap();
+            }
+            writeln!(out, "}}\n").unwrap();
+
+            writeln!(out, "impl {}{} {{", snake_to_camel(&interface.name), snake_to_camel(&enu.name)).unwrap();
+            writeln!(out, "    fn from_raw(n: u32) -> Option<{}{}> {{",
+                snake_to_camel(&interface.name), snake_to_camel(&enu.name)).unwrap();
+            writeln!(out, "        match n {{").unwrap();
+            for entry in &enu.entries {
+                let variantname = snake_to_camel(&entry.name);
+                if variantname.chars().next().unwrap().is_digit(10) {
+                    writeln!(out, "            {} => Some({}{}::{}{}),",
+                        entry.value,
+                        snake_to_camel(&interface.name), snake_to_camel(&enu.name),
+                        enu.name.chars().next().unwrap().to_ascii_uppercase(),
+                        variantname).unwrap();
+                } else {
+                    writeln!(out, "            {} => Some({}{}::{}),",
+                        entry.value,
+                        snake_to_camel(&interface.name), snake_to_camel(&enu.name),
+                        variantname).unwrap();
+                }
+            }
+            writeln!(out, "            _ => None").unwrap();
+            writeln!(out, "        }}").unwrap();
+            writeln!(out, "    }}").unwrap();
             writeln!(out, "}}\n").unwrap();
         }
 
@@ -153,7 +177,11 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 if evt.args.len() > 0 {
                     write!(out, "(").unwrap();
                     for a in &evt.args {
-                        if a.typ == Type::NewId {
+                        if let Some(ref enu) = a.enum_ {
+                            write!(out, "{}{},",
+                                camel_iname, snake_to_camel(enu),
+                                ).unwrap();
+                        } else if a.typ == Type::NewId {
                             write!(out, "{},",
                                 a.interface.as_ref().map(|s| snake_to_camel(s))
                                     .expect("Cannot create a new_id in an event without an interface.")
@@ -187,6 +215,13 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                         Type::Destructor => unreachable!()
                     }.unwrap();
                     writeln!(out, "}};").unwrap();
+                    if let Some(ref enu) = arg.enum_ {
+                        write!(out, "            let arg_{} = match {}{}::from_raw(arg_{} as u32) {{",
+                            i, camel_iname, snake_to_camel(enu), i).unwrap();
+                        write!(out, " Some(a) => a,").unwrap();
+                        write!(out, " None => return None").unwrap();
+                        writeln!(out, " }};").unwrap();
+                    }
                 }
                 write!(out, "            Some({}Event::{}", camel_iname, snake_to_camel(&evt.name)).unwrap();
                 if evt.args.len() > 0 {
@@ -247,6 +282,10 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             }
             for a in &req.args {
                 if a.typ == Type::NewId { continue; }
+                if let Some(ref enu) = a.enum_ {
+                    write!(out, " {}: {}{},", a.name, camel_iname, snake_to_camel(enu)).unwrap();
+                    continue;
+                }
                 let typ: Cow<str> = if a.typ == Type::Object {
                     a.interface.as_ref().map(|i| format!("&{}", snake_to_camel(i)).into()).unwrap_or("*mut ()".into())
                 } else {
@@ -307,7 +346,9 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
             }
             write!(out, "           ").unwrap();
             for a in &req.args {
-                if a.typ == Type::NewId {
+                if a.enum_.is_some() {
+                    write!(out, ", {} as {}", a.name, if a.typ == Type::Uint { "u32" } else { "i32" }).unwrap();
+                } else if a.typ == Type::NewId {
                     if let Some(ref newint) = ret {
                         if newint.is_none() {
                             write!(out, ", (*<T as Proxy>::interface()).name, version").unwrap();
