@@ -17,7 +17,7 @@ lazy_static = { version = "0.1", optional = true }
 wayland-sys = { version = "0.1", features = ["client"] }
 
 [build-dependencies]
-wayland-scanner = "0.1"
+wayland-scanner = "0.2"
 
 [dev-dependencies]
 byteorder = "0.3"
