@@ -150,6 +150,7 @@ fn parse_enum<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>
         match &attr.name.local_name[..] {
             "name" => enu.name = attr.value,
             "since" => enu.since = attr.value.parse().unwrap(),
+            "bitfield" => if &attr.value[..] == "true" { enu.bitfield = true },
             _ => {}
         }
     }
@@ -205,6 +206,7 @@ fn parse_arg<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>)
             "summary" => arg.summary = Some(attr.value),
             "interface" => arg.interface = Some(attr.value),
             "allow-null" => if attr.value == "true" { arg.allow_null = true },
+            "enum" => arg.enum_ = Some(attr.value),
             _ => {}
         }
     }

@@ -98,7 +98,8 @@ pub struct Arg {
     pub interface: Option<String>,
     pub summary: Option<String>,
     pub description: Option<(String, String)>,
-    pub allow_null: bool
+    pub allow_null: bool,
+    pub enum_: Option<String>
 }
 
 impl Arg {
@@ -109,7 +110,8 @@ impl Arg {
             interface: None,
             summary: None,
             description: None,
-            allow_null: false
+            allow_null: false,
+            enum_: None,
         }
     }
 }
@@ -119,7 +121,8 @@ pub struct Enum {
     pub name: String,
     pub since: u16,
     pub description: Option<(String, String)>,
-    pub entries: Vec<Entry>
+    pub entries: Vec<Entry>,
+    pub bitfield: bool
 }
 
 impl Enum {
@@ -128,7 +131,8 @@ impl Enum {
             name: String::new(),
             since: 1,
             description: None,
-            entries: Vec::new()
+            entries: Vec::new(),
+            bitfield: false
         }
     }
 }
