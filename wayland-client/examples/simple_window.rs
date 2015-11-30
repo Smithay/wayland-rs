@@ -1,36 +1,39 @@
 extern crate byteorder;
 extern crate tempfile;
-extern crate wayland_client as wayland;
+#[macro_use]
+extern crate wayland_client;
 
 use byteorder::{WriteBytesExt, NativeEndian};
 
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 
-use wayland::{Proxy, EventIterator, Event};
-use wayland::wayland::{WaylandProtocolEvent, WlRegistryEvent, WlRegistry};
-use wayland::wayland::compositor::WlCompositor;
-use wayland::wayland::shell::WlShell;
-use wayland::wayland::shm::{WlShm, WlShmFormat};
+use wayland_client::Proxy;
+use wayland_client::wayland::get_display;
+use wayland_client::wayland::compositor::WlCompositor;
+use wayland_client::wayland::shell::WlShell;
+use wayland_client::wayland::shm::{WlShm, WlShmFormat};
+
+wayland_env!(WaylandEnv,
+    compositor: WlCompositor,
+    shell: WlShell,
+    shm: WlShm
+);
 
 fn main() {
-    let mut display = match wayland::wayland::get_display() {
+    let display = match get_display() {
         Some(d) => d,
         None => panic!("Unable to connect to a wayland compositor.")
     };
 
-    // Create an event iterator and assign it to the display
-    // so that it is automatically inherited by all created objects
-    let mut evt_iter = EventIterator::new();
-    display.set_evt_iterator(&evt_iter);
+    // Use wayland_env! macro to get the globals and an event iterator
+    let (mut env, _evt_iter) = WaylandEnv::init(display);
 
-    // Get the registry, to generate the events advertizing global objects
-    let registry = display.get_registry();
-
-    // Roundtrip, to make sure all event are dispatched to us
-    display.sync_roundtrip().unwrap();
-
-    let (compositor, shell, shm) = fetch_globals(&mut evt_iter, &registry);
+    // Get shortcuts to the globals.
+    // Here we only use the version 1 of the interface, so no checks are needed.
+    let compositor = env.compositor.as_ref().map(|o| &o.0).unwrap();
+    let shell = env.shell.as_ref().map(|o| &o.0).unwrap();
+    let shm = env.shm.as_ref().map(|o| &o.0).unwrap();
 
     let surface = compositor.create_surface();
     let shell_surface = shell.get_shell_surface(&surface);
@@ -54,41 +57,8 @@ fn main() {
     // commit
     surface.commit();
 
-    display.sync_roundtrip().unwrap();
+    env.display.sync_roundtrip().unwrap();
 
     loop {}
     
-}
-
-fn fetch_globals(evt_iter: &mut EventIterator, rgt: &WlRegistry) -> (WlCompositor, WlShell, WlShm) {
-    let mut compositor = None;
-    let mut shell = None;
-    let mut shm = None;
-    for evt in evt_iter {
-        match evt {
-            // Global advertising events are `WlRegistryEvent::Global`
-            Event::Wayland(WaylandProtocolEvent::WlRegistry(
-                _, WlRegistryEvent::Global(name, interface, _version)
-            )) => match &interface[..] {
-                "wl_compositor" => {
-                    compositor = Some(unsafe { rgt.bind::<WlCompositor>(name, 1) });
-                },
-                "wl_shell" => {
-                    shell = Some(unsafe { rgt.bind::<WlShell>(name, 1) });
-                },
-                "wl_shm" => {
-                    shm = Some(unsafe { rgt.bind::<WlShm>(name, 1) });
-                },
-                _ => {}
-            },
-            // ignore everything else
-            _ => {}
-        }
-    }
-    match (compositor, shell, shm) {
-        (Some(c), Some(se), Some(sh)) => (c, se, sh),
-        (None, _, _) => panic!("Compositor did not advertize a wl_compositor."),
-        (_, None, _) => panic!("Compositor did not advertize a wl_shell."),
-        (_, _, None) => panic!("Compositor did not advertize a wl_shm."),
-    }
 }
