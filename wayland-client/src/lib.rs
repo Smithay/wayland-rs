@@ -4,6 +4,7 @@ extern crate crossbeam;
 extern crate libc;
 extern crate wayland_sys;
 
+mod env;
 mod events;
 mod sys;
 
