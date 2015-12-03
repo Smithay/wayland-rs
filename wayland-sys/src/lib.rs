@@ -46,10 +46,15 @@ pub mod common;
 #[cfg(feature = "client")]
 pub mod client;
 
+#[cfg(feature = "server")]
+pub mod server;
+
 #[cfg(all(feature = "egl", feature = "client"))]
 pub mod egl;
 
 pub use libc::{c_char, c_void, c_int, size_t, uint32_t};
+#[cfg(feature = "server")]
+pub use libc::{pid_t, uid_t, gid_t, int32_t};
 
 // Small hack while #[macro_reexport] is not stable
 
