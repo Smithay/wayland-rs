@@ -20,7 +20,7 @@ os:
 script:
   - |
       cd wayland-sys &&
-      travis-cargo test -- --features "dlopen egl client" &&
+      travis-cargo test -- --features "dlopen egl client server" &&
       cd ../scanner &&
       travis-cargo test &&
       cd ../wayland-client &&
