@@ -55,7 +55,6 @@ external_library!(WaylandClient, "wayland-client",
 
     // log
         fn wl_log_set_handler_client(wl_log_func_t) -> (),
-    // wl_log(fmt: *const c_char, ...) -> (),
 
     // lists
         fn wl_list_init(*mut wl_list) -> (),
@@ -73,7 +72,8 @@ external_library!(WaylandClient, "wayland-client",
 
     varargs:
         fn wl_proxy_marshal_constructor(*mut wl_proxy, uint32_t, *const wl_interface ...) -> *mut wl_proxy,
-        fn wl_proxy_marshal(*mut wl_proxy, uint32_t ...) -> ()
+        fn wl_proxy_marshal(*mut wl_proxy, uint32_t ...) -> (),
+        fn wl_log(*const c_char ...) -> ()
 );
 
 #[cfg(feature = "dlopen")]
