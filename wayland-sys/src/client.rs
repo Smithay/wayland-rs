@@ -72,8 +72,7 @@ external_library!(WaylandClient, "wayland-client",
 
     varargs:
         fn wl_proxy_marshal_constructor(*mut wl_proxy, uint32_t, *const wl_interface ...) -> *mut wl_proxy,
-        fn wl_proxy_marshal(*mut wl_proxy, uint32_t ...) -> (),
-        fn wl_log(*const c_char ...) -> ()
+        fn wl_proxy_marshal(*mut wl_proxy, uint32_t ...) -> ()
 );
 
 #[cfg(feature = "dlopen")]
