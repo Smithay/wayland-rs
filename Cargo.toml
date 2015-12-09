@@ -4,6 +4,6 @@ version = "0.0.1"
 description = "Automating tests for other crates. Not to be published"
 
 [dependencies]
-wayland-sys = { path = "wayland-sys" }
+wayland-sys = { path = "wayland-sys", features = ["dlopen", "client", "egl"] }
 wayland-scanner = { path = "scanner" }
-wayland-client = { path = "wayland-client" }
+wayland-client = { path = "wayland-client", features = ["dlopen", "egl"] }
