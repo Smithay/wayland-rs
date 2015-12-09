@@ -118,8 +118,7 @@ external_library!(WaylandServer, "wayland-server",
     varargs:
         fn wl_resource_post_event(*mut wl_resource, uint32_t ...) -> (),
         fn wl_resource_queue_event(*mut wl_resource, uint32_t ...) -> (),
-        fn wl_resource_post_error(*mut wl_resource, uint32_t, *const c_char ...) -> (),
-        fn wl_log(*const c_char ...) -> ()
+        fn wl_resource_post_error(*mut wl_resource, uint32_t, *const c_char ...) -> ()
 );
 
 #[cfg(feature = "dlopen")]
