@@ -36,3 +36,12 @@ pub struct ProxyId { id: usize }
 fn wrap_proxy(ptr: *mut wl_proxy) -> ProxyId {
     ProxyId { id: ptr as usize}
 }
+
+/// Checks if the wayland lib is available
+///
+/// If the `dlopen` feature is disabled, will always return `true`.
+/// If it is enabled, will return `true` if the wayland-client lib
+/// is available and can be used.
+pub fn is_available() -> bool {
+    ::wayland_sys::client::is_lib_available()
+}
