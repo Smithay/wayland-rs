@@ -5,6 +5,14 @@ use wayland_sys::egl::*;
 use sys::wayland::client::WlSurface;
 use Proxy;
 
+/// Checks if the wayland-egl lib is available and can be used
+///
+/// Trying to create an `WlEglSurface` while this function returns
+/// `false` will result in a panic.
+pub fn is_available() -> bool {
+    is_lib_available()
+}
+
 pub struct WlEglSurface {
     ptr: *mut wl_egl_window,
     surface: WlSurface
