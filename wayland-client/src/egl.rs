@@ -48,6 +48,11 @@ impl WlEglSurface {
             self.ptr, width, height, dx, dy) }
     }
 
+    pub fn egl_surface_ptr(&self) -> *const c_void {
+        self.ptr as *const c_void
+    }
+
+    /// DEPRECATED
     pub unsafe fn egl_surfaceptr(&self) -> *mut c_void {
         self.ptr as *mut c_void
     }
