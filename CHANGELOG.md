@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.3 - 2015-12-11
+
+### Added
+
+- wayland-client: `ProxyId` is now `Hash`
+
 ## 0.5.2 - 2015-12-09
 
 ### Bugfixes

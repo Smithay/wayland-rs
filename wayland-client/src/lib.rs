@@ -30,7 +30,7 @@ pub trait Proxy {
     fn set_evt_iterator(&mut self, iter: &EventIterator);
 }
 
-#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+#[derive(Copy,Clone,PartialEq,Eq,Debug,Hash)]
 pub struct ProxyId { id: usize }
 
 fn wrap_proxy(ptr: *mut wl_proxy) -> ProxyId {
