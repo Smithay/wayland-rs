@@ -13,6 +13,9 @@ pub fn is_available() -> bool {
     is_lib_available()
 }
 
+unsafe impl Send for WlEglSurface {}
+unsafe impl Sync for WlEglSurface {}
+
 pub struct WlEglSurface {
     ptr: *mut wl_egl_window,
     surface: WlSurface
