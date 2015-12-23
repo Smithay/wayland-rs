@@ -52,9 +52,14 @@ pub mod server;
 #[cfg(all(feature = "egl", feature = "client"))]
 pub mod egl;
 
+#[cfg(all(feature = "cursor", feature = "client"))]
+pub mod cursor;
+
 pub use libc::{c_char, c_void, c_int, size_t, uint32_t};
 #[cfg(feature = "server")]
 pub use libc::{pid_t, uid_t, gid_t, int32_t};
+#[cfg(feature = "cursor")]
+pub use libc::c_uint;
 
 // Small hack while #[macro_reexport] is not stable
 
