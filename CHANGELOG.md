@@ -1,5 +1,11 @@
 # Change Log
 
+## git master
+
+### Added
+
+- Interface to `libwayland_cursor` in `sys` and `client`.
+
 ## 0.5.4 - 2015-12-13
 
 ### Bugfixes

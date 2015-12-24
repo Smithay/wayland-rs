@@ -11,6 +11,9 @@ mod sys;
 #[cfg(feature = "egl")]
 pub mod egl;
 
+#[cfg(feature = "cursor")]
+pub mod cursor;
+
 pub mod wayland;
 
 use wayland_sys::client::wl_proxy;
