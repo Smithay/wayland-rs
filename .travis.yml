@@ -21,11 +21,11 @@ script:
   - |
       ./tweak-cargo-tomls.sh &&
       cd wayland-sys &&
-      travis-cargo test -- --features "dlopen egl client server" &&
+      travis-cargo test -- --features "dlopen egl client server cursor" &&
       cd ../scanner &&
       travis-cargo test &&
       cd ../wayland-client &&
-      travis-cargo test -- --features "dlopen egl" &&
+      travis-cargo test -- --features "dlopen egl cursor" &&
       cd .. &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-sys --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-scanner --no-deps &&

@@ -26,3 +26,4 @@ tempfile = "1.1"
 [features]
 dlopen = ["dlib/dlopen", "wayland-sys/dlopen"]
 egl = ["wayland-sys/egl"]
+cursor = ["wayland-sys/cursor"]
