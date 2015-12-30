@@ -2,16 +2,16 @@ use std::io::Read;
 
 use xml::EventReader;
 use xml::attribute::OwnedAttribute;
-use xml::reader::config::ParserConfig;
+use xml::reader::ParserConfig;
 use xml::reader::Events;
-use xml::reader::events::XmlEvent;
+use xml::reader::XmlEvent;
 
 use protocol::*;
 
 macro_rules! extract_from(
     ($it: expr => $pattern: pat => $result: expr) => (
         match $it.next() {
-            Some($pattern) => { $result },
+            Some(Ok($pattern)) => { $result },
             e => panic!("Ill-formed protocol file: {:?}", e)
         }
     )
@@ -26,11 +26,11 @@ macro_rules! extract_end_tag(
 );
 
 pub fn parse_stream<S: Read>(stream: S) -> Protocol {
-    let mut reader = EventReader::with_config(
+    let reader = EventReader::new_with_config(
         stream,
         ParserConfig::new().trim_whitespace(true)
     );
-    let mut iter = reader.events();
+    let mut iter = reader.into_iter();
     iter.next(); // StartDocument
     parse_protocol(iter)
 }
@@ -46,7 +46,7 @@ fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) => 
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) => 
             match &name.local_name[..] {
                 "copyright" => {
                     // parse the copyright
@@ -57,7 +57,7 @@ fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
                 "interface" => { protocol.interfaces.push(parse_interface(&mut iter, attributes)); }
                 _ => panic!("Ill-formed protocol file: unexpected token `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement{ name }) => {
+            Some(Ok(XmlEvent::EndElement{ name })) => {
                 assert!(name.local_name == "protocol", "Unexpected closing token `{}`", name.local_name);
                 break;
             }
@@ -80,7 +80,7 @@ fn parse_interface<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttri
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { interface.description = Some(parse_description(iter, attributes)) },
                 "request" => { interface.requests.push(parse_request(iter, attributes)) },
@@ -88,7 +88,7 @@ fn parse_interface<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttri
                 "enum" => { interface.enums.push(parse_enum(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "interface" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "interface" => break,
             _ => {}
         }
     }
@@ -106,11 +106,11 @@ fn parse_description<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAtt
     }
 
     let description = match iter.next() {
-        Some(XmlEvent::Characters(txt)) => {
+        Some(Ok(XmlEvent::Characters(txt))) => {
             extract_end_tag!(iter => "description");
             txt
         },
-        Some(XmlEvent::EndElement { ref name }) if name.local_name == "description" => { String::new() },
+        Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "description" => { String::new() },
         e => panic!("Ill-formed protocol file: {:?}", e)
     };
 
@@ -130,13 +130,13 @@ fn parse_request<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribu
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { request.description = Some(parse_description(iter, attributes)) },
                 "arg" => { request.args.push(parse_arg(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "request" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "request" => break,
             _ => {}
         }
     }
@@ -157,13 +157,13 @@ fn parse_enum<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { enu.description = Some(parse_description(iter, attributes)) },
                 "entry" => { enu.entries.push(parse_entry(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "enum" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "enum" => break,
             _ => {}
         }
     }
@@ -183,13 +183,13 @@ fn parse_event<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { event.description = Some(parse_description(iter, attributes)) },
                 "arg" => { event.args.push(parse_arg(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "event" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "event" => break,
             _ => {}
         }
     }
@@ -213,12 +213,12 @@ fn parse_arg<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>)
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name, attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name, attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { arg.description = Some(parse_description(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "arg" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "arg" => break,
             _ => {}
         }
     }
@@ -255,12 +255,12 @@ fn parse_entry<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute
 
     loop {
         match iter.next() {
-            Some(XmlEvent::StartElement { name,attributes, .. }) =>
+            Some(Ok(XmlEvent::StartElement { name,attributes, .. })) =>
             match &name.local_name[..] {
                 "description" => { entry.description = Some(parse_description(iter, attributes)) },
                 _ => panic!("Unexpected tocken: `{}`", name.local_name)
             },
-            Some(XmlEvent::EndElement { ref name }) if name.local_name == "entry" => break,
+            Some(Ok(XmlEvent::EndElement { ref name })) if name.local_name == "entry" => break,
             _ => {}
         }
     }
