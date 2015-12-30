@@ -14,7 +14,7 @@ crossbeam = "0.1.5"
 dlib = "0.2"
 libc = "0.2"
 lazy_static = { version = "0.1", optional = true }
-wayland-sys = { version = "0.5", features = ["client"] }
+wayland-sys = { version = "^0.5.5", features = ["client"] }
 
 [build-dependencies]
 wayland-scanner = { version = "0.5" }
