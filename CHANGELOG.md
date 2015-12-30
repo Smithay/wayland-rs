@@ -1,10 +1,11 @@
 # Change Log
 
-## git master
+## 0.5.5 - 2015-12-30
 
 ### Added
 
-- Interface to `libwayland_cursor` in `sys` and `client`.
+- Interface to `libwayland_cursor` in `sys` and `client`, behind the
+  `cursor` cargo feature.
 
 ## 0.5.4 - 2015-12-13
 
