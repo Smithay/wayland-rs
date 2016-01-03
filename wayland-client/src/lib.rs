@@ -28,8 +28,17 @@ pub trait Proxy {
     fn interface_name() -> &'static str;
     /// The maximum version of this interface handled by the library.
     fn version() -> u32;
+    /// Get the id of this proxy
     fn id(&self) -> ProxyId;
+    /// Creates a proxy from a fresh ptr
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;
+    /// Creates a proxy from a ptr that is managed elsewhere
+    ///
+    /// As opposed to `from_ptr`, this function will not try to
+    /// set a listener/dispatcher for this proxy, and thus its
+    /// events won't be available.
+    unsafe fn from_ptr_no_own(ptr: *mut wl_proxy) -> Self;
+    /// Set the event iterator associated to this proxy
     fn set_evt_iterator(&mut self, iter: &EventIterator);
 }
 
