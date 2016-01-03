@@ -81,6 +81,9 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         }
         writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
         writeln!(out, "    }}").unwrap();
+        writeln!(out, "    unsafe fn from_ptr_no_own(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
+        writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
+        writeln!(out, "    }}").unwrap();
         writeln!(out, "    fn set_evt_iterator(&mut self, evt: &EventIterator) {{").unwrap();
         writeln!(out, "        self.evq = get_eventiter_internals(evt);").unwrap();
         if interface.name != "wl_display" {

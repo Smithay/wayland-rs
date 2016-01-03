@@ -144,7 +144,7 @@ impl<'a> Cursor<'a> {
                 let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
                 Some(CursorImageBuffer {
                     _cursor: PhantomData,
-                    buffer: Some(Proxy::from_ptr(ptr))
+                    buffer: Some(Proxy::from_ptr_no_own(ptr))
                 })
             }
         }
