@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.6 - 2016-01-03
+
+### Bugfixes
+
+- Stop trying to set the dispatcher on buffers from wayland-cursor.
+
 ## 0.5.5 - 2015-12-30
 
 ### Added
