@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.5.7"
+version = "0.5.8"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -17,7 +17,7 @@ lazy_static = { version = "0.1", optional = true }
 wayland-sys = { version = "0.5.7", features = ["client"] }
 
 [build-dependencies]
-wayland-scanner = { version = "0.5.7" }
+wayland-scanner = { version = "0.5.8" }
 
 [dev-dependencies]
 byteorder = "0.3"
