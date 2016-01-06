@@ -22,7 +22,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     }
 
     writeln!(out, "use wayland_sys::common::*;\n").unwrap();
-    writeln!(out, "use libc::{{c_void, c_char}};\n").unwrap();
+    writeln!(out, "use std::os::raw::{{c_void, c_char}};\n").unwrap();
 
     //
     // null types array

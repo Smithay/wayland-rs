@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 dlib = "0.2"
-libc = "0.2"
+libc = { version = "0.2", optional = true }
 lazy_static = { version = "0.1", optional = true }
 
 [features]
@@ -16,4 +16,4 @@ dlopen = ["dlib/dlopen", "lazy_static"]
 client = []
 cursor = []
 egl = []
-server = []
+server = ["libc"]

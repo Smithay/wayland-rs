@@ -2,7 +2,7 @@
 //!
 //! The generated handle is named `WAYLAND_CLIENT_HANDLE`
 
-use {c_char, c_void, c_int, size_t, uint32_t};
+use std::os::raw::{c_char, c_void, c_int};
 
 use super::common::*;
 
@@ -26,7 +26,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_display_dispatch_pending(*mut wl_display) -> c_int,
     // error handling
         fn wl_display_get_error(*mut wl_display) -> c_int,
-        fn wl_display_get_protocol_error(*mut wl_display, *mut *mut wl_interface, *mut uint32_t) -> uint32_t,
+        fn wl_display_get_protocol_error(*mut wl_display, *mut *mut wl_interface, *mut u32) -> u32,
     // requests handling
         fn wl_display_flush(*mut wl_display) -> c_int,
 
@@ -44,12 +44,12 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_add_listener(*mut wl_proxy, *mut extern fn(), *mut c_void) -> c_int,
         fn wl_proxy_get_listener(*mut wl_proxy) -> *const c_void,
         fn wl_proxy_add_dispatcher(*mut wl_proxy, wl_dispatcher_func_t, *const c_void, *mut c_void) -> c_int,
-        fn wl_proxy_marshal_array_constructor(*mut wl_proxy, uint32_t, *mut wl_argument, *const wl_interface) -> c_int,
+        fn wl_proxy_marshal_array_constructor(*mut wl_proxy, u32, *mut wl_argument, *const wl_interface) -> c_int,
 
-        fn wl_proxy_marshal_array(*mut wl_proxy, uint32_t, *mut wl_argument ) -> (),
+        fn wl_proxy_marshal_array(*mut wl_proxy, u32, *mut wl_argument ) -> (),
         fn wl_proxy_set_user_data(*mut wl_proxy, *mut c_void) -> (),
         fn wl_proxy_get_user_data(*mut wl_proxy) -> *mut c_void,
-        fn wl_proxy_get_id(*mut wl_proxy) -> uint32_t,
+        fn wl_proxy_get_id(*mut wl_proxy) -> u32,
         fn wl_proxy_get_class(*mut wl_proxy) -> *const c_char,
         fn wl_proxy_set_queue(*mut wl_proxy, *mut wl_event_queue) -> (),
 
@@ -67,12 +67,12 @@ external_library!(WaylandClient, "wayland-client",
     // arrays
         fn wl_array_init(*mut wl_array) -> (),
         fn wl_array_release(*mut wl_array) -> (),
-        fn wl_array_add(*mut wl_array,size_t) -> (),
+        fn wl_array_add(*mut wl_array,usize) -> (),
         fn wl_array_copy(*mut wl_array, *mut wl_array) -> ()
 
     varargs:
-        fn wl_proxy_marshal_constructor(*mut wl_proxy, uint32_t, *const wl_interface ...) -> *mut wl_proxy,
-        fn wl_proxy_marshal(*mut wl_proxy, uint32_t ...) -> ()
+        fn wl_proxy_marshal_constructor(*mut wl_proxy, u32, *const wl_interface ...) -> *mut wl_proxy,
+        fn wl_proxy_marshal(*mut wl_proxy, u32 ...) -> ()
 );
 
 #[cfg(feature = "dlopen")]

@@ -1,7 +1,7 @@
 //! Various types and functions that are used by both the client and the server
 //! libraries.
 
-use {c_char, c_void, c_int, size_t};
+use std::os::raw::{c_char, c_void, c_int};
 
 #[repr(C)]
 pub struct wl_message {
@@ -28,8 +28,8 @@ pub struct wl_list {
 
 #[repr(C)]
 pub struct wl_array {
-    pub size: size_t,
-    pub alloc: size_t,
+    pub size: usize,
+    pub alloc: usize,
     pub data: *mut c_void
 }
 
@@ -54,7 +54,7 @@ pub fn wl_fixed_from_int(i: i32) -> wl_fixed_t {
 // must be the appropriate size
 // can contain i32, u32 and pointers
 #[repr(C)]
-pub struct wl_argument { _f: size_t }
+pub struct wl_argument { _f: usize }
 
 pub type wl_dispatcher_func_t = extern "C" fn(*const c_void, *mut c_void, u32, *const wl_message, *const wl_argument);
 pub type wl_log_func_t = extern "C" fn(*const c_char, ...);
