@@ -4,7 +4,7 @@
 //!
 //! The created handle is named `WAYLAND_EGl_HANDLE`.
 
-use c_int;
+use std::os::raw::c_int;
 use client::wl_proxy;
 
 pub enum wl_egl_window { }

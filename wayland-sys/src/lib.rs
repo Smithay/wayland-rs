@@ -39,6 +39,7 @@ extern crate dlib;
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(feature = "server")]
 extern crate libc;
 
 pub mod common;
@@ -55,11 +56,8 @@ pub mod egl;
 #[cfg(all(feature = "cursor", feature = "client"))]
 pub mod cursor;
 
-pub use libc::{c_char, c_void, c_int, size_t, uint32_t};
 #[cfg(feature = "server")]
-pub use libc::{pid_t, uid_t, gid_t, int32_t};
-#[cfg(feature = "cursor")]
-pub use libc::c_uint;
+pub use libc::{pid_t, uid_t, gid_t};
 
 // Small hack while #[macro_reexport] is not stable
 
