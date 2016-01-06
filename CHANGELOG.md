@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.5.7 - 2016-01-06
+
+### Internal Changes
+
+- Do not rely on lib for C types, but rather std::os::raw.
+  Should improve soundness in the long term.
+
 ## 0.5.6 - 2016-01-03
 
 ### Bugfixes
