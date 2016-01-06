@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.8 - 2016-01-07
+
+### BugFixes
+
+- Fix typos and missed things introduced in previous version.
+
 ## 0.5.7 - 2016-01-06
 
 ### Internal Changes

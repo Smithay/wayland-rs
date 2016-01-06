@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::ptr;
 
 use wayland_sys::cursor::*;
-use wayland_sys::{c_int, uint32_t};
+use std::os::raw::c_int;
 
 use Proxy;
 use wayland::shm::{WlShm, WlBuffer};
@@ -125,7 +125,7 @@ impl<'a> Cursor<'a> {
         let mut out_duration = 0u32;
         let frame = unsafe {
             ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame_and_duration,
-                self.cursor, duration, &mut out_duration as *mut uint32_t)
+                self.cursor, duration, &mut out_duration as *mut u32)
         } as usize;
         (frame, out_duration)
     }
