@@ -1,3 +1,10 @@
+//! The core wayland protocol
+//!
+//! This module contains the objects related to the core wayland protocol, you cannot
+//! not use it.
+//!
+//! The global entry point is the `get_display()` function.
+
 use std::io;
 
 use Proxy;

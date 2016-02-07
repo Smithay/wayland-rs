@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "unstable-protocols", feature(static_recursion))]
+
 #[macro_use] extern crate bitflags;
 extern crate crossbeam;
 #[macro_use] extern crate dlib;
@@ -15,6 +17,9 @@ pub mod egl;
 pub mod cursor;
 
 pub mod wayland;
+
+#[cfg(all(feature = "unstable-protocols", feature = "wpu-xdg_shell"))]
+pub mod xdg_shell;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::wl_interface;
