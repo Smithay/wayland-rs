@@ -176,7 +176,7 @@
     </event>
   </interface>
 
-  <interface name="wl_compositor" version="3">
+  <interface name="wl_compositor" version="4">
     <description summary="the compositor singleton">
       A compositor.  This object is a singleton global.  The
       compositor is in charge of combining the contents of multiple
@@ -408,7 +408,7 @@
   </interface>
 
 
-  <interface name="wl_data_offer" version="1">
+  <interface name="wl_data_offer" version="3">
     <description summary="offer to transfer data">
       A wl_data_offer represents a piece of data offered for transfer
       by another client (the source client).  It is used by the
@@ -418,12 +418,33 @@
       data directly from the source client.
     </description>
 
+    <enum name="error">
+      <entry name="invalid_finish" value="0"
+	     summary="finish request was called untimely"/>
+      <entry name="invalid_action_mask" value="1"
+	     summary="action mask contains invalid values"/>
+      <entry name="invalid_action" value="2"
+	     summary="action argument has an invalid value"/>
+      <entry name="invalid_offer" value="3"
+	     summary="offer doesn't accept this request"/>
+    </enum>
+
     <request name="accept">
       <description summary="accept one of the offered mime types">
 	Indicate that the client can accept the given mime type, or
 	NULL for not accepted.
 
-	Used for feedback during drag-and-drop.
+	For objects of version 2 or older, this request is used by the
+	client to give feedback whether the client can receive the given
+	mime type, or NULL if none is accepted; the feedback does not
+	determine whether the drag-and-drop operation succeeds or not.
+
+	For objects of version 3 or newer, this request determines the
+	final result of the drag-and-drop operation. If the end result
+	is that no mime types were accepted, the drag-and-drop operation
+	will be cancelled and the corresponding drag source will receive
+	wl_data_source.cancelled. Clients may still use this event in
+	conjunction with wl_data_source.action for feedback.
       </description>
 
       <arg name="serial" type="uint"/>
@@ -442,6 +463,11 @@
 	The receiving client reads from the read end of the pipe until
 	EOF and then closes its end, at which point the transfer is
 	complete.
+
+	This request may happen multiple times for different mimetypes,
+	both before and after wl_data_device.drop. Drag-and-drop destination
+	clients may preemptively fetch data or examine it more closely to
+	determine acceptance.
       </description>
       <arg name="mime_type" type="string"/>
       <arg name="fd" type="fd"/>
@@ -461,15 +487,128 @@
 
       <arg name="mime_type" type="string"/>
     </event>
+
+    <!-- Version 3 additions -->
+
+    <request name="finish" since="3">
+      <description summary="the offer will no longer be used">
+	Notifies the compositor that the drag destination successfully
+	finished the drag-and-drop operation.
+
+	Upon receiving this request, the compositor will emit
+	wl_data_source.dnd_finished on the drag source client.
+
+	It is a client error to perform other requests than
+	wl_data_offer.destroy after this one. It is also an error to perform
+	this request after a NULL mime type has been set in
+	wl_data_offer.accept or no action was received through
+	wl_data_offer.action.
+      </description>
+    </request>
+
+    <request name="set_actions" since="3">
+      <description summary="set the available/preferred drag-and-drop actions">
+	Sets the actions that the destination side client supports for
+	this operation. This request may trigger the emission of
+	wl_data_source.action and wl_data_offer.action events if the compositor
+	need to change the selected action.
+
+	This request can be called multiple times throughout the
+	drag-and-drop operation, typically in response to wl_data_device.enter
+	or wl_data_device.motion events.
+
+	This request determines the final result of the drag-and-drop
+	operation. If the end result is that no action is accepted,
+	the drag source will receive wl_drag_source.cancelled.
+
+	The dnd_actions argument must contain only values expressed in the
+	wl_data_device_manager.dnd_actions enum, and the preferred_action
+	argument must only contain one of those values set, otherwise it
+	will result in a protocol error.
+
+	While managing an "ask" action, the destination drag-and-drop client
+	may perform further wl_data_offer.receive requests, and is expected
+	to perform one last wl_data_offer.set_actions request with a preferred
+	action other than "ask" (and optionally wl_data_offer.accept) before
+	requesting wl_data_offer.finish, in order to convey the action selected
+	by the user. If the preferred action is not in the
+	wl_data_offer.source_actions mask, an error will be raised.
+
+	If the "ask" action is dismissed (e.g. user cancellation), the client
+	is expected to perform wl_data_offer.destroy right away.
+
+	This request can only be made on drag-and-drop offers, a protocol error
+	will be raised otherwise.
+      </description>
+      <arg name="dnd_actions" type="uint"/>
+      <arg name="preferred_action" type="uint"/>
+    </request>
+
+    <event name="source_actions" since="3">
+      <description summary="notify the source-side available actions">
+	This event indicates the actions offered by the data source. It
+	will be sent right after wl_data_device.enter, or anytime the source
+	side changes its offered actions through wl_data_source.set_actions.
+      </description>
+      <arg name="source_actions" type="uint"/>
+    </event>
+
+    <event name="action" since="3">
+      <description summary="notify the selected action">
+	This event indicates the action selected by the compositor after
+	matching the source/destination side actions. Only one action (or
+	none) will be offered here.
+
+	This event can be emitted multiple times during the drag-and-drop
+	operation in response to destination side action changes through
+	wl_data_offer.set_actions.
+
+	This event will no longer be emitted after wl_data_device.drop
+	happened on the drag-and-drop destination, the client must
+	honor the last action received, or the last preferred one set
+	through wl_data_offer.set_actions when handling an "ask" action.
+
+	Compositors may also change the selected action on the fly, mainly
+	in response to keyboard modifier changes during the drag-and-drop
+	operation.
+
+	The most recent action received is always the valid one. Prior to
+	receiving wl_data_device.drop, the chosen action may change (e.g.
+	due to keyboard modifiers being pressed). At the time of receiving
+	wl_data_device.drop the drag-and-drop destination must honor the
+	last action received.
+
+	Action changes may still happen after wl_data_device.drop,
+	especially on "ask" actions, where the drag-and-drop destination
+	may choose another action afterwards. Action changes happening
+	at this stage are always the result of inter-client negotiation, the
+	compositor shall no longer be able to induce a different action.
+
+	Upon "ask" actions, it is expected that the drag-and-drop destination
+	may potentially choose different a different action and/or mime type,
+	based on wl_data_offer.source_actions and finally chosen by the
+	user (e.g. popping up a menu with the available options). The
+	final wl_data_offer.set_actions and wl_data_offer.accept requests
+	must happen before the call to wl_data_offer.finish.
+      </description>
+      <arg name="dnd_action" type="uint"/>
+    </event>
   </interface>
 
-  <interface name="wl_data_source" version="1">
+  <interface name="wl_data_source" version="3">
     <description summary="offer to transfer data">
       The wl_data_source object is the source side of a wl_data_offer.
       It is created by the source client in a data transfer and
       provides a way to describe the offered data and a way to respond
       to requests to transfer the data.
     </description>
+
+    <enum name="error">
+      <entry name="invalid_action_mask" value="0"
+	     summary="action mask contains invalid values"/>
+      <entry name="invalid_source" value="1"
+	     summary="source doesn't accept this request"/>
+    </enum>
 
     <request name="offer">
       <description summary="add an offered mime type">
@@ -510,14 +649,108 @@
 
     <event name="cancelled">
       <description summary="selection was cancelled">
-	This data source has been replaced by another data source.
+	This data source is no longer valid. There are several reasons why
+	this could happen:
+
+	- The data source has been replaced by another data source.
+	- The drag-and-drop operation was performed, but the drop destination
+	  did not accept any of the mimetypes offered through
+	  wl_data_source.target.
+	- The drag-and-drop operation was performed, but the drop destination
+	  did not select any of the actions present in the mask offered through
+	  wl_data_source.action.
+	- The drag-and-drop operation was performed but didn't happen over a
+	  surface.
+	- The compositor cancelled the drag-and-drop operation (e.g. compositor
+	  dependent timeouts to avoid stale drag-and-drop transfers).
+
 	The client should clean up and destroy this data source.
+
+	For objects of version 2 or older, wl_data_source.cancelled will
+	only be emitted if the data source was replaced by another data
+	source.
       </description>
     </event>
 
+    <!-- Version 3 additions -->
+
+    <request name="set_actions" since="3">
+      <description summary="set the available drag-and-drop actions">
+	Sets the actions that the source side client supports for this
+	operation. This request may trigger wl_data_source.action and
+	wl_data_offer.action events if the compositor needs to change the
+	selected action.
+
+	The dnd_actions argument must contain only values expressed in the
+	wl_data_device_manager.dnd_actions enum, otherwise it will result
+	in a protocol error.
+
+	This request must be made once only, and can only be made on sources
+	used in drag-and-drop, so it must be performed before
+	wl_data_device.start_drag. Attempting to use the source other than
+	for drag-and-drop will raise a protocol error.
+      </description>
+      <arg name="dnd_actions" type="uint"/>
+    </request>
+
+    <event name="dnd_drop_performed" since="3">
+      <description summary="the drag-and-drop operation physically finished">
+	The user performed the drop action. This event does not indicate
+	acceptance, wl_data_source.cancelled may still be emitted afterwards
+	if the drop destination does not accept any mimetype.
+
+	However, this event might however not be received if the compositor
+	cancelled the drag-and-drop operation before this event could happen.
+
+	Note that the data_source may still be used in the future and should
+	not be destroyed here.
+      </description>
+    </event>
+
+    <event name="dnd_finished" since="3">
+      <description summary="the drag-and-drop operation concluded">
+	The drop destination finished interoperating with this data
+	source, so the client is now free to destroy this data source and
+	free all associated data.
+
+	If the action used to perform the operation was "move", the
+	source can now delete the transferred data.
+      </description>
+    </event>
+
+    <event name="action" since="3">
+      <description summary="notify the selected action">
+	This event indicates the action selected by the compositor after
+	matching the source/destination side actions. Only one action (or
+	none) will be offered here.
+
+	This event can be emitted multiple times during the drag-and-drop
+	operation, mainly in response to destination side changes through
+	wl_data_offer.set_actions, and as the data device enters/leaves
+	surfaces.
+
+	It is only possible to receive this event after
+	wl_data_source.dnd_drop_performed if the drag-and-drop operation
+	ended in an "ask" action, in which case the final wl_data_source.action
+	event will happen immediately before wl_data_source.dnd_finished.
+
+	Compositors may also change the selected action on the fly, mainly
+	in response to keyboard modifier changes during the drag-and-drop
+	operation.
+
+	The most recent action received is always the valid one. The chosen
+	action may change alongside negotiation (e.g. an "ask" action can turn
+	into a "move" operation), so the effects of the final action must
+	always be applied in wl_data_offer.dnd_finished.
+
+	Clients can trigger cursor surface changes from this point, so
+	they reflect the current action.
+      </description>
+      <arg name="dnd_action" type="uint"/>
+    </event>
   </interface>
 
-  <interface name="wl_data_device" version="2">
+  <interface name="wl_data_device" version="3">
     <description summary="data transfer device">
       There is one wl_data_device per seat which can be obtained
       from the global wl_data_device_manager singleton.
@@ -630,6 +863,17 @@
       <description summary="end drag-and-drag session successfully">
 	The event is sent when a drag-and-drop operation is ended
 	because the implicit grab is removed.
+
+	The drag-and-drop destination is expected to honor the last action
+	received through wl_data_offer.action, if the resulting action is
+	"copy" or "move", the destination can still perform
+	wl_data_offer.receive requests, and is expected to end all
+	transfers with a wl_data_offer.finish request.
+
+	If the resulting action is "ask", the action will not be considered
+	final. The drag-and-drop destination is expected to perform one last
+	wl_data_offer.set_actions request, or wl_data_offer.destroy in order
+	to cancel the operation.
       </description>
     </event>
 
@@ -659,13 +903,18 @@
     </request>
   </interface>
 
-  <interface name="wl_data_device_manager" version="2">
+  <interface name="wl_data_device_manager" version="3">
     <description summary="data transfer interface">
       The wl_data_device_manager is a singleton global object that
       provides access to inter-client data transfer mechanisms such as
       copy-and-paste and drag-and-drop.  These mechanisms are tied to
       a wl_seat and this interface lets a client get a wl_data_device
       corresponding to a wl_seat.
+
+      Depending on the version bound, the objects created from the bound
+      wl_data_device_manager object will have different requirements for
+      functioning properly. See wl_data_source.set_actions,
+      wl_data_offer.accept and wl_data_offer.finish for details.
     </description>
 
     <request name="create_data_source">
@@ -682,6 +931,40 @@
       <arg name="id" type="new_id" interface="wl_data_device"/>
       <arg name="seat" type="object" interface="wl_seat"/>
     </request>
+
+    <!-- Version 3 additions -->
+
+    <enum name="dnd_action" bitfield="true" since="3">
+      <description summary="drag and drop actions">
+	This is a bitmask of the available/preferred actions in a
+	drag-and-drop operation.
+
+	In the compositor, the selected action is a result of matching the
+	actions offered by the source and destination sides.  "action" events
+	with a "none" action will be sent to both source and destination if
+	there is no match. All further checks will effectively happen on
+	(source actions ∩ destination actions).
+
+	In addition, compositors may also pick different actions in
+	reaction to key modifiers being pressed, one common design that
+	is used in major toolkits (and the behavior recommended for
+	compositors) is:
+
+	- If no modifiers are pressed, the first match (in bit order)
+	  will be used.
+	- Pressing Shift selects "move", if enabled in the mask.
+	- Pressing Control selects "copy", if enabled in the mask.
+
+	Behavior beyond that is considered implementation-dependent.
+	Compositors may for example bind other modifiers (like Alt/Meta)
+	or drags initiated with other buttons than BTN_LEFT to specific
+	actions (e.g. "ask").
+      </description>
+      <entry name="none" value="0"/>
+      <entry name="copy" value="1"/>
+      <entry name="move" value="2"/>
+      <entry name="ask" value="4"/>
+    </enum>
   </interface>
 
   <interface name="wl_shell" version="1">
@@ -986,7 +1269,7 @@
     </event>
   </interface>
 
-  <interface name="wl_surface" version="3">
+  <interface name="wl_surface" version="4">
     <description summary="an onscreen surface">
       A surface is a rectangular area that is displayed on the screen.
       It has a location, size and pixel contents.
@@ -1095,10 +1378,8 @@
       <description summary="mark part of the surface damaged">
 	This request is used to describe the regions where the pending
 	buffer is different from the current surface contents, and where
-	the surface therefore needs to be repainted. The pending buffer
-	must be set by wl_surface.attach before sending damage. The
-	compositor ignores the parts of the damage that fall outside of
-	the surface.
+	the surface therefore needs to be repainted. The compositor
+	ignores the parts of the damage that fall outside of the surface.
 
 	Damage is double-buffered state, see wl_surface.commit.
 
@@ -1111,6 +1392,10 @@
 	wl_surface.commit assigns pending damage as the current damage,
 	and clears pending damage. The server will clear the current
 	damage as it repaints the surface.
+
+	Alternatively, damage can be posted with wl_surface.damage_buffer
+	which uses buffer co-ordinates instead of surface co-ordinates,
+	and is probably the preferred and intuitive way of doing this.
       </description>
 
       <arg name="x" type="int"/>
@@ -1327,6 +1612,48 @@
       </description>
       <arg name="scale" type="int"/>
     </request>
+
+    <!-- Version 4 additions -->
+    <request name="damage_buffer" since="4">
+      <description summary="mark part of the surface damaged using buffer co-ordinates">
+	This request is used to describe the regions where the pending
+	buffer is different from the current surface contents, and where
+	the surface therefore needs to be repainted. The compositor
+	ignores the parts of the damage that fall outside of the surface.
+
+	Damage is double-buffered state, see wl_surface.commit.
+
+	The damage rectangle is specified in buffer coordinates.
+
+	The initial value for pending damage is empty: no damage.
+	wl_surface.damage_buffer adds pending damage: the new pending
+	damage is the union of old pending damage and the given rectangle.
+
+	wl_surface.commit assigns pending damage as the current damage,
+	and clears pending damage. The server will clear the current
+	damage as it repaints the surface.
+
+	This request differs from wl_surface.damage in only one way - it
+	takes damage in buffer co-ordinates instead of surface local
+	co-ordinates. While this generally is more intuitive than surface
+	co-ordinates, it is especially desirable when using wp_viewport
+	or when a drawing library (like EGL) is unaware of buffer scale
+	and buffer transform.
+
+	Note: Because buffer transformation changes and damage requests may
+	be interleaved in the protocol stream, It is impossible to determine
+	the actual mapping between surface and buffer damage until
+	wl_surface.commit time. Therefore, compositors wishing to take both
+	kinds of damage into account will have to accumulate damage from the
+	two requests separately and only transform from one to the other
+	after receiving the wl_surface.commit.
+      </description>
+
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
    </interface>
 
   <interface name="wl_seat" version="5">
@@ -1349,42 +1676,69 @@
 
     <event name="capabilities">
       <description summary="seat capabilities changed">
-        This is emitted whenever a seat gains or loses the pointer,
+	This is emitted whenever a seat gains or loses the pointer,
 	keyboard or touch capabilities.  The argument is a capability
 	enum containing the complete set of capabilities this seat has.
+
+	When the pointer capability is added, a client may create a
+	wl_pointer object using the wl_seat.get_pointer request. This object
+	will receive pointer events until the capability is removed in the
+	future.
+
+	When the pointer capability is removed, a client should destroy the
+	wl_pointer objects associated with the seat where the capability was
+	removed, using the wl_pointer.release request. No further pointer
+	events will be received on these objects.
+
+	In some compositors, if a seat regains the pointer capability and a
+	client has a previously obtained wl_pointer object of version 4 or
+	less, that object may start sending pointer events again. This
+	behavior is considered a misinterpretation of the intended behavior
+	and must not be relied upon by the client. wl_pointer objects of
+	version 5 or later must not send events if created before the most
+	recent event notifying the client of an added pointer capability.
+
+	The above behavior also applies to wl_keyboard and wl_touch with the
+	keyboard and touch capabilities, respectively.
       </description>
       <arg name="capabilities" type="uint" enum="capability"/>
     </event>
 
     <request name="get_pointer">
       <description summary="return pointer object">
-        The ID provided will be initialized to the wl_pointer interface
+	The ID provided will be initialized to the wl_pointer interface
 	for this seat.
 
-        This request only takes effect if the seat has the pointer
-        capability.
+	This request only takes effect if the seat has the pointer
+	capability, or has had the pointer capability in the past.
+	It is a protocol violation to issue this request on a seat that has
+	never had the pointer capability.
       </description>
       <arg name="id" type="new_id" interface="wl_pointer"/>
     </request>
 
     <request name="get_keyboard">
       <description summary="return keyboard object">
-        The ID provided will be initialized to the wl_keyboard interface
+	The ID provided will be initialized to the wl_keyboard interface
 	for this seat.
 
-        This request only takes effect if the seat has the keyboard
-        capability.
+	This request only takes effect if the seat has the keyboard
+	capability, or has had the keyboard capability in the past.
+	It is a protocol violation to issue this request on a seat that has
+	never had the keyboard capability.
       </description>
       <arg name="id" type="new_id" interface="wl_keyboard"/>
     </request>
 
     <request name="get_touch">
       <description summary="return touch object">
-        The ID provided will be initialized to the wl_touch interface
+	The ID provided will be initialized to the wl_touch interface
 	for this seat.
 
-        This request only takes effect if the seat has the touch
-        capability.
+	This request only takes effect if the seat has the touch
+	capability, or has had the touch capability in the past.
+	It is a protocol violation to issue this request on a seat that has
+	never had the touch capability.
       </description>
       <arg name="id" type="new_id" interface="wl_touch"/>
     </request>
@@ -1411,7 +1765,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="3">
+  <interface name="wl_pointer" version="5">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -1570,7 +1924,7 @@
 
     <request name="release" type="destructor" since="3">
       <description summary="release the pointer object">
-        Using this request client can tell the server that it is not going to
+	Using this request client can tell the server that it is not going to
 	use the pointer object anymore.
 
 	This request destroys the pointer proxy object, so user must not call
@@ -1578,9 +1932,153 @@
       </description>
     </request>
 
+    <!-- Version 5 additions -->
+
+    <event name="frame" since="5">
+      <description summary="end of a pointer event sequence">
+	Indicates the end of a set of events that logically belong together.
+	A client is expected to accumulate the data in all events within the
+	frame before proceeding.
+
+	All wl_pointer events before a wl_pointer.frame event belong
+	logically together. For example, in a diagonal scroll motion the
+	compositor will send an optional wl_pointer.axis_source event, two
+	wl_pointer.axis events (horizontal and vertical) and finally a
+	wl_pointer.frame event. The client may use this information to
+	calculate a diagonal vector for scrolling.
+
+	When multiple wl_pointer.axis events occur within the same frame,
+	the motion vector is the combined motion of all events.
+	When a wl_pointer.axis and a wl_pointer.axis_stop event occur within
+	the same frame, this indicates that axis movement in one axis has
+	stopped but continues in the other axis.
+	When multiple wl_pointer.axis_stop events occur within in the same
+	frame, this indicates that these axes stopped in the same instance.
+
+	A wl_pointer.frame event is sent for every logical event group,
+	even if the group only contains a single wl_pointer event.
+	Specifically, a client may get a sequence: motion, frame, button,
+	frame, axis, frame, axis_stop, frame.
+
+	The wl_pointer.enter and wl_pointer.leave events are logical events
+	generated by the compositor and not the hardware. These events are
+	also grouped by a wl_pointer.frame. When a pointer moves from one
+	surface to the another, a compositor should group the
+	wl_pointer.leave event within the same wl_pointer.frame.
+	However, a client must not rely on wl_pointer.leave and
+	wl_pointer.enter being in the same wl_pointer.frame.
+	Compositor-specific policies may require the wl_pointer.leave and
+	wl_pointer.enter event being split across multiple wl_pointer.frame
+	groups.
+      </description>
+    </event>
+
+    <enum name="axis_source">
+      <description summary="axis source types">
+	Describes the source types for axis events. This indicates to the
+	client how an axis event was physically generated; a client may
+	adjust the user interface accordingly. For example, scroll events
+	from a "finger" source may be in a smooth coordinate space with
+	kinetic scrolling whereas a "wheel" source may be in discrete steps
+	of a number of lines.
+
+	The "continuous" axis source is a device generating events in a
+	continuous coordinate space, but using something other than a
+	finger. One example for this source is button-based scrolling where
+	the vertical motion of a device is converted to scroll events while
+	a button is held down.
+      </description>
+      <entry name="wheel" value="0" summary="A physical wheel" />
+      <entry name="finger" value="1" summary="Finger on a touch surface" />
+      <entry name="continuous" value="2" summary="Continuous coordinate space"/>
+    </enum>
+
+    <event name="axis_source" since="5">
+      <description summary="axis source event">
+	Source information for scroll and other axes.
+
+	This event does not occur on its own. It is sent before a
+	wl_pointer.frame event and carries the source information for
+	all events within that frame.
+
+	The source specifies how this event was generated. If the source is
+	wl_pointer.axis_source.finger, a wl_pointer.axis_stop event will be
+	sent when the user lifts the finger off the device.
+
+	If the source is wl_pointer axis_source.wheel or
+	wl_pointer.axis_source.continuous, a wl_pointer.axis_stop event may
+	or may not be sent. Whether a compositor sends a axis_stop event
+	for these sources is hardware-specific and implementation-dependent;
+	clients must not rely on receiving an axis_stop event for these
+	scroll sources and should treat scroll sequences from these scroll
+	sources as unterminated by default.
+
+	This event is optional. If the source is unknown for a particular
+	axis event sequence, no event is sent.
+	Only one wl_pointer.axis_source event is permitted per frame.
+
+	The order of wl_pointer.axis_discrete and wl_pointer.axis_source is
+	not guaranteed.
+      </description>
+      <arg name="axis_source" type="uint" enum="axis_source"/>
+    </event>
+
+    <event name="axis_stop" since="5">
+      <description summary="axis stop event">
+	Stop notification for scroll and other axes.
+
+	For some wl_pointer.axis_source types, a wl_pointer.axis_stop event
+	is sent to notify a client that the axis sequence has terminated.
+	This enables the client to implement kinetic scrolling.
+	See the wl_pointer.axis_source documentation for information on when
+	this event may be generated.
+
+	Any wl_pointer.axis events with the same axis_source after this
+	event should be considered as the start of a new axis motion.
+
+	The timestamp is to be interpreted identical to the timestamp in the
+	wl_pointer.axis event. The timestamp value may be the same as a
+	preceeding wl_pointer.axis event.
+      </description>
+      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
+      <arg name="axis" type="uint" enum="axis" summary="the axis stopped with this event"/>
+    </event>
+
+    <event name="axis_discrete" since="5">
+      <description summary="axis click event">
+	Discrete step information for scroll and other axes.
+
+	This event carries the axis value of the wl_pointer.axis event in
+	discrete steps (e.g. mouse wheel clicks).
+
+	This event does not occur on its own, it is coupled with a
+	wl_pointer.axis event that represents this axis value on a
+	continuous scale. The protocol guarantees that each axis_discrete
+	event is always followed by exactly one axis event with the same
+	axis number within the same wl_pointer.frame. Note that the protocol
+	allows for other events to occur between the axis_discrete and
+	its coupled axis event, including other axis_discrete or axis
+	events.
+
+	This event is optional; continuous scrolling devices
+	like two-finger scrolling on touchpads do not have discrete
+	steps and do not generate this event.
+
+	The discrete value carries the directional information. e.g. a value
+	of -2 is two steps towards the negative direction of this axis.
+
+	The axis number is identical to the axis number in the associate
+	axis event.
+
+	The order of wl_pointer.axis_discrete and wl_pointer.axis_source is
+	not guaranteed.
+      </description>
+      <arg name="axis" type="uint" enum="axis" />
+      <arg name="discrete" type="int"/>
+    </event>
   </interface>
 
-  <interface name="wl_keyboard" version="4">
+  <interface name="wl_keyboard" version="5">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -1694,7 +2192,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="3">
+  <interface name="wl_touch" version="5">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
