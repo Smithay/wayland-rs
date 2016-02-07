@@ -68,11 +68,11 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_array_init(*mut wl_array) -> (),
         fn wl_array_release(*mut wl_array) -> (),
         fn wl_array_add(*mut wl_array,usize) -> (),
-        fn wl_array_copy(*mut wl_array, *mut wl_array) -> ()
+        fn wl_array_copy(*mut wl_array, *mut wl_array) -> (),
 
     varargs:
-        fn wl_proxy_marshal_constructor(*mut wl_proxy, u32, *const wl_interface ...) -> *mut wl_proxy,
-        fn wl_proxy_marshal(*mut wl_proxy, u32 ...) -> ()
+        fn wl_proxy_marshal_constructor(*mut wl_proxy, u32, *const wl_interface) -> *mut wl_proxy,
+        fn wl_proxy_marshal(*mut wl_proxy, u32) -> (),
 );
 
 #[cfg(feature = "dlopen")]

@@ -1,13 +1,13 @@
 [package]
 name = "wayland-sys"
-version = "0.5.8"
+version = "0.5.9"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 description = "FFI bindings to the various libwayland-*.so libraries. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"
 
 [dependencies]
-dlib = "0.2"
+dlib = "0.3"
 libc = { version = "0.2", optional = true }
 lazy_static = { version = "0.1", optional = true }
 

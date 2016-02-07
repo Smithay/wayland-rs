@@ -14,7 +14,7 @@ external_library!(WaylandEgl, "wayland-egl",
         fn wl_egl_window_create(*mut wl_proxy, c_int, c_int) -> *mut wl_egl_window,
         fn wl_egl_window_destroy(*mut wl_egl_window) -> (),
         fn wl_egl_window_resize(*mut wl_egl_window, c_int, c_int, c_int, c_int) -> (),
-        fn wl_egl_window_get_attached_size(*mut wl_egl_window, *mut c_int, *mut c_int) -> ()
+        fn wl_egl_window_get_attached_size(*mut wl_egl_window, *mut c_int, *mut c_int) -> (),
 );
 
 #[cfg(feature = "dlopen")]

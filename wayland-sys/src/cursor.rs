@@ -35,7 +35,7 @@ external_library!(WaylandCursor, "wayland-cursor",
         fn wl_cursor_theme_get_cursor(*mut wl_cursor_theme, *const c_char) -> *mut wl_cursor,
         fn wl_cursor_image_get_buffer(*mut wl_cursor_image) -> *mut wl_proxy,
         fn wl_cursor_frame(*mut wl_cursor, u32) -> c_int,
-        fn wl_cursor_frame_and_duration(*mut wl_cursor, u32, *mut u32) -> c_int
+        fn wl_cursor_frame_and_duration(*mut wl_cursor, u32, *mut u32) -> c_int,
 );
 
 #[cfg(feature = "dlopen")]

@@ -115,11 +115,11 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_array_init(*mut wl_array) -> (),
         fn wl_array_release(*mut wl_array) -> (),
         fn wl_array_add(*mut wl_array,usize) -> (),
-        fn wl_array_copy(*mut wl_array, *mut wl_array) -> ()
+        fn wl_array_copy(*mut wl_array, *mut wl_array) -> (),
     varargs:
-        fn wl_resource_post_event(*mut wl_resource, u32 ...) -> (),
-        fn wl_resource_queue_event(*mut wl_resource, u32 ...) -> (),
-        fn wl_resource_post_error(*mut wl_resource, u32, *const c_char ...) -> ()
+        fn wl_resource_post_event(*mut wl_resource, u32) -> (),
+        fn wl_resource_queue_event(*mut wl_resource, u32) -> (),
+        fn wl_resource_post_error(*mut wl_resource, u32, *const c_char) -> (),
 );
 
 #[cfg(feature = "dlopen")]
