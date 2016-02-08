@@ -1,3 +1,10 @@
+//! The core wayland protocol
+//!
+//! This module contains the objects related to the core wayland protocol, you cannot
+//! not use it.
+//!
+//! The global entry point is the `get_display()` function.
+
 use std::io;
 
 use Proxy;
@@ -12,6 +19,7 @@ pub mod compositor {
 pub mod data_device {
     pub use sys::wayland::client::{WlDataDevice, WlDataDeviceManager, WlDataOffer, WlDataSource};
     pub use sys::wayland::client::{WlDataDeviceEvent, WlDataOfferEvent, WlDataSourceEvent};
+    pub use sys::wayland::client::{WlDataDeviceManagerDndAction};
 }
 pub mod output {
     pub use sys::wayland::client::WlOutput;
@@ -22,7 +30,8 @@ pub mod output {
 pub mod seat {
     pub use sys::wayland::client::{WlKeyboard, WlPointer, WlSeat, WlTouch};
     pub use sys::wayland::client::{WlKeyboardEvent, WlPointerEvent, WlSeatEvent, WlTouchEvent};
-    pub use sys::wayland::client::{WlKeyboardKeyState, WlKeyboardKeymapFormat, WlPointerAxis, WlPointerButtonState, WlSeatCapability};
+    pub use sys::wayland::client::{WlKeyboardKeyState, WlKeyboardKeymapFormat, WlPointerAxis};
+    pub use sys::wayland::client::{WlPointerButtonState, WlSeatCapability, WlPointerAxisSource};
 }
 
 pub mod shell {

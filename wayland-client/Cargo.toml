@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.5.9"
+version = "0.6.0-alpha"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -11,7 +11,7 @@ build = "build.rs"
 [dependencies]
 bitflags = "0.3.3"
 crossbeam = "0.1.5"
-dlib = "0.2"
+dlib = "0.3"
 libc = "0.2"
 lazy_static = { version = "0.1", optional = true }
 wayland-sys = { version = "0.5.7", features = ["client"] }
@@ -27,3 +27,5 @@ tempfile = "1.1"
 dlopen = ["dlib/dlopen", "wayland-sys/dlopen"]
 egl = ["wayland-sys/egl"]
 cursor = ["wayland-sys/cursor"]
+unstable-protocols = []
+wpu-xdg_shell = []
