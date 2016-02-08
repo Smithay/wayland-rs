@@ -2,9 +2,8 @@
 
 #[macro_use] extern crate bitflags;
 extern crate crossbeam;
-#[macro_use] extern crate dlib;
 extern crate libc;
-extern crate wayland_sys;
+#[macro_use] extern crate wayland_sys;
 
 mod env;
 mod events;
