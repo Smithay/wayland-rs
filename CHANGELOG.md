@@ -1,5 +1,18 @@
 # Change Log
 
+## 0.6.0 - incoming
+
+### Added
+
+- Support for protocol extentions
+- `wpu-xdg_shell`
+
+## 0.5.9 - 2016-02-08
+
+### Changes
+
+- Update `dlib` dependency to v0.3 to match new macro syntax rules.
+
 ## 0.5.8 - 2016-01-07
 
 ### BugFixes
