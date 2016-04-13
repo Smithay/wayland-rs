@@ -22,6 +22,9 @@ pub struct CursorTheme {
     theme: *mut wl_cursor_theme
 }
 
+// Guaranty provided by the wayland libs
+unsafe impl Send for CursorTheme { }
+
 /// Attempts to load a cursor theme from given name.
 ///
 /// If no name is given or the requested theme is not found, will
