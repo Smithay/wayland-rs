@@ -117,8 +117,8 @@ fn parse_description<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAtt
     (summary, description)
 }
 
-fn parse_request<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>) -> Request {
-    let mut request = Request::new();
+fn parse_request<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>) -> Message {
+    let mut request = Message::new();
     for attr in attrs {
         match &attr.name.local_name[..] {
             "name" => request.name = attr.value,
@@ -171,8 +171,8 @@ fn parse_enum<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>
     enu
 }
 
-fn parse_event<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>) -> Event {
-    let mut event = Event::new();
+fn parse_event<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>) -> Message {
+    let mut event = Message::new();
     for attr in attrs {
         match &attr.name.local_name[..] {
             "name" => event.name = attr.value,
