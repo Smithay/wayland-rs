@@ -133,9 +133,9 @@ pub fn emit_enums<O: Write>(enums: Vec<Enum>, iface_name: &str, out: &mut O) -> 
     return bitfields;
 }
 
-pub fn emit_message_enums<O: Write>(messages: &[Message], camel_iname: &str, bitfields: &[String], suffix: &str, out: &mut O) {
+pub fn emit_message_enums<O: Write>(messages: &[Message], camel_iname: &str, bitfields: &[String], server: bool, out: &mut O) {
     writeln!(out, "#[derive(Debug)]").unwrap();
-    writeln!(out, "pub enum {}{} {{", camel_iname, suffix).unwrap();
+    writeln!(out, "pub enum {}{} {{", camel_iname, if server { "Request" } else { "Event" }).unwrap();
     for msg in messages {
         if let Some((ref summary, ref desc)) = msg.description {
             write_doc(summary, desc, "    ", out)
@@ -164,6 +164,12 @@ pub fn emit_message_enums<O: Write>(messages: &[Message], camel_iname: &str, bit
                         a.interface.as_ref().map(|s| snake_to_camel(s))
                             .expect("Cannot create a new_id in an event without an interface.")
                     ).unwrap();
+                } else if a.typ == Type::Object {
+                    if server {
+                        write!(out, "ResourceId,").unwrap();
+                    } else {
+                        write!(out, "ProxyId,").unwrap();
+                    }
                 } else {
                     write!(out, "{},", a.typ.rust_type()).unwrap();
                 }

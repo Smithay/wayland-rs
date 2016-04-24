@@ -38,7 +38,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
         emit_opcodes(&interface.name, &interface.requests, out);
 
         if interface.events.len() > 0 {
-            emit_message_enums(&interface.events, &camel_iname, &bitfields, "Event", out);
+            emit_message_enums(&interface.events, &camel_iname, &bitfields, false, out);
             emit_message_handlers(&interface.events, &interface.name, &camel_iname, &protocol.name, out);
         }
         emit_iface_impl(&interface.requests, &interface.name, &camel_iname, &bitfields, out);
@@ -116,7 +116,7 @@ fn emit_iface_struct<O: Write>(camel_iname: &str, interface: &Interface, pname: 
 
     writeln!(out, "impl ::std::fmt::Debug for {} {{", camel_iname).unwrap();
     writeln!(out, "    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {{").unwrap();
-    writeln!(out, "        fmt.write_fmt(format_args!(\"{}::{}::{{}}\", self.ptr as usize))", pname, interface.name).unwrap();
+    writeln!(out, "        fmt.write_fmt(format_args!(\"{}::{}::{{:p}}\", self.ptr))", pname, interface.name).unwrap();
     writeln!(out, "    }}").unwrap();
     writeln!(out, "}}\n").unwrap();
 }
@@ -257,11 +257,24 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
                     }
                 },
                 Type::Fixed => {
-                    writeln!(out, "        let {} = wl_fixed_from_double({})", a.name, a.name).unwrap();
+                    writeln!(out, "        let {} = wl_fixed_from_double({});", a.name, a.name).unwrap();
                 },
                 _ => {}
             }
         }
+
+        for a in &req.args {
+            if a.typ == Type::Array {
+                if a.allow_null {
+                    write!(out, "let {} = {}.as_mut().map(|v| wl_array {{ size: v.len(), alloc: v.capacity(), data: v.as_ptr() as *mut _ }});",
+                        a.name, a.name).unwrap();
+                } else {
+                    write!(out, "let {} = wl_array {{ size: {}.len(), alloc: {}.capacity(), data: {}.as_ptr() as *mut _ }};",
+                        a.name, a.name, a.name, a.name).unwrap();
+                }
+            }
+        }
+
         if let Some(ref newint) = ret {
             if let &Some(ref name) = newint {
                 writeln!(out, "        let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface as *const wl_interface",
@@ -297,9 +310,9 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
                 }
             } else if a.typ == Type::Array {
                 if a.allow_null {
-                    write!(out, ", {}.map(|a| &mut a as *mut wl_array).unwrap_or(ptr::null_mut())", a.name).unwrap();
+                    write!(out, ", {}.map(|a| &a as *const wl_array).unwrap_or(ptr::null_mut())", a.name).unwrap();
                 } else {
-                    write!(out, ", &mut {} as *mut wl_array", a.name).unwrap();
+                    write!(out, ", &{} as *const wl_array", a.name).unwrap();
                 }
             } else if a.typ == Type::Object {
                 if a.allow_null {
