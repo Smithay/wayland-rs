@@ -6,7 +6,7 @@ pub mod interfaces {
     include!(concat!(env!("OUT_DIR"), "/xdg_shell_interfaces.rs"));
 }
 
-pub mod client {
-    use sys::wayland::client::{WlSeat, WlSurface, WlOutput};
-    include!(concat!(env!("OUT_DIR"), "/xdg_shell_client_api.rs"));
+pub mod server {
+    use sys::wayland::server::{WlSeat, WlSurface, WlOutput};
+    include!(concat!(env!("OUT_DIR"), "/xdg_shell_server_api.rs"));
 }

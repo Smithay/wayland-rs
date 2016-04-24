@@ -10,6 +10,9 @@ mod sys;
 
 pub mod wayland;
 
+#[cfg(all(feature = "unstable-protocols", feature = "wpu-xdg_shell"))]
+pub mod xdg_shell;
+
 use wayland_sys::server::{wl_resource, wl_client};
 use wayland_sys::common::wl_interface;
 
