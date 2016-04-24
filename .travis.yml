@@ -29,7 +29,7 @@ script:
       travis-cargo --only nightly test -- --features "dlopen egl cursor unstable-protocols wpu-xdg_shell" &&
       cd ../wayland-server &&
       travis-cargo test -- --features "dlopen" &&
-      travis-cargo --only nightly test -- --features "unstable-protocols wpu-xdg_shell" &&
+      travis-cargo --only nightly test -- --features "dlopen unstable-protocols wpu-xdg_shell" &&
       cd .. &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-sys --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-scanner --no-deps &&
