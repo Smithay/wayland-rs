@@ -22,5 +22,6 @@ byteorder = "0.3"
 tempfile = "1.1"
 
 [features]
+dlopen = ["wayland-sys/dlopen"]
 unstable-protocols = []
 wpu-xdg_shell = []
