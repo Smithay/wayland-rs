@@ -13,3 +13,7 @@ pub use sys::xdg_shell::server::{XdgSurface, XdgSurfaceResizeEdge, XdgSurfaceSta
 pub use sys::xdg_shell::server::{XdgPopup, XdgPopupRequest};
 
 pub use sys::xdg_shell::server::XdgShellUnstableV5ProtocolRequest;
+
+protocol_globals!(XdgShellUnstableV5, XdgShellUnstableV5ProtocolGlobalInstance,
+    Shell => ::xdg_shell::XdgShell
+);

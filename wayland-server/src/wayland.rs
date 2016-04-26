@@ -42,3 +42,13 @@ pub mod shm {
 pub mod subcompositor {
     pub use sys::wayland::server::{WlSubcompositor, WlSubsurface};
 }
+
+protocol_globals!(Wayland,WaylandProtocolGlobalInstance,
+    Compositor => ::wayland::compositor::WlCompositor,
+    DataDeviceManager => ::wayland::data_device::WlDataDeviceManager,
+    Output => ::wayland::output::WlOutput,
+    Seat => ::wayland::seat::WlSeat,
+    Shell => ::wayland::shell::WlShell,
+    Shm => ::wayland::shm::WlShm,
+    SubCompositor => ::wayland::subcompositor::WlSubcompositor
+);

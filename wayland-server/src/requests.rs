@@ -1,6 +1,10 @@
 use std::iter::Iterator;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use {ResourceId, ClientId};
+use globals::GlobalId;
 
 /// All possible wayland requests.
 ///
@@ -10,6 +14,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// As the number of variant of this enum can change depending on which cargo features are
 /// activated, it should *never* be matched exhaustively. It contains an hidden, never-used
 /// variant to ensure it.
+///
+/// However, you should always match it for *all* the request associated with resources
+/// derived from globals that have previously been advertized, in order to respect the
+/// wayland protocol.
 #[derive(Debug)]
 pub enum Request {
     Wayland(::wayland::WaylandProtocolRequest),
@@ -48,4 +56,19 @@ impl Iterator for RequestIterator {
 
 pub fn get_requestiter_internals(evt: &RequestIterator) -> Arc<(RequestFifo, AtomicBool)> {
     evt.fifo.clone()
+}
+
+pub enum ResourceParent {
+    Global(GlobalId),
+    Resource(ResourceId)
+}
+
+pub trait IteratorDispatch {
+    fn get_iterator(&self, client: ClientId, parent: ResourceParent) -> &RequestIterator;
+}
+
+impl<T> IteratorDispatch for T where T: Deref<Target=RequestIterator> {
+    fn get_iterator(&self, _: ClientId, _: ResourceParent) -> &RequestIterator {
+        self.deref()
+    }
 }

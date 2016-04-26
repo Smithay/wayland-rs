@@ -5,6 +5,10 @@ extern crate crossbeam;
 extern crate libc;
 #[macro_use] extern crate wayland_sys;
 
+mod client;
+mod display;
+#[macro_use]
+mod globals;
 mod requests;
 mod sys;
 
@@ -13,10 +17,14 @@ pub mod wayland;
 #[cfg(all(feature = "unstable-protocols", feature = "wpu-xdg_shell"))]
 pub mod xdg_shell;
 
-use wayland_sys::server::{wl_resource, wl_client};
+use wayland_sys::server::wl_resource;
 use wayland_sys::common::wl_interface;
 
-pub use requests::{Request, RequestIterator};
+pub use display::Display;
+pub use client::{Client, ClientId};
+
+pub use requests::{Request, RequestIterator, IteratorDispatch, ResourceParent};
+pub use globals::{Global, GlobalInstance, GlobalId, GlobalResource};
 
 pub trait Resource {
     fn ptr(&self) -> *mut wl_resource;
@@ -52,11 +60,4 @@ pub struct ResourceId { id: usize }
 
 fn wrap_resource(ptr: *mut wl_resource) -> ResourceId {
     ResourceId { id: ptr as usize}
-}
-
-#[derive(Copy,Clone,PartialEq,Eq,Debug,Hash)]
-pub struct ClientId { id: usize }
-
-fn wrap_client(ptr: *mut wl_client) -> ClientId {
-    ClientId { id: ptr as usize}
 }

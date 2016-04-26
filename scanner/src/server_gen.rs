@@ -13,7 +13,8 @@ pub fn generate_server_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     writeln!(out, "use wayland_sys::common::*;").unwrap();
     writeln!(out, "use wayland_sys::server::*;").unwrap();
-    writeln!(out, "use {{Resource, ResourceId, wrap_resource, ClientId, wrap_client}};").unwrap();
+    writeln!(out, "use {{Resource, ResourceId, wrap_resource}};").unwrap();
+    writeln!(out, "use client::{{ClientId, wrap_client}};").unwrap();
     writeln!(out, "use requests::{{RequestIterator, RequestFifo, get_requestiter_internals}};").unwrap();
     writeln!(out, "use super::interfaces::*;").unwrap();
     writeln!(out, "").unwrap();
@@ -105,7 +106,7 @@ fn emit_iface_struct<O: Write>(camel_iname: &str, interface: &Interface, pname: 
     writeln!(out, "    fn max_version() -> u32 {{ {} }}", interface.version).unwrap();
     writeln!(out, "    fn bound_version(&self) -> u32 {{ let v = unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr) }}; v as u32 }}").unwrap();
     writeln!(out, "    fn id(&self) -> ResourceId {{ ResourceId {{ id: self.ptr as usize }} }}").unwrap();
-    writeln!(out, "    fn client_id(&self) -> ClientId {{ ClientId {{ id: self.client as usize }} }}").unwrap();
+    writeln!(out, "    fn client_id(&self) -> ClientId {{ wrap_client(self.client) }}").unwrap();
     writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_resource) -> {} {{", camel_iname).unwrap();
     if interface.requests.len() > 0 {
         writeln!(out, "        ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_dispatcher, ptr, event_dispatcher, {}_implem as *const c_void, ptr::null_mut(), ::std::mem::transmute::<*const u8, wl_resource_destroy_func_t>(ptr::null()));", interface.name).unwrap();
