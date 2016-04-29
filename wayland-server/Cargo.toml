@@ -9,7 +9,7 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-bitflags = "0.3.3"
+bitflags = ">= 0.5.0, < 0.7"
 crossbeam = "0.1.5"
 libc = "0.2"
 wayland-sys = { version = "0.6.0", features = ["server"] }
