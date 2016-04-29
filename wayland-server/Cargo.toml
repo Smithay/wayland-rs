@@ -12,10 +12,10 @@ build = "build.rs"
 bitflags = ">= 0.5.0, < 0.7"
 crossbeam = "0.2.9"
 libc = "0.2"
-wayland-sys = { version = "0.6.0", features = ["server"] }
+wayland-sys = { version = "0.6.0-alpha", features = ["server"], path = "../wayland-sys" }
 
 [build-dependencies]
-wayland-scanner = { version = "0.6.0" }
+wayland-scanner = { version = "0.6.0-alpha", path = "../scanner" }
 
 [features]
 dlopen = ["wayland-sys/dlopen"]
