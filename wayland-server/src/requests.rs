@@ -50,7 +50,7 @@ impl Drop for RequestIterator {
 impl Iterator for RequestIterator {
     type Item = Request;
     fn next(&mut self) -> Option<Request> {
-        self.fifo.0.pop()
+        self.fifo.0.try_pop()
     }
 }
 
