@@ -7,3 +7,4 @@ description = "Automating tests for other crates. Not to be published"
 wayland-sys = { path = "wayland-sys", features = ["dlopen", "client", "egl", "cursor", "server"] }
 wayland-scanner = { path = "scanner" }
 wayland-client = { path = "wayland-client", features = ["dlopen", "egl", "cursor"] }
+wayland-server = { path = "wayland-server" }

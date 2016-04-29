@@ -27,10 +27,14 @@ script:
       cd ../wayland-client &&
       travis-cargo test -- --features "dlopen egl cursor" &&
       travis-cargo --only nightly test -- --features "dlopen egl cursor unstable-protocols wpu-xdg_shell" &&
+      cd ../wayland-server &&
+      travis-cargo test -- --features "dlopen" &&
+      travis-cargo --only nightly test -- --features "dlopen unstable-protocols wpu-xdg_shell" &&
       cd .. &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-sys --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-scanner --no-deps &&
       travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-client --no-deps &&
+      travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-server --no-deps &&
       echo "Finished !"
 
 after_success:

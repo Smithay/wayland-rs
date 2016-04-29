@@ -1,18 +1,18 @@
 [package]
-name = "wayland-client"
+name = "wayland-server"
 version = "0.6.0-alpha"
-documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
+documentation = "http://vberger.github.io/wayland-client-rs/wayland_server/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
-description = "Bindings to the standard C implementation of the wayland protocol, client side."
+description = "Bindings to the standard C implementation of the wayland protocol, server side."
 build = "build.rs"
 
 [dependencies]
 bitflags = "0.3.3"
 crossbeam = "0.1.5"
 libc = "0.2"
-wayland-sys = { version = "0.6.0", features = ["client"] }
+wayland-sys = { version = "0.6.0", features = ["server"] }
 
 [build-dependencies]
 wayland-scanner = { version = "0.6.0" }
@@ -23,7 +23,5 @@ tempfile = "1.1"
 
 [features]
 dlopen = ["wayland-sys/dlopen"]
-egl = ["wayland-sys/egl"]
-cursor = ["wayland-sys/cursor"]
 unstable-protocols = []
 wpu-xdg_shell = []

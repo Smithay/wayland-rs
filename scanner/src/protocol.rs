@@ -21,8 +21,8 @@ pub struct Interface {
     pub name: String,
     pub version: u32,
     pub description: Option<(String, String)>,
-    pub requests: Vec<Request>,
-    pub events: Vec<Event>,
+    pub requests: Vec<Message>,
+    pub events: Vec<Message>,
     pub enums: Vec<Enum>
 }
 
@@ -40,7 +40,7 @@ impl Interface {
 }
 
 #[derive(Debug)]
-pub struct Request {
+pub struct Message {
     pub name: String,
     pub typ: Option<Type>,
     pub since: u16,
@@ -49,36 +49,11 @@ pub struct Request {
     pub type_index: usize
 }
 
-impl Request {
-    pub fn new() -> Request {
-        Request {
+impl Message {
+    pub fn new() -> Message {
+        Message {
             name: String::new(),
             typ: None,
-            since: 1,
-            description: None,
-            args: Vec::new(),
-            type_index: 0
-        }
-    }
-
-    pub fn all_null(&self) -> bool {
-        self.args.iter().all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
-    }
-}
-
-#[derive(Debug)]
-pub struct Event {
-    pub name: String,
-    pub since: u16,
-    pub description: Option<(String, String)>,
-    pub args: Vec<Arg>,
-    pub type_index: usize
-}
-
-impl Event {
-    pub fn new() -> Event {
-        Event {
-            name: String::new(),
             since: 1,
             description: None,
             args: Vec::new(),

@@ -7,6 +7,7 @@ mod util;
 mod parse;
 mod protocol;
 mod interface_gen;
+mod common_gen;
 mod client_gen;
 mod server_gen;
 
