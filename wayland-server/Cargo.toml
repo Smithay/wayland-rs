@@ -9,17 +9,13 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-bitflags = "0.3.3"
-crossbeam = "0.1.5"
+bitflags = ">= 0.5.0, < 0.7"
+crossbeam = "0.2.9"
 libc = "0.2"
-wayland-sys = { version = "0.6.0", features = ["server"] }
+wayland-sys = { version = "0.6.0-alpha", features = ["server"], path = "../wayland-sys" }
 
 [build-dependencies]
-wayland-scanner = { version = "0.6.0" }
-
-[dev-dependencies]
-byteorder = "0.3"
-tempfile = "1.1"
+wayland-scanner = { version = "0.6.0-alpha", path = "../scanner" }
 
 [features]
 dlopen = ["wayland-sys/dlopen"]

@@ -42,7 +42,7 @@ impl Drop for EventIterator {
 impl Iterator for EventIterator {
     type Item = Event;
     fn next(&mut self) -> Option<Event> {
-        self.fifo.0.pop()
+        self.fifo.0.try_pop()
     }
 }
 

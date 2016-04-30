@@ -7,4 +7,4 @@ description = "Wayland Scanner for generating rust APIs from XML wayland protoco
 license = "MIT"
 
 [dependencies]
-xml-rs = "^0.2"
+xml-rs = "0.3"

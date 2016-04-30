@@ -39,7 +39,7 @@ fn main() {
     let shell_surface = shell.get_shell_surface(&surface);
 
     // create a tempfile to write on
-    let mut tmp = tempfile::TempFile::new().ok().expect("Unable to create a tempfile.");
+    let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
     // write the contents to it, lets put everything in dark red
     for _ in 0..10_000 {
         let _ = tmp.write_u32::<NativeEndian>(0xFF880000);

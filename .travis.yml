@@ -19,7 +19,6 @@ os:
 
 script:
   - |
-      ./tweak-cargo-tomls.sh &&
       cd wayland-sys &&
       travis-cargo test -- --features "dlopen egl client server cursor" &&
       cd ../scanner &&

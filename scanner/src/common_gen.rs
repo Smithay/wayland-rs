@@ -60,7 +60,7 @@ pub fn emit_enums<O: Write>(enums: Vec<Enum>, iface_name: &str, out: &mut O) -> 
             writeln!(out, "pub mod {}{} {{",
                 snake_to_camel(iface_name), snake_to_camel(&enu.name)).unwrap();
             writeln!(out, "bitflags! {{").unwrap();
-            writeln!(out, "    flags {}{}: u32 {{",
+            writeln!(out, "    pub flags {}{}: u32 {{",
                 snake_to_camel(iface_name), snake_to_camel(&enu.name)).unwrap();
         } else {
             writeln!(out, "#[repr(u32)]\n#[derive(Debug)]\npub enum {}{} {{",
