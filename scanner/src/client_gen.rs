@@ -113,7 +113,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
                 writeln!(out, "pub mod {}{} {{",
                     snake_to_camel(&interface.name), snake_to_camel(&enu.name)).unwrap();
                 writeln!(out, "bitflags! {{").unwrap();
-                writeln!(out, "    flags {}{}: u32 {{",
+                writeln!(out, "    pub flags {}{}: u32 {{",
                     snake_to_camel(&interface.name), snake_to_camel(&enu.name)).unwrap();
             } else {
                 writeln!(out, "#[repr(u32)]\n#[derive(Debug)]\npub enum {}{} {{",
