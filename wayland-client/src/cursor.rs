@@ -6,7 +6,7 @@ use std::ptr;
 use wayland_sys::cursor::*;
 use std::os::raw::c_int;
 
-use Proxy;
+use {Proxy, ProxyInternal};
 use wayland::shm::{WlShm, WlBuffer};
 
 /// Checks if the wayland-cursor lib is available and can be used
@@ -144,7 +144,7 @@ impl<'a> Cursor<'a> {
                 let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
                 Some(CursorImageBuffer {
                     _cursor: PhantomData,
-                    buffer: Some(Proxy::from_ptr_no_own(ptr))
+                    buffer: Some(ProxyInternal::from_ptr_no_own(ptr))
                 })
             }
         }

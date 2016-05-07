@@ -14,14 +14,13 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     writeln!(out, "use wayland_sys::common::*;").unwrap();
     writeln!(out, "use wayland_sys::client::*;").unwrap();
-    writeln!(out, "use {{Proxy, ProxyId, wrap_proxy}};").unwrap();
-    writeln!(out, "use events::{{EventIterator, EventFifo, get_eventiter_internals, eventiter_from_internals}};").unwrap();
+    writeln!(out, "use {{ProxyInternal, Proxy, ProxyId, wrap_proxy}};").unwrap();
+    writeln!(out, "use events::{{EventIterator, EventFifo, get_eventiter_internals}};").unwrap();
     writeln!(out, "use super::interfaces::*;").unwrap();
     writeln!(out, "").unwrap();
     writeln!(out, "use std::ffi::{{CString, CStr}};").unwrap();
     writeln!(out, "use std::ptr;").unwrap();
     writeln!(out, "use std::sync::Arc;").unwrap();
-    writeln!(out, "use std::sync::atomic::{{AtomicBool, Ordering}};").unwrap();
     writeln!(out, "use std::os::raw::{{c_void, c_char}};").unwrap();
 
     // event handling
@@ -65,15 +64,15 @@ fn emit_event_machinery<O: Write>(protocol: &Protocol, out: &mut O) {
 
     writeln!(out,
         "extern \"C\" fn event_dispatcher(implem: *const c_void, proxy: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) {{").unwrap();
-    writeln!(out, "    let userdata = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy as *mut wl_proxy) }} as *const (EventFifo, AtomicBool);").unwrap();
+    writeln!(out, "    let userdata = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy as *mut wl_proxy) }} as *mut EventFifo;").unwrap();
     writeln!(out, "    if userdata.is_null() {{ return; }}").unwrap();
-    writeln!(out, "    let fifo: &(EventFifo, AtomicBool) = unsafe {{ &*userdata }};").unwrap();
-    writeln!(out, "    if !fifo.1.load(Ordering::SeqCst) {{ return; }}").unwrap();
+    writeln!(out, "    let fifo: &EventFifo = unsafe {{ &*userdata }};").unwrap();
+    writeln!(out, "    if ! unsafe {{ fifo.alive() }} {{ return; }}").unwrap();
     writeln!(out, "    let implem = unsafe {{ ::std::mem::transmute::<_, {}_dispatcher_implem>(implem) }};",
         protocol.name).unwrap();
     writeln!(out, "    let event = implem(proxy as *mut wl_proxy, opcode, args);").unwrap();
     writeln!(out, "    if let Some(evt) = event {{").unwrap();
-    writeln!(out, "        fifo.0.push(::Event::{}(evt));", snake_to_camel(&protocol.name)).unwrap();
+    writeln!(out, "        unsafe {{ fifo.push(::Event::{}(evt)) }};", snake_to_camel(&protocol.name)).unwrap();
     writeln!(out, "    }}").unwrap();
     writeln!(out, "}}").unwrap();
 }
@@ -84,7 +83,7 @@ fn emit_iface_struct<O: Write>(camel_iname: &str, interface: &Interface, pname: 
         write_doc(summary, desc, "", out)
     }
 
-    writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy,\n    evq: Arc<(EventFifo,AtomicBool)>\n}}\n",
+    writeln!(out, "pub struct {} {{\n    ptr: *mut wl_proxy,\n    evq: Arc<EventFifo>\n}}\n",
             camel_iname).unwrap();
 
     writeln!(out, "unsafe impl Sync for {} {{}}", camel_iname).unwrap();
@@ -96,21 +95,25 @@ fn emit_iface_struct<O: Write>(camel_iname: &str, interface: &Interface, pname: 
     writeln!(out, "    fn interface_name() -> &'static str {{ \"{}\" }}", interface.name).unwrap();
     writeln!(out, "    fn version() -> u32 {{ {} }}", interface.version).unwrap();
     writeln!(out, "    fn id(&self) -> ProxyId {{ ProxyId {{ id: self.ptr as usize }} }}").unwrap();
+    writeln!(out, "    fn set_event_iterator(&mut self, evt: &EventIterator) {{").unwrap();
+    writeln!(out, "        self.evq = get_eventiter_internals(evt);").unwrap();
+    writeln!(out, "        let ptr = &*self.evq as *const EventFifo;").unwrap();
+    writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, self.ptr, ptr as *const c_void as *mut c_void) }};").unwrap();
+    writeln!(out, "    }}").unwrap();
+    writeln!(out, "}}\n").unwrap();
+
+    writeln!(out, "impl ProxyInternal for {} {{", camel_iname).unwrap();
     writeln!(out, "    unsafe fn from_ptr(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
     if interface.name != "wl_display" && interface.events.len() > 0 {
         writeln!(out, "        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_add_dispatcher, ptr, event_dispatcher, {}_implem as *const c_void, ptr::null_mut());", interface.name).unwrap();
     }
-    writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
+    writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new(EventFifo::new()) }}", camel_iname).unwrap();
     writeln!(out, "    }}").unwrap();
     writeln!(out, "    unsafe fn from_ptr_no_own(ptr: *mut wl_proxy) -> {} {{", camel_iname).unwrap();
-    writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new((EventFifo::new(), AtomicBool::new(false))) }}", camel_iname).unwrap();
+    writeln!(out, "        {} {{ ptr: ptr, evq: Arc::new(EventFifo::new()) }}", camel_iname).unwrap();
     writeln!(out, "    }}").unwrap();
-    writeln!(out, "    fn set_evt_iterator(&mut self, evt: &EventIterator) {{").unwrap();
-    writeln!(out, "        self.evq = get_eventiter_internals(evt);").unwrap();
-    if interface.name != "wl_display" {
-    writeln!(out, "        let ptr = &*self.evq as *const (EventFifo,AtomicBool);").unwrap();
-    writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, self.ptr, ptr as *const c_void as *mut c_void) }};").unwrap();
-    }
+    writeln!(out, "    unsafe fn set_evq(&mut self, internals: Arc<EventFifo>) {{").unwrap();
+    writeln!(out, "        self.evq = internals;").unwrap();
     writeln!(out, "    }}").unwrap();
     writeln!(out, "}}\n").unwrap();
 
@@ -333,11 +336,13 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
             writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }}").unwrap();
         }
         if let Some(ref newint) = ret {
-            writeln!(out, "        let mut proxy: {} = unsafe {{ Proxy::from_ptr(ptr) }};",
+            writeln!(out, "        let mut proxy: {} = unsafe {{ ProxyInternal::from_ptr(ptr) }};",
                 newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
-            writeln!(out, "        let evt_iter = eventiter_from_internals(self.evq.clone());").unwrap();
-            writeln!(out, "        proxy.set_evt_iterator(&evt_iter);").unwrap();
-            writeln!(out, "        ::std::mem::forget(evt_iter); // Don't run the destructor !").unwrap();
+            writeln!(out, "        unsafe {{").unwrap();
+            writeln!(out, "            let udata = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr());").unwrap();
+            writeln!(out, "            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, proxy.ptr(), udata);").unwrap();
+            writeln!(out, "            proxy.set_evq(self.evq.clone());").unwrap();
+            writeln!(out, "        }}").unwrap();
             writeln!(out, "        proxy").unwrap();
         }
         writeln!(out, "    }}").unwrap();

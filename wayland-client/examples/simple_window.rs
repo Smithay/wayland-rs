@@ -8,7 +8,6 @@ use byteorder::{WriteBytesExt, NativeEndian};
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 
-use wayland_client::Proxy;
 use wayland_client::wayland::get_display;
 use wayland_client::wayland::compositor::WlCompositor;
 use wayland_client::wayland::shell::WlShell;
@@ -21,13 +20,13 @@ wayland_env!(WaylandEnv,
 );
 
 fn main() {
-    let display = match get_display() {
-        Some(d) => d,
-        None => panic!("Unable to connect to a wayland compositor.")
+    let (display, iter) = match get_display() {
+        Ok(d) => d,
+        Err(e) => panic!("Unable to connect to a wayland compositor: {:?}", e)
     };
 
     // Use wayland_env! macro to get the globals and an event iterator
-    let (mut env, _evt_iter) = WaylandEnv::init(display);
+    let (mut env, _evt_iter) = WaylandEnv::init(display, iter);
 
     // Get shortcuts to the globals.
     // Here we only use the version 1 of the interface, so no checks are needed.
@@ -42,7 +41,7 @@ fn main() {
     let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
     // write the contents to it, lets put everything in dark red
     for _ in 0..10_000 {
-        let _ = tmp.write_u32::<NativeEndian>(0xFF880000);
+        let _ = tmp.write_u32::<NativeEndian>(0xFFFFFFFF);
     }
     let _ = tmp.flush();
 

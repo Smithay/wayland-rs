@@ -1,6 +1,9 @@
-use std::iter::Iterator;
+use std::cell::{Cell, UnsafeCell};
+use std::collections::VecDeque;
+use std::io;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+
+use wayland_sys::client::*;
 
 /// All possible wayland events.
 ///
@@ -19,37 +22,187 @@ pub enum Event {
     __DoNotMatchThis,
 }
 
-pub type EventFifo = ::crossbeam::sync::MsQueue<Event>;
+pub struct EventFifo {
+    queue: UnsafeCell<VecDeque<Event>>,
+    alive: Cell<bool>
+}
+
+unsafe impl Send for EventFifo {}
+unsafe impl Sync for EventFifo {}
+
+impl EventFifo {
+    pub fn new() -> EventFifo {
+        EventFifo {
+            queue: UnsafeCell::new(VecDeque::new()),
+            alive: Cell::new(true)
+        }
+    }
+
+    pub unsafe fn push(&self, evt: Event) {
+        (&mut *self.queue.get()).push_front(evt)
+    }
+
+    unsafe fn pop(&self) -> Option<Event> {
+        (&mut *self.queue.get()).pop_back()
+    }
+
+    pub unsafe fn alive(&self) -> bool {
+        self.alive.get()
+    }
+}
 
 pub struct EventIterator {
-    fifo: Arc<(EventFifo, AtomicBool)>
+    fifo: Arc<EventFifo>,
+    event_queue: Option<*mut wl_event_queue>,
+    display: *mut wl_display
 }
 
 impl EventIterator {
-    pub fn new() -> EventIterator {
-        EventIterator {
-            fifo: Arc::new((::crossbeam::sync::MsQueue::new(),AtomicBool::new(true)))
-        }
+    /// Retrieves the next event in this iterator.
+    ///
+    /// Will automatically try to dispatch pending events if necessary.
+    ///
+    /// Similar to a combination of `next_event` and `dispatch_pending`.
+    pub fn next_event_dispatch(&mut self) -> Option<Event> {
+        unsafe { self.fifo.pop() }
+    }
+
+    /// Retrieves the next event in this iterator.
+    ///
+    /// Returns `None` if no event is available. Some events might still be in the
+    /// internal buffer, waiting to be dispatched to their EventIterators. Use
+    /// `dispatch_pending()` to dispatch the waiting events to this iterator.
+    pub fn next_event(&mut self) -> Option<Event> {
+        unsafe { self.fifo.pop() }
+    }
+
+    /// Non-blocking dispatch
+    ///
+    /// Will dispatch all pending events from the internal buffer to this event iterator.
+    /// Will not try to read events from the server socket, hence never blocks.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn dispatch_pending(&mut self) -> io::Result<i32> {
+        let ret = unsafe {match self.event_queue {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_queue_pending,
+                    self.display, evtq)
+            },
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending,
+                    self.display)
+            }
+        }};
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+    /// Blocking dispatch
+    ///
+    /// Will dispatch all pending events from the internal buffer to this event iterator.
+    /// If the buffer was empty, will read new events from the server socket, blocking if necessary.
+    ///
+    /// On success returns the number of dispatched events.
+    ///
+    /// Can cause a deadlock if called several times conccurently on different `EventIterator`.
+    /// For a risk-free approach, use `prepare_read()` and `dispatch_pending()`
+    pub fn dispatch(&mut self) -> io::Result<i32> {
+        let ret = unsafe { match self.event_queue {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_queue,
+                    self.display, evtq)
+            },
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch,
+                    self.display)
+            }
+        }};
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+    /// Prepare an conccurent read
+    ///
+    /// Will declare your intention to read events from the server socket.
+    ///
+    /// Will return `None` if there are still some events awaiting dispatch on this EventIterator.
+    /// In this case, you need to call `dispatch_pending()` before calling this method again.
+    ///
+    /// As long as the returned guard is in scope, no events can be dispatched to any event iterator.
+    ///
+    /// The guard can then be destroyed by two means:
+    ///
+    ///  - Calling its `cancel()` method (or letting it go out of scope): the read intention will
+    ///    be cancelled
+    ///  - Calling its `read_events()` method: will block until all existing guards are destroyed
+    ///    by one of these methods, then events will be read and all blocked `read_events()` calls
+    ///    will return.
+    ///
+    /// This call will otherwise not block on the server socket if it is empty, and return
+    /// an io error `WouldBlock` in such cases.
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
+        let ret = unsafe { match self.event_queue {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read_queue,
+                    self.display, evtq)
+            },
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read,
+                    self.display)
+            }
+        }};
+        if ret >= 0 { Some(ReadEventsGuard { display: self.display }) } else { None }
     }
 }
 
 impl Drop for EventIterator {
     fn drop(&mut self) {
-        self.fifo.1.store(false, Ordering::SeqCst);
+        println!("KILL");
+        self.fifo.alive.set(false)
     }
 }
 
-impl Iterator for EventIterator {
-    type Item = Event;
-    fn next(&mut self) -> Option<Event> {
-        self.fifo.0.try_pop()
+pub fn create_event_iterator(display: *mut wl_display, event_queue: Option<*mut wl_event_queue>) -> EventIterator {
+    EventIterator {
+        fifo: Arc::new(EventFifo::new()),
+        event_queue: event_queue,
+        display: display
     }
 }
 
-pub fn get_eventiter_internals(evt: &EventIterator) -> Arc<(EventFifo, AtomicBool)> {
+pub fn get_eventiter_internals(evt: &EventIterator) -> Arc<EventFifo> {
     evt.fifo.clone()
 }
 
-pub fn eventiter_from_internals(arc: Arc<(EventFifo, AtomicBool)>) -> EventIterator {
-    EventIterator { fifo: arc }
+/// A guard over a read intention.
+///
+/// See `WlDisplay::prepare_read()` for details about its use.
+pub struct ReadEventsGuard {
+    display: *mut wl_display
+}
+
+impl ReadEventsGuard {
+    /// Read events
+    ///
+    /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
+    /// until they are all destroyed.
+    pub fn read_events(self) -> io::Result<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
+        // Don't run destructor that would cancel the read intent
+        ::std::mem::forget(self);
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+    /// Cancel the read
+    ///
+    /// Will cancel the read intention associated with this guard. Never blocks.
+    ///
+    /// Has the same effet as letting the guard go out of scope.
+    pub fn cancel(self) {
+        // just run the destructor
+    }
+}
+
+impl Drop for ReadEventsGuard {
+    fn drop(&mut self) {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_cancel_read, self.display) }
+    }
 }

@@ -56,8 +56,8 @@
 /// );
 ///
 /// fn main() {
-///     let display = get_display().expect("Unable to connect to waylans server.");
-///     let (env, iter) = WaylandEnv::init(display);
+///     let (display, iter) = get_display().expect("Unable to connect to waylans server.");
+///     let (env, iter) = WaylandEnv::init(display, iter);
 ///     let shell = match env.shell {
 ///         Some((ref comp, version)) if version >= 2 => comp,
 ///         _ => panic!("This app requires the wayland interface wl_shell of version >= 2.")
@@ -78,12 +78,10 @@ macro_rules! wayland_env {
         }
 
         impl $structname {
-            pub fn init(mut display: $crate::wayland::WlDisplay) -> ($structname, $crate::EventIterator) {
-                use $crate::{Proxy, Event};
+            pub fn init(mut display: $crate::wayland::WlDisplay, mut iter: $crate::EventIterator) -> ($structname, $crate::EventIterator) {
+                use $crate::Event;
                 use $crate::wayland::{WaylandProtocolEvent, WlRegistryEvent};
 
-                let mut iter = $crate::EventIterator::new();
-                display.set_evt_iterator(&iter);
                 let registry = display.get_registry();
                 match display.sync_roundtrip() {
                     Ok(_) => {},
@@ -99,7 +97,7 @@ macro_rules! wayland_env {
                     )*
                 };
 
-                for evt in &mut iter {
+                while let Some(evt) = iter.next_event_dispatch() {
                     match evt {
                         Event::Wayland(WaylandProtocolEvent::WlRegistry(
                             _, WlRegistryEvent::Global(name, interface, version)
