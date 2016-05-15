@@ -6,6 +6,7 @@
 
 - Support for protocol extentions
 - `wpu-xdg_shell`
+- Allowed bitflags 0.7
 
 ## 0.5.9 - 2016-02-08
 
