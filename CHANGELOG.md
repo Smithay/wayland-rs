@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.5.9, 0.5.10, 0.5.11, 0.5.12
+
+- Various dependencies updates
+
 ## 0.5.8 - 2016-01-07
 
 ### BugFixes

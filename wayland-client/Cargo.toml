@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.5.11"
+version = "0.5.12"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -9,7 +9,7 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-bitflags = ">=0.5.0, <0.7 "
+bitflags = ">=0.5.0, <0.8 "
 crossbeam = "0.2"
 dlib = "0.3"
 libc = "0.2"
