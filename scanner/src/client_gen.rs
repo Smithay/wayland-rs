@@ -27,6 +27,8 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     emit_event_machinery(&protocol, out);
 
     for interface in protocol.interfaces {
+        interface.destructor_sanitize().unwrap();
+
         let camel_iname = snake_to_camel(&interface.name);
         writeln!(out, "//\n// interface {}\n//\n", interface.name).unwrap();
 
@@ -151,6 +153,12 @@ fn emit_message_handlers<O: Write>(messages: &[Message], iname: &str, camel_inam
                 writeln!(out, " }};").unwrap();
             }
         }
+        // Dirty hack for destroying event
+        if evt.name == "done" && iname == "wl_callback" && pname == "wayland" {
+            // This is a destroying event, hopefully the only one
+            writeln!(out, "           unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy) }}").unwrap()
+        }
+        // end of dirty hack
         write!(out, "            Some({}Event::{}", camel_iname, snake_to_camel(&evt.name)).unwrap();
         if evt.args.len() > 0 {
             write!(out, "(").unwrap();
@@ -174,6 +182,10 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
     writeln!(out, "impl {} {{", camel_iname).unwrap();
     // requests
     for req in requests {
+        if let Some(Type::Destructor) = req.typ {
+            // we'll handle it at Drop
+            continue
+        }
         let new_id_interfaces: Vec<Option<String>> = req.args.iter()
             .filter(|a| a.typ == Type::NewId)
             .map(|a| a.interface.clone())
@@ -204,11 +216,7 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
                 write!(out, "<T: Proxy>").unwrap();
             }
         }
-        if req.typ == Some(Type::Destructor) {
-            write!(out, "(self,").unwrap();
-        } else {
-            write!(out, "(&self,").unwrap();
-        }
+        write!(out, "(&self,").unwrap();
         for a in &req.args {
             if a.typ == Type::NewId { continue; }
             if let Some(ref enu) = a.enum_ {
@@ -332,9 +340,6 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
             }
         }
         writeln!(out, ") }};").unwrap();
-        if req.typ == Some(Type::Destructor) {
-            writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }}").unwrap();
-        }
         if let Some(ref newint) = ret {
             writeln!(out, "        let mut proxy: {} = unsafe {{ ProxyInternal::from_ptr(ptr) }};",
                 newint.as_ref().map(|t| snake_to_camel(t)).unwrap_or("T".to_owned())).unwrap();
@@ -350,11 +355,16 @@ fn emit_iface_impl<O: Write>(requests: &[Message], iname: &str, camel_iname: &st
 
     writeln!(out, "}}\n").unwrap();
 
-    if iname != "wl_display" {
-        writeln!(out, "impl Drop for {} {{", camel_iname).unwrap();
-        writeln!(out, "    fn drop(&mut self) {{").unwrap();
-        writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }}").unwrap();
-        writeln!(out, "    }}").unwrap();
-        writeln!(out, "}}").unwrap();
+    for req in requests {
+        if let Some(Type::Destructor) = req.typ {
+            writeln!(out, "impl Drop for {} {{", camel_iname).unwrap();
+            writeln!(out, "    fn drop(&mut self) {{").unwrap();
+            writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), {}_{}) }};",
+                snake_to_screaming(iname), snake_to_screaming(&req.name)).unwrap();
+            writeln!(out, "        unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()) }};").unwrap();
+            writeln!(out, "    }}").unwrap();
+            writeln!(out, "}}").unwrap();
+            break;
+        }
     }
 }
