@@ -5,6 +5,8 @@ extern crate crossbeam;
 extern crate libc;
 #[macro_use] extern crate wayland_sys;
 
+use std::sync::Arc;
+
 mod env;
 mod events;
 mod sys;
@@ -23,9 +25,12 @@ pub mod xdg_shell;
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::wl_interface;
 
-pub use events::{Event, EventIterator};
+pub use wayland::{get_display, ConnectError};
 
-pub trait Proxy {
+pub use events::{Event, EventIterator};
+use events::EventFifo;
+
+pub trait Proxy : ProxyInternal {
     fn ptr(&self) -> *mut wl_proxy;
     fn interface() -> *mut wl_interface;
     /// The internal name of this interface, as advertized by the registry if it is a global.
@@ -34,7 +39,14 @@ pub trait Proxy {
     fn version() -> u32;
     /// Get the id of this proxy
     fn id(&self) -> ProxyId;
+    /// Set the event iterator associated to this proxy
+    fn set_event_iterator(&mut self, iter: &EventIterator);
+}
+
+/// Trait used internally for implementation details.
+pub trait ProxyInternal {
     /// Creates a proxy from a fresh ptr
+    #[doc(hidden)]
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;
     /// Creates a proxy from a ptr that is managed elsewhere
     ///
@@ -45,9 +57,11 @@ pub trait Proxy {
     /// The created object _should_ be leaked, or it will destroy
     /// the ressource on drop, which will most likely trigger
     /// protocol errors.
+    #[doc(hidden)]
     unsafe fn from_ptr_no_own(ptr: *mut wl_proxy) -> Self;
-    /// Set the event iterator associated to this proxy
-    fn set_evt_iterator(&mut self, iter: &EventIterator);
+    /// Sets the event queue manually
+    #[doc(hidden)]
+    unsafe fn set_evq(&mut self, internals: Arc<EventFifo>);
 }
 
 #[derive(Copy,Clone,PartialEq,Eq,Debug,Hash)]

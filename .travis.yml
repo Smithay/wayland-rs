@@ -30,10 +30,10 @@ script:
       travis-cargo test -- --features "dlopen" &&
       travis-cargo --only nightly test -- --features "dlopen unstable-protocols wpu-xdg_shell" &&
       cd .. &&
-      travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-sys --no-deps &&
-      travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-scanner --no-deps &&
-      travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-client --no-deps &&
-      travis-cargo --only stable doc -- -p file://$(pwd)\#wayland-server --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-sys --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-scanner --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-client --no-deps &&
+      travis-cargo --only stable doc -- -p wayland-server --no-deps &&
       echo "Finished !"
 
 after_success:
