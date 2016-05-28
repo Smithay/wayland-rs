@@ -25,6 +25,15 @@ fn main() {
     generate(&protocols_dir, out_dir,
         "wayland.xml", "wayland_interfaces.rs", "wayland_client_api.rs");
 
+    if var("CARGO_FEATURE_WP_PRESENTATION_TIME").is_ok() {
+        generate(&protocols_dir, out_dir,
+            "presentation-time.xml", "presentation_time_interfaces.rs", "presentation_time_client_api.rs");
+    }
+    if var("CARGO_FEATURE_WP_VIEWPORTER").is_ok() {
+        generate(&protocols_dir, out_dir,
+            "viewporter.xml", "viewporter_interfaces.rs", "viewporter_client_api.rs");
+    }
+
     if var("CARGO_FEATURE_UNSTABLE_PROTOCOLS").is_ok() {
         let protocols_dir = protocols_dir.join("unstable");
         // unstable protocols

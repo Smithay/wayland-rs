@@ -1,5 +1,3 @@
-pub mod wayland;
-
 #[cfg(feature = "wp-presentation_time")]
 pub mod presentation_time;
 
