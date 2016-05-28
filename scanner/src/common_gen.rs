@@ -30,6 +30,20 @@ pub fn snake_to_camel(input: &str) -> String {
     }).collect()
 }
 
+pub fn dotted_snake_to_camel(input: &str) -> String {
+    input.split('_').flat_map(|s| s.split('.')).flat_map(|s| {
+        let mut first = true;
+        s.chars().map(move |c| {
+            if first {
+                first = false;
+                c.to_ascii_uppercase()
+            } else {
+                c
+            }
+        })
+    }).collect()
+}
+
 pub fn snake_to_screaming(input: &str) -> String {
     input.chars().map(|c| c.to_ascii_uppercase()).collect()
 }
@@ -46,12 +60,12 @@ pub fn emit_opcodes<O: Write>(interface_name: &str, messages: &[Message], out: &
 
 }
 
-pub fn emit_enums<O: Write>(enums: Vec<Enum>, iface_name: &str, out: &mut O) -> Vec<String> {
+pub fn emit_enums<O: Write>(enums: &[Enum], iface_name: &str, out: &mut O) -> Vec<String> {
     let mut bitfields = Vec::new();
 
     for enu in enums {
         if enu.bitfield {
-            bitfields.push(enu.name.clone());
+            bitfields.push(format!("{}.{}", iface_name, enu.name));
         }
         if let Some((ref summary, ref desc)) = enu.description {
             write_doc(summary, desc, "", out)
@@ -133,7 +147,7 @@ pub fn emit_enums<O: Write>(enums: Vec<Enum>, iface_name: &str, out: &mut O) -> 
     return bitfields;
 }
 
-pub fn emit_message_enums<O: Write>(messages: &[Message], camel_iname: &str, bitfields: &[String], server: bool, out: &mut O) {
+pub fn emit_message_enums<O: Write>(messages: &[Message], iname: &str, camel_iname: &str, bitfields: &[String], server: bool, out: &mut O) {
     writeln!(out, "#[derive(Debug)]").unwrap();
     writeln!(out, "pub enum {}{} {{", camel_iname, if server { "Request" } else { "Event" }).unwrap();
     for msg in messages {
@@ -152,13 +166,24 @@ pub fn emit_message_enums<O: Write>(messages: &[Message], camel_iname: &str, bit
             write!(out, "(").unwrap();
             for a in &msg.args {
                 if let Some(ref enu) = a.enum_ {
-                    if bitfields.contains(enu) {
-                        write!(out, "{}{}::",
-                            camel_iname, snake_to_camel(enu)).unwrap();
-                    }
-                    write!(out, "{}{},",
-                        camel_iname, snake_to_camel(enu),
+                    if enu.contains('.'){
+                        // this is an enum from an other iface
+                        if bitfields.contains(enu) {
+                        write!(out, "{}::",
+                                dotted_snake_to_camel(enu)).unwrap();
+                        }
+                        write!(out, "{},",
+                            dotted_snake_to_camel(enu),
                         ).unwrap();
+                    } else {
+                        if bitfields.contains(&format!("{}.{}", iname, enu)) {
+                        write!(out, "{}{}::",
+                                camel_iname, snake_to_camel(enu)).unwrap();
+                        }
+                        write!(out, "{}{},",
+                            camel_iname, snake_to_camel(enu),
+                        ).unwrap();
+                    }
                 } else if a.typ == Type::NewId {
                     write!(out, "{},",
                         a.interface.as_ref().map(|s| snake_to_camel(s))

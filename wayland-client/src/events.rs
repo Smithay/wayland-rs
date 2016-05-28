@@ -16,8 +16,12 @@ use wayland_sys::client::*;
 #[derive(Debug)]
 pub enum Event {
     Wayland(::wayland::WaylandProtocolEvent),
+    #[cfg(feature = "wp-presentation_time")]
+    PresentationTime(::extensions::presentation_time::PresentationTimeProtocolEvent),
+    #[cfg(feature = "wp-viewporter")]
+    Viewporter(::extensions::viewporter::ViewporterProtocolEvent),
     #[cfg(all(feature = "unstable-protocols", feature="wpu-xdg_shell"))]
-    XdgShellUnstableV5(::xdg_shell::XdgShellUnstableV5ProtocolEvent),
+    XdgShellUnstableV5(::extensions::xdg_shell::XdgShellUnstableV5ProtocolEvent),
     #[doc(hidden)]
     __DoNotMatchThis,
 }

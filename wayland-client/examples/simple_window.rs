@@ -47,7 +47,7 @@ fn main() {
 
     let pool = shm.create_pool(tmp.as_raw_fd(), 40_000);
     // match a buffer on the part we wrote on
-    let buffer = pool.create_buffer(0, 100, 100, 400, WlShmFormat::Argb8888 as u32);
+    let buffer = pool.create_buffer(0, 100, 100, 400, WlShmFormat::Argb8888);
 
     // make our surface as a toplevel one
     shell_surface.set_toplevel();

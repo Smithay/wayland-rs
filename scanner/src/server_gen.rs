@@ -26,6 +26,12 @@ pub fn generate_server_api<O: Write>(protocol: Protocol, out: &mut O) {
 
     emit_request_machinery(&protocol, out);
 
+    let mut bitfields = Vec::new();
+
+    for interface in &protocol.interfaces {
+        bitfields.extend(emit_enums(&interface.enums, &interface.name, out));
+    }
+
     for interface in protocol.interfaces {
         if &interface.name[..] == "wl_display" ||
            &interface.name[..] == "wl_registry" {
@@ -37,12 +43,10 @@ pub fn generate_server_api<O: Write>(protocol: Protocol, out: &mut O) {
 
         emit_iface_struct(&camel_iname, &interface, &protocol.name, out);
 
-        let bitfields = emit_enums(interface.enums, &interface.name, out);
-
         emit_opcodes(&interface.name, &interface.events, out);
 
         if interface.requests.len() > 0 {
-            emit_message_enums(&interface.requests, &camel_iname, &bitfields, true, out);
+            emit_message_enums(&interface.requests, &interface.name, &camel_iname, &bitfields, true, out);
             emit_message_handlers(&interface.requests, &interface.name, &camel_iname, &protocol.name, out);
         }
         emit_iface_impl(&interface.events, &interface.name, &camel_iname, &bitfields, out);
@@ -161,8 +165,17 @@ fn emit_message_handlers<O: Write>(messages: &[Message], iname: &str, camel_inam
             }.unwrap();
             writeln!(out, "}};").unwrap();
             if let Some(ref enu) = arg.enum_ {
-                write!(out, "            let arg_{} = match {}_{}_from_raw(arg_{} as u32) {{",
-                    i, iname, enu, i).unwrap();
+                let mut it = enu.split('.');
+                match (it.next(), it.next()) {
+                    (Some(other_iname), Some(enu_name)) => {
+                        write!(out, "            let arg_{} = match {}_{}_from_raw(arg_{} as u32) {{",
+                            i, other_iname, enu_name, i).unwrap();
+                    }
+                    _ => {
+                        write!(out, "            let arg_{} = match {}_{}_from_raw(arg_{} as u32) {{",
+                            i, iname, enu, i).unwrap();
+                    }
+                }
                 write!(out, " Some(a) => a,").unwrap();
                 write!(out, " None => return None").unwrap();
                 writeln!(out, " }};").unwrap();
@@ -209,10 +222,17 @@ fn emit_iface_impl<O: Write>(events: &[Message], iname: &str, camel_iname: &str,
             }
             if let Some(ref enu) = a.enum_ {
                 write!(out, " {}: ", a.name).unwrap();
-                if bitfields.contains(enu) {
-                    write!(out, "{}{}::", camel_iname, snake_to_camel(enu)).unwrap();
+                if enu.contains('.') {
+                    if bitfields.contains(enu) {
+                        write!(out, "{}::", dotted_snake_to_camel(enu)).unwrap();
+                    }
+                    write!(out, "{},", dotted_snake_to_camel(enu)).unwrap();
+                } else {
+                    if bitfields.contains(&format!("{}.{}", iname, enu)) {
+                        write!(out, "{}{}::", camel_iname, snake_to_camel(enu)).unwrap();
+                    }
+                    write!(out, "{}{},", camel_iname, snake_to_camel(enu)).unwrap();
                 }
-                write!(out, "{}{},", camel_iname, snake_to_camel(enu)).unwrap();
                 continue;
             }
             let typ: Cow<str> = if a.typ == Type::Object {
@@ -263,7 +283,7 @@ fn emit_iface_impl<O: Write>(events: &[Message], iname: &str, camel_iname: &str,
         for a in &evt.args {
             if let Some(ref enu) = a.enum_ {
                 write!(out, ", {}", a.name).unwrap();
-                if bitfields.contains(enu) {
+                if bitfields.contains(enu) || bitfields.contains(&format!("{}.{}", iname, enu)) {
                     write!(out, ".bits()").unwrap();
                 }
                 write!(out, " as {}", if a.typ == Type::Uint { "u32" } else { "i32" }).unwrap();

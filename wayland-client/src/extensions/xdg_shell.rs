@@ -3,7 +3,7 @@
 //! To use it, you must activate the `wpu-xdg_shell` cargo feature.
 //!
 //! This is an unstable protocol. To use it, you must set the `unstable-protocols` cargo feature
-//! and use a nightly protocol.
+//! and use a nightly compiler.
 //!
 //! This protocol is currently under heavy developpment and destined to eventually replace
 //! the `wl_shell` interface of the core protocol.

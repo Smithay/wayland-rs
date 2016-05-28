@@ -26,5 +26,15 @@ tempfile = "2.1"
 dlopen = ["wayland-sys/dlopen"]
 egl = ["wayland-sys/egl"]
 cursor = ["wayland-sys/cursor"]
+wp-presentation_time = []
+wp-viewporter = []
 unstable-protocols = []
 wpu-xdg_shell = []
+all_stable_protocols=[
+    "wp-presentation_time",
+    "wp-viewporter"
+]
+all_unstable_protocols = [
+    "unstable-protocols",
+    "wpu-xdg_shell"
+]
