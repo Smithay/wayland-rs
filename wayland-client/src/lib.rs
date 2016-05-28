@@ -1,7 +1,6 @@
 #![cfg_attr(feature = "unstable-protocols", feature(static_recursion))]
 
 #[macro_use] extern crate bitflags;
-extern crate crossbeam;
 extern crate libc;
 #[macro_use] extern crate wayland_sys;
 

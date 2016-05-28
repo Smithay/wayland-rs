@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.6.0-alpha"
+version = "0.6.0"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -10,13 +10,12 @@ build = "build.rs"
 
 [dependencies]
 bitflags = ">= 0.5.0, < 0.7"
-crossbeam = "0.2"
 libc = "0.2"
 lazy_static = { version = ">= 0.1, < 0.3", optional = true }
 wayland-sys = { version = "0.6.0-alpha", features = ["client"], path = "../wayland-sys" }
 
 [build-dependencies]
-wayland-scanner = { version = "0.6.0-alpha", path = "../scanner" }
+wayland-scanner = { version = "0.6.0", path = "../scanner" }
 
 [dev-dependencies]
 byteorder = ">= 0.3, < 0.6"

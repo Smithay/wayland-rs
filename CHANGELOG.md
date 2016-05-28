@@ -1,11 +1,18 @@
 # Change Log
 
-## 0.6.0 - incoming
+## 0.6.0 - 2016-05-28
 
-### Added
+### Internal changes changing the API
 
-- Support for protocol extentions
-- `wpu-xdg_shell`
+- Rework `EventIterator` internals to avoid adding unnecessary overhead
+- Fix soundness of destructors
+- Integrate referencing enums from other interfaces
+
+### Protocol extensions
+
+- added stable `wp-viewporter`
+- added stable `wp-presentation_time`
+- added unstable `wpu-xdg_shell`
 
 ## 0.5.9 - 2016-02-08
 
