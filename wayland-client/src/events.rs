@@ -67,8 +67,12 @@ impl EventIterator {
     /// Will automatically try to dispatch pending events if necessary.
     ///
     /// Similar to a combination of `next_event` and `dispatch_pending`.
-    pub fn next_event_dispatch(&mut self) -> Option<Event> {
-        unsafe { self.fifo.pop() }
+    pub fn next_event_dispatch(&mut self) -> io::Result<Option<Event>> {
+        if let Some(evt) = unsafe { self.fifo.pop() } {
+            return Ok(Some(evt))
+        } else {
+            self.dispatch_pending().map(|_| unsafe { self.fifo.pop() })
+        }
     }
 
     /// Retrieves the next event in this iterator.
@@ -80,6 +84,27 @@ impl EventIterator {
         unsafe { self.fifo.pop() }
     }
 
+    /// Synchronous roundtrip
+    ///
+    /// This call will cause a synchonous roundtrip with the wayland server. It will block until all
+    /// pending requests of this queue are send to the server and it has processed all of them and
+    /// send the appropriate events.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
+        let ret = unsafe { match self.event_queue {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip_queue,
+                    self.display, evtq)
+            }
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display)
+            }
+        }};
+        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+
     /// Non-blocking dispatch
     ///
     /// Will dispatch all pending events from the internal buffer to this event iterator.
@@ -87,7 +112,7 @@ impl EventIterator {
     ///
     /// On success returns the number of dispatched events.
     pub fn dispatch_pending(&mut self) -> io::Result<i32> {
-        let ret = unsafe {match self.event_queue {
+        let ret = unsafe { match self.event_queue {
             Some(evtq) => {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_queue_pending,
                     self.display, evtq)
@@ -159,8 +184,12 @@ impl EventIterator {
 
 impl Drop for EventIterator {
     fn drop(&mut self) {
-        println!("KILL");
-        self.fifo.alive.set(false)
+        self.fifo.alive.set(false);
+        if let Some(evq) = self.event_queue {
+            unsafe {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_event_queue_destroy, evq)
+            }
+        }
     }
 }
 

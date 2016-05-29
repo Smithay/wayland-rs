@@ -78,12 +78,12 @@ macro_rules! wayland_env {
         }
 
         impl $structname {
-            pub fn init(mut display: $crate::wayland::WlDisplay, mut iter: $crate::EventIterator) -> ($structname, $crate::EventIterator) {
+            pub fn init(display: $crate::wayland::WlDisplay, mut iter: $crate::EventIterator) -> ($structname, $crate::EventIterator) {
                 use $crate::Event;
                 use $crate::wayland::{WaylandProtocolEvent, WlRegistryEvent};
 
                 let registry = display.get_registry();
-                match display.sync_roundtrip() {
+                match iter.sync_roundtrip() {
                     Ok(_) => {},
                     Err(e) => panic!("Roundtrip with wayland server failed: {:?}", e)
                 }
@@ -97,7 +97,7 @@ macro_rules! wayland_env {
                     )*
                 };
 
-                while let Some(evt) = iter.next_event_dispatch() {
+                while let Ok(Some(evt)) = iter.next_event_dispatch() {
                     match evt {
                         Event::Wayland(WaylandProtocolEvent::WlRegistry(
                             _, WlRegistryEvent::Global(name, interface, version)

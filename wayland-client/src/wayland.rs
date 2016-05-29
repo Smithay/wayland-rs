@@ -79,27 +79,23 @@ pub fn get_display() -> Result<(WlDisplay, EventIterator), ConnectError> {
 }
 
 impl WlDisplay {
-    /// Synchronous roundtrip
-    ///
-    /// This call will cause a synchonous roundtrip with the wayland server. I will block until all
-    /// pending requests are send to the server and it has processed all of them and send the
-    /// appropriate events.
-    ///
-    /// On success returns the number of dispatched events.
-    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
-        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.ptr() as *mut _) };
-        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
-    }
-
     /// Non-blocking write to the server
     ///
-    /// Will write as many requests as possible to the server socket. Never blocks: if not all
+    /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
     /// requests coul be written, will return an io error `WouldBlock`.
     ///
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<i32> {
         let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr() as *mut _) };
         if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+    }
+
+    /// Create a new EventIterator
+    ///
+    /// No object is by default attached to it.
+    pub fn create_event_iterator(&self) -> EventIterator {
+        let evq = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.ptr() as *mut _) };
+        create_event_iterator(self.ptr() as *mut _, Some(evq))
     }
 }
 

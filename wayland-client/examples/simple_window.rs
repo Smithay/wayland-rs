@@ -26,7 +26,7 @@ fn main() {
     };
 
     // Use wayland_env! macro to get the globals and an event iterator
-    let (mut env, _evt_iter) = WaylandEnv::init(display, iter);
+    let (env, mut evt_iter) = WaylandEnv::init(display, iter);
 
     // Get shortcuts to the globals.
     // Here we only use the version 1 of the interface, so no checks are needed.
@@ -56,7 +56,7 @@ fn main() {
     // commit
     surface.commit();
 
-    env.display.sync_roundtrip().unwrap();
+    evt_iter.sync_roundtrip().unwrap();
 
     loop {}
     

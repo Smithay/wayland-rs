@@ -1,6 +1,14 @@
 # Change Log
 
-## 0.6.0 - 2016-05-28
+## 0.6.1 - 2016-05-29
+
+Fix premature 0.6.0 release
+
+- Add missing ReadEventsGuard public import
+- Hide internals details
+- Polish the EventIterator API
+
+## 0.6.0 - 2016-05-28 (yanked)
 
 ### Internal changes changing the API
 
