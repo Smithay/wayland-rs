@@ -42,9 +42,9 @@ pub trait Proxy : ProxyInternal {
 }
 
 /// Trait used internally for implementation details.
+#[doc(hidden)]
 pub trait ProxyInternal {
     /// Creates a proxy from a fresh ptr
-    #[doc(hidden)]
     unsafe fn from_ptr(ptr: *mut wl_proxy) -> Self;
     /// Creates a proxy from a ptr that is managed elsewhere
     ///
@@ -55,10 +55,8 @@ pub trait ProxyInternal {
     /// The created object _should_ be leaked, or it will destroy
     /// the ressource on drop, which will most likely trigger
     /// protocol errors.
-    #[doc(hidden)]
     unsafe fn from_ptr_no_own(ptr: *mut wl_proxy) -> Self;
     /// Sets the event queue manually
-    #[doc(hidden)]
     unsafe fn set_evq(&mut self, internals: Arc<EventFifo>);
 }
 
