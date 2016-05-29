@@ -55,6 +55,31 @@ impl EventFifo {
     }
 }
 
+/// An event iterator
+///
+/// Each one is linked to a wayand event queue, and will collect
+/// events from the wayand objects attached to it.
+///
+/// Its primary interface is through the `Iterator` trait. Note that
+/// unlike most traditionnal iterators, it can start yielding again events
+/// after returning `None`. It is thus not recommended to use constructs
+/// that consume the iterator.
+///
+/// If any error is encountered, the `next()` method from `Iterator` will panic,
+/// as all these errors are fatal to the wayland connection. If you need to handle
+/// them gracefully, use the `next_event_dispatch()` or `next_event()` methods instead.
+///
+/// A typical event loop using surch an iterator would look like this:
+///
+/// ```no_run
+/// # let (_, mut event_iterator) = wayland_client::get_display().unwrap();
+/// loop {
+///     for event in &mut event_iterator {
+///         /* handle the event */
+///     }
+///     event_iterator.dispatch().expect("Connection with the compositor was lost.");
+/// }
+/// ```
 pub struct EventIterator {
     fifo: Arc<EventFifo>,
     event_queue: Option<*mut wl_event_queue>,
@@ -179,6 +204,18 @@ impl EventIterator {
             }
         }};
         if ret >= 0 { Some(ReadEventsGuard { display: self.display }) } else { None }
+    }
+}
+
+impl Iterator for EventIterator {
+    type Item = Event;
+    fn next(&mut self) -> Option<Event> {
+        match self.next_event_dispatch() {
+            Ok(evt) => evt,
+            Err(e) => {
+                panic!("Connexion with wayland compositor was lost: {:?}", e)
+            }
+        }
     }
 }
 

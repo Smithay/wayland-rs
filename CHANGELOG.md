@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.6.2 - 2016-05-29
+
+Add Iterator impl to EventIterator.
+
 ## 0.6.1 - 2016-05-29
 
 Fix premature 0.6.0 release
