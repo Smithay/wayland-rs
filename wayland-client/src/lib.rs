@@ -25,7 +25,7 @@ use wayland_sys::common::wl_interface;
 
 pub use wayland::{get_display, ConnectError};
 
-pub use events::{Event, EventIterator};
+pub use events::{Event, EventIterator, ReadEventsGuard};
 use events::EventFifo;
 
 pub trait Proxy : ProxyInternal {
