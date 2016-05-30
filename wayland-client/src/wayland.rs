@@ -4,6 +4,9 @@
 //! not use it.
 //!
 //! The global entry point is the `get_display()` function.
+//!
+//! Objects for this protocol are grouped in submodules, one for each global object
+//! and the associated enums and objects it can instantiate.
 
 use std::io;
 
@@ -56,15 +59,24 @@ pub use sys::wayland::client::{WlCallbackEvent, WlDisplayEvent, WlRegistryEvent}
 
 pub use sys::wayland::client::WaylandProtocolEvent;
 
+/// Enum representing the possible reasons why connecting to the wayland server failed
 #[derive(Debug)]
 pub enum ConnectError {
+    /// The library was compiled with the `dlopen` feature, and the `libwayland-client.so`
+    /// library could not be found at runtime
     NoWaylandLib,
+    /// Any needed library was found, but the listening socket of the server could not be
+    /// found.
+    ///
+    /// Most of the time, this means that the program was not started from a wayland session.
     NoCompositorListening
 }
 
 /// Connect to the compositor socket
 ///
 /// Attempt to connect to a Wayland compositor according to the environment variables.
+///
+/// On success, returns the display object, as well as the default event iterator associated with it.
 pub fn get_display() -> Result<(WlDisplay, EventIterator), ConnectError> {
     if !::wayland_sys::client::is_lib_available() { return Err(ConnectError::NoWaylandLib) }
     let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null()) };
