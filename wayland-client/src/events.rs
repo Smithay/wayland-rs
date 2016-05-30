@@ -10,17 +10,25 @@ use wayland_sys::client::*;
 /// This enum does a first sorting of event, with a variant for each
 /// protocol extension activated in cargo features.
 ///
+/// You don't need to match against events from protocol extensions you don't use,
+/// as such events cannot be generated if you don't bind the globals marking the entry
+/// points of these protocols.
+///
 /// As the number of variant of this enum can change depending on which cargo features are
 /// activated, it should *never* be matched exhaustively. It contains an hidden, never-used
 /// variant to ensure it.
 #[derive(Debug)]
 pub enum Event {
+    /// An event from the core wayland protocol
     Wayland(::wayland::WaylandProtocolEvent),
     #[cfg(feature = "wp-presentation_time")]
+    /// An event from the protocol extension presentation-time
     PresentationTime(::extensions::presentation_time::PresentationTimeProtocolEvent),
     #[cfg(feature = "wp-viewporter")]
+    /// An event from the protocol extension viewporter
     Viewporter(::extensions::viewporter::ViewporterProtocolEvent),
     #[cfg(all(feature = "unstable-protocols", feature="wpu-xdg_shell"))]
+    /// An event from the protocol extension xdg-shell
     XdgShellUnstableV5(::extensions::xdg_shell::XdgShellUnstableV5ProtocolEvent),
     #[doc(hidden)]
     __DoNotMatchThis,
