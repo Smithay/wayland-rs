@@ -1,5 +1,7 @@
 #![cfg_attr(feature = "unstable-protocols", feature(static_recursion))]
 
+#![deny(missing_docs)]
+
 #[macro_use] extern crate bitflags;
 extern crate libc;
 #[macro_use] extern crate wayland_sys;
