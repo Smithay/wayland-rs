@@ -45,6 +45,7 @@
 //! An example of squeletton using this structure is:
 //!
 //! ```no_run
+//! #[macro_use] extern crate wayland_client;
 //! use wayland_client::wayland::get_display;
 //!
 //! wayland_env!(WaylandEnv,
@@ -55,17 +56,17 @@
 //! fn main() {
 //!     let (display, event_iter) = get_display()
 //!         .expect("Unable to connect to the wayland compositor.");
-//!     let (env, mut event_iter) = WaylandEnv::init(display, iter);
+//!     let (env, mut event_iter) = WaylandEnv::init(display, event_iter);
 //!
 //!     /* Setup your wayland objects */
 //!
 //!     loop {
 //!         // Event loop
-//!         for event in &mut event_iterator {
+//!         for event in &mut event_iter {
 //!             /* Handle the event */
 //!         }
 //!         // Sync pending messages with the compositor
-//!         event_iter.dispatch().expect("Connexion with the wayland compositor was lost.")
+//!         event_iter.dispatch().expect("Connexion with the wayland compositor was lost.");
 //!     }
 //! }
 //! ```
