@@ -115,6 +115,28 @@
 //! To use `wpu_*` protocol extensions, you'll also need to activate the `unstable-protocols`
 //! cargo feature, which serves as a global gate for them. Some of them may also
 //! require using a nightly rust compiler.
+//!
+//! ### Protocol errors
+//!
+//! This library is a safe wrapper around the C library in the rust sense. It'll gaurd
+//! you from memory safety or data-races errors, but not from logic errors.
+//!
+//! Logic errors in wayland are called *Protocol Errors*. The documentation states
+//! when doing something is a protocol error. Most basic example would be assigning
+//! two different roles to a surface at the same time (see `wayland` module
+//! documentation for details about what surfaces and roles are).
+//!
+//! When a protocol error is raised, the compositor will simply report it an close
+//! the connexion to your client. When this happen, message-syncing methods of
+//! `EventIterator` will start returning `Err(_)`.
+//!
+//! There is no way to recover from a protocol error, apart creating a brand new
+//! wayland connexion and starting all over. Thus the `Iterator` implementation
+//! of `EventIterator` will panic if a protocol error is raised. If you need to
+//! gracefully handle protocol errors, use the manual envent querying methods instead.
+//!
+//! There is currently no way to query what the error was, but it is planned. See
+//! [the associated github issue](https://github.com/vberger/wayland-client-rs/issues/33).
 
 #[macro_use] extern crate bitflags;
 extern crate libc;

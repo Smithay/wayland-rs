@@ -7,6 +7,22 @@
 //!
 //! Objects for this protocol are grouped in submodules, one for each global object
 //! and the associated enums and objects it can instantiate.
+//!
+//! ## Surfaces
+//!
+//! The `wl_surface` object is the core of the protocol. You can create them
+//! from the `wl_compositor` global, and they are the building blocks of your UI.
+//!
+//! To be displayed, a surface must have two things associated with it:
+//!
+//! - its contents (from a buffer or an OpenGL / Vulkan context), which also
+//!   defined its dimensions
+//! - its role, which defines what this surface is used for (contents of a window,
+//!   icon of the curso, ...)
+//!
+//! A surface can only have a single role at the same time, and associating it
+//! a new role without removing the previous one (by destroying the role object)
+//! is a protocol error.
 
 use std::io;
 
