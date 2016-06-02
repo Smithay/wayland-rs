@@ -1,6 +1,120 @@
 #![cfg_attr(feature = "unstable-protocols", feature(static_recursion))]
-
 #![deny(missing_docs)]
+
+//! Wayland client library bindings
+//!
+//! This crate offers relatively low-level bindings to the client-side
+//! wayland API. Allowing you to write wayland applications mostly without
+//! the need of unsafe code.
+//!
+//! ## The Wayland protocol
+//!
+//! The protocol used between clients and compositors in the wayland architecture is
+//! composed of objects. Each object is the instanciation of an interface, which
+//! defines several requests and events.
+//!
+//! Requests are messages from the client to the compositor, events are messages from
+//! the compositor to the client. Both are always associated with an object.
+//!
+//! These objects are represented in this crate via the `Proxy` trait, and can be
+//! identified via the `ProxyId` tokens, which can be compared for equality, or used
+//! as a key in an hashmap.
+//!
+//! Requests of an object can be invoked as methods on the proxy object representing
+//! it. Events are retrieved fia events iterator, which yields the event, associated
+//! to a `ProxyId`, to identify which object they are related to.
+//!
+//! See the documentation of the `wayland` module for details about the main interfaces
+//! of the core protocol.
+//!
+//! ## Using this crate
+//!
+//! The entry point of this crate is the `get_display` function. It'll try to
+//! open a connexion to the wayland compositor as defined by the environment
+//! variables. On success, it'll provide you with the proxy associated to the
+//! `wl_display`, as well as an event iterator, collecting its events.
+//!
+//! The first thing you'll do is retrieve the global objects advertized by the
+//! compositor. You can to that by creating a `wl_registry` from your display,
+//! and manually handling its events, or use the `wayland_env!()` macro which
+//! abstracts away most of this job for you.
+//!
+//! Once this done you can start to create objects, setup your UI, and then
+//! write you event loops.
+//!
+//! An example of squeletton using this structure is:
+//!
+//! ```no_run
+//! use wayland_client::wayland::get_display;
+//!
+//! wayland_env!(WaylandEnv,
+//!     /* list of the globals you want to use */
+//! );
+//! 
+//!
+//! fn main() {
+//!     let (display, event_iter) = get_display()
+//!         .expect("Unable to connect to the wayland compositor.");
+//!     let (env, mut event_iter) = WaylandEnv::init(display, iter);
+//!
+//!     /* Setup your wayland objects */
+//!
+//!     loop {
+//!         // Event loop
+//!         for event in &mut event_iterator {
+//!             /* Handle the event */
+//!         }
+//!         // Sync pending messages with the compositor
+//!         event_iter.dispatch().expect("Connexion with the wayland compositor was lost.")
+//!     }
+//! }
+//! ```
+//!
+//! ## Modularity
+//!
+//! Many of the features offered by this crate are optionnal, and controlled by cargo features.
+//!
+//! ### Linking behavior
+//!
+//! By default, the crate is dynamically linked with the several C library it requires
+//! (at least `libwayland-client.so` and maybe others, depending on your enabled features).
+//! This can be changed with the feature `dlopen`. When activated, it'll cause the library
+//! to instead try to load the libraries at runtime, and return an error if it failed,
+//! allowing you to gracefully handle the lack of wayland support on the system, for example
+//! by falling-back to X11.
+//!
+//! ### Secondary libraries
+//!
+//! This crate allows you to use two secondary C library provided by the official
+//! wayland distribution:
+//!
+//! - `libwayland-egl.so`: this library is necessary is you plan to use OpenGL, it
+//!   provides the glue necessary to intialize an OpenGL context. it i enabled by
+//!   the `egl` cargo feature, and adds an `egl` submodule to the crate.
+//! - `libwayland-cursor.so`: this library allows you to retrieve the cursor themes
+//!   of the system your application is running on, in order to use them and integrate
+//!   in the look and feel of the compositor ruuning your program.
+//!
+//! ### Protocol extensions
+//!
+//! Other cargo features include the support of various protocol extensions of wayland.
+//! Such extentions add new objects to the supported ones, and are all optionnal.
+//!
+//! Each of them is controlled by a cargo feature, following this naming convention:
+//!
+//! - `wp_<feature name>` for protocol extensions whose specification are stable and
+//!   can be relied upon
+//! - `wpu_<feature name>` for protocol extensions whose specification are still under
+//!   developpement and subject to drastic changes. No stability guarantee is provided
+//!   by this crate for part of the API behiond these features.
+//!
+//! Each of these feature creates a submodule in the `extensions` module containing
+//! the API of this extension. The documentation hosted online is generated with all
+//! supported features activated.
+//!
+//! To use `wpu_*` protocol extensions, you'll also need to activate the `unstable-protocols`
+//! cargo feature, which serves as a global gate for them. Some of them may also
+//! require using a nightly rust compiler.
 
 #[macro_use] extern crate bitflags;
 extern crate libc;
