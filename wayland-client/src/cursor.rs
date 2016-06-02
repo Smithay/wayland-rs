@@ -1,3 +1,19 @@
+//! Cursor utilities
+//!
+//! This module contains bindings to the `libwayland-cursor.so` library.
+//!
+//! These utilities allows you to laod cursor images in order to match
+//! your cursors to the ones of the system.
+//!
+//! First of all, the function `load_theme` will allow you to load a
+//! `CursorTheme`, which represents the full cursor theme.
+//!
+//! From this theme, you can load a specific `Cursor`, which can each
+//! contain several images if the cursor is animated. It provides you
+//! with the means of knowing which frame of the animation shoudl be
+//! displayed at which time, as well as handles to the buffers containing
+//! these frames, to attach them to a wayland surface.
+
 use std::ffi::{CString, CStr};
 use std::marker::PhantomData;
 use std::ops::Deref;

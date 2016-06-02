@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 pub mod wayland;
 
 #[cfg(feature = "wp-presentation_time")]
