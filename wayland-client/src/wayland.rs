@@ -15,22 +15,47 @@ use {Proxy, ProxyInternal};
 
 use wayland_sys::client::*;
 
+/// Objects related to the `wl_compositor` global
+///
+/// This global object will allow you to create `wl_surface`s, the most
+/// basic building block of your application's interface.
 pub mod compositor {
     pub use sys::wayland::client::{WlCompositor, WlRegion, WlSurface};
     pub use sys::wayland::client::WlSurfaceEvent;
 }
 
+/// Objects related to the `wl_data_device_manager` global
+///
+/// This global object will provide you with the ability to transfer data
+/// from/to other wayland client applications, respectively via the
+/// `wl_data_device` and `wl_data_source` objects.
 pub mod data_device {
     pub use sys::wayland::client::{WlDataDevice, WlDataDeviceManager, WlDataOffer, WlDataSource};
     pub use sys::wayland::client::{WlDataDeviceEvent, WlDataOfferEvent, WlDataSourceEvent};
     pub use sys::wayland::client::{WlDataDeviceManagerDndAction};
 }
+
+/// Objects related to the `wl_output` globals
+///
+/// This global can be presented several times by the wayland compositor. Each of them
+/// represents a single monitor-like output device of the system.
+///
+/// They can be added or deleted at runtine by the compositor, via events of the `wl_registry`.
 pub mod output {
     pub use sys::wayland::client::WlOutput;
     pub use sys::wayland::client::WlOutputEvent;
     pub use sys::wayland::client::{WlOutputMode, WlOutputSubpixel, WlOutputTransform};
 }
 
+/// Objects related to the `wl_seat` globals
+///
+/// This global can be presented several times by the wayland compositor, but it will
+/// in practice be very unlikely. Each of them represents an user input group of sources
+/// (that can be represented as "everything that is in front of the seat of the user").
+///
+/// Each seat will typically handle a pointer and a keyboard, maybe a touchscreen.
+///
+/// They can be added or deleted at runtine by the compositor, via events of the `wl_registry`.
 pub mod seat {
     pub use sys::wayland::client::{WlKeyboard, WlPointer, WlSeat, WlTouch};
     pub use sys::wayland::client::{WlKeyboardEvent, WlPointerEvent, WlSeatEvent, WlTouchEvent};
@@ -38,18 +63,32 @@ pub mod seat {
     pub use sys::wayland::client::{WlPointerButtonState, WlSeatCapability, WlPointerAxisSource};
 }
 
+/// Objects related to the `wl_shell` global
+///
+/// This global object allows you to assign the `shell_surface` role to your surfaces, in order
+/// to promote them to windows for the user (also called toplevel surfaces), render them
+/// fullscreen, or as popups.
 pub mod shell {
     pub use sys::wayland::client::{WlShell, WlShellSurface};
     pub use sys::wayland::client::WlShellSurfaceEvent;
     pub use sys::wayland::client::{WlShellSurfaceFullscreenMethod, WlShellSurfaceResize, WlShellSurfaceTransient};
 }
 
+/// Objects related to the `wl_shm` global
+///
+/// This global object allows you to create shared memory pools between your application
+/// and the wayland compositor. You can then define buffers in these memory pools, which
+/// you can attach to surfaces to define their contents.
 pub mod shm {
     pub use sys::wayland::client::{WlBuffer, WlShm, WlShmPool};
     pub use sys::wayland::client::{WlBufferEvent, WlShmEvent};
     pub use sys::wayland::client::WlShmFormat;
 }
 
+/// Objects related to the `wl_subcompositor` global
+///
+/// This global allows you to assign the `subsurface` role to your surfaces, in order
+/// to attach them to an other parent surface.
 pub mod subcompositor {
     pub use sys::wayland::client::{WlSubcompositor, WlSubsurface};
 }
