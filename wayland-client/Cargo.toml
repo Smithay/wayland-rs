@@ -29,9 +29,11 @@ wp-presentation_time = []
 wp-viewporter = []
 unstable-protocols = []
 wpu-xdg_shell = []
+wl-desktop_shell = []
 all_stable_protocols=[
     "wp-presentation_time",
-    "wp-viewporter"
+    "wp-viewporter",
+    "wl-desktop_shell"
 ]
 all_unstable_protocols = [
     "unstable-protocols",
