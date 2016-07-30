@@ -25,6 +25,11 @@ fn main() {
     generate(&protocols_dir, out_dir,
         "wayland.xml", "wayland_interfaces.rs", "wayland_client_api.rs");
 
+    if var("CARGO_FEATURE_WL_DESKTOP_SHELL").is_ok() {
+        generate(&protocols_dir, out_dir,
+                 "desktop-shell.xml", "desktop_shell_interfaces.rs", "desktop_shell_api.rs");
+    }
+
     if var("CARGO_FEATURE_WP_PRESENTATION_TIME").is_ok() {
         generate(&protocols_dir, out_dir,
             "presentation-time.xml", "presentation_time_interfaces.rs", "presentation_time_client_api.rs");

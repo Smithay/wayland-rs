@@ -30,6 +30,8 @@ pub enum Event {
     #[cfg(all(feature = "unstable-protocols", feature="wpu-xdg_shell"))]
     /// An event from the protocol extension xdg-shell
     XdgShellUnstableV5(::extensions::xdg_shell::XdgShellUnstableV5ProtocolEvent),
+    /// An event from the protocol extension desktop-shell
+    Desktop(::extensions::desktop_shell::DesktopProtocolEvent),
     #[doc(hidden)]
     __DoNotMatchThis,
 }
