@@ -32,10 +32,9 @@ fn main() {
             generate(&protocols_dir, out_dir,
                 "xdg-shell-unstable-v5.xml", "xdg_shell_interfaces.rs", "xdg_shell_server_api.rs");
         }
-
-        if var("CARGO_FEATURE_WL_DESKTOP_SHELL").is_ok() {
-            generate(&protocols_dir, out_dir,
-                     "desktop-shell.xml", "desktop_shell_interfaces.rs", "desktop_shell_server_api.rs");
-        }
+    }
+    if var("CARGO_FEATURE_WL_DESKTOP_SHELL").is_ok() {
+        generate(&protocols_dir, out_dir,
+                 "desktop-shell.xml", "desktop_shell_interfaces.rs", "desktop_shell_server_api.rs");
     }
 }
