@@ -56,5 +56,5 @@ pub fn wl_fixed_from_int(i: i32) -> wl_fixed_t {
 #[repr(C)]
 pub struct wl_argument { _f: usize }
 
-pub type wl_dispatcher_func_t = extern "C" fn(*const c_void, *mut c_void, u32, *const wl_message, *const wl_argument);
+pub type wl_dispatcher_func_t = extern "C" fn(*const c_void, *mut c_void, u32, *const wl_message, *const wl_argument) -> c_int;
 pub type wl_log_func_t = extern "C" fn(*const c_char, ...);

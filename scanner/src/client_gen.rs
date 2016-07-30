@@ -21,7 +21,7 @@ pub fn generate_client_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use std::ffi::{{CString, CStr}};").unwrap();
     writeln!(out, "use std::ptr;").unwrap();
     writeln!(out, "use std::sync::Arc;").unwrap();
-    writeln!(out, "use std::os::raw::{{c_void, c_char}};").unwrap();
+    writeln!(out, "use std::os::raw::{{c_void, c_char, c_int}};").unwrap();
 
     // event handling
     emit_event_machinery(&protocol, out);
@@ -69,17 +69,18 @@ fn emit_event_machinery<O: Write>(protocol: &Protocol, out: &mut O) {
         protocol.name, snake_to_camel(&protocol.name)).unwrap();
 
     writeln!(out,
-        "extern \"C\" fn event_dispatcher(implem: *const c_void, proxy: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) {{").unwrap();
+        "extern \"C\" fn event_dispatcher(implem: *const c_void, proxy: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) -> c_int {{").unwrap();
     writeln!(out, "    let userdata = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy as *mut wl_proxy) }} as *mut EventFifo;").unwrap();
-    writeln!(out, "    if userdata.is_null() {{ return; }}").unwrap();
+    writeln!(out, "    if userdata.is_null() {{ return 0; }}").unwrap();
     writeln!(out, "    let fifo: &EventFifo = unsafe {{ &*userdata }};").unwrap();
-    writeln!(out, "    if ! unsafe {{ fifo.alive() }} {{ return; }}").unwrap();
+    writeln!(out, "    if ! unsafe {{ fifo.alive() }} {{ return 0; }}").unwrap();
     writeln!(out, "    let implem = unsafe {{ ::std::mem::transmute::<_, {}_dispatcher_implem>(implem) }};",
         protocol.name).unwrap();
     writeln!(out, "    let event = implem(proxy as *mut wl_proxy, opcode, args);").unwrap();
     writeln!(out, "    if let Some(evt) = event {{").unwrap();
     writeln!(out, "        unsafe {{ fifo.push(::Event::{}(evt)) }};", snake_to_camel(&protocol.name)).unwrap();
     writeln!(out, "    }}").unwrap();
+    writeln!(out, "    return 0;").unwrap();
     writeln!(out, "}}").unwrap();
 }
 

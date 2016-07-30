@@ -22,7 +22,7 @@ pub fn generate_server_api<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use std::ptr;").unwrap();
     writeln!(out, "use std::sync::Arc;").unwrap();
     writeln!(out, "use std::sync::atomic::{{AtomicBool, Ordering}};").unwrap();
-    writeln!(out, "use std::os::raw::{{c_void, c_char}};").unwrap();
+    writeln!(out, "use std::os::raw::{{c_void, c_char, c_int}};").unwrap();
 
     emit_request_machinery(&protocol, out);
 
@@ -78,17 +78,18 @@ fn emit_request_machinery<O: Write>(protocol: &Protocol, out: &mut O) {
         protocol.name, snake_to_camel(&protocol.name)).unwrap();
 
     writeln!(out,
-        "extern \"C\" fn event_dispatcher(implem: *const c_void, resource: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) {{").unwrap();
+        "extern \"C\" fn event_dispatcher(implem: *const c_void, resource: *mut c_void, opcode: u32, _: *const wl_message, args: *const wl_argument) -> c_int {{").unwrap();
     writeln!(out, "    let userdata = unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource as *mut wl_resource) }} as *const (RequestFifo, AtomicBool);").unwrap();
-    writeln!(out, "    if userdata.is_null() {{ return; }}").unwrap();
+    writeln!(out, "    if userdata.is_null() {{ return 0; }}").unwrap();
     writeln!(out, "    let fifo: &(RequestFifo, AtomicBool) = unsafe {{ &*userdata }};").unwrap();
-    writeln!(out, "    if !fifo.1.load(Ordering::SeqCst) {{ return; }}").unwrap();
+    writeln!(out, "    if !fifo.1.load(Ordering::SeqCst) {{ return 0; }}").unwrap();
     writeln!(out, "    let implem = unsafe {{ ::std::mem::transmute::<_, {}_dispatcher_implem>(implem) }};",
         protocol.name).unwrap();
     writeln!(out, "    let request = implem(resource as *mut wl_resource, opcode, args);").unwrap();
     writeln!(out, "    if let Some(req) = request {{").unwrap();
     writeln!(out, "        fifo.0.push(::Request::{}(req));", snake_to_camel(&protocol.name)).unwrap();
     writeln!(out, "    }}").unwrap();
+    writeln!(out, "    return 0;").unwrap();
     writeln!(out, "}}").unwrap();
 }
 
