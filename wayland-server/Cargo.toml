@@ -21,3 +21,4 @@ wayland-scanner = { version = "0.6.0-alpha", path = "../scanner" }
 dlopen = ["wayland-sys/dlopen"]
 unstable-protocols = []
 wpu-xdg_shell = []
+wl-desktop_shell = []

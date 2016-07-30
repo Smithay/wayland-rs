@@ -23,6 +23,8 @@ pub enum Request {
     Wayland(::wayland::WaylandProtocolRequest),
     #[cfg(all(feature = "unstable-protocols", feature="wpu-xdg_shell"))]
     XdgShellUnstableV5(::xdg_shell::XdgShellUnstableV5ProtocolRequest),
+    #[cfg(feature="wl-desktop_shell")]
+    Desktop(::desktop_shell::DesktopProtocolRequest),
     #[doc(hidden)]
     __DoNotMatchThis,
 }
