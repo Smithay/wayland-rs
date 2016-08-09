@@ -1,0 +1,10 @@
+[package]
+name = "wayland-scanner"
+version = "0.7.0-pre"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+repository = "https://github.com/vberger/wayland-client-rs"
+description = "Wayland Scanner for generating rust APIs from XML wayland protocol files. Intented for use with wayland-sys. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
+license = "MIT"
+
+[dependencies]
+xml-rs = "0.3"

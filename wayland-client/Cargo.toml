@@ -1,0 +1,20 @@
+[package]
+name = "wayland-client"
+version = "0.7.0-pre"
+documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
+repository = "https://github.com/vberger/wayland-client-rs"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+license = "MIT"
+description = "Bindings to the standard C implementation of the wayland protocol, client side."
+
+[dependencies]
+wayland-sys = { version = "0.7.0-pre", features = ["client"], path = "../wayland-sys" }
+
+[build-dependencies]
+wayland-scanner = { version = "0.7.0-pre", path = "../wayland-scanner" }
+
+[features]
+dlopen = ["wayland-sys/dlopen"]
+egl = ["wayland-sys/egl"]
+cursor = ["wayland-sys/cursor"]
+
