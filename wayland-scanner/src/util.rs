@@ -1,3 +1,5 @@
+use std::ascii::AsciiExt;
+
 pub fn is_keyword(txt: &str) -> bool {
     match txt {
         "abstract" | "alignof" | "as" | "become" | "box" |
@@ -13,4 +15,18 @@ pub fn is_keyword(txt: &str) -> bool {
         "while" | "yield" => true,
         _ => false
     }
+}
+
+pub fn snake_to_camel(input: &str) -> String {
+    input.split('_').flat_map(|s| {
+        let mut first = true;
+        s.chars().map(move |c| {
+            if first {
+                first = false;
+                c.to_ascii_uppercase()
+            } else {
+                c
+            }
+        })
+    }).collect()
 }

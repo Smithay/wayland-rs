@@ -7,11 +7,18 @@ mod util;
 mod parse;
 mod protocol;
 mod interface_gen;
+mod code_gen;
 
+#[derive(Copy,Clone)]
 pub enum Action {
     Interfaces,
-    ClientAPI,
-    ServerAPI
+    Code(Side)
+}
+
+#[derive(Copy,Clone)]
+pub enum Side {
+    Client,
+    Server
 }
 
 pub fn generate<P1: AsRef<Path>, P2: AsRef<Path>>(action: Action, prot: P1, target: P2) {
@@ -20,6 +27,6 @@ pub fn generate<P1: AsRef<Path>, P2: AsRef<Path>>(action: Action, prot: P1, targ
     let mut out = OpenOptions::new().write(true).truncate(true).create(true).open(target).unwrap();
     match action {
         Action::Interfaces => interface_gen::generate_interfaces(protocol, &mut out),
-	_ => unimplemented!()
+        Action::Code(side) => code_gen::write_protocol(protocol, &mut out, side).unwrap()
     }
 }
