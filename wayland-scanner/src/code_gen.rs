@@ -7,6 +7,9 @@ use Side;
 
 pub fn write_protocol<O: Write>(protocol: Protocol, out: &mut O, side: Side) -> IOResult<()> {
     for iface in &protocol.interfaces {
+        if (iface.name == "wl_display" || iface.name == "wl_registry") && side == Side::Server {
+            continue
+        }
         try!(write_interface(iface, out, side));
     }
     Ok(())
@@ -29,18 +32,31 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         snake_to_camel(&interface.name),
         match side { Side::Client => "wl_proxy", Side::Server => "wl_resource" }
     ));
-    
-    let to_handle = match side {
-        Side::Client => &interface.events,
-        Side::Server => &interface.requests
-    };
-    try!(write_handler_trait(to_handle, out));
-    
+
+    try!(write_handler_trait(
+        match side {
+            Side::Client => &interface.events,
+            Side::Server => &interface.requests
+        },
+        out,
+        side
+    ));
+
+    try!(write_impl(
+        match side {
+            Side::Client => &interface.requests,
+            Side::Server => &interface.events
+        },
+        out,
+        &interface.name,
+        side
+    ));
+
     try!(writeln!(out, "}}"));
     Ok(())
 }
 
-fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O) -> IOResult<()> {
+fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side) -> IOResult<()> {
     try!(writeln!(out, "pub trait Handler {{"));
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
@@ -54,14 +70,76 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O) -> IOResult<
                 if is_keyword(&arg.name) { "_" } else { "" }, arg.name,
                 match arg.typ {
                     Type::Object => arg.interface.as_ref()
-                                                 .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                                                 .unwrap_or("*mut wl_proxy".into()),
+                                       .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
+                                       .unwrap_or(format!("*mut {}",
+                                            match side {
+                                                Side::Client => "wl_proxy",
+                                                Side::Server => "wl_resource"
+                                            }
+                                       )),
+                    Type::NewId => "u32".into(),
                     _ => arg.typ.rust_type().into()
                 }
             ));
         }
         try!(writeln!(out, ");"));
     }    
+    try!(writeln!(out, "}}"));
+    Ok(())
+}
+
+fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Side) -> IOResult<()> {
+    try!(writeln!(out, "impl {} {{", snake_to_camel(iname)));
+    for msg in messages {
+        if let Some((ref short, ref long)) = msg.description {
+            try!(write_doc(Some(short), long, false, out));
+        }
+        try!(write!(out, "pub fn {}{}(&self",
+            if is_keyword(&msg.name) { "_" } else { "" }, msg.name
+        ));
+        for arg in &msg.args {
+            try!(write!(out, ", {}{}: {}",
+                if is_keyword(&arg.name) { "_" } else { "" }, arg.name,
+                match arg.typ {
+                    Type::Object => arg.interface.as_ref()
+                                       .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
+                                       .unwrap_or(format!("*mut {}",
+                                            match side {
+                                                Side::Client => "wl_proxy",
+                                                Side::Server => "wl_resource"
+                                            }
+                                       )),
+                    Type::NewId => continue,
+                    _ => arg.typ.rust_type().into()
+                }
+            ));
+        }
+        try!(write!(out, ")"));
+        let mut has_newid = false;
+        for arg in &msg.args {
+            match arg.typ {
+                Type::NewId => if has_newid {
+                    panic!("Request {}.{} returns more than one new_id", iname, msg.name);
+                } else {
+                    has_newid = true;
+                    try!(write!(out, "-> {}",
+                        arg.interface.as_ref()
+                            .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
+                            .unwrap_or(format!("*mut {}",
+                                match side {
+                                    Side::Client => "wl_proxy",
+                                    Side::Server => "wl_resource"
+                                }
+                            )),
+                    ));
+                },
+                _ => ()
+            }
+        }
+        try!(writeln!(out, " {{"));
+        try!(writeln!(out, "unimplemented!();"));
+        try!(writeln!(out, "}}"));
+    }
     try!(writeln!(out, "}}"));
     Ok(())
 }

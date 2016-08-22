@@ -15,7 +15,7 @@ pub enum Action {
     Code(Side)
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq,Eq)]
 pub enum Side {
     Client,
     Server
