@@ -8,6 +8,7 @@ rust:
 branches:
   only:
     - master
+    - handlers
 
 before_script:
   - |
@@ -21,19 +22,17 @@ script:
   - |
       cd wayland-sys &&
       travis-cargo test -- --features "dlopen egl client server cursor" &&
-      cd ../scanner &&
+      travis-cargo --only nightly doc -- --no-deps &&
+      cd ../wayland-scanner &&
       travis-cargo test &&
+      travis-cargo --only nightly doc -- --no-deps &&
       cd ../wayland-client &&
       travis-cargo test -- --features "dlopen egl cursor" &&
-      travis-cargo --only nightly test -- --features "dlopen egl cursor" &&
+      travis-cargo --only nightly doc -- --no-deps &&
       cd ../wayland-server &&
       travis-cargo test -- --features "dlopen" &&
-      travis-cargo --only nightly test -- --features "dlopen" &&
+      travis-cargo --only nightly doc -- --no-deps &&
       cd .. &&
-      travis-cargo --only nightly doc -- -p wayland-sys --no-deps &&
-      travis-cargo --only nightly doc -- -p wayland-scanner --no-deps &&
-      travis-cargo --only nightly doc -- -p wayland-client --no-deps &&
-      travis-cargo --only nightly doc -- -p wayland-server --no-deps &&
       echo "Finished !"
 
 after_success:
