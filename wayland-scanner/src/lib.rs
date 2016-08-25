@@ -21,6 +21,15 @@ pub enum Side {
     Server
 }
 
+impl Side {
+    fn object_ptr_type(&self) -> &'static str {
+        match *self {
+            Side::Client => "wl_proxy",
+            Side::Server => "wl_resource"
+        }
+    }
+}
+
 pub fn generate<P1: AsRef<Path>, P2: AsRef<Path>>(action: Action, prot: P1, target: P2) {
     let pfile = File::open(prot).unwrap();
     let protocol = parse::parse_stream(pfile);

@@ -30,7 +30,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     
     try!(writeln!(out, "pub struct {} {{ ptr: *mut {} }}",
         snake_to_camel(&interface.name),
-        match side { Side::Client => "wl_proxy", Side::Server => "wl_resource" }
+        side.object_ptr_type()
     ));
 
     try!(write_handler_trait(
@@ -71,12 +71,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side) 
                 match arg.typ {
                     Type::Object => arg.interface.as_ref()
                                        .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                                       .unwrap_or(format!("*mut {}",
-                                            match side {
-                                                Side::Client => "wl_proxy",
-                                                Side::Server => "wl_resource"
-                                            }
-                                       )),
+                                       .unwrap_or(format!("*mut {}",side.object_ptr_type())),
                     Type::NewId => "u32".into(),
                     _ => arg.typ.rust_type().into()
                 }
@@ -103,12 +98,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 match arg.typ {
                     Type::Object => arg.interface.as_ref()
                                        .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                                       .unwrap_or(format!("*mut {}",
-                                            match side {
-                                                Side::Client => "wl_proxy",
-                                                Side::Server => "wl_resource"
-                                            }
-                                       )),
+                                       .unwrap_or(format!("*mut {}",side.object_ptr_type())),
                     Type::NewId => continue,
                     _ => arg.typ.rust_type().into()
                 }
@@ -125,12 +115,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     try!(write!(out, "-> {}",
                         arg.interface.as_ref()
                             .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
-                            .unwrap_or(format!("*mut {}",
-                                match side {
-                                    Side::Client => "wl_proxy",
-                                    Side::Server => "wl_resource"
-                                }
-                            )),
+                            .unwrap_or(format!("*mut {}", side.object_ptr_type())),
                     ));
                 },
                 _ => ()
