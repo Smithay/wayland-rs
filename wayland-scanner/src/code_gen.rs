@@ -23,6 +23,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     }
 
     try!(writeln!(out, "use super::EventQueueHandle;"));
+    try!(writeln!(out, "use super::{};", side.object_trait()));
     match side {
         Side::Client => try!(writeln!(out, "use wayland_sys::client::wl_proxy;")),
         Side::Server => try!(writeln!(out, "use wayland_sys::server::wl_resource;"))
@@ -32,6 +33,18 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         snake_to_camel(&interface.name),
         side.object_ptr_type()
     ));
+
+    // Generate object trait impl
+    try!(writeln!(out, "impl {} for {} {{",
+        side.object_trait(),
+        snake_to_camel(&interface.name)
+    ));
+    try!(writeln!(out, "fn ptr(&self) -> *mut {} {{ self.ptr }}", side.object_ptr_type()));
+    try!(writeln!(out, "unsafe fn from_ptr(ptr: *mut {0}) -> {1} {{ {1} {{ ptr: ptr }} }}",
+        side.object_ptr_type(),
+        snake_to_camel(&interface.name)
+    ));
+    try!(writeln!(out, "}}"));
 
     try!(write_handler_trait(
         match side {
