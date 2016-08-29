@@ -6,28 +6,16 @@ use std::path::Path;
 mod util;
 mod parse;
 mod protocol;
+mod side;
 mod interface_gen;
 mod code_gen;
+
+pub use side::Side;
 
 #[derive(Copy,Clone)]
 pub enum Action {
     Interfaces,
     Code(Side)
-}
-
-#[derive(Copy,Clone,PartialEq,Eq)]
-pub enum Side {
-    Client,
-    Server
-}
-
-impl Side {
-    fn object_ptr_type(&self) -> &'static str {
-        match *self {
-            Side::Client => "wl_proxy",
-            Side::Server => "wl_resource"
-        }
-    }
 }
 
 pub fn generate<P1: AsRef<Path>, P2: AsRef<Path>>(action: Action, prot: P1, target: P2) {
