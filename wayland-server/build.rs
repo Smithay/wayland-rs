@@ -3,7 +3,7 @@ extern crate wayland_scanner;
 use std::env::var;
 use std::path::Path;
 
-use wayland_scanner::{Action, Side, generate};
+use wayland_scanner::{Side, generate_code, generate_interfaces};
 
 fn main() {
     let protocol_file = "./wayland.xml";
@@ -13,14 +13,13 @@ fn main() {
     
     println!("Generating files to: {}", out_dir_str);
     
-    generate(
-        Action::Code(Side::Server),
+    generate_code(
         protocol_file,
-        out_dir.join("wayland_api.rs")
+        out_dir.join("wayland_api.rs"),
+        Side::Server
     );
     
-    generate(
-        Action::Interfaces,
+    generate_interfaces(
         protocol_file,
         out_dir.join("wayland_interfaces.rs")
     );
