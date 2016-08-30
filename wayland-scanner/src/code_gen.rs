@@ -46,14 +46,18 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     ));
     try!(writeln!(out, "}}"));
 
-    try!(write_handler_trait(
-        match side {
-            Side::Client => &interface.events,
-            Side::Server => &interface.requests
-        },
-        out,
-        side
-    ));
+
+    // client-side events of wl_display are handled by the lib
+    if side != Side::Client || interface.name != "wl_display" {
+        try!(write_handler_trait(
+            match side {
+                Side::Client => &interface.events,
+                Side::Server => &interface.requests
+            },
+            out,
+            side
+        ));
+    }
 
     try!(write_impl(
         match side {
