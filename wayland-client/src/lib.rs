@@ -20,8 +20,11 @@ mod sys {
     }
 
     pub mod client {
-        pub use Proxy;
-        pub use EventQueueHandle;
+        // Imports that need to be available to submodules
+        // but should not be in public API.
+        // Will be fixable with pub(restricted).
+        #[doc(hidden)] pub use Proxy;
+        #[doc(hidden)] pub use EventQueueHandle;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
 }
