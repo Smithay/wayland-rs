@@ -3,7 +3,7 @@
 pub use sys::server as protocol;
 
 use wayland_sys::server::wl_resource;
-use wayland_sys::common::wl_interface;
+use wayland_sys::common::{wl_interface, wl_argument};
 
 pub trait Resource {
     /// Pointer to the underlying wayland proxy object
@@ -21,6 +21,11 @@ pub trait Resource {
     fn supported_version() -> u32;
 }
 
+pub unsafe trait Handler<T: Resource> {
+    fn message(&mut self, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
+}
+
+
 pub struct EventQueueHandle;
 
 mod sys {
@@ -35,8 +40,7 @@ mod sys {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use Resource;
-        #[doc(hidden)] pub use EventQueueHandle;
+        #[doc(hidden)] pub use {Resource, EventQueueHandle, Handler};
         #[doc(hidden)] pub use super::interfaces;
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));

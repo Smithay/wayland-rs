@@ -66,7 +66,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
                 Side::Server => &interface.requests
             },
             out,
-            side
+            side,
+            &interface.name
         ));
     }
 
@@ -104,7 +105,10 @@ fn write_opcodes<O: Write>(messages: &[Message], out: &mut O, iname: &str) -> IO
     Ok(())
 }
 
-fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side) -> IOResult<()> {
+fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str) -> IOResult<()> {
+    if messages.len() == 0 {
+        return Ok(())
+    }
     try!(writeln!(out, "pub trait Handler {{"));
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
@@ -132,6 +136,25 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side) 
         }
         try!(writeln!(out, ");"));
     }    
+    try!(writeln!(out, "}}"));
+
+    // write the translation machinery
+    try!(writeln!(out, "unsafe impl<T> super::Handler<{}> for T where T: Handler {{",
+        snake_to_camel(iname)
+    ));
+    try!(writeln!(out, "fn message(&mut self, proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+        snake_to_camel(iname)
+    ));
+    try!(writeln!(out, "match opcode {{"));
+    for (i, msg) in messages.iter().enumerate() {
+        try!(writeln!(out, "{} => {{", i));
+        // TODO: arg translation and dispatch
+        try!(writeln!(out, "}},"));
+    }
+    try!(writeln!(out, "_ => return Err(())"));
+    try!(writeln!(out, "}}"));
+    try!(writeln!(out, "Ok(())"));
+    try!(writeln!(out, "}}"));
     try!(writeln!(out, "}}"));
     Ok(())
 }
