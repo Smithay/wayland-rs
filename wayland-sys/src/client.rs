@@ -53,6 +53,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_get_id(*mut wl_proxy) -> u32,
         fn wl_proxy_get_class(*mut wl_proxy) -> *const c_char,
         fn wl_proxy_set_queue(*mut wl_proxy, *mut wl_event_queue) -> (),
+        fn wl_proxy_get_version(*mut wl_proxy) -> u32,
 
     // log
         fn wl_log_set_handler_client(wl_log_func_t) -> (),

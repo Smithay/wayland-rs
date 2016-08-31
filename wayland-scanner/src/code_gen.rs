@@ -23,10 +23,13 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     }
 
     try!(writeln!(out, "use super::EventQueueHandle;"));
+    if side == Side::Server {
+        try!(writeln!(out, "use super::Client;"));
+    }
     try!(writeln!(out, "use super::{};", side.object_trait()));
     try!(writeln!(out, "use super::interfaces::*;"));
     try!(writeln!(out, "use wayland_sys::common::*;"));
-    try!(writeln!(out, "use std::ffi::CString;"));
+    try!(writeln!(out, "use std::ffi::{{CString,CStr}};"));
     try!(writeln!(out, "use std::ptr;"));
     match side {
         Side::Client => try!(writeln!(out, "use wayland_sys::client::*;")),
@@ -55,6 +58,10 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         interface.name
     ));
     try!(writeln!(out, "fn supported_version() -> u32 {{ {} }}", interface.version));
+    match side {
+        Side::Client => try!(writeln!(out, "fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}")),
+        Side::Server => try!(writeln!(out, "fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"))
+    };
     try!(writeln!(out, "}}"));
 
 
@@ -114,14 +121,19 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some((ref short, ref long)) = msg.description {
             try!(write_doc(Some(short), long, false, out));
         }
-        try!(write!(out, "fn {}{}(&mut self, evqh: &mut EventQueueHandle",
-            if is_keyword(&msg.name) { "_" } else { "" }, msg.name
+        try!(write!(out, "fn {}{}(&mut self, evqh: &mut EventQueueHandle, {} {}: &{}",
+            msg.name,
+            if is_keyword(&msg.name) { "_" } else { "" },
+            if side == Side::Server { "client: &Client, " } else { "" },
+            match side { Side::Client => "proxy", Side::Server => "resource" },
+            snake_to_camel(iname)
         ));
         for arg in &msg.args {
             try!(write!(out, ", {}{}: {}{}{}",
                 if is_keyword(&arg.name) { "_" } else { "" },
                 arg.name,
                 if arg.allow_null { "Option<" } else { "" },
+                // TODO handle unspecified interface
                 match arg.typ {
                     Type::Object => arg.interface.as_ref()
                                        .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
@@ -142,13 +154,54 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     try!(writeln!(out, "unsafe impl<T> super::Handler<{}> for T where T: Handler {{",
         snake_to_camel(iname)
     ));
-    try!(writeln!(out, "fn message(&mut self, proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+    try!(writeln!(out, "unsafe fn message(&mut self, evq: &mut EventQueueHandle, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+        if side == Side::Server { "client: &Client," } else { "" },
         snake_to_camel(iname)
     ));
     try!(writeln!(out, "match opcode {{"));
-    for (i, msg) in messages.iter().enumerate() {
-        try!(writeln!(out, "{} => {{", i));
-        // TODO: arg translation and dispatch
+    for (op, msg) in messages.iter().enumerate() {
+        try!(writeln!(out, "{} => {{", op));
+        let mut arg_offset = 0;
+        for (i, arg) in msg.args.iter().enumerate() {
+            try!(write!(out, "let {} = {{", arg.name));
+            if arg.allow_null {
+                try!(write!(out,"if args.offset({}).is_null() {{ None }} else {{ Some(", i + arg_offset));
+            }
+            match arg.typ {
+                Type::Uint => try!(write!(out, "*(args.offset({}) as *const u32)", i + arg_offset)),
+                Type::Int | Type::Fd => try!(write!(out, "*(args.offset({}) as *const i32)", i + arg_offset)),
+                Type::Fixed => try!(write!(out, "wl_fixed_to_double(*(args.offset({}) as *const i32))", i + arg_offset)),
+                Type::Object => try!(write!(out, "{}::from_ptr(*(args.offset({}) as *const *mut {}))",
+                    side.object_trait(), i + arg_offset, side.object_ptr_type())),
+                Type::String => try!(write!(out, "String::from_utf8_lossy(CStr::from_ptr(*(args.offset({}) as *const *const _)).to_bytes()).into_owned()", i + arg_offset)),
+                Type::Array => try!(write!(out, "let array = *(args.offset({}) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()", i + arg_offset)),
+                Type::NewId => match side {
+                    Side::Client => try!(write!(out, "Proxy::from_ptr(*(args.offset({}) as *const *mut wl_proxy))", i)),
+                    Side::Server => try!(write!(out, "Resource::from_ptr(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::{}::{} as Resource>::interface_ptr(), proxy.version(), *(args.offset({}) as *const u32)))", arg.interface.as_ref().unwrap(), snake_to_camel(arg.interface.as_ref().unwrap()), i + arg_offset))
+                },
+                Type::Destructor => unreachable!()
+            }
+            if arg.allow_null {
+                try!(write!(out, ")}}"));
+            }
+            try!(writeln!(out, "}};"));
+        }
+        try!(write!(out, "self.{}{}(evq, {} proxy",
+            msg.name,
+            if is_keyword(&msg.name) { "_" } else { "" },
+            if side == Side::Server { "client," } else { "" }
+        ));
+        for arg in &msg.args {
+            match arg.typ {
+                Type::Object => if arg.allow_null {
+                    try!(write!(out, ", {}.as_ref()", arg.name))
+                } else {
+                    try!(write!(out, ", &{}", arg.name))
+                },
+                _ => try!(write!(out, ", {}", arg.name))
+            };
+        }
+        try!(writeln!(out, ");"));
         try!(writeln!(out, "}},"));
     }
     try!(writeln!(out, "_ => return Err(())"));

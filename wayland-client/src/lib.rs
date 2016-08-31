@@ -19,10 +19,12 @@ pub trait Proxy {
     fn interface_name() -> &'static str;
     /// Max version of this interface supported
     fn supported_version() -> u32;
+    /// Current version of the interface this proxy is instanciated with
+    fn version(&self) -> u32;
 }
 
 pub unsafe trait Handler<T: Proxy> {
-    fn message(&mut self, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
+    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
 pub struct EventQueueHandle;
