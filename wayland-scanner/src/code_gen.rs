@@ -147,14 +147,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
             ));
         }
         try!(writeln!(out, ");"));
-    }    
-    try!(writeln!(out, "}}"));
-
-    // write the translation machinery
-    try!(writeln!(out, "unsafe impl<T> super::Handler<{}> for T where T: Handler {{",
-        snake_to_camel(iname)
-    ));
-    try!(writeln!(out, "unsafe fn message(&mut self, evq: &mut EventQueueHandle, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+    }
+    // hidden method for internal machinery
+    try!(writeln!(out, "#[doc(hidden)]"));
+    try!(writeln!(out, "unsafe fn __message(&mut self, evq: &mut EventQueueHandle, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
         if side == Side::Server { "client: &Client," } else { "" },
         snake_to_camel(iname)
     ));

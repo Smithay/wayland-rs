@@ -201,3 +201,28 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
         }
     }
 }
+
+/// Registers an handler type so it can be used in event queue
+///
+/// After having implemented the appropriate Handler trait for your type,
+/// declare it via this macro, like this:
+///
+/// ```ignore
+/// struct MyHandler;
+///
+/// impl wl_foo::Handler for MyHandler {
+///     ...
+/// }
+///
+/// declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
+/// ```
+#[macro_export]
+macro_rules! declare_handler(
+    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
+            unsafe fn message(&mut self, evq: &mut $crate::event_queue::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+                <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
+            }
+        }
+    }
+);

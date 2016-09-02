@@ -1,6 +1,6 @@
 #[macro_use] extern crate wayland_sys;
 
-pub use sys::client as protocol;
+pub use generated::client as protocol;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_interface, wl_argument};
@@ -51,7 +51,7 @@ pub unsafe trait Handler<T: Proxy> {
     unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
-mod sys {
+mod generated {
     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
 
@@ -68,4 +68,9 @@ mod sys {
         #[doc(hidden)] pub use super::interfaces;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
+}
+
+pub mod sys {
+    pub use wayland_sys::common::*;
+    pub use wayland_sys::client::*;
 }

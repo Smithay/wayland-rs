@@ -1,6 +1,6 @@
 #[macro_use] extern crate wayland_sys;
 
-pub use sys::server as protocol;
+pub use generated::server as protocol;
 
 use wayland_sys::server::{wl_resource, wl_client};
 use wayland_sys::common::{wl_interface, wl_argument};
@@ -44,7 +44,7 @@ impl Client {
     }
 }
 
-mod sys {
+mod generated {
     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
 
@@ -61,4 +61,9 @@ mod sys {
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
+}
+
+pub mod sys {
+    pub use wayland_sys::server::*;
+    pub use wayland_sys::common::*;
 }
