@@ -147,6 +147,28 @@ impl EventQueue {
         }
     }
 
+    /// Synchronous roundtrip
+    ///
+    /// This call will cause a synchonous roundtrip with the wayland server. It will block until all
+    /// pending requests of this queue are send to the server and it has processed all of them and
+    /// send the appropriate events.
+    ///
+    /// Handlers are called as a consequence.
+    ///
+    /// On success returns the number of dispatched events.
+    pub fn sync_roundtrip(&mut self) -> IoResult<i32> {
+        let ret = unsafe { match self.wlevq {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip_queue,
+                    self.display, evtq)
+            }
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display)
+            }
+        }};
+        if ret >= 0 { Ok(ret) } else { Err(IoError::last_os_error()) }
+    }
+
     /// Get an handle to the internal state
     ///
     /// The returned guard object allows you to get references
@@ -167,6 +189,16 @@ impl Deref for EventQueue {
 impl DerefMut for EventQueue {
     fn deref_mut(&mut self) -> &mut EventQueueHandle {
         &mut *self.handle
+    }
+}
+
+pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_event_queue>) -> EventQueue {
+    EventQueue {
+        display: display,
+        wlevq: evq,
+        handle: Box::new(EventQueueHandle {
+            handlers: Vec::new()
+        })
     }
 }
 
@@ -220,7 +252,7 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
 macro_rules! declare_handler(
     ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self, evq: &mut $crate::event_queue::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+            unsafe fn message(&mut self, evq: &mut $crate::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
                 <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
             }
         }

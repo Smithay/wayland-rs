@@ -5,9 +5,11 @@ pub use generated::client as protocol;
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_interface, wl_argument};
 
-pub mod event_queue;
+mod display;
+mod event_queue;
 
-use event_queue::EventQueueHandle;
+pub use event_queue::{EventQueue, EventQueueHandle, StateGuard};
+pub use display::{default_connect, ConnectError};
 
 /// Common routines for wayland proxy objects.
 ///

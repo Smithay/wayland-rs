@@ -325,6 +325,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         if side == Side::Client {
             if let Some(arg) = newid {
                 if let Some(ref iface) = arg.interface {
+                    // FIXME: figure if argument order is really correct in the general case
                     try!(write!(out,
                         "let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface",
                         snake_to_screaming(iname),
