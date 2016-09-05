@@ -1,4 +1,5 @@
 #[macro_use] extern crate wayland_sys;
+extern crate libc;
 
 pub use generated::client as protocol;
 

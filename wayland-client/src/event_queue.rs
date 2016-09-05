@@ -209,27 +209,38 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
     _msg: *const wl_message,
     args: *const wl_argument
 ) -> c_int {
-    // This cast from *const to *mut is legit because we enforce that a Handler
-    // can only be assigned to a single EventQueue.
-    // (this is actually the whole point of the design of this lib)
-    let handler = &mut *(handler as *const H as *mut H);
-    let proxy = P::from_ptr(proxy as *mut wl_proxy);
-    let evqhandle = &mut *(ffi_dispatch!(
-        WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()
-    ) as *mut EventQueueHandle);
-    // FIXME
-    // This is VERY bad: if Handler::message panics (which it can easily, as it calls user-provided
-    // code), we unwind all the way into the C code, which is completely UB.
-    // However, we have no way to report failure to the caller C lib (it actually ignores our
-    // return value) so catch_unwind is not an option.
-    // So... ¯\_(ツ)_/¯
-    let ret = handler.message(evqhandle, &proxy, opcode, args);
+    // We don't need to worry about panic-safeness, because if there is a panic,
+    // we'll abort the process, so no access to corrupted data is possible.
+    let ret = ::std::panic::catch_unwind(move || {
+        // This cast from *const to *mut is legit because we enforce that a Handler
+        // can only be assigned to a single EventQueue.
+        // (this is actually the whole point of the design of this lib)
+        let handler = &mut *(handler as *const H as *mut H);
+        let proxy = P::from_ptr(proxy as *mut wl_proxy);
+        let evqhandle = &mut *(ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()
+        ) as *mut EventQueueHandle);
+        handler.message(evqhandle, &proxy, opcode, args)
+    });
     match ret {
-        Ok(()) => 0,   // all went well
-        Err(()) => {
-            // an unknown opcode was dispatched, this is not normal (but we cannot panic)
-            let _ = write!(::std::io::stderr(), "[wayland-client error] Attempted to dispatch an unknown opcode");
-            -1
+        Ok(Ok(())) => return 0,   // all went well
+        Ok(Err(())) => {
+            // an unknown opcode was dispatched, this is not normal
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",
+                opcode, P::interface_name()
+            );
+            ::libc::abort();
+        }
+        Err(_) => {
+            // a panic occured
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-client error] An handler for {} panicked, aborting.",
+                P::interface_name()
+            );
+            ::libc::abort();
         }
     }
 }
