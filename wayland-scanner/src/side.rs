@@ -28,6 +28,13 @@ impl Side {
             Server => "Resource"
         }
     }
+
+    pub fn handle_type(&self) -> &'static str {
+        match *self {
+            Client => "EventQueueHandle",
+            Server => "EventLoopHandle"
+        }
+    }
 }
 
 

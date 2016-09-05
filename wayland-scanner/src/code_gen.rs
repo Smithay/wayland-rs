@@ -22,7 +22,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         try!(write_doc(Some(short), long, true, out));
     }
 
-    try!(writeln!(out, "use super::EventQueueHandle;"));
+    try!(writeln!(out, "use super::{};", side.handle_type()));
     if side == Side::Server {
         try!(writeln!(out, "use super::Client;"));
     }
@@ -121,9 +121,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some((ref short, ref long)) = msg.description {
             try!(write_doc(Some(short), long, false, out));
         }
-        try!(write!(out, "fn {}{}(&mut self, evqh: &mut EventQueueHandle, {} {}: &{}",
+        try!(write!(out, "fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
+            side.handle_type(),
             if side == Side::Server { "client: &Client, " } else { "" },
             match side { Side::Client => "proxy", Side::Server => "resource" },
             snake_to_camel(iname)
@@ -150,7 +151,8 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     }
     // hidden method for internal machinery
     try!(writeln!(out, "#[doc(hidden)]"));
-    try!(writeln!(out, "unsafe fn __message(&mut self, evq: &mut EventQueueHandle, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+    try!(writeln!(out, "unsafe fn __message(&mut self, evq: &mut {}, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+        side.handle_type(),
         if side == Side::Server { "client: &Client," } else { "" },
         snake_to_camel(iname)
     ));

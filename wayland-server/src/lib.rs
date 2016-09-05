@@ -1,9 +1,15 @@
 #[macro_use] extern crate wayland_sys;
 
 pub use generated::server as protocol;
+pub use client::Client;
+pub use event_loop::EventLoopHandle;
 
-use wayland_sys::server::{wl_resource, wl_client};
+use wayland_sys::server::wl_resource;
 use wayland_sys::common::{wl_interface, wl_argument};
+
+mod client;
+mod display;
+mod event_loop;
 
 pub trait Resource {
     /// Pointer to the underlying wayland proxy object
@@ -24,24 +30,7 @@ pub trait Resource {
 }
 
 pub unsafe trait Handler<T: Resource> {
-    unsafe fn message(&mut self, evq: &mut EventQueueHandle, client: &Client, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
-}
-
-
-pub struct EventQueueHandle;
-
-pub struct Client {
-    ptr: *mut wl_client
-}
-
-impl Client {
-    pub fn ptr(&self) -> *mut wl_client {
-        self.ptr
-    }
-
-    pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
-        Client { ptr: ptr }
-    }
+    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
 mod generated {
@@ -56,7 +45,7 @@ mod generated {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Resource, EventQueueHandle, Handler, Client};
+        #[doc(hidden)] pub use {Resource, EventLoopHandle, Handler, Client};
         #[doc(hidden)] pub use super::interfaces;
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
