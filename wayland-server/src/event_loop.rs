@@ -13,12 +13,12 @@ pub struct EventLoopHandle {
 }
 
 impl EventLoopHandle {
-    /// Register a resource to an handler of this event loop.
+    /// Register a resource to a handler of this event loop.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
     ///
-    /// This overwrites any precedently set Handler for this proxy.
+    /// This overwrites any precedently set Handler for this resource.
     pub fn register<R: Resource, H: Handler<R> + Any + 'static>(&mut self, resource: &R, handler_id: usize) {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
@@ -56,7 +56,7 @@ pub struct StateGuard<'evq> {
 impl<'evq> StateGuard<'evq> {
     /// Get a reference to a handler
     ///
-    /// Provides a reference to an handler stored in this event loop.
+    /// Provides a reference to a handler stored in this event loop.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
@@ -67,7 +67,7 @@ impl<'evq> StateGuard<'evq> {
 
     /// Get a mutable reference to a handler
     ///
-    /// Provides a reference to an handler stored in this event loop.
+    /// Provides a reference to a handler stored in this event loop.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
@@ -177,7 +177,7 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
             // a panic occured
             let _ = write!(
                 ::std::io::stderr(),
-                "[wayland-server error] An handler for {} panicked, aborting.",
+                "[wayland-server error] A handler for {} panicked, aborting.",
                 R::interface_name()
             );
             ::libc::abort();
@@ -189,7 +189,7 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
 unsafe extern "C" fn resource_destroy(_resource: *mut wl_resource) {
 }
 
-/// Registers an handler type so it can be used in event queue
+/// Registers a handler type so it can be used in event loops
 ///
 /// After having implemented the appropriate Handler trait for your type,
 /// declare it via this macro, like this:
@@ -207,8 +207,8 @@ unsafe extern "C" fn resource_destroy(_resource: *mut wl_resource) {
 macro_rules! declare_handler(
     ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self, evq: &mut $crate::EventLoopHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
-                <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
+            unsafe fn message(&mut self, evq: &mut $crate::EventLoopHandle, client: &$crate::CLient, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+                <$handler_struct as $handler_trait>::__message(self, evq, client, proxy, opcode, args)
             }
         }
     }

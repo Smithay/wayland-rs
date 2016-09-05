@@ -13,7 +13,7 @@ pub struct EventQueueHandle {
 }
 
 impl EventQueueHandle {
-    /// Register a proxy to an handler of this event queue.
+    /// Register a proxy to a handler of this event queue.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
@@ -51,7 +51,7 @@ pub struct StateGuard<'evq> {
 impl<'evq> StateGuard<'evq> {
     /// Get a reference to a handler
     ///
-    /// Provides a reference to an handler stored in this event loop.
+    /// Provides a reference to a handler stored in this event loop.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
@@ -62,7 +62,7 @@ impl<'evq> StateGuard<'evq> {
 
     /// Get a mutable reference to a handler
     ///
-    /// Provides a reference to an handler stored in this event loop.
+    /// Provides a reference to a handler stored in this event loop.
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
@@ -169,7 +169,7 @@ impl EventQueue {
         if ret >= 0 { Ok(ret) } else { Err(IoError::last_os_error()) }
     }
 
-    /// Get an handle to the internal state
+    /// Get a handle to the internal state
     ///
     /// The returned guard object allows you to get references
     /// to the handler objects you previously inserted in this
@@ -237,7 +237,7 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
             // a panic occured
             let _ = write!(
                 ::std::io::stderr(),
-                "[wayland-client error] An handler for {} panicked, aborting.",
+                "[wayland-client error] A handler for {} panicked, aborting.",
                 P::interface_name()
             );
             ::libc::abort();
@@ -245,7 +245,7 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
     }
 }
 
-/// Registers an handler type so it can be used in event queue
+/// Registers a handler type so it can be used in event queue
 ///
 /// After having implemented the appropriate Handler trait for your type,
 /// declare it via this macro, like this:
