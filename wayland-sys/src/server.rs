@@ -16,13 +16,13 @@ pub enum wl_listener { }
 pub enum wl_resource { }
 pub enum wl_shm_buffer { }
 
-pub type wl_event_loop_fd_func_t = extern "C" fn(c_int, u32, *mut c_void) -> c_int;
-pub type wl_event_loop_timer_func_t = extern "C" fn(*mut c_void) -> c_int;
-pub type wl_event_loop_signal_func_t = extern "C" fn(c_int, *mut c_void) -> c_int;
-pub type wl_event_loop_idle_func_t = extern "C" fn(*mut c_void) -> ();
-pub type wl_global_bind_func_t = extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
-pub type wl_notify_func_t = extern "C" fn(*mut wl_listener, *mut c_void) -> ();
-pub type wl_resource_destroy_func_t = extern "C" fn(*mut wl_resource) -> ();
+pub type wl_event_loop_fd_func_t = unsafe extern "C" fn(c_int, u32, *mut c_void) -> c_int;
+pub type wl_event_loop_timer_func_t = unsafe extern "C" fn(*mut c_void) -> c_int;
+pub type wl_event_loop_signal_func_t = unsafe extern "C" fn(c_int, *mut c_void) -> c_int;
+pub type wl_event_loop_idle_func_t = unsafe extern "C" fn(*mut c_void) -> ();
+pub type wl_global_bind_func_t = unsafe extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
+pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) -> ();
+pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
 
 external_library!(WaylandServer, "wayland-server",
     functions:

@@ -10,6 +10,7 @@ build = "build.rs"
 
 [dependencies]
 wayland-sys = { version = "0.7.0-pre", features = ["server"], path = "../wayland-sys" }
+libc = "0.2"
 
 [build-dependencies]
 wayland-scanner = { version = "0.7.0-pre", path = "../wayland-scanner" }

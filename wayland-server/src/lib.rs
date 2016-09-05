@@ -1,8 +1,10 @@
 #[macro_use] extern crate wayland_sys;
+extern crate libc;
 
 pub use generated::server as protocol;
 pub use client::Client;
-pub use event_loop::EventLoopHandle;
+pub use display::{Display, create_display};
+pub use event_loop::{EventLoop, EventLoopHandle, StateGuard};
 
 use wayland_sys::server::wl_resource;
 use wayland_sys::common::{wl_interface, wl_argument};
@@ -30,7 +32,7 @@ pub trait Resource {
 }
 
 pub unsafe trait Handler<T: Resource> {
-    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
+    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
 mod generated {
