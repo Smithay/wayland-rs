@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
+use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 
 use wayland_sys::common::{wl_message, wl_argument};
@@ -136,6 +137,19 @@ impl EventLoop {
     /// event loop.
     pub fn state(&mut self) -> StateGuard {
         StateGuard { evq: self }
+    }
+}
+
+impl Deref for EventLoop {
+    type Target = EventLoopHandle;
+    fn deref(&self) -> &EventLoopHandle {
+        &*self.handle
+    }
+}
+
+impl DerefMut for EventLoop {
+    fn deref_mut(&mut self) -> &mut EventLoopHandle {
+        &mut *self.handle
     }
 }
 
