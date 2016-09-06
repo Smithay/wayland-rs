@@ -8,9 +8,10 @@ class Args:
 
 def main():
     version = os.environ['TRAVIS_RUST_VERSION']
-    if 'beta' in version or 'nightly' in version:
-       print("Not uploading not-stable docs")
-       return
+    if not 'nightly' in version:
+        # Only nightly cargo supports workspaces
+        print("Not uploading not-nightly docs")
+        return
     manifest = Manifest('./wayland-client/', version)
     doc_upload(version, manifest, Args())
 
