@@ -1,3 +1,8 @@
+//! This doc was generate for the upcoming v0.7 of the wayland-client crate.
+//! This new version is a complete change of the API. If you are looking for the 
+//! documentation of the crate currently on crates.io, check
+//! [on docs.rs](https://docs.rs/wayland-client/0.6.2/wayland_client/).
+
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
 
