@@ -3,6 +3,7 @@
 //! documentation of the crate currently on crates.io, check
 //! [on docs.rs](https://docs.rs/wayland-client/0.6.2/wayland_client/).
 
+#[macro_use] extern crate bitflags;
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
 
