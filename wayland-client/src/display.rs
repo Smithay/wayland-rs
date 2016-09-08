@@ -1,9 +1,10 @@
 use std::io;
+use std::ffi::CStr;
 
 use wayland_sys::client::*;
 
 use event_queue::{create_event_queue, EventQueue};
-use generated::client::wl_display::WlDisplay;
+use generated::client::wl_display::{WlDisplay, Error as DisplayError};
 use Proxy;
 
 /// Enum representing the possible reasons why connecting to the wayland server failed
@@ -17,6 +18,15 @@ pub enum ConnectError {
     ///
     /// Most of the time, this means that the program was not started from a wayland session.
     NoCompositorListening
+}
+
+/// Enum representing possible errors fatal to a wayland session
+#[derive(Debug)]
+pub enum FatalError {
+    /// Session aborted after an I/O error
+    Io(io::Error),
+    /// Session aborted after a protocol error
+    Protocol { kind: DisplayError, interface: String, id: u32 }
 }
 
 /// Connect to the compositor socket
@@ -54,6 +64,39 @@ impl WlDisplay {
     pub fn create_event_queue(&self) -> EventQueue {
         let evq = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.ptr() as *mut _) };
         unsafe { create_event_queue(self.ptr() as *mut _, Some(evq)) }
+    }
+
+    /// Get the last error that occured on the session
+    ///
+    /// Such errors are *fatal*, meaning that if this function does not
+    /// return `None`, your session is not usable any longer.
+    ///
+    /// As such, this function mostly provide diagnistics information. You can have a hint
+    /// an error might have been generated if I/O methods of EventQueue start returning errors.
+    pub fn last_error(&self) -> Option<FatalError> {
+        let err = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_error, self.ptr() as *mut _) };
+        if err == 0 {
+            None
+        } else if err == ::libc::EPROTO {
+            let mut interface = ::std::ptr::null_mut();
+            let mut id = 0;
+            let code = unsafe { ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE, wl_display_get_protocol_error,
+                self.ptr() as *mut _, &mut interface, &mut id
+            ) };
+            let interface = if interface.is_null() {
+                "<unkown interface>".to_owned()
+            } else {
+                unsafe { CStr::from_ptr((*interface).name) }.to_string_lossy().into_owned()
+            };
+            Some(FatalError::Protocol {
+                kind: DisplayError::from_raw(code).expect("Unknown protocol error"),
+                interface: interface,
+                id: id
+            })
+        } else {
+            Some(FatalError::Io(io::Error::from_raw_os_error(err)))
+        }
     }
 }
 
