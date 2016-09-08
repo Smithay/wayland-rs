@@ -130,7 +130,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 ));
             }
             for entry in &enu.entries {
-                if let Some((ref short, ref long)) = enu.description {
+                if let Some((ref short, ref long)) = entry.description {
                     try!(write_doc(Some(short), long, false, out));
                 }
                 try!(writeln!(out,
@@ -158,7 +158,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 snake_to_camel(&enu.name)
             ));
             for entry in &enu.entries {
-                if let Some((ref short, ref long)) = enu.description {
+                if let Some((ref short, ref long)) = entry.description {
                     try!(write_doc(Some(short), long, false, out));
                 }
                 try!(writeln!(out,
