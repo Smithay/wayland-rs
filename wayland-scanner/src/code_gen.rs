@@ -64,6 +64,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     };
     try!(writeln!(out, "}}"));
 
+    try!(write_enums(&interface.enums, out));
+
 
     // client-side events of wl_display are handled by the lib
     if side != Side::Client || interface.name != "wl_display" {
@@ -112,6 +114,86 @@ fn write_opcodes<O: Write>(messages: &[Message], out: &mut O, iname: &str) -> IO
     Ok(())
 }
 
+fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
+    for enu in enums {
+        if enu.bitfield {
+            if let Some((ref short, ref long)) = enu.description {
+                try!(writeln!(out,
+                    "bitflags! {{ #[doc = r#\"{}\n\n{}\"#] pub flags {}: u32 {{",
+                    short, long.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n"),
+                    snake_to_camel(&enu.name)
+                ));
+            } else {
+                try!(writeln!(out,
+                    "bitflags! {{ pub flags {}: u32 {{",
+                    snake_to_camel(&enu.name)
+                ));
+            }
+            for entry in &enu.entries {
+                if let Some((ref short, ref long)) = enu.description {
+                    try!(write_doc(Some(short), long, false, out));
+                }
+                try!(writeln!(out,
+                    "const {}{} = {},",
+                    if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" },
+                    snake_to_camel(&entry.name),
+                    entry.value
+                ));
+            }
+            try!(writeln!(out, "}} }}"));
+            try!(writeln!(out, "impl {} {{", snake_to_camel(&enu.name)));
+            try!(writeln!(out, "pub fn from_raw(n: u32) -> Option<{}> {{", snake_to_camel(&enu.name)));
+            try!(writeln!(out, "Some({}::from_bits_truncate(n))", snake_to_camel(&enu.name)));
+            try!(writeln!(out, "}}"));
+            try!(writeln!(out, "pub fn to_raw(&self) -> u32 {{"));
+            try!(writeln!(out, "self.bits()"));
+            try!(writeln!(out, "}}"));
+            try!(writeln!(out, "}}"));
+        } else { // if enu.bitfield
+            if let Some((ref short, ref long)) = enu.description {
+                try!(write_doc(Some(short), long, false, out));
+            }
+            try!(writeln!(out,
+                "#[repr(u32)]\n#[derive(Copy,Clone,Debug)]\npub enum {} {{",
+                snake_to_camel(&enu.name)
+            ));
+            for entry in &enu.entries {
+                if let Some((ref short, ref long)) = enu.description {
+                    try!(write_doc(Some(short), long, false, out));
+                }
+                try!(writeln!(out,
+                    "{}{} = {},",
+                    if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" },
+                    snake_to_camel(&entry.name),
+                    entry.value
+                ));
+            }
+            try!(writeln!(out, "}}"));
+
+            try!(writeln!(out, "impl {} {{", snake_to_camel(&enu.name)));
+            try!(writeln!(out, "pub fn from_raw(n: u32) -> Option<{}> {{", snake_to_camel(&enu.name)));
+            try!(writeln!(out, "match n {{"));
+            for entry in &enu.entries {
+                try!(writeln!(out,
+                    "{} => Some({}::{}{}),",
+                    entry.value,
+                    snake_to_camel(&enu.name),
+                    if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" },
+                    snake_to_camel(&entry.name)
+                ));
+            }
+            try!(writeln!(out, "_ => Option::None"));
+            try!(writeln!(out, "}}"));
+            try!(writeln!(out, "}}"));
+            try!(writeln!(out, "pub fn to_raw(&self) -> u32 {{"));
+            try!(writeln!(out, "*self as u32"));
+            try!(writeln!(out, "}}"));
+            try!(writeln!(out, "}}"));
+        }
+    }
+    Ok(())
+}
+
 fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str) -> IOResult<()> {
     if messages.len() == 0 {
         return Ok(())
@@ -134,8 +216,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 if is_keyword(&arg.name) { "_" } else { "" },
                 arg.name,
                 if arg.allow_null { "Option<" } else { "" },
-                // TODO handle unspecified interface
-                match arg.typ {
+                if let Some(ref name) = arg.enum_ {
+                    dotted_to_relname(name)
+                } else { match arg.typ {
+                    // TODO handle unspecified interface
                     Type::Object => arg.interface.as_ref()
                                        .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
                                        .unwrap_or(format!("*mut {}", side.object_ptr_type())),
@@ -143,7 +227,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                                       .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
                                       .unwrap_or("(&str, u32)".into()),
                     _ => arg.typ.rust_type().into()
-                },
+                }},
                 if arg.allow_null { ">" }  else { "" }
             ));
         }
@@ -163,9 +247,15 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         for (i, arg) in msg.args.iter().enumerate() {
             try!(write!(out, "let {} = {{", arg.name));
             if arg.allow_null {
-                try!(write!(out,"if args.offset({}).is_null() {{ None }} else {{ Some(", i + arg_offset));
+                try!(write!(out,"if args.offset({}).is_null() {{ Option::None }} else {{ Some({{", i + arg_offset));
             }
-            match arg.typ {
+            if let Some(ref name) = arg.enum_ {
+                try!(write!(out,
+                    "match {}::from_raw(*(args.offset({}) as *const u32)) {{ Some(v) => v, Option::None => return Err(()) }}",
+                    dotted_to_relname(name),
+                    i + arg_offset
+                ));
+            } else { match arg.typ {
                 Type::Uint => try!(write!(out, "*(args.offset({}) as *const u32)", i + arg_offset)),
                 Type::Int | Type::Fd => try!(write!(out, "*(args.offset({}) as *const i32)", i + arg_offset)),
                 Type::Fixed => try!(write!(out, "wl_fixed_to_double(*(args.offset({}) as *const i32))", i + arg_offset)),
@@ -178,9 +268,9 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                     Side::Server => try!(write!(out, "Resource::from_ptr(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::{}::{} as Resource>::interface_ptr(), proxy.version(), *(args.offset({}) as *const u32)))", arg.interface.as_ref().unwrap(), snake_to_camel(arg.interface.as_ref().unwrap()), i + arg_offset))
                 },
                 Type::Destructor => unreachable!()
-            }
+            }}
             if arg.allow_null {
-                try!(write!(out, ")}}"));
+                try!(write!(out, "}})}}"));
             }
             try!(writeln!(out, "}};"));
         }
@@ -253,7 +343,9 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 if is_keyword(&arg.name) { "_" } else { "" },
                 arg.name,
                 if arg.allow_null { "Option<" } else { "" },
-                match arg.typ {
+                if let Some(ref name) = arg.enum_ {
+                    dotted_to_relname(name)
+                } else { match arg.typ {
                     Type::Object => arg.interface.as_ref()
                                        .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
                                        .unwrap_or(format!("*mut {}",side.object_ptr_type())),
@@ -266,7 +358,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                         continue;
                     },
                     _ => arg.typ.rust_type().into()
-                },
+                }},
                 if arg.allow_null { ">" }  else { "" }
             ));
         }

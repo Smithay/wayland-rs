@@ -34,3 +34,16 @@ pub fn snake_to_camel(input: &str) -> String {
 pub fn snake_to_screaming(input: &str) -> String {
     input.chars().map(|c| c.to_ascii_uppercase()).collect()
 }
+
+pub fn dotted_to_relname(input: &str) -> String {
+    let mut it = input.split('.');
+    match (it.next(), it.next()) {
+        (Some(module), Some(name)) => format!(
+            "super::{}::{}",
+            module,
+            snake_to_camel(name)
+        ),
+        (Some(name), None) => snake_to_camel(name),
+        _ => unreachable!()
+    }
+}

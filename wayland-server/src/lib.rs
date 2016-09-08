@@ -1,3 +1,4 @@
+#[macro_use] extern crate bitflags;
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
 
