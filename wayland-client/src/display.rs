@@ -4,7 +4,7 @@ use std::ffi::CStr;
 use wayland_sys::client::*;
 
 use event_queue::{create_event_queue, EventQueue};
-use generated::client::wl_display::{WlDisplay, Error as DisplayError};
+use generated::client::wl_display::WlDisplay;
 use Proxy;
 
 /// Enum representing the possible reasons why connecting to the wayland server failed
@@ -21,12 +21,24 @@ pub enum ConnectError {
 }
 
 /// Enum representing possible errors fatal to a wayland session
+///
+/// These errors are fatal, so there is no way to recover the session, you
+/// must create a new one (or report failure to your user). But recovering
+/// this error can provide usefull debug information and/or help provide
+/// a sensible error message to the user.
 #[derive(Debug)]
 pub enum FatalError {
     /// Session aborted after an I/O error
     Io(io::Error),
     /// Session aborted after a protocol error
-    Protocol { kind: DisplayError, interface: String, id: u32 }
+    ///
+    /// - `interface` is a string with the name of the interface of the proxy
+    ///   that generated this error
+    /// - `proxy_id` is the internal id of the proxy that generated this error
+    /// - `error_code` is the code of the error, as defined by the `Error` enum
+    ///   of the interface of the proxy. It can directly be fed to the `from_raw`
+    ///   static method of this enum.
+    Protocol { interface: String, proxy_id: u32, error_code: u32 }
 }
 
 /// Connect to the compositor socket
@@ -90,9 +102,9 @@ impl WlDisplay {
                 unsafe { CStr::from_ptr((*interface).name) }.to_string_lossy().into_owned()
             };
             Some(FatalError::Protocol {
-                kind: DisplayError::from_raw(code).expect("Unknown protocol error"),
                 interface: interface,
-                id: id
+                proxy_id: id,
+                error_code: code
             })
         } else {
             Some(FatalError::Io(io::Error::from_raw_os_error(err)))
