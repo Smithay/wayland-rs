@@ -16,7 +16,7 @@ mod display;
 mod event_queue;
 
 pub use event_queue::{EventQueue, EventQueueHandle, StateGuard};
-pub use display::{default_connect, ConnectError};
+pub use display::{default_connect, ConnectError, FatalError};
 
 /// Common routines for wayland proxy objects.
 ///

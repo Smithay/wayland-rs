@@ -1,4 +1,5 @@
 use std::io;
+use std::ffi::CStr;
 
 use wayland_sys::client::*;
 
@@ -17,6 +18,27 @@ pub enum ConnectError {
     ///
     /// Most of the time, this means that the program was not started from a wayland session.
     NoCompositorListening
+}
+
+/// Enum representing possible errors fatal to a wayland session
+///
+/// These errors are fatal, so there is no way to recover the session, you
+/// must create a new one (or report failure to your user). But recovering
+/// this error can provide usefull debug information and/or help provide
+/// a sensible error message to the user.
+#[derive(Debug)]
+pub enum FatalError {
+    /// Session aborted after an I/O error
+    Io(io::Error),
+    /// Session aborted after a protocol error
+    ///
+    /// - `interface` is a string with the name of the interface of the proxy
+    ///   that generated this error
+    /// - `proxy_id` is the internal id of the proxy that generated this error
+    /// - `error_code` is the code of the error, as defined by the `Error` enum
+    ///   of the interface of the proxy. It can directly be fed to the `from_raw`
+    ///   static method of this enum.
+    Protocol { interface: String, proxy_id: u32, error_code: u32 }
 }
 
 /// Connect to the compositor socket
@@ -54,6 +76,39 @@ impl WlDisplay {
     pub fn create_event_queue(&self) -> EventQueue {
         let evq = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.ptr() as *mut _) };
         unsafe { create_event_queue(self.ptr() as *mut _, Some(evq)) }
+    }
+
+    /// Get the last error that occured on the session
+    ///
+    /// Such errors are *fatal*, meaning that if this function does not
+    /// return `None`, your session is not usable any longer.
+    ///
+    /// As such, this function mostly provide diagnistics information. You can have a hint
+    /// an error might have been generated if I/O methods of EventQueue start returning errors.
+    pub fn last_error(&self) -> Option<FatalError> {
+        let err = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_error, self.ptr() as *mut _) };
+        if err == 0 {
+            None
+        } else if err == ::libc::EPROTO {
+            let mut interface = ::std::ptr::null_mut();
+            let mut id = 0;
+            let code = unsafe { ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE, wl_display_get_protocol_error,
+                self.ptr() as *mut _, &mut interface, &mut id
+            ) };
+            let interface = if interface.is_null() {
+                "<unkown interface>".to_owned()
+            } else {
+                unsafe { CStr::from_ptr((*interface).name) }.to_string_lossy().into_owned()
+            };
+            Some(FatalError::Protocol {
+                interface: interface,
+                proxy_id: id,
+                error_code: code
+            })
+        } else {
+            Some(FatalError::Io(io::Error::from_raw_os_error(err)))
+        }
     }
 }
 
