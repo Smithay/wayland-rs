@@ -21,3 +21,14 @@ pub fn create_display() -> (Display, EventLoop) {
     }
 }
 
+impl Drop for Display {
+    fn drop(&mut self) {
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_display_destroy,
+                self.ptr
+            );
+        }
+    }
+}
