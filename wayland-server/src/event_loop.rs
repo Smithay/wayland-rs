@@ -8,6 +8,25 @@ use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
 use {Resource, Handler, Client};
 
+
+pub struct Global {
+    ptr: *mut wl_global,
+    _data: Box<(*mut c_void, *mut EventLoopHandle)>
+}
+
+impl Global {
+    pub fn destroy(self) {
+        unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
+        }
+    }
+}
+
+pub trait GlobalHandler<R: Resource> {
+    fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
+}
+
+
 pub struct EventLoopHandle {
     handlers: Vec<Box<Any>>,
     keep_going: bool,
@@ -129,6 +148,31 @@ impl EventLoop {
             }
         }
     }
+
+    pub fn register_global<R: Resource, H: GlobalHandler<R> + Any + 'static>(&mut self, handler_id: usize, version: i32) -> Global {
+        let h = self.handle.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let display = self.display.expect("Globals can only be registered on an event loop associated with a display.");
+
+        let data = Box::new((h as *const _ as *mut c_void, &*self.handle as *const _ as *mut EventLoopHandle));
+
+        let ptr = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_global_create,
+                display,
+                R::interface_ptr(),
+                version,
+                &*data as *const (*mut c_void, *mut EventLoopHandle) as *mut _,
+                global_bind::<R,H>
+            )
+        };
+
+        Global {
+            ptr: ptr,
+            _data: data
+        }
+    }
     
     /// Get an handle to the internal state
     ///
@@ -192,6 +236,43 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
             let _ = write!(
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for {} panicked, aborting.",
+                R::interface_name()
+            );
+            ::libc::abort();
+        }
+    }
+}
+
+unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
+    client: *mut wl_client,
+    data: *mut c_void,
+    version: u32,
+    id: u32
+) {
+    // safety of this function is the same as dispatch_fund
+    let ret = ::std::panic::catch_unwind(move || {
+        let data = &*(data as *const (*mut H, *mut EventLoopHandle));
+        let handler = &mut *data.0;
+        let evqhandle = &mut *data.1;
+        let client = Client::from_ptr(client);
+        let ptr = ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_create,
+            client.ptr(),
+            R::interface_ptr(),
+            version as i32, // wayland already checks the validity of the version
+            id
+        );
+        let resource = R::from_ptr(ptr as *mut wl_resource);
+        handler.bind(evqhandle, &client, resource)
+    });
+    match ret {
+        Ok(()) => (),   // all went well
+        Err(_) => {
+            // a panic occured
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A global handler for {} panicked, aborting.",
                 R::interface_name()
             );
             ::libc::abort();
