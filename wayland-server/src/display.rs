@@ -30,7 +30,7 @@ impl Display {
         let ret = unsafe { ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_display_flush_clients,
-            display
+            self.ptr
         )};
     }
 }
