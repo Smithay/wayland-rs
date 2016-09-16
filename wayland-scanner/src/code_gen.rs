@@ -302,7 +302,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                     try!(writeln!(out, "ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, proxy.ptr());"))
                 },
                 Side::Client => {
-                    try!(writeln!(out, "ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_proxy_destroy, proxy.ptr());"))
+                    try!(writeln!(out, "ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy.ptr());"))
                 }
             }
         }
@@ -526,7 +526,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 },
                 Side::Client => {
                     try!(writeln!(out,
-                        "unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_proxy_destroy, self.ptr()); }}"
+                        "unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()); }}"
                     ))
                 }
             }
