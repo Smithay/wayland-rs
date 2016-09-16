@@ -203,6 +203,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some((ref short, ref long)) = msg.description {
             try!(write_doc(Some(short), long, false, out));
         }
+        if let Some(Type::Destructor) = msg.typ {
+            try!(writeln!(out,
+                "/// This is a destructor, you cannot send {} to this object once this method is called.",
+                match side { Side::Server => "events", Side::Client => "requests" }
+            ));
+        }
         try!(write!(out, "fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
@@ -290,6 +296,16 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
             };
         }
         try!(writeln!(out, ");"));
+        if let Some(Type::Destructor) = msg.typ {
+            match side {
+                Side::Server => {
+                    try!(writeln!(out, "ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, proxy.ptr());"))
+                },
+                Side::Client => {
+                    try!(writeln!(out, "ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_proxy_destroy, proxy.ptr());"))
+                }
+            }
+        }
         try!(writeln!(out, "}},"));
     }
     try!(writeln!(out, "_ => return Err(())"));
@@ -305,6 +321,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
             try!(write_doc(Some(short), long, false, out));
+        }
+        if let Some(Type::Destructor) = msg.typ {
+            try!(writeln!(out,
+                "/// This is a destructor, you cannot send {} to this object once this method is called.",
+                match side { Side::Server => "events", Side::Client => "requests" }
+            ));
         }
 
         // detect new_id
@@ -494,6 +516,21 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         }
 
         try!(writeln!(out, ") }};"));
+
+        if let Some(Type::Destructor) = msg.typ {
+            match side {
+                Side::Server => {
+                    try!(writeln!(out,
+                        "unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, self.ptr()); }}"
+                    ))
+                },
+                Side::Client => {
+                    try!(writeln!(out,
+                        "unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_proxy_destroy, self.ptr()); }}"
+                    ))
+                }
+            }
+        }
 
         if newid.is_some() && side == Side::Client {
             try!(writeln!(out, "let proxy = unsafe {{ Proxy::from_ptr(ptr) }};"));
