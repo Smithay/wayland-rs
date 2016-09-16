@@ -22,7 +22,18 @@ impl Global {
     }
 }
 
+/// Trait to handle a global object.
 pub trait GlobalHandler<R: Resource> {
+    /// Request to bind a global
+    ///
+    /// This method is called each time a client binds this global object from
+    /// the registry.
+    ///
+    /// The global is instanciated as a `Resource` and provided to the callback,
+    /// do whatever you need with it.
+    ///
+    /// Letting it out of scope will *not* destroy the resource, and you'll still
+    /// receive its events (as long as you've registered an appropriate handler).
     fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
 }
 
@@ -112,6 +123,12 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
+    /// Dispatch pending requests to their respective handlers
+    ///
+    /// If no request is pending, will block at most `timeout` ms is specified,
+    /// or indefinitely if `timeout` is `None`.
+    ///
+    /// Returns the number of requests dispatched or an error.
     pub fn dispatch(&mut self, timeout: Option<u32>) -> IoResult<u32> {
         use std::i32;
         let timeout = match timeout {
@@ -132,6 +149,15 @@ impl EventLoop {
         }
     }
     
+    /// Runs the event loop
+    ///
+    /// This method will call repetitively the dispatch method,
+    /// until one of the handlers call the `stop_loop` method
+    /// on the `EventLoopHandle`.
+    ///
+    /// If this event loop is attached to a display, it will also
+    /// flush the events to the clients between two calls to
+    /// `dispatch()`.
     pub fn run(&mut self) -> IoResult<()> {
         self.handle.keep_going = true;
         loop {
@@ -149,6 +175,17 @@ impl EventLoop {
         }
     }
 
+    /// Register a global object to the display.
+    ///
+    /// Specify the version of the interface to advertize, as well as the handler that will
+    /// receive requests to create an object.
+    ///
+    /// The handler must implement the appropriate `GlobalHandler<R>` trait.
+    ///
+    /// Panics:
+    ///
+    /// - if the event loop is not associated to a display
+    /// - if the provided `H` type does not match the actual type of the handler
     pub fn register_global<R: Resource, H: GlobalHandler<R> + Any + 'static>(&mut self, handler_id: usize, version: i32) -> Global {
         let h = self.handle.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");

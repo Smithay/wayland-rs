@@ -21,6 +21,20 @@ pub fn create_display() -> (Display, EventLoop) {
     }
 }
 
+impl Display {
+    /// Flush events to the clients
+    ///
+    /// Will send as many pending events as possible to the respective sockets of the clients.
+    /// Will not block, but might not send everything if the socket buffer fills up.
+    fn flush_clients(&self) {
+        let ret = unsafe { ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_display_flush_clients,
+            display
+        )};
+    }
+}
+
 impl Drop for Display {
     fn drop(&mut self) {
         unsafe {
