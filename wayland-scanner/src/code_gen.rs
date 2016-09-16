@@ -205,7 +205,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         }
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
-                "/// This is a destructor, you cannot send {} to this object once this method is called.",
+                "///\n/// This is a destructor, you cannot send {} to this object once this method is called.",
                 match side { Side::Server => "events", Side::Client => "requests" }
             ));
         }
@@ -324,7 +324,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         }
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
-                "/// This is a destructor, you cannot send {} to this object once this method is called.",
+                "///\n/// This is a destructor, you cannot send {} to this object once this method is called.",
                 match side { Side::Server => "events", Side::Client => "requests" }
             ));
         }
