@@ -65,6 +65,15 @@ pub enum RequestResult<T> {
     Destroyed
 }
 
+impl<T> RequestResult<T> {
+    pub fn expect(self, error: &str) -> T {
+        match self {
+            RequestResult::Sent(v) => v,
+            RequestResult::Destroyed => panic!("{}", error)
+        }
+    }
+}
+
 /// Generic handler trait
 ///
 /// This trait is automatically implemented for objects that implement

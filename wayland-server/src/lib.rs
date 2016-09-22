@@ -53,6 +53,15 @@ pub enum EventResult<T> {
     Destroyed
 }
 
+impl<T> EventResult<T> {
+    pub fn expect(self, error: &str) -> T {
+        match self {
+            EventResult::Sent(v) => v,
+            EventResult::Destroyed => panic!("{}", error)
+        }
+    }
+}
+
 pub unsafe trait Handler<T: Resource> {
     unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
