@@ -3,10 +3,14 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 use {Handler, Proxy};
+
+type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
 
 pub struct EventQueueHandle {
     handlers: Vec<Box<Any>>
@@ -23,6 +27,12 @@ impl EventQueueHandle {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
         unsafe {
+            let data: *mut ProxyUserData = ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_get_user_data,
+                proxy.ptr()
+            ) as *mut _;
+            (&mut *data).0 = self as *const _ as *mut _;
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_add_dispatcher,
@@ -216,10 +226,11 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
         // can only be assigned to a single EventQueue.
         // (this is actually the whole point of the design of this lib)
         let handler = &mut *(handler as *const H as *mut H);
-        let proxy = P::from_ptr(proxy as *mut wl_proxy);
-        let evqhandle = &mut *(ffi_dispatch!(
+        let proxy = P::from_ptr_initialized(proxy as *mut wl_proxy);
+        let data = &mut *(ffi_dispatch!(
             WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()
-        ) as *mut EventQueueHandle);
+        ) as *mut ProxyUserData);
+        let evqhandle = &mut *data.0;
         handler.message(evqhandle, &proxy, opcode, args)
     });
     match ret {

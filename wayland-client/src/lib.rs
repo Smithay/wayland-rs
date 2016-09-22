@@ -29,11 +29,22 @@ pub use display::{default_connect, ConnectError, FatalError};
 pub trait Proxy {
     /// Pointer to the underlying wayland proxy object
     fn ptr(&self) -> *mut wl_proxy;
-    /// Create an instance from point a wayland pointer
+    /// Create an instance from a wayland pointer
     ///
     /// The pointer must refer to a valid wayland proxy
-    /// of the appropriate interface.
-    unsafe fn from_ptr(*mut wl_proxy) -> Self;
+    /// of the appropriate interface, but that have not
+    /// yet been seen by the library.
+    ///
+    /// The library will take control of the object (notably
+    /// overwrite its user_data).
+    unsafe fn from_ptr_new(*mut wl_proxy) -> Self;
+    /// Create an instance from a wayland pointer
+    ///
+    /// The pointer must refer to a valid wayland proxy
+    /// of the appropriate interface, and have already been
+    /// initialized by the library (it'll assume this proxy
+    /// user_data contains a certain kind of data).
+    unsafe fn from_ptr_initialized(*mut wl_proxy) -> Self;
     /// Pointer to the interface representation
     fn interface_ptr() -> *const wl_interface;
     /// Internal wayland name of this interface
@@ -42,6 +53,16 @@ pub trait Proxy {
     fn supported_version() -> u32;
     /// Current version of the interface this proxy is instanciated with
     fn version(&self) -> u32;
+    /// Check if the proxt behind this handle is actually still alive
+    fn is_alive(&self) -> bool;
+}
+
+/// Possible outcome of the call of a request on a proxy
+pub enum RequestResult<T> {
+    /// Message has been buffered and will be sent to server
+    Sent(T),
+    /// This proxy is already destroyed, request has been ignored
+    Destroyed
 }
 
 /// Generic handler trait
@@ -72,7 +93,7 @@ mod generated {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Proxy, Handler};
+        #[doc(hidden)] pub use {Proxy, Handler, RequestResult};
         #[doc(hidden)] pub use event_queue::EventQueueHandle;
         #[doc(hidden)] pub use super::interfaces;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
