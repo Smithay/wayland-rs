@@ -3,11 +3,14 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
 use {Resource, Handler, Client};
 
+type ResourceUserData = (*mut EventLoopHandle, Arc<AtomicBool>);
 
 pub struct Global {
     ptr: *mut wl_global,
@@ -54,13 +57,19 @@ impl EventLoopHandle {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
         unsafe {
+            let data: *mut ResourceUserData = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_user_data,
+                resource.ptr()
+            ) as *mut _;
+            (&mut *data).0 = self as *const _  as *mut _;
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
                 resource.ptr(),
                 dispatch_func::<R,H>,
                 h as *const _ as *const c_void,
-                self as *const _ as *mut c_void,
+                data as *mut c_void,
                 resource_destroy
             );
         }
@@ -248,10 +257,11 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
         // can only be assigned to a single EventQueue.
         // (this is actually the whole point of the design of this lib)
         let handler = &mut *(handler as *const H as *mut H);
-        let resource = R::from_ptr(resource as *mut wl_resource);
-        let evqhandle = &mut *(ffi_dispatch!(
+        let resource = R::from_ptr_initialized(resource as *mut wl_resource);
+        let data = &mut *(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource.ptr()
-        ) as *mut EventLoopHandle);
+        ) as *mut ResourceUserData);
+        let evqhandle = &mut *data.0;
         let client = Client::from_ptr(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource.ptr()
         ));
@@ -300,7 +310,7 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
             version as i32, // wayland already checks the validity of the version
             id
         );
-        let resource = R::from_ptr(ptr as *mut wl_resource);
+        let resource = R::from_ptr_new(ptr as *mut wl_resource);
         handler.bind(evqhandle, &client, resource)
     });
     match ret {

@@ -35,6 +35,20 @@ impl Side {
             Server => "EventLoopHandle"
         }
     }
+
+    pub fn handle(&self) -> &'static str {
+        match *self {
+            Client => "WAYLAND_CLIENT_HANDLE",
+            Server => "WAYLAND_SERVER_HANDLE"
+        }
+    }
+
+    pub fn result_type(&self) -> &'static str {
+        match *self {
+            Client => "RequestResult",
+            Server => "EventResult"
+        }
+    }
 }
 
 

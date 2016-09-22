@@ -52,7 +52,7 @@ pub fn default_connect() -> Result<(WlDisplay, EventQueue), ConnectError> {
     if ptr.is_null() {
         Err(ConnectError::NoCompositorListening)
     } else {
-        let display = unsafe { WlDisplay::from_ptr(ptr as *mut _) };
+        let display = unsafe { WlDisplay::from_ptr_new(ptr as *mut _) };
         let eventiter = unsafe { create_event_queue(display.ptr() as *mut wl_display, None) };
         Ok((display, eventiter))
     }

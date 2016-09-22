@@ -23,7 +23,7 @@ fn main() {
     };
 
     event_queue.add_handler(MyHandler);
-    let registry = display.get_registry();
+    let registry = display.get_registry().expect("Registry cannot be destroyed!?");
     event_queue.register::<_, MyHandler>(&registry, 0);
 
     event_queue.sync_roundtrip().unwrap();
