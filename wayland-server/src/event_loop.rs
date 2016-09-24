@@ -111,7 +111,7 @@ impl<'evq> StateGuard<'evq> {
     ///
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
-    pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &H {
+    pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &mut H {
         self.evq.handle.handlers[handler_id].downcast_mut::<H>()
             .expect("Handler type do not match.")
     }
