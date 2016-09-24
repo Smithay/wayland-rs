@@ -486,7 +486,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     try!(writeln!(out, "    panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"));
                     try!(writeln!(out, "}}"));
                     try!(write!(out,
-                        "let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr()",
+                        "let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
                     ));
