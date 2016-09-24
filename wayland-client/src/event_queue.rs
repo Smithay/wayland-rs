@@ -39,7 +39,7 @@ impl EventQueueHandle {
                 proxy.ptr(),
                 dispatch_func::<P,H>,
                 h as *const _ as *const c_void,
-                self as *const _ as *mut c_void
+                data as *mut c_void
             );
         }
     }
