@@ -16,6 +16,10 @@ bitflags = "0.7"
 [build-dependencies]
 wayland-scanner = { version = "0.7.0-pre", path = "../wayland-scanner" }
 
+[dev-dependencies]
+byteorder = "0.5"
+tempfile = "2"
+
 [features]
 dlopen = ["wayland-sys/dlopen"]
 egl = ["wayland-sys/egl"]

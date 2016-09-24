@@ -14,6 +14,7 @@ use wayland_sys::common::{wl_interface, wl_argument};
 
 mod display;
 mod event_queue;
+pub mod env;
 
 pub use event_queue::{EventQueue, EventQueueHandle, StateGuard};
 pub use display::{default_connect, ConnectError, FatalError};
