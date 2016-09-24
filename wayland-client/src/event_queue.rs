@@ -104,7 +104,7 @@ impl EventQueue {
             Some(evq) => unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch_queue_pending,
+                    wl_display_dispatch_queue,
                     self.display,
                     evq
                 )
@@ -112,7 +112,7 @@ impl EventQueue {
             None => unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch_pending,
+                    wl_display_dispatch,
                     self.display
                 )
             }
