@@ -258,7 +258,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 if arg.allow_null { ">" }  else { "" }
             ));
         }
-        try!(writeln!(out, ");"));
+        try!(writeln!(out, ") {{}}"));
     }
     // hidden method for internal machinery
     try!(writeln!(out, "#[doc(hidden)]"));
