@@ -98,6 +98,9 @@
 //!     }
 //! }
 //! ```
+
+#![warn(missing_docs)]
+
 extern crate xml;
 
 use std::fs::{File, OpenOptions};
