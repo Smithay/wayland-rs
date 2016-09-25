@@ -12,6 +12,12 @@ use {Handler, Proxy};
 
 type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
 
+/// Handle to an event queue
+///
+/// This handle gives you access to methods on an event queue
+/// that are safe to do from within a callback.
+///
+/// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
     handlers: Vec<Box<Any>>
 }
@@ -44,16 +50,23 @@ impl EventQueueHandle {
         }
     }
 
-    /// Insert a new handler to this EventLoop
+    /// Insert a new handler to this event queue
     ///
-    /// Returns the index of this handler in the internal array, needed register
-    /// proxies to it.
+    /// Returns the index of this handler in the internal array, which is needed
+    /// to register proxies to it.
     pub fn add_handler<H: Any + 'static>(&mut self, handler: H) -> usize {
         self.handlers.push(Box::new(handler) as Box<Any>);
         self.handlers.len() - 1
     }
 }
 
+/// Guard to access internal state of an event queue
+///
+/// This guard allows you to get references to the handlers you
+/// previously stored inside an event queue.
+///
+/// It borrows the event queue, so no event dispatching is possible
+/// as long as the guard is in scope, for safety reasons.
 pub struct StateGuard<'evq> {
     evq: &'evq mut EventQueue
 }
@@ -82,6 +95,21 @@ impl<'evq> StateGuard<'evq> {
     }
 }
 
+/// An event queue managing wayland events
+///
+/// Each wayland object can receive events from the server. To handle these events
+/// you must use a handler object: a struct (or enum) which you have implemented
+/// the appropriate `Handler` traits on it (each wayland interface defines a `Handler`
+/// trait in its module), and declared it using the `declare_handler!(..)` macro.
+///
+/// This handler contains the state all your handler methods will be able to access
+/// via the `&mut self` argument. You can then instanciate your type, and give ownership of
+/// the handler object to the event queue, via the `add_handler(..)` method. Then, each
+/// wayland object must be registered to a handler via the `register(..)` method (or its events
+/// will all be ignored).
+///
+/// The event queues also provides you control on the flow of the program, via the `dispatch()` and
+/// `dispatch_pending()` methods.
 pub struct EventQueue {
     display: *mut wl_display,
     wlevq: Option<*mut wl_event_queue>,
