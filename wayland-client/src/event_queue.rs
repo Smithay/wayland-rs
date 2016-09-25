@@ -110,6 +110,33 @@ impl<'evq> StateGuard<'evq> {
 ///
 /// The event queues also provides you control on the flow of the program, via the `dispatch()` and
 /// `dispatch_pending()` methods.
+///
+/// ## example of use
+///
+/// ```ignore
+/// struct MyHandler { /* ... */ }
+///
+/// impl wl_surface::Handler for MyHandler {
+///     // implementation of the handler methods
+/// }
+///
+/// declare_handler!(MyHandler, wl_surface::Handler, wl_surface::WlSurface);
+///
+/// fn main() {
+///     /* ... setup of your environment ... */
+///     let surface = compositor.create_surface().expect("Compositor cannot be destroyed.");
+///     let my_id = eventqueue.add_handler(MyHandler::new());
+///     eventqueue.register::<_, MyHandler>(&surface, my_id);
+///
+///     // main event loop
+///     loop {
+///         // flush requests to the server
+///         display.flush().unwrap();
+///         // dispatch events from the server, blocking if needed
+///         eventqueue.dispatch().unwrap();
+///     }
+/// }
+/// ```
 pub struct EventQueue {
     display: *mut wl_display,
     wlevq: Option<*mut wl_event_queue>,
