@@ -1,5 +1,3 @@
-#![allow(dead_code, non_camel_case_types)]
-
 //! FFI bindings to the wayland system libraries.
 //!
 //! The names exported by this crate should *not* be used directly, but though
@@ -31,6 +29,8 @@
 //! Each module except `common` corresponds to a system library. They all define a function named
 //! `is_lib_available()` which returns a boolean depending on whether the lib could be loaded.
 //! They always return true if the feature `dlopen` is absent, as the lib is then directly linked.
+
+#![allow(dead_code, non_camel_case_types)]
 
 #[macro_use(external_library,link_external_library,dlopen_external_library)]
 extern crate dlib;
