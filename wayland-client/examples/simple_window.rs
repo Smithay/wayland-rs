@@ -9,8 +9,7 @@ use std::cmp::min;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 
-use wayland_client::EventQueueHandle;
-use wayland_client::env::EnvHandler;
+use wayland_client::{EventQueueHandle, EnvHandler};
 use wayland_client::protocol::{wl_compositor, wl_shell, wl_shm, wl_shell_surface,
                                wl_seat, wl_pointer, wl_surface};
 

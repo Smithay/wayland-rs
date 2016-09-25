@@ -1,6 +1,6 @@
 #[macro_use] extern crate wayland_client;
 
-use wayland_client::env::EnvHandler;
+use wayland_client::EnvHandler;
 
 wayland_env!(WaylandEnv);
 
