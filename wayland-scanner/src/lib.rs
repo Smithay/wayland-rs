@@ -87,9 +87,9 @@
 //!         // submodules in the generated code will try to import them.
 //!         // Hopefully someday pub(restricted) and friends will
 //!         // allow for a cleaner way to do that
-//!         #[doc(hidden)] pub use wayland_client::{Proxy, Handler, EventQueueHandle};
+//!         #[doc(hidden)] pub use wayland_client::{Proxy, Handler, EventQueueHandle, RequestResult};
 //!         // Replace the above line with this for server-side:
-//!         // #[doc(hidden)] pub use wayland_server::{Resource, Handler, EventLoopHandle};
+//!         // #[doc(hidden)] pub use wayland_server::{Resource, Handler, EventLoopHandle, EventResult};
 //!         #[doc(hidden)] pub use super::interfaces;
 //!         // If you protocol interacts with objects from other protocols, you'll need to import
 //!         // their modules, like so:
