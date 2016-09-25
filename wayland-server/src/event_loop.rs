@@ -12,12 +12,21 @@ use {Resource, Handler, Client};
 
 type ResourceUserData = (*mut EventLoopHandle, Arc<AtomicBool>);
 
+/// A handle to a global object
+///
+/// This is given to you when you register a global to the event loop.
+///
+/// This handle allows you do destroy the global when needed.
+///
+/// If you know you will never destroy this global, you can let this
+/// handle go out of scope.
 pub struct Global {
     ptr: *mut wl_global,
     _data: Box<(*mut c_void, *mut EventLoopHandle)>
 }
 
 impl Global {
+    /// Destroy the associated global object.
     pub fn destroy(self) {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
@@ -40,7 +49,12 @@ pub trait GlobalHandler<R: Resource> {
     fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
 }
 
-
+/// Handle to an event loop
+///
+/// This handle gives you access to methods on an event loop
+/// that are safe to do from within a callback.
+///
+/// They are also available on an `EventLoop` object via `Deref`.
 pub struct EventLoopHandle {
     handlers: Vec<Box<Any>>,
     keep_going: bool,
@@ -84,11 +98,22 @@ impl EventLoopHandle {
         self.handlers.len() - 1
     }
     
+    /// Stop looping
+    ///
+    /// If the event loop this handle belongs to is currently running its `run()`
+    /// method, it'll stop and return as soon as the current dispatching session ends.
     pub fn stop_loop(&mut self) {
         self.keep_going = false;
     }
 }
 
+/// Guard to access internal state of an event loop
+///
+/// This guard allows you to get references to the handlers you
+/// previously stored inside an event loop.
+///
+/// It borrows the event loop, so no event dispatching is possible
+/// as long as the guard is in scope, for safety reasons.
 pub struct StateGuard<'evq> {
     evq: &'evq mut EventLoop
 }
@@ -134,7 +159,7 @@ pub struct EventLoop {
 impl EventLoop {
     /// Dispatch pending requests to their respective handlers
     ///
-    /// If no request is pending, will block at most `timeout` ms is specified,
+    /// If no request is pending, will block at most `timeout` ms if specified,
     /// or indefinitely if `timeout` is `None`.
     ///
     /// Returns the number of requests dispatched or an error.

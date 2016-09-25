@@ -2,10 +2,17 @@ use wayland_sys::server::*;
 
 use event_loop::{create_event_loop, EventLoop};
 
+/// A wayland socket
+///
+/// This represents a socket your compositor can receive clients on.
 pub struct Display {
     ptr: *mut wl_display,
 }
 
+/// Create a new display
+///
+/// Create a socket to listen on for clients. By default use the name
+/// `wayland-0`, if not overwriten by the environment variable `WAYLAND_DISPLAY`.
 pub fn create_display() -> (Display, EventLoop) {
     unsafe {
         let ptr = ffi_dispatch!(
@@ -26,8 +33,8 @@ impl Display {
     ///
     /// Will send as many pending events as possible to the respective sockets of the clients.
     /// Will not block, but might not send everything if the socket buffer fills up.
-    fn flush_clients(&self) {
-        let ret = unsafe { ffi_dispatch!(
+    pub fn flush_clients(&self) {
+        unsafe { ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_display_flush_clients,
             self.ptr
