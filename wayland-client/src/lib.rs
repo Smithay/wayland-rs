@@ -3,6 +3,8 @@
 //! documentation of the crate currently on crates.io, check
 //! [on docs.rs](https://docs.rs/wayland-client/0.6.2/wayland_client/).
 
+#![warn(missing_docs)]
+
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
@@ -68,6 +70,9 @@ pub enum RequestResult<T> {
 }
 
 impl<T> RequestResult<T> {
+    /// Assert that result is successfull and extract the value.
+    ///
+    /// Panics with provided error message if the result was `Destroyed`.
     pub fn expect(self, error: &str) -> T {
         match self {
             RequestResult::Sent(v) => v,
@@ -89,18 +94,27 @@ impl<T> RequestResult<T> {
 /// to implement this trait, and you should not attempt to implement it
 /// yourself.
 pub unsafe trait Handler<T: Proxy> {
+    /// Dispatch a message.
     unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
 mod generated {
     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
+    #![allow(missing_docs)]
 
     pub mod interfaces {
         include!(concat!(env!("OUT_DIR"), "/wayland_interfaces.rs"));
     }
 
     pub mod client {
+        //! The wayland core protocol
+        //!
+        //! This module contains all objects of the core wayland protocol.
+        //!
+        //! It has been generated from the `wayland.xml` protocol file
+        //! using `wayland_scanner`.
+
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
@@ -112,6 +126,7 @@ mod generated {
 }
 
 pub mod sys {
+    //! Reexports of types and objects from wayland-sys
     pub use wayland_sys::common::*;
     pub use wayland_sys::client::*;
 }

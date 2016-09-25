@@ -58,6 +58,10 @@ pub struct EnvHandler<H: EnvHandlerInner> {
 }
 
 impl<H: EnvHandlerInner> EnvHandler<H> {
+    /// Create a new EnvHandler
+    ///
+    /// This handler will need to be given to an event queue
+    /// and a `WlRegistry` be registered to it.
     pub fn new() -> EnvHandler<H> {
         EnvHandler {
             globals: Vec::new(),
@@ -65,10 +69,21 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
         }
     }
 
+    /// Is the handler ready
+    ///
+    /// Returns true if all required globals have been created.
+    ///
+    /// If this method returns false, trying to access a global
+    /// field will panic.
     pub fn ready(&self) -> bool {
         self.inner.is_some()
     }
 
+    /// List of advertized globals
+    ///
+    /// Returns a list of all globals that have been advertized by the server.
+    ///
+    /// The type format of each tuple is: `(global_id, interface_name, global_version)`.
     pub fn globals(&self) -> &[(u32, String, u32)] {
         &self.globals
     }

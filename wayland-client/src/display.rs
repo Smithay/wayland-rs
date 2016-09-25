@@ -31,14 +31,15 @@ pub enum FatalError {
     /// Session aborted after an I/O error
     Io(io::Error),
     /// Session aborted after a protocol error
-    ///
-    /// - `interface` is a string with the name of the interface of the proxy
-    ///   that generated this error
-    /// - `proxy_id` is the internal id of the proxy that generated this error
-    /// - `error_code` is the code of the error, as defined by the `Error` enum
-    ///   of the interface of the proxy. It can directly be fed to the `from_raw`
-    ///   static method of this enum.
-    Protocol { interface: String, proxy_id: u32, error_code: u32 }
+    Protocol {
+        ///  name of the interface of the proxy that generated this error
+        interface: String,
+        /// internal id of the proxy that generated this error
+        proxy_id: u32,
+        /// code of the error, as defined by the `Error` enum of the interface of the proxy.
+        /// It can directly be fed to the `from_raw` static method of this enum.
+        error_code: u32
+    }
 }
 
 /// Connect to the compositor socket
