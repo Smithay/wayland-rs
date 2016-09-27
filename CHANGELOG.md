@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.0 - 2016-09-27
+
+Complete rewrite of the libs to a new architecture.
+
+Addition of wayland-server to the libs.
+
 ## 0.6.2 - 2016-05-29
 
 Add Iterator impl to EventIterator.
