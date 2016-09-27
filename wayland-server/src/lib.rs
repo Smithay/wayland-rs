@@ -1,3 +1,178 @@
+//! Server-side Wayland connector
+//!
+//! # Overview
+//!
+//! Setting up the listening socket is done by the `create_display`
+//! function, providing you a `Display` object and an `EventLoop`.
+//!
+//! On the event loop, you'll be able to register the globals
+//! you want to advertize, as well as handlers for all ressources
+//! created by the clients.
+//!
+//! You then integrate the wayland event loop in your main event
+//! loop to run your compositor.
+//!
+//! # Handlers and event loop
+//!
+//! This crate mirrors the callback-oriented design of the
+//! Wayland C library by using handler structs: each wayland
+//! type defines a `Handler` trait in its module, which one
+//! method for each possible requests this object can receive.
+//!
+//! To use it, you need to build a struct (or enum) that will
+//! implement all the traits for all the requests you are interested
+//! in. All methods of handler traits provide a default
+//! implementation foing nothing, so you don't need to write
+//! empty methods for events you want to ignore. You also need
+//! to declare the handler capability for your struct using
+//! the `declare_handler!(..)` macro. A single struct can be
+//! handler for several wayland interfaces at once.
+//!
+//! ## Example of handler
+//!
+//! ```ignore
+//! /*  writing a handler for an wl_foo interface */
+//! // import the module of this interface
+//! use wl_foo;
+//!
+//! struct MyHandler { /* some fields to store state */ }
+//!
+//! // implement handerl trait:
+//! impl wl_foo::Handler for MyHandler {
+//!     fn a_request(&mut self,
+//!                  evlh: &mut EventLoopHandle,
+//!                  client: &Client,
+//!                  me: &wl_foo::WlFoo,
+//!                  arg1, arg2, // the actual args of the request
+//!     ) {
+//!         /* handle the request */
+//!     }
+//! }
+//!
+//! // declare the handler capability
+//! // this boring step is necessary because Rust's type system is
+//! // not yet magical enough
+//! declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
+//! ```
+//!
+//! ## Event Loop and handlers
+//!
+//! In your initialization code, you'll need to instanciate
+//! your handler and give it to the event queue:
+//!
+//! ```ignore
+//! let handler_id = event_loop.add_handler(MyHandler::new());
+//! ```
+//!
+//! Then, you can register your wayland objects to this handler:
+//!
+//! ```ignore
+//! // This type info is necessary for safety, as at registration
+//! // time the event_loop will check that the handler you
+//! // specified using handler_id has the same type as provided
+//! // as argument, and that this type implements the appropriate
+//! // handler trait.
+//! event_loop.register::<_, MyHandler>(&my_object, handler_id);
+//! ```
+//!
+//! You can have several handlers in the same event loop,
+//! but they cannot share their state without synchronisation
+//! primitives like `Arc`, `Mutex` and friends, so if two handlers
+//! need to share some state, you should consider building them
+//! as a single struct.
+//!
+//! A given wayland object can only be registered to a single
+//! handler at a given time, re-registering it to a new handler
+//! will overwrite the previous configuration.
+//!
+//! Handlers can be created, and objects registered to them
+//! from within a handler method, using the `&EventLoopHandle`
+//! argument.
+//!
+//! ## Globals declaration
+//!
+//! Declaring a global is quite similar to declaring a handler
+//! for a ressource. But this time via the `GlobalHandler<R>` trait.
+//!
+//! This trait declares a single method, `bind`, which is called
+//! whenever a client binds this global, providing you with
+//! a ressource object representing the newly-created global.
+//!
+//! You can do what you please with this object, storing it for
+//! later if you'll need to send it events, or just let it go
+//! go out of scope after having registered it to the appropriate
+//! handler.
+//!
+//! To register globals on the event loop, you need the
+//! `register_global` method:
+//!
+//! ```ignore
+//! struct MyHandler { /* ... */ }
+//!
+//! // creating a handler for the global wl_foo
+//! impl GlobalHandler<WlFoo> for MyHandler {
+//!     fn bind(&mut self,
+//!             evlh: &mut EventLoopHandle,
+//!             client: &Client,
+//!             global: WlFoo
+//!     ) {
+//!         /* do something with it */
+//!     }
+//! }
+//!
+//! /* ... */
+//!
+//! // then somewhere in the initialization code
+//! let handler_id = event_loop.add_handler(MyHandler::new());
+//! // bind this handler to a global for interface wl_foo version 3
+//! // specifying the types is mandatory, and compability of this
+//! // handler with the global is checked at registration time.
+//! let foo = event_loop.register_global::<WlFoo, MyHandler>(handler_is, 3);
+//! // foo contains a handle to the global, that you can use later
+//! // to destroy it:
+//! foo.destroy();
+//! // if you don't plan to ever destroy this global, you can ignore
+//! // this return value, letting it out of scope will not destroy
+//! // the global.
+//! ```
+//!
+//! ## Event loop integration
+//!
+//! Once the setup phase is done, you can integrate the
+//! event loop in the main event loop of your program.
+//!
+//! Either all you need is for it to run indefinitely (external
+//! events are checked in an other thread?):
+//!
+//! ```ignore
+//! event_loop.run();
+//! ```
+//!
+//! Or you can integrate it with more control:
+//!
+//! ```ignore
+//! loop {
+//!     // flush events to client sockets
+//!     display.flush_clients();
+//!     // receive request from clients and dispatch them
+//!     // blocking if no request is pending for at most
+//!     // 10ms
+//!     event_loop.dispatch(Some(10)).unwrap();
+//!     // then you can check events from other sources if
+//!     // you need to
+//! }
+//! ```
+//!
+//! # Protocols integration
+//!
+//! This crate provides the basic primitives as well as the
+//! core wayland protocol (in the `protocol` module), but
+//! other protocols can be integrated from XML descriptions.
+//!
+//! The the crate `wayland_scanner` and its documentation for
+//! details about how to do so.
+
+
 #![warn(missing_docs)]
 
 #[macro_use] extern crate bitflags;
