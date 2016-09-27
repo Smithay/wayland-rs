@@ -1,7 +1,120 @@
-//! This doc was generate for the upcoming v0.7 of the wayland-client crate.
-//! This new version is a complete change of the API. If you are looking for the 
-//! documentation of the crate currently on crates.io, check
-//! [on docs.rs](https://docs.rs/wayland-client/0.6.2/wayland_client/).
+//! Client-side Wayland connector
+//!
+//! # Overview
+//!
+//! Connection to the Wayland compositor is achieved by
+//! the `default_connect()` function, which provides you
+//! with a `WlDisplay` and an `EventQueue`.
+//!
+//! From the display, you'll retrieve the registry, from
+//! which you can instanciate the globals you need.
+//!
+//! You then register your handlers for events to the
+//! event queue, and integrate it in your main event loop.
+//!
+//! # Handlers and event queues
+//!
+//! This crate mirrors the callback-oriented design of the
+//! Wayland C library by using handler structs: each wayland
+//! type defines a `Handler` trait in its module, which one
+//! method for each possible event this object can receive.
+//!
+//! To use it, you need to build a struct (or enum) that will
+//! implement all the traits for all the events you are interested
+//! in. All methods of handler traits provide a default
+//! implementation foing nothing, so you don't need to write
+//! empty methods for events you want to ignore. You also need
+//! to declare the handler capability for your struct using
+//! the `declare_handler!(..)` macro. A single struct can be
+//! handler for several wayland interfaces at once.
+//!
+//! ## Example of handler
+//!
+//! ```ignore
+//! /*  writing a handler for an wl_foo interface */
+//! // import the module of this interface
+//! use wl_foo;
+//!
+//! struct MyHandler { /* some fields to store state */ }
+//!
+//! // implement handerl trait:
+//! impl wl_foo::Handler for MyHandler {
+//!     fn an_event(&mut self,
+//!                 evqh: &mut EventQueueHandle,
+//!                 me: &wl_foo::WlFoo,
+//!                 arg1, arg2, // the actual args of the event
+//!     ) {
+//!         /* handle the event */
+//!     }
+//! }
+//!
+//! // declare the handler capability
+//! // this boring step is necessary because Rust's type system is
+//! // not yet magical enough
+//! declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
+//! ```
+//!
+//! ## Event Queues and handlers
+//!
+//! In your initialization code, you'll need to instanciate
+//! your handler and give it to the event queue:
+//!
+//! ```ignore
+//! let handler_id = event_queue.add_handler(MyHandler::new());
+//! ```
+//!
+//! Then, you can register your wayland objects to this handler:
+//!
+//! ```ignore
+//! // This type info is necessary for safety, as at registration
+//! // time the event_queue will check that the handler you
+//! // specified using handler_id has the same type as provided
+//! // as argument, and that this type implements the appropriate
+//! // handler trait.
+//! event_queue.register::<_, MyHandler>(&my_object, handler_id);
+//! ```
+//!
+//! You can have several handlers in the same event queue,
+//! but they cannot share their state without synchronisation
+//! primitives like `Arc`, `Mutex` and friends, so if two handlers
+//! need to share some state, you should consider building them
+//! as a single struct.
+//!
+//! A given wayland object can only be registered to a single
+//! handler at a given time, re-registering it to a new handler
+//! will overwrite the previous configuration.
+//!
+//! Handlers can be created, and objects registered to them
+//! from within a handler method, using the `&EventQueueHandle`
+//! argument.
+//!
+//! ## Event loop integration
+//!
+//! Once this setup is done, you can integrate the event queue
+//! to the main event loop of your program:
+//!
+//! ```ignore
+//! loop {
+//!     // flush events to the server
+//!     display.flush().unwrap();
+//!     // receive events from the server and dispatch them
+//!     // to handlers (might block)
+//!     event_queue.dispatch().unwrap();
+//! }
+//! ```
+//!
+//! For more precise control of the flow of the event queue
+//! (and importantly non-blocking options), see `EventQueue`
+//! documentation.
+//!
+//! # Protocols integration
+//!
+//! This crate provides the basic primitives as well as the
+//! core wayland protocol (in the `protocol` module), but
+//! other protocols can be integrated from XML descriptions.
+//!
+//! The the crate `wayland_scanner` and its documentation for
+//! details about how to do so.
 
 #![warn(missing_docs)]
 
