@@ -7,7 +7,10 @@
 //! with a `WlDisplay` and an `EventQueue`.
 //!
 //! From the display, you'll retrieve the registry, from
-//! which you can instanciate the globals you need.
+//! which you can instanciate the globals you need. This
+//! step being really similar in most cases, this crate
+//! contains an utility struct `EnvHandler` which can do
+//! this job for you. See its documentation for details.
 //!
 //! You then register your handlers for events to the
 //! event queue, and integrate it in your main event loop.
