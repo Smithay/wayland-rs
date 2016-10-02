@@ -182,7 +182,7 @@ extern crate libc;
 pub use generated::server as protocol;
 pub use client::Client;
 pub use display::{Display, create_display};
-pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler};
+pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init};
 
 use wayland_sys::server::wl_resource;
 use wayland_sys::common::{wl_interface, wl_argument};
