@@ -89,6 +89,11 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     };
     try!(writeln!(out, "fn is_alive(&self) -> bool {{ self.alive.load(::std::sync::atomic::Ordering::SeqCst) }}"));
 
+    try!(writeln!(out,
+        "fn equals(&self, other: &{}) -> bool {{ self.is_alive() && other.is_alive() && self.ptr == other.ptr }}",
+        snake_to_camel(&interface.name)
+    ));
+
     try!(writeln!(out, "}}"));
 
     try!(write_enums(&interface.enums, out));
