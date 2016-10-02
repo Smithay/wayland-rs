@@ -45,6 +45,12 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         side.object_ptr_type()
     ));
 
+    // Wayland proxies/ressources are Send+Sync
+    try!(writeln!(out, r#"
+    unsafe impl Send for {0} {{}}
+    unsafe impl Sync for {0} {{}}
+    "#, snake_to_camel(&interface.name)));
+
     // Generate object trait impl
     try!(writeln!(out, "impl {} for {} {{",
         side.object_trait(),
