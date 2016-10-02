@@ -228,6 +228,10 @@ pub trait Resource {
     fn version(&self) -> i32;
     /// Check if the resource behind this handle is actually still alive
     fn is_alive(&self) -> bool;
+    /// Check of two handles are actually the same wayland object
+    ///
+    /// Returns `false` if any of the objects has already been destroyed
+    fn equals(&self, &Self) -> bool;
 }
 
 /// Possible outcome of the call of a event on a resource
