@@ -1,5 +1,18 @@
 # Change Log
 
+## 0.7.1 - 2016-10-02
+
+### Common updates
+
+- Proxies and Resources are nor `Send+Sync` as they should be
+- `equals` method to chek if two handles refer to the same wayland object
+- `Init` trait allowing handlers to be initialized after insertion in an event queue/loop
+
+### Client updates
+
+- `egl` modules binding to `libwayland-egl` providing OpenGL support
+- `cursor` module binding to `libwayland-cursor` giving access to system's cursor theme
+
 ## 0.7.0 - 2016-09-27
 
 Complete rewrite of the libs to a new architecture.
