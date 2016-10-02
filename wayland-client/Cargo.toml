@@ -21,6 +21,7 @@ byteorder = "0.5"
 tempfile = "2"
 
 [features]
+default = ["egl", "cursor"]
 dlopen = ["wayland-sys/dlopen"]
 egl = ["wayland-sys/egl"]
 cursor = ["wayland-sys/cursor"]
