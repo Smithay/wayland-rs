@@ -49,6 +49,17 @@ pub trait GlobalHandler<R: Resource> {
     fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
 }
 
+/// A trait to initialize handlers after they've been inserted in an event queue
+///
+/// Works with the `add_handler_with_init` method of `EventQueueHandle`.
+pub trait Init {
+    /// Init the handler
+    ///
+    /// `index` is the current index of the handler in the event queue (you can
+    /// use it to register objects to it)
+    fn init(&mut self, evqh: &mut EventLoopHandle, index: usize);
+}
+
 /// Handle to an event loop
 ///
 /// This handle gives you access to methods on an event loop
@@ -97,7 +108,28 @@ impl EventLoopHandle {
         self.handlers.push(Box::new(handler) as Box<Any>);
         self.handlers.len() - 1
     }
-    
+
+    /// Insert a new handler with init
+    ///
+    /// Allows you to insert handlers that require some interaction with the
+    /// event loop in their initialization, like registering some objects to it.
+    ///
+    /// The handler must implement the `Init` trait, and its init method will
+    /// be called after its insertion.
+    pub fn add_handler_with_init<H: Init + Any + 'static>(&mut self, handler: H) -> usize
+    {
+        let mut box_ = Box::new(handler);
+        // this little juggling is to avoid the double-borrow, which is actually safe,
+        // as handlers cannot be mutably accessed outside of an event-dispatch,
+        // and this new handler cannot receive any events before the return
+        // of this function
+        let h = &mut *box_ as *mut H;
+        self.handlers.push(box_ as Box<Any>);
+        let index = self.handlers.len() - 1;
+        unsafe { (&mut *h).init(self, index) };
+        index
+    }
+
     /// Stop looping
     ///
     /// If the event loop this handle belongs to is currently running its `run()`
