@@ -134,6 +134,9 @@ mod display;
 mod event_queue;
 mod env;
 
+#[cfg(feature = "egl")]
+pub mod egl;
+
 pub use event_queue::{EventQueue, EventQueueHandle, StateGuard, Init};
 pub use display::{default_connect, ConnectError, FatalError};
 pub use env::{EnvHandler, EnvHandlerInner};
