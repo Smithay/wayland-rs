@@ -25,6 +25,8 @@ pub struct Global {
     _data: Box<(*mut c_void, *mut EventLoopHandle)>
 }
 
+unsafe impl Send for Global {}
+
 impl Global {
     /// Destroy the associated global object.
     pub fn destroy(self) {
@@ -67,7 +69,7 @@ pub trait Init {
 ///
 /// They are also available on an `EventLoop` object via `Deref`.
 pub struct EventLoopHandle {
-    handlers: Vec<Box<Any>>,
+    handlers: Vec<Box<Any + Send>>,
     keep_going: bool,
 }
 
@@ -78,7 +80,7 @@ impl EventLoopHandle {
     /// it will panic.
     ///
     /// This overwrites any precedently set Handler for this resource.
-    pub fn register<R: Resource, H: Handler<R> + Any + 'static>(&mut self, resource: &R, handler_id: usize) {
+    pub fn register<R: Resource, H: Handler<R> + Any + Send + 'static>(&mut self, resource: &R, handler_id: usize) {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
         unsafe {
@@ -104,8 +106,8 @@ impl EventLoopHandle {
     ///
     /// Returns the index of this handler in the internal array, needed register
     /// proxies to it.
-    pub fn add_handler<H: Any + 'static>(&mut self, handler: H) -> usize {
-        self.handlers.push(Box::new(handler) as Box<Any>);
+    pub fn add_handler<H: Any + Send + 'static>(&mut self, handler: H) -> usize {
+        self.handlers.push(Box::new(handler) as Box<Any + Send>);
         self.handlers.len() - 1
     }
 
@@ -116,7 +118,7 @@ impl EventLoopHandle {
     ///
     /// The handler must implement the `Init` trait, and its init method will
     /// be called after its insertion.
-    pub fn add_handler_with_init<H: Init + Any + 'static>(&mut self, handler: H) -> usize
+    pub fn add_handler_with_init<H: Init + Any + Send + 'static>(&mut self, handler: H) -> usize
     {
         let mut box_ = Box::new(handler);
         // this little juggling is to avoid the double-borrow, which is actually safe,
@@ -124,7 +126,7 @@ impl EventLoopHandle {
         // and this new handler cannot receive any events before the return
         // of this function
         let h = &mut *box_ as *mut H;
-        self.handlers.push(box_ as Box<Any>);
+        self.handlers.push(box_ as Box<Any + Send>);
         let index = self.handlers.len() - 1;
         unsafe { (&mut *h).init(self, index) };
         index
@@ -286,6 +288,8 @@ impl EventLoop {
         StateGuard { evq: self }
     }
 }
+
+unsafe impl Send for EventLoop { }
 
 impl Deref for EventLoop {
     type Target = EventLoopHandle;

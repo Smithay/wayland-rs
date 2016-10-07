@@ -19,7 +19,7 @@ type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
 ///
 /// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
-    handlers: Vec<Box<Any>>
+    handlers: Vec<Box<Any+Send>>
 }
 
 /// A trait to initialize handlers after they've been inserted in an event queue
@@ -40,7 +40,7 @@ impl EventQueueHandle {
     /// it will panic.
     ///
     /// This overwrites any precedently set Handler for this proxy.
-    pub fn register<P: Proxy, H: Handler<P> + Any + 'static>(&mut self, proxy: &P, handler_id: usize) {
+    pub fn register<P: Proxy, H: Handler<P> + Any + Send + 'static>(&mut self, proxy: &P, handler_id: usize) {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
         unsafe {
@@ -65,8 +65,8 @@ impl EventQueueHandle {
     ///
     /// Returns the index of this handler in the internal array, which is needed
     /// to register proxies to it.
-    pub fn add_handler<H: Any + 'static>(&mut self, handler: H) -> usize {
-        self.handlers.push(Box::new(handler) as Box<Any>);
+    pub fn add_handler<H: Any + Send + 'static>(&mut self, handler: H) -> usize {
+        self.handlers.push(Box::new(handler) as Box<Any + Send>);
         self.handlers.len() - 1
     }
 
@@ -77,7 +77,7 @@ impl EventQueueHandle {
     ///
     /// The handler must implement the `Init` trait, and its init method will
     /// be called after its insertion.
-    pub fn add_handler_with_init<H: Init + Any + 'static>(&mut self, handler: H) -> usize
+    pub fn add_handler_with_init<H: Init + Any + Send + 'static>(&mut self, handler: H) -> usize
     {
         let mut box_ = Box::new(handler);
         // this little juggling is to avoid the double-borrow, which is actually safe,
@@ -85,7 +85,7 @@ impl EventQueueHandle {
         // and this new handler cannot receive any events before the return
         // of this function
         let h = &mut *box_ as *mut H;
-        self.handlers.push(box_ as Box<Any>);
+        self.handlers.push(box_ as Box<Any + Send>);
         let index = self.handlers.len() - 1;
         unsafe { (&mut *h).init(self, index) };
         index
@@ -275,6 +275,8 @@ impl EventQueue {
         StateGuard { evq: self }
     }
 }
+
+unsafe impl Send for EventQueue {}
 
 impl Deref for EventQueue {
     type Target = EventQueueHandle;
