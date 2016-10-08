@@ -406,7 +406,7 @@ unsafe extern "C" fn resource_destroy(_resource: *mut wl_resource) {
 macro_rules! declare_handler(
     ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self, evq: &mut $crate::EventLoopHandle, client: &$crate::CLient, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+            unsafe fn message(&mut self, evq: &mut $crate::EventLoopHandle, client: &$crate::Client, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
                 <$handler_struct as $handler_trait>::__message(self, evq, client, proxy, opcode, args)
             }
         }
