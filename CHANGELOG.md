@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.3 - 2016-10-08
+
+### Client updates
+
+- Fix multi-queue dispatching (events on other queue than default were not dispatched)
+
 ## 0.7.2 - 2016-10-08
 
 ### Common updates
