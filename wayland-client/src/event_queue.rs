@@ -19,7 +19,8 @@ type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
 ///
 /// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
-    handlers: Vec<Box<Any+Send>>
+    handlers: Vec<Box<Any+Send>>,
+    wlevq: Option<*mut wl_event_queue>,
 }
 
 /// A trait to initialize handlers after they've been inserted in an event queue
@@ -57,6 +58,15 @@ impl EventQueueHandle {
                 dispatch_func::<P,H>,
                 h as *const _ as *const c_void,
                 data as *mut c_void
+            );
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_set_queue,
+                proxy.ptr(),
+                match self.wlevq {
+                    Some(ptr) => ptr,
+                    None => ::std::ptr::null_mut()
+                }
             );
         }
     }
@@ -170,9 +180,8 @@ impl<'evq> StateGuard<'evq> {
 /// }
 /// ```
 pub struct EventQueue {
-    display: *mut wl_display,
-    wlevq: Option<*mut wl_event_queue>,
-    handle: Box<EventQueueHandle>
+    handle: Box<EventQueueHandle>,
+    display: *mut wl_display
 }
 
 impl EventQueue {
@@ -187,7 +196,7 @@ impl EventQueue {
     /// If an error is returned, your connexion with the wayland
     /// compositor is probably lost.
     pub fn dispatch(&mut self) -> IoResult<u32> {
-        let ret = match self.wlevq {
+        let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -220,7 +229,7 @@ impl EventQueue {
     /// If an error is returned, your connexion with the wayland
     /// compositor is probably lost.
     pub fn dispatch_pending(&mut self) -> IoResult<u32> {
-        let ret = match self.wlevq {
+        let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -254,7 +263,7 @@ impl EventQueue {
     ///
     /// On success returns the number of dispatched events.
     pub fn sync_roundtrip(&mut self) -> IoResult<i32> {
-        let ret = unsafe { match self.wlevq {
+        let ret = unsafe { match self.handle.wlevq {
             Some(evtq) => {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip_queue,
                     self.display, evtq)
@@ -294,9 +303,9 @@ impl DerefMut for EventQueue {
 pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_event_queue>) -> EventQueue {
     EventQueue {
         display: display,
-        wlevq: evq,
         handle: Box::new(EventQueueHandle {
-            handlers: Vec::new()
+            handlers: Vec::new(),
+            wlevq: evq
         })
     }
 }
