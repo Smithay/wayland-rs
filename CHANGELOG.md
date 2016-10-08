@@ -1,5 +1,19 @@
 # Change Log
 
+## 0.7.2 - 2016-10-08
+
+### Common updates
+
+- Event queues and event loops are now `Send` and require handlers to be `Send`
+
+### Client updates
+
+- the `cursor` api is now `Send`
+
+### Server updates
+
+- fix a typo in `declare_handler!` macro ( #70 from @fangyuanziti )
+
 ## 0.7.1 - 2016-10-02
 
 ### Common updates
