@@ -111,6 +111,19 @@ impl WlDisplay {
             Some(FatalError::Io(io::Error::from_raw_os_error(err)))
         }
     }
+
+    /// Get the raw File Descriptor associated with the connection
+    ///
+    /// This is provided to be used in conjunction with some polling mecanism,
+    /// if you want to manually control the flow with something like `epoll`.
+    /// In this case, you'll most likely want to use `EventQueue::prepare_read()` and
+    /// `EventQueue::dispatch_pending()` rather than `EventQueue::dispatch()`.
+    ///
+    /// Reading or writing anything to this FD will corrupt the internal state of
+    /// the lib.
+    pub fn get_fd(&self) -> ::std::os::unix::io::RawFd {
+        unsafe { ffi_dispatch!( WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.ptr() as *mut _) }
+    }
 }
 
 impl Drop for WlDisplay {

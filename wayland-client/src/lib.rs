@@ -140,7 +140,7 @@ pub mod egl;
 #[cfg(feature = "cursor")]
 pub mod cursor;
 
-pub use event_queue::{EventQueue, EventQueueHandle, StateGuard, Init};
+pub use event_queue::{EventQueue, EventQueueHandle, StateGuard, Init, ReadEventsGuard};
 pub use display::{default_connect, ConnectError, FatalError};
 pub use env::{EnvHandler, EnvHandlerInner};
 

@@ -283,6 +283,39 @@ impl EventQueue {
     pub fn state(&mut self) -> StateGuard {
         StateGuard { evq: self }
     }
+
+    /// Prepare an conccurent read
+    ///
+    /// Will declare your intention to read events from the server socket.
+    ///
+    /// Will return `None` if there are still some events awaiting dispatch on this EventIterator.
+    /// In this case, you need to call `dispatch_pending()` before calling this method again.
+    ///
+    /// As long as the returned guard is in scope, no events can be dispatched to any event iterator.
+    ///
+    /// The guard can then be destroyed by two means:
+    ///
+    ///  - Calling its `cancel()` method (or letting it go out of scope): the read intention will
+    ///    be cancelled
+    ///  - Calling its `read_events()` method: will block until all existing guards are destroyed
+    ///    by one of these methods, then events will be read and all blocked `read_events()` calls
+    ///    will return.
+    ///
+    /// This call will otherwise not block on the server socket if it is empty, and return
+    /// an io error `WouldBlock` in such cases.
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
+        let ret = unsafe { match self.handle.wlevq {
+            Some(evtq) => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read_queue,
+                    self.display, evtq)
+            },
+            None => {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read,
+                    self.display)
+            }
+        }};
+        if ret >= 0 { Some(ReadEventsGuard { display: self.display }) } else { None }
+}
 }
 
 unsafe impl Send for EventQueue {}
@@ -297,6 +330,41 @@ impl Deref for EventQueue {
 impl DerefMut for EventQueue {
     fn deref_mut(&mut self) -> &mut EventQueueHandle {
         &mut *self.handle
+    }
+}
+
+/// A guard over a read intention.
+///
+/// See `EventQueue::prepare_read()` for details about its use.
+pub struct ReadEventsGuard {
+    display: *mut wl_display
+}
+
+impl ReadEventsGuard {
+    /// Read events
+    ///
+    /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
+    /// until they are all consumed or destroyed.
+    pub fn read_events(self) -> IoResult<i32> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
+        // Don't run destructor that would cancel the read intent
+        ::std::mem::forget(self);
+        if ret >= 0 { Ok(ret) } else { Err(IoError::last_os_error()) }
+    }
+
+    /// Cancel the read
+    ///
+    /// Will cancel the read intention associated with this guard. Never blocks.
+    ///
+    /// Has the same effet as letting the guard go out of scope.
+    pub fn cancel(self) {
+        // just run the destructor
+    }
+}
+
+impl Drop for ReadEventsGuard {
+    fn drop(&mut self) {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_cancel_read, self.display) }
     }
 }
 
