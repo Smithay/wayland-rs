@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.7.4 - 2016-10-16
+
+### Client upates
+
+- Concurent read API ( EventQueue::prepare_read() and WlDisplay::get_fd() )
+
 ## 0.7.3 - 2016-10-08
 
 ### Client updates
