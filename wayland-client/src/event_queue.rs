@@ -446,3 +446,29 @@ macro_rules! declare_handler(
         }
     }
 );
+
+/// Registers a handler type so it as delegating to one of its fields
+///
+/// This allows to declare your type as a handler, by delegating the impl
+/// to one of its fields (or subfields).
+///
+/// ```ignore
+/// // MySubHandler is a proper handler for wl_foo events
+/// struct MySubHandler;
+///
+/// struct MyHandler {
+///     sub: MySubHandler
+/// }
+///
+/// declare_delegating_handler!(MySubHandler, sub, wl_foo::Handler, wl_foo::WlFoo);
+/// ```
+#[macro_export]
+macro_rules! declare_delegating_handler(
+    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
+            unsafe fn message(&mut self, evq: &mut $crate::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
+            }
+        }
+    }
+);
