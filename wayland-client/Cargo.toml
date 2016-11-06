@@ -5,6 +5,7 @@ documentation = "http://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
+keywords = ["wayland", "client"]
 description = "Bindings to the standard C implementation of the wayland protocol, client side."
 build = "build.rs"
 
