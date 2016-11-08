@@ -1,5 +1,17 @@
 # Change Log
 
+## 0.7.5 - 2016-11-08
+
+### Common updates
+
+- Add `declare_delegating_handler!(..)` macro for delegading an handler impl to a field of
+  the handler struct
+- update `lazy_static` dependency
+
+### Server updates
+
+- Add methods to add socket to the server's event loop
+
 ## 0.7.4 - 2016-10-16
 
 ### Client upates
