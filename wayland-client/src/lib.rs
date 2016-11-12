@@ -126,6 +126,7 @@
 extern crate libc;
 
 pub use generated::client as protocol;
+pub use generated::interfaces as protocol_interfaces;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_interface, wl_argument};
@@ -230,6 +231,9 @@ mod generated {
     #![allow(missing_docs)]
 
     pub mod interfaces {
+        //! Interfaces for the core protocol
+        //!
+        //! You might need them for the bindings generated for protocol extensions
         include!(concat!(env!("OUT_DIR"), "/wayland_interfaces.rs"));
     }
 

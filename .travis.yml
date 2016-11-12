@@ -32,6 +32,10 @@ script:
       cd ../wayland-server &&
       travis-cargo test -- --features "dlopen" &&
       travis-cargo --only nightly doc -- --no-deps --features "dlopen" &&
+      cd ../wayland-protocols &&
+      travis-cargo test -- --features "unstable_protocols" &&
+      travis-cargo --only nigthly test -- features "unstable_protocols nightly" &&
+      travis-cargo --only nightly doc -- --no-deps --features "unstable_protocols nightly" &&
       cd .. &&
       echo "Finished !"
 

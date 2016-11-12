@@ -1,2 +1,2 @@
 [workspace]
-members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server" ]
+members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols" ]

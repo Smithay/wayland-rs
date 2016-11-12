@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::Write;
 use std::io::Result as IOResult;
 
@@ -147,6 +148,22 @@ fn write_opcodes<O: Write>(messages: &[Message], out: &mut O, iname: &str) -> IO
 }
 
 fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
+    // check for conflicts in bitfield names
+    let mut bitfields_conflicts = false;
+    let mut bitfields_names = HashSet::new();
+    
+    'outer : for enu in enums {
+        if enu.bitfield {
+            for entry in &enu.entries {
+                if !bitfields_names.insert(&entry.name[..]) {
+                    bitfields_conflicts = true;
+                    break 'outer;
+                }
+            }
+        }
+    }
+    
+    // generate contents
     for enu in enums {
         if enu.bitfield {
             if let Some((ref short, ref long)) = enu.description {
@@ -166,7 +183,8 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     try!(write_doc(Some(short), long, false, out));
                 }
                 try!(writeln!(out,
-                    "const {}{} = {},",
+                    "const {}{}{} = {},",
+                    if bitfields_conflicts { snake_to_camel(&enu.name) } else { String::new() },
                     if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" },
                     snake_to_camel(&entry.name),
                     entry.value
