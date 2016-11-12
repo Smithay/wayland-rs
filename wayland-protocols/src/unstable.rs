@@ -197,12 +197,6 @@ pub mod xdg_foreign {
     );
 }
 
-/*
- * This will need some more refinements on the bitflags!() macro
- * Hopefully associated consts could improve scoping, the issue is that
- * there are two bitflags in the same wayland interface that declare values
- * with the same name
- *
 #[cfg(feature = "nightly")]
 pub mod xdg_shell {
     wayland_protocol!("xdg-shell",
@@ -211,4 +205,3 @@ pub mod xdg_shell {
         (wl_seat, wl_seat_interface)
     );
 }
-* */
