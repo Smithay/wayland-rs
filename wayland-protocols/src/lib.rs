@@ -25,8 +25,11 @@ extern crate wayland_server;
 #[macro_use]
 extern crate wayland_sys;
 
+#[macro_use]
+mod protocol_macro;
+
 #[cfg(feature = "unstable_protocols")]
 pub mod unstable;
 
-pub mod presentation_time;
-pub mod viewporter;
+mod stable;
+pub use stable::*;
