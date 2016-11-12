@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.7.5"
+version = "0.7.6"
 documentation = "http://vberger.github.io/wayland-client-rs/wayland_server/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -10,12 +10,12 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-wayland-sys = { version = "0.7.5", features = ["server"], path = "../wayland-sys" }
+wayland-sys = { version = "0.7.6", features = ["server"], path = "../wayland-sys" }
 libc = "0.2"
 bitflags = "0.7"
 
 [build-dependencies]
-wayland-scanner = { version = "0.7.5", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.7.6", path = "../wayland-scanner" }
 
 [features]
 dlopen = ["wayland-sys/dlopen"]

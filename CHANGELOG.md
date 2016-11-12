@@ -1,5 +1,19 @@
 # Change Log
 
+## 0.7.6 - 2016-11-12
+
+### Scanner updates
+
+- Properly handle conflicts in bitflags names
+
+### Protocols updates
+
+- Creation of the crate
+
+### Client & Server updates
+
+- expose interface structs for extention protocols integration
+
 ## 0.7.5 - 2016-11-08
 
 ### Common updates
