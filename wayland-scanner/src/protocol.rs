@@ -3,6 +3,7 @@
 pub struct Protocol {
     pub name: String,
     pub copyright: Option<String>,
+    pub description: Option<(String, String)>,
     pub interfaces: Vec<Interface>
 }
 
@@ -11,6 +12,7 @@ impl Protocol {
         Protocol {
             name: name,
             copyright: None,
+            description: None,
             interfaces: Vec::new()
         }
     }

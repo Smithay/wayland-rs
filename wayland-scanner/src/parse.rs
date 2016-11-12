@@ -55,7 +55,8 @@ fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
                     protocol.copyright = Some(copyright);
                 } 
                 "interface" => { protocol.interfaces.push(parse_interface(&mut iter, attributes)); }
-                _ => panic!("Ill-formed protocol file: unexpected token `{}`", name.local_name)
+                "description" => { protocol.description = Some(parse_description(&mut iter, attributes)); }
+                _ => panic!("Ill-formed protocol file: unexpected token `{}` in protocol {}", name.local_name, protocol.name)
             },
             Some(Ok(XmlEvent::EndElement{ name })) => {
                 assert!(name.local_name == "protocol", "Unexpected closing token `{}`", name.local_name);
