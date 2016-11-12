@@ -180,6 +180,8 @@
 extern crate libc;
 
 pub use generated::server as protocol;
+pub use generated::interfaces as protocol_interfaces;
+
 pub use client::Client;
 pub use display::{Display, create_display};
 pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init};
@@ -277,6 +279,9 @@ mod generated {
     #![allow(missing_docs)]
 
     pub mod interfaces {
+        //! Interfaces for the core protocol
+        //!
+        //! You might need them for the bindings generated for protocol extensions
         include!(concat!(env!("OUT_DIR"), "/wayland_interfaces.rs"));
     }
 
