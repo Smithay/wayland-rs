@@ -20,4 +20,5 @@ wayland-scanner = { version = "0.7.5", path = "../wayland-scanner" }
 client = ["wayland-client"]
 server = ["wayland-server"]
 nightly = []
+unstable_protocols = []
 
