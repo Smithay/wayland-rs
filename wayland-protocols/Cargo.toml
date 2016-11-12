@@ -10,6 +10,7 @@ description = "Generated API for the officials wayland protocol extensions"
 build = "build.rs"
 
 [dependencies]
+wayland-sys = { version = "0.7.5", path = "../wayland-sys" }
 wayland-client = { version = "0.7.5", path = "../wayland-client", optional = true }
 wayland-server = { version = "0.7.5", path = "../wayland-server", optional = true }
 
