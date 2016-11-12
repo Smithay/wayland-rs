@@ -13,6 +13,7 @@ build = "build.rs"
 wayland-sys = { version = "0.7.5", path = "../wayland-sys" }
 wayland-client = { version = "0.7.5", path = "../wayland-client", optional = true }
 wayland-server = { version = "0.7.5", path = "../wayland-server", optional = true }
+bitflags = "0.7"
 
 [build-dependencies]
 wayland-scanner = { version = "0.7.5", path = "../wayland-scanner" }
