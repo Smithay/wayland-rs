@@ -75,15 +75,19 @@ fn main() {
     event_queue.register::<_, EnvHandler<WaylandEnv>>(&registry,0);
     event_queue.sync_roundtrip().unwrap();
 
+    // buffer (and window) width and height
+    let buf_x: u32 = 320;
+    let buf_y: u32 = 240;
+
     // create a tempfile to write the conents of the window on
     let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
-    for i in 0..10_000 {
-        let x = i % 100 as u32;
-        let y = i / 100 as u32;
-        let r: u32 = min(100-x, 100-y) * 0xFF / 100;
-        let g: u32 = min(x, 100-y) * 0xFF / 100;
-        let b: u32 = min(100-x, y) * 0xFF / 100;
+    for i in 0..(buf_x * buf_y) {
+        let x = (i % buf_x) as u32;
+        let y = (i / buf_x) as u32;
+        let r: u32 = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let g: u32 = min((         x  * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let b: u32 = min(((buf_x - x) * 0xFF) / buf_x, (         y  * 0xFF) / buf_y);
         let _ = tmp.write_u32::<NativeEndian>(
             ( 0xFF << 24 ) + ( r << 16 ) + ( g << 8 ) + b
         );
@@ -99,9 +103,9 @@ fn main() {
         let surface = env.compositor.create_surface().expect("Compositor cannot be destroyed");
         let shell_surface = env.shell.get_shell_surface(&surface).expect("Shell cannot be destroyed");
 
-        let pool = env.shm.create_pool(tmp.as_raw_fd(), 40_000).expect("Shm cannot be destroyed");
+        let pool = env.shm.create_pool(tmp.as_raw_fd(), (buf_x * buf_y * 4) as i32).expect("Shm cannot be destroyed");
         // match a buffer on the part we wrote on
-        let buffer = pool.create_buffer(0, 100, 100, 400, wl_shm::Format::Argb8888).expect("The pool cannot be already dead");
+        let buffer = pool.create_buffer(0, buf_x as i32, buf_y as i32, (buf_x * 4) as i32, wl_shm::Format::Argb8888).expect("The pool cannot be already dead");
 
         // make our surface as a toplevel one
         shell_surface.set_toplevel();
