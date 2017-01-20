@@ -5,6 +5,10 @@ repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 description = "FFI bindings to the various libwayland-*.so libraries. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"
+categories = ["gui"]
+
+[badges]
+travis-ci = { repository = "vberger/wayland-client-rs" }
 
 [dependencies]
 dlib = "0.3"
