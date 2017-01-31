@@ -8,7 +8,7 @@ license = "MIT"
 keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for the officials wayland protocol extensions"
 build = "build.rs"
-categories = ["gui"]
+categories = ["gui", "api-bindings"]
 
 [badges]
 travis-ci = { repository = "vberger/wayland-client-rs" }
