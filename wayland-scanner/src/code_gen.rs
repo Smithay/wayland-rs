@@ -33,7 +33,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     try!(writeln!(out, "use wayland_sys::common::*;"));
     try!(writeln!(out, "use std::ffi::{{CString,CStr}};"));
     try!(writeln!(out, "use std::ptr;"));
-    try!(writeln!(out, "use std::sync::Arc;"));
+    try!(writeln!(out, "use std::any::Any;"));
+    try!(writeln!(out, "use std::sync::{{Arc, Mutex, MutexGuard, LockResult}};"));
     try!(writeln!(out, "use std::sync::atomic::AtomicBool;"));
     try!(writeln!(out, "use std::os::raw::c_void;"));
     match side {
@@ -41,7 +42,11 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         Side::Server => try!(writeln!(out, "use wayland_sys::server::*;"))
     };
 
-    try!(writeln!(out, "pub struct {} {{ ptr: *mut {}, alive: Arc<AtomicBool> }}",
+    try!(writeln!(out,
+        r#"pub struct {} {{
+            ptr: *mut {},
+            data: Arc<(AtomicBool, Mutex<Option<Box<Any+Send+'static>>>)>
+        }}"#,
         snake_to_camel(&interface.name),
         side.object_ptr_type()
     ));
@@ -60,9 +65,12 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     try!(writeln!(out, "fn ptr(&self) -> *mut {} {{ self.ptr }}", side.object_ptr_type()));
     try!(writeln!(out,
         r#"unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
-            let data = Box::into_raw(Box::new((ptr::null_mut::<c_void>(), Arc::new(AtomicBool::new(true)))));
+            let data = Box::into_raw(Box::new((
+                ptr::null_mut::<c_void>(),
+                Arc::new((AtomicBool::new(true), Mutex::new(Option::None)))
+            )));
             ffi_dispatch!({2}, {0}_set_user_data, ptr, data as *mut c_void);
-            {1} {{ ptr: ptr, alive: (&*data).1.clone() }}
+            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
@@ -70,8 +78,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     ));
     try!(writeln!(out,
         r#"unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{
-            let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Arc<AtomicBool>);
-            {1} {{ ptr: ptr, alive: (&*data).1.clone() }}
+            let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Arc<(AtomicBool, Mutex<Option<Box<Any+Send+'static>>>)>);
+            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
@@ -88,11 +96,15 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         Side::Client => try!(writeln!(out, "fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}")),
         Side::Server => try!(writeln!(out, "fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"))
     };
-    try!(writeln!(out, "fn is_alive(&self) -> bool {{ self.alive.load(::std::sync::atomic::Ordering::SeqCst) }}"));
+    try!(writeln!(out, "fn is_alive(&self) -> bool {{ self.data.0.load(::std::sync::atomic::Ordering::SeqCst) }}"));
 
     try!(writeln!(out,
         "fn equals(&self, other: &{}) -> bool {{ self.is_alive() && other.is_alive() && self.ptr == other.ptr }}",
         snake_to_camel(&interface.name)
+    ));
+
+    try!(writeln!(out,
+        "fn user_data(&self) -> LockResult<MutexGuard<Option<Box<Any+Send+'static>>>> {{ self.data.1.lock() }}"
     ));
 
     try!(writeln!(out, "}}"));
@@ -334,12 +346,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
                 r#"
-                let data: Box<(*mut c_void, Arc<AtomicBool>)> = Box::from_raw(ffi_dispatch!(
+                let data: Box<(*mut c_void, Arc<(AtomicBool, Mutex<Option<Box<Any+Send+'static>>>)>)> = Box::from_raw(ffi_dispatch!(
                     {0},
                     {1}_get_user_data,
                     proxy.ptr()
                 ) as *mut _);
-                data.1.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 ffi_dispatch!({0}, {1}_destroy, proxy.ptr());
                 "#,
                 side.handle(),
@@ -582,12 +594,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
                 r#"unsafe {{
-                let data: Box<(*mut c_void, Arc<AtomicBool>)> = Box::from_raw(ffi_dispatch!(
+                let data: Box<(*mut c_void, Arc<(AtomicBool, Mutex<Option<Box<Any+Send+'static>>>)>)> = Box::from_raw(ffi_dispatch!(
                     {0},
                     {1}_get_user_data,
                     self.ptr()
                 ) as *mut _);
-                data.1.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 ffi_dispatch!({0}, {1}_destroy, self.ptr());
                 }}"#,
                 side.handle(),

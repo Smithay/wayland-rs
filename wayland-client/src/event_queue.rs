@@ -3,14 +3,14 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 use {Handler, Proxy};
 
-type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
+type ProxyUserData = (*mut EventQueueHandle, Arc<(AtomicBool, Mutex<Option<Box<Any+Send+'static>>>)>);
 
 /// Handle to an event queue
 ///

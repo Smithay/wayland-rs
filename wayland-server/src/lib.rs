@@ -179,6 +179,9 @@
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
 
+use std::any::Any;
+use std::sync::{MutexGuard, LockResult};
+
 pub use generated::server as protocol;
 pub use generated::interfaces as protocol_interfaces;
 
@@ -234,6 +237,10 @@ pub trait Resource {
     ///
     /// Returns `false` if any of the objects has already been destroyed
     fn equals(&self, &Self) -> bool;
+    /// Provides a generic storage associated to this proxy and shared by all its handles.
+    ///
+    /// Accessing it grabs a lock.
+    fn user_data(&self) -> LockResult<MutexGuard<Option<Box<Any+Send+'static>>>>;
 }
 
 /// Possible outcome of the call of a event on a resource
