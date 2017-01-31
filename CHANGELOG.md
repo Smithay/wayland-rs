@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.7.7 - 2017-01-31
+
+- Improve a client example (thanks @ideasman42)
+- Update metadata of the crates on crates.io
+
 ## 0.7.6 - 2016-11-12
 
 ### Scanner updates
