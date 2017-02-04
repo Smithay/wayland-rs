@@ -4,13 +4,13 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 use {Handler, Proxy};
 
-type ProxyUserData = (*mut EventQueueHandle, Arc<AtomicBool>);
+type ProxyUserData = (*mut EventQueueHandle, Arc<(AtomicBool, AtomicPtr<()>)>);
 
 /// Handle to an event queue
 ///

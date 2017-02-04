@@ -4,13 +4,13 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
 use {Resource, Handler, Client};
 
-type ResourceUserData = (*mut EventLoopHandle, Arc<AtomicBool>);
+type ResourceUserData = (*mut EventLoopHandle, Arc<(AtomicBool, AtomicPtr<()>)>);
 
 /// A handle to a global object
 ///
