@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.7.8 - 2017-02-12
+
+- Add a raw user-data mechanism
+
 ## 0.7.7 - 2017-01-31
 
 - Improve a client example (thanks @ideasman42)
