@@ -186,6 +186,20 @@ pub trait Proxy {
     ///
     /// Returns `false` if any of the objects has already been destroyed
     fn equals(&self, &Self) -> bool;
+    /// Set a pointer associated as user data on this proxy
+    ///
+    /// All proxies to the same wayland object share the same user data pointer.
+    ///
+    /// The get/set operations are atomic, no more guarantee is given. If you need
+    /// to synchronise access to this data, it is your responsibility to add a Mutex
+    /// or any other similar mechanism.
+    fn set_user_data(&self, ptr: *mut ());
+    /// Get the pointer associated as user data on this proxy
+    ///
+    /// All proxies to the same wayland object share the same user data pointer.
+    ///
+    /// See `set_user_data` for synchronisation guarantee.
+    fn get_user_data(&self) -> *mut ();
 }
 
 /// Possible outcome of the call of a request on a proxy
