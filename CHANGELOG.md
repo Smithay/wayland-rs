@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.8.1 - 2017-02-19
+
+- Add a missing public import of `Destroy` trait
+
 ## 0.8.0 - 2017-02-19
 
 ### Scanner updates
@@ -9,6 +13,10 @@
 ### Sys updates
 
 - [breaking change] Correct argument types to take optionnal `destructor_func_t`
+
+### Server updates
+
+- Add a destructor mechanism for ressources
 
 ## 0.7.8 - 2017-02-12
 
