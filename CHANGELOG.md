@@ -1,11 +1,16 @@
 # Change Log
 
-## 0.8.3 - 2017-02-19
+## 0.8.4 - 2017-02-19
 
 ## Server updates
 
-- Add `EventLoopHandle::is_registered` to check if a given resource is registered to
+- Add `resource_is_registered` to check if a given resource is registered to
   a given handler
+- Add 'Resource::post_error()` to send protocol errors
+
+## Scanner updates
+
+- `#[derive(PartialEq)]` for enums
 
 ## 0.8.1 - 2017-02-19
 

@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.8.2"
+version = "0.8.4"
 documentation = "https://vberger.github.io/wayland-client-rs/wayland_protocols/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,13 +14,13 @@ categories = ["gui", "api-bindings"]
 travis-ci = { repository = "vberger/wayland-client-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.8.0", path = "../wayland-sys" }
-wayland-client = { version = "0.8.0", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.8.0", path = "../wayland-server", optional = true }
+wayland-sys = { version = "0.8.4", path = "../wayland-sys" }
+wayland-client = { version = "0.8.4", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.8.4", path = "../wayland-server", optional = true }
 bitflags = "0.7"
 
 [build-dependencies]
-wayland-scanner = { version = "0.8.0", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.8.4", path = "../wayland-scanner" }
 
 [features]
 client = ["wayland-client"]
