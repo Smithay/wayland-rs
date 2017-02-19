@@ -124,6 +124,8 @@ impl EventLoopHandle {
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
     ///
+    /// The D type is the one whose `Destroy<R>` impl will be used as destructor.
+    ///
     /// This overwrites any precedently set Handler and destructor for this resource.
     pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize)
         where R: Resource,
