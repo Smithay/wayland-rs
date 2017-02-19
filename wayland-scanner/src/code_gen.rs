@@ -220,7 +220,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 try!(write_doc(Some(short), long, false, out));
             }
             try!(writeln!(out,
-                "#[repr(u32)]\n#[derive(Copy,Clone,Debug)]\npub enum {} {{",
+                "#[repr(u32)]\n#[derive(Copy,Clone,Debug,PartialEq)]\npub enum {} {{",
                 snake_to_camel(&enu.name)
             ));
             for entry in &enu.entries {
