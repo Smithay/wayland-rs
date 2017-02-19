@@ -165,7 +165,7 @@ impl EventLoopHandle {
                     .expect("Handler type do not match.");
         let ret = unsafe {
             ffi_dispatch!(
-                WAYLAND_SERVER_HANDLER,
+                WAYLAND_SERVER_HANDLE,
                 wl_resource_instance_of,
                 resource.ptr(),
                 R::interface_ptr(),
