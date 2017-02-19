@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.8.0 - 2017-02-19
+
+### Scanner updates
+
+- [breaking change] Don't generate result-like return type on proxies that cannot be destroyed
+
+### Sys updates
+
+- [breaking change] Correct argument types to take optionnal `destructor_func_t`
+
 ## 0.7.8 - 2017-02-12
 
 - Add a raw user-data mechanism
