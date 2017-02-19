@@ -187,7 +187,7 @@ pub use display::{Display, create_display};
 pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init, Destroy,
                      resource_is_registered};
 
-use wayland_sys::server::wl_resource;
+use wayland_sys::server::*;
 use wayland_sys::common::{wl_interface, wl_argument};
 
 mod client;
@@ -249,6 +249,25 @@ pub trait Resource {
     ///
     /// See `set_user_data` for synchronisation guarantee.
     fn get_user_data(&self) -> *mut ();
+    /// Posts a protocol error to this resource
+    ///
+    /// The error code can be obtained from the various `Error` enums of the protocols.
+    ///
+    /// An error is fatal to the client that caused it.
+    fn post_error(&self, error_code: u32, msg: String) {
+        // If `str` contains an interior null, the actuall transmitted message will
+        // be truncated at this point.
+        unsafe {
+            let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_post_error,
+                self.ptr(),
+                error_code,
+                cstring.as_ptr()
+            )
+        }
+    }
 }
 
 /// Possible outcome of the call of a event on a resource
