@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.8.1"
+version = "0.8.2"
 documentation = "https://vberger.github.io/wayland-client-rs/wayland_client/"
 repository = "https://github.com/vberger/wayland-client-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]

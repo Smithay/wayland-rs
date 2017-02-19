@@ -153,6 +153,28 @@ impl EventLoopHandle {
         }
     }
 
+    /// Checks if a resource is registered with a given handler
+    ///
+    /// The H type must be provided and match the type of the targetted Handler, or
+    /// it will panic.
+    pub fn is_registered<R, H>(&self, resource: &R, handler_id: usize) -> bool
+        where R: Resource,
+              H: Handler<R> + Any + Send + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLER,
+                wl_resource_instance_of,
+                resource.ptr(),
+                R::interface_ptr(),
+                h as *const _ as *const c_void
+            )
+        };
+        ret == 1
+    }
+
     /// Insert a new handler to this EventLoop
     ///
     /// Returns the index of this handler in the internal array, needed register

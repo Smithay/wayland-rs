@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.8.2 - 2017-02-19
+
+## Server updates
+
+- Add `EventLoopHandle::is_registered` to check if a given resource is registered to
+  a given handler
+
 ## 0.8.1 - 2017-02-19
 
 - Add a missing public import of `Destroy` trait
