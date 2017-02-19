@@ -62,6 +62,22 @@ pub trait Init {
     fn init(&mut self, evqh: &mut EventLoopHandle, index: usize);
 }
 
+/// A trait to handle destruction of ressources.
+///
+/// This is usefull if you need to deallocate user data for example.
+///
+/// This is a trait with a single static method rather (than a freestanding function)
+/// in order to internally profit of static dispatch.
+pub trait Destroy<R: Resource> {
+    /// Destructor of a resource
+    ///
+    /// This function is called right before a resource is destroyed, if it has
+    /// been assigned.
+    ///
+    /// To assign a destructor to a resource, see `EventLoopHandle::register_with_destructor`.
+    fn destroy(resource: &R);
+}
+
 /// Handle to an event loop
 ///
 /// This handle gives you access to methods on an event loop
@@ -79,7 +95,8 @@ impl EventLoopHandle {
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
     ///
-    /// This overwrites any precedently set Handler for this resource.
+    /// This overwrites any precedently set Handler for this resource and removes its destructor
+    /// if any.
     pub fn register<R: Resource, H: Handler<R> + Any + Send + 'static>(&mut self, resource: &R, handler_id: usize) {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
@@ -97,7 +114,41 @@ impl EventLoopHandle {
                 dispatch_func::<R,H>,
                 h as *const _ as *const c_void,
                 data as *mut c_void,
-                resource_destroy
+                None
+            );
+        }
+    }
+
+    /// Register a resource to a handler of this event loop with a destructor
+    ///
+    /// The H type must be provided and match the type of the targetted Handler, or
+    /// it will panic.
+    ///
+    /// The D type is the one whose `Destroy<R>` impl will be used as destructor.
+    ///
+    /// This overwrites any precedently set Handler and destructor for this resource.
+    pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize)
+        where R: Resource,
+              H: Handler<R> + Any + Send + 'static,
+              D: Destroy<R> + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        unsafe {
+            let data: *mut ResourceUserData = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_user_data,
+                resource.ptr()
+            ) as *mut _;
+            (&mut *data).0 = self as *const _  as *mut _;
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_set_dispatcher,
+                resource.ptr(),
+                dispatch_func::<R,H>,
+                h as *const _ as *const c_void,
+                data as *mut c_void,
+                Some(resource_destroy::<R, D>)
             );
         }
     }
@@ -389,7 +440,9 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
 }
 
 // TODO : figure out how it is used exactly
-unsafe extern "C" fn resource_destroy(_resource: *mut wl_resource) {
+unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut wl_resource) {
+    let resource = R::from_ptr_initialized(resource as *mut wl_resource);
+    D::destroy(&resource);
 }
 
 /// Registers a handler type so it can be used in event loops
