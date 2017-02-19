@@ -190,7 +190,7 @@ macro_rules! wayland_env(
                     let $global_name = {
                         let (id, _, v) = $global_name;
                         let version = ::std::cmp::min(v, <$global_type as $crate::Proxy>::supported_version());
-                        registry.bind::<$global_type>(version, id).expect("Registry cannot be destroyed!")
+                        registry.bind::<$global_type>(version, id)
                     };
                 )+
                 Some($name {
