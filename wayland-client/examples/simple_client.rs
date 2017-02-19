@@ -12,7 +12,7 @@ fn main() {
 
     event_queue.add_handler(EnvHandler::<WaylandEnv>::new());
 
-    let registry = display.get_registry().expect("Display cannot be already destroyed.");
+    let registry = display.get_registry();
     event_queue.register::<_, EnvHandler<WaylandEnv>>(&registry,0);
 
     event_queue.sync_roundtrip().unwrap();

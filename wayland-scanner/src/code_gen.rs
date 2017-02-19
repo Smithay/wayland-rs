@@ -144,7 +144,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         },
         out,
         &interface.name,
-        side
+        side,
+        interface.destructor_sanitize().unwrap()
     ));
 
     try!(writeln!(out, "}}"));
@@ -388,8 +389,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     Ok(())
 }
 
-fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Side) -> IOResult<()> {
+fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Side, destroyable: bool) -> IOResult<()> {
+    // server-side objects can always be destroyed: if the client disconnects.
+    let destroyable = destroyable || side == Side::Server;
+
     try!(writeln!(out, "impl {} {{", snake_to_camel(iname)));
+
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
             try!(write_doc(Some(short), long, false, out));
@@ -456,11 +461,13 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 if arg.allow_null { ">" }  else { "" }
             ));
         }
-        try!(write!(out, ")"));
+        try!(write!(out, ") ->"));
 
         // return type
-        try!(write!(out, "-> {}<{}>",
-            side.result_type(),
+        if destroyable {
+            try!(write!(out, "{}<", side.result_type()));
+        }
+        try!(write!(out, "{}",
             if let (Some(arg), Side::Client) = (newid, side) {
                 arg.interface.as_ref()
                 .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
@@ -469,10 +476,15 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 "()".into()
             }
         ));
+        if destroyable {
+            try!(write!(out, ">"));
+        }
         try!(writeln!(out, " {{"));
 
         // check liveness
-        try!(writeln!(out, "if !self.is_alive() {{ return {}::Destroyed }}", side.result_type()));
+        if destroyable {
+            try!(writeln!(out, "if !self.is_alive() {{ return {}::Destroyed }}", side.result_type()));
+        }
 
         // arg translation for some types
         for arg in &msg.args {
@@ -612,8 +624,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
 
         if newid.is_some() && side == Side::Client {
             try!(writeln!(out, "let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};"));
-            try!(writeln!(out, "{}::Sent(proxy)", side.result_type()));
-        } else {
+            if destroyable {
+                try!(writeln!(out, "{}::Sent(proxy)", side.result_type()));
+            } else {
+                try!(writeln!(out, "proxy"));
+            }
+        } else if destroyable {
             try!(writeln!(out, "{}::Sent(())", side.result_type()));
         }
 
