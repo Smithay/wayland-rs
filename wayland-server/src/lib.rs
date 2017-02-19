@@ -184,7 +184,8 @@ pub use generated::interfaces as protocol_interfaces;
 
 pub use client::Client;
 pub use display::{Display, create_display};
-pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init, Destroy};
+pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init, Destroy,
+                     resource_is_registered};
 
 use wayland_sys::server::wl_resource;
 use wayland_sys::common::{wl_interface, wl_argument};
