@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import sys
 from travis_cargo import run_output, run, run_filter
 
 class Args:
@@ -20,8 +21,6 @@ def main():
         token = os.environ['GH_TOKEN']
         commit = run_output('git', 'rev-parse', '--short', 'HEAD').strip()
         msg = 'Documentation for %s@%s' % (repo, commit)
-
-        print('generating book...')
 
         print('uploading docs...')
         sys.stdout.flush()
