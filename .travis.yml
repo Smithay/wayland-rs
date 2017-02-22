@@ -1,5 +1,9 @@
 language: rust
 
+sudo: false
+
+cache: cargo
+
 rust:
   - stable
   - beta
@@ -8,9 +12,10 @@ rust:
 branches:
   only:
     - master
-    - handlers
 
 before_script:
+  - cargo install mdbook
+  - export PATH="$HOME/.cargo/bin:$PATH"
   - |
       pip install 'travis-cargo<0.2' --user &&
       export PATH=$HOME/.local/bin:$PATH
@@ -40,6 +45,8 @@ script:
       echo "Finished !"
 
 after_success:
+  - mdbook build
+  - cp ./index.html ./rust.css ./target/doc/
   - ./doc_upload.py
 
 env:
