@@ -1,0 +1,5 @@
+title = "The rusty wayland handbook"
+author = "Victor \"Levans\" Berger"
+description = ""
+dest = "target/doc/book"
+src = "book"
