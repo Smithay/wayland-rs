@@ -14,7 +14,7 @@ branches:
     - master
 
 before_script:
-  - cargo install mdbook || true
+  - cargo install mdbook --force || true
   - export PATH="$HOME/.cargo/bin:$PATH"
   - |
       pip install 'travis-cargo<0.2' --user &&
