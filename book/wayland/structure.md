@@ -73,7 +73,7 @@ In the end, this kind of hierachy can be expected:
 ```
 
 *(The details of what these objects are and do will come later, in the
-[core protocol](./p_core.html) section.)*
+[core protocol](./wayland/p_core.html) section.)*
 
 ## Protocol extensions
 
