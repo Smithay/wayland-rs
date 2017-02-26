@@ -105,5 +105,11 @@ The APIs defined by the protocol files are versionned as follows:
 - A client, when instanciating a global, can choose any version of it between 1 and the maximum
   supported by the compositor. 
 
+## Error handling
+
+Error handling in the wayland protocol is very simple: whenever the client misuses an object (often
+sending a request with invalid arguments) it causes a protocol error. A protocol error is always
+fatal, and the server will close the connexion whenever one occurs.
+
 -------
 [^1] Sorry for the lack of a better name...
