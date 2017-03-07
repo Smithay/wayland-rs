@@ -1,15 +1,16 @@
 [package]
 name = "wayland-scanner"
-version = "0.8.4"
+version = "0.8.5"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
-repository = "https://github.com/vberger/wayland-client-rs"
+repository = "https://github.com/vberger/wayland-rs"
+documentation = "https://vberger.github.io/wayland-rs/wayland_scanner/"
 description = "Wayland Scanner for generating rust APIs from XML wayland protocol files. Intented for use with wayland-sys. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 
 [badges]
-travis-ci = { repository = "vberger/wayland-client-rs" }
+travis-ci = { repository = "vberger/wayland-rs" }
 
 [dependencies]
 xml-rs = "0.3"

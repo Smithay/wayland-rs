@@ -1,8 +1,8 @@
 [package]
 name = "wayland-protocols"
-version = "0.8.4"
-documentation = "https://vberger.github.io/wayland-client-rs/wayland_protocols/"
-repository = "https://github.com/vberger/wayland-client-rs"
+version = "0.8.5"
+documentation = "https://vberger.github.io/wayland-rs/wayland_protocols/"
+repository = "https://github.com/vberger/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
 keywords = ["wayland", "client", "server", "protocol", "extension"]
@@ -11,16 +11,16 @@ build = "build.rs"
 categories = ["gui", "api-bindings"]
 
 [badges]
-travis-ci = { repository = "vberger/wayland-client-rs" }
+travis-ci = { repository = "vberger/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.8.4", path = "../wayland-sys" }
-wayland-client = { version = "0.8.4", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.8.4", path = "../wayland-server", optional = true }
+wayland-sys = { version = "0.8.5", path = "../wayland-sys" }
+wayland-client = { version = "0.8.5", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.8.5", path = "../wayland-server", optional = true }
 bitflags = "0.7"
 
 [build-dependencies]
-wayland-scanner = { version = "0.8.4", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.8.5", path = "../wayland-scanner" }
 
 [features]
 client = ["wayland-client"]

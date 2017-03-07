@@ -1,14 +1,15 @@
 [package]
 name = "wayland-sys"
-version = "0.8.4"
-repository = "https://github.com/vberger/wayland-client-rs"
+version = "0.8.5"
+repository = "https://github.com/vberger/wayland-rs"
+documentation = "https://vberger.github.io/wayland-rs/wayland_sys/"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 description = "FFI bindings to the various libwayland-*.so libraries. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"
 categories = ["external-ffi-bindings"]
 
 [badges]
-travis-ci = { repository = "vberger/wayland-client-rs" }
+travis-ci = { repository = "vberger/wayland-rs" }
 
 [dependencies]
 dlib = "0.3"
