@@ -21,7 +21,7 @@ fn main() {
 
     let env = state.get_handler::<EnvHandler<WaylandEnv>>(0);
 
-    println!("Globals advertized by server:");
+    println!("Globals advertised by server:");
     for &(name, ref interface, version) in env.globals() {
         println!("{:4} : {} (version {})", name, interface, version);
     }

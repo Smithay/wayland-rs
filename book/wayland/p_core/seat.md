@@ -5,13 +5,13 @@ consist of a single seat: the mouse and keyboard of the computer. However some e
 involve more than one seat[^1]. Seat globals can appear and dissapear as logical seats are created
 or destroyed.
 
-A seat can have 3 capabilities, each of them being instanciable as an other object to handle it:
-the keyboard, the pointer, and the touch. These capabilities are advertized in an event of the
-`wl_seat` after its creation.
+A seat can have 3 capabilities, each of them being instantiable as a different object to handle it:
+keyboard, pointer, and touch. These capabilities are advertised in an event of the `wl_seat` after
+its creation.
 
-## The Keyboard
+## Keyboard
 
-The `wl_keyboard` object represents the fact that a keyboard is connected to the seat. It can be
+A `wl_keyboard` object represents the fact that a keyboard is connected to the seat. It can be
 obtained via the `wl_seat::get_keyboard` request if the seat has this capability.
 
 This keyboard interface is very barebone: the compositor only sends the state of the modifier keys
@@ -21,10 +21,10 @@ which is the one currently used by the compositor. The client is then responsibl
 an other) into libxkbcommon to interpret the keystrokes as utf8 characters[^2].
 
 The keyboard has a focus mechanism organised by surfaces. The client is notified whenever one of its
-surfaces gains or loses keyboard focus, and only receives keystrokes if ont of its surfaces is
+surfaces gains or loses keyboard focus, and only receives keystrokes if one of its surfaces is
 currently focused.
 
-## The Pointer
+## Pointer
 
 The `wl_pointer` object represents the fact that a mouse or a trackpad is connected to the seat,
 allowing the user to move a pointer on the screen. It can be obtained via the `wl_seat::get_pointer`
@@ -39,7 +39,7 @@ A surface can also be given the role of being the pointer's image, via the `wl_p
 request. To ease this, the wayland C libraries include `libwayland-cursor`: an helper library for
 loading cursor themes and getting buffers of their contents and informations about their animations.
 
-## The Touch
+## Touch
 
 The `wl_touch` object represents the fact that a touchscreen is connected to the seat, providing
 tactile capabilities. It can be obtained via the `wl_seat::get_touch` request if the seat has this

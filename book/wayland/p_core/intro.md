@@ -5,9 +5,9 @@ the `wl_registry`, and then come all the globals from the various protocols in u
 
 The core wayland distribution comes with
 [the core protocol specification](https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml).
-It contains the `wl_display` and `wl_registry` objects[^1], as well as some globals that are*
-considered the common ground that all applications will need. Any fancier functionnality is supposed
-to be developped in protocol extensions.
+It contains the `wl_display` and `wl_registry` objects[^1], as well as some globals that are
+considered the common ground that all applications will need. Any fancier functionality is supposed
+to be developed in protocol extensions.
 
 This chapter will describe the globals (and their objects hierarchies) from this core protocol. This
 is not a complete detailed guide of all requests and events[^2], but a general description of how

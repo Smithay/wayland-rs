@@ -145,7 +145,7 @@ impl<'evq> StateGuard<'evq> {
 /// trait in its module), and declared it using the `declare_handler!(..)` macro.
 ///
 /// This handler contains the state all your handler methods will be able to access
-/// via the `&mut self` argument. You can then instanciate your type, and give ownership of
+/// via the `&mut self` argument. You can then instantiate your type, and give ownership of
 /// the handler object to the event queue, via the `add_handler(..)` method. Then, each
 /// wayland object must be registered to a handler via the `register(..)` method (or its events
 /// will all be ignored).
@@ -193,7 +193,7 @@ impl EventQueue {
     /// This process can insert events in the internal buffers of
     /// other event queues.
     ///
-    /// If an error is returned, your connexion with the wayland
+    /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
     pub fn dispatch(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {
@@ -226,7 +226,7 @@ impl EventQueue {
     /// Never blocks, if not events were pending, simply returns
     /// `Ok(0)`.
     ///
-    /// If an error is returned, your connexion with the wayland
+    /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
     pub fn dispatch_pending(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {

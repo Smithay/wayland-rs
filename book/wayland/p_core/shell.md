@@ -7,29 +7,30 @@ an associated shell surface object.
 > supposed to be replaced by the `xdg_shell` protocol extension.
 >
 > The reason for this is that this current interface is considered too simple to properly expose the
-> functionnality needed by popular windowing environement (such as Gnome/GTK or KDE/Qt), and cannot
-> be fixed in a backward-compatible way.
+> functionality needed by popular GUI libraries (such as gtk+ or Qt), and cannot be fixed in a
+> backwards-compatible way.
 >
-> However the `xdg_shell` extension is still in developpement and no stable version of it exist yet.
+> However the `xdg_shell` extension is still in development and no stable version of it exists as of
+> this writing.
 
 ## The Shell Surface
 
 The `wl_shell_surface` is associated to a surface at creation. It adds to it various properties
-making it manipulable by the compositor (and the user of the program) as what we classical consider
-as "a window": making it able to be grabbed and moved, resized, hidden, etc...
+making it manipulable by the compositor (and the user of the program) as what we classicaly consider
+as a "window": making it able to be grabbed and moved, resized, hidden, etc...
 
 A shell surface can be in 3 states:
 
 - **Toplevel:** this is your classic window, taking a rectangular space in you screen.
-- **Fullscreen:** takes the whole screen. If the buffer associated to this surface does not match
+- **Fullscreen:** takes up the whole screen. If the buffer associated to this surface does not match
   the dimensions of the screen, they'll be scaled and/or cropped by the compositor, depending on
   what the client requested.
 - **Popup:** this shell surface is associated to a parent shell surface, and must be hidden or
   displayed at the same time as it.
 
 The shell surface has a "ping" mechanism: whevener it receives a `wl_shell_surface::ping` event,
-it must answer with a `wl_shell_surface::pong` request. If the answer takes too much time to come,
-the compositor will consider this shell surface to be unresponsive and notify the user of it.
+it must answer with a `wl_shell_surface::pong` request. If the answer takes too much time, the
+compositor will consider this shell surface to be unresponsive and notify the user of it.
 
 It also contains the `wl_shell_surface::configure` event, which is sent whenever the size of the
 surface should change, hinting the client of the possible new size. For example when the user
@@ -42,5 +43,5 @@ can only have sizes a multiple of the size of a character).
 > expect clients to draw their own decorations, while others (like KDE) will be drawing server-side
 > decorations. State of tiling WM (which often expect no decorations at all) is uncertain.
 >
-> Sadly, there is not yet a clear negociation protocol for applications and compositors to agree
-> at runtime about which will handle the decorations.
+> Sadly, there is not yet a clear negotiation protocol for applications and compositors to agree
+> at runtime about who will handle the decorations.
