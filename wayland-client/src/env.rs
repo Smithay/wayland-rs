@@ -16,12 +16,12 @@ pub trait EnvHandlerInner: Sized {
 /// register your registry to it.
 ///
 /// Once this handler is fully initialized (and all globals have been
-/// instanciated), it makes them usable via deref-ing towards the struct
+/// instantiated), it makes them usable via deref-ing towards the struct
 /// previously declared by the `wayland_env!(...)` macro.
 ///
 /// The `globals()` method also give you a list of all globals declared by
-/// the server, had them been instanciated or not. It is perfectly safe
-/// to instanciate again a global that have already been instanciated.
+/// the server, had them been instantiated or not. It is perfectly safe
+/// to instantiate again a global that have already been instantiated.
 ///
 /// This list is updated whenever the server declares or removes a global object,
 /// (as long as you don't change the handler associated to your registry).
@@ -29,7 +29,7 @@ pub trait EnvHandlerInner: Sized {
 /// If you want to manage all you globals manually, but still want to use
 /// this utility to maintain the list of evailable globals, you can simply
 /// create an empty env type using the macro, like this : `wayland_env!(WaylandEnv)`.
-/// No global will be automatically instanciated for you, but you still can use
+/// No global will be automatically instantiated for you, but you still can use
 /// this `globals()` method.
 ///
 /// ## example of use
@@ -79,9 +79,9 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
         self.inner.is_some()
     }
 
-    /// List of advertized globals
+    /// List of advertised globals
     ///
-    /// Returns a list of all globals that have been advertized by the server.
+    /// Returns a list of all globals that have been advertised by the server.
     ///
     /// The type format of each tuple is: `(global_id, interface_name, global_version)`.
     pub fn globals(&self) -> &[(u32, String, u32)] {
@@ -146,7 +146,7 @@ unsafe impl<H: EnvHandlerInner> ::Handler<WlRegistry> for EnvHandler<H> {
 /// thus will not give you access to anything util they have all been declared by the compositor.
 /// As such, only declare globals that your application cannot run without, like probably
 /// `wl_compositor`, `wl_shm` or `wl_seat`. If there are globals that you can optionnaly
-/// use, you'll have to instanciate them manually via `WlRegistry::bind(..)`.
+/// use, you'll have to instantiate them manually via `WlRegistry::bind(..)`.
 #[macro_export]
 macro_rules! wayland_env(
     ($name: ident) => {

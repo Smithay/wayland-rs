@@ -57,7 +57,7 @@
 //!
 //! ## Event Loop and handlers
 //!
-//! In your initialization code, you'll need to instanciate
+//! In your initialization code, you'll need to instantiate
 //! your handler and give it to the event queue:
 //!
 //! ```ignore
@@ -227,7 +227,7 @@ pub trait Resource {
     fn interface_name() -> &'static str;
     /// Max version of this interface supported
     fn supported_version() -> u32;
-    /// Current version of the interface this resource is instanciated with
+    /// Current version of the interface this resource is instantiated with
     fn version(&self) -> i32;
     /// Check if the resource behind this handle is actually still alive
     fn is_alive(&self) -> bool;

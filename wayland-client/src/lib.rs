@@ -7,7 +7,7 @@
 //! with a `WlDisplay` and an `EventQueue`.
 //!
 //! From the display, you'll retrieve the registry, from
-//! which you can instanciate the globals you need. This
+//! which you can instantiate the globals you need. This
 //! step being really similar in most cases, this crate
 //! contains an utility struct `EnvHandler` which can do
 //! this job for you. See its documentation for details.
@@ -59,7 +59,7 @@
 //!
 //! ## Event Queues and handlers
 //!
-//! In your initialization code, you'll need to instanciate
+//! In your initialization code, you'll need to instantiate
 //! your handler and give it to the event queue:
 //!
 //! ```ignore
@@ -178,7 +178,7 @@ pub trait Proxy {
     fn interface_name() -> &'static str;
     /// Max version of this interface supported
     fn supported_version() -> u32;
-    /// Current version of the interface this proxy is instanciated with
+    /// Current version of the interface this proxy is instantiated with
     fn version(&self) -> u32;
     /// Check if the proxt behind this handle is actually still alive
     fn is_alive(&self) -> bool;

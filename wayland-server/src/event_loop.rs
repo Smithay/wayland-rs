@@ -43,7 +43,7 @@ pub trait GlobalHandler<R: Resource> {
     /// This method is called each time a client binds this global object from
     /// the registry.
     ///
-    /// The global is instanciated as a `Resource` and provided to the callback,
+    /// The global is instantiated as a `Resource` and provided to the callback,
     /// do whatever you need with it.
     ///
     /// Letting it out of scope will *not* destroy the resource, and you'll still
