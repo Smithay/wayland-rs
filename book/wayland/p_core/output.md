@@ -19,7 +19,9 @@ Among the information given to the client are:
 located in the coordinate space of the output. The "current output" of a surface which is visible
 on more than one output is the one displaying the largest fraction of it.
 
+&nbsp;
+
 -------
 
-[^1] For example, the `wl_shell::set_fullscreen` request can optionally be given an output as
+[^1]: For example, the `wl_shell::set_fullscreen` request can optionally be given an output as
 argument, if the client wants its surface to be set to fullscreen on a particular output.

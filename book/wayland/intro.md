@@ -20,7 +20,9 @@ a wayland compositor a much more manageable task than building a new X11 server.
 The rest of this chapter is an extensive description of this protocol and what it implies for the
 clients and servers, but from a general point of view, and thus is not rust-specific at all.
 
----
+&nbsp;
 
-[^1] The X11 server is at the heart of everything multiplexing between the clients, the window
+-------
+
+[^1]: The X11 server is at the heart of everything multiplexing between the clients, the window
 manager and the compositor

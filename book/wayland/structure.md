@@ -72,14 +72,14 @@ In the end, this kind of hierachy can be expected:
                                          +---------+      +-------------+
 ```
 
-*(The details of what these objects are and do will come later, in the
-[core protocol](./wayland/p_core.html) section.)*
+*(The details of what these objects are and do will come later, in the [core protocol][] section.)*
+
+[core protocol]: ./wayland/p_core.html
 
 ## Protocol extensions
 
 The set of objects and the list of their requests and events is defined in
-[an XML file](https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml).
-This approach allows wayland protocl extensions to be defined easily.
+[an XML file][wayland spec]. This approach allows wayland protocl extensions to be defined easily.
 
 A **protocol extension** is just another XML file, which defines another set of objects, some of
 them being globals, and thus serving as the entry points for the protocol extension.
@@ -91,6 +91,8 @@ compositor does not support the extension and the client can act accordingly (fa
 only the core protocol, or erroring out if the extension is crucial to the program).
 
 A compositor cannot force the clients to support an extension.
+
+[wayland spec]: https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml
 
 ## API versioning
 
@@ -111,5 +113,8 @@ Error handling in the wayland protocol is very simple: whenever the client misus
 sending a request with invalid arguments) it causes a protocol error. A protocol error is always
 fatal, and the server will close the connection whenever one occurs.
 
+&nbsp;
+
 -------
-[^1] Sorry for the lack of a better name...
+
+[^1]: Sorry for the lack of a better name...

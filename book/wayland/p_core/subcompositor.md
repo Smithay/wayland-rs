@@ -21,12 +21,16 @@ it can update its contents with a buffer coming directly from the (possibly hard
 unit.
 
 Subsurfaces can also be used to draw window decorations: this gives an easy way for the client to
-know if the pointer is on the decorations or the main surface (see
-[next chapter](./wayland/p_core/seat.html) for details about pointer input). But in general
-subsurfaces should not be used for general UI composing: this is expected to be done client-side by
-the GUI library.
+know if the pointer is on the decorations or the main surface (see [next chapter][] for details
+about pointer input). But in general subsurfaces should not be used for general UI composing: this
+is expected to be done client-side by the GUI library.
 
---------
+[next chapter]: ./wayland/p_core/seat.html
 
-[^1] This means while, strictly speaking, even if a cycle of subsurface is possible to create, the
-compositor will never attempt to display it. Thus creating such a cycle is both harmless and useless.
+&nbsp;
+
+-------
+
+[^1]: This means while, strictly speaking, even if a cycle of subsurface is possible to create, the
+compositor will never attempt to display it. Thus creating such a cycle is both harmless and
+useless.

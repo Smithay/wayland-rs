@@ -49,13 +49,13 @@ The events associated with the touch object allow representing multi-touch seque
 location of each touch point. They can be cancelled if the compositor decides that it'll be the one
 handling it.
 
-<br/><br/>
+&nbsp;
 
 -------
 
-[^1] I don't have realistic examples to present. A simple possibility would be to plug a second
+[^1]: I don't have realistic examples to present. A simple possibility would be to plug a second
 keyboard to the computer, but the compositor could decide to merge the two keyboard as a single
 logical keyboard, as most computers do today. In any case, the compositor gets to decide what a
 "logical seat" is.
 
-[^2] This is the exact function of the [wayland-kbd](https:/crates.io/crates/wayland-kbd) crate.
+[^2]: This is the exact function of the [wayland-kbd](https:/crates.io/crates/wayland-kbd) crate.
