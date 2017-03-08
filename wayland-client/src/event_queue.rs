@@ -440,7 +440,12 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
 macro_rules! declare_handler(
     ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self, evq: &mut $crate::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventQueueHandle,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
                 <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
             }
         }
@@ -466,7 +471,12 @@ macro_rules! declare_handler(
 macro_rules! declare_delegating_handler(
     ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self, evq: &mut $crate::EventQueueHandle, proxy: &$handled_type, opcode: u32, args: *const $crate::sys::wl_argument) -> Result<(),()> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventQueueHandle,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
                 <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
             }
         }
