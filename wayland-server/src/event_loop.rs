@@ -271,6 +271,20 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
+    /// Create a new EventLoop
+    ///
+    /// It is not associated to a wayland socket, and can be used for other
+    /// event sources.
+    pub fn new() -> EventLoop {
+        unsafe {
+            let ptr = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_create,
+            );
+            create_event_loop(ptr, None)
+        }
+    }
+
     /// Dispatch pending requests to their respective handlers
     ///
     /// If no request is pending, will block at most `timeout` ms if specified,
@@ -381,6 +395,22 @@ impl Deref for EventLoop {
 impl DerefMut for EventLoop {
     fn deref_mut(&mut self) -> &mut EventLoopHandle {
         &mut *self.handle
+    }
+}
+
+impl Drop for EventLoop {
+    fn drop(&mut self) {
+        if self.display.is_none() {
+            // only destroy the event_loop if it's not the one
+            // from the display
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_destroy,
+                    self.ptr
+                );
+            }
+        }
     }
 }
 
