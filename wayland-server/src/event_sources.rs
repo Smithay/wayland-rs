@@ -145,3 +145,57 @@ pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> 
         }
     }
 }
+
+/*
+ * signal_event_source
+ */
+
+pub struct SignalEventSource {
+    ptr: *mut wl_event_source
+}
+
+
+pub fn make_signal_event_source(ptr: *mut wl_event_source) -> SignalEventSource {
+    SignalEventSource {
+        ptr: ptr
+    }
+}
+
+pub trait SignalEventSourceHandler {
+    fn signal(&mut self, ::nix::sys::signal::Signal);
+}
+
+pub unsafe extern "C" fn event_source_signal_dispatcher<H>(signal: c_int, data: *mut c_void) -> c_int
+    where H: SignalEventSourceHandler
+{
+// We don't need to worry about panic-safeness, because if there is a panic,
+    // we'll abort the process, so no access to corrupted data is possible.
+    let ret = ::std::panic::catch_unwind(move || {
+        let handler = &mut *(data as *mut H);
+        let sig = match ::nix::sys::signal::Signal::from_c_int(signal) {
+            Ok(sig) => sig,
+            Err(_) => {
+                // Actually, this cannot happen, as we cannot register an event source for
+                // an unknown signal...
+                let _ = write!(
+                    ::std::io::stderr(),
+                    "[wayland-server error] Unknown signal in signal event source: {}, aborting.",
+                    signal
+                );
+                ::libc::abort();
+            }
+        };
+        handler.signal(sig);
+    });
+    match ret {
+        Ok(()) => return 0,   // all went well
+        Err(_) => {
+            // a panic occured
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A handler for a timer event source panicked, aborting.",
+            );
+            ::libc::abort();
+        }
+    }
+}

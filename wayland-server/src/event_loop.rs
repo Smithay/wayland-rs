@@ -434,6 +434,32 @@ impl EventLoop {
             Ok(::event_sources::make_timer_event_source(ret))
         }
     }
+
+    pub fn add_signal_event_source<H>(
+            &mut self,
+            signal: ::nix::sys::signal::Signal,
+            handler_id: usize,
+        ) -> IoResult<::event_sources::SignalEventSource>
+        where H: ::event_sources::SignalEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_signal,
+                self.ptr,
+                signal as c_int,
+                ::event_sources::event_source_signal_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_signal_event_source(ret))
+        }
+    }
 }
 
 unsafe impl Send for EventLoop { }
