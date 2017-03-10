@@ -178,6 +178,7 @@
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate wayland_sys;
 extern crate libc;
+extern crate nix;
 
 pub use generated::server as protocol;
 pub use generated::interfaces as protocol_interfaces;
@@ -193,6 +194,19 @@ use wayland_sys::common::{wl_interface, wl_argument};
 mod client;
 mod display;
 mod event_loop;
+mod event_sources;
+
+pub mod sources {
+    //! Secondary event sources
+    //!
+    //! This module contains the types & traits to work with
+    //! different kind of event sources that can be registered to and
+    //! event loop, other than the wayland protocol sockets.
+    pub use ::event_sources::{FdEventSource, FdEventSourceHandler};
+    pub use ::event_sources::{FdInterest, READ, WRITE};
+    pub use ::event_sources::{TimerEventSource, TimerEventSourceHandler};
+    pub use ::event_sources::{SignalEventSource, SignalEventSourceHandler};
+}
 
 /// Common routines for wayland resource objects.
 ///

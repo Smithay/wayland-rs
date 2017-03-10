@@ -3,6 +3,7 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
+use std::os::unix::io::RawFd;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
@@ -271,6 +272,20 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
+    /// Create a new EventLoop
+    ///
+    /// It is not associated to a wayland socket, and can be used for other
+    /// event sources.
+    pub fn new() -> EventLoop {
+        unsafe {
+            let ptr = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_create,
+            );
+            create_event_loop(ptr, None)
+        }
+    }
+
     /// Dispatch pending requests to their respective handlers
     ///
     /// If no request is pending, will block at most `timeout` ms if specified,
@@ -367,6 +382,102 @@ impl EventLoop {
     pub fn state(&mut self) -> StateGuard {
         StateGuard { evq: self }
     }
+
+    /// Add a File Descriptor event source to this event loop
+    ///
+    /// The interest in read/write capability for this FD must be provided
+    /// (and can be changed afterwards using the returned object), and the
+    /// associated handler will be called whenever these capabilities are
+    /// satisfied, during the dispatching of this event loop.
+    pub fn add_fd_event_source<H>(
+            &mut self,
+            fd: RawFd,
+            handler_id: usize,
+            interest: ::event_sources::FdInterest
+        ) -> IoResult<::event_sources::FdEventSource>
+        where H: ::event_sources::FdEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_fd,
+                self.ptr,
+                fd,
+                interest.bits(),
+                ::event_sources::event_source_fd_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_fd_event_source(ret))
+        }
+    }
+
+    /// Add a timer event source to this event loop
+    ///
+    /// It is a countdown, which can be reset using the struct
+    /// returned by this function. When the countdown reaches 0,
+    /// the registered handler is called in the dispatching of
+    /// this event loop.
+    pub fn add_timer_event_source<H>(
+            &mut self,
+            handler_id: usize,
+        ) -> IoResult<::event_sources::TimerEventSource>
+        where H: ::event_sources::TimerEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_timer,
+                self.ptr,
+                ::event_sources::event_source_timer_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_timer_event_source(ret))
+        }
+    }
+
+    /// Add a signal event source to this event loop
+    ///
+    /// This will listen for a given unix signal (by setting up
+    /// a signalfd for it) and call the registered handler whenever
+    /// the program receives this signal. Calls are made during the
+    /// dispatching of this event loop.
+    pub fn add_signal_event_source<H>(
+            &mut self,
+            signal: ::nix::sys::signal::Signal,
+            handler_id: usize,
+        ) -> IoResult<::event_sources::SignalEventSource>
+        where H: ::event_sources::SignalEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_signal,
+                self.ptr,
+                signal as c_int,
+                ::event_sources::event_source_signal_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_signal_event_source(ret))
+        }
+    }
 }
 
 unsafe impl Send for EventLoop { }
@@ -381,6 +492,22 @@ impl Deref for EventLoop {
 impl DerefMut for EventLoop {
     fn deref_mut(&mut self) -> &mut EventLoopHandle {
         &mut *self.handle
+    }
+}
+
+impl Drop for EventLoop {
+    fn drop(&mut self) {
+        if self.display.is_none() {
+            // only destroy the event_loop if it's not the one
+            // from the display
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_destroy,
+                    self.ptr
+                );
+            }
+        }
     }
 }
 
