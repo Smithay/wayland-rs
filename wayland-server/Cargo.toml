@@ -16,6 +16,7 @@ travis-ci = { repository = "vberger/wayland-rs" }
 [dependencies]
 wayland-sys = { version = "0.8.5", features = ["server"], path = "../wayland-sys" }
 libc = "0.2"
+nix = "0.8"
 bitflags = "0.7"
 
 [build-dependencies]

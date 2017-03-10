@@ -3,6 +3,7 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
+use std::os::unix::io::RawFd;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
@@ -380,6 +381,34 @@ impl EventLoop {
     /// event loop.
     pub fn state(&mut self) -> StateGuard {
         StateGuard { evq: self }
+    }
+
+    pub fn add_fd_event_source<H>(
+            &mut self,
+            fd: RawFd,
+            handler_id: usize,
+            interest: ::event_sources::FdInterest
+        ) -> IoResult<::event_sources::FdEventSource>
+        where H: ::event_sources::FdEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_fd,
+                self.ptr,
+                fd,
+                interest.bits(),
+                ::event_sources::event_source_fd_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_fd_event_source(ret))
+        }
     }
 }
 
