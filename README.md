@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/vberger/wayland-client-rs.svg?branch=master)](https://travis-ci.org/vberger/wayland-client-rs)
+[![Build Status](https://travis-ci.org/vberger/wayland-rs.svg?branch=master)](https://travis-ci.org/vberger/wayland-rs)
 [![](http://meritbadge.herokuapp.com/wayland-client)](https://crates.io/crates/wayland-client)
 
 # Wayland client
@@ -19,7 +19,7 @@ And 2 internal crates, that you'll need only for integrating a custom protocol e
 
 ## Documentation
 
-The documentation for the master branch is [available online](https://vberger.github.io/wayland-client-rs/wayland_client/).
+The documentation for the master branch is [available online](https://vberger.github.io/wayland-rs/).
 
 The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
