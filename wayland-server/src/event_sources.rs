@@ -11,6 +11,9 @@ use std::io::Write;
  */
 
 /// A handle to a registered FD event source
+///
+/// Dropping this struct does not remove the event source,
+/// use the `remove` method for that.
 pub struct FdEventSource {
     ptr: *mut wl_event_source
 }
@@ -40,6 +43,17 @@ impl FdEventSource {
                 wl_event_source_fd_update,
                 self.ptr,
                 mask.bits()
+            );
+        }
+    }
+
+    /// Remove this event source from its event loop
+    pub fn remove(self) {
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_remove,
+                self.ptr
             );
         }
     }
@@ -109,6 +123,9 @@ pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, dat
  */
 
 /// A handle to a registered timer event source
+///
+/// Dropping this struct does not remove the event source,
+/// use the `remove` method for that.
 pub struct TimerEventSource {
     ptr: *mut wl_event_source
 }
@@ -132,6 +149,17 @@ impl TimerEventSource {
                 wl_event_source_timer_update,
                 self.ptr,
                 delay
+            );
+        }
+    }
+
+    /// Remove this event source from its event loop
+    pub fn remove(self) {
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_remove,
+                self.ptr
             );
         }
     }
@@ -170,6 +198,9 @@ pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> 
  */
 
 /// A handle to a registered signal event source
+///
+/// Dropping this struct does not remove the event source,
+/// use the `remove` method for that.
 pub struct SignalEventSource {
     ptr: *mut wl_event_source
 }
@@ -178,6 +209,19 @@ pub struct SignalEventSource {
 pub fn make_signal_event_source(ptr: *mut wl_event_source) -> SignalEventSource {
     SignalEventSource {
         ptr: ptr
+    }
+}
+
+impl SignalEventSource {
+    /// Remove this event source from its event loop
+    pub fn remove(self) {
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_remove,
+                self.ptr
+            );
+        }
     }
 }
 
