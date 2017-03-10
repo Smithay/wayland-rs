@@ -383,6 +383,12 @@ impl EventLoop {
         StateGuard { evq: self }
     }
 
+    /// Add a File Descriptor event source to this event loop
+    ///
+    /// The interest in read/write capability for this FD must be provided
+    /// (and can be changed afterwards using the returned object), and the
+    /// associated handler will be called whenever these capabilities are
+    /// satisfied, during the dispatching of this event loop.
     pub fn add_fd_event_source<H>(
             &mut self,
             fd: RawFd,
@@ -411,6 +417,12 @@ impl EventLoop {
         }
     }
 
+    /// Add a timer event source to this event loop
+    ///
+    /// It is a countdown, which can be reset using the struct
+    /// returned by this function. When the countdown reaches 0,
+    /// the registered handler is called in the dispatching of
+    /// this event loop.
     pub fn add_timer_event_source<H>(
             &mut self,
             handler_id: usize,
@@ -435,6 +447,12 @@ impl EventLoop {
         }
     }
 
+    /// Add a signal event source to this event loop
+    ///
+    /// This will listen for a given unix signal (by setting up
+    /// a signalfd for it) and call the registered handler whenever
+    /// the program receives this signal. Calls are made during the
+    /// dispatching of this event loop.
     pub fn add_signal_event_source<H>(
             &mut self,
             signal: ::nix::sys::signal::Signal,

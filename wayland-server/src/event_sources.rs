@@ -10,13 +10,17 @@ use std::io::Write;
  * fd_event_source
  */
 
+/// A handle to a registered FD event source
 pub struct FdEventSource {
     ptr: *mut wl_event_source
 }
 
 bitflags!{
+    /// Flags to register interest on a file descriptor
     pub flags FdInterest: u32 {
+        /// Interest to be notified when the file descriptor is readable
         const READ  = 0x01,
+        /// Interest to be notified when the file descriptor is writable
         const WRITE = 0x02
     }
 }
@@ -28,6 +32,7 @@ pub fn make_fd_event_source(ptr: *mut wl_event_source) -> FdEventSource {
 }
 
 impl FdEventSource {
+    /// Change the registered interest for this FD
     pub fn update_mask(&mut self, mask: FdInterest) {
         unsafe {
             ffi_dispatch!(
@@ -40,8 +45,15 @@ impl FdEventSource {
     }
 }
 
+/// Trait for handlers for FD events
 pub trait FdEventSourceHandler {
+    /// The FD is ready to be read/written
+    ///
+    /// Details of the capability state are given as argument.
     fn ready(&mut self, fd: RawFd, mask: FdInterest);
+    /// An error occured with this FD
+    ///
+    /// Most likely it won't be usable any longer
     fn error(&mut self, fd: RawFd, error: IoError);
 }
 
@@ -96,6 +108,7 @@ pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, dat
  * timer_event_source
  */
 
+/// A handle to a registered timer event source
 pub struct TimerEventSource {
     ptr: *mut wl_event_source
 }
@@ -108,6 +121,10 @@ pub fn make_timer_event_source(ptr: *mut wl_event_source) -> TimerEventSource {
 }
 
 impl TimerEventSource {
+    /// Set the delay of this timer
+    ///
+    /// The handler will be called during the next dispatch of the
+    /// event loop after this time (in milliseconds) is elapsed.
     pub fn set_delay_ms(&mut self, delay: i32) {
         unsafe {
             ffi_dispatch!(
@@ -120,7 +137,9 @@ impl TimerEventSource {
     }
 }
 
+/// Trait for handlers for timer event sources
 pub trait TimerEventSourceHandler {
+    /// The countdown has reached zero
     fn timeout(&mut self);
 }
 
@@ -150,6 +169,7 @@ pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> 
  * signal_event_source
  */
 
+/// A handle to a registered signal event source
 pub struct SignalEventSource {
     ptr: *mut wl_event_source
 }
@@ -161,7 +181,11 @@ pub fn make_signal_event_source(ptr: *mut wl_event_source) -> SignalEventSource 
     }
 }
 
+/// Trait for handlers of signal event sources
 pub trait SignalEventSourceHandler {
+    /// A signal has been received
+    ///
+    /// The signal number is given has argument
     fn signal(&mut self, ::nix::sys::signal::Signal);
 }
 
