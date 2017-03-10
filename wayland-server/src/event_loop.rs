@@ -410,6 +410,30 @@ impl EventLoop {
             Ok(::event_sources::make_fd_event_source(ret))
         }
     }
+
+    pub fn add_timer_event_source<H>(
+            &mut self,
+            handler_id: usize,
+        ) -> IoResult<::event_sources::TimerEventSource>
+        where H: ::event_sources::TimerEventSourceHandler + 'static
+    {
+        let h = self.handlers[handler_id].downcast_ref::<H>()
+                    .expect("Handler type do not match.");
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_timer,
+                self.ptr,
+                ::event_sources::event_source_timer_dispatcher::<H>,
+                h as *const _ as *mut c_void
+            )
+        };
+        if ret.is_null() {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(::event_sources::make_timer_event_source(ret))
+        }
+    }
 }
 
 unsafe impl Send for EventLoop { }

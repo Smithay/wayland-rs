@@ -199,6 +199,7 @@ mod event_sources;
 pub mod sources {
     pub use ::event_sources::{FdEventSource, FdEventSourceHandler};
     pub use ::event_sources::{FdInterest, READ, WRITE};
+    pub use ::event_sources::{TimerEventSource, TimerEventSourceHandler};
 }
 
 /// Common routines for wayland resource objects.

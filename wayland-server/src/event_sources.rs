@@ -43,7 +43,6 @@ impl FdEventSource {
 pub trait FdEventSourceHandler {
     fn ready(&mut self, fd: RawFd, mask: FdInterest);
     fn error(&mut self, fd: RawFd, error: IoError);
-
 }
 
 pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, data: *mut c_void) -> c_int
@@ -87,6 +86,60 @@ pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, dat
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for fd {} event source panicked, aborting.",
                 fd
+            );
+            ::libc::abort();
+        }
+    }
+}
+
+/*
+ * timer_event_source
+ */
+
+pub struct TimerEventSource {
+    ptr: *mut wl_event_source
+}
+
+
+pub fn make_timer_event_source(ptr: *mut wl_event_source) -> TimerEventSource {
+    TimerEventSource {
+        ptr: ptr
+    }
+}
+
+impl TimerEventSource {
+    pub fn set_delay_ms(&mut self, delay: i32) {
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_timer_update,
+                self.ptr,
+                delay
+            );
+        }
+    }
+}
+
+pub trait TimerEventSourceHandler {
+    fn timeout(&mut self);
+}
+
+pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> c_int
+    where H: TimerEventSourceHandler
+{
+// We don't need to worry about panic-safeness, because if there is a panic,
+    // we'll abort the process, so no access to corrupted data is possible.
+    let ret = ::std::panic::catch_unwind(move || {
+        let handler = &mut *(data as *mut H);
+        handler.timeout();
+    });
+    match ret {
+        Ok(()) => return 0,   // all went well
+        Err(_) => {
+            // a panic occured
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A handler for a timer event source panicked, aborting.",
             );
             ::libc::abort();
         }
