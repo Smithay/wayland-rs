@@ -1,14 +1,20 @@
 # Change Log
 
+## 0.8.6 - 2017-03-13
+
+- Robustify macros regarding shadowing of `Result` (thanks to @Daggerbot)
+- [sys] Fix typos & errors in symbol names (thanks to @jplatte and @drakulix for spotting them)
+- [server] Add support for secondary event sources and multiple event loops
+
 ## 0.8.4 - 2017-02-19
 
-## Server updates
+### Server updates
 
 - Add `resource_is_registered` to check if a given resource is registered to
   a given handler
 - Add 'Resource::post_error()` to send protocol errors
 
-## Scanner updates
+### Scanner updates
 
 - `#[derive(PartialEq)]` for enums
 
