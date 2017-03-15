@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.8.7 - 2017-03-15
+
+- [server] Correct secondary event source handlers API
+
 ## 0.8.6 - 2017-03-13
 
 - Robustify macros regarding shadowing of `Result` (thanks to @Daggerbot)
