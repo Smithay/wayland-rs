@@ -28,25 +28,8 @@ os:
 
 script:
   - cargo fmt --all -- --write-mode=diff
-  - |
-      cd wayland-sys &&
-      travis-cargo test -- --features "dlopen egl client server cursor" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen egl client server cursor" &&
-      cd ../wayland-scanner &&
-      travis-cargo test &&
-      travis-cargo --only nightly doc -- --no-deps &&
-      cd ../wayland-client &&
-      travis-cargo test -- --features "dlopen egl cursor" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen egl cursor" &&
-      cd ../wayland-server &&
-      travis-cargo test -- --features "dlopen" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen" &&
-      cd ../wayland-protocols &&
-      travis-cargo test -- --features "unstable_protocols client server wayland-client/dlopen wayland-server/dlopen" &&
-      travis-cargo --only nigthly test -- features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
-      travis-cargo --only nightly doc -- --no-deps --features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
-      cd .. &&
-      echo "Finished !"
+  - cargo test --all --all-features
+  - cargo doc --all --no-deps --all-features
 
 after_success:
   - mdbook build
