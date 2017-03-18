@@ -3,12 +3,12 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
-use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
+use wayland_sys::RUST_MANAGED;
 use {Handler, Proxy};
 
 type ProxyUserData = (*mut EventQueueHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
@@ -61,7 +61,7 @@ impl EventQueueHandle {
                 wl_proxy_add_dispatcher,
                 proxy.ptr(),
                 dispatch_func::<P,H>,
-                ptr::null(),
+                &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void
             );
             ffi_dispatch!(
@@ -390,6 +390,14 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
     _msg: *const wl_message,
     args: *const wl_argument
 ) -> c_int {
+    // sanity check, if it triggers, it is a bug
+    if _impl != &RUST_MANAGED as *const _ as *const _ {
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
+        ::libc::abort();
+    }
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {

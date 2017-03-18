@@ -42,6 +42,15 @@ extern crate lazy_static;
 #[cfg(feature = "server")]
 extern crate libc;
 
+/// Magic pointer for wayland objects managed by wayland-client or wayland-server
+///
+/// This static serves no purpose other than existing, and thus providing a stable pointer
+/// to something we know what it is.
+///
+/// It is used internally by wayland-client, wayland-server and wayland-scanner to ensure safety
+/// regarding to wayland objects that are created by some other library.
+pub static RUST_MANAGED: u8 = 42;
+
 pub mod common;
 
 #[cfg(feature = "client")]

@@ -4,12 +4,12 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::os::unix::io::RawFd;
-use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
+use wayland_sys::RUST_MANAGED;
 use {Resource, Handler, Client};
 
 type ResourceUserData = (*mut EventLoopHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
@@ -118,7 +118,7 @@ impl EventLoopHandle {
                 wl_resource_set_dispatcher,
                 resource.ptr(),
                 dispatch_func::<R,H>,
-                ptr::null(),
+                &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void,
                 None
             );
@@ -529,6 +529,14 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
     _msg: *const wl_message,
     args: *const wl_argument
 ) -> c_int {
+    // sanity check, if it triggers, it is a bug
+    if _impl != &RUST_MANAGED as *const _ as *const _ {
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
+        ::libc::abort();
+    }
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
@@ -575,7 +583,7 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
     version: u32,
     id: u32
 ) {
-    // safety of this function is the same as dispatch_fund
+    // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
         let data = &*(data as *const (*mut H, *mut EventLoopHandle));
         let handler = &mut *data.0;
