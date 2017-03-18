@@ -67,10 +67,11 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         r#"unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
+                ptr::null_mut::<c_void>(),
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!({2}, {0}_set_user_data, ptr, data as *mut c_void);
-            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
+            {1} {{ ptr: ptr, data: (&*data).2.clone() }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
@@ -78,8 +79,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     ));
     try!(writeln!(out,
         r#"unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{
-            let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
-            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
+            let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+            {1} {{ ptr: ptr, data: (&*data).2.clone() }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
@@ -350,12 +351,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
                 r#"
-                let data: Box<(*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
+                let data: Box<(*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
                     {0},
                     {1}_get_user_data,
                     proxy.ptr()
                 ) as *mut _);
-                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 ffi_dispatch!({0}, {1}_destroy, proxy.ptr());
                 "#,
                 side.handle(),
@@ -609,12 +610,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         if let Some(Type::Destructor) = msg.typ {
             try!(writeln!(out,
                 r#"unsafe {{
-                let data: Box<(*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
+                let data: Box<(*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
                     {0},
                     {1}_get_user_data,
                     self.ptr()
                 ) as *mut _);
-                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 ffi_dispatch!({0}, {1}_destroy, self.ptr());
                 }}"#,
                 side.handle(),

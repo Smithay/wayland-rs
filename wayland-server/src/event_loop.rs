@@ -4,6 +4,7 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_void, c_int};
 use std::os::unix::io::RawFd;
+use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
@@ -11,7 +12,7 @@ use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
 use {Resource, Handler, Client};
 
-type ResourceUserData = (*mut EventLoopHandle, Arc<(AtomicBool, AtomicPtr<()>)>);
+type ResourceUserData = (*mut EventLoopHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
 /// A handle to a global object
 ///
@@ -107,13 +108,17 @@ impl EventLoopHandle {
                 wl_resource_get_user_data,
                 resource.ptr()
             ) as *mut _;
-            (&mut *data).0 = self as *const _  as *mut _;
+            // This cast from *const to *mut is legit because we enforce that a Handler
+            // can only be assigned to a single EventQueue.
+            // (this is actually the whole point of the design of this lib)
+            (&mut *data).0 = self as *const _ as *mut _;
+            (&mut *data).1 = h as *const _ as *mut c_void;
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
                 resource.ptr(),
                 dispatch_func::<R,H>,
-                h as *const _ as *const c_void,
+                ptr::null(),
                 data as *mut c_void,
                 None
             );
@@ -518,7 +523,7 @@ impl Drop for EventLoop {
 }
 
 unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
-    handler: *const c_void,
+    _impl: *const c_void,
     resource: *mut c_void,
     opcode: u32,
     _msg: *const wl_message,
@@ -530,12 +535,12 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
         // This cast from *const to *mut is legit because we enforce that a Handler
         // can only be assigned to a single EventQueue.
         // (this is actually the whole point of the design of this lib)
-        let handler = &mut *(handler as *const H as *mut H);
         let resource = R::from_ptr_initialized(resource as *mut wl_resource);
         let data = &mut *(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource.ptr()
         ) as *mut ResourceUserData);
         let evqhandle = &mut *data.0;
+        let handler = &mut *(data.1 as *mut H);
         let client = Client::from_ptr(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource.ptr()
         ));
