@@ -244,7 +244,7 @@ pub trait Resource {
     /// Current version of the interface this resource is instantiated with
     fn version(&self) -> i32;
     /// Check if the resource behind this handle is actually still alive
-    fn is_alive(&self) -> bool;
+    fn status(&self) -> Liveness;
     /// Check of two handles are actually the same wayland object
     ///
     /// Returns `false` if any of the objects has already been destroyed
@@ -321,6 +321,19 @@ pub unsafe trait Handler<T: Resource> {
     unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
+/// Represents the state of liveness of a wayland object
+#[derive(Copy,Clone,PartialEq,Eq)]
+pub enum Liveness {
+    /// This object is alive and events can be sent to it
+    Alive,
+    /// This object is dead, sending it events will do nothing and
+    /// return and error.
+    Dead,
+    /// This object is not managed by `wayland-server`, you can send it events
+    /// but this might crash the program if it was actually dead.
+    Unmanaged
+}
+
 mod generated {
     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
@@ -343,7 +356,7 @@ mod generated {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Resource, EventLoopHandle, Handler, Client, EventResult};
+        #[doc(hidden)] pub use {Resource, EventLoopHandle, Handler, Client, EventResult, Liveness};
         #[doc(hidden)] pub use super::interfaces;
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));

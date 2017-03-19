@@ -30,6 +30,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     try!(writeln!(out, "use super::{};", side.object_trait()));
     try!(writeln!(out, "use super::{};", side.result_type()));
     try!(writeln!(out, "use super::interfaces::*;"));
+    try!(writeln!(out, "use super::Liveness;"));
     try!(writeln!(out, "use wayland_sys::common::*;"));
     try!(writeln!(out, "use std::ffi::{{CString,CStr}};"));
     try!(writeln!(out, "use std::ptr;"));
@@ -41,11 +42,12 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         Side::Client => try!(writeln!(out, "use wayland_sys::client::*;")),
         Side::Server => try!(writeln!(out, "use wayland_sys::server::*;"))
     };
+    try!(writeln!(out, "use wayland_sys::RUST_MANAGED;"));
 
     try!(writeln!(out,
         r#"pub struct {} {{
             ptr: *mut {},
-            data: Arc<(AtomicBool, AtomicPtr<()>)>
+            data: Option<Arc<(AtomicBool, AtomicPtr<()>)>>
         }}"#,
         snake_to_camel(&interface.name),
         side.object_ptr_type()
@@ -67,19 +69,39 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         r#"unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
+                ptr::null_mut::<c_void>(),
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!({2}, {0}_set_user_data, ptr, data as *mut c_void);
-            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
+            {1} {{ ptr: ptr, data: Some((&*data).2.clone()) }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
         side.handle()
     ));
-    try!(writeln!(out,
-        r#"unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{
-            let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
-            {1} {{ ptr: ptr, data: (&*data).1.clone() }}
+    try!(writeln!(out, "unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{",
+        side.object_ptr_type(),
+        snake_to_camel(&interface.name)
+    ));
+    if let Side::Client = side {
+        try!(writeln!(out, r#"
+            let implem = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr);
+            let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
+        "#));
+    } else {
+        try!(writeln!(out, r#"
+            let rust_managed = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_instance_of,
+                ptr, Self::interface_ptr(), &RUST_MANAGED as *const _ as *const _
+            ) != 0;
+        "#));
+    }
+    try!(writeln!(out, r#"
+            if rust_managed {{
+                let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                {1} {{ ptr: ptr, data: Some((&*data).2.clone()) }}
+            }} else {{
+                {1} {{ ptr: ptr, data: Option::None }}
+            }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
@@ -96,18 +118,41 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         Side::Client => try!(writeln!(out, "fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}")),
         Side::Server => try!(writeln!(out, "fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"))
     };
-    try!(writeln!(out, "fn is_alive(&self) -> bool {{ self.data.0.load(Ordering::SeqCst) }}"));
+    try!(writeln!(out, r#"
+        fn status(&self) -> Liveness {{
+            if let Some(ref data) = self.data {{
+                if data.0.load(Ordering::SeqCst) {{
+                    Liveness::Alive
+                }} else {{
+                    Liveness::Dead
+                }}
+            }} else {{
+                Liveness::Unmanaged
+            }}
+        }}"#
+    ));
 
     try!(writeln!(out,
-        "fn equals(&self, other: &{}) -> bool {{ self.is_alive() && other.is_alive() && self.ptr == other.ptr }}",
+        r#"fn equals(&self, other: &{}) -> bool {{
+            self.status() != Liveness::Dead && other.status() != Liveness::Dead && self.ptr == other.ptr
+        }}"#,
         snake_to_camel(&interface.name)
     ));
 
     try!(writeln!(out,
         r#"
-        fn set_user_data(&self, ptr: *mut ()) {{ self.data.1.store(ptr, Ordering::SeqCst) }}
-        fn get_user_data(&self) -> *mut () {{ self.data.1.load(Ordering::SeqCst) }}
-        "#
+        fn set_user_data(&self, ptr: *mut ()) {{
+            if let Some(ref data) = self.data {{
+                data.1.store(ptr, Ordering::SeqCst);
+            }}
+        }}
+        fn get_user_data(&self) -> *mut () {{
+            if let Some(ref data) = self.data {{
+                data.1.load(Ordering::SeqCst)
+            }} else {{
+                ::std::ptr::null_mut()
+            }}
+        }}"#
     ));
 
     try!(writeln!(out, "}}"));
@@ -348,14 +393,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         }
 
         if let Some(Type::Destructor) = msg.typ {
-            try!(writeln!(out,
-                r#"
-                let data: Box<(*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
-                    {0},
-                    {1}_get_user_data,
-                    proxy.ptr()
-                ) as *mut _);
-                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+            try!(writeln!(out,r#"
+                if let Some(ref data) = proxy.data {{
+                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                }}
                 ffi_dispatch!({0}, {1}_destroy, proxy.ptr());
                 "#,
                 side.handle(),
@@ -483,7 +524,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
 
         // check liveness
         if destroyable {
-            try!(writeln!(out, "if !self.is_alive() {{ return {}::Destroyed }}", side.result_type()));
+            try!(writeln!(out, "if self.status() == Liveness::Dead {{ return {}::Destroyed }}", side.result_type()));
         }
 
         // arg translation for some types
@@ -607,19 +648,11 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         try!(writeln!(out, ") }};"));
 
         if let Some(Type::Destructor) = msg.typ {
-            try!(writeln!(out,
-                r#"unsafe {{
-                let data: Box<(*mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
-                    {0},
-                    {1}_get_user_data,
-                    self.ptr()
-                ) as *mut _);
-                (data.1).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                ffi_dispatch!({0}, {1}_destroy, self.ptr());
-                }}"#,
-                side.handle(),
-                side.object_ptr_type()
-            ));
+            try!(writeln!(out, r#"
+                if let Some(ref data) = self.data {{
+                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                }}
+            "#));
         }
 
         if newid.is_some() && side == Side::Client {

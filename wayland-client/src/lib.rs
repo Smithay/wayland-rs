@@ -180,8 +180,8 @@ pub trait Proxy {
     fn supported_version() -> u32;
     /// Current version of the interface this proxy is instantiated with
     fn version(&self) -> u32;
-    /// Check if the proxt behind this handle is actually still alive
-    fn is_alive(&self) -> bool;
+    /// Check if the proxy behind this handle is actually still alive
+    fn status(&self) -> Liveness;
     /// Check of two handles are actually the same wayland object
     ///
     /// Returns `false` if any of the objects has already been destroyed
@@ -193,12 +193,16 @@ pub trait Proxy {
     /// The get/set operations are atomic, no more guarantee is given. If you need
     /// to synchronise access to this data, it is your responsibility to add a Mutex
     /// or any other similar mechanism.
+    ///
+    /// If this proxy is not managed by wayland-client, this does nothing.
     fn set_user_data(&self, ptr: *mut ());
     /// Get the pointer associated as user data on this proxy
     ///
     /// All proxies to the same wayland object share the same user data pointer.
     ///
     /// See `set_user_data` for synchronisation guarantee.
+    ///
+    /// If this proxy is not managed by wayland-client, this returns a null pointer.
     fn get_user_data(&self) -> *mut ();
 }
 
@@ -239,6 +243,19 @@ pub unsafe trait Handler<T: Proxy> {
     unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
 }
 
+/// Represents the state of liveness of a wayland object
+#[derive(Copy,Clone,PartialEq,Eq)]
+pub enum Liveness {
+    /// This object is alive and its requests can be called
+    Alive,
+    /// This object is dead, calling its requests will do nothing and
+    /// return and error.
+    Dead,
+    /// This object is not managed by `wayland-client`, you can call its methods
+    /// but this might crash the program if it was actually dead.
+    Unmanaged
+}
+
 mod generated {
     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
@@ -262,7 +279,7 @@ mod generated {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Proxy, Handler, RequestResult};
+        #[doc(hidden)] pub use {Proxy, Handler, RequestResult, Liveness};
         #[doc(hidden)] pub use event_queue::EventQueueHandle;
         #[doc(hidden)] pub use super::interfaces;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));

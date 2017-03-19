@@ -9,9 +9,10 @@ use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::common::{wl_message, wl_argument};
 use wayland_sys::server::*;
+use wayland_sys::RUST_MANAGED;
 use {Resource, Handler, Client};
 
-type ResourceUserData = (*mut EventLoopHandle, Arc<(AtomicBool, AtomicPtr<()>)>);
+type ResourceUserData = (*mut EventLoopHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
 /// A handle to a global object
 ///
@@ -98,26 +99,40 @@ impl EventLoopHandle {
     ///
     /// This overwrites any precedently set Handler for this resource and removes its destructor
     /// if any.
-    pub fn register<R: Resource, H: Handler<R> + Any + Send + 'static>(&mut self, resource: &R, handler_id: usize) {
+    ///
+    /// Returns an error and does nothing if this resource is dead or already managed by
+    /// something else than this library.
+    pub fn register<R, H>(&mut self, resource: &R, handler_id: usize) -> Result<(),()>
+        where R: Resource,
+              H: Handler<R> + Any + Send + 'static
+    {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
+        if resource.status() != ::Liveness::Alive {
+            return Err(());
+        }
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_get_user_data,
                 resource.ptr()
             ) as *mut _;
-            (&mut *data).0 = self as *const _  as *mut _;
+            // This cast from *const to *mut is legit because we enforce that a Handler
+            // can only be assigned to a single EventQueue.
+            // (this is actually the whole point of the design of this lib)
+            (&mut *data).0 = self as *const _ as *mut _;
+            (&mut *data).1 = h as *const _ as *mut c_void;
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
                 resource.ptr(),
                 dispatch_func::<R,H>,
-                h as *const _ as *const c_void,
+                &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void,
                 None
             );
         }
+        Ok(())
     }
 
     /// Register a resource to a handler of this event loop with a destructor
@@ -128,13 +143,19 @@ impl EventLoopHandle {
     /// The D type is the one whose `Destroy<R>` impl will be used as destructor.
     ///
     /// This overwrites any precedently set Handler and destructor for this resource.
-    pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize)
+    ///
+    /// Returns an error and does nothing if this resource is dead or already managed by
+    /// something else than this library.
+    pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize) -> Result<(),()>
         where R: Resource,
               H: Handler<R> + Any + Send + 'static,
               D: Destroy<R> + 'static
     {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
+        if resource.status() != ::Liveness::Alive {
+            return Err(());
+        }
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -152,6 +173,7 @@ impl EventLoopHandle {
                 Some(resource_destroy::<R, D>)
             );
         }
+        Ok(())
     }
 
     /// Insert a new handler to this EventLoop
@@ -197,10 +219,16 @@ impl EventLoopHandle {
 ///
 /// The H type must be provided and match the type of the targetted Handler, or
 /// it will panic.
+///
+/// Returns `false` if the resource is dead, even if it was registered to this
+/// handler while alive.
 pub fn resource_is_registered<R, H>(resource: &R, handler_id: usize) -> bool
     where R: Resource,
           H: Handler<R> + Any + Send + 'static
 {
+    if resource.status() != ::Liveness::Alive {
+        return false;
+    }
     let resource_data = unsafe { &*(ffi_dispatch!(
         WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource.ptr()
     ) as *mut ResourceUserData) };
@@ -518,24 +546,32 @@ impl Drop for EventLoop {
 }
 
 unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(
-    handler: *const c_void,
+    _impl: *const c_void,
     resource: *mut c_void,
     opcode: u32,
     _msg: *const wl_message,
     args: *const wl_argument
 ) -> c_int {
+    // sanity check, if it triggers, it is a bug
+    if _impl != &RUST_MANAGED as *const _ as *const _ {
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
+        ::libc::abort();
+    }
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
         // This cast from *const to *mut is legit because we enforce that a Handler
         // can only be assigned to a single EventQueue.
         // (this is actually the whole point of the design of this lib)
-        let handler = &mut *(handler as *const H as *mut H);
         let resource = R::from_ptr_initialized(resource as *mut wl_resource);
         let data = &mut *(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource.ptr()
         ) as *mut ResourceUserData);
         let evqhandle = &mut *data.0;
+        let handler = &mut *(data.1 as *mut H);
         let client = Client::from_ptr(ffi_dispatch!(
             WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource.ptr()
         ));
@@ -570,7 +606,7 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
     version: u32,
     id: u32
 ) {
-    // safety of this function is the same as dispatch_fund
+    // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
         let data = &*(data as *const (*mut H, *mut EventLoopHandle));
         let handler = &mut *data.0;

@@ -8,9 +8,10 @@ use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
+use wayland_sys::RUST_MANAGED;
 use {Handler, Proxy};
 
-type ProxyUserData = (*mut EventQueueHandle, Arc<(AtomicBool, AtomicPtr<()>)>);
+type ProxyUserData = (*mut EventQueueHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
 /// Handle to an event queue
 ///
@@ -41,22 +42,36 @@ impl EventQueueHandle {
     /// it will panic.
     ///
     /// This overwrites any precedently set Handler for this proxy.
-    pub fn register<P: Proxy, H: Handler<P> + Any + Send + 'static>(&mut self, proxy: &P, handler_id: usize) {
+    ///
+    /// Returns an error and does nothing if this proxy is dead or already managed by
+    /// something else than this library.
+    pub fn register<P,H >(&mut self, proxy: &P, handler_id: usize) -> Result<(),()>
+        where P: Proxy,
+              H: Handler<P> + Any + Send + 'static
+    {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
+        if proxy.status() != ::Liveness::Alive {
+            return Err(());
+        }
         unsafe {
             let data: *mut ProxyUserData = ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_get_user_data,
                 proxy.ptr()
             ) as *mut _;
+            // This cast from *const to *mut is legit because we enforce that a Handler
+            // can only be assigned to a single EventQueue.
+            // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
+            (&mut *data).1 = h as *const _ as *mut c_void;
+            // even if this call fails, we updated the user_data, so the new handler is in place.
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_add_dispatcher,
                 proxy.ptr(),
                 dispatch_func::<P,H>,
-                h as *const _ as *const c_void,
+                &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void
             );
             ffi_dispatch!(
@@ -69,6 +84,7 @@ impl EventQueueHandle {
                 }
             );
         }
+        Ok(())
     }
 
     /// Insert a new handler to this event queue
@@ -379,24 +395,29 @@ pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_e
 }
 
 unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
-    handler: *const c_void,
+    _impl: *const c_void,
     proxy: *mut c_void,
     opcode: u32,
     _msg: *const wl_message,
     args: *const wl_argument
 ) -> c_int {
+    // sanity check, if it triggers, it is a bug
+    if _impl != &RUST_MANAGED as *const _ as *const _ {
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
+        ::libc::abort();
+    }
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        // This cast from *const to *mut is legit because we enforce that a Handler
-        // can only be assigned to a single EventQueue.
-        // (this is actually the whole point of the design of this lib)
-        let handler = &mut *(handler as *const H as *mut H);
         let proxy = P::from_ptr_initialized(proxy as *mut wl_proxy);
         let data = &mut *(ffi_dispatch!(
             WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()
         ) as *mut ProxyUserData);
         let evqhandle = &mut *data.0;
+        let handler = &mut *(data.1 as *mut H);
         handler.message(evqhandle, &proxy, opcode, args)
     });
     match ret {
