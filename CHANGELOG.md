@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.9.0 - 2017-03-19
+
+- [breaking-change] Be more conservative regarding the use of `user_data` from the C libraries.
+  This makes us compatible with manipulation of wayland objects managed by other libraries.
+  `wayland-client` and `wayland-server` will not attempt to manage objects already managed by
+  something else.
+
 ## 0.8.7 - 2017-03-15
 
 - [server] Correct secondary event source handlers API
