@@ -20,7 +20,13 @@ external_library!(WaylandEgl, "wayland-egl",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_EGL_OPTION: Option<WaylandEgl> = { 
-        WaylandEgl::open("libwayland-egl.so").ok()
+        match WaylandEgl::open("libwayland-egl.so") {
+            Ok(h) => Some(h),
+            Err(::dlib::DlError::NotFound) => None,
+            Err(::dlib::DlError::MissingSymbol(s)) => {
+                panic!("Found library libwayland-egl.so but symbol {} is missing.", s);
+            }
+        }
     };
     pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEgl = {
         WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")

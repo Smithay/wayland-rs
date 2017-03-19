@@ -32,7 +32,7 @@
 
 #![allow(dead_code, non_camel_case_types)]
 
-#[macro_use(external_library,link_external_library,dlopen_external_library)]
+#[macro_use]
 extern crate dlib;
 
 #[cfg(feature = "dlopen")]

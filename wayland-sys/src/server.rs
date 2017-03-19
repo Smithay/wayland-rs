@@ -125,7 +125,13 @@ external_library!(WaylandServer, "wayland-server",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = { 
-        WaylandServer::open("libwayland-server.so").ok()
+        match WaylandServer::open("libwayland-server.so") {
+            Ok(h) => Some(h),
+            Err(::dlib::DlError::NotFound) => None,
+            Err(::dlib::DlError::MissingSymbol(s)) => {
+                panic!("Found library libwayland-server.so but symbol {} is missing.", s);
+            }
+        }
     };
     pub static ref WAYLAND_SERVER_HANDLE: &'static WaylandServer = {
         WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded.")

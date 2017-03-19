@@ -41,7 +41,13 @@ external_library!(WaylandCursor, "wayland-cursor",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_CURSOR_OPTION: Option<WaylandCursor> = {
-        WaylandCursor::open("libwayland-cursor.so").ok()
+        match WaylandCursor::open("libwayland-cursor.so") {
+            Ok(h) => Some(h),
+            Err(::dlib::DlError::NotFound) => None,
+            Err(::dlib::DlError::MissingSymbol(s)) => {
+                panic!("Found library libwayland-cursor.so but symbol {} is missing.", s);
+            }
+        }
     };
     pub static ref WAYLAND_CURSOR_HANDLE: &'static WaylandCursor = {
         WAYLAND_CURSOR_OPTION.as_ref().expect("Library libwayland-cursor.so could not be loaded.")
