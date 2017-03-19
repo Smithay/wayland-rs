@@ -393,14 +393,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         }
 
         if let Some(Type::Destructor) = msg.typ {
-            try!(writeln!(out,
-                r#"
-                let data: Box<(*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
-                    {0},
-                    {1}_get_user_data,
-                    proxy.ptr()
-                ) as *mut _);
-                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+            try!(writeln!(out,r#"
+                if let Some(ref data) = proxy.data {{
+                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                }}
                 ffi_dispatch!({0}, {1}_destroy, proxy.ptr());
                 "#,
                 side.handle(),
@@ -652,19 +648,11 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         try!(writeln!(out, ") }};"));
 
         if let Some(Type::Destructor) = msg.typ {
-            try!(writeln!(out,
-                r#"unsafe {{
-                let data: Box<(*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>)> = Box::from_raw(ffi_dispatch!(
-                    {0},
-                    {1}_get_user_data,
-                    self.ptr()
-                ) as *mut _);
-                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                ffi_dispatch!({0}, {1}_destroy, self.ptr());
-                }}"#,
-                side.handle(),
-                side.object_ptr_type()
-            ));
+            try!(writeln!(out, r#"
+                if let Some(ref data) = self.data {{
+                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                }}
+            "#));
         }
 
         if newid.is_some() && side == Side::Client {
