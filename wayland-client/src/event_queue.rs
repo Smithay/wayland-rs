@@ -13,6 +13,16 @@ use {Handler, Proxy};
 
 type ProxyUserData = (*mut EventQueueHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
+/// Status of a registration attempt of a proxy.
+pub enum RegisterStatus {
+    /// The proxy was properly registered to this event queue & handler.
+    Registered,
+    /// The proxy was not registered because it is not managed by `wayland-client`.
+    Unmanaged,
+    /// The proxy was not registered because it is already destroyed.
+    Dead
+}
+
 /// Handle to an event queue
 ///
 /// This handle gives you access to methods on an event queue
@@ -43,16 +53,18 @@ impl EventQueueHandle {
     ///
     /// This overwrites any precedently set Handler for this proxy.
     ///
-    /// Returns an error and does nothing if this proxy is dead or already managed by
+    /// Returns appropriately and does nothing if this proxy is dead or already managed by
     /// something else than this library.
-    pub fn register<P,H >(&mut self, proxy: &P, handler_id: usize) -> Result<(),()>
+    pub fn register<P,H >(&mut self, proxy: &P, handler_id: usize) -> RegisterStatus
         where P: Proxy,
               H: Handler<P> + Any + Send + 'static
     {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
-        if proxy.status() != ::Liveness::Alive {
-            return Err(());
+        match proxy.status() {
+            ::Liveness::Dead => return RegisterStatus::Dead,
+            ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
+            ::Liveness::Alive => { /* ok, we can continue */ }
         }
         unsafe {
             let data: *mut ProxyUserData = ffi_dispatch!(
@@ -84,7 +96,7 @@ impl EventQueueHandle {
                 }
             );
         }
-        Ok(())
+        RegisterStatus::Registered
     }
 
     /// Insert a new handler to this event queue

@@ -14,6 +14,16 @@ use {Resource, Handler, Client};
 
 type ResourceUserData = (*mut EventLoopHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
+/// Status of a registration attempt of a resource.
+pub enum RegisterStatus {
+    /// The resource was properly registered to this event loop & handler.
+    Registered,
+    /// The resource was not registered because it is not managed by `wayland-server`.
+    Unmanaged,
+    /// The resource was not registered because it is already destroyed.
+    Dead
+}
+
 /// A handle to a global object
 ///
 /// This is given to you when you register a global to the event loop.
@@ -102,14 +112,16 @@ impl EventLoopHandle {
     ///
     /// Returns an error and does nothing if this resource is dead or already managed by
     /// something else than this library.
-    pub fn register<R, H>(&mut self, resource: &R, handler_id: usize) -> Result<(),()>
+    pub fn register<R, H>(&mut self, resource: &R, handler_id: usize) -> RegisterStatus
         where R: Resource,
               H: Handler<R> + Any + Send + 'static
     {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
-        if resource.status() != ::Liveness::Alive {
-            return Err(());
+        match resource.status() {
+            ::Liveness::Dead => return RegisterStatus::Dead,
+            ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
+            ::Liveness::Alive => { /* ok, we can continue */ }
         }
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
@@ -132,7 +144,7 @@ impl EventLoopHandle {
                 None
             );
         }
-        Ok(())
+        RegisterStatus::Registered
     }
 
     /// Register a resource to a handler of this event loop with a destructor
@@ -146,15 +158,17 @@ impl EventLoopHandle {
     ///
     /// Returns an error and does nothing if this resource is dead or already managed by
     /// something else than this library.
-    pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize) -> Result<(),()>
+    pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize) -> RegisterStatus
         where R: Resource,
               H: Handler<R> + Any + Send + 'static,
               D: Destroy<R> + 'static
     {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
-        if resource.status() != ::Liveness::Alive {
-            return Err(());
+        match resource.status() {
+            ::Liveness::Dead => return RegisterStatus::Dead,
+            ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
+            ::Liveness::Alive => { /* ok, we can continue */ }
         }
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
@@ -173,7 +187,7 @@ impl EventLoopHandle {
                 Some(resource_destroy::<R, D>)
             );
         }
-        Ok(())
+        RegisterStatus::Registered
     }
 
     /// Insert a new handler to this EventLoop
