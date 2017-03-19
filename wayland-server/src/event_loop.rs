@@ -99,9 +99,18 @@ impl EventLoopHandle {
     ///
     /// This overwrites any precedently set Handler for this resource and removes its destructor
     /// if any.
-    pub fn register<R: Resource, H: Handler<R> + Any + Send + 'static>(&mut self, resource: &R, handler_id: usize) {
+    ///
+    /// Returns an error and does nothing if this resource is dead or already managed by
+    /// something else than this library.
+    pub fn register<R, H>(&mut self, resource: &R, handler_id: usize) -> Result<(),()>
+        where R: Resource,
+              H: Handler<R> + Any + Send + 'static
+    {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
+        if resource.status() != ::Liveness::Alive {
+            return Err(());
+        }
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -123,6 +132,7 @@ impl EventLoopHandle {
                 None
             );
         }
+        Ok(())
     }
 
     /// Register a resource to a handler of this event loop with a destructor

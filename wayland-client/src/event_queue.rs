@@ -42,9 +42,18 @@ impl EventQueueHandle {
     /// it will panic.
     ///
     /// This overwrites any precedently set Handler for this proxy.
-    pub fn register<P: Proxy, H: Handler<P> + Any + Send + 'static>(&mut self, proxy: &P, handler_id: usize) {
+    ///
+    /// Returns an error and does nothing if this proxy is dead or already managed by
+    /// something else than this library.
+    pub fn register<P,H >(&mut self, proxy: &P, handler_id: usize) -> Result<(),()>
+        where P: Proxy,
+              H: Handler<P> + Any + Send + 'static
+    {
         let h = self.handlers[handler_id].downcast_ref::<H>()
                     .expect("Handler type do not match.");
+        if proxy.status() != ::Liveness::Alive {
+            return Err(());
+        }
         unsafe {
             let data: *mut ProxyUserData = ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
@@ -56,6 +65,7 @@ impl EventQueueHandle {
             // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
             (&mut *data).1 = h as *const _ as *mut c_void;
+            // even if this call fails, we updated the user_data, so the new handler is in place.
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_add_dispatcher,
@@ -74,6 +84,7 @@ impl EventQueueHandle {
                 }
             );
         }
+        Ok(())
     }
 
     /// Insert a new handler to this event queue
