@@ -141,7 +141,7 @@ impl EventLoopHandle {
                 dispatch_func::<R,H>,
                 &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void,
-                None
+                Some(resource_destroy::<R,NoopDestroy>)
             );
         }
         RegisterStatus::Registered
@@ -651,9 +651,21 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(
     }
 }
 
-// TODO : figure out how it is used exactly
+struct NoopDestroy;
+
+impl<R: Resource> Destroy<R> for NoopDestroy {
+    fn destroy(_: &R) {}
+}
+
 unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut wl_resource) {
     let resource = R::from_ptr_initialized(resource as *mut wl_resource);
+    if resource.status() == ::Liveness::Alive {
+        // mark the resource as dead
+        let data = &mut *(ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource.ptr()
+        ) as *mut ResourceUserData);
+        (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+    }
     D::destroy(&resource);
 }
 
