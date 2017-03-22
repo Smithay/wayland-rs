@@ -168,9 +168,10 @@ pub trait Proxy {
     /// Create an instance from a wayland pointer
     ///
     /// The pointer must refer to a valid wayland proxy
-    /// of the appropriate interface, and have already been
-    /// initialized by the library (it'll assume this proxy
-    /// user_data contains a certain kind of data).
+    /// of the appropriate interface. The library will detect if the
+    /// proxy is already managed by it or not. If it is not, this
+    /// proxy will be considered as "unmanaged", and should then
+    /// be handled with care.
     unsafe fn from_ptr_initialized(*mut wl_proxy) -> Self;
     /// Pointer to the interface representation
     fn interface_ptr() -> *const wl_interface;
@@ -204,6 +205,29 @@ pub trait Proxy {
     ///
     /// If this proxy is not managed by wayland-client, this returns a null pointer.
     fn get_user_data(&self) -> *mut ();
+    /// Clone this proxy handle
+    ///
+    /// Will only succeed if the proxy is managed by this library and
+    /// is still alive.
+    fn clone(&self) -> Option<Self> where Self: Sized {
+        if self.status() == Liveness::Alive {
+            Some(unsafe { self.clone_unchecked() })
+        } else {
+            None
+        }
+
+    }
+    /// Unsafely clone this proxy handle
+    ///
+    /// This function is unsafe because if the proxy is unmanaged, the lib
+    /// has no knowledge of its lifetime, and cannot ensure that the new handle
+    /// will not outlive the object.
+    unsafe fn clone_unchecked(&self) -> Self where Self: Sized {
+        // TODO: this can be more optimized with codegen help, but would be a
+        // breaking change, so do it at next breaking release
+        Self::from_ptr_initialized(self.ptr())
+    }
+
 }
 
 /// Possible outcome of the call of a request on a proxy
