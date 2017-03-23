@@ -231,9 +231,10 @@ pub trait Resource {
     /// Create an instance from a wayland pointer
     ///
     /// The pointer must refer to a valid wayland resource
-    /// of the appropriate interface, and have already been
-    /// initialized by the library (it'll assume this proxy
-    /// user_data contains a certain kind of data).
+    /// of the appropriate interface. The library will detect if the
+    /// resource is already managed by it or not. If it is not, this
+    /// resource will be considered as "unmanaged", and should then
+    /// be handled with care.
     unsafe fn from_ptr_initialized(*mut wl_resource) -> Self;
     /// Pointer to the interface representation
     fn interface_ptr() -> *const wl_interface;
@@ -281,6 +282,28 @@ pub trait Resource {
                 cstring.as_ptr()
             )
         }
+    }
+    /// Clone this resource handle
+    ///
+    /// Will only succeed if the resource is managed by this library and
+    /// is still alive.
+    fn clone(&self) -> Option<Self> where Self: Sized {
+        if self.status() == Liveness::Alive {
+            Some(unsafe { self.clone_unchecked() })
+        } else {
+            None
+        }
+
+    }
+    /// Unsafely clone this resource handle
+    ///
+    /// This function is unsafe because if the resource is unmanaged, the lib
+    /// has no knowledge of its lifetime, and cannot ensure that the new handle
+    /// will not outlive the object.
+    unsafe fn clone_unchecked(&self) -> Self where Self: Sized {
+        // TODO: this can be more optimized with codegen help, but would be a
+        // breaking change, so do it at next breaking release
+        Self::from_ptr_initialized(self.ptr())
     }
 }
 
