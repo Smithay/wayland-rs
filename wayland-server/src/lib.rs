@@ -308,6 +308,7 @@ pub trait Resource {
 }
 
 /// Possible outcome of the call of a event on a resource
+#[derive(Debug)]
 pub enum EventResult<T> {
     /// Message has been buffered and will be sent to client
     Sent(T),
