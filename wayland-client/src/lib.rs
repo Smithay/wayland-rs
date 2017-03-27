@@ -231,6 +231,7 @@ pub trait Proxy {
 }
 
 /// Possible outcome of the call of a request on a proxy
+#[derive(Debug)]
 pub enum RequestResult<T> {
     /// Message has been buffered and will be sent to server
     Sent(T),
