@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.9.1 - 2017-03-31
+
+- [client] Proxy objects are now cloneable via `Proxy` methods
+- [client] impl Debug for RequestResult
+- [server] Server objects are noe cloneable via `Resource` methods
+- [server] impl Debug for EventResult
+
 ## 0.9.0 - 2017-03-19
 
 - [breaking-change] Be more conservative regarding the use of `user_data` from the C libraries.
