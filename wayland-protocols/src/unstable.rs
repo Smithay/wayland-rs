@@ -183,7 +183,6 @@ pub mod xdg_foreign {
     wayland_protocol!("xdg-foreign", (wl_surface, wl_surface_interface));
 }
 
-#[cfg(feature = "nightly")]
 pub mod xdg_shell {
     wayland_protocol!("xdg-shell",
                       (wl_surface, wl_surface_interface),
