@@ -4,8 +4,9 @@ version = "0.0.1"
 publish = false
 
 [dependencies]
-wayland-client = { path = "./wayland-client" }
+wayland-client = { path = "./wayland-client", features = ["egl", "cursor"] }
 wayland-server = { path = "./wayland-server" }
+wayland-protocols = { path = "./wayland-protocols", features = ["client", "server", "unstable_protocols"] }
 
 [workspace]
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols" ]

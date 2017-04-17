@@ -1,8 +1,15 @@
 language: rust
 
-sudo: false
+sudo: required
 
 cache: cargo
+
+dist: trusty
+
+before_install:
+  - sudo add-apt-repository -y ppa:wayland.admin/daily-builds
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libwayland-dev
 
 rust:
   - stable
@@ -28,26 +35,7 @@ os:
 
 script:
   - cargo fmt --all -- --write-mode=diff
-  - |
-      cd wayland-sys &&
-      travis-cargo test -- --features "dlopen egl client server cursor" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen egl client server cursor" &&
-      cd ../wayland-scanner &&
-      travis-cargo test &&
-      travis-cargo --only nightly doc -- --no-deps &&
-      cd ../wayland-client &&
-      travis-cargo test -- --features "dlopen egl cursor" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen egl cursor" &&
-      cd ../wayland-server &&
-      travis-cargo test -- --features "dlopen" &&
-      travis-cargo --only nightly doc -- --no-deps --features "dlopen" &&
-      cd ../wayland-protocols &&
-      travis-cargo test -- --features "unstable_protocols client server wayland-client/dlopen wayland-server/dlopen" &&
-      travis-cargo --only nigthly test -- features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
-      travis-cargo --only nightly doc -- --no-deps --features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
-      cd .. &&
-      travis-cargo test
-      echo "Finished !"
+  - travis-cargo test
 
 after_success:
   - mdbook build
