@@ -1,29 +1,23 @@
 pub mod fullscreen_shell {
     wayland_protocol!("fullscreen-shell",
-        (wl_surface, wl_surface_interface),
-        (wl_output, wl_output_interface)
-    );
+                      (wl_surface, wl_surface_interface),
+                      (wl_output, wl_output_interface));
 }
 
 pub mod idle_inhibit {
-    wayland_protocol!("idle-inhibit",
-        (wl_surface, wl_surface_interface)
-    );
+    wayland_protocol!("idle-inhibit", (wl_surface, wl_surface_interface));
 }
 
 
 pub mod input_method {
     wayland_protocol!("input-method",
-        (wl_surface, wl_surface_interface),
-        (wl_output, wl_output_interface),
-        (wl_keyboard, wl_keyboard_interface)
-    );
+                      (wl_surface, wl_surface_interface),
+                      (wl_output, wl_output_interface),
+                      (wl_keyboard, wl_keyboard_interface));
 }
 
 pub mod linux_dmabuf {
-    wayland_protocol!("linux-dmabuf",
-        (wl_buffer, wl_buffer_interface)
-    );
+    wayland_protocol!("linux-dmabuf", (wl_buffer, wl_buffer_interface));
 }
 
 pub mod pointer_constraints {
@@ -40,17 +34,15 @@ pub mod pointer_constraints {
     //! to make. See wp_pointer_constraints for more details.
 
     wayland_protocol!("pointer-constraints",
-        (wl_surface, wl_surface_interface),
-        (wl_pointer, wl_pointer_interface),
-        (wl_region, wl_region_interface)
-    );
+                      (wl_surface, wl_surface_interface),
+                      (wl_pointer, wl_pointer_interface),
+                      (wl_region, wl_region_interface));
 }
 
 pub mod pointer_gestures {
     wayland_protocol!("pointer-gestures",
-        (wl_surface, wl_surface_interface),
-        (wl_pointer, wl_pointer_interface)
-    );
+                      (wl_surface, wl_surface_interface),
+                      (wl_pointer, wl_pointer_interface));
 }
 
 pub mod relative_pointer {
@@ -70,9 +62,7 @@ pub mod relative_pointer {
     //! the newly created relative pointer object. See the documentation of the
     //! relative pointer interface for more details.
 
-    wayland_protocol!("relative-pointer",
-        (wl_pointer, wl_pointer_interface)
-    );
+    wayland_protocol!("relative-pointer", (wl_pointer, wl_pointer_interface));
 }
 
 pub mod tablet {
@@ -156,16 +146,14 @@ pub mod tablet {
     //! tool was used on are removed.
 
     wayland_protocol!("tablet",
-        (wl_seat, wl_seat_interface),
-        (wl_surface, wl_surface_interface)
-    );
+                      (wl_seat, wl_seat_interface),
+                      (wl_surface, wl_surface_interface));
 }
 
 pub mod text_input {
     wayland_protocol!("text-input",
-        (wl_seat, wl_seat_interface),
-        (wl_surface, wl_surface_interface)
-    );
+                      (wl_seat, wl_seat_interface),
+                      (wl_surface, wl_surface_interface));
 }
 
 pub mod xdg_foreign {
@@ -192,16 +180,13 @@ pub mod xdg_foreign {
     //! can show a file browser dialog and stack it above the sandboxed client's
     //! surface.
 
-    wayland_protocol!("xdg-foreign",
-        (wl_surface, wl_surface_interface)
-    );
+    wayland_protocol!("xdg-foreign", (wl_surface, wl_surface_interface));
 }
 
 #[cfg(feature = "nightly")]
 pub mod xdg_shell {
     wayland_protocol!("xdg-shell",
-        (wl_surface, wl_surface_interface),
-        (wl_output, wl_output_interface),
-        (wl_seat, wl_seat_interface)
-    );
+                      (wl_surface, wl_surface_interface),
+                      (wl_output, wl_output_interface),
+                      (wl_seat, wl_seat_interface));
 }

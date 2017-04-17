@@ -66,7 +66,7 @@ pub mod egl;
 pub mod cursor;
 
 #[cfg(feature = "server")]
-pub use libc::{pid_t, uid_t, gid_t};
+pub use libc::{gid_t, pid_t, uid_t};
 
 // Small hack while #[macro_reexport] is not stable
 

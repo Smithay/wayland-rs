@@ -4,7 +4,7 @@ pub struct Protocol {
     pub name: String,
     pub copyright: Option<String>,
     pub description: Option<(String, String)>,
-    pub interfaces: Vec<Interface>
+    pub interfaces: Vec<Interface>,
 }
 
 impl Protocol {
@@ -13,7 +13,7 @@ impl Protocol {
             name: name,
             copyright: None,
             description: None,
-            interfaces: Vec::new()
+            interfaces: Vec::new(),
         }
     }
 }
@@ -25,7 +25,7 @@ pub struct Interface {
     pub description: Option<(String, String)>,
     pub requests: Vec<Message>,
     pub events: Vec<Message>,
-    pub enums: Vec<Enum>
+    pub enums: Vec<Enum>,
 }
 
 impl Interface {
@@ -36,7 +36,7 @@ impl Interface {
             description: None,
             requests: Vec::new(),
             events: Vec::new(),
-            enums: Vec::new()
+            enums: Vec::new(),
         }
     }
 
@@ -47,25 +47,18 @@ impl Interface {
                 if let Some(Type::Destructor) = req.typ {
                     // all is good
                 } else {
-                    return Err(format!(
-                        "Request '{}.destroy' is not a destructor.",
-                        self.name
-                    ))
+                    return Err(format!("Request '{}.destroy' is not a destructor.", self.name));
                 }
             }
             if let Some(Type::Destructor) = req.typ {
                 // sanity checks
                 if req.args.len() > 0 {
-                    return Err(format!(
-                        "Destructor request '{}.{}' cannot take arguments.",
-                        self.name, req.name
-                    ))
+                    return Err(format!("Destructor request '{}.{}' cannot take arguments.",
+                                       self.name,
+                                       req.name));
                 }
                 if found_destructor {
-                    return Err(format!(
-                        "Interface {} has more than one destructor.",
-                        self.name
-                    ))
+                    return Err(format!("Interface {} has more than one destructor.", self.name));
                 }
                 found_destructor = true
             }
@@ -81,7 +74,7 @@ pub struct Message {
     pub since: u16,
     pub description: Option<(String, String)>,
     pub args: Vec<Arg>,
-    pub type_index: usize
+    pub type_index: usize,
 }
 
 impl Message {
@@ -92,12 +85,14 @@ impl Message {
             since: 1,
             description: None,
             args: Vec::new(),
-            type_index: 0
+            type_index: 0,
         }
     }
 
     pub fn all_null(&self) -> bool {
-        self.args.iter().all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
+        self.args
+            .iter()
+            .all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
     }
 }
 
@@ -109,7 +104,7 @@ pub struct Arg {
     pub summary: Option<String>,
     pub description: Option<(String, String)>,
     pub allow_null: bool,
-    pub enum_: Option<String>
+    pub enum_: Option<String>,
 }
 
 impl Arg {
@@ -132,7 +127,7 @@ pub struct Enum {
     pub since: u16,
     pub description: Option<(String, String)>,
     pub entries: Vec<Entry>,
-    pub bitfield: bool
+    pub bitfield: bool,
 }
 
 impl Enum {
@@ -142,7 +137,7 @@ impl Enum {
             since: 1,
             description: None,
             entries: Vec::new(),
-            bitfield: false
+            bitfield: false,
         }
     }
 }
@@ -153,7 +148,7 @@ pub struct Entry {
     pub value: String,
     pub since: u16,
     pub description: Option<(String, String)>,
-    pub summary: Option<String>
+    pub summary: Option<String>,
 }
 
 impl Entry {
@@ -178,14 +173,14 @@ pub enum Type {
     NewId,
     Array,
     Fd,
-    Destructor
+    Destructor,
 }
 
 impl Type {
     pub fn nullable(&self) -> bool {
         match *self {
             Type::String | Type::Object | Type::NewId | Type::Array => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -198,7 +193,7 @@ impl Type {
             Type::Fd => "::std::os::unix::io::RawFd",
             Type::String => "String",
             Type::Object => "ProxyId",
-            _ => "()"
+            _ => "()",
         }
     }
 }

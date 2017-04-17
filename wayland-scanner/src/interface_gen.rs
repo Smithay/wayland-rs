@@ -1,7 +1,8 @@
-use std::cmp;
-use std::io::Write;
+
 
 use protocol::*;
+use std::cmp;
+use std::io::Write;
 
 macro_rules! for_requests_and_events_of_interface(
     ($interface: expr, $name: ident, $code:expr) => (
@@ -15,7 +16,9 @@ macro_rules! for_requests_and_events_of_interface(
 );
 
 pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
-    writeln!(out, "//\n// This file was auto-generated, do not edit directly\n//\n").unwrap();
+    writeln!(out,
+             "//\n// This file was auto-generated, do not edit directly\n//\n")
+            .unwrap();
 
     if let Some(text) = protocol.copyright {
         writeln!(out, "/*\n{}\n*/\n", text).unwrap();
@@ -24,29 +27,43 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(out, "use wayland_sys::common::*;\n").unwrap();
     writeln!(out, "use std::os::raw::{{c_void, c_char}};\n").unwrap();
 
-    //
     // null types array
     //
 
-    let longest_nulls = protocol.interfaces.iter().fold(0, |max, interface| {
-        let request_longest_null = interface.requests.iter().fold(0, |max, request| {
-            if request.all_null() { cmp::max(request.args.len(), max) } else { max }
+    let longest_nulls = protocol
+        .interfaces
+        .iter()
+        .fold(0, |max, interface| {
+            let request_longest_null = interface
+                .requests
+                .iter()
+                .fold(0, |max, request| if request.all_null() {
+                    cmp::max(request.args.len(), max)
+                } else {
+                    max
+                });
+            let events_longest_null = interface
+                .events
+                .iter()
+                .fold(0, |max, event| if event.all_null() {
+                    cmp::max(event.args.len(), max)
+                } else {
+                    max
+                });
+            cmp::max(max, cmp::max(request_longest_null, events_longest_null))
         });
-        let events_longest_null = interface.events.iter().fold(0, |max, event| {
-            if event.all_null() { cmp::max(event.args.len(), max) } else { max }
-        });
-        cmp::max(max, cmp::max(request_longest_null, events_longest_null))
-    });
-    
+
     writeln!(out, "const NULLPTR : *const c_void = 0 as *const c_void;\n").unwrap();
 
-    writeln!(out, "static mut types_null: [*const wl_interface; {}] = [", longest_nulls).unwrap();
+    writeln!(out,
+             "static mut types_null: [*const wl_interface; {}] = [",
+             longest_nulls)
+            .unwrap();
     for _ in 0..longest_nulls {
         writeln!(out, "    NULLPTR as *const wl_interface,").unwrap();
     }
     writeln!(out, "];\n").unwrap();
 
-    //
     // emit interfaces
     //
 
@@ -113,18 +130,30 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         emit_messages!(interface, requests);
         emit_messages!(interface, events);
 
-        writeln!(out, "\npub static mut {}_interface: wl_interface = wl_interface {{", interface.name).unwrap();
-        writeln!(out, "    name: b\"{}\\0\" as *const u8  as *const c_char,", interface.name).unwrap();
+        writeln!(out,
+                 "\npub static mut {}_interface: wl_interface = wl_interface {{",
+                 interface.name)
+                .unwrap();
+        writeln!(out,
+                 "    name: b\"{}\\0\" as *const u8  as *const c_char,",
+                 interface.name)
+                .unwrap();
         writeln!(out, "    version: {},", interface.version).unwrap();
         writeln!(out, "    request_count: {},", interface.requests.len()).unwrap();
         if interface.requests.len() > 0 {
-            writeln!(out, "    requests: unsafe {{ &{}_requests as *const _ }},", interface.name).unwrap();
+            writeln!(out,
+                     "    requests: unsafe {{ &{}_requests as *const _ }},",
+                     interface.name)
+                    .unwrap();
         } else {
             writeln!(out, "    requests: NULLPTR as *const wl_message,").unwrap();
         }
         writeln!(out, "    event_count: {},", interface.events.len()).unwrap();
         if interface.events.len() > 0 {
-            writeln!(out, "    events: unsafe {{ &{}_events as *const _ }},", interface.name).unwrap();
+            writeln!(out,
+                     "    events: unsafe {{ &{}_events as *const _ }},",
+                     interface.name)
+                    .unwrap();
         } else {
             writeln!(out, "    events: NULLPTR as *const wl_message,").unwrap();
         }

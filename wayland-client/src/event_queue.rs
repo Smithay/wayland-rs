@@ -1,15 +1,15 @@
+use {Handler, Proxy};
 use std::any::Any;
-use std::io::{Result as IoResult, Error as IoError};
+use std::io::{Error as IoError, Result as IoResult};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
-use std::os::raw::{c_void, c_int};
+use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
+use wayland_sys::RUST_MANAGED;
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
-use wayland_sys::RUST_MANAGED;
-use {Handler, Proxy};
 
 type ProxyUserData = (*mut EventQueueHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
 
@@ -20,7 +20,7 @@ pub enum RegisterStatus {
     /// The proxy was not registered because it is not managed by `wayland-client`.
     Unmanaged,
     /// The proxy was not registered because it is already destroyed.
-    Dead
+    Dead,
 }
 
 /// Handle to an event queue
@@ -30,7 +30,7 @@ pub enum RegisterStatus {
 ///
 /// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
-    handlers: Vec<Box<Any+Send>>,
+    handlers: Vec<Box<Any + Send>>,
     wlevq: Option<*mut wl_event_queue>,
 }
 
@@ -55,46 +55,40 @@ impl EventQueueHandle {
     ///
     /// Returns appropriately and does nothing if this proxy is dead or already managed by
     /// something else than this library.
-    pub fn register<P,H >(&mut self, proxy: &P, handler_id: usize) -> RegisterStatus
+    pub fn register<P, H>(&mut self, proxy: &P, handler_id: usize) -> RegisterStatus
         where P: Proxy,
               H: Handler<P> + Any + Send + 'static
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>()
-                    .expect("Handler type do not match.");
+        let h = self.handlers[handler_id]
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
         match proxy.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
             ::Liveness::Alive => { /* ok, we can continue */ }
         }
         unsafe {
-            let data: *mut ProxyUserData = ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_get_user_data,
-                proxy.ptr()
-            ) as *mut _;
+            let data: *mut ProxyUserData =
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as *mut _;
             // This cast from *const to *mut is legit because we enforce that a Handler
             // can only be assigned to a single EventQueue.
             // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
             (&mut *data).1 = h as *const _ as *mut c_void;
             // even if this call fails, we updated the user_data, so the new handler is in place.
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_add_dispatcher,
-                proxy.ptr(),
-                dispatch_func::<P,H>,
-                &RUST_MANAGED as *const _ as *const _,
-                data as *mut c_void
-            );
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_set_queue,
-                proxy.ptr(),
-                match self.wlevq {
-                    Some(ptr) => ptr,
-                    None => ::std::ptr::null_mut()
-                }
-            );
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_proxy_add_dispatcher,
+                          proxy.ptr(),
+                          dispatch_func::<P, H>,
+                          &RUST_MANAGED as *const _ as *const _,
+                          data as *mut c_void);
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_proxy_set_queue,
+                          proxy.ptr(),
+                          match self.wlevq {
+                              Some(ptr) => ptr,
+                              None => ::std::ptr::null_mut(),
+                          });
         }
         RegisterStatus::Registered
     }
@@ -115,8 +109,7 @@ impl EventQueueHandle {
     ///
     /// The handler must implement the `Init` trait, and its init method will
     /// be called after its insertion.
-    pub fn add_handler_with_init<H: Init + Any + Send + 'static>(&mut self, handler: H) -> usize
-    {
+    pub fn add_handler_with_init<H: Init + Any + Send + 'static>(&mut self, handler: H) -> usize {
         let mut box_ = Box::new(handler);
         // this little juggling is to avoid the double-borrow, which is actually safe,
         // as handlers cannot be mutably accessed outside of an event-dispatch,
@@ -138,7 +131,7 @@ impl EventQueueHandle {
 /// It borrows the event queue, so no event dispatching is possible
 /// as long as the guard is in scope, for safety reasons.
 pub struct StateGuard<'evq> {
-    evq: &'evq mut EventQueue
+    evq: &'evq mut EventQueue,
 }
 
 impl<'evq> StateGuard<'evq> {
@@ -149,7 +142,8 @@ impl<'evq> StateGuard<'evq> {
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
     pub fn get_handler<H: Any + 'static>(&self, handler_id: usize) -> &H {
-        self.evq.handle.handlers[handler_id].downcast_ref::<H>()
+        self.evq.handle.handlers[handler_id]
+            .downcast_ref::<H>()
             .expect("Handler type do not match.")
     }
 
@@ -160,7 +154,8 @@ impl<'evq> StateGuard<'evq> {
     /// The H type must be provided and match the type of the targetted Handler, or
     /// it will panic.
     pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &mut H {
-        self.evq.handle.handlers[handler_id].downcast_mut::<H>()
+        self.evq.handle.handlers[handler_id]
+            .downcast_mut::<H>()
             .expect("Handler type do not match.")
     }
 }
@@ -209,7 +204,7 @@ impl<'evq> StateGuard<'evq> {
 /// ```
 pub struct EventQueue {
     handle: Box<EventQueueHandle>,
-    display: *mut wl_display
+    display: *mut wl_display,
 }
 
 impl EventQueue {
@@ -226,20 +221,12 @@ impl EventQueue {
     pub fn dispatch(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch_queue,
-                    self.display,
-                    evq
-                )
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                              wl_display_dispatch_queue,
+                              self.display,
+                              evq)
             },
-            None => unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch,
-                    self.display
-                )
-            }
+            None => unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.display) },
         };
         if ret >= 0 {
             Ok(ret as u32)
@@ -259,20 +246,16 @@ impl EventQueue {
     pub fn dispatch_pending(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch_queue_pending,
-                    self.display,
-                    evq
-                )
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                              wl_display_dispatch_queue_pending,
+                              self.display,
+                              evq)
             },
             None => unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_dispatch_pending,
-                    self.display
-                )
-            }
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                              wl_display_dispatch_pending,
+                              self.display)
+            },
         };
         if ret >= 0 {
             Ok(ret as u32)
@@ -291,16 +274,22 @@ impl EventQueue {
     ///
     /// On success returns the number of dispatched events.
     pub fn sync_roundtrip(&mut self) -> IoResult<i32> {
-        let ret = unsafe { match self.handle.wlevq {
-            Some(evtq) => {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip_queue,
-                    self.display, evtq)
+        let ret = unsafe {
+            match self.handle.wlevq {
+                Some(evtq) => {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                                  wl_display_roundtrip_queue,
+                                  self.display,
+                                  evtq)
+                }
+                None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display),
             }
-            None => {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display)
-            }
-        }};
-        if ret >= 0 { Ok(ret) } else { Err(IoError::last_os_error()) }
+        };
+        if ret >= 0 {
+            Ok(ret)
+        } else {
+            Err(IoError::last_os_error())
+        }
     }
 
     /// Get a handle to the internal state
@@ -332,18 +321,23 @@ impl EventQueue {
     /// This call will otherwise not block on the server socket if it is empty, and return
     /// an io error `WouldBlock` in such cases.
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
-        let ret = unsafe { match self.handle.wlevq {
-            Some(evtq) => {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read_queue,
-                    self.display, evtq)
-            },
-            None => {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read,
-                    self.display)
+        let ret = unsafe {
+            match self.handle.wlevq {
+                Some(evtq) => {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                                  wl_display_prepare_read_queue,
+                                  self.display,
+                                  evtq)
+                }
+                None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.display),
             }
-        }};
-        if ret >= 0 { Some(ReadEventsGuard { display: self.display }) } else { None }
-}
+        };
+        if ret >= 0 {
+            Some(ReadEventsGuard { display: self.display })
+        } else {
+            None
+        }
+    }
 }
 
 unsafe impl Send for EventQueue {}
@@ -365,7 +359,7 @@ impl DerefMut for EventQueue {
 ///
 /// See `EventQueue::prepare_read()` for details about its use.
 pub struct ReadEventsGuard {
-    display: *mut wl_display
+    display: *mut wl_display,
 }
 
 impl ReadEventsGuard {
@@ -377,7 +371,11 @@ impl ReadEventsGuard {
         let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
         // Don't run destructor that would cancel the read intent
         ::std::mem::forget(self);
-        if ret >= 0 { Ok(ret) } else { Err(IoError::last_os_error()) }
+        if ret >= 0 {
+            Ok(ret)
+        } else {
+            Err(IoError::last_os_error())
+        }
     }
 
     /// Cancel the read
@@ -400,34 +398,28 @@ pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_e
     EventQueue {
         display: display,
         handle: Box::new(EventQueueHandle {
-            handlers: Vec::new(),
-            wlevq: evq
-        })
+                             handlers: Vec::new(),
+                             wlevq: evq,
+                         }),
     }
 }
 
-unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
-    _impl: *const c_void,
-    proxy: *mut c_void,
-    opcode: u32,
-    _msg: *const wl_message,
-    args: *const wl_argument
-) -> c_int {
+unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void, proxy: *mut c_void,
+                                                            opcode: u32, _msg: *const wl_message,
+                                                            args: *const wl_argument)
+                                                            -> c_int {
     // sanity check, if it triggers, it is a bug
     if _impl != &RUST_MANAGED as *const _ as *const _ {
-        let _ = write!(
-            ::std::io::stderr(),
-            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
-        );
+        let _ = write!(::std::io::stderr(),
+                       "[wayland-client error] Dispatcher got called for a message on a non-managed object.");
         ::libc::abort();
     }
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
         let proxy = P::from_ptr_initialized(proxy as *mut wl_proxy);
-        let data = &mut *(ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()
-        ) as *mut ProxyUserData);
+        let data = &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as
+                          *mut ProxyUserData);
         let evqhandle = &mut *data.0;
         let handler = &mut *(data.1 as *mut H);
         handler.message(evqhandle, &proxy, opcode, args)
@@ -445,11 +437,9 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(
         }
         Err(_) => {
             // a panic occured
-            let _ = write!(
-                ::std::io::stderr(),
-                "[wayland-client error] A handler for {} panicked, aborting.",
-                P::interface_name()
-            );
+            let _ = write!(::std::io::stderr(),
+                           "[wayland-client error] A handler for {} panicked, aborting.",
+                           P::interface_name());
             ::libc::abort();
         }
     }

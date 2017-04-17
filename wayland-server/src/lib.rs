@@ -175,21 +175,23 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate bitflags;
-#[macro_use] extern crate wayland_sys;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate wayland_sys;
 extern crate libc;
 extern crate nix;
 
-pub use generated::server as protocol;
-pub use generated::interfaces as protocol_interfaces;
 
 pub use client::Client;
 pub use display::{Display, create_display};
-pub use event_loop::{EventLoop, EventLoopHandle, StateGuard, Global, GlobalHandler, Init, Destroy,
-                     resource_is_registered, RegisterStatus};
+pub use event_loop::{Destroy, EventLoop, EventLoopHandle, Global, GlobalHandler, Init, RegisterStatus,
+                     StateGuard, resource_is_registered};
+pub use generated::interfaces as protocol_interfaces;
+pub use generated::server as protocol;
+use wayland_sys::common::{wl_argument, wl_interface};
 
 use wayland_sys::server::*;
-use wayland_sys::common::{wl_interface, wl_argument};
 
 mod client;
 mod display;
@@ -202,10 +204,11 @@ pub mod sources {
     //! This module contains the types & traits to work with
     //! different kind of event sources that can be registered to and
     //! event loop, other than the wayland protocol sockets.
-    pub use ::event_sources::{FdEventSource, FdEventSourceHandler};
-    pub use ::event_sources::{FdInterest, READ, WRITE};
-    pub use ::event_sources::{TimerEventSource, TimerEventSourceHandler};
-    pub use ::event_sources::{SignalEventSource, SignalEventSourceHandler};
+
+    pub use event_sources::{FdEventSource, FdEventSourceHandler};
+    pub use event_sources::{FdInterest, READ, WRITE};
+    pub use event_sources::{SignalEventSource, SignalEventSourceHandler};
+    pub use event_sources::{TimerEventSource, TimerEventSourceHandler};
 }
 
 /// Common routines for wayland resource objects.
@@ -274,20 +277,20 @@ pub trait Resource {
         // be truncated at this point.
         unsafe {
             let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_post_error,
-                self.ptr(),
-                error_code,
-                cstring.as_ptr()
-            )
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
+                          wl_resource_post_error,
+                          self.ptr(),
+                          error_code,
+                          cstring.as_ptr())
         }
     }
     /// Clone this resource handle
     ///
     /// Will only succeed if the resource is managed by this library and
     /// is still alive.
-    fn clone(&self) -> Option<Self> where Self: Sized {
+    fn clone(&self) -> Option<Self>
+        where Self: Sized
+    {
         if self.status() == Liveness::Alive {
             Some(unsafe { self.clone_unchecked() })
         } else {
@@ -300,7 +303,9 @@ pub trait Resource {
     /// This function is unsafe because if the resource is unmanaged, the lib
     /// has no knowledge of its lifetime, and cannot ensure that the new handle
     /// will not outlive the object.
-    unsafe fn clone_unchecked(&self) -> Self where Self: Sized {
+    unsafe fn clone_unchecked(&self) -> Self
+        where Self: Sized
+    {
         // TODO: this can be more optimized with codegen help, but would be a
         // breaking change, so do it at next breaking release
         Self::from_ptr_initialized(self.ptr())
@@ -313,7 +318,7 @@ pub enum EventResult<T> {
     /// Message has been buffered and will be sent to client
     Sent(T),
     /// This resource is already destroyed, request has been ignored
-    Destroyed
+    Destroyed,
 }
 
 impl<T> EventResult<T> {
@@ -323,7 +328,7 @@ impl<T> EventResult<T> {
     pub fn expect(self, error: &str) -> T {
         match self {
             EventResult::Sent(v) => v,
-            EventResult::Destroyed => panic!("{}", error)
+            EventResult::Destroyed => panic!("{}", error),
         }
     }
 }
@@ -342,7 +347,9 @@ impl<T> EventResult<T> {
 /// yourself.
 pub unsafe trait Handler<T: Resource> {
     /// Dispatch a message.
-    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
+    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32,
+                      args: *const wl_argument)
+                      -> Result<(), ()>;
 }
 
 /// Represents the state of liveness of a wayland object
@@ -355,7 +362,7 @@ pub enum Liveness {
     Dead,
     /// This object is not managed by `wayland-server`, you can send it events
     /// but this might crash the program if it was actually dead.
-    Unmanaged
+    Unmanaged,
 }
 
 mod generated {
@@ -377,11 +384,14 @@ mod generated {
         //!
         //! It has been generated from the `wayland.xml` protocol file
         //! using `wayland_scanner`.
-        // Imports that need to be available to submodules
-        // but should not be in public API.
-        // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Resource, EventLoopHandle, Handler, Client, EventResult, Liveness};
-        #[doc(hidden)] pub use super::interfaces;
+        //! Imports that need to be available to submodules
+        //! but should not be in public API.
+        //! Will be fixable with pub(restricted).
+
+        #[doc(hidden)]
+        pub use super::interfaces;
+        #[doc(hidden)]
+        pub use {Client, EventLoopHandle, EventResult, Handler, Liveness, Resource};
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
@@ -389,6 +399,7 @@ mod generated {
 
 pub mod sys {
     //! Reexports of types and objects from wayland-sys
-    pub use wayland_sys::server::*;
+
     pub use wayland_sys::common::*;
+    pub use wayland_sys::server::*;
 }

@@ -2,10 +2,10 @@
 //!
 //! The generated handle is named `WAYLAND_SERVER_HANDLE`
 
-use std::os::raw::{c_char, c_void, c_int};
-use libc::{uid_t, pid_t, gid_t};
 
 use super::common::*;
+use libc::{gid_t, pid_t, uid_t};
+use std::os::raw::{c_char, c_int, c_void};
 
 pub enum wl_client { }
 pub enum wl_display { }
@@ -124,7 +124,7 @@ external_library!(WaylandServer, "wayland-server",
 
 #[cfg(feature = "dlopen")]
 lazy_static!(
-    pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = { 
+    pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = {
         match WaylandServer::open("libwayland-server.so") {
             Ok(h) => Some(h),
             Err(::dlib::DlError::NotFound) => None,
@@ -139,6 +139,10 @@ lazy_static!(
 );
 
 #[cfg(not(feature = "dlopen"))]
-pub fn is_lib_available() -> bool { true }
+pub fn is_lib_available() -> bool {
+    true
+}
 #[cfg(feature = "dlopen")]
-pub fn is_lib_available() -> bool { WAYLAND_SERVER_OPTION.is_some() }
+pub fn is_lib_available() -> bool {
+    WAYLAND_SERVER_OPTION.is_some()
+}

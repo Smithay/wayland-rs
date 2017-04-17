@@ -1,4 +1,4 @@
-use self::Side::{Server,Client};
+use self::Side::{Client, Server};
 
 /// Side to generate
 ///
@@ -9,7 +9,7 @@ pub enum Side {
     /// wayland client applications
     Client,
     /// wayland compositors
-    Server
+    Server,
 }
 
 #[doc(hidden)]
@@ -17,37 +17,35 @@ impl Side {
     pub fn object_ptr_type(&self) -> &'static str {
         match *self {
             Client => "wl_proxy",
-            Server => "wl_resource"
+            Server => "wl_resource",
         }
     }
 
     pub fn object_trait(&self) -> &'static str {
         match *self {
             Client => "Proxy",
-            Server => "Resource"
+            Server => "Resource",
         }
     }
 
     pub fn handle_type(&self) -> &'static str {
         match *self {
             Client => "EventQueueHandle",
-            Server => "EventLoopHandle"
+            Server => "EventLoopHandle",
         }
     }
 
     pub fn handle(&self) -> &'static str {
         match *self {
             Client => "WAYLAND_CLIENT_HANDLE",
-            Server => "WAYLAND_SERVER_HANDLE"
+            Server => "WAYLAND_SERVER_HANDLE",
         }
     }
 
     pub fn result_type(&self) -> &'static str {
         match *self {
             Client => "RequestResult",
-            Server => "EventResult"
+            Server => "EventResult",
         }
     }
 }
-
-

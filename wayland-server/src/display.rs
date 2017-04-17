@@ -1,14 +1,15 @@
+
+
+use event_loop::{EventLoop, create_event_loop};
 use std::env;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind};
+use std::ffi::{CStr, CString, OsStr, OsString};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
-use std::os::unix::io::{RawFd, IntoRawFd};
-use std::ffi::{OsStr, OsString, CString, CStr};
+use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
 use std::ptr;
 
 use wayland_sys::server::*;
-
-use event_loop::{create_event_loop, EventLoop};
 
 /// A wayland socket
 ///
@@ -27,11 +28,7 @@ pub fn create_display() -> (Display, EventLoop) {
             WAYLAND_SERVER_HANDLE,
             wl_display_create,
         );
-        let el_ptr = ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_get_event_loop,
-            ptr
-        );
+        let el_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr);
         (Display { ptr: ptr }, create_event_loop(el_ptr, Some(ptr)))
     }
 }
@@ -50,32 +47,36 @@ impl Display {
     /// Errors if `name` contains an interior null, or if `XDG_RUNTIME_DIR` is not set,
     /// or if specified could not be bound (either it is already used or the compositor
     /// does not have the rights to create it).
-    pub fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()> where S: AsRef<OsStr> {
-        let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
+    pub fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>
+        where S: AsRef<OsStr>
+    {
+        let cname = match name.as_ref()
+                  .map(|s| CString::new(s.as_ref().as_bytes())) {
             Some(Ok(n)) => Some(n),
-            Some(Err(_)) => return Err(IoError::new(
-                ErrorKind::InvalidInput,
-                "nulls are not allowed in socket name"
-            )),
-            None => None
+            Some(Err(_)) => {
+                return Err(IoError::new(ErrorKind::InvalidInput,
+                                        "nulls are not allowed in socket name"))
+            }
+            None => None,
         };
-        let ret = unsafe { ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_add_socket,
-            self.ptr,
-            cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
-        )};
+        let ret = unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
+                          wl_display_add_socket,
+                          self.ptr,
+                          cname
+                              .as_ref()
+                              .map(|s| s.as_ptr())
+                              .unwrap_or(ptr::null()))
+        };
         if ret == -1 {
             // lets try to be helpfull
-            let mut socket_name = try!(get_runtime_dir());
+            let mut socket_name = get_runtime_dir()?;
             match name {
                 Some(s) => socket_name.push(s.as_ref()),
-                None => socket_name.push("wayland-0")
+                None => socket_name.push("wayland-0"),
             }
-            Err(IoError::new(
-                ErrorKind::PermissionDenied,
-                format!("could not bind socket {}", socket_name.to_string_lossy())
-            ))
+            Err(IoError::new(ErrorKind::PermissionDenied,
+                             format!("could not bind socket {}", socket_name.to_string_lossy())))
         } else {
             Ok(())
         }
@@ -91,18 +92,13 @@ impl Display {
     ///
     /// Errors if `XDG_RUNTIME_DIR` is not set, or all 32 names are already in use.
     pub fn add_socket_auto(&mut self) -> IoResult<OsString> {
-        let ret = unsafe { ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_add_socket_auto,
-            self.ptr
-        )};
+        let ret = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.ptr) };
         if ret.is_null() {
             // try to be helpfull
-            let socket_name = try!(get_runtime_dir());
-            Err(IoError::new(
-                ErrorKind::Other,
-                format!("no available wayland-* name in {}", socket_name.to_string_lossy())
-            ))
+            let socket_name = get_runtime_dir()?;
+            Err(IoError::new(ErrorKind::Other,
+                             format!("no available wayland-* name in {}",
+                                     socket_name.to_string_lossy())))
         } else {
             let sockname = unsafe { CStr::from_ptr(ret) };
             Ok(<OsString as OsStringExt>::from_vec(sockname.to_bytes().into()))
@@ -117,10 +113,10 @@ impl Display {
     /// The fd must be properly set to CLOEXEC and bound to a socket file
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
-    pub fn add_socket_from<T>(&mut self, socket: T) -> IoResult<()> where T: IntoRawFd {
-        unsafe {
-            self.add_socket_fd(socket.into_raw_fd())
-        }
+    pub fn add_socket_from<T>(&mut self, socket: T) -> IoResult<()>
+        where T: IntoRawFd
+    {
+        unsafe { self.add_socket_fd(socket.into_raw_fd()) }
     }
 
     /// Add existing listening socket to this display from a raw file descriptor
@@ -135,19 +131,14 @@ impl Display {
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
     pub unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
-        let ret = ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_add_socket_fd,
-            self.ptr,
-            fd
-        );
+        let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE,
+                                wl_display_add_socket_fd,
+                                self.ptr,
+                                fd);
         if ret == 0 {
             Ok(())
         } else {
-            Err(IoError::new(
-                ErrorKind::InvalidInput,
-                "invalid socket fd"
-            ))
+            Err(IoError::new(ErrorKind::InvalidInput, "invalid socket fd"))
         }
     }
 
@@ -156,22 +147,14 @@ impl Display {
     /// Will send as many pending events as possible to the respective sockets of the clients.
     /// Will not block, but might not send everything if the socket buffer fills up.
     pub fn flush_clients(&self) {
-        unsafe { ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_flush_clients,
-            self.ptr
-        )};
+        unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
     }
 }
 
 impl Drop for Display {
     fn drop(&mut self) {
         unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_display_destroy,
-                self.ptr
-            );
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.ptr);
         }
     }
 }
@@ -179,9 +162,9 @@ impl Drop for Display {
 fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
-        None => Err(IoError::new(
-            ErrorKind::NotFound,
-            "XDG_RUNTIME_DIR env variable is not set"
-        ))
+        None => {
+            Err(IoError::new(ErrorKind::NotFound,
+                             "XDG_RUNTIME_DIR env variable is not set"))
+        }
     }
 }

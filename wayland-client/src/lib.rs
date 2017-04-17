@@ -121,15 +121,17 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate bitflags;
-#[macro_use] extern crate wayland_sys;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate wayland_sys;
 extern crate libc;
 
 pub use generated::client as protocol;
 pub use generated::interfaces as protocol_interfaces;
 
 use wayland_sys::client::wl_proxy;
-use wayland_sys::common::{wl_interface, wl_argument};
+use wayland_sys::common::{wl_argument, wl_interface};
 
 mod display;
 mod event_queue;
@@ -141,9 +143,9 @@ pub mod egl;
 #[cfg(feature = "cursor")]
 pub mod cursor;
 
-pub use event_queue::{EventQueue, EventQueueHandle, StateGuard, Init, ReadEventsGuard, RegisterStatus};
-pub use display::{default_connect, ConnectError, FatalError};
+pub use display::{ConnectError, FatalError, default_connect};
 pub use env::{EnvHandler, EnvHandlerInner};
+pub use event_queue::{EventQueue, EventQueueHandle, Init, ReadEventsGuard, RegisterStatus, StateGuard};
 
 /// Common routines for wayland proxy objects.
 ///
@@ -209,7 +211,9 @@ pub trait Proxy {
     ///
     /// Will only succeed if the proxy is managed by this library and
     /// is still alive.
-    fn clone(&self) -> Option<Self> where Self: Sized {
+    fn clone(&self) -> Option<Self>
+        where Self: Sized
+    {
         if self.status() == Liveness::Alive {
             Some(unsafe { self.clone_unchecked() })
         } else {
@@ -222,12 +226,13 @@ pub trait Proxy {
     /// This function is unsafe because if the proxy is unmanaged, the lib
     /// has no knowledge of its lifetime, and cannot ensure that the new handle
     /// will not outlive the object.
-    unsafe fn clone_unchecked(&self) -> Self where Self: Sized {
+    unsafe fn clone_unchecked(&self) -> Self
+        where Self: Sized
+    {
         // TODO: this can be more optimized with codegen help, but would be a
         // breaking change, so do it at next breaking release
         Self::from_ptr_initialized(self.ptr())
     }
-
 }
 
 /// Possible outcome of the call of a request on a proxy
@@ -236,7 +241,7 @@ pub enum RequestResult<T> {
     /// Message has been buffered and will be sent to server
     Sent(T),
     /// This proxy is already destroyed, request has been ignored
-    Destroyed
+    Destroyed,
 }
 
 impl<T> RequestResult<T> {
@@ -246,7 +251,7 @@ impl<T> RequestResult<T> {
     pub fn expect(self, error: &str) -> T {
         match self {
             RequestResult::Sent(v) => v,
-            RequestResult::Destroyed => panic!("{}", error)
+            RequestResult::Destroyed => panic!("{}", error),
         }
     }
 }
@@ -265,7 +270,9 @@ impl<T> RequestResult<T> {
 /// yourself.
 pub unsafe trait Handler<T: Proxy> {
     /// Dispatch a message.
-    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32, args: *const wl_argument) -> Result<(),()>;
+    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32,
+                      args: *const wl_argument)
+                      -> Result<(), ()>;
 }
 
 /// Represents the state of liveness of a wayland object
@@ -278,7 +285,7 @@ pub enum Liveness {
     Dead,
     /// This object is not managed by `wayland-client`, you can call its methods
     /// but this might crash the program if it was actually dead.
-    Unmanaged
+    Unmanaged,
 }
 
 mod generated {
@@ -304,15 +311,20 @@ mod generated {
         // Imports that need to be available to submodules
         // but should not be in public API.
         // Will be fixable with pub(restricted).
-        #[doc(hidden)] pub use {Proxy, Handler, RequestResult, Liveness};
-        #[doc(hidden)] pub use event_queue::EventQueueHandle;
-        #[doc(hidden)] pub use super::interfaces;
+
+        #[doc(hidden)]
+        pub use super::interfaces;
+        #[doc(hidden)]
+        pub use {Handler, Liveness, Proxy, RequestResult};
+        #[doc(hidden)]
+        pub use event_queue::EventQueueHandle;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
 }
 
 pub mod sys {
     //! Reexports of types and objects from wayland-sys
-    pub use wayland_sys::common::*;
+
     pub use wayland_sys::client::*;
+    pub use wayland_sys::common::*;
 }

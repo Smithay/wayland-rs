@@ -54,7 +54,7 @@ pub trait EnvHandlerInner: Sized {
 /// ```
 pub struct EnvHandler<H: EnvHandlerInner> {
     globals: Vec<(u32, String, u32)>,
-    inner: Option<H>
+    inner: Option<H>,
 }
 
 impl<H: EnvHandlerInner> EnvHandler<H> {
@@ -65,7 +65,7 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
     pub fn new() -> EnvHandler<H> {
         EnvHandler {
             globals: Vec::new(),
-            inner: None
+            inner: None,
         }
     }
 
@@ -89,7 +89,9 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
     }
 
     fn try_make_ready(&mut self, registry: &WlRegistry) {
-        if self.inner.is_some() { return; }
+        if self.inner.is_some() {
+            return;
+        }
         self.inner = H::create(registry, &self.globals);
     }
 }
@@ -97,22 +99,27 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
 impl<H: EnvHandlerInner> ::std::ops::Deref for EnvHandler<H> {
     type Target = H;
     fn deref(&self) -> &H {
-        self.inner.as_ref().expect("Tried to get contents of a not-ready EnvHandler.")
+        self.inner
+            .as_ref()
+            .expect("Tried to get contents of a not-ready EnvHandler.")
     }
 }
 
 impl<H: EnvHandlerInner> ::protocol::wl_registry::Handler for EnvHandler<H> {
-    fn global(&mut self, _: &mut EventQueueHandle, registry: &WlRegistry, name: u32, interface: String, version: u32) {
+    fn global(&mut self, _: &mut EventQueueHandle, registry: &WlRegistry, name: u32, interface: String,
+              version: u32) {
         self.globals.push((name, interface, version));
         self.try_make_ready(registry);
     }
     fn global_remove(&mut self, _: &mut EventQueueHandle, _: &WlRegistry, name: u32) {
-        self.globals.retain(|&(i,_,_)| i != name)
+        self.globals.retain(|&(i, _, _)| i != name)
     }
 }
 
 unsafe impl<H: EnvHandlerInner> ::Handler<WlRegistry> for EnvHandler<H> {
-    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &WlRegistry, opcode: u32, args: *const ::sys::wl_argument) -> Result<(),()> {
+    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &WlRegistry, opcode: u32,
+                      args: *const ::sys::wl_argument)
+                      -> Result<(), ()> {
         <EnvHandler<H> as ::protocol::wl_registry::Handler>::__message(self, evq, proxy, opcode, args)
     }
 }

@@ -1,11 +1,11 @@
-use std::io;
+use Proxy;
+
+use event_queue::{EventQueue, create_event_queue};
+use generated::client::wl_display::WlDisplay;
 use std::ffi::CStr;
+use std::io;
 
 use wayland_sys::client::*;
-
-use event_queue::{create_event_queue, EventQueue};
-use generated::client::wl_display::WlDisplay;
-use Proxy;
 
 /// Enum representing the possible reasons why connecting to the wayland server failed
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub enum ConnectError {
     /// found.
     ///
     /// Most of the time, this means that the program was not started from a wayland session.
-    NoCompositorListening
+    NoCompositorListening,
 }
 
 /// Enum representing possible errors fatal to a wayland session
@@ -38,8 +38,8 @@ pub enum FatalError {
         proxy_id: u32,
         /// code of the error, as defined by the `Error` enum of the interface of the proxy.
         /// It can directly be fed to the `from_raw` static method of this enum.
-        error_code: u32
-    }
+        error_code: u32,
+    },
 }
 
 /// Connect to the compositor socket
@@ -48,8 +48,14 @@ pub enum FatalError {
 ///
 /// On success, returns the display object, as well as the default event iterator associated with it.
 pub fn default_connect() -> Result<(WlDisplay, EventQueue), ConnectError> {
-    if !::wayland_sys::client::is_lib_available() { return Err(ConnectError::NoWaylandLib) }
-    let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null()) };
+    if !::wayland_sys::client::is_lib_available() {
+        return Err(ConnectError::NoWaylandLib);
+    }
+    let ptr = unsafe {
+        ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                      wl_display_connect,
+                      ::std::ptr::null())
+    };
     if ptr.is_null() {
         Err(ConnectError::NoCompositorListening)
     } else {
@@ -67,15 +73,27 @@ impl WlDisplay {
     ///
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<i32> {
-        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr() as *mut _) };
-        if ret >= 0 { Ok(ret) } else { Err(io::Error::last_os_error()) }
+        let ret = unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_display_flush,
+                          self.ptr() as *mut _)
+        };
+        if ret >= 0 {
+            Ok(ret)
+        } else {
+            Err(io::Error::last_os_error())
+        }
     }
 
     /// Create a new EventQueue
     ///
     /// No object is by default attached to it.
     pub fn create_event_queue(&self) -> EventQueue {
-        let evq = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.ptr() as *mut _) };
+        let evq = unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_display_create_queue,
+                          self.ptr() as *mut _)
+        };
         unsafe { create_event_queue(self.ptr() as *mut _, Some(evq)) }
     }
 
@@ -87,26 +105,35 @@ impl WlDisplay {
     /// As such, this function mostly provide diagnistics information. You can have a hint
     /// an error might have been generated if I/O methods of EventQueue start returning errors.
     pub fn last_error(&self) -> Option<FatalError> {
-        let err = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_error, self.ptr() as *mut _) };
+        let err = unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_display_get_error,
+                          self.ptr() as *mut _)
+        };
         if err == 0 {
             None
         } else if err == ::libc::EPROTO {
             let mut interface = ::std::ptr::null_mut();
             let mut id = 0;
-            let code = unsafe { ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE, wl_display_get_protocol_error,
-                self.ptr() as *mut _, &mut interface, &mut id
-            ) };
+            let code = unsafe {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                              wl_display_get_protocol_error,
+                              self.ptr() as *mut _,
+                              &mut interface,
+                              &mut id)
+            };
             let interface = if interface.is_null() {
                 "<unkown interface>".to_owned()
             } else {
-                unsafe { CStr::from_ptr((*interface).name) }.to_string_lossy().into_owned()
+                unsafe { CStr::from_ptr((*interface).name) }
+                    .to_string_lossy()
+                    .into_owned()
             };
             Some(FatalError::Protocol {
-                interface: interface,
-                proxy_id: id,
-                error_code: code
-            })
+                     interface: interface,
+                     proxy_id: id,
+                     error_code: code,
+                 })
         } else {
             Some(FatalError::Io(io::Error::from_raw_os_error(err)))
         }
@@ -122,12 +149,20 @@ impl WlDisplay {
     /// Reading or writing anything to this FD will corrupt the internal state of
     /// the lib.
     pub fn get_fd(&self) -> ::std::os::unix::io::RawFd {
-        unsafe { ffi_dispatch!( WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.ptr() as *mut _) }
+        unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_display_get_fd,
+                          self.ptr() as *mut _)
+        }
     }
 }
 
 impl Drop for WlDisplay {
     fn drop(&mut self) {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.ptr() as *mut _) }
+        unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                          wl_display_disconnect,
+                          self.ptr() as *mut _)
+        }
     }
 }

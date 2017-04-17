@@ -14,17 +14,17 @@
 //! displayed at which time, as well as handles to the buffers containing
 //! these frames, to attach them to a wayland surface.
 
-use std::ffi::{CString, CStr};
+
+use Proxy;
+use protocol::wl_buffer::WlBuffer;
+use protocol::wl_shm::WlShm;
+use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::os::raw::c_int;
 use std::ptr;
 
 use wayland_sys::cursor::*;
-use std::os::raw::c_int;
-
-use Proxy;
-use protocol::wl_shm::WlShm;
-use protocol::wl_buffer::WlBuffer;
 
 /// Checks if the wayland-cursor lib is available and can be used
 ///
@@ -36,10 +36,10 @@ pub fn is_available() -> bool {
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
-    theme: *mut wl_cursor_theme
+    theme: *mut wl_cursor_theme,
 }
 
-unsafe impl Send for CursorTheme { }
+unsafe impl Send for CursorTheme {}
 
 /// Attempts to load a cursor theme from given name.
 ///
@@ -59,19 +59,26 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
     let ptr = if let Some(theme) = name {
         let cstr = CString::new(theme).expect("Theme name contained an interior null.");
         unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_theme_load, cstr.as_ptr(), size as c_int, shm.ptr())
+            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
+                          wl_cursor_theme_load,
+                          cstr.as_ptr(),
+                          size as c_int,
+                          shm.ptr())
         }
     } else {
         unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_theme_load, ptr::null(), size as c_int, shm.ptr())
+            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
+                          wl_cursor_theme_load,
+                          ptr::null(),
+                          size as c_int,
+                          shm.ptr())
         }
     };
 
-    assert!(!ptr.is_null(), "Memory allocation failure while loading a theme.");
+    assert!(!ptr.is_null(),
+            "Memory allocation failure while loading a theme.");
 
-    CursorTheme {
-        theme: ptr
-    }
+    CursorTheme { theme: ptr }
 }
 
 impl CursorTheme {
@@ -83,15 +90,18 @@ impl CursorTheme {
     pub fn get_cursor(&self, name: &str) -> Option<Cursor> {
         let cstr = CString::new(name).expect("Cursor name contained an interior null.");
         let ptr = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_theme_get_cursor, self.theme, cstr.as_ptr())
+            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
+                          wl_cursor_theme_get_cursor,
+                          self.theme,
+                          cstr.as_ptr())
         };
         if ptr.is_null() {
             None
         } else {
             Some(Cursor {
-                _theme: PhantomData,
-                cursor: ptr
-            })
+                     _theme: PhantomData,
+                     cursor: ptr,
+                 })
         }
     }
 }
@@ -107,10 +117,10 @@ impl Drop for CursorTheme {
 /// A cursor from a theme. Can contain several images if animated.
 pub struct Cursor<'a> {
     _theme: PhantomData<&'a CursorTheme>,
-    cursor: *mut wl_cursor
+    cursor: *mut wl_cursor,
 }
 
-unsafe impl<'a> Send for Cursor<'a> { }
+unsafe impl<'a> Send for Cursor<'a> {}
 
 impl<'a> Cursor<'a> {
     /// Retrieve the name of this cursor.
@@ -133,7 +143,10 @@ impl<'a> Cursor<'a> {
     /// in milliseconds.
     pub fn frame(&self, duration: u32) -> usize {
         let frame = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame, self.cursor, duration)
+            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
+                          wl_cursor_frame,
+                          self.cursor,
+                          duration)
         };
         frame as usize
     }
@@ -145,8 +158,11 @@ impl<'a> Cursor<'a> {
     pub fn frame_and_duration(&self, duration: u32) -> (usize, u32) {
         let mut out_duration = 0u32;
         let frame = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame_and_duration,
-                self.cursor, duration, &mut out_duration as *mut u32)
+            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
+                          wl_cursor_frame_and_duration,
+                          self.cursor,
+                          duration,
+                          &mut out_duration as *mut u32)
         } as usize;
         (frame, out_duration)
     }
@@ -167,7 +183,7 @@ impl<'a> Cursor<'a> {
                 let image = *(*self.cursor).images.offset(frame as isize);
                 let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
                 // init the user_data only once
-                let data = { 
+                let data = {
                     use wayland_sys::client::*;
                     ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr)
                 };
@@ -178,9 +194,9 @@ impl<'a> Cursor<'a> {
                 };
 
                 Some(CursorImageBuffer {
-                    _cursor: PhantomData,
-                    buffer: buffer
-                })
+                         _cursor: PhantomData,
+                         buffer: buffer,
+                     })
             }
         }
     }
@@ -203,10 +219,10 @@ impl<'a> Cursor<'a> {
 /// A buffer containing a cursor image.
 pub struct CursorImageBuffer<'a> {
     _cursor: PhantomData<&'a Cursor<'a>>,
-    buffer: WlBuffer
+    buffer: WlBuffer,
 }
 
-unsafe impl<'a> Send for CursorImageBuffer<'a> { }
+unsafe impl<'a> Send for CursorImageBuffer<'a> {}
 
 impl<'a> Deref for CursorImageBuffer<'a> {
     type Target = WlBuffer;
@@ -214,4 +230,3 @@ impl<'a> Deref for CursorImageBuffer<'a> {
         &self.buffer
     }
 }
-

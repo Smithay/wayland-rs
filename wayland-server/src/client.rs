@@ -2,7 +2,7 @@ use wayland_sys::server::*;
 
 /// A wayland client connected to your server
 pub struct Client {
-    ptr: *mut wl_client
+    ptr: *mut wl_client,
 }
 
 impl Client {
@@ -18,9 +18,7 @@ impl Client {
     /// This will effectively kill this client's connection, and invalidates all its
     /// objects.
     pub fn post_no_memory(&self) {
-        unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_post_no_memory, self.ptr)
-        }
+        unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_post_no_memory, self.ptr) }
     }
 
     /// Create a client object from a pointer

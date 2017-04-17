@@ -2,8 +2,8 @@
 //!
 //! The created handle is named `WAYLAND_CURSOR_HANDLE`.
 
-use std::os::raw::{c_uint, c_char, c_int};
 use client::wl_proxy;
+use std::os::raw::{c_char, c_int, c_uint};
 
 pub enum wl_cursor_theme { }
 
@@ -18,14 +18,14 @@ pub struct wl_cursor_image {
     /// hot spot y (must be inside image)
     pub hotspot_y: u32,
     /// animation delay to next frame
-    pub delay: u32
+    pub delay: u32,
 }
 
 #[repr(C)]
 pub struct wl_cursor {
     pub image_count: c_uint,
     pub images: *mut *mut wl_cursor_image,
-    pub name: *mut c_char
+    pub name: *mut c_char,
 }
 
 external_library!(WaylandCursor, "wayland-cursor",
@@ -55,6 +55,10 @@ lazy_static!(
 );
 
 #[cfg(not(feature = "dlopen"))]
-pub fn is_lib_available() -> bool { true }
+pub fn is_lib_available() -> bool {
+    true
+}
 #[cfg(feature = "dlopen")]
-pub fn is_lib_available() -> bool { WAYLAND_CURSOR_OPTION.is_some() }
+pub fn is_lib_available() -> bool {
+    WAYLAND_CURSOR_OPTION.is_some()
+}
