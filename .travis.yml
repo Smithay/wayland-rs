@@ -14,16 +14,20 @@ branches:
     - master
 
 before_script:
-  - cargo install mdbook --force || true
-  - export PATH="$HOME/.cargo/bin:$PATH"
-  - |
-      pip install 'travis-cargo<0.2' --user &&
-      export PATH=$HOME/.local/bin:$PATH
+  - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+  - which rustfmt || cargo install rustfmt
+  - which mdbook || cargo install mdbook
+  - which cargo-install-update || cargo install cargo-update
+  - cargo install-update -a
+  - pip install 'travis-cargo<0.2' --user
+  - mkdir $(pwd)/socket
+  - export XDG_RUNTIME_DIR="$(pwd)/socket"
 
 os:
   - linux
 
 script:
+  - cargo fmt -- --write-mode=diff
   - |
       cd wayland-sys &&
       travis-cargo test -- --features "dlopen egl client server cursor" &&
