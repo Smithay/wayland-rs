@@ -116,35 +116,7 @@ impl EventLoopHandle {
         where R: Resource,
               H: Handler<R> + Any + Send + 'static
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>()
-                    .expect("Handler type do not match.");
-        match resource.status() {
-            ::Liveness::Dead => return RegisterStatus::Dead,
-            ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
-            ::Liveness::Alive => { /* ok, we can continue */ }
-        }
-        unsafe {
-            let data: *mut ResourceUserData = ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_get_user_data,
-                resource.ptr()
-            ) as *mut _;
-            // This cast from *const to *mut is legit because we enforce that a Handler
-            // can only be assigned to a single EventQueue.
-            // (this is actually the whole point of the design of this lib)
-            (&mut *data).0 = self as *const _ as *mut _;
-            (&mut *data).1 = h as *const _ as *mut c_void;
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_set_dispatcher,
-                resource.ptr(),
-                dispatch_func::<R,H>,
-                &RUST_MANAGED as *const _ as *const _,
-                data as *mut c_void,
-                Some(resource_destroy::<R,NoopDestroy>)
-            );
-        }
-        RegisterStatus::Registered
+        self.register_with_destructor::<R, H, NoopDestroy>(resource, handler_id)
     }
 
     /// Register a resource to a handler of this event loop with a destructor
@@ -176,6 +148,9 @@ impl EventLoopHandle {
                 wl_resource_get_user_data,
                 resource.ptr()
             ) as *mut _;
+            // This cast from *const to *mut is legit because we enforce that a Handler
+            // can only be assigned to a single EventQueue.
+            // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _  as *mut _;
             (&mut *data).1 = h as *const _ as *mut c_void;
             ffi_dispatch!(
