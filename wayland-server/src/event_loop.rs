@@ -228,14 +228,7 @@ pub fn resource_is_registered<R, H>(resource: &R, handler_id: usize) -> bool
     let h = evlh.handlers[handler_id]
         .downcast_ref::<H>()
         .expect("Handler type do not match.");
-    let ret = unsafe {
-        ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                      wl_resource_instance_of,
-                      resource.ptr(),
-                      R::interface_ptr(),
-                      &RUST_MANAGED as *const _ as *const _)
-    };
-    ret == 1
+    (&*resource_data).1 == h as *const _ as *mut c_void
 }
 
 /// Guard to access internal state of an event loop
