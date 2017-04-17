@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.9.2 - 2017-04-17
+
+- [server] Fix a bug of register-related functions leading to ressources not being
+  properly recognized. Thanks @fangyuanziti.
+
 ## 0.9.1 - 2017-03-31
 
 - [client] Proxy objects are now cloneable via `Proxy` methods
