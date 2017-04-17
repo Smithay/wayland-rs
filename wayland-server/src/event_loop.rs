@@ -177,12 +177,13 @@ impl EventLoopHandle {
                 resource.ptr()
             ) as *mut _;
             (&mut *data).0 = self as *const _  as *mut _;
+            (&mut *data).1 = h as *const _ as *mut c_void;
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
                 resource.ptr(),
                 dispatch_func::<R,H>,
-                h as *const _ as *const c_void,
+                &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void,
                 Some(resource_destroy::<R, D>)
             );
@@ -258,7 +259,7 @@ pub fn resource_is_registered<R, H>(resource: &R, handler_id: usize) -> bool
             wl_resource_instance_of,
             resource.ptr(),
             R::interface_ptr(),
-            h as *const _ as *const c_void
+            &RUST_MANAGED as *const _ as *const _
         )
     };
     ret == 1
