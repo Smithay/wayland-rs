@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.9.3 - 2017-04-17
+
+- [server] Bugfix previous release...
+
 ## 0.9.2 - 2017-04-17
 
 - [server] Fix a bug of register-related functions leading to ressources not being
