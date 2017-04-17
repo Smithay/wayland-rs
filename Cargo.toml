@@ -1,2 +1,11 @@
+[package]
+name = "wayland-test"
+version = "0.0.1"
+publish = false
+
+[dependencies]
+wayland-client = { path = "./wayland-client" }
+wayland-server = { path = "./wayland-server" }
+
 [workspace]
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols" ]

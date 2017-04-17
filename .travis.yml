@@ -46,6 +46,7 @@ script:
       travis-cargo --only nigthly test -- features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
       travis-cargo --only nightly doc -- --no-deps --features "unstable_protocols client server nightly wayland-client/dlopen wayland-server/dlopen" &&
       cd .. &&
+      travis-cargo test
       echo "Finished !"
 
 after_success:
