@@ -4,7 +4,7 @@ version = "0.0.1"
 publish = false
 
 [dependencies]
-wayland-client = { path = "./wayland-client", features = ["egl", "cursor"] }
+wayland-client = { path = "./wayland-client", default-features = false, features = ["cursor"] }
 wayland-server = { path = "./wayland-server" }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server", "unstable_protocols"] }
 
