@@ -27,7 +27,7 @@ os:
   - linux
 
 script:
-  - cargo fmt -- --write-mode=diff
+  - cargo fmt -- --all --write-mode=diff
   - |
       cd wayland-sys &&
       travis-cargo test -- --features "dlopen egl client server cursor" &&
