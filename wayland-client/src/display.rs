@@ -2,8 +2,10 @@ use Proxy;
 
 use event_queue::{EventQueue, create_event_queue};
 use generated::client::wl_display::WlDisplay;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString, OsStr};
+
 use std::io;
+use std::os::unix::ffi::OsStrExt;
 
 use wayland_sys::client::*;
 
@@ -56,6 +58,29 @@ pub fn default_connect() -> Result<(WlDisplay, EventQueue), ConnectError> {
                       wl_display_connect,
                       ::std::ptr::null())
     };
+    if ptr.is_null() {
+        Err(ConnectError::NoCompositorListening)
+    } else {
+        let display = unsafe { WlDisplay::from_ptr_new(ptr as *mut _) };
+        let eventiter = unsafe { create_event_queue(display.ptr() as *mut wl_display, None) };
+        Ok((display, eventiter))
+    }
+}
+
+/// Connect to the compositor socket
+///
+/// Attempt to connect to a Wayland compositor on a given socket name
+///
+/// On success, returns the display object, as well as the default event iterator associated with it.
+pub fn connect_to(name: &OsStr) -> Result<(WlDisplay, EventQueue), ConnectError> {
+    if !::wayland_sys::client::is_lib_available() {
+        return Err(ConnectError::NoWaylandLib);
+    }
+    // Only possible error is interior null, and in this case, no compositor will be listening to a socket
+    // with null in its name.
+    let name = CString::new(name.as_bytes().to_owned())
+        .map_err(|_| ConnectError::NoCompositorListening)?;
+    let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, name.as_ptr()) };
     if ptr.is_null() {
         Err(ConnectError::NoCompositorListening)
     } else {
