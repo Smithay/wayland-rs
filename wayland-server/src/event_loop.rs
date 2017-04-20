@@ -34,7 +34,7 @@ pub enum RegisterStatus {
 /// handle go out of scope.
 pub struct Global {
     ptr: *mut wl_global,
-    _data: Box<(*mut c_void, *mut EventLoopHandle)>,
+    data: *mut (*mut c_void, *mut EventLoopHandle),
 }
 
 unsafe impl Send for Global {}
@@ -43,7 +43,10 @@ impl Global {
     /// Destroy the associated global object.
     pub fn destroy(self) {
         unsafe {
+            // destroy the global
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
+            // free the user data
+            let data = Box::from_raw(self.data);
         }
     }
 }
@@ -384,7 +387,7 @@ impl EventLoop {
 
         Global {
             ptr: ptr,
-            _data: data,
+            data: Box::into_raw(data),
         }
     }
 
