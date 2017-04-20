@@ -411,8 +411,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         for (i, arg) in msg.args.iter().enumerate() {
             write!(out, "let {} = {{", arg.name)?;
             if arg.allow_null {
+                match arg.typ {
+                    Type::Uint | Type::Int | Type::Fixed | Type::NewId => panic!("Argument {} for message {}.{} cannot be null given its type!", i, iname, msg.name),
+                    _ => {}
+                }
                 write!(out,
-                       "if args.offset({}).is_null() {{ Option::None }} else {{ Some({{",
+                       "if (*(args.offset({}) as *const *const c_void)).is_null() {{ Option::None }} else {{ Some({{",
                        i + arg_offset)?;
             }
             if let Some(ref name) = arg.enum_ {
