@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.9.4 - 2017-04-20
+
+- [server] Fix a memory corruption in global registration
+- [scanner] Fix a null-check leading to segfaults
+
 ## 0.9.3 - 2017-04-17
 
 - [server] Bugfix previous release...
