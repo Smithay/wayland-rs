@@ -412,7 +412,12 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
             write!(out, "let {} = {{", arg.name)?;
             if arg.allow_null {
                 match arg.typ {
-                    Type::Uint | Type::Int | Type::Fixed | Type::NewId => panic!("Argument {} for message {}.{} cannot be null given its type!", i, iname, msg.name),
+                    Type::Uint | Type::Int | Type::Fixed | Type::NewId => {
+                        panic!("Argument {} for message {}.{} cannot be null given its type!",
+                               i,
+                               iname,
+                               msg.name)
+                    }
                     _ => {}
                 }
                 write!(out,
