@@ -445,6 +445,27 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
     }
 }
 
+/// Synonym of the declare_handler! macro
+///
+/// This more distinctive can be used for projects that need to use
+/// both the client-side and server-side macros.
+#[macro_export]
+macro_rules! client_declare_handler(
+    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventQueueHandle,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
+                <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
+            }
+        }
+    }
+);
+
+
 /// Registers a handler type so it can be used in event queue
 ///
 /// After having implemented the appropriate Handler trait for your type,
@@ -462,6 +483,17 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
 #[macro_export]
 macro_rules! declare_handler(
     ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+        client_declare_handler!($handler_struct, $handler_trait, $handled_type);
+    }
+);
+
+/// Synonym of the declare_delegating_handler! macro
+///
+/// This more distinctive can be used for projects that need to use
+/// both the client-side and server-side macros.
+#[macro_export]
+macro_rules! client_declare_delegating_handler(
+    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
             unsafe fn message(&mut self,
                               evq: &mut $crate::EventQueueHandle,
@@ -469,7 +501,7 @@ macro_rules! declare_handler(
                               opcode: u32,
                               args: *const $crate::sys::wl_argument
                              ) -> ::std::result::Result<(),()> {
-                <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
+                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
             }
         }
     }
@@ -493,15 +525,6 @@ macro_rules! declare_handler(
 #[macro_export]
 macro_rules! declare_delegating_handler(
     ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
-        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self,
-                              evq: &mut $crate::EventQueueHandle,
-                              proxy: &$handled_type,
-                              opcode: u32,
-                              args: *const $crate::sys::wl_argument
-                             ) -> ::std::result::Result<(),()> {
-                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
-            }
-        }
+        client_declare_delegating_handler!($handler_struct, $($handler_field).+, $handler_trait, $handled_type);
     }
 );

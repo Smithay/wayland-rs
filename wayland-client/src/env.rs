@@ -156,6 +156,22 @@ unsafe impl<H: EnvHandlerInner> ::Handler<WlRegistry> for EnvHandler<H> {
 /// use, you'll have to instantiate them manually via `WlRegistry::bind(..)`.
 #[macro_export]
 macro_rules! wayland_env(
+    (pub $name: ident) => {
+        pub struct $name;
+        impl $crate::EnvHandlerInner for $name {
+            fn create(_registry: &$crate::protocol::wl_registry::WlRegistry, _globals: &[(u32, String, u32)]) -> Option<$name> {
+                Some($name)
+            }
+        }
+    };
+    (pub $name: ident, $($global_name: ident : $global_type: path),+) => {
+        pub struct $name {
+            $(
+                pub $global_name: $global_type
+            ),+
+        }
+        wayland_env!(__impl $name, $($global_name : $global_type),+);
+    };
     ($name: ident) => {
         struct $name;
         impl $crate::EnvHandlerInner for $name {
@@ -170,7 +186,9 @@ macro_rules! wayland_env(
                 pub $global_name: $global_type
             ),+
         }
-
+        wayland_env!(__impl $name, $($global_name : $global_type),+);
+    };
+    (__impl $name: ident, $($global_name: ident : $global_type: path),+) => {
         impl $crate::EnvHandlerInner for $name {
             fn create(registry: &$crate::protocol::wl_registry::WlRegistry, globals: &[(u32, String, u32)]) -> Option<$name> {
                 // hopefully llvm will optimize this
