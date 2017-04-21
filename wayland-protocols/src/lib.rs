@@ -27,6 +27,7 @@ extern crate wayland_server;
 #[macro_use]
 extern crate wayland_sys;
 
+#[macro_use]
 extern crate bitflags;
 
 #[macro_use]
