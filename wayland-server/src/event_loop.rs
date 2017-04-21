@@ -47,6 +47,7 @@ impl Global {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
             // free the user data
             let data = Box::from_raw(self.data);
+            drop(data);
         }
     }
 }
