@@ -32,7 +32,7 @@ before_script:
   - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
   - which rustfmt || cargo install rustfmt
   - which mdbook || cargo install mdbook
-  - which cargo-travis || cargo install cargo-travis
+  - which cargo-coveralls || cargo install cargo-travis
   - which cargo-install-update || cargo install cargo-update
   - cargo install-update -a
   - pip install 'travis-cargo<0.2' --user
