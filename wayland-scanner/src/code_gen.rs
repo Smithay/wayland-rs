@@ -407,7 +407,6 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     writeln!(out, "match opcode {{")?;
     for (op, msg) in messages.iter().enumerate() {
         writeln!(out, "{} => {{", op)?;
-        let mut arg_offset = 0;
         for (i, arg) in msg.args.iter().enumerate() {
             write!(out, "let {} = {{", arg.name)?;
             if arg.allow_null {
@@ -422,38 +421,38 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 }
                 write!(out,
                        "if (*(args.offset({}) as *const *const c_void)).is_null() {{ Option::None }} else {{ Some({{",
-                       i + arg_offset)?;
+                       i)?;
             }
             if let Some(ref name) = arg.enum_ {
                 write!(out,
                        "match {}::from_raw(*(args.offset({}) as *const u32)) {{ Some(v) => v, Option::None => return Err(()) }}",
                        dotted_to_relname(name),
-                       i + arg_offset)?;
+                       i)?;
             } else {
                 match arg.typ {
-                    Type::Uint => write!(out, "*(args.offset({}) as *const u32)", i + arg_offset)?,
-                    Type::Int | Type::Fd => write!(out, "*(args.offset({}) as *const i32)", i + arg_offset)?,
+                    Type::Uint => write!(out, "*(args.offset({}) as *const u32)", i)?,
+                    Type::Int | Type::Fd => write!(out, "*(args.offset({}) as *const i32)", i)?,
                     Type::Fixed => {
                         write!(out,
                                "wl_fixed_to_double(*(args.offset({}) as *const i32))",
-                               i + arg_offset)?
+                               i)?
                     }
                     Type::Object => {
                         write!(out,
                                "{}::from_ptr_initialized(*(args.offset({}) as *const *mut {}))",
                                side.object_trait(),
-                               i + arg_offset,
+                               i,
                                side.object_ptr_type())?
                     }
                     Type::String => {
                         write!(out,
                                "String::from_utf8_lossy(CStr::from_ptr(*(args.offset({}) as *const *const _)).to_bytes()).into_owned()",
-                               i + arg_offset)?
+                               i)?
                     }
                     Type::Array => {
                         write!(out,
                                "let array = *(args.offset({}) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()",
-                               i + arg_offset)?
+                               i)?
                     }
                     Type::NewId => {
                         match side {
@@ -467,7 +466,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                                        "Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::{}::{} as Resource>::interface_ptr(), proxy.version(), *(args.offset({}) as *const u32)))",
                                        arg.interface.as_ref().unwrap(),
                                        snake_to_camel(arg.interface.as_ref().unwrap()),
-                                       i + arg_offset)?
+                                       i)?
                             }
                         }
                     }
