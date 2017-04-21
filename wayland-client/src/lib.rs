@@ -143,7 +143,7 @@ pub mod egl;
 #[cfg(feature = "cursor")]
 pub mod cursor;
 
-pub use display::{ConnectError, FatalError, default_connect};
+pub use display::{ConnectError, FatalError, connect_to, default_connect};
 pub use env::{EnvHandler, EnvHandlerInner};
 pub use event_queue::{EventQueue, EventQueueHandle, Init, ReadEventsGuard, RegisterStatus, StateGuard};
 
