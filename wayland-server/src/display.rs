@@ -149,6 +149,15 @@ impl Display {
     pub fn flush_clients(&self) {
         unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
     }
+
+    /// Create global object providing default implementation of shared memory protocol.
+    pub fn init_shm(&self) {
+        unsafe { ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_display_init_shm,
+            self.ptr
+        )};
+    }
 }
 
 impl Drop for Display {
