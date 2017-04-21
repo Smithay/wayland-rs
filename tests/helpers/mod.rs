@@ -45,3 +45,19 @@ impl TestClient {
         }
     }
 }
+
+pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) {
+    // send to the server
+    client.display.flush().unwrap();
+    // make it answer messages
+    server.answer();
+    // dispatch all client-side
+    client.event_queue.dispatch_pending().unwrap();
+    client
+        .event_queue
+        .prepare_read()
+        .unwrap()
+        .read_events()
+        .unwrap();
+    client.event_queue.dispatch_pending().unwrap();
+}

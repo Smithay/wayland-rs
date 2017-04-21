@@ -1,10 +1,10 @@
-#[macro_use]
+#[macro_use(wayland_env)]
 extern crate wayland_client as wayc;
 extern crate wayland_server as ways;
 
 mod helpers;
 
-use helpers::{TestClient, TestServer};
+use helpers::{TestClient, TestServer, roundtrip};
 
 mod server_utils {
     use ways::{Client, EventLoop, EventLoopHandle, GlobalHandler};
@@ -52,9 +52,7 @@ fn simple_global() {
 
     // message passing
     //
-    client.display.flush().unwrap();
-    server.answer();
-    client.event_queue.dispatch().unwrap();
+    roundtrip(&mut client, &mut server);
 
     // result assertions
     //
