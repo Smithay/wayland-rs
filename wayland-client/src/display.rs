@@ -173,12 +173,10 @@ impl WlDisplay {
     ///
     /// Reading or writing anything to this FD will corrupt the internal state of
     /// the lib.
-    pub fn get_fd(&self) -> ::std::os::unix::io::RawFd {
-        unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_display_get_fd,
-                          self.ptr() as *mut _)
-        }
+    pub unsafe fn get_fd(&self) -> ::std::os::unix::io::RawFd {
+        ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
+                      wl_display_get_fd,
+                      self.ptr() as *mut _)
     }
 }
 
