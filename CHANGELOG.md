@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.9.5 - 2017-05-31
+
+- [client] Add a method to create `WlEglSurface` from a raw `wl_surface` ptr
+- [client] `WlDisplay::get_fs` is unsafe as it should always have been
+
 ## 0.9.4 - 2017-04-20
 
 - [server] Fix a memory corruption in global registration
