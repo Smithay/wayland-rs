@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.9.6 - 2017-06-01
+
+- Migrate the repository to https://github.com/smithay
+
 ## 0.9.5 - 2017-05-31
 
 - [client] Add a method to create `WlEglSurface` from a raw `wl_surface` ptr

@@ -20,7 +20,7 @@ And 2 internal crates, that you'll need only for integrating a custom protocol e
 
 ## Documentation
 
-The documentation for the master branch is [available online](https://vberger.github.io/wayland-rs/).
+The documentation for the master branch is [available online](https://smithay.github.io/wayland-rs/).
 
 The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 

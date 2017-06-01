@@ -1,8 +1,8 @@
 [package]
 name = "wayland-client"
-version = "0.9.5"
-documentation = "https://vberger.github.io/wayland-rs/wayland_client/"
-repository = "https://github.com/vberger/wayland-rs"
+version = "0.9.6"
+documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
+repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
 categories = ["gui", "api-bindings"]
@@ -11,15 +11,15 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [badges]
-travis-ci = { repository = "vberger/wayland-rs" }
+travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.9.5", features = ["client"], path = "../wayland-sys" }
+wayland-sys = { version = "0.9.6", features = ["client"], path = "../wayland-sys" }
 libc = "0.2"
 bitflags = "0.7"
 
 [build-dependencies]
-wayland-scanner = { version = "0.9.5", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.9.6", path = "../wayland-scanner" }
 
 [dev-dependencies]
 byteorder = "0.5"
