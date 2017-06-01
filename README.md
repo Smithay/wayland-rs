@@ -1,6 +1,6 @@
 [![](http://meritbadge.herokuapp.com/wayland-client)](https://crates.io/crates/wayland-client)
-[![Build Status](https://travis-ci.org/vberger/wayland-rs.svg?branch=master)](https://travis-ci.org/smithay/wayland-rs)
-[![Coverage Status](https://coveralls.io/repos/github/vberger/wayland-rs/badge.svg)](https://coveralls.io/github/smithay/wayland-rs)
+[![Build Status](https://travis-ci.org/Smithay/wayland-rs.svg?branch=master)](https://travis-ci.org/Smithay/wayland-rs)
+[![Coverage Status](https://coveralls.io/repos/github/Smithay/wayland-rs/badge.svg)](https://coveralls.io/github/Smithay/wayland-rs)
 
 # Wayland client
 
