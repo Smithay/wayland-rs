@@ -50,8 +50,7 @@ impl Display {
     pub fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>
         where S: AsRef<OsStr>
     {
-        let cname = match name.as_ref()
-                  .map(|s| CString::new(s.as_ref().as_bytes())) {
+        let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
             Some(Ok(n)) => Some(n),
             Some(Err(_)) => {
                 return Err(IoError::new(ErrorKind::InvalidInput,
@@ -63,10 +62,7 @@ impl Display {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE,
                           wl_display_add_socket,
                           self.ptr,
-                          cname
-                              .as_ref()
-                              .map(|s| s.as_ptr())
-                              .unwrap_or(ptr::null()))
+                          cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()))
         };
         if ret == -1 {
             // lets try to be helpfull

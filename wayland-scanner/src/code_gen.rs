@@ -591,16 +591,16 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                                    .unwrap_or(format!("*mut {}", side.object_ptr_type()))
                            }
                            Type::NewId => {
-                    if side == Side::Server {
-                        arg.interface
-                            .as_ref()
-                            .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                            .unwrap_or(format!("*mut {}", side.object_ptr_type()))
-                    } else {
-                        // client-side, the return-type handles that
-                        continue;
-                    }
-                }
+                               if side == Side::Server {
+                                   arg.interface
+                                       .as_ref()
+                                       .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
+                                       .unwrap_or(format!("*mut {}", side.object_ptr_type()))
+                               } else {
+                                   // client-side, the return-type handles that
+                                   continue;
+                               }
+                           }
                            _ => arg.typ.rust_type().into(),
                        }
                    },
