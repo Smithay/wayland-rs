@@ -44,8 +44,9 @@ os:
 
 script:
   - cargo fmt --all -- --write-mode=diff
+  - cargo build --all --all-features
   - cargo test
-  - travis-cargo -q --only nightly doc -- --all --no-deps --all-features
+  - cargo doc --all --no-deps --all-features
 
 after_success:
   - mdbook build

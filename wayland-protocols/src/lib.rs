@@ -16,8 +16,6 @@
 
 #![warn(missing_docs)]
 
-#![cfg_attr(feature = "nightly", feature(static_recursion))]
-
 #[cfg(feature = "client")]
 extern crate wayland_client;
 

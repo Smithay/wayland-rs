@@ -9,12 +9,11 @@ class Args:
 
 def main():
     version = os.environ['TRAVIS_RUST_VERSION']
-    if not 'nightly' in version:
-        # Only nightly cargo supports workspaces
-        print("Not uploading not-nightly docs")
+    if not 'stable' in version:
+        print("Not uploading not-stable docs")
         return
-    repo = os.environ.get('APPVEYOR_REPO_NAME') or os.environ['TRAVIS_REPO_SLUG']
-    branch = os.environ.get('APPVEYOR_REPO_BRANCH') or os.environ['TRAVIS_BRANCH']
+    repo = os.environ['TRAVIS_REPO_SLUG']
+    branch = os.environ['TRAVIS_BRANCH']
     pr = os.environ.get('TRAVIS_PULL_REQUEST', 'false')
 
     if branch == 'master' and pr == 'false':
