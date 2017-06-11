@@ -30,7 +30,23 @@ pub fn parse_stream<S: Read>(stream: S) -> Protocol {
     let reader = EventReader::new_with_config(stream, ParserConfig::new().trim_whitespace(true));
     let mut iter = reader.into_iter();
     iter.next(); // StartDocument
-    parse_protocol(iter)
+    let mut protocol = parse_protocol(iter);
+
+    // yay, hardcoding things
+    if protocol.name == "wayland" {
+        // wl_callback has actually a destructor *event*, but the wayland specification
+        // format does not handle this.
+        // Luckily, wayland-scanner does, so we inject it
+        for interface in &mut protocol.interfaces {
+            if interface.name == "wl_callback" {
+                let done_event = &mut interface.events[0];
+                assert!(done_event.name == "done");
+                done_event.typ = Some(Type::Destructor);
+            }
+        }
+    }
+
+    protocol
 }
 
 fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {

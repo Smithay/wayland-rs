@@ -761,7 +761,10 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 if let Some(ref data) = self.data {{
                     data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 }}
-            "#)?;
+                unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}
+                "#,
+                     side.handle(),
+                     side.object_ptr_type())?;
         }
 
         if newid.is_some() && side == Side::Client {
