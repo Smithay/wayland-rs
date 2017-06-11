@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.9.7 - 2017-06-11
+
+- [scanner] Fix objects not being properly destroyed after calling destructor requests
+- [protocols] Remove the `nightly` feature, now that rustc's `static_recursion` is stable
+
 ## 0.9.6 - 2017-06-01
 
 - Migrate the repository to https://github.com/smithay
