@@ -45,7 +45,7 @@ os:
 script:
   - cargo fmt --all -- --write-mode=diff
   - cargo build --all --all-features
-  - cargo test
+  - cargo test --all
   - cargo doc --all --no-deps --all-features
 
 after_success:
