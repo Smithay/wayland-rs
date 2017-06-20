@@ -54,9 +54,11 @@ pub fn default_connect() -> Result<(WlDisplay, EventQueue), ConnectError> {
         return Err(ConnectError::NoWaylandLib);
     }
     let ptr = unsafe {
-        ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                      wl_display_connect,
-                      ::std::ptr::null())
+        ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_display_connect,
+            ::std::ptr::null()
+        )
     };
     if ptr.is_null() {
         Err(ConnectError::NoCompositorListening)
@@ -78,8 +80,9 @@ pub fn connect_to(name: &OsStr) -> Result<(WlDisplay, EventQueue), ConnectError>
     }
     // Only possible error is interior null, and in this case, no compositor will be listening to a socket
     // with null in its name.
-    let name = CString::new(name.as_bytes().to_owned())
-        .map_err(|_| ConnectError::NoCompositorListening)?;
+    let name = CString::new(name.as_bytes().to_owned()).map_err(|_| {
+        ConnectError::NoCompositorListening
+    })?;
     let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, name.as_ptr()) };
     if ptr.is_null() {
         Err(ConnectError::NoCompositorListening)
@@ -99,9 +102,11 @@ impl WlDisplay {
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<i32> {
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_display_flush,
-                          self.ptr() as *mut _)
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_flush,
+                self.ptr() as *mut _
+            )
         };
         if ret >= 0 {
             Ok(ret)
@@ -115,9 +120,11 @@ impl WlDisplay {
     /// No object is by default attached to it.
     pub fn create_event_queue(&self) -> EventQueue {
         let evq = unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_display_create_queue,
-                          self.ptr() as *mut _)
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_create_queue,
+                self.ptr() as *mut _
+            )
         };
         unsafe { create_event_queue(self.ptr() as *mut _, Some(evq)) }
     }
@@ -131,9 +138,11 @@ impl WlDisplay {
     /// an error might have been generated if I/O methods of EventQueue start returning errors.
     pub fn last_error(&self) -> Option<FatalError> {
         let err = unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_display_get_error,
-                          self.ptr() as *mut _)
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_get_error,
+                self.ptr() as *mut _
+            )
         };
         if err == 0 {
             None
@@ -141,11 +150,13 @@ impl WlDisplay {
             let mut interface = ::std::ptr::null_mut();
             let mut id = 0;
             let code = unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                              wl_display_get_protocol_error,
-                              self.ptr() as *mut _,
-                              &mut interface,
-                              &mut id)
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_get_protocol_error,
+                    self.ptr() as *mut _,
+                    &mut interface,
+                    &mut id
+                )
             };
             let interface = if interface.is_null() {
                 "<unkown interface>".to_owned()
@@ -155,10 +166,10 @@ impl WlDisplay {
                     .into_owned()
             };
             Some(FatalError::Protocol {
-                     interface: interface,
-                     proxy_id: id,
-                     error_code: code,
-                 })
+                interface: interface,
+                proxy_id: id,
+                error_code: code,
+            })
         } else {
             Some(FatalError::Io(io::Error::from_raw_os_error(err)))
         }
@@ -174,18 +185,22 @@ impl WlDisplay {
     /// Reading or writing anything to this FD will corrupt the internal state of
     /// the lib.
     pub unsafe fn get_fd(&self) -> ::std::os::unix::io::RawFd {
-        ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                      wl_display_get_fd,
-                      self.ptr() as *mut _)
+        ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_display_get_fd,
+            self.ptr() as *mut _
+        )
     }
 }
 
 impl Drop for WlDisplay {
     fn drop(&mut self) {
         unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_display_disconnect,
-                          self.ptr() as *mut _)
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_disconnect,
+                self.ptr() as *mut _
+            )
         }
     }
 }

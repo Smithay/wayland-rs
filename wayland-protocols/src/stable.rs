@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 pub mod presentation_time {
     //! Presentation time protocol
     //!

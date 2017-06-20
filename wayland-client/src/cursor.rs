@@ -59,24 +59,30 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
     let ptr = if let Some(theme) = name {
         let cstr = CString::new(theme).expect("Theme name contained an interior null.");
         unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
-                          wl_cursor_theme_load,
-                          cstr.as_ptr(),
-                          size as c_int,
-                          shm.ptr())
+            ffi_dispatch!(
+                WAYLAND_CURSOR_HANDLE,
+                wl_cursor_theme_load,
+                cstr.as_ptr(),
+                size as c_int,
+                shm.ptr()
+            )
         }
     } else {
         unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
-                          wl_cursor_theme_load,
-                          ptr::null(),
-                          size as c_int,
-                          shm.ptr())
+            ffi_dispatch!(
+                WAYLAND_CURSOR_HANDLE,
+                wl_cursor_theme_load,
+                ptr::null(),
+                size as c_int,
+                shm.ptr()
+            )
         }
     };
 
-    assert!(!ptr.is_null(),
-            "Memory allocation failure while loading a theme.");
+    assert!(
+        !ptr.is_null(),
+        "Memory allocation failure while loading a theme."
+    );
 
     CursorTheme { theme: ptr }
 }
@@ -90,18 +96,20 @@ impl CursorTheme {
     pub fn get_cursor(&self, name: &str) -> Option<Cursor> {
         let cstr = CString::new(name).expect("Cursor name contained an interior null.");
         let ptr = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
-                          wl_cursor_theme_get_cursor,
-                          self.theme,
-                          cstr.as_ptr())
+            ffi_dispatch!(
+                WAYLAND_CURSOR_HANDLE,
+                wl_cursor_theme_get_cursor,
+                self.theme,
+                cstr.as_ptr()
+            )
         };
         if ptr.is_null() {
             None
         } else {
             Some(Cursor {
-                     _theme: PhantomData,
-                     cursor: ptr,
-                 })
+                _theme: PhantomData,
+                cursor: ptr,
+            })
         }
     }
 }
@@ -143,10 +151,12 @@ impl<'a> Cursor<'a> {
     /// in milliseconds.
     pub fn frame(&self, duration: u32) -> usize {
         let frame = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
-                          wl_cursor_frame,
-                          self.cursor,
-                          duration)
+            ffi_dispatch!(
+                WAYLAND_CURSOR_HANDLE,
+                wl_cursor_frame,
+                self.cursor,
+                duration
+            )
         };
         frame as usize
     }
@@ -158,11 +168,13 @@ impl<'a> Cursor<'a> {
     pub fn frame_and_duration(&self, duration: u32) -> (usize, u32) {
         let mut out_duration = 0u32;
         let frame = unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE,
-                          wl_cursor_frame_and_duration,
-                          self.cursor,
-                          duration,
-                          &mut out_duration as *mut u32)
+            ffi_dispatch!(
+                WAYLAND_CURSOR_HANDLE,
+                wl_cursor_frame_and_duration,
+                self.cursor,
+                duration,
+                &mut out_duration as *mut u32
+            )
         } as usize;
         (frame, out_duration)
     }
@@ -194,9 +206,9 @@ impl<'a> Cursor<'a> {
                 };
 
                 Some(CursorImageBuffer {
-                         _cursor: PhantomData,
-                         buffer: buffer,
-                     })
+                    _cursor: PhantomData,
+                    buffer: buffer,
+                })
             }
         }
     }
@@ -211,7 +223,13 @@ impl<'a> Cursor<'a> {
             None
         } else {
             let image = unsafe { &**(*self.cursor).images.offset(frame as isize) };
-            Some((image.width, image.height, image.hotspot_x, image.hotspot_y, image.delay))
+            Some((
+                image.width,
+                image.height,
+                image.hotspot_x,
+                image.hotspot_y,
+                image.delay,
+            ))
         }
     }
 }

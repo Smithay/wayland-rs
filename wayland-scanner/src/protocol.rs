@@ -47,18 +47,26 @@ impl Interface {
                 if let Some(Type::Destructor) = req.typ {
                     // all is good
                 } else {
-                    return Err(format!("Request '{}.destroy' is not a destructor.", self.name));
+                    return Err(format!(
+                        "Request '{}.destroy' is not a destructor.",
+                        self.name
+                    ));
                 }
             }
             if let Some(Type::Destructor) = req.typ {
                 // sanity checks
                 if req.args.len() > 0 {
-                    return Err(format!("Destructor request '{}.{}' cannot take arguments.",
-                                       self.name,
-                                       req.name));
+                    return Err(format!(
+                        "Destructor request '{}.{}' cannot take arguments.",
+                        self.name,
+                        req.name
+                    ));
                 }
                 if found_destructor {
-                    return Err(format!("Interface {} has more than one destructor.", self.name));
+                    return Err(format!(
+                        "Interface {} has more than one destructor.",
+                        self.name
+                    ));
                 }
                 found_destructor = true
             }
@@ -90,9 +98,9 @@ impl Message {
     }
 
     pub fn all_null(&self) -> bool {
-        self.args
-            .iter()
-            .all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
+        self.args.iter().all(|a| {
+            !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some())
+        })
     }
 }
 
@@ -163,7 +171,7 @@ impl Entry {
     }
 }
 
-#[derive(Debug,PartialEq,Eq,Copy,Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
     Int,
     Uint,

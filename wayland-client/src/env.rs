@@ -99,9 +99,9 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
 impl<H: EnvHandlerInner> ::std::ops::Deref for EnvHandler<H> {
     type Target = H;
     fn deref(&self) -> &H {
-        self.inner
-            .as_ref()
-            .expect("Tried to get contents of a not-ready EnvHandler.")
+        self.inner.as_ref().expect(
+            "Tried to get contents of a not-ready EnvHandler.",
+        )
     }
 }
 

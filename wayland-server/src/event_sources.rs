@@ -43,10 +43,12 @@ impl FdEventSource {
     /// Change the registered interest for this FD
     pub fn update_mask(&mut self, mask: FdInterest) {
         unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_source_fd_update,
-                          self.ptr,
-                          mask.bits());
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_fd_update,
+                self.ptr,
+                mask.bits()
+            );
         }
     }
 
@@ -71,7 +73,8 @@ pub trait FdEventSourceHandler {
 }
 
 pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, data: *mut c_void) -> c_int
-    where H: FdEventSourceHandler
+where
+    H: FdEventSourceHandler,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
@@ -86,18 +89,22 @@ pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, dat
                 Ok(err) => err,
                 Err(_) => {
                     // error while retrieving the error code ???
-                    let _ = write!(::std::io::stderr(),
-                                   "[wayland-server error] Error while retrieving error code on socket {}, aborting.",
-                                   fd);
+                    let _ = write!(
+                        ::std::io::stderr(),
+                        "[wayland-server error] Error while retrieving error code on socket {}, aborting.",
+                        fd
+                    );
                     ::libc::abort();
                 }
             };
             handler.error(evlh, fd, IoError::from_raw_os_error(err));
         } else if mask & 0x03 > 0 {
             // EPOLLHUP
-            handler.error(evlh,
-                          fd,
-                          IoError::new(::std::io::ErrorKind::ConnectionAborted, ""))
+            handler.error(
+                evlh,
+                fd,
+                IoError::new(::std::io::ErrorKind::ConnectionAborted, ""),
+            )
         } else {
             let mut bits = FdInterest::empty();
             if mask & 0x02 > 0 {
@@ -113,9 +120,11 @@ pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, dat
         Ok(()) => return 0,   // all went well
         Err(_) => {
             // a panic occured
-            let _ = write!(::std::io::stderr(),
-                           "[wayland-server error] A handler for fd {} event source panicked, aborting.",
-                           fd);
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A handler for fd {} event source panicked, aborting.",
+                fd
+            );
             ::libc::abort();
         }
     }
@@ -149,10 +158,12 @@ impl TimerEventSource {
     /// event loop after this time (in milliseconds) is elapsed.
     pub fn set_delay_ms(&mut self, delay: i32) {
         unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_source_timer_update,
-                          self.ptr,
-                          delay);
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_source_timer_update,
+                self.ptr,
+                delay
+            );
         }
     }
 
@@ -171,22 +182,23 @@ pub trait TimerEventSourceHandler {
 }
 
 pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> c_int
-    where H: TimerEventSourceHandler
+where
+    H: TimerEventSourceHandler,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-                                             let (handler_ptr, evlh_ptr) =
-                                                 *(data as *mut (*mut c_void, *mut EventLoopHandle));
-                                             let handler = &mut *(handler_ptr as *mut H);
-                                             let evlh = &mut *(evlh_ptr);
-                                             handler.timeout(evlh);
-                                         });
+        let (handler_ptr, evlh_ptr) = *(data as *mut (*mut c_void, *mut EventLoopHandle));
+        let handler = &mut *(handler_ptr as *mut H);
+        let evlh = &mut *(evlh_ptr);
+        handler.timeout(evlh);
+    });
     match ret {
         Ok(()) => return 0,   // all went well
         Err(_) => {
             // a panic occured
-            let _ = write!(
+            let _ =
+                write!(
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for a timer event source panicked, aborting.",
             );
@@ -234,7 +246,8 @@ pub trait SignalEventSourceHandler {
 }
 
 pub unsafe extern "C" fn event_source_signal_dispatcher<H>(signal: c_int, data: *mut c_void) -> c_int
-    where H: SignalEventSourceHandler
+where
+    H: SignalEventSourceHandler,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
@@ -247,9 +260,11 @@ pub unsafe extern "C" fn event_source_signal_dispatcher<H>(signal: c_int, data: 
             Err(_) => {
                 // Actually, this cannot happen, as we cannot register an event source for
                 // an unknown signal...
-                let _ = write!(::std::io::stderr(),
-                               "[wayland-server error] Unknown signal in signal event source: {}, aborting.",
-                               signal);
+                let _ = write!(
+                    ::std::io::stderr(),
+                    "[wayland-server error] Unknown signal in signal event source: {}, aborting.",
+                    signal
+                );
                 ::libc::abort();
             }
         };
@@ -259,7 +274,8 @@ pub unsafe extern "C" fn event_source_signal_dispatcher<H>(signal: c_int, data: 
         Ok(()) => return 0,   // all went well
         Err(_) => {
             // a panic occured
-            let _ = write!(
+            let _ =
+                write!(
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for a timer event source panicked, aborting.",
             );
