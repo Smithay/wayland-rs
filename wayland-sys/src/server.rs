@@ -160,3 +160,71 @@ pub fn is_lib_available() -> bool {
 pub fn is_lib_available() -> bool {
     WAYLAND_SERVER_OPTION.is_some()
 }
+
+pub mod signal {
+    #[cfg(feature = "dlopen")]
+    use super::WAYLAND_SERVER_HANDLE as WSH;
+    #[cfg(not(feature = "dlopen"))]
+    use super::{wl_list_init, wl_list_insert};
+    use super::{wl_signal, wl_listener, wl_notify_func_t};
+    use common::wl_list;
+    use std::os::raw::c_void;
+
+    // TODO: Is this really not UB ?
+    macro_rules! offset_of(
+        ($ty:ty, $field:ident) => {
+            &(*(0 as *const $ty)).$field as *const _ as usize
+        }
+    );
+
+    macro_rules! container_of(
+        ($ptr: expr, $container: ty, $field: ident) => {
+            ($ptr as *mut u8).offset(-(offset_of!($container, $field) as isize)) as *mut $container
+        }
+    );
+
+    macro_rules! list_for_each(
+        ($pos: ident, $head:expr, $container: ty, $field: ident, $action: block) => {
+            let mut $pos = container_of!((*$head).next, $container, $field);
+            while &mut (*$pos).$field as *mut _ != $head {
+                $action;
+                $pos = container_of!((*$pos).$field.next, $container, $field);
+            }
+        }
+    );
+
+    macro_rules! list_for_each_safe(
+        ($pos: ident, $head: expr, $container: ty, $field: ident, $action: block) => {
+            let mut $pos = container_of!((*$head).next, $container, $field);
+            let mut tmp = container_of!((*$pos).$field.next, $container, $field);
+            while &mut (*$pos).$field as *mut _ != $head {
+                $action;
+                $pos = tmp;
+                tmp = container_of!((*$pos).$field.next, $container, $field);
+            }
+        }
+    );
+
+    pub unsafe fn wl_signal_init(signal: *mut wl_signal) {
+        ffi_dispatch!(WSH, wl_list_init, &mut (*signal).listener_list);
+    }
+
+    pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
+        ffi_dispatch!(WSH, wl_list_insert, (*signal).listener_list.prev, &mut (*listener).link)
+    }
+
+    pub unsafe fn wl_signal_get(signal: *mut wl_signal, notify: wl_notify_func_t) -> *mut wl_listener {
+        list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+            if (*l).notify == notify {
+                return l;
+            }
+        });
+        return ::std::ptr::null_mut();
+    }
+
+    pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
+        list_for_each_safe!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+            ((*l).notify)(l, data);
+        });
+    }
+}
