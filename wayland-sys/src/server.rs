@@ -12,7 +12,6 @@ pub enum wl_display { }
 pub enum wl_event_loop { }
 pub enum wl_event_source { }
 pub enum wl_global { }
-pub enum wl_listener { }
 pub enum wl_resource { }
 pub enum wl_shm_buffer { }
 
@@ -23,6 +22,17 @@ pub type wl_event_loop_idle_func_t = unsafe extern "C" fn(*mut c_void) -> ();
 pub type wl_global_bind_func_t = unsafe extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
 pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) -> ();
 pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
+
+#[repr(C)]
+pub struct wl_listener {
+    pub link: wl_list,
+    pub notify: wl_notify_func_t
+}
+
+#[repr(C)]
+pub struct wl_signal {
+    pub listener_list: wl_list
+}
 
 external_library!(WaylandServer, "wayland-server",
     functions:
