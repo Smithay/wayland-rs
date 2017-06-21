@@ -117,8 +117,9 @@ impl EventLoopHandle {
     /// Returns an error and does nothing if this resource is dead or already managed by
     /// something else than this library.
     pub fn register<R, H>(&mut self, resource: &R, handler_id: usize) -> RegisterStatus
-        where R: Resource,
-              H: Handler<R> + Any + Send + 'static
+    where
+        R: Resource,
+        H: Handler<R> + Any + Send + 'static,
     {
         self.register_with_destructor::<R, H, NoopDestroy>(resource, handler_id)
     }
@@ -135,35 +136,39 @@ impl EventLoopHandle {
     /// Returns an error and does nothing if this resource is dead or already managed by
     /// something else than this library.
     pub fn register_with_destructor<R, H, D>(&mut self, resource: &R, handler_id: usize) -> RegisterStatus
-        where R: Resource,
-              H: Handler<R> + Any + Send + 'static,
-              D: Destroy<R> + 'static
+    where
+        R: Resource,
+        H: Handler<R> + Any + Send + 'static,
+        D: Destroy<R> + 'static,
     {
-        let h = self.handlers[handler_id]
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
+        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
+            "Handler type do not match.",
+        );
         match resource.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
             ::Liveness::Alive => { /* ok, we can continue */ }
         }
         unsafe {
-            let data: *mut ResourceUserData = ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                                            wl_resource_get_user_data,
-                                                            resource.ptr()) as
-                                              *mut _;
+            let data: *mut ResourceUserData = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_user_data,
+                resource.ptr()
+            ) as *mut _;
             // This cast from *const to *mut is legit because we enforce that a Handler
             // can only be assigned to a single EventQueue.
             // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
             (&mut *data).1 = h as *const _ as *mut c_void;
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_resource_set_dispatcher,
-                          resource.ptr(),
-                          dispatch_func::<R, H>,
-                          &RUST_MANAGED as *const _ as *const _,
-                          data as *mut c_void,
-                          Some(resource_destroy::<R, D>));
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_set_dispatcher,
+                resource.ptr(),
+                dispatch_func::<R, H>,
+                &RUST_MANAGED as *const _ as *const _,
+                data as *mut c_void,
+                Some(resource_destroy::<R, D>)
+            );
         }
         RegisterStatus::Registered
     }
@@ -214,24 +219,27 @@ impl EventLoopHandle {
 /// Returns `false` if the resource is dead, even if it was registered to this
 /// handler while alive.
 pub fn resource_is_registered<R, H>(resource: &R, handler_id: usize) -> bool
-    where R: Resource,
-          H: Handler<R> + Any + Send + 'static
+where
+    R: Resource,
+    H: Handler<R> + Any + Send + 'static,
 {
     if resource.status() != ::Liveness::Alive {
         return false;
     }
     let resource_data = unsafe {
-        &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                         wl_resource_get_user_data,
-                         resource.ptr()) as *mut ResourceUserData)
+        &*(ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_get_user_data,
+            resource.ptr()
+        ) as *mut ResourceUserData)
     };
     if resource_data.0.is_null() {
         return false;
     }
     let evlh = unsafe { &*(resource_data.0) };
-    let h = evlh.handlers[handler_id]
-        .downcast_ref::<H>()
-        .expect("Handler type do not match.");
+    let h = evlh.handlers[handler_id].downcast_ref::<H>().expect(
+        "Handler type do not match.",
+    );
     (&*resource_data).1 == h as *const _ as *mut c_void
 }
 
@@ -277,9 +285,9 @@ pub unsafe fn create_event_loop(ptr: *mut wl_event_loop, display: Option<*mut wl
         ptr: ptr,
         display: display,
         handle: Box::new(EventLoopHandle {
-                             handlers: Vec::new(),
-                             keep_going: false,
-                         }),
+            handlers: Vec::new(),
+            keep_going: false,
+        }),
     }
 }
 
@@ -296,7 +304,8 @@ impl EventLoop {
     /// event sources.
     pub fn new() -> EventLoop {
         unsafe {
-            let ptr = ffi_dispatch!(
+            let ptr =
+                ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_event_loop_create,
             );
@@ -318,10 +327,12 @@ impl EventLoop {
             Some(v) => (v as i32),
         };
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_loop_dispatch,
-                          self.ptr,
-                          timeout)
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_dispatch,
+                self.ptr,
+                timeout
+            )
         };
         if ret >= 0 {
             Ok(ret as u32)
@@ -369,21 +380,25 @@ impl EventLoop {
         let h = self.handle.handlers[handler_id]
             .downcast_ref::<H>()
             .expect("Handler type do not match.");
-        let display =
-            self.display
-                .expect("Globals can only be registered on an event loop associated with a display.");
+        let display = self.display.expect(
+            "Globals can only be registered on an event loop associated with a display.",
+        );
 
-        let data = Box::new((h as *const _ as *mut c_void,
-                             &*self.handle as *const _ as *mut EventLoopHandle));
+        let data = Box::new((
+            h as *const _ as *mut c_void,
+            &*self.handle as *const _ as *mut EventLoopHandle,
+        ));
 
         let ptr = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_global_create,
-                          display,
-                          R::interface_ptr(),
-                          version,
-                          &*data as *const (*mut c_void, *mut EventLoopHandle) as *mut _,
-                          global_bind::<R, H>)
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_global_create,
+                display,
+                R::interface_ptr(),
+                version,
+                &*data as *const (*mut c_void, *mut EventLoopHandle) as *mut _,
+                global_bind::<R, H>
+            )
         };
 
         Global {
@@ -410,22 +425,27 @@ impl EventLoop {
     pub fn add_fd_event_source<H>(&mut self, fd: RawFd, handler_id: usize,
                                   interest: ::event_sources::FdInterest)
                                   -> IoResult<::event_sources::FdEventSource>
-        where H: ::event_sources::FdEventSourceHandler + 'static
+    where
+        H: ::event_sources::FdEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id]
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
-        let data = Box::new((h as *const _ as *mut c_void,
-                             &*self.handle as *const _ as *mut EventLoopHandle));
+        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
+            "Handler type do not match.",
+        );
+        let data = Box::new((
+            h as *const _ as *mut c_void,
+            &*self.handle as *const _ as *mut EventLoopHandle,
+        ));
 
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_loop_add_fd,
-                          self.ptr,
-                          fd,
-                          interest.bits(),
-                          ::event_sources::event_source_fd_dispatcher::<H>,
-                          &*data as *const _ as *mut c_void)
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_fd,
+                self.ptr,
+                fd,
+                interest.bits(),
+                ::event_sources::event_source_fd_dispatcher::<H>,
+                &*data as *const _ as *mut c_void
+            )
         };
         if ret.is_null() {
             Err(IoError::last_os_error())
@@ -442,20 +462,25 @@ impl EventLoop {
     /// this event loop.
     pub fn add_timer_event_source<H>(&mut self, handler_id: usize)
                                      -> IoResult<::event_sources::TimerEventSource>
-        where H: ::event_sources::TimerEventSourceHandler + 'static
+    where
+        H: ::event_sources::TimerEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id]
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
-        let data = Box::new((h as *const _ as *mut c_void,
-                             &*self.handle as *const _ as *mut EventLoopHandle));
+        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
+            "Handler type do not match.",
+        );
+        let data = Box::new((
+            h as *const _ as *mut c_void,
+            &*self.handle as *const _ as *mut EventLoopHandle,
+        ));
 
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_loop_add_timer,
-                          self.ptr,
-                          ::event_sources::event_source_timer_dispatcher::<H>,
-                          &*data as *const _ as *mut c_void)
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_timer,
+                self.ptr,
+                ::event_sources::event_source_timer_dispatcher::<H>,
+                &*data as *const _ as *mut c_void
+            )
         };
         if ret.is_null() {
             Err(IoError::last_os_error())
@@ -472,21 +497,26 @@ impl EventLoop {
     /// dispatching of this event loop.
     pub fn add_signal_event_source<H>(&mut self, signal: ::nix::sys::signal::Signal, handler_id: usize)
                                       -> IoResult<::event_sources::SignalEventSource>
-        where H: ::event_sources::SignalEventSourceHandler + 'static
+    where
+        H: ::event_sources::SignalEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id]
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
-        let data = Box::new((h as *const _ as *mut c_void,
-                             &*self.handle as *const _ as *mut EventLoopHandle));
+        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
+            "Handler type do not match.",
+        );
+        let data = Box::new((
+            h as *const _ as *mut c_void,
+            &*self.handle as *const _ as *mut EventLoopHandle,
+        ));
 
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_event_loop_add_signal,
-                          self.ptr,
-                          signal as c_int,
-                          ::event_sources::event_source_signal_dispatcher::<H>,
-                          &*data as *const _ as *mut c_void)
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_signal,
+                self.ptr,
+                signal as c_int,
+                ::event_sources::event_source_signal_dispatcher::<H>,
+                &*data as *const _ as *mut c_void
+            )
         };
         if ret.is_null() {
             Err(IoError::last_os_error())
@@ -529,8 +559,10 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(_impl: *const c_v
                                                                -> c_int {
     // sanity check, if it triggers, it is a bug
     if _impl != &RUST_MANAGED as *const _ as *const _ {
-        let _ = write!(::std::io::stderr(),
-                       "[wayland-client error] Dispatcher got called for a message on a non-managed object.");
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
         ::libc::abort();
     }
     // We don't need to worry about panic-safeness, because if there is a panic,
@@ -540,14 +572,18 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(_impl: *const c_v
         // can only be assigned to a single EventQueue.
         // (this is actually the whole point of the design of this lib)
         let resource = R::from_ptr_initialized(resource as *mut wl_resource);
-        let data = &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                        wl_resource_get_user_data,
-                                        resource.ptr()) as *mut ResourceUserData);
+        let data = &mut *(ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_get_user_data,
+            resource.ptr()
+        ) as *mut ResourceUserData);
         let evqhandle = &mut *data.0;
         let handler = &mut *(data.1 as *mut H);
-        let client = Client::from_ptr(ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                                    wl_resource_get_client,
-                                                    resource.ptr()));
+        let client = Client::from_ptr(ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_get_client,
+            resource.ptr()
+        ));
         handler.message(evqhandle, &client, &resource, opcode, args)
     });
     match ret {
@@ -563,9 +599,11 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(_impl: *const c_v
         }
         Err(_) => {
             // a panic occured
-            let _ = write!(::std::io::stderr(),
-                           "[wayland-server error] A handler for {} panicked, aborting.",
-                           R::interface_name());
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A handler for {} panicked, aborting.",
+                R::interface_name()
+            );
             ::libc::abort();
         }
     }
@@ -579,12 +617,14 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(client: *mut 
         let handler = &mut *data.0;
         let evqhandle = &mut *data.1;
         let client = Client::from_ptr(client);
-        let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                wl_resource_create,
-                                client.ptr(),
-                                R::interface_ptr(),
-                                version as i32, // wayland already checks the validity of the version
-                                id);
+        let ptr = ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_create,
+            client.ptr(),
+            R::interface_ptr(),
+            version as i32, // wayland already checks the validity of the version
+            id
+        );
         let resource = R::from_ptr_new(ptr as *mut wl_resource);
         handler.bind(evqhandle, &client, resource)
     });
@@ -592,9 +632,11 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(client: *mut 
         Ok(()) => (),   // all went well
         Err(_) => {
             // a panic occured
-            let _ = write!(::std::io::stderr(),
-                           "[wayland-server error] A global handler for {} panicked, aborting.",
-                           R::interface_name());
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A global handler for {} panicked, aborting.",
+                R::interface_name()
+            );
             ::libc::abort();
         }
     }
@@ -610,12 +652,15 @@ unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut
     let resource = R::from_ptr_initialized(resource as *mut wl_resource);
     if resource.status() == ::Liveness::Alive {
         // mark the resource as dead
-        let data = &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                        wl_resource_get_user_data,
-                                        resource.ptr()) as *mut ResourceUserData);
-        (data.2)
-            .0
-            .store(false, ::std::sync::atomic::Ordering::SeqCst);
+        let data = &mut *(ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_get_user_data,
+            resource.ptr()
+        ) as *mut ResourceUserData);
+        (data.2).0.store(
+            false,
+            ::std::sync::atomic::Ordering::SeqCst,
+        );
     }
     D::destroy(&resource);
 }
@@ -626,7 +671,20 @@ unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut
 /// that need to use both client-side and server-side macros.
 #[macro_export]
 macro_rules! server_declare_handler(
-    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg: ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
+        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventLoopHandle,
+                              client: &$crate::Client,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
+                <$handler_trait>::__message(self, evq, client, proxy, opcode, args)
+            }
+        }
+    };
+    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
             unsafe fn message(&mut self,
                               evq: &mut $crate::EventLoopHandle,
@@ -635,10 +693,10 @@ macro_rules! server_declare_handler(
                               opcode: u32,
                               args: *const $crate::sys::wl_argument
                              ) -> ::std::result::Result<(),()> {
-                <$handler_struct as $handler_trait>::__message(self, evq, client, proxy, opcode, args)
+                <$handler_trait>::__message(self, evq, client, proxy, opcode, args)
             }
         }
-    }
+    };
 );
 
 /// Registers a handler type so it can be used in event loops
@@ -655,20 +713,44 @@ macro_rules! server_declare_handler(
 ///
 /// declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
 /// ```
+///
+/// If your type has type arguments, they must be specified using this special
+/// syntax to describe constraints on them:
+///
+/// ```ignore
+/// // Note that even if there are no constraints on U, there is a need to put this "empty list"
+/// declare_handler!(MyHandler<T: [Trait1, Trait2], U: []>, wl_foo::Handler, wl_foo::WlFoo);
+/// ```
 #[macro_export]
 macro_rules! declare_handler(
-    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg: ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
+        server_declare_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $handler_trait, $handled_type);
+    };
+    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
         server_declare_handler!($handler_struct, $handler_trait, $handled_type);
-    }
+    };
 );
 
-/// Synonym of the declare_handler! macro.
+/// Synonym of the declare_delegating_handler! macro.
 ///
 /// This macro with a more distinctive name can be used for projects
 /// that need to use both client-side and server-side macros.
 #[macro_export]
 macro_rules! server_declare_delegating_handler(
-    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg: ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventLoopHandle,
+                              client: &$crate::Client,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
+                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, client, proxy, opcode, args)
+            }
+        }
+    };
+    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
             unsafe fn message(&mut self,
                               evq: &mut $crate::EventLoopHandle,
@@ -680,7 +762,7 @@ macro_rules! server_declare_delegating_handler(
                 <$handler_trait>::__message(&mut self.$($handler_field).+, evq, client, proxy, opcode, args)
             }
         }
-    }
+    };
 );
 
 /// Registers a handler type so it as delegating to one of its fields
@@ -698,9 +780,14 @@ macro_rules! server_declare_delegating_handler(
 ///
 /// declare_delegating_handler!(MySubHandler, sub, wl_foo::Handler, wl_foo::WlFoo);
 /// ```
+///
+/// The syntax to use if your type has type arguments is the same as for `declare_handler!()`.
 #[macro_export]
 macro_rules! declare_delegating_handler(
-    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+        server_declare_delegating_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $($handler_field).+, $handler_trait, $handled_type);
+    };
+    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         server_declare_delegating_handler!($handler_struct, $($handler_field).+, $handler_trait, $handled_type);
-    }
+    };
 );

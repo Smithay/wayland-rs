@@ -14,11 +14,13 @@ use wayland_client::{EnvHandler, EventQueueHandle};
 use wayland_client::protocol::{wl_compositor, wl_pointer, wl_seat, wl_shell, wl_shell_surface, wl_shm,
                                wl_surface};
 
-wayland_env!(WaylandEnv,
-             compositor: wl_compositor::WlCompositor,
-             seat: wl_seat::WlSeat,
-             shell: wl_shell::WlShell,
-             shm: wl_shm::WlShm);
+wayland_env!(
+    WaylandEnv,
+    compositor: wl_compositor::WlCompositor,
+    seat: wl_seat::WlSeat,
+    shell: wl_shell::WlShell,
+    shm: wl_shm::WlShm
+);
 
 struct MyHandler;
 
@@ -30,9 +32,11 @@ impl wl_shell_surface::Handler for MyHandler {
     // we ignore the other methods in this example, by default they do nothing
 }
 
-declare_handler!(MyHandler,
-                 wl_shell_surface::Handler,
-                 wl_shell_surface::WlShellSurface);
+declare_handler!(
+    MyHandler,
+    wl_shell_surface::Handler,
+    wl_shell_surface::WlShellSurface
+);
 
 impl wl_pointer::Handler for MyHandler {
     fn enter(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _serial: u32,
@@ -49,15 +53,17 @@ impl wl_pointer::Handler for MyHandler {
     }
     fn button(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _serial: u32, _time: u32,
               button: u32, state: wl_pointer::ButtonState) {
-        println!("Button {} ({}) was {:?}.",
-                 match button {
-                     272 => "Left",
-                     273 => "Right",
-                     274 => "Middle",
-                     _ => "Unknown",
-                 },
-                 button,
-                 state);
+        println!(
+            "Button {} ({}) was {:?}.",
+            match button {
+                272 => "Left",
+                273 => "Right",
+                274 => "Middle",
+                _ => "Unknown",
+            },
+            button,
+            state
+        );
     }
 
     // we ignore the other methods in this example, by default they do nothing
@@ -81,9 +87,9 @@ fn main() {
     let buf_y: u32 = 240;
 
     // create a tempfile to write the conents of the window on
-    let mut tmp = tempfile::tempfile()
-        .ok()
-        .expect("Unable to create a tempfile.");
+    let mut tmp = tempfile::tempfile().ok().expect(
+        "Unable to create a tempfile.",
+    );
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {
         let x = (i % buf_x) as u32;
@@ -104,15 +110,18 @@ fn main() {
         let surface = env.compositor.create_surface();
         let shell_surface = env.shell.get_shell_surface(&surface);
 
-        let pool = env.shm
-            .create_pool(tmp.as_raw_fd(), (buf_x * buf_y * 4) as i32);
+        let pool = env.shm.create_pool(
+            tmp.as_raw_fd(),
+            (buf_x * buf_y * 4) as i32,
+        );
         // match a buffer on the part we wrote on
-        let buffer = pool.create_buffer(0,
-                                        buf_x as i32,
-                                        buf_y as i32,
-                                        (buf_x * 4) as i32,
-                                        wl_shm::Format::Argb8888)
-            .expect("The pool cannot be already dead");
+        let buffer = pool.create_buffer(
+            0,
+            buf_x as i32,
+            buf_y as i32,
+            (buf_x * 4) as i32,
+            wl_shm::Format::Argb8888,
+        ).expect("The pool cannot be already dead");
 
         // make our surface as a toplevel one
         shell_surface.set_toplevel();
@@ -121,9 +130,9 @@ fn main() {
         // commit
         surface.commit();
 
-        let pointer = env.seat
-            .get_pointer()
-            .expect("Seat cannot be already destroyed.");
+        let pointer = env.seat.get_pointer().expect(
+            "Seat cannot be already destroyed.",
+        );
 
         // we can let the other objects go out of scope
         // their associated wyland objects won't automatically be destroyed

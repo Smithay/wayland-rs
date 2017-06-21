@@ -46,11 +46,13 @@ impl WlEglSurface {
     ///
     /// This function is unsafe because `surface` must be a valid wl_surface pointer
     pub unsafe fn new_from_raw(surface: *mut wl_proxy, width: i32, height: i32) -> WlEglSurface {
-        let ptr = ffi_dispatch!(WAYLAND_EGL_HANDLE,
-                                wl_egl_window_create,
-                                surface,
-                                width,
-                                height);
+        let ptr = ffi_dispatch!(
+            WAYLAND_EGL_HANDLE,
+            wl_egl_window_create,
+            surface,
+            width,
+            height
+        );
         WlEglSurface { ptr: ptr }
     }
 
@@ -59,11 +61,13 @@ impl WlEglSurface {
         let mut w = 0i32;
         let mut h = 0i32;
         unsafe {
-            ffi_dispatch!(WAYLAND_EGL_HANDLE,
-                          wl_egl_window_get_attached_size,
-                          self.ptr,
-                          &mut w as *mut i32,
-                          &mut h as *mut i32);
+            ffi_dispatch!(
+                WAYLAND_EGL_HANDLE,
+                wl_egl_window_get_attached_size,
+                self.ptr,
+                &mut w as *mut i32,
+                &mut h as *mut i32
+            );
         }
         (w, h)
     }
@@ -76,13 +80,15 @@ impl WlEglSurface {
     /// direction of the resizing if necessary.
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
         unsafe {
-            ffi_dispatch!(WAYLAND_EGL_HANDLE,
-                          wl_egl_window_resize,
-                          self.ptr,
-                          width,
-                          height,
-                          dx,
-                          dy)
+            ffi_dispatch!(
+                WAYLAND_EGL_HANDLE,
+                wl_egl_window_resize,
+                self.ptr,
+                width,
+                height,
+                dx,
+                dy
+            )
         }
     }
 

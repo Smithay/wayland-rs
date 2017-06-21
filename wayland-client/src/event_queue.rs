@@ -56,12 +56,13 @@ impl EventQueueHandle {
     /// Returns appropriately and does nothing if this proxy is dead or already managed by
     /// something else than this library.
     pub fn register<P, H>(&mut self, proxy: &P, handler_id: usize) -> RegisterStatus
-        where P: Proxy,
-              H: Handler<P> + Any + Send + 'static
+    where
+        P: Proxy,
+        H: Handler<P> + Any + Send + 'static,
     {
-        let h = self.handlers[handler_id]
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
+        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
+            "Handler type do not match.",
+        );
         match proxy.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
@@ -76,19 +77,23 @@ impl EventQueueHandle {
             (&mut *data).0 = self as *const _ as *mut _;
             (&mut *data).1 = h as *const _ as *mut c_void;
             // even if this call fails, we updated the user_data, so the new handler is in place.
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_proxy_add_dispatcher,
-                          proxy.ptr(),
-                          dispatch_func::<P, H>,
-                          &RUST_MANAGED as *const _ as *const _,
-                          data as *mut c_void);
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                          wl_proxy_set_queue,
-                          proxy.ptr(),
-                          match self.wlevq {
-                              Some(ptr) => ptr,
-                              None => ::std::ptr::null_mut(),
-                          });
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_add_dispatcher,
+                proxy.ptr(),
+                dispatch_func::<P, H>,
+                &RUST_MANAGED as *const _ as *const _,
+                data as *mut c_void
+            );
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_set_queue,
+                proxy.ptr(),
+                match self.wlevq {
+                    Some(ptr) => ptr,
+                    None => ::std::ptr::null_mut(),
+                }
+            );
         }
         RegisterStatus::Registered
     }
@@ -221,10 +226,12 @@ impl EventQueue {
     pub fn dispatch(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                              wl_display_dispatch_queue,
-                              self.display,
-                              evq)
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_dispatch_queue,
+                    self.display,
+                    evq
+                )
             },
             None => unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.display) },
         };
@@ -246,15 +253,19 @@ impl EventQueue {
     pub fn dispatch_pending(&mut self) -> IoResult<u32> {
         let ret = match self.handle.wlevq {
             Some(evq) => unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                              wl_display_dispatch_queue_pending,
-                              self.display,
-                              evq)
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_dispatch_queue_pending,
+                    self.display,
+                    evq
+                )
             },
             None => unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                              wl_display_dispatch_pending,
-                              self.display)
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_dispatch_pending,
+                    self.display
+                )
             },
         };
         if ret >= 0 {
@@ -277,10 +288,12 @@ impl EventQueue {
         let ret = unsafe {
             match self.handle.wlevq {
                 Some(evtq) => {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                                  wl_display_roundtrip_queue,
-                                  self.display,
-                                  evtq)
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_display_roundtrip_queue,
+                        self.display,
+                        evtq
+                    )
                 }
                 None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display),
             }
@@ -324,10 +337,12 @@ impl EventQueue {
         let ret = unsafe {
             match self.handle.wlevq {
                 Some(evtq) => {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE,
-                                  wl_display_prepare_read_queue,
-                                  self.display,
-                                  evtq)
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_display_prepare_read_queue,
+                        self.display,
+                        evtq
+                    )
                 }
                 None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.display),
             }
@@ -398,9 +413,9 @@ pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_e
     EventQueue {
         display: display,
         handle: Box::new(EventQueueHandle {
-                             handlers: Vec::new(),
-                             wlevq: evq,
-                         }),
+            handlers: Vec::new(),
+            wlevq: evq,
+        }),
     }
 }
 
@@ -410,8 +425,10 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
                                                             -> c_int {
     // sanity check, if it triggers, it is a bug
     if _impl != &RUST_MANAGED as *const _ as *const _ {
-        let _ = write!(::std::io::stderr(),
-                       "[wayland-client error] Dispatcher got called for a message on a non-managed object.");
+        let _ = write!(
+            ::std::io::stderr(),
+            "[wayland-client error] Dispatcher got called for a message on a non-managed object."
+        );
         ::libc::abort();
     }
     // We don't need to worry about panic-safeness, because if there is a panic,
@@ -419,7 +436,7 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
     let ret = ::std::panic::catch_unwind(move || {
         let proxy = P::from_ptr_initialized(proxy as *mut wl_proxy);
         let data = &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as
-                          *mut ProxyUserData);
+                              *mut ProxyUserData);
         let evqhandle = &mut *data.0;
         let handler = &mut *(data.1 as *mut H);
         handler.message(evqhandle, &proxy, opcode, args)
@@ -437,9 +454,11 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
         }
         Err(_) => {
             // a panic occured
-            let _ = write!(::std::io::stderr(),
-                           "[wayland-client error] A handler for {} panicked, aborting.",
-                           P::interface_name());
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-client error] A handler for {} panicked, aborting.",
+                P::interface_name()
+            );
             ::libc::abort();
         }
     }
@@ -451,7 +470,19 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
 /// both the client-side and server-side macros.
 #[macro_export]
 macro_rules! client_declare_handler(
-    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
+        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventQueueHandle,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
+                <$handler_trait>::__message(self, evq, proxy, opcode, args)
+            }
+        }
+    };
+    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
             unsafe fn message(&mut self,
                               evq: &mut $crate::EventQueueHandle,
@@ -459,10 +490,10 @@ macro_rules! client_declare_handler(
                               opcode: u32,
                               args: *const $crate::sys::wl_argument
                              ) -> ::std::result::Result<(),()> {
-                <$handler_struct as $handler_trait>::__message(self, evq, proxy, opcode, args)
+                <$handler_trait>::__message(self, evq, proxy, opcode, args)
             }
         }
-    }
+    };
 );
 
 
@@ -480,11 +511,22 @@ macro_rules! client_declare_handler(
 ///
 /// declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
 /// ```
+///
+/// If your type has type arguments, they must be specified using this special
+/// syntax to describe constraints on them:
+///
+/// ```ignore
+/// // Note that even if there are no constraints on U, there is a need to put this "empty list"
+/// declare_handler!(MyHandler<T: [Trait1, Trait2], U: []>, wl_foo::Handler, wl_foo::WlFoo);
+/// ```
 #[macro_export]
 macro_rules! declare_handler(
-    ($handler_struct: ty, $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
+        client_declare_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $handler_trait, $handled_type);
+    };
+    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
         client_declare_handler!($handler_struct, $handler_trait, $handled_type);
-    }
+    };
 );
 
 /// Synonym of the declare_delegating_handler! macro
@@ -493,7 +535,19 @@ macro_rules! declare_handler(
 /// both the client-side and server-side macros.
 #[macro_export]
 macro_rules! client_declare_delegating_handler(
-    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
+            unsafe fn message(&mut self,
+                              evq: &mut $crate::EventQueueHandle,
+                              proxy: &$handled_type,
+                              opcode: u32,
+                              args: *const $crate::sys::wl_argument
+                             ) -> ::std::result::Result<(),()> {
+                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
+            }
+        }
+    };
+    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         unsafe impl $crate::Handler<$handled_type> for $handler_struct {
             unsafe fn message(&mut self,
                               evq: &mut $crate::EventQueueHandle,
@@ -504,7 +558,7 @@ macro_rules! client_declare_delegating_handler(
                 <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
             }
         }
-    }
+    };
 );
 
 /// Registers a handler type so it as delegating to one of its fields
@@ -522,9 +576,14 @@ macro_rules! client_declare_delegating_handler(
 ///
 /// declare_delegating_handler!(MySubHandler, sub, wl_foo::Handler, wl_foo::WlFoo);
 /// ```
+///
+/// The syntax to use if your type has type arguments is the same as for `declare_handler!()`.
 #[macro_export]
 macro_rules! declare_delegating_handler(
-    ($handler_struct: ty, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
+        client_declare_delegating_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $($handler_field).+, $handler_trait, $handled_type);
+    };
+    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
         client_declare_delegating_handler!($handler_struct, $($handler_field).+, $handler_trait, $handled_type);
-    }
+    };
 );

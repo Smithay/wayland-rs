@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 pub mod fullscreen_shell {
     wayland_protocol!("fullscreen-shell",
                       (wl_surface, wl_surface_interface),

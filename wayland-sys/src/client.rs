@@ -85,7 +85,11 @@ lazy_static!(
             Ok(h) => Some(h),
             Err(::dlib::DlError::NotFound) => None,
             Err(::dlib::DlError::MissingSymbol(s)) => {
-                panic!("Found library libwayland-client.so but symbol {} is missing.", s);
+                use std::io::Write;
+                let _ = write!(::std::io::stderr(),
+                               "[wayland-client] Found library libwayland-client.so cannot be used: symbol {} is missing.",
+                               s);
+                None
             }
         }
     };

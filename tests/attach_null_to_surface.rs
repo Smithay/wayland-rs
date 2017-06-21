@@ -54,12 +54,16 @@ mod server_utils {
         }
     }
 
-    server_declare_handler!(CompositorHandler,
-                            wl_compositor::Handler,
-                            wl_compositor::WlCompositor);
-    server_declare_handler!(CompositorHandler,
-                            wl_surface::Handler,
-                            wl_surface::WlSurface);
+    server_declare_handler!(
+        CompositorHandler,
+        wl_compositor::Handler,
+        wl_compositor::WlCompositor
+    );
+    server_declare_handler!(
+        CompositorHandler,
+        wl_surface::Handler,
+        wl_surface::WlSurface
+    );
 
     pub fn insert_compositor(event_loop: &mut EventLoop) {
         let hid = event_loop.add_handler_with_init(CompositorHandler::new());

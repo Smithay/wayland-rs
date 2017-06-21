@@ -24,7 +24,8 @@ pub struct Display {
 /// using the `add_socket_*` methods.
 pub fn create_display() -> (Display, EventLoop) {
     unsafe {
-        let ptr = ffi_dispatch!(
+        let ptr =
+            ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_display_create,
         );
@@ -48,21 +49,26 @@ impl Display {
     /// or if specified could not be bound (either it is already used or the compositor
     /// does not have the rights to create it).
     pub fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>
-        where S: AsRef<OsStr>
+    where
+        S: AsRef<OsStr>,
     {
         let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
             Some(Ok(n)) => Some(n),
             Some(Err(_)) => {
-                return Err(IoError::new(ErrorKind::InvalidInput,
-                                        "nulls are not allowed in socket name"))
+                return Err(IoError::new(
+                    ErrorKind::InvalidInput,
+                    "nulls are not allowed in socket name",
+                ))
             }
             None => None,
         };
         let ret = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_display_add_socket,
-                          self.ptr,
-                          cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null()))
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_display_add_socket,
+                self.ptr,
+                cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
+            )
         };
         if ret == -1 {
             // lets try to be helpfull
@@ -71,8 +77,13 @@ impl Display {
                 Some(s) => socket_name.push(s.as_ref()),
                 None => socket_name.push("wayland-0"),
             }
-            Err(IoError::new(ErrorKind::PermissionDenied,
-                             format!("could not bind socket {}", socket_name.to_string_lossy())))
+            Err(IoError::new(
+                ErrorKind::PermissionDenied,
+                format!(
+                    "could not bind socket {}",
+                    socket_name.to_string_lossy()
+                ),
+            ))
         } else {
             Ok(())
         }
@@ -92,12 +103,18 @@ impl Display {
         if ret.is_null() {
             // try to be helpfull
             let socket_name = get_runtime_dir()?;
-            Err(IoError::new(ErrorKind::Other,
-                             format!("no available wayland-* name in {}",
-                                     socket_name.to_string_lossy())))
+            Err(IoError::new(
+                ErrorKind::Other,
+                format!(
+                    "no available wayland-* name in {}",
+                    socket_name.to_string_lossy()
+                ),
+            ))
         } else {
             let sockname = unsafe { CStr::from_ptr(ret) };
-            Ok(<OsString as OsStringExt>::from_vec(sockname.to_bytes().into()))
+            Ok(<OsString as OsStringExt>::from_vec(
+                sockname.to_bytes().into(),
+            ))
         }
     }
 
@@ -110,7 +127,8 @@ impl Display {
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
     pub fn add_socket_from<T>(&mut self, socket: T) -> IoResult<()>
-        where T: IntoRawFd
+    where
+        T: IntoRawFd,
     {
         unsafe { self.add_socket_fd(socket.into_raw_fd()) }
     }
@@ -127,10 +145,12 @@ impl Display {
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
     pub unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
-        let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                                wl_display_add_socket_fd,
-                                self.ptr,
-                                fd);
+        let ret = ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_display_add_socket_fd,
+            self.ptr,
+            fd
+        );
         if ret == 0 {
             Ok(())
         } else {
@@ -159,8 +179,10 @@ fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
         None => {
-            Err(IoError::new(ErrorKind::NotFound,
-                             "XDG_RUNTIME_DIR env variable is not set"))
+            Err(IoError::new(
+                ErrorKind::NotFound,
+                "XDG_RUNTIME_DIR env variable is not set",
+            ))
         }
     }
 }

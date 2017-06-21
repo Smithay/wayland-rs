@@ -50,7 +50,8 @@ pub fn parse_stream<S: Read>(stream: S) -> Protocol {
 }
 
 fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
-    let mut protocol = extract_from!(
+    let mut protocol =
+        extract_from!(
         iter => XmlEvent::StartElement { name, attributes, .. } => {
             assert!(name.local_name == "protocol", "Missing protocol toplevel tag");
             assert!(attributes[0].name.local_name == "name", "Protocol must have a name");
@@ -69,24 +70,28 @@ fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
                         protocol.copyright = Some(copyright);
                     }
                     "interface" => {
-                        protocol
-                            .interfaces
-                            .push(parse_interface(&mut iter, attributes));
+                        protocol.interfaces.push(
+                            parse_interface(&mut iter, attributes),
+                        );
                     }
                     "description" => {
                         protocol.description = Some(parse_description(&mut iter, attributes));
                     }
                     _ => {
-                        panic!("Ill-formed protocol file: unexpected token `{}` in protocol {}",
-                               name.local_name,
-                               protocol.name)
+                        panic!(
+                            "Ill-formed protocol file: unexpected token `{}` in protocol {}",
+                            name.local_name,
+                            protocol.name
+                        )
                     }
                 }
             }
             Some(Ok(XmlEvent::EndElement { name })) => {
-                assert!(name.local_name == "protocol",
-                        "Unexpected closing token `{}`",
-                        name.local_name);
+                assert!(
+                    name.local_name == "protocol",
+                    "Unexpected closing token `{}`",
+                    name.local_name
+                );
                 break;
             }
             e => panic!("Ill-formed protocol file: {:?}", e),

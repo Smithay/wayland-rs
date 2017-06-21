@@ -17,13 +17,12 @@ pub fn snake_to_camel(input: &str) -> String {
         .split('_')
         .flat_map(|s| {
             let mut first = true;
-            s.chars()
-                .map(move |c| if first {
-                         first = false;
-                         c.to_ascii_uppercase()
-                     } else {
-                         c
-                     })
+            s.chars().map(move |c| if first {
+                first = false;
+                c.to_ascii_uppercase()
+            } else {
+                c
+            })
         })
         .collect()
 }

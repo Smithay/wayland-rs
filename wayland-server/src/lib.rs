@@ -200,10 +200,9 @@ mod event_sources;
 
 pub mod sources {
     //! Secondary event sources
-    //!
-    //! This module contains the types & traits to work with
-    //! different kind of event sources that can be registered to and
-    //! event loop, other than the wayland protocol sockets.
+    // This module contains the types & traits to work with
+    // different kind of event sources that can be registered to and
+    // event loop, other than the wayland protocol sockets.
 
     pub use event_sources::{FdEventSource, FdEventSourceHandler};
     pub use event_sources::{FdInterest, READ, WRITE};
@@ -277,11 +276,13 @@ pub trait Resource {
         // be truncated at this point.
         unsafe {
             let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE,
-                          wl_resource_post_error,
-                          self.ptr(),
-                          error_code,
-                          cstring.as_ptr())
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_post_error,
+                self.ptr(),
+                error_code,
+                cstring.as_ptr()
+            )
         }
     }
     /// Clone this resource handle
@@ -289,7 +290,8 @@ pub trait Resource {
     /// Will only succeed if the resource is managed by this library and
     /// is still alive.
     fn clone(&self) -> Option<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         if self.status() == Liveness::Alive {
             Some(unsafe { self.clone_unchecked() })
@@ -304,7 +306,8 @@ pub trait Resource {
     /// has no knowledge of its lifetime, and cannot ensure that the new handle
     /// will not outlive the object.
     unsafe fn clone_unchecked(&self) -> Self
-        where Self: Sized
+    where
+        Self: Sized,
     {
         // TODO: this can be more optimized with codegen help, but would be a
         // breaking change, so do it at next breaking release
@@ -353,7 +356,7 @@ pub unsafe trait Handler<T: Resource> {
 }
 
 /// Represents the state of liveness of a wayland object
-#[derive(Copy,Clone,PartialEq,Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Liveness {
     /// This object is alive and events can be sent to it
     Alive,
@@ -372,21 +375,19 @@ mod generated {
 
     pub mod interfaces {
         //! Interfaces for the core protocol
-        //!
-        //! You might need them for the bindings generated for protocol extensions
+        // You might need them for the bindings generated for protocol extensions
         include!(concat!(env!("OUT_DIR"), "/wayland_interfaces.rs"));
     }
 
     pub mod server {
         //! The wayland core protocol
-        //!
-        //! This module contains all objects of the core wayland protocol.
-        //!
-        //! It has been generated from the `wayland.xml` protocol file
-        //! using `wayland_scanner`.
-        //! Imports that need to be available to submodules
-        //! but should not be in public API.
-        //! Will be fixable with pub(restricted).
+        // This module contains all objects of the core wayland protocol.
+        //
+        // It has been generated from the `wayland.xml` protocol file
+        // using `wayland_scanner`.
+        // Imports that need to be available to submodules
+        // but should not be in public API.
+        // Will be fixable with pub(restricted).
 
         #[doc(hidden)]
         pub use super::interfaces;
