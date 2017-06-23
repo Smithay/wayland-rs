@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.9.9 - 2017-06-23
+
+- [scanner] Normalize whitespaces in doc summary (fixes wayland-protocols 0.9.8)
+
 ## 0.9.8 - 2017-06-23
 
 - The `declare_handler!(..)` macros can now handle generic types with trait bounds
