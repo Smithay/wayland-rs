@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.9.8 - 2017-06-23
+
+- The `declare_handler!(..)` macros can now handle generic types with trait bounds
+- [sys] Implement the `wl_signal_*` functions
+- [sys] Don't panic if the .so versions are too old and missing symbols
+- [protocols] Update to wayland-protocols 1.8
+
 ## 0.9.7 - 2017-06-11
 
 - [scanner] Fix objects not being properly destroyed after calling destructor requests
