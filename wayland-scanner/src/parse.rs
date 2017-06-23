@@ -134,7 +134,7 @@ fn parse_description<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAtt
     let mut summary = String::new();
     for attr in attrs {
         match &attr.name.local_name[..] {
-            "summary" => summary = attr.value,
+            "summary" => summary = attr.value.split_whitespace().collect::<Vec<_>>().join(" "),
             _ => {}
         }
     }
