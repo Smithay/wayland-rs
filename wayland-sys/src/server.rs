@@ -26,12 +26,12 @@ pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> 
 #[repr(C)]
 pub struct wl_listener {
     pub link: wl_list,
-    pub notify: wl_notify_func_t
+    pub notify: wl_notify_func_t,
 }
 
 #[repr(C)]
 pub struct wl_signal {
-    pub listener_list: wl_list
+    pub listener_list: wl_list,
 }
 
 external_library!(WaylandServer, "wayland-server",
@@ -162,11 +162,11 @@ pub fn is_lib_available() -> bool {
 }
 
 pub mod signal {
-    #[cfg(feature = "dlopen")]
-    use super::WAYLAND_SERVER_HANDLE as WSH;
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
-    use super::{wl_signal, wl_listener, wl_notify_func_t};
+    use super::{wl_listener, wl_notify_func_t, wl_signal};
+    #[cfg(feature = "dlopen")]
+    use super::WAYLAND_SERVER_HANDLE as WSH;
     use common::wl_list;
     use std::os::raw::c_void;
 
@@ -210,21 +210,38 @@ pub mod signal {
     }
 
     pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
-        ffi_dispatch!(WSH, wl_list_insert, (*signal).listener_list.prev, &mut (*listener).link)
+        ffi_dispatch!(
+            WSH,
+            wl_list_insert,
+            (*signal).listener_list.prev,
+            &mut (*listener).link
+        )
     }
 
     pub unsafe fn wl_signal_get(signal: *mut wl_signal, notify: wl_notify_func_t) -> *mut wl_listener {
-        list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
-            if (*l).notify == notify {
-                return l;
+        list_for_each!(
+            l,
+            &mut (*signal).listener_list as *mut wl_list,
+            wl_listener,
+            link,
+            {
+                if (*l).notify == notify {
+                    return l;
+                }
             }
-        });
+        );
         return ::std::ptr::null_mut();
     }
 
     pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
-        list_for_each_safe!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
-            ((*l).notify)(l, data);
-        });
+        list_for_each_safe!(
+            l,
+            &mut (*signal).listener_list as *mut wl_list,
+            wl_listener,
+            link,
+            {
+                ((*l).notify)(l, data);
+            }
+        );
     }
 }
