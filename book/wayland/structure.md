@@ -79,7 +79,7 @@ In the end, this kind of hierachy can be expected:
 ## Protocol extensions
 
 The set of objects and the list of their requests and events is defined in
-[an XML file][wayland spec]. This approach allows wayland protocl extensions to be defined easily.
+[an XML file][wayland spec]. This approach allows wayland protocol extensions to be defined easily.
 
 A **protocol extension** is just another XML file, which defines another set of objects, some of
 them being globals, and thus serving as the entry points for the protocol extension.
