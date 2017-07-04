@@ -27,7 +27,7 @@ in a wayland session can thus be organised as a tree, on top of which lives a sp
 ## The display, the registry and the globals
 
 A client session starts with a single object: the `wl_display`. This object represents the
-connection to the server, an remains alive until the end. This is the entry point of the wayland
+connection to the server, and remains alive until the end. This is the entry point of the wayland
 protocol: from it instances of `wl_registry` can be created.
 
 This registry is the real heart of the protocol. Upon creation, it will receive a stream of events
@@ -79,7 +79,7 @@ In the end, this kind of hierachy can be expected:
 ## Protocol extensions
 
 The set of objects and the list of their requests and events is defined in
-[an XML file][wayland spec]. This approach allows wayland protocl extensions to be defined easily.
+[an XML file][wayland spec]. This approach allows wayland protocol extensions to be defined easily.
 
 A **protocol extension** is just another XML file, which defines another set of objects, some of
 them being globals, and thus serving as the entry points for the protocol extension.
