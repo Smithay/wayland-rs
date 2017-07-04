@@ -27,7 +27,7 @@ in a wayland session can thus be organised as a tree, on top of which lives a sp
 ## The display, the registry and the globals
 
 A client session starts with a single object: the `wl_display`. This object represents the
-connection to the server, an remains alive until the end. This is the entry point of the wayland
+connection to the server, and remains alive until the end. This is the entry point of the wayland
 protocol: from it instances of `wl_registry` can be created.
 
 This registry is the real heart of the protocol. Upon creation, it will receive a stream of events
