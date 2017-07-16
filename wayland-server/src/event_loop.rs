@@ -350,6 +350,11 @@ impl EventLoop {
     /// If this event loop is attached to a display, it will also
     /// flush the events to the clients between two calls to
     /// `dispatch()`.
+    ///
+    /// Note that this method will block indefinitely on waiting events,
+    /// as such, if you need to avoid a complete block even if no events
+    /// are received, you should use the `dispatch()` method instead and
+    /// set a timeout.
     pub fn run(&mut self) -> IoResult<()> {
         self.handle.keep_going = true;
         loop {
