@@ -4,17 +4,6 @@ use protocol::*;
 use std::cmp;
 use std::io::Write;
 
-macro_rules! for_requests_and_events_of_interface(
-    ($interface: expr, $name: ident, $code:expr) => (
-        for $name in &mut $interface.requests {
-            $code
-        }
-        for $name in &mut $interface.events {
-            $code
-        }
-    );
-);
-
 pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(
         out,

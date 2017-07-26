@@ -7,6 +7,15 @@ use std::io::Write;
 use util::*;
 
 pub fn write_protocol<O: Write>(protocol: Protocol, out: &mut O, side: Side) -> IOResult<()> {
+    writeln!(
+        out,
+        "//\n// This file was auto-generated, do not edit directly\n//\n"
+    ).unwrap();
+
+    if let Some(text) = protocol.copyright {
+        writeln!(out, "/*\n{}\n*/\n", text).unwrap();
+    }
+
     for iface in &protocol.interfaces {
         if (iface.name == "wl_display" || iface.name == "wl_registry") && side == Side::Server {
             continue;

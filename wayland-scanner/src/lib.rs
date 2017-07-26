@@ -104,6 +104,7 @@
 extern crate xml;
 
 use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 use std::path::Path;
 
 mod util;
