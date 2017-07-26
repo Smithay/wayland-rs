@@ -14,8 +14,8 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         writeln!(out, "/*\n{}\n*/\n", text).unwrap();
     }
 
+    writeln!(out, "use std::os::raw::{{c_char, c_void}};\n").unwrap();
     writeln!(out, "use wayland_sys::common::*;\n").unwrap();
-    writeln!(out, "use std::os::raw::{{c_void, c_char}};\n").unwrap();
 
     // null types array
     //
@@ -39,7 +39,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         cmp::max(max, cmp::max(request_longest_null, events_longest_null))
     });
 
-    writeln!(out, "const NULLPTR : *const c_void = 0 as *const c_void;\n").unwrap();
+    writeln!(out, "const NULLPTR: *const c_void = 0 as *const c_void;\n").unwrap();
 
     writeln!(
         out,
@@ -124,7 +124,7 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
         ).unwrap();
         writeln!(
             out,
-            "    name: b\"{}\\0\" as *const u8  as *const c_char,",
+            "    name: b\"{}\\0\" as *const u8 as *const c_char,",
             interface.name
         ).unwrap();
         writeln!(out, "    version: {},", interface.version).unwrap();
