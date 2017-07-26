@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="test">
+  <copyright>
+  This is an example copyright.
+  It contains several lines.
+  AS WELL AS ALL CAPS TEXT.
+  </copyright>
+
+  <interface name="wl_foo" version="3">
+  </interface>
+
+  <interface name="wl_bar" version="1">
+  </interface>
+</protocol>
