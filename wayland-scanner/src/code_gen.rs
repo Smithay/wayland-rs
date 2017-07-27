@@ -38,7 +38,9 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     writeln!(out, "    use super::{};", side.handle_type())?;
     writeln!(out, "    use super::{};", side.object_trait())?;
     writeln!(out, "    use super::{};", side.result_type())?;
-    writeln!(out, r#"
+    writeln!(
+        out,
+        r#"
     use super::Liveness;
     use super::interfaces::*;
     use wayland_sys::common::*;
@@ -48,7 +50,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     use std::ptr;
     use std::sync::Arc;
     use std::sync::atomic::{{AtomicBool, AtomicPtr, Ordering}};
-    use wayland_sys::RUST_MANAGED;"#)?;
+    use wayland_sys::RUST_MANAGED;"#
+    )?;
     match side {
         Side::Client => writeln!(out, "    use wayland_sys::client::*;")?,
         Side::Server => writeln!(out, "    use wayland_sys::server::*;")?,
