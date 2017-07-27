@@ -4,11 +4,15 @@
 
 /*
 This is an example copyright.
-  It contains several lines.
-  AS WELL AS ALL CAPS TEXT.
+    It contains several lines.
+    AS WELL AS ALL CAPS TEXT.
 */
 
 pub mod wl_foo {
+    //! Interface for fooing
+    //!
+    //! This is the dedicated interface for doing foos over any
+    //! kind of other foos.
     use super::EventQueueHandle;
     use super::Proxy;
     use super::RequestResult;
@@ -91,10 +95,23 @@ pub mod wl_foo {
             }
         }
     }
+
+    const WL_FOO_FOO_IT: u32 = 0;
+
     impl WlFoo {
+        /// foo numbers
+        ///
+        /// This request will foo a number and a string.
+        pub fn foo_it(&self, number: i32, text: String) ->() {
+            let text = CString::new(text).unwrap_or_else(|_| panic!("Got a String with interior null in wl_foo.foo_it:text"));
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_FOO_FOO_IT, number, text.as_ptr()) };
+        }
     }
 }
 pub mod wl_bar {
+    //! Interface for bars
+    //!
+    //! This interface allows you to bar your foos.
     use super::EventQueueHandle;
     use super::Proxy;
     use super::RequestResult;

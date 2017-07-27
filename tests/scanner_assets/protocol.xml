@@ -1,14 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <protocol name="test">
   <copyright>
-  This is an example copyright.
-  It contains several lines.
-  AS WELL AS ALL CAPS TEXT.
+    This is an example copyright.
+    It contains several lines.
+    AS WELL AS ALL CAPS TEXT.
   </copyright>
 
   <interface name="wl_foo" version="3">
+    <description summary="Interface for fooing">
+      This is the dedicated interface for doing foos over any
+      kind of other foos.
+    </description>
+
+    <request name="foo_it">
+      <description summary="foo numbers">
+        This request will foo a number and a string.
+      </description>
+      <arg name="number" type="int" summary="the number that will be fooed" />
+      <arg name="text" type="string" summary="tha text that will be fooed with the number" />
+    </request>
   </interface>
 
   <interface name="wl_bar" version="1">
+    <description summary="Interface for bars">
+      This interface allows you to bar your foos.
+    </description>
   </interface>
 </protocol>

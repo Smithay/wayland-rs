@@ -4,11 +4,15 @@
 
 /*
 This is an example copyright.
-  It contains several lines.
-  AS WELL AS ALL CAPS TEXT.
+    It contains several lines.
+    AS WELL AS ALL CAPS TEXT.
 */
 
 pub mod wl_foo {
+    //! Interface for fooing
+    //!
+    //! This is the dedicated interface for doing foos over any
+    //! kind of other foos.
     use super::Client;
     use super::EventLoopHandle;
     use super::Resource;
@@ -93,10 +97,33 @@ pub mod wl_foo {
             }
         }
     }
+
+    pub trait Handler {
+        /// foo numbers
+        ///
+        /// This request will foo a number and a string.
+        fn foo_it(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, number: i32, text: String) {}
+        #[doc(hidden)]
+        unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            match opcode {
+                0 => {
+                    let number = {*(args.offset(0) as *const i32)};
+                    let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(1) as *const *const _)).to_bytes()).into_owned()};
+                    self.foo_it(evq, client, proxy, number, text);
+                },
+                _ => return Err(())
+            }
+            Ok(())
+        }
+    }
+
     impl WlFoo {
     }
 }
 pub mod wl_bar {
+    //! Interface for bars
+    //!
+    //! This interface allows you to bar your foos.
     use super::Client;
     use super::EventLoopHandle;
     use super::Resource;

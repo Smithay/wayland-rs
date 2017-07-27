@@ -4,8 +4,8 @@
 
 /*
 This is an example copyright.
-  It contains several lines.
-  AS WELL AS ALL CAPS TEXT.
+    It contains several lines.
+    AS WELL AS ALL CAPS TEXT.
 */
 
 use std::os::raw::{c_char, c_void};
@@ -13,15 +13,21 @@ use wayland_sys::common::*;
 
 const NULLPTR: *const c_void = 0 as *const c_void;
 
-static mut types_null: [*const wl_interface; 0] = [
+static mut types_null: [*const wl_interface; 2] = [
+    NULLPTR as *const wl_interface,
+    NULLPTR as *const wl_interface,
 ];
 
 // wl_foo
+pub static mut wl_foo_requests: [wl_message; 1] = [
+    wl_message { name: b"foo_it\0" as *const u8 as *const c_char, signature: b"is\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+];
+
 pub static mut wl_foo_interface: wl_interface = wl_interface {
     name: b"wl_foo\0" as *const u8 as *const c_char,
     version: 3,
-    request_count: 0,
-    requests: NULLPTR as *const wl_message,
+    request_count: 1,
+    requests: unsafe { &wl_foo_requests as *const _ },
     event_count: 0,
     events: NULLPTR as *const wl_message,
 };
