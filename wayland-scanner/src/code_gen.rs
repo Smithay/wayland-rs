@@ -747,7 +747,11 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         for arg in &msg.args {
             match arg.typ {
                 Type::Fixed => {
-                    writeln!(out, "            let {0} = wl_fixed_from_double({0});", arg.name)?;
+                    writeln!(
+                        out,
+                        "            let {0} = wl_fixed_from_double({0});",
+                        arg.name
+                    )?;
                 }
                 Type::Array => {
                     if arg.allow_null {
@@ -800,7 +804,10 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                         iface
                     )?;
                 } else {
-                    writeln!(out, "            if version > <T as Proxy>::supported_version() {{")?;
+                    writeln!(
+                        out,
+                        "            if version > <T as Proxy>::supported_version() {{"
+                    )?;
                     writeln!(
                         out,
                         "                panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
@@ -898,7 +905,10 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         }
 
         if newid.is_some() && side == Side::Client {
-            writeln!(out, "            let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};")?;
+            writeln!(
+                out,
+                "            let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};"
+            )?;
             if destroyable {
                 writeln!(out, "            {}::Sent(proxy)", side.result_type())?;
             } else {
@@ -914,16 +924,23 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
     Ok(())
 }
 
-fn write_doc<O: Write>(short: Option<&str>, long: &str, internal: bool, out: &mut O, indent: usize) -> IOResult<()> {
+fn write_doc<O: Write>(short: Option<&str>, long: &str, internal: bool, out: &mut O, indent: usize)
+                       -> IOResult<()> {
     let p = if internal { '!' } else { '/' };
     if let Some(txt) = short {
-        for _ in 0..indent { write!(out, "    ")? }
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{} {}", p, txt)?;
-        for _ in 0..indent { write!(out, "    ")? }
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{}", p)?;
     }
     for l in long.lines() {
-        for _ in 0..indent { write!(out, "    ")? }
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{} {}", p, l.trim())?;
     }
     Ok(())
