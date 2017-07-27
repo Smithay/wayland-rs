@@ -19,6 +19,13 @@
       <arg name="number" type="int" summary="the number that will be fooed" />
       <arg name="text" type="string" summary="tha text that will be fooed with the number" />
     </request>
+
+    <request name="create_bar">
+      <description summary="create a bar">
+        Create a bar which will do its bar job.
+      </description>
+      <arg name="id" type="new_id" interface="wl_bar" summary="created bar" />
+    </request>
   </interface>
 
   <interface name="wl_bar" version="1">

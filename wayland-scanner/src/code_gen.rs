@@ -794,7 +794,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     // FIXME: figure if argument order is really correct in the general case
                     write!(
                         out,
-                        "        let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface",
+                        "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
                         iface
@@ -807,7 +807,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     )?;
                     writeln!(out, "}}")?;
                     try!(write!(out,
-                        "        let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
+                        "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
                     ));
@@ -898,14 +898,14 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         }
 
         if newid.is_some() && side == Side::Client {
-            writeln!(out, "let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};")?;
+            writeln!(out, "            let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};")?;
             if destroyable {
-                writeln!(out, "{}::Sent(proxy)", side.result_type())?;
+                writeln!(out, "            {}::Sent(proxy)", side.result_type())?;
             } else {
-                writeln!(out, "proxy")?;
+                writeln!(out, "            proxy")?;
             }
         } else if destroyable {
-            writeln!(out, "{}::Sent(())", side.result_type())?;
+            writeln!(out, "            {}::Sent(())", side.result_type())?;
         }
 
         writeln!(out, "        }}")?;

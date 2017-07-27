@@ -19,14 +19,19 @@ static mut types_null: [*const wl_interface; 2] = [
 ];
 
 // wl_foo
-pub static mut wl_foo_requests: [wl_message; 1] = [
+static mut wl_foo_requests_create_bar_types: [*const wl_interface; 1] = [
+    unsafe { &wl_bar_interface as *const wl_interface },
+];
+
+pub static mut wl_foo_requests: [wl_message; 2] = [
     wl_message { name: b"foo_it\0" as *const u8 as *const c_char, signature: b"is\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+    wl_message { name: b"create_bar\0" as *const u8 as *const c_char, signature: b"n\0" as *const u8 as *const c_char, types: unsafe { &wl_foo_requests_create_bar_types as *const _ } },
 ];
 
 pub static mut wl_foo_interface: wl_interface = wl_interface {
     name: b"wl_foo\0" as *const u8 as *const c_char,
     version: 3,
-    request_count: 1,
+    request_count: 2,
     requests: unsafe { &wl_foo_requests as *const _ },
     event_count: 0,
     events: NULLPTR as *const wl_message,

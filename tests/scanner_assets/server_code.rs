@@ -103,6 +103,10 @@ pub mod wl_foo {
         ///
         /// This request will foo a number and a string.
         fn foo_it(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, number: i32, text: String) {}
+        /// create a bar
+        ///
+        /// Create a bar which will do its bar job.
+        fn create_bar(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, id: super::wl_bar::WlBar) {}
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
             match opcode {
@@ -110,6 +114,10 @@ pub mod wl_foo {
                     let number = {*(args.offset(0) as *const i32)};
                     let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(1) as *const *const _)).to_bytes()).into_owned()};
                     self.foo_it(evq, client, proxy, number, text);
+                },
+                1 => {
+                    let id = {Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::wl_bar::WlBar as Resource>::interface_ptr(), proxy.version(), *(args.offset(0) as *const u32)))};
+                    self.create_bar(evq, client, proxy, id);
                 },
                 _ => return Err(())
             }

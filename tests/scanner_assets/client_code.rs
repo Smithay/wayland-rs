@@ -97,7 +97,7 @@ pub mod wl_foo {
     }
 
     const WL_FOO_FOO_IT: u32 = 0;
-
+    const WL_FOO_CREATE_BAR: u32 = 1;
     impl WlFoo {
         /// foo numbers
         ///
@@ -105,6 +105,15 @@ pub mod wl_foo {
         pub fn foo_it(&self, number: i32, text: String) ->() {
             let text = CString::new(text).unwrap_or_else(|_| panic!("Got a String with interior null in wl_foo.foo_it:text"));
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_FOO_FOO_IT, number, text.as_ptr()) };
+        }
+
+        /// create a bar
+        ///
+        /// Create a bar which will do its bar job.
+        pub fn create_bar(&self) ->super::wl_bar::WlBar {
+            let ptr = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), WL_FOO_CREATE_BAR, &wl_bar_interface, ptr::null_mut::<wl_proxy>()) };
+            let proxy = unsafe { Proxy::from_ptr_new(ptr) };
+            proxy
         }
     }
 }
