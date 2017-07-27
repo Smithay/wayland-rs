@@ -409,7 +409,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         if let Some(Type::Destructor) = msg.typ {
             writeln!(
                 out,
-                "///\n/// This is a destructor, you cannot send {} to this object once this method is called.",
+                "        ///\n        /// This is a destructor, you cannot send {} to this object once this method is called.",
                 match side {
                     Side::Server => "events",
                     Side::Client => "requests",
@@ -738,7 +738,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         if destroyable {
             writeln!(
                 out,
-                "if self.status() == Liveness::Dead {{ return {}::Destroyed }}",
+                "            if self.status() == Liveness::Dead {{ return {}::Destroyed }}",
                 side.result_type()
             )?;
         }
@@ -800,12 +800,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                         iface
                     )?;
                 } else {
-                    writeln!(out, "if version > <T as Proxy>::supported_version() {{")?;
+                    writeln!(out, "            if version > <T as Proxy>::supported_version() {{")?;
                     writeln!(
                         out,
-                        "    panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
+                        "                panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
                     )?;
-                    writeln!(out, "}}")?;
+                    writeln!(out, "            }}")?;
                     try!(write!(out,
                         "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
                         snake_to_screaming(iname),
@@ -823,7 +823,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         } else {
             write!(
                 out,
-                "unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), {}_{}",
+                "            unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), {}_{}",
                 snake_to_screaming(iname),
                 snake_to_screaming(&msg.name)
             )?;
@@ -888,10 +888,10 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             writeln!(
                 out,
                 r#"
-                if let Some(ref data) = self.data {{
-                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                }}
-                unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}"#,
+            if let Some(ref data) = self.data {{
+                data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+            }}
+            unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}"#,
                 side.handle(),
                 side.object_ptr_type()
             )?;

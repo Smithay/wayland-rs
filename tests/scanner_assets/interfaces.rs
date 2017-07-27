@@ -46,3 +46,45 @@ pub static mut wl_bar_interface: wl_interface = wl_interface {
     event_count: 0,
     events: NULLPTR as *const wl_message,
 };
+
+// wl_display
+pub static mut wl_display_interface: wl_interface = wl_interface {
+    name: b"wl_display\0" as *const u8 as *const c_char,
+    version: 1,
+    request_count: 0,
+    requests: NULLPTR as *const wl_message,
+    event_count: 0,
+    events: NULLPTR as *const wl_message,
+};
+
+// wl_registry
+
+pub static mut wl_registry_requests: [wl_message; 1] = [
+    wl_message { name: b"bind\0" as *const u8 as *const c_char, signature: b"usun\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+];
+
+pub static mut wl_registry_interface: wl_interface = wl_interface {
+    name: b"wl_registry\0" as *const u8 as *const c_char,
+    version: 1,
+    request_count: 1,
+    requests: unsafe { &wl_registry_requests as *const _ },
+    event_count: 0,
+    events: NULLPTR as *const wl_message,
+};
+
+// wl_callback
+
+pub static mut wl_callback_events: [wl_message; 1] = [
+    wl_message { name: b"done\0" as *const u8 as *const c_char, signature: b"u\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+];
+
+pub static mut wl_callback_interface: wl_interface = wl_interface {
+    name: b"wl_callback\0" as *const u8 as *const c_char,
+    version: 1,
+    request_count: 0,
+    requests: NULLPTR as *const wl_message,
+    event_count: 1,
+    events: unsafe { &wl_callback_events as *const _ },
+};
+
+
