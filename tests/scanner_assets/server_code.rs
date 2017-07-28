@@ -155,6 +155,8 @@ pub mod wl_foo {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
+        ///
+        /// This event is only available since version 3 of the interface
         pub fn cake(&self, kind: super::wl_foo::CakeKind, amount: u32) ->EventResult<()> {
             if self.status() == Liveness::Dead { return EventResult::Destroyed }
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), WL_FOO_CAKE, kind, amount) };

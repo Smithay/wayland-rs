@@ -124,6 +124,8 @@ pub mod wl_foo {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
+        ///
+        /// This request only exists since version 3 of the interface
         fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: super::wl_foo::CakeKind, amount: u32) {}
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {

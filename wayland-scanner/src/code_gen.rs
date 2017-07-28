@@ -416,6 +416,18 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 }
             )?;
         }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// This {} only exists since version {} of the interface",
+                match side {
+                    Side::Client => "request",
+                    Side::Server => "event"
+                },
+                msg.since
+            )?;
+        }
+
         write!(
             out,
             "        fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
@@ -633,6 +645,17 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     Side::Server => "events",
                     Side::Client => "requests",
                 }
+            )?;
+        }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// This {} is only available since version {} of the interface",
+                match side {
+                    Side::Client => "request",
+                    Side::Server => "event"
+                },
+                msg.since
             )?;
         }
 

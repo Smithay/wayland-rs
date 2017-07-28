@@ -27,7 +27,7 @@
       <arg name="id" type="new_id" interface="wl_bar" summary="created bar" />
     </request>
 
-    <enum name="cake_kind">
+    <enum name="cake_kind" since="3">
       <description summary="Possible cake kinds">
         List of the possible kind of cake supported by the protocol.
       </description>
@@ -36,7 +36,7 @@
       <entry name="fruity" value="2" summary="fruity cake to get vitamins" />
     </enum>
 
-    <event name="cake">
+    <event name="cake" since="3">
       <description summary="a cake is possible">
         The server advertizes that a kind of cake is available
       </description>
