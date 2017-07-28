@@ -36,6 +36,13 @@
       <entry name="fruity" value="2" summary="fruity cake to get vitamins" />
     </enum>
 
+    <enum name="delivery_kind" bitfield="true">
+      <description summary="possible delivery modes" />
+      <entry name="pick_up" value="1" summary="pick your cake up yourself" />
+      <entry name="drone" value="2" summary="flying drone delivery" />
+      <entry name="catapult" value="4" summary="because we fear nothing" />
+    </enum>
+
     <event name="cake" since="3">
       <description summary="a cake is possible">
         The server advertizes that a kind of cake is available

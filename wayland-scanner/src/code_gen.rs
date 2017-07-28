@@ -284,7 +284,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             if let Some((ref short, ref long)) = enu.description {
                 writeln!(
                     out,
-                    "bitflags! {{ #[doc = r#\"{}\n\n{}\"#] pub flags {}: u32 {{",
+                    "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub flags {}: u32 {{",
                     short,
                     long.lines().map(|s| s.trim()).collect::<Vec<_>>().join(
                         "\n",
@@ -294,7 +294,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             } else {
                 writeln!(
                     out,
-                    "bitflags! {{ pub flags {}: u32 {{",
+                    "    bitflags! {{ pub flags {}: u32 {{",
                     snake_to_camel(&enu.name)
                 )?;
             }
@@ -304,7 +304,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 }
                 writeln!(
                     out,
-                    "const {}{}{} = {},",
+                    "        const {}{}{} = {},",
                     if bitfields_conflicts {
                         snake_to_camel(&enu.name)
                     } else {
@@ -319,23 +319,23 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     entry.value
                 )?;
             }
-            writeln!(out, "}} }}")?;
+            writeln!(out, "    }} }}")?;
             writeln!(out, "    impl {} {{", snake_to_camel(&enu.name))?;
             writeln!(
                 out,
-                "pub fn from_raw(n: u32) -> Option<{}> {{",
+                "        pub fn from_raw(n: u32) -> Option<{}> {{",
                 snake_to_camel(&enu.name)
             )?;
             writeln!(
                 out,
-                "Some({}::from_bits_truncate(n))",
+                "            Some({}::from_bits_truncate(n))",
                 snake_to_camel(&enu.name)
             )?;
-            writeln!(out, "}}")?;
-            writeln!(out, "pub fn to_raw(&self) -> u32 {{")?;
-            writeln!(out, "self.bits()")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "        pub fn to_raw(&self) -> u32 {{")?;
+            writeln!(out, "            self.bits()")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "    }}")?;
         } else {
             // if enu.bitfield
             if let Some((ref short, ref long)) = enu.description {
@@ -422,7 +422,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 "        ///\n        /// This {} only exists since version {} of the interface",
                 match side {
                     Side::Client => "request",
-                    Side::Server => "event"
+                    Side::Server => "event",
                 },
                 msg.since
             )?;
@@ -653,7 +653,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                 "        ///\n        /// This {} is only available since version {} of the interface",
                 match side {
                     Side::Client => "request",
-                    Side::Server => "event"
+                    Side::Server => "event",
                 },
                 msg.since
             )?;

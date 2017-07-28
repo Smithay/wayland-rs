@@ -122,6 +122,23 @@ pub mod wl_foo {
         }
     }
 
+    bitflags! { #[doc = r#"possible delivery modes
+
+"#]
+    pub flags DeliveryKind: u32 {
+        const PickUp = 1,
+        const Drone = 2,
+        const Catapult = 4,
+    } }
+    impl DeliveryKind {
+        pub fn from_raw(n: u32) -> Option<DeliveryKind> {
+            Some(DeliveryKind::from_bits_truncate(n))
+        }
+        pub fn to_raw(&self) -> u32 {
+            self.bits()
+        }
+    }
+
     pub trait Handler {
         /// foo numbers
         ///
