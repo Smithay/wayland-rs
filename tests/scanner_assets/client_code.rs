@@ -96,6 +96,26 @@ pub mod wl_foo {
         }
     }
 
+    pub trait Handler {
+        /// a cake is possible
+        ///
+        /// The server advertizes that a kind of cake is available
+        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: String, amount: u32) {}
+        #[doc(hidden)]
+        unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            match opcode {
+                0 => {
+                    let kind = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(0) as *const *const _)).to_bytes()).into_owned()};
+                    let amount = {*(args.offset(1) as *const u32)};
+                    self.cake(evq,  proxy, kind, amount);
+                },
+                _ => return Err(())
+            }
+            Ok(())
+        }
+    }
+
+
     const WL_FOO_FOO_IT: u32 = 0;
     const WL_FOO_CREATE_BAR: u32 = 1;
     impl WlFoo {

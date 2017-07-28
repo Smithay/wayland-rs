@@ -125,7 +125,19 @@ pub mod wl_foo {
         }
     }
 
+    const WL_FOO_CAKE: u32 = 0;
+
     impl WlFoo {
+        /// a cake is possible
+        ///
+        /// The server advertizes that a kind of cake is available
+        pub fn cake(&self, kind: String, amount: u32) ->EventResult<()> {
+            if self.status() == Liveness::Dead { return EventResult::Destroyed }
+            let kind = CString::new(kind).unwrap_or_else(|_| panic!("Got a String with interior null in wl_foo.cake:kind"));
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), WL_FOO_CAKE, kind.as_ptr(), amount) };
+            EventResult::Sent(())
+        }
+
     }
 }
 pub mod wl_bar {
