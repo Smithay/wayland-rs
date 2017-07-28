@@ -217,6 +217,32 @@ pub mod wl_bar {
             }
         }
     }
+
+    pub trait Handler {
+        /// release this bar
+        ///
+        /// Notify the compositor that you have finished using this bar.
+        ///
+        /// This is a destructor, you cannot send events to this object once this method is called.
+        fn release(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlBar) {}
+        #[doc(hidden)]
+        unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlBar, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            match opcode {
+                0 => {
+
+                if let Some(ref data) = proxy.data {
+                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                }
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, proxy.ptr());
+                    self.release(evq, client, proxy);
+                },
+                _ => return Err(())
+            }
+            Ok(())
+        }
+
+    }
+
     impl WlBar {
     }
 }

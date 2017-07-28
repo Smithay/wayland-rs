@@ -32,6 +32,12 @@
     <description summary="Interface for bars">
       This interface allows you to bar your foos.
     </description>
+
+    <request name="release" type="destructor">
+      <description summary="release this bar">
+        Notify the compositor that you have finished using this bar.
+      </description>
+    </request>
   </interface>
 
   <!-- mimicking a few interfaces from the wayland protocol to trigger edge cases -->

@@ -38,11 +38,15 @@ pub static mut wl_foo_interface: wl_interface = wl_interface {
 };
 
 // wl_bar
+pub static mut wl_bar_requests: [wl_message; 1] = [
+    wl_message { name: b"release\0" as *const u8 as *const c_char, signature: b"\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+];
+
 pub static mut wl_bar_interface: wl_interface = wl_interface {
     name: b"wl_bar\0" as *const u8 as *const c_char,
     version: 1,
-    request_count: 0,
-    requests: NULLPTR as *const wl_message,
+    request_count: 1,
+    requests: unsafe { &wl_bar_requests as *const _ },
     event_count: 0,
     events: NULLPTR as *const wl_message,
 };

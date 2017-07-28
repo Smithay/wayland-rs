@@ -204,7 +204,24 @@ pub mod wl_bar {
             }
         }
     }
+
+    const WL_BAR_RELEASE: u32 = 0;
+
     impl WlBar {
+        /// release this bar
+        ///
+        /// Notify the compositor that you have finished using this bar.
+        ///
+        /// This is a destructor, you cannot send requests to this object once this method is called.
+        pub fn release(&self) ->RequestResult<()> {
+            if self.status() == Liveness::Dead { return RequestResult::Destroyed }
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_BAR_RELEASE) };
+            if let Some(ref data) = self.data {
+                data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+            }
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()); }
+            RequestResult::Sent(())
+        }
     }
 }
 
