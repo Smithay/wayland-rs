@@ -29,7 +29,7 @@ pub static mut wl_foo_requests: [wl_message; 2] = [
 ];
 
 pub static mut wl_foo_events: [wl_message; 1] = [
-    wl_message { name: b"cake\0" as *const u8 as *const c_char, signature: b"su\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
+    wl_message { name: b"cake\0" as *const u8 as *const c_char, signature: b"uu\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
 ];
 
 pub static mut wl_foo_interface: wl_interface = wl_interface {

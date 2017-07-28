@@ -98,6 +98,30 @@ pub mod wl_foo {
         }
     }
 
+    /// Possible cake kinds
+    ///
+    /// List of the possible kind of cake supported by the protocol.
+    #[repr(u32)]
+    #[derive(Copy,Clone,Debug,PartialEq)]
+    pub enum CakeKind {
+        Basic = 0,
+        Spicy = 1,
+        Fruity = 2,
+    }
+    impl CakeKind {
+        pub fn from_raw(n: u32) -> Option<CakeKind> {
+            match n {
+                0 => Some(CakeKind::Basic),
+                1 => Some(CakeKind::Spicy),
+                2 => Some(CakeKind::Fruity),
+                _ => Option::None
+            }
+        }
+        pub fn to_raw(&self) -> u32 {
+            *self as u32
+        }
+    }
+
     pub trait Handler {
         /// foo numbers
         ///
@@ -131,10 +155,9 @@ pub mod wl_foo {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
-        pub fn cake(&self, kind: String, amount: u32) ->EventResult<()> {
+        pub fn cake(&self, kind: super::wl_foo::CakeKind, amount: u32) ->EventResult<()> {
             if self.status() == Liveness::Dead { return EventResult::Destroyed }
-            let kind = CString::new(kind).unwrap_or_else(|_| panic!("Got a String with interior null in wl_foo.cake:kind"));
-            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), WL_FOO_CAKE, kind.as_ptr(), amount) };
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), WL_FOO_CAKE, kind, amount) };
             EventResult::Sent(())
         }
 

@@ -27,11 +27,20 @@
       <arg name="id" type="new_id" interface="wl_bar" summary="created bar" />
     </request>
 
+    <enum name="cake_kind">
+      <description summary="Possible cake kinds">
+        List of the possible kind of cake supported by the protocol.
+      </description>
+      <entry name="basic" value="0" summary="mild cake without much flavor" />
+      <entry name="spicy" value="1" summary="spicy cake to brun your tongue" />
+      <entry name="fruity" value="2" summary="fruity cake to get vitamins" />
+    </enum>
+
     <event name="cake">
       <description summary="a cake is possible">
         The server advertizes that a kind of cake is available
       </description>
-      <arg name="kind" type="string" summary="name of this kind of cake" />
+      <arg name="kind" type="uint" enum="wl_foo.cake_kind" summary="name of this kind of cake" />
       <arg name="amount" type="uint" summary="amount available" />
     </event>
   </interface>

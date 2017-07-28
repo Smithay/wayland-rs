@@ -339,20 +339,20 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
         } else {
             // if enu.bitfield
             if let Some((ref short, ref long)) = enu.description {
-                write_doc(Some(short), long, false, out, 2)?;
+                write_doc(Some(short), long, false, out, 1)?;
             }
             writeln!(
                 out,
-                "#[repr(u32)]\n#[derive(Copy,Clone,Debug,PartialEq)]\npub enum {} {{",
+                "    #[repr(u32)]\n    #[derive(Copy,Clone,Debug,PartialEq)]\n    pub enum {} {{",
                 snake_to_camel(&enu.name)
             )?;
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
-                    write_doc(Some(short), long, false, out, 3)?;
+                    write_doc(Some(short), long, false, out, 2)?;
                 }
                 writeln!(
                     out,
-                    "{}{} = {},",
+                    "        {}{} = {},",
                     if entry.name.chars().next().unwrap().is_numeric() {
                         "_"
                     } else {
@@ -362,19 +362,19 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     entry.value
                 )?;
             }
-            writeln!(out, "}}")?;
+            writeln!(out, "    }}")?;
 
             writeln!(out, "    impl {} {{", snake_to_camel(&enu.name))?;
             writeln!(
                 out,
-                "pub fn from_raw(n: u32) -> Option<{}> {{",
+                "        pub fn from_raw(n: u32) -> Option<{}> {{",
                 snake_to_camel(&enu.name)
             )?;
-            writeln!(out, "match n {{")?;
+            writeln!(out, "            match n {{")?;
             for entry in &enu.entries {
                 writeln!(
                     out,
-                    "{} => Some({}::{}{}),",
+                    "                {} => Some({}::{}{}),",
                     entry.value,
                     snake_to_camel(&enu.name),
                     if entry.name.chars().next().unwrap().is_numeric() {
@@ -385,13 +385,13 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     snake_to_camel(&entry.name)
                 )?;
             }
-            writeln!(out, "_ => Option::None")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "pub fn to_raw(&self) -> u32 {{")?;
-            writeln!(out, "*self as u32")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
+            writeln!(out, "                _ => Option::None")?;
+            writeln!(out, "            }}")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "        pub fn to_raw(&self) -> u32 {{")?;
+            writeln!(out, "            *self as u32")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "    }}")?;
         }
     }
     Ok(())

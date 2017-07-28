@@ -96,16 +96,40 @@ pub mod wl_foo {
         }
     }
 
+    /// Possible cake kinds
+    ///
+    /// List of the possible kind of cake supported by the protocol.
+    #[repr(u32)]
+    #[derive(Copy,Clone,Debug,PartialEq)]
+    pub enum CakeKind {
+        Basic = 0,
+        Spicy = 1,
+        Fruity = 2,
+    }
+    impl CakeKind {
+        pub fn from_raw(n: u32) -> Option<CakeKind> {
+            match n {
+                0 => Some(CakeKind::Basic),
+                1 => Some(CakeKind::Spicy),
+                2 => Some(CakeKind::Fruity),
+                _ => Option::None
+            }
+        }
+        pub fn to_raw(&self) -> u32 {
+            *self as u32
+        }
+    }
+
     pub trait Handler {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
-        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: String, amount: u32) {}
+        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: super::wl_foo::CakeKind, amount: u32) {}
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
             match opcode {
                 0 => {
-                    let kind = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(0) as *const *const _)).to_bytes()).into_owned()};
+                    let kind = {match super::wl_foo::CakeKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
                     let amount = {*(args.offset(1) as *const u32)};
                     self.cake(evq,  proxy, kind, amount);
                 },
