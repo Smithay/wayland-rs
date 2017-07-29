@@ -104,6 +104,7 @@
 extern crate xml;
 
 use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 use std::path::Path;
 
 mod util;
@@ -159,4 +160,31 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
         .open(target)
         .unwrap();
     code_gen::write_protocol(protocol, &mut out, side).unwrap()
+}
+
+/// Generate the interfaces for a protocol from/to IO streams
+///
+/// Like `generate_interfaces`, but takes IO Streams directly rather than filenames
+///
+/// Args:
+///
+/// - `protocol`: an object `Read`-able containing the XML protocol file
+/// - `target`: a `Write`-able object to which the generated code will be outputed to
+pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
+    let protocol = parse::parse_stream(protocol);
+    interface_gen::generate_interfaces(protocol, target);
+}
+
+/// Generate the code for a protocol from/to IO streams
+///
+/// Like `generate_code`, but takes IO Streams directly rather than filenames
+///
+/// Args:
+///
+/// - `protocol`: an object `Read`-able containing the XML protocol file
+/// - `target`: a `Write`-able object to which the generated code will be outputed to
+/// - `side`: the side (client or server) to generate code for.
+pub fn generate_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
+    let protocol = parse::parse_stream(protocol);
+    code_gen::write_protocol(protocol, target, side).unwrap()
 }

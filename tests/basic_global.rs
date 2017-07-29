@@ -81,9 +81,7 @@ fn multi_versions() {
 
     // message passing
     //
-    client.display.flush().unwrap();
-    server.answer();
-    client.event_queue.dispatch().unwrap();
+    roundtrip(&mut client, &mut server);
 
     // result assertions
     //

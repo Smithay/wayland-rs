@@ -7,6 +7,15 @@ use std::io::Write;
 use util::*;
 
 pub fn write_protocol<O: Write>(protocol: Protocol, out: &mut O, side: Side) -> IOResult<()> {
+    writeln!(
+        out,
+        "//\n// This file was auto-generated, do not edit directly\n//\n"
+    ).unwrap();
+
+    if let Some(text) = protocol.copyright {
+        writeln!(out, "/*\n{}\n*/\n", text).unwrap();
+    }
+
     for iface in &protocol.interfaces {
         if (iface.name == "wl_display" || iface.name == "wl_registry") && side == Side::Server {
             continue;
@@ -20,39 +29,41 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     writeln!(out, "pub mod {} {{", interface.name)?;
 
     if let Some((ref short, ref long)) = interface.description {
-        write_doc(Some(short), long, true, out)?;
+        write_doc(Some(short), long, true, out, 1)?;
     }
 
-    writeln!(out, "use super::{};", side.handle_type())?;
     if side == Side::Server {
-        writeln!(out, "use super::Client;")?;
+        writeln!(out, "    use super::Client;")?;
     }
-    writeln!(out, "use super::{};", side.object_trait())?;
-    writeln!(out, "use super::{};", side.result_type())?;
-    writeln!(out, "use super::interfaces::*;")?;
-    writeln!(out, "use super::Liveness;")?;
-    writeln!(out, "use wayland_sys::common::*;")?;
-    writeln!(out, "use std::ffi::{{CString,CStr}};")?;
-    writeln!(out, "use std::ptr;")?;
-    writeln!(out, "use std::any::Any;")?;
-    writeln!(out, "use std::sync::Arc;")?;
+    writeln!(out, "    use super::{};", side.handle_type())?;
+    writeln!(out, "    use super::{};", side.object_trait())?;
+    writeln!(out, "    use super::{};", side.result_type())?;
     writeln!(
         out,
-        "use std::sync::atomic::{{AtomicBool, AtomicPtr, Ordering}};"
+        r#"
+    use super::Liveness;
+    use super::interfaces::*;
+    use wayland_sys::common::*;
+    use std::any::Any;
+    use std::ffi::{{CString,CStr}};
+    use std::os::raw::c_void;
+    use std::ptr;
+    use std::sync::Arc;
+    use std::sync::atomic::{{AtomicBool, AtomicPtr, Ordering}};
+    use wayland_sys::RUST_MANAGED;"#
     )?;
-    writeln!(out, "use std::os::raw::c_void;")?;
     match side {
-        Side::Client => writeln!(out, "use wayland_sys::client::*;")?,
-        Side::Server => writeln!(out, "use wayland_sys::server::*;")?,
+        Side::Client => writeln!(out, "    use wayland_sys::client::*;")?,
+        Side::Server => writeln!(out, "    use wayland_sys::server::*;")?,
     };
-    writeln!(out, "use wayland_sys::RUST_MANAGED;")?;
 
     writeln!(
         out,
-        r#"pub struct {} {{
-            ptr: *mut {},
-            data: Option<Arc<(AtomicBool, AtomicPtr<()>)>>
-        }}"#,
+        r#"
+    pub struct {} {{
+        ptr: *mut {},
+        data: Option<Arc<(AtomicBool, AtomicPtr<()>)>>
+    }}"#,
         snake_to_camel(&interface.name),
         side.object_ptr_type()
     )?;
@@ -62,26 +73,26 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         out,
         r#"
     unsafe impl Send for {0} {{}}
-    unsafe impl Sync for {0} {{}}
-    "#,
+    unsafe impl Sync for {0} {{}}"#,
         snake_to_camel(&interface.name)
     )?;
 
     // Generate object trait impl
     writeln!(
         out,
-        "impl {} for {} {{",
+        "    impl {} for {} {{",
         side.object_trait(),
         snake_to_camel(&interface.name)
     )?;
     writeln!(
         out,
-        "fn ptr(&self) -> *mut {} {{ self.ptr }}",
+        "        fn ptr(&self) -> *mut {} {{ self.ptr }}",
         side.object_ptr_type()
     )?;
     writeln!(
         out,
-        r#"unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
+        r#"
+        unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
                 ptr::null_mut::<c_void>(),
@@ -96,7 +107,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     )?;
     writeln!(
         out,
-        "unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{",
+        "        unsafe fn from_ptr_initialized(ptr: *mut {0}) -> {1} {{",
         side.object_ptr_type(),
         snake_to_camel(&interface.name)
     )?;
@@ -105,8 +116,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
             out,
             r#"
             let implem = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr);
-            let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
-        "#
+            let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;"#
         )?;
     } else {
         writeln!(
@@ -114,8 +124,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
             r#"
             let rust_managed = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_instance_of,
                 ptr, Self::interface_ptr(), &RUST_MANAGED as *const _ as *const _
-            ) != 0;
-        "#
+            ) != 0;"#
         )?;
     }
     try!(writeln!(out, r#"
@@ -132,30 +141,27 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     ));
     writeln!(
         out,
-        "fn interface_ptr() -> *const wl_interface {{ unsafe {{ &{}_interface }} }}",
+        r#"
+        fn interface_ptr() -> *const wl_interface {{ unsafe {{ &{0}_interface }} }}
+        fn interface_name() -> &'static str {{ "{0}"  }}"#,
         interface.name
     )?;
     writeln!(
         out,
-        "fn interface_name() -> &'static str {{ \"{}\"  }}",
-        interface.name
-    )?;
-    writeln!(
-        out,
-        "fn supported_version() -> u32 {{ {} }}",
+        "        fn supported_version() -> u32 {{ {} }}",
         interface.version
     )?;
     match side {
         Side::Client => {
             writeln!(
                 out,
-                "fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}"
+                "        fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}"
             )?
         }
         Side::Server => {
             writeln!(
                 out,
-                "fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"
+                "        fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"
             )?
         }
     };
@@ -177,7 +183,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
 
     writeln!(
         out,
-        r#"fn equals(&self, other: &{}) -> bool {{
+        r#"
+        fn equals(&self, other: &{}) -> bool {{
             self.status() != Liveness::Dead && other.status() != Liveness::Dead && self.ptr == other.ptr
         }}"#,
         snake_to_camel(&interface.name)
@@ -200,7 +207,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         }}"#
     )?;
 
-    writeln!(out, "}}")?;
+    writeln!(out, "    }}")?;
 
     write_enums(&interface.enums, out)?;
 
@@ -246,7 +253,7 @@ fn write_opcodes<O: Write>(messages: &[Message], out: &mut O, iname: &str) -> IO
     for (i, msg) in messages.iter().enumerate() {
         writeln!(
             out,
-            "const {}_{}: u32 = {};",
+            "    const {}_{}: u32 = {};",
             snake_to_screaming(&iname),
             snake_to_screaming(&msg.name),
             i
@@ -277,7 +284,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             if let Some((ref short, ref long)) = enu.description {
                 writeln!(
                     out,
-                    "bitflags! {{ #[doc = r#\"{}\n\n{}\"#] pub flags {}: u32 {{",
+                    "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub flags {}: u32 {{",
                     short,
                     long.lines().map(|s| s.trim()).collect::<Vec<_>>().join(
                         "\n",
@@ -287,17 +294,17 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             } else {
                 writeln!(
                     out,
-                    "bitflags! {{ pub flags {}: u32 {{",
+                    "    bitflags! {{ pub flags {}: u32 {{",
                     snake_to_camel(&enu.name)
                 )?;
             }
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
-                    write_doc(Some(short), long, false, out)?;
+                    write_doc(Some(short), long, false, out, 3)?;
                 }
                 writeln!(
                     out,
-                    "const {}{}{} = {},",
+                    "        const {}{}{} = {},",
                     if bitfields_conflicts {
                         snake_to_camel(&enu.name)
                     } else {
@@ -312,40 +319,40 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     entry.value
                 )?;
             }
-            writeln!(out, "}} }}")?;
-            writeln!(out, "impl {} {{", snake_to_camel(&enu.name))?;
+            writeln!(out, "    }} }}")?;
+            writeln!(out, "    impl {} {{", snake_to_camel(&enu.name))?;
             writeln!(
                 out,
-                "pub fn from_raw(n: u32) -> Option<{}> {{",
+                "        pub fn from_raw(n: u32) -> Option<{}> {{",
                 snake_to_camel(&enu.name)
             )?;
             writeln!(
                 out,
-                "Some({}::from_bits_truncate(n))",
+                "            Some({}::from_bits_truncate(n))",
                 snake_to_camel(&enu.name)
             )?;
-            writeln!(out, "}}")?;
-            writeln!(out, "pub fn to_raw(&self) -> u32 {{")?;
-            writeln!(out, "self.bits()")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "        pub fn to_raw(&self) -> u32 {{")?;
+            writeln!(out, "            self.bits()")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "    }}")?;
         } else {
             // if enu.bitfield
             if let Some((ref short, ref long)) = enu.description {
-                write_doc(Some(short), long, false, out)?;
+                write_doc(Some(short), long, false, out, 1)?;
             }
             writeln!(
                 out,
-                "#[repr(u32)]\n#[derive(Copy,Clone,Debug,PartialEq)]\npub enum {} {{",
+                "    #[repr(u32)]\n    #[derive(Copy,Clone,Debug,PartialEq)]\n    pub enum {} {{",
                 snake_to_camel(&enu.name)
             )?;
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
-                    write_doc(Some(short), long, false, out)?;
+                    write_doc(Some(short), long, false, out, 2)?;
                 }
                 writeln!(
                     out,
-                    "{}{} = {},",
+                    "        {}{} = {},",
                     if entry.name.chars().next().unwrap().is_numeric() {
                         "_"
                     } else {
@@ -355,19 +362,19 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     entry.value
                 )?;
             }
-            writeln!(out, "}}")?;
+            writeln!(out, "    }}")?;
 
-            writeln!(out, "impl {} {{", snake_to_camel(&enu.name))?;
+            writeln!(out, "    impl {} {{", snake_to_camel(&enu.name))?;
             writeln!(
                 out,
-                "pub fn from_raw(n: u32) -> Option<{}> {{",
+                "        pub fn from_raw(n: u32) -> Option<{}> {{",
                 snake_to_camel(&enu.name)
             )?;
-            writeln!(out, "match n {{")?;
+            writeln!(out, "            match n {{")?;
             for entry in &enu.entries {
                 writeln!(
                     out,
-                    "{} => Some({}::{}{}),",
+                    "                {} => Some({}::{}{}),",
                     entry.value,
                     snake_to_camel(&enu.name),
                     if entry.name.chars().next().unwrap().is_numeric() {
@@ -378,13 +385,13 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     snake_to_camel(&entry.name)
                 )?;
             }
-            writeln!(out, "_ => Option::None")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "pub fn to_raw(&self) -> u32 {{")?;
-            writeln!(out, "*self as u32")?;
-            writeln!(out, "}}")?;
-            writeln!(out, "}}")?;
+            writeln!(out, "                _ => Option::None")?;
+            writeln!(out, "            }}")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "        pub fn to_raw(&self) -> u32 {{")?;
+            writeln!(out, "            *self as u32")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "    }}")?;
         }
     }
     Ok(())
@@ -394,24 +401,36 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     if messages.len() == 0 {
         return Ok(());
     }
-    writeln!(out, "pub trait Handler {{")?;
+    writeln!(out, "    pub trait Handler {{")?;
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
-            write_doc(Some(short), long, false, out)?;
+            write_doc(Some(short), long, false, out, 2)?;
         }
         if let Some(Type::Destructor) = msg.typ {
             writeln!(
                 out,
-                "///\n/// This is a destructor, you cannot send {} to this object once this method is called.",
+                "        ///\n        /// This is a destructor, you cannot send {} to this object once this method is called.",
                 match side {
                     Side::Server => "events",
                     Side::Client => "requests",
                 }
             )?;
         }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// This {} only exists since version {} of the interface",
+                match side {
+                    Side::Client => "request",
+                    Side::Server => "event",
+                },
+                msg.since
+            )?;
+        }
+
         write!(
             out,
-            "fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
+            "        fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
             side.handle_type(),
@@ -459,10 +478,10 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         writeln!(out, ") {{}}")?;
     }
     // hidden method for internal machinery
-    writeln!(out, "#[doc(hidden)]")?;
+    writeln!(out, "        #[doc(hidden)]")?;
     writeln!(
         out,
-        "unsafe fn __message(&mut self, evq: &mut {}, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+        "        unsafe fn __message(&mut self, evq: &mut {}, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
         side.handle_type(),
         if side == Side::Server {
             "client: &Client,"
@@ -471,11 +490,11 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         },
         snake_to_camel(iname)
     )?;
-    writeln!(out, "match opcode {{")?;
+    writeln!(out, "            match opcode {{")?;
     for (op, msg) in messages.iter().enumerate() {
-        writeln!(out, "{} => {{", op)?;
+        writeln!(out, "                {} => {{", op)?;
         for (i, arg) in msg.args.iter().enumerate() {
-            write!(out, "let {} = {{", arg.name)?;
+            write!(out, "                    let {} = {{", arg.name)?;
             if arg.allow_null {
                 match arg.typ {
                     Type::Uint | Type::Int | Type::Fixed | Type::NewId => {
@@ -571,8 +590,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 if let Some(ref data) = proxy.data {{
                     data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
                 }}
-                ffi_dispatch!({0}, {1}_destroy, proxy.ptr());
-                "#,
+                ffi_dispatch!({0}, {1}_destroy, proxy.ptr());"#,
                 side.handle(),
                 side.object_ptr_type()
             )?;
@@ -580,7 +598,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
 
         write!(
             out,
-            "self.{}{}(evq, {} proxy",
+            "                    self.{}{}(evq, {} proxy",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
             if side == Side::Server { "client," } else { "" }
@@ -598,13 +616,13 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
             };
         }
         writeln!(out, ");")?;
-        writeln!(out, "}},")?;
+        writeln!(out, "                }},")?;
     }
-    writeln!(out, "_ => return Err(())")?;
-    writeln!(out, "}}")?;
-    writeln!(out, "Ok(())")?;
-    writeln!(out, "}}")?;
-    writeln!(out, "}}")?;
+    writeln!(out, "                _ => return Err(())")?;
+    writeln!(out, "            }}")?;
+    writeln!(out, "            Ok(())")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
     Ok(())
 }
 
@@ -613,20 +631,31 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
     // server-side objects can always be destroyed: if the client disconnects.
     let destroyable = destroyable || side == Side::Server;
 
-    writeln!(out, "impl {} {{", snake_to_camel(iname))?;
+    writeln!(out, "    impl {} {{", snake_to_camel(iname))?;
 
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
-            write_doc(Some(short), long, false, out)?;
+            write_doc(Some(short), long, false, out, 2)?;
         }
         if let Some(Type::Destructor) = msg.typ {
             writeln!(
                 out,
-                "///\n/// This is a destructor, you cannot send {} to this object once this method is called.",
+                "        ///\n        /// This is a destructor, you cannot send {} to this object once this method is called.",
                 match side {
                     Side::Server => "events",
                     Side::Client => "requests",
                 }
+            )?;
+        }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// This {} is only available since version {} of the interface",
+                match side {
+                    Side::Client => "request",
+                    Side::Server => "event",
+                },
+                msg.since
             )?;
         }
 
@@ -654,7 +683,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             Some(arg) if arg.interface.is_none() && side == Side::Client => {
                 write!(
                     out,
-                    "pub fn {}{}<T: {}>(&self, version: u32",
+                    "        pub fn {}{}<T: {}>(&self, version: u32",
                     if is_keyword(&msg.name) { "_" } else { "" },
                     msg.name,
                     side.object_trait()
@@ -663,7 +692,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             _ => {
                 write!(
                     out,
-                    "pub fn {}{}(&self",
+                    "        pub fn {}{}(&self",
                     if is_keyword(&msg.name) { "_" } else { "" },
                     msg.name
                 )?;
@@ -732,7 +761,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         if destroyable {
             writeln!(
                 out,
-                "if self.status() == Liveness::Dead {{ return {}::Destroyed }}",
+                "            if self.status() == Liveness::Dead {{ return {}::Destroyed }}",
                 side.result_type()
             )?;
         }
@@ -741,21 +770,23 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         for arg in &msg.args {
             match arg.typ {
                 Type::Fixed => {
-                    writeln!(out, "let {0} = wl_fixed_from_double({0});", arg.name)?;
+                    writeln!(
+                        out,
+                        "            let {0} = wl_fixed_from_double({0});",
+                        arg.name
+                    )?;
                 }
                 Type::Array => {
                     if arg.allow_null {
                         writeln!(
                             out,
-                            "let {0} = {0}.as_ref().map(|v|
-    wl_array {{ size: v.len(), alloc: v.capacity(), data: v.as_ptr() as *mut _ }}
-);",
+                            "            let {0} = {0}.as_ref().map(|v| wl_array {{ size: v.len(), alloc: v.capacity(), data: v.as_ptr() as *mut _ }});",
                             arg.name
                         )?;
                     } else {
                         writeln!(
                             out,
-                            "let {0} = wl_array {{ size: {0}.len(), alloc: {0}.capacity(), data: {0}.as_ptr() as *mut _ }};",
+                            "            let {0} = wl_array {{ size: {0}.len(), alloc: {0}.capacity(), data: {0}.as_ptr() as *mut _ }};",
                             arg.name
                         )?;
                     }
@@ -764,7 +795,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     if arg.allow_null {
                         writeln!(
                             out,
-                            "let {0} = {0}.map(|s| CString::new(s).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\")));",
+                            "            let {0} = {0}.map(|s| CString::new(s).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\")));",
                             arg.name,
                             iname,
                             msg.name
@@ -772,7 +803,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     } else {
                         writeln!(
                             out,
-                            "let {0} = CString::new({0}).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\"));",
+                            "            let {0} = CString::new({0}).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\"));",
                             arg.name,
                             iname,
                             msg.name
@@ -790,20 +821,23 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     // FIXME: figure if argument order is really correct in the general case
                     write!(
                         out,
-                        "let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface",
+                        "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor, self.ptr(), {}_{}, &{}_interface",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
                         iface
                     )?;
                 } else {
-                    writeln!(out, "if version > <T as Proxy>::supported_version() {{")?;
                     writeln!(
                         out,
-                        "    panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
+                        "            if version > <T as Proxy>::supported_version() {{"
                     )?;
-                    writeln!(out, "}}")?;
+                    writeln!(
+                        out,
+                        "                panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
+                    )?;
+                    writeln!(out, "            }}")?;
                     try!(write!(out,
-                        "let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
+                        "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
                     ));
@@ -811,7 +845,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             } else {
                 write!(
                     out,
-                    "unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), {}_{}",
+                    "            unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), {}_{}",
                     snake_to_screaming(iname),
                     snake_to_screaming(&msg.name)
                 )?;
@@ -819,7 +853,7 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         } else {
             write!(
                 out,
-                "unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), {}_{}",
+                "            unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), {}_{}",
                 snake_to_screaming(iname),
                 snake_to_screaming(&msg.name)
             )?;
@@ -884,40 +918,52 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             writeln!(
                 out,
                 r#"
-                if let Some(ref data) = self.data {{
-                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                }}
-                unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}
-                "#,
+            if let Some(ref data) = self.data {{
+                data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+            }}
+            unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}"#,
                 side.handle(),
                 side.object_ptr_type()
             )?;
         }
 
         if newid.is_some() && side == Side::Client {
-            writeln!(out, "let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};")?;
+            writeln!(
+                out,
+                "            let proxy = unsafe {{ Proxy::from_ptr_new(ptr) }};"
+            )?;
             if destroyable {
-                writeln!(out, "{}::Sent(proxy)", side.result_type())?;
+                writeln!(out, "            {}::Sent(proxy)", side.result_type())?;
             } else {
-                writeln!(out, "proxy")?;
+                writeln!(out, "            proxy")?;
             }
         } else if destroyable {
-            writeln!(out, "{}::Sent(())", side.result_type())?;
+            writeln!(out, "            {}::Sent(())", side.result_type())?;
         }
 
-        writeln!(out, "}}")?;
+        writeln!(out, "        }}")?;
     }
-    writeln!(out, "}}")?;
+    writeln!(out, "    }}")?;
     Ok(())
 }
 
-fn write_doc<O: Write>(short: Option<&str>, long: &str, internal: bool, out: &mut O) -> IOResult<()> {
+fn write_doc<O: Write>(short: Option<&str>, long: &str, internal: bool, out: &mut O, indent: usize)
+                       -> IOResult<()> {
     let p = if internal { '!' } else { '/' };
     if let Some(txt) = short {
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{} {}", p, txt)?;
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{}", p)?;
     }
     for l in long.lines() {
+        for _ in 0..indent {
+            write!(out, "    ")?
+        }
         writeln!(out, "//{} {}", p, l.trim())?;
     }
     Ok(())
