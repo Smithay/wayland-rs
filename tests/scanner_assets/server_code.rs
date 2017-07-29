@@ -140,21 +140,26 @@ pub mod wl_foo {
     }
 
     pub trait Handler {
-        /// foo numbers
+        /// do some foo
         ///
-        /// This request will foo a number and a string.
-        fn foo_it(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, number: i32, text: String) {}
+        /// This will do some foo with its args.
+        fn foo_it(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) {}
+
         /// create a bar
         ///
         /// Create a bar which will do its bar job.
         fn create_bar(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, id: super::wl_bar::WlBar) {}
+
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
             match opcode {
                 0 => {
                     let number = {*(args.offset(0) as *const i32)};
-                    let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(1) as *const *const _)).to_bytes()).into_owned()};
-                    self.foo_it(evq, client, proxy, number, text);
+                    let unumber = {*(args.offset(1) as *const u32)};
+                    let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(2) as *const *const _)).to_bytes()).into_owned()};
+                    let float = {wl_fixed_to_double(*(args.offset(3) as *const i32))};
+                    let file = {*(args.offset(4) as *const i32)};
+                    self.foo_it(evq, client, proxy, number, unumber, text, float, file);
                 },
                 1 => {
                     let id = {Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::wl_bar::WlBar as Resource>::interface_ptr(), proxy.version(), *(args.offset(0) as *const u32)))};
@@ -173,8 +178,8 @@ pub mod wl_foo {
         ///
         /// The server advertizes that a kind of cake is available
         ///
-        /// This event is only available since version 3 of the interface
-        pub fn cake(&self, kind: super::wl_foo::CakeKind, amount: u32) ->EventResult<()> {
+        /// This event is only available since version 2 of the interface
+        pub fn cake(&self, kind: CakeKind, amount: u32) ->EventResult<()> {
             if self.status() == Liveness::Dead { return EventResult::Destroyed }
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_post_event, self.ptr(), WL_FOO_CAKE, kind, amount) };
             EventResult::Sent(())
@@ -273,16 +278,30 @@ pub mod wl_bar {
     }
 
     pub trait Handler {
+        /// ask for a bar delivery
+        ///
+        /// Proceed to a bar delivery of given foo.
+        ///
+        /// This event only exists since version 2 of the interface
+        fn bar_delivery(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlBar, kind: super::wl_foo::DeliveryKind, target: &super::wl_foo::WlFoo, metadata: Vec<u8>) {}
+
         /// release this bar
         ///
         /// Notify the compositor that you have finished using this bar.
         ///
         /// This is a destructor, you cannot send events to this object once this method is called.
         fn release(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlBar) {}
+
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlBar, opcode: u32, args: *const wl_argument) -> Result<(),()> {
             match opcode {
                 0 => {
+                    let kind = {match super::wl_foo::DeliveryKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
+                    let target = {Resource::from_ptr_initialized(*(args.offset(1) as *const *mut wl_resource))};
+                    let metadata = {let array = *(args.offset(2) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()};
+                    self.bar_delivery(evq, client, proxy, kind, &target, metadata);
+                },
+                1 => {
 
                 if let Some(ref data) = proxy.data {
                     data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);

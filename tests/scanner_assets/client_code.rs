@@ -143,13 +143,13 @@ pub mod wl_foo {
         ///
         /// The server advertizes that a kind of cake is available
         ///
-        /// This request only exists since version 3 of the interface
-        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: super::wl_foo::CakeKind, amount: u32) {}
+        /// This request only exists since version 2 of the interface
+        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: CakeKind, amount: u32) {}
         #[doc(hidden)]
         unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
             match opcode {
                 0 => {
-                    let kind = {match super::wl_foo::CakeKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
+                    let kind = {match CakeKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
                     let amount = {*(args.offset(1) as *const u32)};
                     self.cake(evq,  proxy, kind, amount);
                 },
@@ -163,12 +163,13 @@ pub mod wl_foo {
     const WL_FOO_FOO_IT: u32 = 0;
     const WL_FOO_CREATE_BAR: u32 = 1;
     impl WlFoo {
-        /// foo numbers
+        /// do some foo
         ///
-        /// This request will foo a number and a string.
-        pub fn foo_it(&self, number: i32, text: String) ->() {
+        /// This will do some foo with its args.
+        pub fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->() {
             let text = CString::new(text).unwrap_or_else(|_| panic!("Got a String with interior null in wl_foo.foo_it:text"));
-            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_FOO_FOO_IT, number, text.as_ptr()) };
+            let float = wl_fixed_from_double(float);
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_FOO_FOO_IT, number, unumber, text.as_ptr(), float, file) };
         }
 
         /// create a bar
@@ -269,9 +270,22 @@ pub mod wl_bar {
         }
     }
 
-    const WL_BAR_RELEASE: u32 = 0;
+    const WL_BAR_BAR_DELIVERY: u32 = 0;
+    const WL_BAR_RELEASE: u32 = 1;
 
     impl WlBar {
+        /// ask for a bar delivery
+        ///
+        /// Proceed to a bar delivery of given foo.
+        ///
+        /// This request is only available since version 2 of the interface
+        pub fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &super::wl_foo::WlFoo, metadata: Vec<u8>) ->RequestResult<()> {
+            if self.status() == Liveness::Dead { return RequestResult::Destroyed }
+            let metadata = wl_array { size: metadata.len(), alloc: metadata.capacity(), data: metadata.as_ptr() as *mut _ };
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal, self.ptr(), WL_BAR_BAR_DELIVERY, kind, target.ptr(), &metadata as *const wl_array) };
+            RequestResult::Sent(())
+        }
+
         /// release this bar
         ///
         /// Notify the compositor that you have finished using this bar.
