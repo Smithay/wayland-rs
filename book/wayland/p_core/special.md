@@ -24,7 +24,7 @@ of all globals.
 
 ## The Callback
 
-The `wl_callback` object is created whevener a client asks the compositor to do something and
+The `wl_callback` object is created whenever a client asks the compositor to do something and
 requires to be notified when it is done. The callback object has no requests and a single event:
 `wl_callback::done`, which is called exactly once, when the task is finished.
 

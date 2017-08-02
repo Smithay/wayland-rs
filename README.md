@@ -15,7 +15,7 @@ This repository actually hosts 5 crates. The 3 main crates you'll likely want to
 
 And 2 internal crates, that you'll need only for integrating a custom protocol extension:
 
-- *wayand-sys* is the actual C bindings, on which the crates are built
+- *wayland-sys* is the actual C bindings, on which the crates are built
 - *wayland-scanner* is the crate used to convert the XML protocol specifications into rust code
 
 ## Documentation
