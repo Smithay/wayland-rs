@@ -12,7 +12,7 @@ The `wl_surface` represents an abstract canvas on which the client can display c
 object by itself does nothing: it must first be assigned some content and a role to be displayed.
 
 The content of a surface is assigned by sending a `wl_surface::attach` request, attaching a
-`wl_buffer` to the surface (we'll how to create them in [next chapter](./wayland/p_core/shm.html)).
+`wl_buffer` to the surface (we'll learn how to create them in [next chapter](./wayland/p_core/shm.html)).
 The buffer defines both the size and the pixel content of the surface. As such, a surface can be
 resized simply by attaching a new buffer of a different size to it.
 
