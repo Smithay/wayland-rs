@@ -27,4 +27,4 @@ evolve.
 [^2]: Each of them is already detailed in the [API docs of wayland-client][client docs], and there's
 no point copy-pasting all of it here.
 
-[client docs]: http://vberger.github.io/wayland-rs/wayland_client/protocol/index.html
+[client docs]: https://smithay.github.io/wayland-rs/wayland_client/protocol/index.html
