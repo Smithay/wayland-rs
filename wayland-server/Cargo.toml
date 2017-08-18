@@ -17,7 +17,7 @@ travis-ci = { repository = "smithay/wayland-rs" }
 wayland-sys = { version = "0.9.9", features = ["server"], path = "../wayland-sys" }
 libc = "0.2"
 nix = "0.8"
-bitflags = "0.7"
+bitflags = "0.9"
 
 [build-dependencies]
 wayland-scanner = { version = "0.9.9", path = "../wayland-scanner" }

@@ -284,7 +284,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             if let Some((ref short, ref long)) = enu.description {
                 writeln!(
                     out,
-                    "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub flags {}: u32 {{",
+                    "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub struct {}: u32 {{",
                     short,
                     long.lines().map(|s| s.trim()).collect::<Vec<_>>().join(
                         "\n",
@@ -294,7 +294,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             } else {
                 writeln!(
                     out,
-                    "    bitflags! {{ pub flags {}: u32 {{",
+                    "    bitflags! {{ pub struct {}: u32 {{",
                     snake_to_camel(&enu.name)
                 )?;
             }
@@ -304,7 +304,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 }
                 writeln!(
                     out,
-                    "        const {}{}{} = {},",
+                    "        const {}{}{} = {};",
                     if bitfields_conflicts {
                         snake_to_camel(&enu.name)
                     } else {
