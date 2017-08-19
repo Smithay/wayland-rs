@@ -123,10 +123,10 @@ pub mod wl_foo {
     bitflags! { #[doc = r#"possible delivery modes
 
 "#]
-    pub flags DeliveryKind: u32 {
-        const PickUp = 1,
-        const Drone = 2,
-        const Catapult = 4,
+    pub struct DeliveryKind: u32 {
+        const PickUp = 1;
+        const Drone = 2;
+        const Catapult = 4;
     } }
 
     impl DeliveryKind {

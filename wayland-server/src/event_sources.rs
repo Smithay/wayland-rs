@@ -23,11 +23,11 @@ pub struct FdEventSource {
 
 bitflags!{
     /// Flags to register interest on a file descriptor
-    pub flags FdInterest: u32 {
+    pub struct FdInterest: u32 {
         /// Interest to be notified when the file descriptor is readable
-        const READ  = 0x01,
+        const READ  = 0x01;
         /// Interest to be notified when the file descriptor is writable
-        const WRITE = 0x02
+        const WRITE = 0x02;
     }
 }
 
