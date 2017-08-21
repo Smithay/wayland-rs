@@ -85,10 +85,10 @@ lazy_static!(
             Ok(h) => Some(h),
             Err(::dlib::DlError::NotFound) => None,
             Err(::dlib::DlError::MissingSymbol(s)) => {
-                use std::io::Write;
-                let _ = write!(::std::io::stderr(),
-                               "[wayland-client] Found library libwayland-client.so cannot be used: symbol {} is missing.",
-                               s);
+                if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
+                    // only print debug messages if WAYLAND_RS_DEBUG is set
+                    eprintln!("[wayland-client] Found library libwayland-client.so cannot be used: symbol {} is missing.", s);
+                }
                 None
             }
         }
