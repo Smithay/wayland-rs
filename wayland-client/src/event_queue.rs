@@ -30,7 +30,7 @@ pub enum RegisterStatus {
 ///
 /// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
-    handlers: Vec<Box<Any + Send>>,
+    handlers: Vec<Option<Box<Any + Send>>>,
     wlevq: Option<*mut wl_event_queue>,
 }
 
@@ -60,14 +60,18 @@ impl EventQueueHandle {
         P: Proxy,
         H: Handler<P> + Any + Send + 'static,
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
-            "Handler type do not match.",
-        );
+        let h = self.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
+
         match proxy.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
             ::Liveness::Alive => { /* ok, we can continue */ }
         }
+
         unsafe {
             let data: *mut ProxyUserData =
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as *mut _;
@@ -98,13 +102,27 @@ impl EventQueueHandle {
         RegisterStatus::Registered
     }
 
+    fn insert_handler(&mut self, h: Box<Any + Send>) -> usize {
+        {
+            // artificial scope to make the borrow checker happy
+            let empty_slot = self.handlers.iter_mut().enumerate().find(|&(_, ref s)| {
+                s.is_none()
+            });
+            if let Some((id, slot)) = empty_slot {
+                *slot = Some(h);
+                return id;
+            }
+        }
+        self.handlers.push(Some(h));
+        self.handlers.len() - 1
+    }
+
     /// Insert a new handler to this event queue
     ///
     /// Returns the index of this handler in the internal array, which is needed
     /// to register proxies to it.
     pub fn add_handler<H: Any + Send + 'static>(&mut self, handler: H) -> usize {
-        self.handlers.push(Box::new(handler) as Box<Any + Send>);
-        self.handlers.len() - 1
+        self.insert_handler(Box::new(handler) as Box<Any + Send>)
     }
 
     /// Insert a new handler with init
@@ -121,10 +139,26 @@ impl EventQueueHandle {
         // and this new handler cannot receive any events before the return
         // of this function
         let h = &mut *box_ as *mut H;
-        self.handlers.push(box_ as Box<Any + Send>);
-        let index = self.handlers.len() - 1;
+        let index = self.insert_handler(box_ as Box<Any + Send>);
         unsafe { (&mut *h).init(self, index) };
         index
+    }
+
+    /// Remove a handler previously inserted in this event loop and returns it.
+    ///
+    /// Panics if the requested type does not match the type of the stored handler
+    /// or if the specified index was already removed.
+    ///
+    /// **Unsafety** This function is unsafe because removing a handler while some wayland
+    /// objects are still registered to it can lead to access freed memory. Also, the index
+    /// of this handler will be reused at next handler insertion.
+    pub unsafe fn remove_handler<H: Any + Send + 'static>(&mut self, idx: usize) -> H {
+        let is_type = self.handlers[idx]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .is::<H>();
+        assert!(is_type, "Handler type do not match.");
+        *(self.handlers[idx].take().unwrap().downcast().unwrap())
     }
 }
 
@@ -148,6 +182,8 @@ impl<'evq> StateGuard<'evq> {
     /// it will panic.
     pub fn get_handler<H: Any + 'static>(&self, handler_id: usize) -> &H {
         self.evq.handle.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed")
             .downcast_ref::<H>()
             .expect("Handler type do not match.")
     }
@@ -160,6 +196,8 @@ impl<'evq> StateGuard<'evq> {
     /// it will panic.
     pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &mut H {
         self.evq.handle.handlers[handler_id]
+            .as_mut()
+            .expect("Handler has already been removed")
             .downcast_mut::<H>()
             .expect("Handler type do not match.")
     }
