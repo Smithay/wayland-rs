@@ -101,7 +101,7 @@ pub trait Destroy<R: Resource> {
 ///
 /// They are also available on an `EventLoop` object via `Deref`.
 pub struct EventLoopHandle {
-    handlers: Vec<Box<Any + Send>>,
+    handlers: Vec<Option<Box<Any + Send>>>,
     keep_going: bool,
 }
 
@@ -141,14 +141,18 @@ impl EventLoopHandle {
         H: Handler<R> + Any + Send + 'static,
         D: Destroy<R> + 'static,
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
-            "Handler type do not match.",
-        );
+        let h = self.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed")
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
+
         match resource.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
             ::Liveness::Alive => { /* ok, we can continue */ }
         }
+
         unsafe {
             let data: *mut ResourceUserData = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -173,13 +177,27 @@ impl EventLoopHandle {
         RegisterStatus::Registered
     }
 
+    fn insert_handler(&mut self, h: Box<Any + Send>) -> usize {
+        {
+            // artificial scope to make the borrow checker happy
+            let empty_slot = self.handlers.iter_mut().enumerate().find(|&(_, ref s)| {
+                s.is_none()
+            });
+            if let Some((id, slot)) = empty_slot {
+                *slot = Some(h);
+                return id;
+            }
+        }
+        self.handlers.push(Some(h));
+        self.handlers.len() - 1
+    }
+
     /// Insert a new handler to this EventLoop
     ///
     /// Returns the index of this handler in the internal array, needed register
     /// proxies to it.
     pub fn add_handler<H: Any + Send + 'static>(&mut self, handler: H) -> usize {
-        self.handlers.push(Box::new(handler) as Box<Any + Send>);
-        self.handlers.len() - 1
+        self.insert_handler(Box::new(handler) as Box<Any + Send>)
     }
 
     /// Insert a new handler with init
@@ -196,8 +214,7 @@ impl EventLoopHandle {
         // and this new handler cannot receive any events before the return
         // of this function
         let h = &mut *box_ as *mut H;
-        self.handlers.push(box_ as Box<Any + Send>);
-        let index = self.handlers.len() - 1;
+        let index = self.insert_handler(box_ as Box<Any + Send>);
         unsafe { (&mut *h).init(self, index) };
         index
     }
@@ -208,6 +225,23 @@ impl EventLoopHandle {
     /// method, it'll stop and return as soon as the current dispatching session ends.
     pub fn stop_loop(&mut self) {
         self.keep_going = false;
+    }
+
+    /// Remove a handler previously inserted in this event loop and returns it.
+    ///
+    /// Panics if the requested type does not match the type of the stored handler
+    /// or if the specified index was already removed.
+    ///
+    /// **Unsafety** This function is unsafe because removing a handler while some wayland
+    /// objects or event sources are still registered to it can lead to access to freed memory.
+    /// Also, the index of this handler will be reused at next handler insertion.
+    pub unsafe fn remove_handler<H: Any + Send + 'static>(&mut self, idx: usize) -> H {
+        let is_type = self.handlers[idx]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .is::<H>();
+        assert!(is_type, "Handler type do not match.");
+        *(self.handlers[idx].take().unwrap().downcast().unwrap())
     }
 }
 
@@ -237,9 +271,11 @@ where
         return false;
     }
     let evlh = unsafe { &*(resource_data.0) };
-    let h = evlh.handlers[handler_id].downcast_ref::<H>().expect(
-        "Handler type do not match.",
-    );
+    let h = evlh.handlers[handler_id]
+        .as_ref()
+        .expect("Handler has already been removed.")
+        .downcast_ref::<H>()
+        .expect("Handler type do not match.");
     (&*resource_data).1 == h as *const _ as *mut c_void
 }
 
@@ -263,6 +299,8 @@ impl<'evq> StateGuard<'evq> {
     /// it will panic.
     pub fn get_handler<H: Any + 'static>(&self, handler_id: usize) -> &H {
         self.evq.handle.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
             .downcast_ref::<H>()
             .expect("Handler type do not match.")
     }
@@ -275,6 +313,8 @@ impl<'evq> StateGuard<'evq> {
     /// it will panic.
     pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &mut H {
         self.evq.handle.handlers[handler_id]
+            .as_mut()
+            .expect("Handler has already been removed.")
             .downcast_mut::<H>()
             .expect("Handler type do not match.")
     }
@@ -383,6 +423,8 @@ impl EventLoop {
                                                                              version: i32)
                                                                              -> Global {
         let h = self.handle.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
             .downcast_ref::<H>()
             .expect("Handler type do not match.");
         let display = self.display.expect(
@@ -433,9 +475,11 @@ impl EventLoop {
     where
         H: ::event_sources::FdEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
-            "Handler type do not match.",
-        );
+        let h = self.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
         let data = Box::new((
             h as *const _ as *mut c_void,
             &*self.handle as *const _ as *mut EventLoopHandle,
@@ -470,9 +514,11 @@ impl EventLoop {
     where
         H: ::event_sources::TimerEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
-            "Handler type do not match.",
-        );
+        let h = self.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
         let data = Box::new((
             h as *const _ as *mut c_void,
             &*self.handle as *const _ as *mut EventLoopHandle,
@@ -505,9 +551,11 @@ impl EventLoop {
     where
         H: ::event_sources::SignalEventSourceHandler + 'static,
     {
-        let h = self.handlers[handler_id].downcast_ref::<H>().expect(
-            "Handler type do not match.",
-        );
+        let h = self.handlers[handler_id]
+            .as_ref()
+            .expect("Handler has already been removed.")
+            .downcast_ref::<H>()
+            .expect("Handler type do not match.");
         let data = Box::new((
             h as *const _ as *mut c_void,
             &*self.handle as *const _ as *mut EventLoopHandle,
