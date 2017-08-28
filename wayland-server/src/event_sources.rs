@@ -18,7 +18,7 @@ use wayland_sys::server::*;
 /// use the `remove` method for that.
 pub struct FdEventSource {
     ptr: *mut wl_event_source,
-    _data: Box<(*mut c_void, *mut EventLoopHandle)>,
+    data: *mut (*mut c_void, *mut EventLoopHandle),
 }
 
 bitflags!{
@@ -35,7 +35,7 @@ pub fn make_fd_event_source(ptr: *mut wl_event_source, data: Box<(*mut c_void, *
                             -> FdEventSource {
     FdEventSource {
         ptr: ptr,
-        _data: data,
+        data: Box::into_raw(data),
     }
 }
 
@@ -56,6 +56,7 @@ impl FdEventSource {
     pub fn remove(self) {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
+            let _ = Box::from_raw(self.data);
         }
     }
 }
