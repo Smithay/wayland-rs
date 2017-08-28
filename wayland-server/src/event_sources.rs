@@ -18,7 +18,7 @@ use wayland_sys::server::*;
 /// use the `remove` method for that.
 pub struct FdEventSource {
     ptr: *mut wl_event_source,
-    _data: Box<(*mut c_void, *mut EventLoopHandle)>,
+    data: *mut (*mut c_void, *mut EventLoopHandle),
 }
 
 bitflags!{
@@ -35,7 +35,7 @@ pub fn make_fd_event_source(ptr: *mut wl_event_source, data: Box<(*mut c_void, *
                             -> FdEventSource {
     FdEventSource {
         ptr: ptr,
-        _data: data,
+        data: Box::into_raw(data),
     }
 }
 
@@ -56,6 +56,7 @@ impl FdEventSource {
     pub fn remove(self) {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
+            let _ = Box::from_raw(self.data);
         }
     }
 }
@@ -82,7 +83,7 @@ where
         let (handler_ptr, evlh_ptr) = *(data as *mut (*mut c_void, *mut EventLoopHandle));
         let handler = &mut *(handler_ptr as *mut H);
         let evlh = &mut *(evlh_ptr);
-        if mask & 0x04 > 0 {
+        if mask & 0x08 > 0 {
             // EPOLLERR
             use nix::sys::socket;
             let err = match socket::getsockopt(fd, socket::sockopt::SocketError) {
@@ -98,7 +99,7 @@ where
                 }
             };
             handler.error(evlh, fd, IoError::from_raw_os_error(err));
-        } else if mask & 0x03 > 0 {
+        } else if mask & 0x04 > 0 {
             // EPOLLHUP
             handler.error(
                 evlh,
