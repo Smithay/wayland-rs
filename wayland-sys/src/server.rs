@@ -135,17 +135,30 @@ external_library!(WaylandServer, "wayland-server",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = {
-        match WaylandServer::open("libwayland-server.so") {
-            Ok(h) => Some(h),
-            Err(::dlib::DlError::NotFound) => None,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
-                    // only print debug messages if WAYLAND_RS_DEBUG is set
-                    eprintln!("[wayland-server] Found library libwayland-server.so cannot be used: symbol {} is missing.", s);
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-server.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-server.so",
+                        "libwayland-server.so.0",
+                        "libwayland-server.so.0.1.0"];
+        let mut ret = None;
+        for ver in &versions {
+            match WaylandServer::open(ver) {
+                Ok(h) => ret = Some(h),
+                Err(::dlib::DlError::NotFound) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
+                        // only print debug messages if WAYLAND_RS_DEBUG is set
+                        eprintln!("[wayland-server] Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    }
                 }
-                None
             }
+            break;
         }
+        ret
     };
     pub static ref WAYLAND_SERVER_HANDLE: &'static WaylandServer = {
         WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded.")
