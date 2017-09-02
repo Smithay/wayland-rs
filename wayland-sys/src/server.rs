@@ -144,21 +144,20 @@ lazy_static!(
         let versions = ["libwayland-server.so",
                         "libwayland-server.so.0",
                         "libwayland-server.so.0.1.0"];
-        let mut ret = None;
         for ver in &versions {
             match WaylandServer::open(ver) {
-                Ok(h) => ret = Some(h),
+                Ok(h) => return Some(h),
                 Err(::dlib::DlError::NotFound) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
                     if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
                         // only print debug messages if WAYLAND_RS_DEBUG is set
                         eprintln!("[wayland-server] Found library {} cannot be used: symbol {} is missing.", ver, s);
                     }
+                    return None;
                 }
             }
-            break;
         }
-        ret
+        None
     };
     pub static ref WAYLAND_SERVER_HANDLE: &'static WaylandServer = {
         WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded.")

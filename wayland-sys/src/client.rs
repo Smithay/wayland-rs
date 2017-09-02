@@ -90,21 +90,20 @@ lazy_static!(
         let versions = ["libwayland-client.so",
                         "libwayland-client.so.0",
                         "libwayland-client.so.0.3.0"];
-        let mut ret = None;
         for ver in &versions {
             match WaylandClient::open(ver) {
-                Ok(h) => ret = Some(h),
+                Ok(h) => return Some(h),
                 Err(::dlib::DlError::NotFound) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
                     if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
                         // only print debug messages if WAYLAND_RS_DEBUG is set
                         eprintln!("[wayland-client] Found library {} cannot be used: symbol {} is missing.", ver, s);
                     }
+                    return None;
                 }
             }
-            break;
         }
-        ret
+        None
     };
     pub static ref WAYLAND_CLIENT_HANDLE: &'static WaylandClient = {
         WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-client.so could not be loaded.")
