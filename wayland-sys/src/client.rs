@@ -88,8 +88,7 @@ lazy_static!(
         // We could do some trickery with str slices but that is more trouble
         // than its worth
         let versions = ["libwayland-client.so",
-                        "libwayland-client.so.0",
-                        "libwayland-client.so.0.3.0"];
+                        "libwayland-client.so.0"];
         for ver in &versions {
             match WaylandClient::open(ver) {
                 Ok(h) => return Some(h),
