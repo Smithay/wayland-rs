@@ -12,14 +12,14 @@ mod server_utils {
 
     struct CompositorHandler;
 
-    impl GlobalHandler<WlCompositor> for CompositorHandler {
-        fn bind(&mut self, _: &mut EventLoopHandle, _: &Client, _: WlCompositor) {}
+    impl GlobalHandler<WlCompositor, ()> for CompositorHandler {
+        fn bind(&mut self, _: &mut EventLoopHandle, _: &Client, _: WlCompositor, _: &mut ()) {}
     }
 
     // max supported version: 4
     pub fn insert_compositor(event_loop: &mut EventLoop, v: i32) {
         let hid = event_loop.add_handler(CompositorHandler);
-        let _ = event_loop.register_global::<WlCompositor, CompositorHandler>(hid, v);
+        let _ = event_loop.register_global::<WlCompositor, _, CompositorHandler>(hid, v, ());
     }
 }
 

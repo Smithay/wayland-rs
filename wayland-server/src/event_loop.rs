@@ -32,14 +32,14 @@ pub enum RegisterStatus {
 ///
 /// If you know you will never destroy this global, you can let this
 /// handle go out of scope.
-pub struct Global {
+pub struct Global<U: Send + 'static> {
     ptr: *mut wl_global,
-    data: *mut (*mut c_void, *mut EventLoopHandle),
+    data: *mut (*mut c_void, *mut EventLoopHandle, *mut U),
 }
 
-unsafe impl Send for Global {}
+unsafe impl<U: Send + 'static> Send for Global<U> {}
 
-impl Global {
+impl<U: Send + 'static> Global<U> {
     /// Destroy the associated global object.
     pub fn destroy(self) {
         unsafe {
@@ -47,13 +47,15 @@ impl Global {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
             // free the user data
             let data = Box::from_raw(self.data);
+            let user_data = Box::from_raw(data.2);
             drop(data);
+            drop(user_data);
         }
     }
 }
 
 /// Trait to handle a global object.
-pub trait GlobalHandler<R: Resource> {
+pub trait GlobalHandler<R: Resource, U: Send> {
     /// Request to bind a global
     ///
     /// This method is called each time a client binds this global object from
@@ -64,7 +66,7 @@ pub trait GlobalHandler<R: Resource> {
     ///
     /// Letting it out of scope will *not* destroy the resource, and you'll still
     /// receive its events (as long as you've registered an appropriate handler).
-    fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
+    fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R, user_data: &mut U);
 }
 
 /// A trait to initialize handlers after they've been inserted in an event queue
@@ -413,15 +415,23 @@ impl EventLoop {
     /// Specify the version of the interface to advertize, as well as the handler that will
     /// receive requests to create an object.
     ///
+    /// The `user_data` is a value that will be provided as argument to `Global::Bind`. This allows
+    /// you to store global-specific data in case you are willing to have several globals using the
+    /// same handler. This way, your handler can differentiate which of these global was
+    /// instanciated. If you have no use for it, just use `()`.
+    ///
     /// The handler must implement the appropriate `GlobalHandler<R>` trait.
     ///
     /// Panics:
     ///
     /// - if the event loop is not associated to a display
     /// - if the provided `H` type does not match the actual type of the handler
-    pub fn register_global<R: Resource, H: GlobalHandler<R> + Any + 'static>(&mut self, handler_id: usize,
-                                                                             version: i32)
-                                                                             -> Global {
+    pub fn register_global<R, U, H>(&mut self, handler_id: usize, version: i32, user_data: U) -> Global<U>
+    where
+        R: Resource,
+        U: Send + 'static,
+        H: GlobalHandler<R, U> + Any + 'static,
+    {
         let h = self.handle.handlers[handler_id]
             .as_ref()
             .expect("Handler has already been removed.")
@@ -434,6 +444,7 @@ impl EventLoop {
         let data = Box::new((
             h as *const _ as *mut c_void,
             &*self.handle as *const _ as *mut EventLoopHandle,
+            Box::into_raw(Box::new(user_data)),
         ));
 
         let ptr = unsafe {
@@ -443,8 +454,8 @@ impl EventLoop {
                 display,
                 R::interface_ptr(),
                 version,
-                &*data as *const (*mut c_void, *mut EventLoopHandle) as *mut _,
-                global_bind::<R, H>
+                &*data as *const (*mut c_void, *mut EventLoopHandle, *mut U) as *mut _,
+                global_bind::<R, U, H>
             )
         };
 
@@ -662,13 +673,18 @@ unsafe extern "C" fn dispatch_func<R: Resource, H: Handler<R>>(_impl: *const c_v
     }
 }
 
-unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(client: *mut wl_client,
-                                                                   data: *mut c_void, version: u32, id: u32) {
+unsafe extern "C" fn global_bind<R, U, H>(client: *mut wl_client, data: *mut c_void, version: u32, id: u32)
+where
+    R: Resource,
+    U: Send + 'static,
+    H: GlobalHandler<R, U>,
+{
     // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
-        let data = &*(data as *const (*mut H, *mut EventLoopHandle));
+        let data = &*(data as *const (*mut H, *mut EventLoopHandle, *mut U));
         let handler = &mut *data.0;
         let evqhandle = &mut *data.1;
+        let user_data = &mut *data.2;
         let client = Client::from_ptr(client);
         let ptr = ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
@@ -679,7 +695,7 @@ unsafe extern "C" fn global_bind<R: Resource, H: GlobalHandler<R>>(client: *mut 
             id
         );
         let resource = R::from_ptr_new(ptr as *mut wl_resource);
-        handler.bind(evqhandle, &client, resource)
+        handler.bind(evqhandle, &client, resource, user_data)
     });
     match ret {
         Ok(()) => (),   // all went well

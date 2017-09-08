@@ -31,8 +31,9 @@ mod server_utils {
         }
     }
 
-    impl GlobalHandler<wl_compositor::WlCompositor> for CompositorHandler {
-        fn bind(&mut self, evlh: &mut EventLoopHandle, _: &Client, comp: wl_compositor::WlCompositor) {
+    impl GlobalHandler<wl_compositor::WlCompositor, ()> for CompositorHandler {
+        fn bind(&mut self, evlh: &mut EventLoopHandle, _: &Client, comp: wl_compositor::WlCompositor,
+                _: &mut ()) {
             let hid = self.hid.expect("CompositorHandler was not initialized!");
             evlh.register::<_, CompositorHandler>(&comp, hid);
         }
@@ -47,8 +48,8 @@ mod server_utils {
     }
 
     impl wl_surface::Handler for CompositorHandler {
-        fn attach(&mut self, evqh: &mut EventLoopHandle, _client: &Client, surface: &wl_surface::WlSurface,
-                  buffer: Option<&wl_buffer::WlBuffer>, x: i32, y: i32) {
+        fn attach(&mut self, _evqh: &mut EventLoopHandle, _client: &Client,
+                  _surface: &wl_surface::WlSurface, buffer: Option<&wl_buffer::WlBuffer>, _x: i32, _y: i32) {
             assert!(buffer.is_none());
             self.got_buffer = true;
         }
@@ -67,7 +68,7 @@ mod server_utils {
 
     pub fn insert_compositor(event_loop: &mut EventLoop) {
         let hid = event_loop.add_handler_with_init(CompositorHandler::new());
-        let _ = event_loop.register_global::<wl_compositor::WlCompositor, CompositorHandler>(hid, 1);
+        let _ = event_loop.register_global::<wl_compositor::WlCompositor, _, CompositorHandler>(hid, 1, ());
     }
 }
 
