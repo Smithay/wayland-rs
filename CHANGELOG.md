@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.9.10 - 2017-09-08
+
+- [sys] Print debug msg only when the `WAYLAND_RS_DEBUG` env variable is set
+- [client/server] Allow removal of handlers from event queues or event loops
+- [server] Fix wrong logic in FD event source causing spurious errors
+- [sys] Also try to load libwayland-client.so.0 and libwayland-server.so.0
+
 ## 0.9.9 - 2017-06-23
 
 - [scanner] Normalize whitespaces in doc summary (fixes wayland-protocols 0.9.8)
