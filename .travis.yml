@@ -27,7 +27,6 @@ branches:
 
 before_script:
   - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
-  - which rustfmt || cargo install rustfmt
   - which mdbook || cargo install mdbook
   - which cargo-tarpaulin || cargo install cargo-tarpaulin
   - which cargo-install-update || cargo install cargo-update
@@ -35,12 +34,13 @@ before_script:
   - pip install 'travis-cargo<0.2' --user
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
+  - travis-cargo --only nightly install rustfmt-nightly -- --force
 
 os:
   - linux
 
 script:
-  - cargo fmt --all -- --write-mode=diff
+  - travis-cargo --only nightly fmt -- --all -- --write-mode=diff
   - cargo build --all --all-features
   - cargo test
   - cargo doc --all --no-deps --all-features
