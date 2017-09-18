@@ -21,21 +21,22 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     //
 
     let longest_nulls = protocol.interfaces.iter().fold(0, |max, interface| {
-        let request_longest_null = interface.requests.iter().fold(0, |max, request| {
-            if request.all_null() {
+        let request_longest_null = interface
+            .requests
+            .iter()
+            .fold(0, |max, request| if request.all_null() {
                 cmp::max(request.args.len(), max)
             } else {
                 max
-            }
-        });
-        let events_longest_null = interface.events.iter().fold(
-            0,
-            |max, event| if event.all_null() {
+            });
+        let events_longest_null = interface
+            .events
+            .iter()
+            .fold(0, |max, event| if event.all_null() {
                 cmp::max(event.args.len(), max)
             } else {
                 max
-            },
-        );
+            });
         cmp::max(max, cmp::max(request_longest_null, events_longest_null))
     });
 
@@ -111,7 +112,6 @@ pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     );
 
     for interface in &protocol.interfaces {
-
         writeln!(out, "// {}\n", interface.name).unwrap();
 
         emit_messages!(interface, requests);

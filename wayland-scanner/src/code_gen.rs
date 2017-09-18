@@ -3,7 +3,6 @@ use protocol::*;
 use std::collections::HashSet;
 use std::io::Result as IOResult;
 use std::io::Write;
-
 use util::*;
 
 pub fn write_protocol<O: Write>(protocol: Protocol, out: &mut O, side: Side) -> IOResult<()> {
@@ -41,7 +40,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     writeln!(
         out,
         r#"
-    use super::Liveness;
+    use super::{{Liveness, Implementable}};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -80,7 +79,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     // Generate object trait impl
     writeln!(
         out,
-        "    impl {} for {} {{",
+        "    unsafe impl {} for {} {{",
         side.object_trait(),
         snake_to_camel(&interface.name)
     )?;
@@ -95,7 +94,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!({2}, {0}_set_user_data, ptr, data as *mut c_void);
@@ -129,7 +128,7 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     }
     try!(writeln!(out, r#"
             if rust_managed {{
-                let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 {1} {{ ptr: ptr, data: Some((&*data).2.clone()) }}
             }} else {{
                 {1} {{ ptr: ptr, data: Option::None }}
@@ -152,18 +151,14 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         interface.version
     )?;
     match side {
-        Side::Client => {
-            writeln!(
-                out,
-                "        fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}"
-            )?
-        }
-        Side::Server => {
-            writeln!(
-                out,
-                "        fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"
-            )?
-        }
+        Side::Client => writeln!(
+            out,
+            "        fn version(&self) -> u32 {{ unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr()) }} }}"
+        )?,
+        Side::Server => writeln!(
+            out,
+            "        fn version(&self) -> i32 {{ unsafe {{ ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr()) }} }}"
+        )?,
     };
     writeln!(
         out,
@@ -206,15 +201,37 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
             }}
         }}"#
     )?;
+    writeln!(
+        out,
+        r#"
+        unsafe fn clone_unchecked(&self) -> {0} {{
+            {0} {{
+                ptr: self.ptr,
+                data: self.data.clone()
+            }}
+        }}"#,
+        snake_to_camel(&interface.name)
+    )?;
 
     writeln!(out, "    }}")?;
+
+    // dispatch machinnery
+    write_dispatch_func(
+        match side {
+            Side::Client => &interface.events,
+            Side::Server => &interface.requests,
+        },
+        out,
+        side,
+        &interface.name,
+    )?;
 
     write_enums(&interface.enums, out)?;
 
 
     // client-side events of wl_display are handled by the lib
     if side != Side::Client || interface.name != "wl_display" {
-        write_handler_trait(
+        write_implementation(
             match side {
                 Side::Client => &interface.events,
                 Side::Server => &interface.requests,
@@ -286,9 +303,10 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     out,
                     "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub struct {}: u32 {{",
                     short,
-                    long.lines().map(|s| s.trim()).collect::<Vec<_>>().join(
-                        "\n",
-                    ),
+                    long.lines()
+                        .map(|s| s.trim(),)
+                        .collect::<Vec<_>>()
+                        .join("\n",),
                     snake_to_camel(&enu.name)
                 )?;
             } else {
@@ -397,15 +415,182 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
     Ok(())
 }
 
-fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str) -> IOResult<()> {
+fn write_dispatch_func<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str) -> IOResult<()> {
+    if iname == "wl_display" || messages.len() == 0 {
+        // these are not implementable
+        return Ok(());
+    }
+    writeln!(
+        out,
+        "    unsafe impl<ID: 'static> Implementable<ID> for {} {{",
+        snake_to_camel(iname)
+    )?;
+    writeln!(out, "        type Implementation = Implementation<ID>;")?;
+    writeln!(out, "        #[allow(unused_mut,unused_assignments)]")?;
+    writeln!(
+        out,
+        "        unsafe fn __dispatch_msg(&self, {} opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
+        if side == Side::Server {
+            "client: &Client,"
+        } else {
+            ""
+        }
+    )?;
+    writeln!(out, r#"
+        let data: &mut (*mut {}, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
+            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, {}_get_user_data, self.ptr()) as *mut _);
+        let evq = &mut *(data.0);
+        let mut kill = false;
+        {{
+            let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();"#,
+    side.handle_type(),
+    side.object_ptr_type()
+    )?;
+    writeln!(out, "            match opcode {{")?;
+    for (op, msg) in messages.iter().enumerate() {
+        writeln!(out, "                {} => {{", op)?;
+        for (i, arg) in msg.args.iter().enumerate() {
+            write!(out, "                    let {} = {{", arg.name)?;
+            if arg.allow_null {
+                match arg.typ {
+                    Type::Uint | Type::Int | Type::Fixed | Type::NewId => panic!(
+                        "Argument {} for message {}.{} cannot be null given its type!",
+                        i,
+                        iname,
+                        msg.name
+                    ),
+                    _ => {}
+                }
+                write!(
+                    out,
+                    "if (*(args.offset({}) as *const *const c_void)).is_null() {{ Option::None }} else {{ Some({{",
+                    i
+                )?;
+            }
+            if let Some(ref name) = arg.enum_ {
+                write!(
+                    out,
+                    "match {}::from_raw(*(args.offset({}) as *const u32)) {{ Some(v) => v, Option::None => return Err(()) }}",
+                    dotted_to_relname(name),
+                    i
+                )?;
+            } else {
+                match arg.typ {
+                    Type::Uint => write!(out, "*(args.offset({}) as *const u32)", i)?,
+                    Type::Int | Type::Fd => write!(out, "*(args.offset({}) as *const i32)", i)?,
+                    Type::Fixed => write!(
+                        out,
+                        "wl_fixed_to_double(*(args.offset({}) as *const i32))",
+                        i
+                    )?,
+                    Type::Object => write!(
+                        out,
+                        "{}::from_ptr_initialized(*(args.offset({}) as *const *mut {}))",
+                        side.object_trait(),
+                        i,
+                        side.object_ptr_type()
+                    )?,
+                    Type::String => write!(
+                        out,
+                        "String::from_utf8_lossy(CStr::from_ptr(*(args.offset({}) as *const *const _)).to_bytes()).into_owned()",
+                        i
+                    )?,
+                    Type::Array => write!(
+                        out,
+                        "let array = *(args.offset({}) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()",
+                        i
+                    )?,
+                    Type::NewId => match side {
+                        Side::Client => write!(
+                            out,
+                            "Proxy::from_ptr_new(*(args.offset({}) as *const *mut wl_proxy))",
+                            i
+                        )?,
+                        Side::Server => write!(
+                            out,
+                            "Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::{}::{} as Resource>::interface_ptr(), self.version(), *(args.offset({}) as *const u32)))",
+                            arg.interface.as_ref().unwrap(),
+                            snake_to_camel(arg.interface.as_ref().unwrap()),
+                            i
+                        )?,
+                    },
+                    Type::Destructor => unreachable!(),
+                }
+            }
+            if arg.allow_null {
+                write!(out, "}})}}")?;
+            }
+            writeln!(out, "}};")?;
+        }
+
+        if let Some(Type::Destructor) = msg.typ {
+            writeln!(
+                out,
+                r#"
+                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                kill = true;
+                ffi_dispatch!({0}, {1}_destroy, self.ptr());"#,
+                side.handle(),
+                side.object_ptr_type()
+            )?;
+        }
+
+        write!(
+            out,
+            "                    (implementation.{}{})(evq, idata, {} self",
+            msg.name,
+            if is_keyword(&msg.name) { "_" } else { "" },
+            if side == Side::Server { "client," } else { "" }
+        )?;
+        for arg in &msg.args {
+            match arg.typ {
+                Type::Object => if arg.allow_null {
+                    write!(out, ", {}.as_ref()", arg.name)?
+                } else {
+                    write!(out, ", &{}", arg.name)?
+                },
+                _ => write!(out, ", {}", arg.name)?,
+            };
+        }
+        writeln!(out, ");")?;
+        writeln!(out, "                }},")?;
+    }
+    writeln!(out, "                _ => return Err(())")?;
+    writeln!(out, "            }}")?;
+    writeln!(out, "        }}")?;
+    writeln!(
+        out,
+        r#"
+        if kill {{
+            let _impl = data.1.take();
+            ::std::mem::drop(_impl);
+        }}"#,
+    )?;
+    writeln!(out, "            Ok(())")?;
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
+    Ok(())
+}
+
+fn write_implementation<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str)
+                                  -> IOResult<()> {
     if messages.len() == 0 {
         return Ok(());
     }
-    writeln!(out, "    pub trait Handler {{")?;
+    writeln!(out, "    pub struct Implementation<ID> {{")?;
     for msg in messages {
         if let Some((ref short, ref long)) = msg.description {
             write_doc(Some(short), long, false, out, 2)?;
         }
+        write!(
+            out,
+            "        ///\n        /// **Arguments:** event_queue_handle, interface_data, {}",
+            iname
+        )?;
+        for arg in &msg.args {
+            write!(out, ", {}", arg.name)?;
+        }
+        writeln!(out)?;
         if let Some(Type::Destructor) = msg.typ {
             writeln!(
                 out,
@@ -430,7 +615,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
 
         write!(
             out,
-            "        fn {}{}(&mut self, evqh: &mut {}, {} {}: &{}",
+            "        pub {}{}: fn(evqh: &mut {}, data: &mut ID, {} {}: &{}",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
             side.handle_type(),
@@ -439,10 +624,7 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
             } else {
                 ""
             },
-            match side {
-                Side::Client => "proxy",
-                Side::Server => "resource",
-            },
+            iname,
             snake_to_camel(iname)
         )?;
         for arg in &msg.args {
@@ -457,172 +639,58 @@ fn write_handler_trait<O: Write>(messages: &[Message], out: &mut O, side: Side, 
                 } else {
                     match arg.typ {
                         // TODO handle unspecified interface
-                        Type::Object => {
-                            arg.interface
-                                .as_ref()
-                                .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                                .unwrap_or(format!("*mut {}", side.object_ptr_type()))
-                        }
-                        Type::NewId => {
-                            arg.interface
-                                .as_ref()
-                                .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
-                                .unwrap_or("(&str, u32)".into())
-                        }
+                        Type::Object => arg.interface
+                            .as_ref()
+                            .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
+                            .unwrap_or(format!("*mut {}", side.object_ptr_type())),
+                        Type::NewId => arg.interface
+                            .as_ref()
+                            .map(|s| format!("super::{}::{}", s, snake_to_camel(s)))
+                            .unwrap_or("(&str, u32)".into()),
                         _ => arg.typ.rust_type().into(),
                     }
                 },
                 if arg.allow_null { ">" } else { "" }
             )?;
         }
-        writeln!(out, ") {{}}")?;
+        writeln!(out, "),")?;
     }
-    // hidden method for internal machinery
-    writeln!(out, "        #[doc(hidden)]")?;
+    writeln!(out, "    }}")?;
+    // manual impls to work around derive issues
     writeln!(
         out,
-        "        unsafe fn __message(&mut self, evq: &mut {}, {} proxy: &{}, opcode: u32, args: *const wl_argument) -> Result<(),()> {{",
-        side.handle_type(),
-        if side == Side::Server {
-            "client: &Client,"
-        } else {
-            ""
-        },
-        snake_to_camel(iname)
+        r#"
+    impl<ID> Copy for Implementation<ID> {{}}
+    impl<ID> Clone for Implementation<ID> {{
+        fn clone(&self) -> Implementation<ID> {{
+            *self
+        }}
+    }}"#
     )?;
-    writeln!(out, "            match opcode {{")?;
-    for (op, msg) in messages.iter().enumerate() {
-        writeln!(out, "                {} => {{", op)?;
-        for (i, arg) in msg.args.iter().enumerate() {
-            write!(out, "                    let {} = {{", arg.name)?;
-            if arg.allow_null {
-                match arg.typ {
-                    Type::Uint | Type::Int | Type::Fixed | Type::NewId => {
-                        panic!(
-                            "Argument {} for message {}.{} cannot be null given its type!",
-                            i,
-                            iname,
-                            msg.name
-                        )
-                    }
-                    _ => {}
-                }
-                write!(
-                    out,
-                    "if (*(args.offset({}) as *const *const c_void)).is_null() {{ Option::None }} else {{ Some({{",
-                    i
-                )?;
-            }
-            if let Some(ref name) = arg.enum_ {
-                write!(
-                    out,
-                    "match {}::from_raw(*(args.offset({}) as *const u32)) {{ Some(v) => v, Option::None => return Err(()) }}",
-                    dotted_to_relname(name),
-                    i
-                )?;
-            } else {
-                match arg.typ {
-                    Type::Uint => write!(out, "*(args.offset({}) as *const u32)", i)?,
-                    Type::Int | Type::Fd => write!(out, "*(args.offset({}) as *const i32)", i)?,
-                    Type::Fixed => {
-                        write!(
-                            out,
-                            "wl_fixed_to_double(*(args.offset({}) as *const i32))",
-                            i
-                        )?
-                    }
-                    Type::Object => {
-                        write!(
-                            out,
-                            "{}::from_ptr_initialized(*(args.offset({}) as *const *mut {}))",
-                            side.object_trait(),
-                            i,
-                            side.object_ptr_type()
-                        )?
-                    }
-                    Type::String => {
-                        write!(
-                            out,
-                            "String::from_utf8_lossy(CStr::from_ptr(*(args.offset({}) as *const *const _)).to_bytes()).into_owned()",
-                            i
-                        )?
-                    }
-                    Type::Array => {
-                        write!(
-                            out,
-                            "let array = *(args.offset({}) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()",
-                            i
-                        )?
-                    }
-                    Type::NewId => {
-                        match side {
-                            Side::Client => {
-                                write!(
-                                    out,
-                                    "Proxy::from_ptr_new(*(args.offset({}) as *const *mut wl_proxy))",
-                                    i
-                                )?
-                            }
-                            Side::Server => {
-                                write!(
-                                    out,
-                                    "Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::{}::{} as Resource>::interface_ptr(), proxy.version(), *(args.offset({}) as *const u32)))",
-                                    arg.interface.as_ref().unwrap(),
-                                    snake_to_camel(arg.interface.as_ref().unwrap()),
-                                    i
-                                )?
-                            }
-                        }
-                    }
-                    Type::Destructor => unreachable!(),
-                }
-            }
-            if arg.allow_null {
-                write!(out, "}})}}")?;
-            }
-            writeln!(out, "}};")?;
-        }
-
-        if let Some(Type::Destructor) = msg.typ {
-            writeln!(
-                out,
-                r#"
-                if let Some(ref data) = proxy.data {{
-                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                }}
-                ffi_dispatch!({0}, {1}_destroy, proxy.ptr());"#,
-                side.handle(),
-                side.object_ptr_type()
-            )?;
-        }
-
-        write!(
+    // manual partialEq impl, because we can't simply compare
+    // function pointers (duh :( )
+    writeln!(
+        out,
+        r#"
+    impl<ID> PartialEq for Implementation<ID> {{
+        fn eq(&self, other: &Implementation<ID>) -> bool {{
+            true"#
+    )?;
+    for msg in messages {
+        writeln!(
             out,
-            "                    self.{}{}(evq, {} proxy",
+            "            && (self.{0}{1} as usize == other.{0}{1} as usize)",
             msg.name,
             if is_keyword(&msg.name) { "_" } else { "" },
-            if side == Side::Server { "client," } else { "" }
         )?;
-        for arg in &msg.args {
-            match arg.typ {
-                Type::Object => {
-                    if arg.allow_null {
-                        write!(out, ", {}.as_ref()", arg.name)?
-                    } else {
-                        write!(out, ", &{}", arg.name)?
-                    }
-                }
-                _ => write!(out, ", {}", arg.name)?,
-            };
-        }
-        writeln!(out, ");")?;
-        writeln!(out, "                }},")?;
     }
-    writeln!(out, "                _ => return Err(())")?;
-    writeln!(out, "            }}")?;
-    writeln!(out, "            Ok(())")?;
-    writeln!(out, "        }}")?;
-    writeln!(out, "    }}")?;
+    writeln!(
+        out,
+        r#"
+        }}
+    }}
+"#
+    )?;
     Ok(())
 }
 
@@ -663,17 +731,15 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
         let mut newid = None;
         for arg in &msg.args {
             match arg.typ {
-                Type::NewId => {
-                    if newid.is_some() {
-                        panic!(
-                            "Request {}.{} returns more than one new_id",
-                            iname,
-                            msg.name
-                        );
-                    } else {
-                        newid = Some(arg);
-                    }
-                }
+                Type::NewId => if newid.is_some() {
+                    panic!(
+                        "Request {}.{} returns more than one new_id",
+                        iname,
+                        msg.name
+                    );
+                } else {
+                    newid = Some(arg);
+                },
                 _ => (),
             }
         }
@@ -711,12 +777,10 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     dotted_to_relname(name)
                 } else {
                     match arg.typ {
-                        Type::Object => {
-                            arg.interface
-                                .as_ref()
-                                .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
-                                .unwrap_or(format!("*mut {}", side.object_ptr_type()))
-                        }
+                        Type::Object => arg.interface
+                            .as_ref()
+                            .map(|s| format!("&super::{}::{}", s, snake_to_camel(s)))
+                            .unwrap_or(format!("*mut {}", side.object_ptr_type())),
                         Type::NewId => {
                             if side == Side::Server {
                                 arg.interface
@@ -776,40 +840,36 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                         arg.name
                     )?;
                 }
-                Type::Array => {
-                    if arg.allow_null {
-                        writeln!(
-                            out,
-                            "            let {0} = {0}.as_ref().map(|v| wl_array {{ size: v.len(), alloc: v.capacity(), data: v.as_ptr() as *mut _ }});",
-                            arg.name
-                        )?;
-                    } else {
-                        writeln!(
-                            out,
-                            "            let {0} = wl_array {{ size: {0}.len(), alloc: {0}.capacity(), data: {0}.as_ptr() as *mut _ }};",
-                            arg.name
-                        )?;
-                    }
-                }
-                Type::String => {
-                    if arg.allow_null {
-                        writeln!(
-                            out,
-                            "            let {0} = {0}.map(|s| CString::new(s).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\")));",
-                            arg.name,
-                            iname,
-                            msg.name
-                        )?;
-                    } else {
-                        writeln!(
-                            out,
-                            "            let {0} = CString::new({0}).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\"));",
-                            arg.name,
-                            iname,
-                            msg.name
-                        )?;
-                    }
-                }
+                Type::Array => if arg.allow_null {
+                    writeln!(
+                        out,
+                        "            let {0} = {0}.as_ref().map(|v| wl_array {{ size: v.len(), alloc: v.capacity(), data: v.as_ptr() as *mut _ }});",
+                        arg.name
+                    )?;
+                } else {
+                    writeln!(
+                        out,
+                        "            let {0} = wl_array {{ size: {0}.len(), alloc: {0}.capacity(), data: {0}.as_ptr() as *mut _ }};",
+                        arg.name
+                    )?;
+                },
+                Type::String => if arg.allow_null {
+                    writeln!(
+                        out,
+                        "            let {0} = {0}.map(|s| CString::new(s).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\")));",
+                        arg.name,
+                        iname,
+                        msg.name
+                    )?;
+                } else {
+                    writeln!(
+                        out,
+                        "            let {0} = CString::new({0}).unwrap_or_else(|_| panic!(\"Got a String with interior null in {1}.{2}:{0}\"));",
+                        arg.name,
+                        iname,
+                        msg.name
+                    )?;
+                },
                 _ => (),
             }
         }
@@ -836,11 +896,12 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                         "                panic!(\"Tried to bind interface {{}} with version {{}} while it is only supported up to {{}}.\", <T as Proxy>::interface_name(), version, <T as Proxy>::supported_version())"
                     )?;
                     writeln!(out, "            }}")?;
-                    try!(write!(out,
+                    write!(
+                        out,
                         "            let ptr = unsafe {{ ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_marshal_constructor_versioned, self.ptr(), {}_{}, <T as Proxy>::interface_ptr(), version",
                         snake_to_screaming(iname),
                         snake_to_screaming(&msg.name),
-                    ));
+                    )?;
                 }
             } else {
                 write!(
@@ -868,47 +929,39 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
                     }
                     write!(out, ", ptr::null_mut::<wl_proxy>()")?;
                 }
-                Type::String => {
-                    if arg.allow_null {
-                        write!(
-                            out,
-                            ", {}.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())",
-                            arg.name
-                        )?;
-                    } else {
-                        write!(out, ", {}.as_ptr()", arg.name)?;
-                    }
-                }
-                Type::Array => {
-                    if arg.allow_null {
-                        write!(
-                            out,
-                            ", {}.as_ref().map(|a| a as *const wl_array).unwrap_or(ptr::null())",
-                            arg.name
-                        )?;
-                    } else {
-                        write!(out, ", &{} as *const wl_array", arg.name)?;
-                    }
-                }
-                Type::Object => {
-                    if arg.allow_null {
-                        write!(
-                            out,
-                            ", {}.map({}::ptr).unwrap_or(ptr::null_mut())",
-                            arg.name,
-                            side.object_trait()
-                        )?;
-                    } else {
-                        write!(out, ", {}.ptr()", arg.name)?;
-                    }
-                }
-                _ => {
-                    if arg.allow_null {
-                        write!(out, ", {}.unwrap_or(0)", arg.name)?;
-                    } else {
-                        write!(out, ", {}", arg.name)?;
-                    }
-                }
+                Type::String => if arg.allow_null {
+                    write!(
+                        out,
+                        ", {}.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())",
+                        arg.name
+                    )?;
+                } else {
+                    write!(out, ", {}.as_ptr()", arg.name)?;
+                },
+                Type::Array => if arg.allow_null {
+                    write!(
+                        out,
+                        ", {}.as_ref().map(|a| a as *const wl_array).unwrap_or(ptr::null())",
+                        arg.name
+                    )?;
+                } else {
+                    write!(out, ", &{} as *const wl_array", arg.name)?;
+                },
+                Type::Object => if arg.allow_null {
+                    write!(
+                        out,
+                        ", {}.map({}::ptr).unwrap_or(ptr::null_mut())",
+                        arg.name,
+                        side.object_trait()
+                    )?;
+                } else {
+                    write!(out, ", {}.ptr()", arg.name)?;
+                },
+                _ => if arg.allow_null {
+                    write!(out, ", {}.unwrap_or(0)", arg.name)?;
+                } else {
+                    write!(out, ", {}", arg.name)?;
+                },
             }
         }
 

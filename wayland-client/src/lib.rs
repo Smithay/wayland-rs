@@ -15,81 +15,36 @@
 //! You then register your handlers for events to the
 //! event queue, and integrate it in your main event loop.
 //!
-//! # Handlers and event queues
+//! # Implementations and event queues
 //!
 //! This crate mirrors the callback-oriented design of the
 //! Wayland C library by using handler structs: each wayland
-//! type defines a `Handler` trait in its module, which one
-//! method for each possible event this object can receive.
+//! type defines an `Implementation` struct in its module, with
+//! one function field for each possible event this object can receive.
 //!
-//! To use it, you need to build a struct (or enum) that will
-//! implement all the traits for all the events you are interested
-//! in. All methods of handler traits provide a default
-//! implementation foing nothing, so you don't need to write
-//! empty methods for events you want to ignore. You also need
-//! to declare the handler capability for your struct using
-//! the `declare_handler!(..)` macro. A single struct can be
-//! handler for several wayland interfaces at once.
+//! When registering an object on an event queue, you need to provide an
+//! implementation for this object. You can also provide some
+//! "implementation data": a value that will be provided as second
+//! argument to all the callback methods of your implementation.
 //!
-//! ## Example of handler
+//! A typical use of implementation data is to store here one or more
+//! state tokens to access some part of the shared state from your
+//! callback.
 //!
-//! ```ignore
-//! /*  writing a handler for an wl_foo interface */
-//! // import the module of this interface
-//! use wl_foo;
+//! ## Example of implementation
 //!
-//! struct MyHandler { /* some fields to store state */ }
-//!
-//! // implement handerl trait:
-//! impl wl_foo::Handler for MyHandler {
-//!     fn an_event(&mut self,
-//!                 evqh: &mut EventQueueHandle,
-//!                 me: &wl_foo::WlFoo,
-//!                 arg1, arg2, // the actual args of the event
-//!     ) {
-//!         /* handle the event */
-//!     }
-//! }
-//!
-//! // declare the handler capability
-//! // this boring step is necessary because Rust's type system is
-//! // not yet magical enough
-//! declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
-//! ```
-//!
-//! ## Event Queues and handlers
-//!
-//! In your initialization code, you'll need to instantiate
-//! your handler and give it to the event queue:
+//! You can register your wayland objects to an event queue:
 //!
 //! ```ignore
-//! let handler_id = event_queue.add_handler(MyHandler::new());
+//! event_queue.register(&my_object, implementation, impl_data);
 //! ```
 //!
-//! Then, you can register your wayland objects to this handler:
+//! A given wayland object can only be registered to a event
+//! queue at a given time, re-registering it will overwrite
+//! the previous configuration.
 //!
-//! ```ignore
-//! // This type info is necessary for safety, as at registration
-//! // time the event_queue will check that the handler you
-//! // specified using handler_id has the same type as provided
-//! // as argument, and that this type implements the appropriate
-//! // handler trait.
-//! event_queue.register::<_, MyHandler>(&my_object, handler_id);
-//! ```
-//!
-//! You can have several handlers in the same event queue,
-//! but they cannot share their state without synchronisation
-//! primitives like `Arc`, `Mutex` and friends, so if two handlers
-//! need to share some state, you should consider building them
-//! as a single struct.
-//!
-//! A given wayland object can only be registered to a single
-//! handler at a given time, re-registering it to a new handler
-//! will overwrite the previous configuration.
-//!
-//! Handlers can be created, and objects registered to them
-//! from within a handler method, using the `&EventQueueHandle`
-//! argument.
+//! Objects can be registered to event queues using the `&EventQueueHandle`
+//! argument, available from withing an event callback.
 //!
 //! ## Event loop integration
 //!
@@ -123,13 +78,12 @@
 
 #[macro_use]
 extern crate bitflags;
+extern crate libc;
 #[macro_use]
 extern crate wayland_sys;
-extern crate libc;
 
 pub use generated::client as protocol;
 pub use generated::interfaces as protocol_interfaces;
-
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_interface};
 
@@ -143,9 +97,9 @@ pub mod egl;
 #[cfg(feature = "cursor")]
 pub mod cursor;
 
-pub use display::{ConnectError, FatalError, connect_to, default_connect};
+pub use display::{connect_to, default_connect, ConnectError, FatalError};
 pub use env::{EnvHandler, EnvHandlerInner};
-pub use event_queue::{EventQueue, EventQueueHandle, Init, ReadEventsGuard, RegisterStatus, StateGuard};
+pub use event_queue::{EventQueue, EventQueueHandle, ReadEventsGuard, RegisterStatus, State, StateToken};
 
 /// Common routines for wayland proxy objects.
 ///
@@ -155,7 +109,7 @@ pub use event_queue::{EventQueue, EventQueueHandle, Init, ReadEventsGuard, Regis
 /// It is mostly used for internal use by the library, and you
 /// should only need these methods for interfacing with C library
 /// working on wayland objects.
-pub trait Proxy {
+pub unsafe trait Proxy {
     /// Pointer to the underlying wayland proxy object
     fn ptr(&self) -> *mut wl_proxy;
     /// Create an instance from a wayland pointer
@@ -220,7 +174,6 @@ pub trait Proxy {
         } else {
             None
         }
-
     }
     /// Unsafely clone this proxy handle
     ///
@@ -229,12 +182,15 @@ pub trait Proxy {
     /// will not outlive the object.
     unsafe fn clone_unchecked(&self) -> Self
     where
-        Self: Sized,
-    {
-        // TODO: this can be more optimized with codegen help, but would be a
-        // breaking change, so do it at next breaking release
-        Self::from_ptr_initialized(self.ptr())
-    }
+        Self: Sized;
+}
+
+/// Common trait for wayland objects that can be registered to an EventQueue
+pub unsafe trait Implementable<ID: 'static>: Proxy {
+    /// The type containing the implementation for the event callbacks
+    type Implementation: PartialEq + Copy + 'static;
+    #[doc(hidden)]
+    unsafe fn __dispatch_msg(&self, opcode: u32, args: *const wl_argument) -> Result<(), ()>;
 }
 
 /// Possible outcome of the call of a request on a proxy
@@ -258,25 +214,6 @@ impl<T> RequestResult<T> {
     }
 }
 
-/// Generic handler trait
-///
-/// This trait is automatically implemented for objects that implement
-/// the appropriate interface-specific `Handler` traits. It represents
-/// the hability for a type to handle events directed to a given wayland
-/// interface.
-///
-/// For example, implementing `wl_surface::Handler` for you type will
-/// automatically provide it with an implementation of
-/// `Handler<WlSurface>` as well. This is the only correct way
-/// to implement this trait, and you should not attempt to implement it
-/// yourself.
-pub unsafe trait Handler<T: Proxy> {
-    /// Dispatch a message.
-    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &T, opcode: u32,
-                      args: *const wl_argument)
-                      -> Result<(), ()>;
-}
-
 /// Represents the state of liveness of a wayland object
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Liveness {
@@ -291,33 +228,28 @@ pub enum Liveness {
 }
 
 mod generated {
-    #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
-    #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
+    #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
+    #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
     #![allow(missing_docs)]
 
     pub mod interfaces {
         //! Interfaces for the core protocol
-        // You might need them for the bindings generated for protocol extensions
+        //!
+        //! You might need them for the bindings generated for protocol extensions
         include!(concat!(env!("OUT_DIR"), "/wayland_interfaces.rs"));
     }
 
     pub mod client {
         //! The wayland core protocol
-        // This module contains all objects of the core wayland protocol.
-        //
-        // It has been generated from the `wayland.xml` protocol file
-        // using `wayland_scanner`.
+        //!
+        //! This module contains all objects of the core wayland protocol.
+        //!
+        //! It has been generated from the `wayland.xml` protocol file
+        //! using `wayland_scanner`.
 
-        // Imports that need to be available to submodules
-        // but should not be in public API.
-        // Will be fixable with pub(restricted).
-
-        #[doc(hidden)]
-        pub use super::interfaces;
-        #[doc(hidden)]
-        pub use {Handler, Liveness, Proxy, RequestResult};
-        #[doc(hidden)]
-        pub use event_queue::EventQueueHandle;
+        pub(crate) use super::interfaces;
+        pub(crate) use {Implementable, Liveness, Proxy, RequestResult};
+        pub(crate) use event_queue::EventQueueHandle;
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }
 }

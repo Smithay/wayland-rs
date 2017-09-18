@@ -4,38 +4,19 @@ extern crate wayland_server as ways;
 
 mod helpers;
 
-use helpers::{TestClient, TestServer, roundtrip};
+use helpers::{roundtrip, TestClient, TestServer};
 
 mod server_utils {
-    use ways::{Client, EventLoop, EventLoopHandle, GlobalHandler};
+    use ways::EventLoop;
     use ways::protocol::wl_compositor::WlCompositor;
-
-    struct CompositorHandler;
-
-    impl GlobalHandler<WlCompositor> for CompositorHandler {
-        fn bind(&mut self, _: &mut EventLoopHandle, _: &Client, _: WlCompositor) {}
-    }
 
     // max supported version: 4
     pub fn insert_compositor(event_loop: &mut EventLoop, v: i32) {
-        let hid = event_loop.add_handler(CompositorHandler);
-        let _ = event_loop.register_global::<WlCompositor, CompositorHandler>(hid, v);
+        let _ = event_loop.register_global::<WlCompositor, ()>(v, |_, _, _, _| {}, ());
     }
 }
 
-wayland_env!(ClientEnv);
-
-mod client_utils {
-    use super::ClientEnv;
-    use wayc::{EnvHandler, EventQueue};
-    use wayc::protocol::wl_registry::WlRegistry;
-
-    pub fn insert_handler(event_queue: &mut EventQueue, registry: &WlRegistry) -> usize {
-        let hid = event_queue.add_handler(EnvHandler::<ClientEnv>::new());
-        event_queue.register::<_, EnvHandler<ClientEnv>>(registry, hid);
-        hid
-    }
-}
+wayland_env!(pub ClientEnv);
 
 #[test]
 fn simple_global() {
@@ -48,7 +29,7 @@ fn simple_global() {
     //
     let mut client = TestClient::new(&server.socket_name);
     let client_registry = client.display.get_registry();
-    let client_handler_hid = self::client_utils::insert_handler(&mut client.event_queue, &client_registry);
+    let client_env_token = wayc::EnvHandler::<ClientEnv>::init(&mut client.event_queue, &client_registry);
 
     // message passing
     //
@@ -57,7 +38,7 @@ fn simple_global() {
     // result assertions
     //
     let state = client.event_queue.state();
-    let env = state.get_handler::<wayc::EnvHandler<ClientEnv>>(client_handler_hid);
+    let env = state.get(&client_env_token);
     let globals = env.globals();
     assert!(globals.len() == 1);
     assert_eq!(globals[0], (1, "wl_compositor".into(), 1));
@@ -77,7 +58,7 @@ fn multi_versions() {
     //
     let mut client = TestClient::new(&server.socket_name);
     let client_registry = client.display.get_registry();
-    let client_handler_hid = self::client_utils::insert_handler(&mut client.event_queue, &client_registry);
+    let client_env_token = wayc::EnvHandler::<ClientEnv>::init(&mut client.event_queue, &client_registry);
 
     // message passing
     //
@@ -86,7 +67,7 @@ fn multi_versions() {
     // result assertions
     //
     let state = client.event_queue.state();
-    let env = state.get_handler::<wayc::EnvHandler<ClientEnv>>(client_handler_hid);
+    let env = state.get(&client_env_token);
     let globals = env.globals();
     assert!(globals.len() == 4);
     let mut seen = [false; 4];

@@ -1,24 +1,21 @@
 
 
 use EventLoopHandle;
-
 use std::io::Error as IoError;
 use std::io::Write;
 use std::os::raw::{c_int, c_void};
-
 use std::os::unix::io::RawFd;
 use wayland_sys::server::*;
 
-// fd_event_source
-//
-
+/// fd_event_source
+///
 /// A handle to a registered FD event source
 ///
 /// Dropping this struct does not remove the event source,
 /// use the `remove` method for that.
-pub struct FdEventSource {
+pub struct FdEventSource<ID> {
     ptr: *mut wl_event_source,
-    data: *mut (*mut c_void, *mut EventLoopHandle),
+    data: *mut (FdEventSourceImpl<ID>, *mut EventLoopHandle, ID),
 }
 
 bitflags!{
@@ -31,15 +28,16 @@ bitflags!{
     }
 }
 
-pub fn make_fd_event_source(ptr: *mut wl_event_source, data: Box<(*mut c_void, *mut EventLoopHandle)>)
-                            -> FdEventSource {
+pub fn make_fd_event_source<ID: 'static>(ptr: *mut wl_event_source,
+                                         data: Box<(FdEventSourceImpl<ID>, *mut EventLoopHandle, ID)>)
+                                         -> FdEventSource<ID> {
     FdEventSource {
         ptr: ptr,
         data: Box::into_raw(data),
     }
 }
 
-impl FdEventSource {
+impl<ID> FdEventSource<ID> {
     /// Change the registered interest for this FD
     pub fn update_mask(&mut self, mask: FdInterest) {
         unsafe {
@@ -61,28 +59,30 @@ impl FdEventSource {
     }
 }
 
-/// Trait for handlers for FD events
-pub trait FdEventSourceHandler {
+/// Implementation for FD events
+pub struct FdEventSourceImpl<ID> {
     /// The FD is ready to be read/written
     ///
     /// Details of the capability state are given as argument.
-    fn ready(&mut self, evlh: &mut EventLoopHandle, fd: RawFd, mask: FdInterest);
+    pub ready: fn(evlh: &mut EventLoopHandle, idata: &mut ID, fd: RawFd, mask: FdInterest),
     /// An error occured with this FD
     ///
     /// Most likely it won't be usable any longer
-    fn error(&mut self, evlh: &mut EventLoopHandle, fd: RawFd, error: IoError);
+    pub error: fn(evlh: &mut EventLoopHandle, idata: &mut ID, fd: RawFd, mask: IoError),
 }
 
-pub unsafe extern "C" fn event_source_fd_dispatcher<H>(fd: c_int, mask: u32, data: *mut c_void) -> c_int
+
+pub unsafe extern "C" fn event_source_fd_dispatcher<ID>(fd: c_int, mask: u32, data: *mut c_void) -> c_int
 where
-    H: FdEventSourceHandler,
+    ID: 'static,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let (handler_ptr, evlh_ptr) = *(data as *mut (*mut c_void, *mut EventLoopHandle));
-        let handler = &mut *(handler_ptr as *mut H);
-        let evlh = &mut *(evlh_ptr);
+        let data = &mut *(data as *mut (FdEventSourceImpl<ID>, *mut EventLoopHandle, ID));
+        let implem = &data.0;
+        let evlh = &mut *(data.1);
+        let idata = &mut data.2;
         if mask & 0x08 > 0 {
             // EPOLLERR
             use nix::sys::socket;
@@ -98,11 +98,12 @@ where
                     ::libc::abort();
                 }
             };
-            handler.error(evlh, fd, IoError::from_raw_os_error(err));
+            (implem.error)(evlh, idata, fd, IoError::from_raw_os_error(err));
         } else if mask & 0x04 > 0 {
             // EPOLLHUP
-            handler.error(
+            (implem.error)(
                 evlh,
+                idata,
                 fd,
                 IoError::new(::std::io::ErrorKind::ConnectionAborted, ""),
             )
@@ -114,11 +115,11 @@ where
             if mask & 0x01 > 0 {
                 bits = bits | READ;
             }
-            handler.ready(evlh, fd, bits)
+            (implem.ready)(evlh, idata, fd, bits)
         }
     });
     match ret {
-        Ok(()) => return 0,   // all went well
+        Ok(()) => return 0, // all went well
         Err(_) => {
             // a panic occured
             let _ = write!(
@@ -131,32 +132,35 @@ where
     }
 }
 
-// timer_event_source
-//
-
+/// timer_event_source
+///
 /// A handle to a registered timer event source
 ///
 /// Dropping this struct does not remove the event source,
 /// use the `remove` method for that.
-pub struct TimerEventSource {
+pub struct TimerEventSource<ID> {
     ptr: *mut wl_event_source,
-    _data: Box<(*mut c_void, *mut EventLoopHandle)>,
+    _data: Box<(TimerEventSourceImpl<ID>, *mut EventLoopHandle, ID)>,
 }
 
 
-pub fn make_timer_event_source(ptr: *mut wl_event_source, data: Box<(*mut c_void, *mut EventLoopHandle)>)
-                               -> TimerEventSource {
+pub fn make_timer_event_source<ID>(ptr: *mut wl_event_source,
+                                   data: Box<(TimerEventSourceImpl<ID>, *mut EventLoopHandle, ID)>)
+                                   -> TimerEventSource<ID> {
     TimerEventSource {
         ptr: ptr,
         _data: data,
     }
 }
 
-impl TimerEventSource {
+impl<ID> TimerEventSource<ID> {
     /// Set the delay of this timer
     ///
-    /// The handler will be called during the next dispatch of the
+    /// The callback will be called during the next dispatch of the
     /// event loop after this time (in milliseconds) is elapsed.
+    ///
+    /// Manually the delay to 0 stops the timer (the callback won't be
+    /// called).
     pub fn set_delay_ms(&mut self, delay: i32) {
         unsafe {
             ffi_dispatch!(
@@ -176,30 +180,27 @@ impl TimerEventSource {
     }
 }
 
-/// Trait for handlers for timer event sources
-pub trait TimerEventSourceHandler {
-    /// The countdown has reached zero
-    fn timeout(&mut self, evlh: &mut EventLoopHandle);
-}
+/// Called when the countdown reaches 0
+pub type TimerEventSourceImpl<ID> = fn(&mut EventLoopHandle, idata: &mut ID);
 
-pub unsafe extern "C" fn event_source_timer_dispatcher<H>(data: *mut c_void) -> c_int
+pub unsafe extern "C" fn event_source_timer_dispatcher<ID>(data: *mut c_void) -> c_int
 where
-    H: TimerEventSourceHandler,
+    ID: 'static,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let (handler_ptr, evlh_ptr) = *(data as *mut (*mut c_void, *mut EventLoopHandle));
-        let handler = &mut *(handler_ptr as *mut H);
-        let evlh = &mut *(evlh_ptr);
-        handler.timeout(evlh);
+        let data = &mut *(data as *mut (TimerEventSourceImpl<ID>, *mut EventLoopHandle, ID));
+        let cb = data.0;
+        let evlh = &mut *(data.1);
+        let idata = &mut data.2;
+        cb(evlh, idata);
     });
     match ret {
-        Ok(()) => return 0,   // all went well
+        Ok(()) => return 0, // all went well
         Err(_) => {
             // a panic occured
-            let _ =
-                write!(
+            let _ = write!(
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for a timer event source panicked, aborting.",
             );
@@ -208,28 +209,30 @@ where
     }
 }
 
-// signal_event_source
-//
-
+/// signal_event_source
+///
 /// A handle to a registered signal event source
 ///
 /// Dropping this struct does not remove the event source,
 /// use the `remove` method for that.
-pub struct SignalEventSource {
+pub struct SignalEventSource<ID> {
     ptr: *mut wl_event_source,
-    _data: Box<(*mut c_void, *mut EventLoopHandle)>,
+    _data: Box<(SignalEventSourceImpl<ID>, *mut EventLoopHandle, ID)>,
 }
 
 
-pub fn make_signal_event_source(ptr: *mut wl_event_source, data: Box<(*mut c_void, *mut EventLoopHandle)>)
-                                -> SignalEventSource {
+pub fn make_signal_event_source<ID: 'static>(ptr: *mut wl_event_source,
+                                             data: Box<
+    (SignalEventSourceImpl<ID>, *mut EventLoopHandle, ID),
+>)
+                                             -> SignalEventSource<ID> {
     SignalEventSource {
         ptr: ptr,
         _data: data,
     }
 }
 
-impl SignalEventSource {
+impl<ID> SignalEventSource<ID> {
     /// Remove this event source from its event loop
     pub fn remove(self) {
         unsafe {
@@ -238,24 +241,26 @@ impl SignalEventSource {
     }
 }
 
-/// Trait for handlers of signal event sources
-pub trait SignalEventSourceHandler {
-    /// A signal has been received
-    ///
-    /// The signal number is given has argument
-    fn signal(&mut self, evlh: &mut EventLoopHandle, signal: ::nix::sys::signal::Signal);
-}
+/// A signal has been received
+///
+/// The signal number is given has argument
+pub type SignalEventSourceImpl<ID> = fn(
+                                      &mut EventLoopHandle,
+                                      idata: &mut ID,
+                                      signal: ::nix::sys::signal::Signal,
+);
 
-pub unsafe extern "C" fn event_source_signal_dispatcher<H>(signal: c_int, data: *mut c_void) -> c_int
+pub unsafe extern "C" fn event_source_signal_dispatcher<ID>(signal: c_int, data: *mut c_void) -> c_int
 where
-    H: SignalEventSourceHandler,
+    ID: 'static,
 {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let (handler_ptr, evlh_ptr) = *(data as *mut (*mut c_void, *mut EventLoopHandle));
-        let handler = &mut *(handler_ptr as *mut H);
-        let evlh = &mut *(evlh_ptr);
+        let data = &mut *(data as *mut (SignalEventSourceImpl<ID>, *mut EventLoopHandle, ID));
+        let cb = data.0;
+        let evlh = &mut *(data.1);
+        let idata = &mut data.2;
         let sig = match ::nix::sys::signal::Signal::from_c_int(signal) {
             Ok(sig) => sig,
             Err(_) => {
@@ -269,14 +274,13 @@ where
                 ::libc::abort();
             }
         };
-        handler.signal(evlh, sig);
+        cb(evlh, idata, sig);
     });
     match ret {
-        Ok(()) => return 0,   // all went well
+        Ok(()) => return 0, // all went well
         Err(_) => {
             // a panic occured
-            let _ =
-                write!(
+            let _ = write!(
                 ::std::io::stderr(),
                 "[wayland-server error] A handler for a timer event source panicked, aborting.",
             );

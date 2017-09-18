@@ -5,14 +5,11 @@ extern crate tempfile;
 
 extern crate byteorder;
 use byteorder::{NativeEndian, WriteBytesExt};
-
 use std::cmp::min;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
-
-use wayland_client::{EnvHandler, EventQueueHandle};
-use wayland_client::protocol::{wl_compositor, wl_pointer, wl_seat, wl_shell, wl_shell_surface, wl_shm,
-                               wl_surface};
+use wayland_client::EnvHandler;
+use wayland_client::protocol::{wl_compositor, wl_pointer, wl_seat, wl_shell, wl_shell_surface, wl_shm};
 
 wayland_env!(
     WaylandEnv,
@@ -22,54 +19,47 @@ wayland_env!(
     shm: wl_shm::WlShm
 );
 
-struct MyHandler;
-
-impl wl_shell_surface::Handler for MyHandler {
-    fn ping(&mut self, _: &mut EventQueueHandle, me: &wl_shell_surface::WlShellSurface, serial: u32) {
-        me.pong(serial);
+fn shell_surface_impl() -> wl_shell_surface::Implementation<()> {
+    wl_shell_surface::Implementation {
+        ping: |_, _, shell_surface, serial| {
+            shell_surface.pong(serial);
+        },
+        configure: |_, _, _, _, _, _| { /* not used in this example */ },
+        popup_done: |_, _, _| { /* not used in this example */ },
     }
-
-    // we ignore the other methods in this example, by default they do nothing
 }
 
-declare_handler!(
-    MyHandler,
-    wl_shell_surface::Handler,
-    wl_shell_surface::WlShellSurface
-);
-
-impl wl_pointer::Handler for MyHandler {
-    fn enter(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _serial: u32,
-             _surface: &wl_surface::WlSurface, surface_x: f64, surface_y: f64) {
-        println!("Pointer entered surface at ({},{}).", surface_x, surface_y);
+fn pointer_impl() -> wl_pointer::Implementation<()> {
+    wl_pointer::Implementation {
+        enter: |_, _, _pointer, _serial, _surface, x, y| {
+            println!("Pointer entered surface at ({},{}).", x, y);
+        },
+        leave: |_, _, _pointer, _serial, _surface| {
+            println!("Pointer left surface.");
+        },
+        motion: |_, _, _pointer, _time, x, y| {
+            println!("Pointer moved to ({},{}).", x, y);
+        },
+        button: |_, _, _pointer, _serial, _time, button, state| {
+            println!(
+                "Button {} ({}) was {:?}.",
+                match button {
+                    272 => "Left",
+                    273 => "Right",
+                    274 => "Middle",
+                    _ => "Unknown",
+                },
+                button,
+                state
+            );
+        },
+        axis: |_, _, _, _, _, _| { /* not used in this example */ },
+        frame: |_, _, _| { /* not used in this example */ },
+        axis_source: |_, _, _, _| { /* not used in this example */ },
+        axis_discrete: |_, _, _, _, _| { /* not used in this example */ },
+        axis_stop: |_, _, _, _, _| { /* not used in this example */ },
     }
-    fn leave(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _serial: u32,
-             _surface: &wl_surface::WlSurface) {
-        println!("Pointer left surface.");
-    }
-    fn motion(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _time: u32, surface_x: f64,
-              surface_y: f64) {
-        println!("Pointer moved to ({},{}).", surface_x, surface_y);
-    }
-    fn button(&mut self, _: &mut EventQueueHandle, _me: &wl_pointer::WlPointer, _serial: u32, _time: u32,
-              button: u32, state: wl_pointer::ButtonState) {
-        println!(
-            "Button {} ({}) was {:?}.",
-            match button {
-                272 => "Left",
-                273 => "Right",
-                274 => "Middle",
-                _ => "Unknown",
-            },
-            button,
-            state
-        );
-    }
-
-    // we ignore the other methods in this example, by default they do nothing
 }
-
-declare_handler!(MyHandler, wl_pointer::Handler, wl_pointer::WlPointer);
 
 fn main() {
     let (display, mut event_queue) = match wayland_client::default_connect() {
@@ -77,9 +67,10 @@ fn main() {
         Err(e) => panic!("Cannot connect to wayland server: {:?}", e),
     };
 
-    event_queue.add_handler(EnvHandler::<WaylandEnv>::new());
     let registry = display.get_registry();
-    event_queue.register::<_, EnvHandler<WaylandEnv>>(&registry, 0);
+
+    let env_token = EnvHandler::<WaylandEnv>::init(&mut event_queue, &registry);
+
     event_queue.sync_roundtrip().unwrap();
 
     // buffer (and window) width and height
@@ -87,9 +78,9 @@ fn main() {
     let buf_y: u32 = 240;
 
     // create a tempfile to write the conents of the window on
-    let mut tmp = tempfile::tempfile().ok().expect(
-        "Unable to create a tempfile.",
-    );
+    let mut tmp = tempfile::tempfile()
+        .ok()
+        .expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {
         let x = (i % buf_x) as u32;
@@ -106,14 +97,12 @@ fn main() {
         // introduce a new scope because .state() borrows the event_queue
         let state = event_queue.state();
         // retrieve the EnvHandler
-        let env = state.get_handler::<EnvHandler<WaylandEnv>>(0);
+        let env = state.get(&env_token);
         let surface = env.compositor.create_surface();
         let shell_surface = env.shell.get_shell_surface(&surface);
 
-        let pool = env.shm.create_pool(
-            tmp.as_raw_fd(),
-            (buf_x * buf_y * 4) as i32,
-        );
+        let pool = env.shm
+            .create_pool(tmp.as_raw_fd(), (buf_x * buf_y * 4) as i32);
         // match a buffer on the part we wrote on
         let buffer = pool.create_buffer(
             0,
@@ -130,9 +119,9 @@ fn main() {
         // commit
         surface.commit();
 
-        let pointer = env.seat.get_pointer().expect(
-            "Seat cannot be already destroyed.",
-        );
+        let pointer = env.seat
+            .get_pointer()
+            .expect("Seat cannot be already destroyed.");
 
         // we can let the other objects go out of scope
         // their associated wyland objects won't automatically be destroyed
@@ -140,9 +129,8 @@ fn main() {
         (shell_surface, pointer)
     };
 
-    event_queue.add_handler(MyHandler);
-    event_queue.register::<_, MyHandler>(&shell_surface, 1);
-    event_queue.register::<_, MyHandler>(&pointer, 1);
+    event_queue.register(&shell_surface, shell_surface_impl(), ());
+    event_queue.register(&pointer, pointer_impl(), ());
 
     loop {
         display.flush().unwrap();

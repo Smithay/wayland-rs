@@ -12,9 +12,9 @@ pub struct TestServer {
 impl TestServer {
     pub fn new() -> TestServer {
         let (mut display, event_loop) = ::ways::create_display();
-        let socket_name = display.add_socket_auto().expect(
-            "Failed to create a server socket.",
-        );
+        let socket_name = display
+            .add_socket_auto()
+            .expect("Failed to create a server socket.");
 
         TestServer {
             display: display,

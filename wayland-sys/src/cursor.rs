@@ -5,7 +5,7 @@
 use client::wl_proxy;
 use std::os::raw::{c_char, c_int, c_uint};
 
-pub enum wl_cursor_theme { }
+pub enum wl_cursor_theme {}
 
 #[repr(C)]
 pub struct wl_cursor_image {

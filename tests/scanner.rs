@@ -1,11 +1,10 @@
-extern crate wayland_scanner;
 extern crate difference;
+extern crate wayland_scanner;
 
 
 use difference::{Changeset, Difference};
 use std::io::Cursor;
 use std::str::from_utf8;
-
 use wayland_scanner::Side;
 
 const PROTOCOL: &'static str = include_str!("./scanner_assets/protocol.xml");
@@ -20,21 +19,15 @@ fn print_diff(diffs: &[Difference]) {
     println!("");
     for d in diffs {
         match *d {
-            Difference::Same(ref x) => {
-                for l in x.lines() {
-                    println!("   {}", l);
-                }
-            }
-            Difference::Add(ref x) => {
-                for l in x.lines() {
-                    println!("\x1b[92m + {}\x1b[0m", l);
-                }
-            }
-            Difference::Rem(ref x) => {
-                for l in x.lines() {
-                    println!("\x1b[91m - {}\x1b[0m", l);
-                }
-            }
+            Difference::Same(ref x) => for l in x.lines() {
+                println!("   {}", l);
+            },
+            Difference::Add(ref x) => for l in x.lines() {
+                println!("\x1b[92m + {}\x1b[0m", l);
+            },
+            Difference::Rem(ref x) => for l in x.lines() {
+                println!("\x1b[91m - {}\x1b[0m", l);
+            },
         }
     }
 }
@@ -42,8 +35,7 @@ fn print_diff(diffs: &[Difference]) {
 fn only_newlines_err(diffs: &[Difference]) -> bool {
     for d in diffs {
         match *d {
-            Difference::Add(_) |
-            Difference::Rem(_) => return false,
+            Difference::Add(_) | Difference::Rem(_) => return false,
             _ => {}
         }
     }

@@ -16,7 +16,7 @@ pub mod wl_foo {
     use super::EventQueueHandle;
     use super::Proxy;
     use super::RequestResult;
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -36,13 +36,13 @@ pub mod wl_foo {
     unsafe impl Send for WlFoo {}
     unsafe impl Sync for WlFoo {}
 
-    impl Proxy for WlFoo {
+    unsafe impl Proxy for WlFoo {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlFoo {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
@@ -55,7 +55,7 @@ pub mod wl_foo {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlFoo { ptr: ptr, data: Option::None }
@@ -93,6 +93,41 @@ pub mod wl_foo {
             } else {
                 ::std::ptr::null_mut()
             }
+        }
+        unsafe fn clone_unchecked(&self) -> WlFoo {
+            WlFoo {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
+    }
+
+    unsafe impl<ID: 'static> Implementable<ID> for WlFoo {
+        type Implementation = Implementation<ID>;
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
+
+        let data: &mut (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
+            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut _);
+        let evq = &mut *(data.0);
+        let mut kill = false;
+        {
+            let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();
+            match opcode {
+                0 => {
+                    let kind = {match CakeKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
+                    let amount = {*(args.offset(1) as *const u32)};
+                    (implementation.cake)(evq, idata,  self, kind, amount);
+                },
+                _ => return Err(())
+            }
+        }
+
+        if kill {
+            let _impl = data.1.take();
+            ::std::mem::drop(_impl);
+        }
+            Ok(())
         }
     }
 
@@ -138,24 +173,29 @@ pub mod wl_foo {
         }
     }
 
-    pub trait Handler {
+    pub struct Implementation<ID> {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
         ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_foo, kind, amount
+        ///
         /// This request only exists since version 2 of the interface
-        fn cake(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlFoo, kind: CakeKind, amount: u32) {}
-        #[doc(hidden)]
-        unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
-            match opcode {
-                0 => {
-                    let kind = {match CakeKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
-                    let amount = {*(args.offset(1) as *const u32)};
-                    self.cake(evq,  proxy, kind, amount);
-                },
-                _ => return Err(())
-            }
-            Ok(())
+        pub cake: fn(evqh: &mut EventQueueHandle, data: &mut ID,  wl_foo: &WlFoo, kind: CakeKind, amount: u32),
+    }
+
+    impl<ID> Copy for Implementation<ID> {}
+    impl<ID> Clone for Implementation<ID> {
+        fn clone(&self) -> Implementation<ID> {
+            *self
+        }
+    }
+
+    impl<ID> PartialEq for Implementation<ID> {
+        fn eq(&self, other: &Implementation<ID>) -> bool {
+            true
+            && (self.cake as usize == other.cake as usize)
+
         }
     }
 
@@ -190,7 +230,7 @@ pub mod wl_bar {
     use super::Proxy;
     use super::RequestResult;
 
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -210,13 +250,13 @@ pub mod wl_bar {
     unsafe impl Send for WlBar {}
     unsafe impl Sync for WlBar {}
 
-    impl Proxy for WlBar {
+    unsafe impl Proxy for WlBar {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlBar {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
@@ -229,7 +269,7 @@ pub mod wl_bar {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlBar { ptr: ptr, data: Option::None }
@@ -266,6 +306,12 @@ pub mod wl_bar {
                 data.1.load(Ordering::SeqCst)
             } else {
                 ::std::ptr::null_mut()
+            }
+        }
+        unsafe fn clone_unchecked(&self) -> WlBar {
+            WlBar {
+                ptr: self.ptr,
+                data: self.data.clone()
             }
         }
     }
@@ -310,7 +356,7 @@ pub mod wl_display {
     use super::EventQueueHandle;
     use super::Proxy;
     use super::RequestResult;
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -329,13 +375,13 @@ pub mod wl_display {
 
     unsafe impl Send for WlDisplay {}
     unsafe impl Sync for WlDisplay {}
-    impl Proxy for WlDisplay {
+    unsafe impl Proxy for WlDisplay {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlDisplay {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
@@ -347,7 +393,7 @@ pub mod wl_display {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlDisplay { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlDisplay { ptr: ptr, data: Option::None }
@@ -387,6 +433,12 @@ pub mod wl_display {
                 ::std::ptr::null_mut()
             }
         }
+        unsafe fn clone_unchecked(&self) -> WlDisplay {
+            WlDisplay {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
     }
     impl WlDisplay {
     }
@@ -399,7 +451,7 @@ pub mod wl_registry {
     use super::Proxy;
     use super::RequestResult;
 
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -418,13 +470,13 @@ pub mod wl_registry {
 
     unsafe impl Send for WlRegistry {}
     unsafe impl Sync for WlRegistry {}
-    impl Proxy for WlRegistry {
+    unsafe impl Proxy for WlRegistry {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlRegistry {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
@@ -436,7 +488,7 @@ pub mod wl_registry {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlRegistry { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlRegistry { ptr: ptr, data: Option::None }
@@ -476,6 +528,12 @@ pub mod wl_registry {
                 ::std::ptr::null_mut()
             }
         }
+        unsafe fn clone_unchecked(&self) -> WlRegistry {
+            WlRegistry {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
     }
     const WL_REGISTRY_BIND: u32 = 0;
     impl WlRegistry {
@@ -501,7 +559,7 @@ pub mod wl_callback {
     use super::Proxy;
     use super::RequestResult;
 
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -520,13 +578,13 @@ pub mod wl_callback {
 
     unsafe impl Send for WlCallback {}
     unsafe impl Sync for WlCallback {}
-    impl Proxy for WlCallback {
+    unsafe impl Proxy for WlCallback {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlCallback {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
@@ -538,7 +596,7 @@ pub mod wl_callback {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlCallback { ptr: ptr, data: Option::None }
@@ -578,32 +636,74 @@ pub mod wl_callback {
                 ::std::ptr::null_mut()
             }
         }
+        unsafe fn clone_unchecked(&self) -> WlCallback {
+            WlCallback {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
     }
-    pub trait Handler {
+
+    unsafe impl<ID: 'static> Implementable<ID> for WlCallback {
+        type Implementation = Implementation<ID>;
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
+        let data: &mut (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
+            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut _);
+        let evq = &mut *(data.0);
+        let mut kill = false;
+        {
+            let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();
+
+            match opcode {
+                0 => {
+                    let callback_data = {*(args.offset(0) as *const u32)};
+
+                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                kill = true;
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr());
+                    (implementation.done)(evq, idata,  self, callback_data);
+                },
+                _ => return Err(())
+            }
+        }
+
+        if kill {
+            let _impl = data.1.take();
+            ::std::mem::drop(_impl);
+        }
+
+            Ok(())
+        }
+    }
+    pub struct Implementation<ID> {
         /// done event
         ///
         /// This event is actually a destructor, but the protocol XML has no wait of specifying it.
         /// As such, the scanner should consider wl_callback.done as a special case.
         ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_callback, callback_data
+        ///
         /// This is a destructor, you cannot send requests to this object once this method is called.
-        fn done(&mut self, evqh: &mut EventQueueHandle,  proxy: &WlCallback, callback_data: u32) {}
-        #[doc(hidden)]
-        unsafe fn __message(&mut self, evq: &mut EventQueueHandle,  proxy: &WlCallback, opcode: u32, args: *const wl_argument) -> Result<(),()> {
-            match opcode {
-                0 => {
-                    let callback_data = {*(args.offset(0) as *const u32)};
+        pub done: fn(evqh: &mut EventQueueHandle, data: &mut ID,  wl_callback: &WlCallback, callback_data: u32),
+    }
 
-                if let Some(ref data) = proxy.data {
-                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                }
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy.ptr());
-                    self.done(evq,  proxy, callback_data);
-                },
-                _ => return Err(())
-            }
-            Ok(())
+    impl<ID> Copy for Implementation<ID> {}
+    impl<ID> Clone for Implementation<ID> {
+        fn clone(&self) -> Implementation<ID> {
+            *self
         }
     }
+
+    impl<ID> PartialEq for Implementation<ID> {
+        fn eq(&self, other: &Implementation<ID>) -> bool {
+            true
+
+            && (self.done as usize == other.done as usize)
+
+        }
+    }
+
     impl WlCallback {
     }
 }
