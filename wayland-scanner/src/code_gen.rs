@@ -438,12 +438,13 @@ fn write_dispatch_func<O: Write>(messages: &[Message], out: &mut O, side: Side, 
     )?;
     writeln!(out, r#"
         let data: &mut (*mut {}, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, {}_get_user_data, self.ptr()) as *mut _);
+            &mut *(ffi_dispatch!({}, {}_get_user_data, self.ptr()) as *mut _);
         let evq = &mut *(data.0);
         let mut kill = false;
         {{
             let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();"#,
     side.handle_type(),
+    side.handle(),
     side.object_ptr_type()
     )?;
     writeln!(out, "            match opcode {{")?;

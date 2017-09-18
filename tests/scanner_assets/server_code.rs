@@ -109,7 +109,7 @@ pub mod wl_foo {
         unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
         let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
         let evq = &mut *(data.0);
         let mut kill = false;
         {
@@ -328,7 +328,7 @@ pub mod wl_bar {
         unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
         let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
         let evq = &mut *(data.0);
         let mut kill = false;
         {
