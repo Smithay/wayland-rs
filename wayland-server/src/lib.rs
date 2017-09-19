@@ -12,129 +12,50 @@
 //! You then integrate the wayland event loop in your main event
 //! loop to run your compositor.
 //!
-//! # Handlers and event loop
+//! # Implementation and event loop
 //!
 //! This crate mirrors the callback-oriented design of the
-//! Wayland C library by using handler structs: each wayland
-//! type defines a `Handler` trait in its module, which one
-//! method for each possible requests this object can receive.
+//! Wayland C library by using implementation structs: each wayland
+//! type defines an `Implementation` struct in its module, with
+//! one function field for each possible event this object can receive.
 //!
-//! To use it, you need to build a struct (or enum) that will
-//! implement all the traits for all the requests you are interested
-//! in. All methods of handler traits provide a default
-//! implementation foing nothing, so you don't need to write
-//! empty methods for events you want to ignore. You also need
-//! to declare the handler capability for your struct using
-//! the `declare_handler!(..)` macro. A single struct can be
-//! handler for several wayland interfaces at once.
+//! When registering an object on an event loop, you need to provide an
+//! implementation for this object. You can also provide some
+//! "implementation data": a value that will be provided as second
+//! argument to all the callback methods of your implementation.
 //!
-//! ## Example of handler
+//! A typical use of implementation data is to store here one or more
+//! state tokens to access some part of the shared state from your
+//! callback.
 //!
-//! ```ignore
-//! /*  writing a handler for an wl_foo interface */
-//! // import the module of this interface
-//! use wl_foo;
+//! ## Example of implementation
 //!
-//! struct MyHandler { /* some fields to store state */ }
-//!
-//! // implement handerl trait:
-//! impl wl_foo::Handler for MyHandler {
-//!     fn a_request(&mut self,
-//!                  evlh: &mut EventLoopHandle,
-//!                  client: &Client,
-//!                  me: &wl_foo::WlFoo,
-//!                  arg1, arg2, // the actual args of the request
-//!     ) {
-//!         /* handle the request */
-//!     }
-//! }
-//!
-//! // declare the handler capability
-//! // this boring step is necessary because Rust's type system is
-//! // not yet magical enough
-//! declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
-//! ```
-//!
-//! ## Event Loop and handlers
-//!
-//! In your initialization code, you'll need to instantiate
-//! your handler and give it to the event queue:
+//! You can register your wayland objects to an event queue:
 //!
 //! ```ignore
-//! let handler_id = event_loop.add_handler(MyHandler::new());
+//! event_loop.register(&my_object, implementation, impl_data);
 //! ```
 //!
-//! Then, you can register your wayland objects to this handler:
+//! A given wayland object can only be registered to an event
+//! loop at a given time, re-registering it will overwrite
+//! the previous configuration.
+//!
+//! Objects can be registered to event loop using the `&EventLoopHandle`
+//! argument, available from withing an event callback.
+//!
+//! ## Globals definition
+//!
+//! Some wayland objects are special and can be directly created by the
+//! clients from their registry. To handle them your must declare
+//! which globals you want to make available to your clients, like this:
 //!
 //! ```ignore
-//! // This type info is necessary for safety, as at registration
-//! // time the event_loop will check that the handler you
-//! // specified using handler_id has the same type as provided
-//! // as argument, and that this type implements the appropriate
-//! // handler trait.
-//! event_loop.register::<_, MyHandler>(&my_object, handler_id);
+//! event_loop.register_global(version, callback, idata);
 //! ```
 //!
-//! You can have several handlers in the same event loop,
-//! but they cannot share their state without synchronisation
-//! primitives like `Arc`, `Mutex` and friends, so if two handlers
-//! need to share some state, you should consider building them
-//! as a single struct.
-//!
-//! A given wayland object can only be registered to a single
-//! handler at a given time, re-registering it to a new handler
-//! will overwrite the previous configuration.
-//!
-//! Handlers can be created, and objects registered to them
-//! from within a handler method, using the `&EventLoopHandle`
-//! argument.
-//!
-//! ## Globals declaration
-//!
-//! Declaring a global is quite similar to declaring a handler
-//! for a ressource. But this time via the `GlobalHandler<R>` trait.
-//!
-//! This trait declares a single method, `bind`, which is called
-//! whenever a client binds this global, providing you with
-//! a ressource object representing the newly-created global.
-//!
-//! You can do what you please with this object, storing it for
-//! later if you'll need to send it events, or just let it go
-//! go out of scope after having registered it to the appropriate
-//! handler.
-//!
-//! To register globals on the event loop, you need the
-//! `register_global` method:
-//!
-//! ```ignore
-//! struct MyHandler { /* ... */ }
-//!
-//! // creating a handler for the global wl_foo
-//! impl GlobalHandler<WlFoo> for MyHandler {
-//!     fn bind(&mut self,
-//!             evlh: &mut EventLoopHandle,
-//!             client: &Client,
-//!             global: WlFoo
-//!     ) {
-//!         /* do something with it */
-//!     }
-//! }
-//!
-//! /* ... */
-//!
-//! // then somewhere in the initialization code
-//! let handler_id = event_loop.add_handler(MyHandler::new());
-//! // bind this handler to a global for interface wl_foo version 3
-//! // specifying the types is mandatory, and compability of this
-//! // handler with the global is checked at registration time.
-//! let foo = event_loop.register_global::<WlFoo, MyHandler>(handler_is, 3);
-//! // foo contains a handle to the global, that you can use later
-//! // to destroy it:
-//! foo.destroy();
-//! // if you don't plan to ever destroy this global, you can ignore
-//! // this return value, letting it out of scope will not destroy
-//! // the global.
-//! ```
+//! Where `callback` is a function or non-capturing closure, provided as
+//! an implementation for when this global is instanciated by a client.
+//! See the method documentation for details.
 //!
 //! ## Event loop integration
 //!
@@ -184,7 +105,7 @@ extern crate wayland_sys;
 
 pub use client::Client;
 pub use display::{create_display, Display};
-pub use event_loop::{resource_is_registered, Destroy, EventLoop, EventLoopHandle, Global, GlobalHandler,
+pub use event_loop::{resource_is_registered, EventLoop, EventLoopHandle, Global, GlobalCallback,
                      RegisterStatus, State, StateToken};
 pub use generated::interfaces as protocol_interfaces;
 pub use generated::server as protocol;

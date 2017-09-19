@@ -52,8 +52,21 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
     use wayland_sys::RUST_MANAGED;"#
     )?;
     match side {
-        Side::Client => writeln!(out, "    use wayland_sys::client::*;")?,
-        Side::Server => writeln!(out, "    use wayland_sys::server::*;")?,
+        Side::Client => {
+            writeln!(out, "    use wayland_sys::client::*;")?;
+            writeln!(
+                out,
+                "    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);"
+            )?;
+        }
+        Side::Server => {
+            writeln!(out, "    use wayland_sys::server::*;")?;
+            writeln!(
+                out,
+                "    type UserData = (*mut EventLoopHandle, Option<Box<Any>>,Arc<(AtomicBool, AtomicPtr<()>)>, Option<fn(&{})>);",
+                snake_to_camel(&interface.name)
+            )?;
+        }
     };
 
     writeln!(
@@ -92,17 +105,22 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         out,
         r#"
         unsafe fn from_ptr_new(ptr: *mut {0}) -> {1} {{
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),{3}
             )));
             ffi_dispatch!({2}, {0}_set_user_data, ptr, data as *mut c_void);
             {1} {{ ptr: ptr, data: Some((&*data).2.clone()) }}
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
-        side.handle()
+        side.handle(),
+        if side == Side::Server {
+            "\n                Option::None"
+        } else {
+            ""
+        }
     )?;
     writeln!(
         out,
@@ -126,9 +144,11 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
             ) != 0;"#
         )?;
     }
-    try!(writeln!(out, r#"
+    writeln!(
+        out,
+        r#"
             if rust_managed {{
-                let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!({2}, {0}_get_user_data, ptr) as *mut UserData;
                 {1} {{ ptr: ptr, data: Some((&*data).2.clone()) }}
             }} else {{
                 {1} {{ ptr: ptr, data: Option::None }}
@@ -136,8 +156,8 @@ fn write_interface<O: Write>(interface: &Interface, out: &mut O, side: Side) -> 
         }}"#,
         side.object_ptr_type(),
         snake_to_camel(&interface.name),
-        side.handle()
-    ));
+        side.handle(),
+    )?;
     writeln!(
         out,
         r#"
@@ -437,13 +457,11 @@ fn write_dispatch_func<O: Write>(messages: &[Message], out: &mut O, side: Side, 
         }
     )?;
     writeln!(out, r#"
-        let data: &mut (*mut {}, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!({}, {}_get_user_data, self.ptr()) as *mut _);
+        let data = &mut *(ffi_dispatch!({}, {}_get_user_data, self.ptr()) as *mut UserData);
         let evq = &mut *(data.0);
         let mut kill = false;
         {{
             let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();"#,
-    side.handle_type(),
     side.handle(),
     side.object_ptr_type()
     )?;

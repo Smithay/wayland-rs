@@ -18,7 +18,7 @@
 //! # Implementations and event queues
 //!
 //! This crate mirrors the callback-oriented design of the
-//! Wayland C library by using handler structs: each wayland
+//! Wayland C library by using implementation structs: each wayland
 //! type defines an `Implementation` struct in its module, with
 //! one function field for each possible event this object can receive.
 //!

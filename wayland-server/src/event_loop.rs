@@ -14,10 +14,11 @@ use wayland_sys::RUST_MANAGED;
 use wayland_sys::common::{wl_argument, wl_message};
 use wayland_sys::server::*;
 
-type ResourceUserData = (
+type ResourceUserData<R> = (
     *mut EventLoopHandle,
     Option<Box<Any>>,
     Arc<(AtomicBool, AtomicPtr<()>)>,
+    Option<fn(&R)>,
 );
 
 /// Status of a registration attempt of a resource.
@@ -152,37 +153,6 @@ impl<R, ID> Global<R, ID> {
     }
 }
 
-/// Trait to handle a global object.
-pub trait GlobalHandler<R: Resource> {
-    /// Request to bind a global
-    ///
-    /// This method is called each time a client binds this global object from
-    /// the registry.
-    ///
-    /// The global is instantiated as a `Resource` and provided to the callback,
-    /// do whatever you need with it.
-    ///
-    /// Letting it out of scope will *not* destroy the resource, and you'll still
-    /// receive its events (as long as you've registered an appropriate handler).
-    fn bind(&mut self, evqh: &mut EventLoopHandle, client: &Client, global: R);
-}
-
-/// A trait to handle destruction of ressources.
-///
-/// This is usefull if you need to deallocate user data for example.
-///
-/// This is a trait with a single static method rather (than a freestanding function)
-/// in order to internally profit of static dispatch.
-pub trait Destroy<R: Resource> {
-    /// Destructor of a resource
-    ///
-    /// This function is called right before a resource is destroyed, if it has
-    /// been assigned.
-    ///
-    /// To assign a destructor to a resource, see `EventLoopHandle::register_with_destructor`.
-    fn destroy(resource: &R);
-}
-
 /// Handle to an event loop
 ///
 /// This handle gives you access to methods on an event loop
@@ -196,41 +166,30 @@ pub struct EventLoopHandle {
 }
 
 impl EventLoopHandle {
-    /// Register a resource to a handler of this event loop.
+    /// Register a resource to this event loop.
     ///
-    /// The H type must be provided and match the type of the targetted Handler, or
-    /// it will panic.
+    /// You are required to provide a valid implementation for this proxy
+    /// as well as some associated implementation data. This implementation
+    /// is expected to be a struct holding the various relevant
+    /// function pointers.
     ///
-    /// This overwrites any precedently set Handler for this resource and removes its destructor
-    /// if any.
+    /// This implementation data can typically contain indexes to state value
+    /// that the implementation will need to work on.
     ///
-    /// Returns an error and does nothing if this resource is dead or already managed by
+    /// If you provide a destructor function, it will be called whenever the resource
+    /// is destroyed, be it at the client request or because the associated client
+    /// was disconnected. You'd typically use this to cleanup resources
+    ///
+    /// This overwrites any precedently set implementation for this proxy.
+    ///
+    /// Returns appropriately and does nothing if this proxy is dead or already managed by
     /// something else than this library.
-    pub fn register<R, ID>(&mut self, resource: &R, implementation: R::Implementation, idata: ID)
+    pub fn register<R, ID>(&mut self, resource: &R, implementation: R::Implementation, idata: ID,
+                           destructor: Option<fn(&R)>)
                            -> RegisterStatus
     where
         R: Resource + Implementable<ID>,
-    {
-        self.register_with_destructor::<R, ID, NoopDestroy>(resource, implementation, idata)
-    }
-
-    /// Register a resource to a handler of this event loop with a destructor
-    ///
-    /// The H type must be provided and match the type of the targetted Handler, or
-    /// it will panic.
-    ///
-    /// The D type is the one whose `Destroy<R>` impl will be used as destructor.
-    ///
-    /// This overwrites any precedently set Handler and destructor for this resource.
-    ///
-    /// Returns an error and does nothing if this resource is dead or already managed by
-    /// something else than this library.
-    pub fn register_with_destructor<R, ID, D>(&mut self, resource: &R, implementation: R::Implementation,
-                                              idata: ID)
-                                              -> RegisterStatus
-    where
-        R: Resource + Implementable<ID>,
-        D: Destroy<R> + 'static,
+        ID: 'static,
     {
         match resource.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
@@ -239,7 +198,7 @@ impl EventLoopHandle {
         }
 
         unsafe {
-            let data: *mut ResourceUserData = ffi_dispatch!(
+            let data: *mut ResourceUserData<R> = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_get_user_data,
                 resource.ptr()
@@ -249,6 +208,7 @@ impl EventLoopHandle {
             // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
             (&mut *data).1 = Some(Box::new((implementation, idata)) as Box<Any>);
+            (&mut *data).3 = destructor;
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
@@ -256,7 +216,7 @@ impl EventLoopHandle {
                 dispatch_func::<R, ID>,
                 &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void,
-                Some(resource_destroy::<R, D>)
+                Some(resource_destroy::<R>)
             );
         }
         RegisterStatus::Registered
@@ -400,7 +360,7 @@ where
             WAYLAND_SERVER_HANDLE,
             wl_resource_get_user_data,
             resource.ptr()
-        ) as *mut ResourceUserData)
+        ) as *mut ResourceUserData<R>)
     };
     if resource_data.0.is_null() {
         return false;
@@ -428,6 +388,14 @@ pub struct EventLoop {
     handle: Box<EventLoopHandle>,
 }
 
+/// Callback function called when a global is instanciated by a client
+///
+/// Arguments are:
+///
+/// - handle to the eventloop
+/// - implementation data you provided to `register_global`
+/// - client that instanciated the global
+/// - the newly instanciated global
 pub type GlobalCallback<R, ID> = fn(&mut EventLoopHandle, &mut ID, &Client, R);
 
 impl EventLoop {
@@ -651,13 +619,7 @@ unsafe extern "C" fn global_bind<R: Resource, ID>(client: *mut wl_client, data: 
     }
 }
 
-struct NoopDestroy;
-
-impl<R: Resource> Destroy<R> for NoopDestroy {
-    fn destroy(_: &R) {}
-}
-
-unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut wl_resource) {
+unsafe extern "C" fn resource_destroy<R: Resource>(resource: *mut wl_resource) {
     let resource = R::from_ptr_initialized(resource as *mut wl_resource);
     if resource.status() == ::Liveness::Alive {
         // mark the resource as dead
@@ -665,10 +627,12 @@ unsafe extern "C" fn resource_destroy<R: Resource, D: Destroy<R>>(resource: *mut
             WAYLAND_SERVER_HANDLE,
             wl_resource_get_user_data,
             resource.ptr()
-        ) as *mut ResourceUserData);
+        ) as *mut ResourceUserData<R>);
         (data.2)
             .0
             .store(false, ::std::sync::atomic::Ordering::SeqCst);
+        if let Some(destructor) = data.3 {
+            destructor(&resource)
+        }
     }
-    D::destroy(&resource);
 }

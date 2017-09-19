@@ -141,7 +141,7 @@ impl EventQueueHandle {
     ///
     /// You are required to provide a valid implementation for this proxy
     /// as well as some associated implementation data. This implementation
-    /// is expected to be a `static` struct holding the various relevant
+    /// is expected to be a struct holding the various relevant
     /// function pointers.
     ///
     /// This implementation data can typically contain indexes to state value

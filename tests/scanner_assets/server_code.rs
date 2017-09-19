@@ -28,6 +28,7 @@ pub mod wl_foo {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::server::*;
+    type UserData = (*mut EventLoopHandle, Option<Box<Any>>,Arc<(AtomicBool, AtomicPtr<()>)>, Option<fn(&WlFoo)>);
 
     pub struct WlFoo {
         ptr: *mut wl_resource,
@@ -41,10 +42,11 @@ pub mod wl_foo {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlFoo {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
+                Option::None
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
             WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -57,7 +59,7 @@ pub mod wl_foo {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut UserData;
                 WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlFoo { ptr: ptr, data: Option::None }
@@ -108,8 +110,7 @@ pub mod wl_foo {
         #[allow(unused_mut,unused_assignments)]
         unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
-        let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+        let data = &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut UserData);
         let evq = &mut *(data.0);
         let mut kill = false;
         {
@@ -246,6 +247,7 @@ pub mod wl_bar {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::server::*;
+    type UserData = (*mut EventLoopHandle, Option<Box<Any>>,Arc<(AtomicBool, AtomicPtr<()>)>, Option<fn(&WlBar)>);
 
     pub struct WlBar {
         ptr: *mut wl_resource,
@@ -259,10 +261,11 @@ pub mod wl_bar {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlBar {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
+                Option::None
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
             WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -275,7 +278,7 @@ pub mod wl_bar {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut UserData;
                 WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlBar { ptr: ptr, data: Option::None }
@@ -327,8 +330,7 @@ pub mod wl_bar {
         #[allow(unused_mut,unused_assignments)]
         unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
-        let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+        let data = &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut UserData);
         let evq = &mut *(data.0);
         let mut kill = false;
         {
@@ -417,6 +419,7 @@ pub mod wl_callback {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::server::*;
+    type UserData = (*mut EventLoopHandle, Option<Box<Any>>,Arc<(AtomicBool, AtomicPtr<()>)>, Option<fn(&WlCallback)>);
 
     pub struct WlCallback {
         ptr: *mut wl_resource,
@@ -429,10 +432,11 @@ pub mod wl_callback {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlCallback {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
+                Option::None
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
             WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -444,7 +448,7 @@ pub mod wl_callback {
             ) != 0;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut UserData;
                 WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlCallback { ptr: ptr, data: Option::None }

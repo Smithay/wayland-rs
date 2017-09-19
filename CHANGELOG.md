@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.10.1 - 2017-09-19
+
+- [server] Correct some forgotten stuff in the previous release
+
 ## 0.10.0 - 2017-09-19
 
 - **Breaking change**: large rework of the event loops / event queues

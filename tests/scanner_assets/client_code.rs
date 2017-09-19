@@ -27,6 +27,7 @@ pub mod wl_foo {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::client::*;
+    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
 
     pub struct WlFoo {
         ptr: *mut wl_proxy,
@@ -40,10 +41,10 @@ pub mod wl_foo {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlFoo {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
             WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -55,7 +56,7 @@ pub mod wl_foo {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut UserData;
                 WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlFoo { ptr: ptr, data: Option::None }
@@ -107,8 +108,7 @@ pub mod wl_foo {
         #[allow(unused_mut,unused_assignments)]
         unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
-        let data: &mut (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut _);
+        let data = &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut UserData);
         let evq = &mut *(data.0);
         let mut kill = false;
         {
@@ -241,6 +241,7 @@ pub mod wl_bar {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::client::*;
+    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
 
     pub struct WlBar {
         ptr: *mut wl_proxy,
@@ -254,10 +255,10 @@ pub mod wl_bar {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlBar {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
             WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -269,7 +270,7 @@ pub mod wl_bar {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut UserData;
                 WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlBar { ptr: ptr, data: Option::None }
@@ -367,6 +368,7 @@ pub mod wl_display {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::client::*;
+    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
 
     pub struct WlDisplay {
         ptr: *mut wl_proxy,
@@ -379,10 +381,10 @@ pub mod wl_display {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlDisplay {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
             WlDisplay { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -393,7 +395,7 @@ pub mod wl_display {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut UserData;
                 WlDisplay { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlDisplay { ptr: ptr, data: Option::None }
@@ -462,6 +464,7 @@ pub mod wl_registry {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::client::*;
+    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
 
     pub struct WlRegistry {
         ptr: *mut wl_proxy,
@@ -474,10 +477,10 @@ pub mod wl_registry {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlRegistry {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
             WlRegistry { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -488,7 +491,7 @@ pub mod wl_registry {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut UserData;
                 WlRegistry { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlRegistry { ptr: ptr, data: Option::None }
@@ -570,6 +573,7 @@ pub mod wl_callback {
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use wayland_sys::RUST_MANAGED;
     use wayland_sys::client::*;
+    type UserData = (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
 
     pub struct WlCallback {
         ptr: *mut wl_proxy,
@@ -582,10 +586,11 @@ pub mod wl_callback {
         fn ptr(&self) -> *mut wl_proxy { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_proxy) -> WlCallback {
-            let data = Box::into_raw(Box::new((
-                ptr::null_mut::<c_void>(),
-                Option::None::<Box<Any>>,
-                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
+            let data: *mut UserData = Box::into_raw(Box::new((
+                ptr::null_mut(),
+                Option::None,
+                Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut()))),
+
             )));
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_user_data, ptr, data as *mut c_void);
             WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
@@ -596,7 +601,7 @@ pub mod wl_callback {
             let rust_managed = implem == &RUST_MANAGED as *const _ as *const _;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut UserData;
                 WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlCallback { ptr: ptr, data: Option::None }
@@ -648,8 +653,7 @@ pub mod wl_callback {
         type Implementation = Implementation<ID>;
         #[allow(unused_mut,unused_assignments)]
         unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
-        let data: &mut (*mut EventQueueHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
-            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut _);
+        let data = &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut UserData);
         let evq = &mut *(data.0);
         let mut kill = false;
         {

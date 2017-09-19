@@ -23,7 +23,7 @@ mod server_utils {
     fn compositor_impl() -> wl_compositor::Implementation<StateToken<CompositorState>> {
         wl_compositor::Implementation {
             create_surface: |evlh, token, _client, _compositor, surface| {
-                evlh.register(&surface, surface_impl(), token.clone());
+                evlh.register(&surface, surface_impl(), token.clone(), None);
             },
             create_region: |_, _, _, _, _| {},
         }
@@ -52,7 +52,7 @@ mod server_utils {
         let _ = event_loop.register_global::<wl_compositor::WlCompositor, _>(
             1,
             |evlh, token, _client, compositor| {
-                evlh.register(&compositor, compositor_impl(), token.clone());
+                evlh.register(&compositor, compositor_impl(), token.clone(), None);
             },
             token.clone(),
         );
