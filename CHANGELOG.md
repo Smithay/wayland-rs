@@ -1,5 +1,14 @@
 # Change Log
 
+## 0.10.0 - 2017-09-19
+
+- **Breaking change**: large rework of the event loops / event queues
+  to a new architecture separating logic from data, helping data-sharing
+  between different implementations in a same event loop/queue.
+- **Breaking change**: event loops / event queues are no longer `Send`, and
+  as such can accept non-`Send` data. It is still possible to directly create
+  them in different threads, as the `WlDisplay` is `Sync`.
+
 ## 0.9.10 - 2017-09-08
 
 - [sys] Print debug msg only when the `WAYLAND_RS_DEBUG` env variable is set
