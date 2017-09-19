@@ -2,8 +2,7 @@ extern crate wayland_scanner;
 
 use std::env::var;
 use std::path::Path;
-
-use wayland_scanner::{Side, generate_code, generate_interfaces};
+use wayland_scanner::{generate_code, generate_interfaces, Side};
 
 fn main() {
     let protocol_file = "./wayland.xml";

@@ -3,7 +3,7 @@ extern crate wayland_server as ways;
 
 mod helpers;
 
-use helpers::{TestClient, TestServer, roundtrip};
+use helpers::{roundtrip, TestClient, TestServer};
 
 #[test]
 fn skel() {

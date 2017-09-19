@@ -23,7 +23,7 @@ macro_rules! wayland_protocol(
                     // Imports that need to be available to submodules
                     // but should not be in public API.
                     // Will be fixable with pub(restricted).
-                    #[doc(hidden)] pub use wayland_client::{Proxy, Handler, RequestResult, EventQueueHandle, Liveness};
+                    #[doc(hidden)] pub use wayland_client::{Proxy, Implementable, RequestResult, EventQueueHandle, Liveness};
                     #[doc(hidden)] pub use super::interfaces;
                     #[doc(hidden)] pub use wayland_client::protocol::{$($import),*};
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_client_api.rs"));
@@ -41,7 +41,7 @@ macro_rules! wayland_protocol(
                     // Imports that need to be available to submodules
                     // but should not be in public API.
                     // Will be fixable with pub(restricted).
-                    #[doc(hidden)] pub use wayland_server::{Resource, Handler, EventResult, Client, EventLoopHandle, Liveness};
+                    #[doc(hidden)] pub use wayland_server::{Resource, Implementable, EventResult, Client, EventLoopHandle, Liveness};
                     #[doc(hidden)] pub use super::interfaces;
                     #[doc(hidden)] pub use wayland_server::protocol::{$($import),*};
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_server_api.rs"));

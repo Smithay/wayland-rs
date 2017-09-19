@@ -1,5 +1,5 @@
-use EventQueueHandle;
-use protocol::wl_registry::WlRegistry;
+use {EventQueueHandle, StateToken};
+use protocol::wl_registry::{Implementation, WlRegistry};
 
 #[doc(hidden)]
 pub trait EnvHandlerInner: Sized {
@@ -40,13 +40,12 @@ pub trait EnvHandlerInner: Sized {
 /// wayland_env!(WaylandEnv, compositor: wl_compositor::WlCompositor);
 ///
 /// let registry = display.get_registry();
-/// let env_id = eventqueue.add_handler(EnvHandler::<WaylandEnv>::new());
-/// eventqueue.register::<_, EnvHandler<WaylandEnv>>(&registry, env_id);
+/// let env_token = EnvHandler::<WaylandEnv>::init(&mut event_queue, &registry);
 /// // a roundtrip sync will dispatch all event declaring globals to the handler
 /// eventqueue.sync_roundtrip().unwrap();
 /// // then, we can access them via the state of the event queue:
 /// let state = eventqueue.state();
-/// let env = state.get_handler::<EnvHandler<WaylandEnv>>(env_id);
+/// let env = state.get(&env_token);
 /// // We can now access the globals as fields of env.
 /// // Note that is some globals were missing, this acces (via Deref)
 /// // will panic!
@@ -57,16 +56,18 @@ pub struct EnvHandler<H: EnvHandlerInner> {
     inner: Option<H>,
 }
 
-impl<H: EnvHandlerInner> EnvHandler<H> {
-    /// Create a new EnvHandler
-    ///
-    /// This handler will need to be given to an event queue
-    /// and a `WlRegistry` be registered to it.
-    pub fn new() -> EnvHandler<H> {
-        EnvHandler {
-            globals: Vec::new(),
-            inner: None,
-        }
+impl<H: EnvHandlerInner + 'static> EnvHandler<H> {
+    /// Insert a new EnvHandler in this eventqueu and register the registry to it
+    pub fn init(evqh: &mut EventQueueHandle, registry: &WlRegistry) -> StateToken<EnvHandler<H>> {
+        let token = {
+            let state = evqh.state();
+            state.insert(EnvHandler {
+                globals: Vec::new(),
+                inner: None,
+            })
+        };
+        evqh.register(registry, env_handler_impl(), token.clone());
+        token
     }
 
     /// Is the handler ready
@@ -99,28 +100,25 @@ impl<H: EnvHandlerInner> EnvHandler<H> {
 impl<H: EnvHandlerInner> ::std::ops::Deref for EnvHandler<H> {
     type Target = H;
     fn deref(&self) -> &H {
-        self.inner.as_ref().expect(
-            "Tried to get contents of a not-ready EnvHandler.",
-        )
+        self.inner
+            .as_ref()
+            .expect("Tried to get contents of a not-ready EnvHandler.")
     }
 }
 
-impl<H: EnvHandlerInner> ::protocol::wl_registry::Handler for EnvHandler<H> {
-    fn global(&mut self, _: &mut EventQueueHandle, registry: &WlRegistry, name: u32, interface: String,
-              version: u32) {
-        self.globals.push((name, interface, version));
-        self.try_make_ready(registry);
-    }
-    fn global_remove(&mut self, _: &mut EventQueueHandle, _: &WlRegistry, name: u32) {
-        self.globals.retain(|&(i, _, _)| i != name)
-    }
-}
-
-unsafe impl<H: EnvHandlerInner> ::Handler<WlRegistry> for EnvHandler<H> {
-    unsafe fn message(&mut self, evq: &mut EventQueueHandle, proxy: &WlRegistry, opcode: u32,
-                      args: *const ::sys::wl_argument)
-                      -> Result<(), ()> {
-        <EnvHandler<H> as ::protocol::wl_registry::Handler>::__message(self, evq, proxy, opcode, args)
+fn env_handler_impl<H: EnvHandlerInner + 'static>() -> Implementation<StateToken<EnvHandler<H>>> {
+    Implementation {
+        global: |evqh, token, registry, name, interface, version| {
+            let state = evqh.state();
+            let me = state.get_mut(token);
+            me.globals.push((name, interface, version));
+            me.try_make_ready(registry);
+        },
+        global_remove: |evqh, token, _, name| {
+            let state = evqh.state();
+            let me = state.get_mut(token);
+            me.globals.retain(|&(i, _, _)| i != name)
+        },
     }
 }
 

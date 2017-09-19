@@ -172,25 +172,23 @@
 //! The the crate `wayland_scanner` and its documentation for
 //! details about how to do so.
 
-
 #![warn(missing_docs)]
 
 #[macro_use]
 extern crate bitflags;
-#[macro_use]
-extern crate wayland_sys;
 extern crate libc;
 extern crate nix;
+#[macro_use]
+extern crate wayland_sys;
 
 
 pub use client::Client;
-pub use display::{Display, create_display};
-pub use event_loop::{Destroy, EventLoop, EventLoopHandle, Global, GlobalHandler, Init, RegisterStatus,
-                     StateGuard, resource_is_registered};
+pub use display::{create_display, Display};
+pub use event_loop::{resource_is_registered, Destroy, EventLoop, EventLoopHandle, Global, GlobalHandler,
+                     RegisterStatus, State, StateToken};
 pub use generated::interfaces as protocol_interfaces;
 pub use generated::server as protocol;
 use wayland_sys::common::{wl_argument, wl_interface};
-
 use wayland_sys::server::*;
 
 mod client;
@@ -204,10 +202,10 @@ pub mod sources {
     // different kind of event sources that can be registered to and
     // event loop, other than the wayland protocol sockets.
 
-    pub use event_sources::{FdEventSource, FdEventSourceHandler};
+    pub use event_sources::{FdEventSource, FdEventSourceImpl};
     pub use event_sources::{FdInterest, READ, WRITE};
-    pub use event_sources::{SignalEventSource, SignalEventSourceHandler};
-    pub use event_sources::{TimerEventSource, TimerEventSourceHandler};
+    pub use event_sources::{SignalEventSource, SignalEventSourceImpl};
+    pub use event_sources::{TimerEventSource, TimerEventSourceImpl};
 }
 
 /// Common routines for wayland resource objects.
@@ -218,7 +216,7 @@ pub mod sources {
 /// It is mostly used for internal use by the library, and you
 /// should only need these methods for interfacing with C library
 /// working on wayland objects.
-pub trait Resource {
+pub unsafe trait Resource {
     /// Pointer to the underlying wayland proxy object
     fn ptr(&self) -> *mut wl_resource;
     /// Create an instance from a wayland pointer
@@ -298,21 +296,22 @@ pub trait Resource {
         } else {
             None
         }
-
     }
     /// Unsafely clone this resource handle
     ///
     /// This function is unsafe because if the resource is unmanaged, the lib
     /// has no knowledge of its lifetime, and cannot ensure that the new handle
     /// will not outlive the object.
-    unsafe fn clone_unchecked(&self) -> Self
-    where
-        Self: Sized,
-    {
-        // TODO: this can be more optimized with codegen help, but would be a
-        // breaking change, so do it at next breaking release
-        Self::from_ptr_initialized(self.ptr())
-    }
+    unsafe fn clone_unchecked(&self) -> Self;
+}
+
+/// Common trait for wayland objects that can be registered to an EventQueue
+pub unsafe trait Implementable<ID: 'static>: Resource {
+    /// The type containing the implementation for the event callbacks
+    type Implementation: PartialEq + Copy + 'static;
+    #[doc(hidden)]
+    unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument)
+                             -> Result<(), ()>;
 }
 
 /// Possible outcome of the call of a event on a resource
@@ -336,25 +335,6 @@ impl<T> EventResult<T> {
     }
 }
 
-/// Generic handler trait
-///
-/// This trait is automatically implemented for objects that implement
-/// the appropriate interface-specific `Handler` traits. It represents
-/// the hability for a type to handle events directed to a given wayland
-/// interface.
-///
-/// For example, implementing `wl_surface::Handler` for you type will
-/// automatically provide it with an implementation of
-/// `Handler<WlSurface>` as well. This is the only correct way
-/// to implement this trait, and you should not attempt to implement it
-/// yourself.
-pub unsafe trait Handler<T: Resource> {
-    /// Dispatch a message.
-    unsafe fn message(&mut self, evq: &mut EventLoopHandle, client: &Client, resource: &T, opcode: u32,
-                      args: *const wl_argument)
-                      -> Result<(), ()>;
-}
-
 /// Represents the state of liveness of a wayland object
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Liveness {
@@ -369,8 +349,8 @@ pub enum Liveness {
 }
 
 mod generated {
-    #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
-    #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
+    #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
+    #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
     #![allow(missing_docs)]
 
     pub mod interfaces {
@@ -392,7 +372,7 @@ mod generated {
         #[doc(hidden)]
         pub use super::interfaces;
         #[doc(hidden)]
-        pub use {Client, EventLoopHandle, EventResult, Handler, Liveness, Resource};
+        pub use {Client, EventLoopHandle, EventResult, Implementable, Liveness, Resource};
 
         include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
     }

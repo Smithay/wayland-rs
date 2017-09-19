@@ -6,9 +6,9 @@
 use super::common::*;
 use std::os::raw::{c_char, c_int, c_void};
 
-pub enum wl_proxy { }
-pub enum wl_display { }
-pub enum wl_event_queue { }
+pub enum wl_proxy {}
+pub enum wl_display {}
+pub enum wl_event_queue {}
 
 external_library!(WaylandClient, "wayland-client",
     functions:

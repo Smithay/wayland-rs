@@ -17,7 +17,7 @@ pub mod wl_foo {
     use super::EventLoopHandle;
     use super::Resource;
     use super::EventResult;
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -37,13 +37,13 @@ pub mod wl_foo {
     unsafe impl Send for WlFoo {}
     unsafe impl Sync for WlFoo {}
 
-    impl Resource for WlFoo {
+    unsafe impl Resource for WlFoo {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlFoo {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
@@ -57,7 +57,7 @@ pub mod wl_foo {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlFoo { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlFoo { ptr: ptr, data: Option::None }
@@ -95,6 +95,47 @@ pub mod wl_foo {
             } else {
                 ::std::ptr::null_mut()
             }
+        }
+        unsafe fn clone_unchecked(&self) -> WlFoo {
+            WlFoo {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
+    }
+    unsafe impl<ID: 'static> Implementable<ID> for WlFoo {
+        type Implementation = Implementation<ID>;
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+
+        let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+        let evq = &mut *(data.0);
+        let mut kill = false;
+        {
+            let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();
+            match opcode {
+                0 => {
+                    let number = {*(args.offset(0) as *const i32)};
+                    let unumber = {*(args.offset(1) as *const u32)};
+                    let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(2) as *const *const _)).to_bytes()).into_owned()};
+                    let float = {wl_fixed_to_double(*(args.offset(3) as *const i32))};
+                    let file = {*(args.offset(4) as *const i32)};
+                    (implementation.foo_it)(evq, idata, client, self, number, unumber, text, float, file);
+                },
+                1 => {
+                    let id = {Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::wl_bar::WlBar as Resource>::interface_ptr(), self.version(), *(args.offset(0) as *const u32)))};
+                    (implementation.create_bar)(evq, idata, client, self, id);
+                },
+                _ => return Err(())
+            }
+        }
+
+        if kill {
+            let _impl = data.1.take();
+            ::std::mem::drop(_impl);
+        }
+            Ok(())
         }
     }
 
@@ -139,35 +180,33 @@ pub mod wl_foo {
         }
     }
 
-    pub trait Handler {
+    pub struct Implementation<ID> {
         /// do some foo
         ///
         /// This will do some foo with its args.
-        fn foo_it(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) {}
-
+        ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_foo, number, unumber, text, float, file
+        pub foo_it: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_foo: &WlFoo, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd),
         /// create a bar
         ///
         /// Create a bar which will do its bar job.
-        fn create_bar(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlFoo, id: super::wl_bar::WlBar) {}
+        ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_foo, id
+        pub create_bar: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_foo: &WlFoo, id: super::wl_bar::WlBar),
+    }
+    impl<ID> Copy for Implementation<ID> {}
+    impl<ID> Clone for Implementation<ID> {
+        fn clone(&self) -> Implementation<ID> {
+            *self
+        }
+    }
 
-        #[doc(hidden)]
-        unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlFoo, opcode: u32, args: *const wl_argument) -> Result<(),()> {
-            match opcode {
-                0 => {
-                    let number = {*(args.offset(0) as *const i32)};
-                    let unumber = {*(args.offset(1) as *const u32)};
-                    let text = {String::from_utf8_lossy(CStr::from_ptr(*(args.offset(2) as *const *const _)).to_bytes()).into_owned()};
-                    let float = {wl_fixed_to_double(*(args.offset(3) as *const i32))};
-                    let file = {*(args.offset(4) as *const i32)};
-                    self.foo_it(evq, client, proxy, number, unumber, text, float, file);
-                },
-                1 => {
-                    let id = {Resource::from_ptr_new(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client.ptr(), <super::wl_bar::WlBar as Resource>::interface_ptr(), proxy.version(), *(args.offset(0) as *const u32)))};
-                    self.create_bar(evq, client, proxy, id);
-                },
-                _ => return Err(())
-            }
-            Ok(())
+    impl<ID> PartialEq for Implementation<ID> {
+        fn eq(&self, other: &Implementation<ID>) -> bool {
+            true
+            && (self.foo_it as usize == other.foo_it as usize)
+            && (self.create_bar as usize == other.create_bar as usize)
+
         }
     }
 
@@ -196,7 +235,7 @@ pub mod wl_bar {
     use super::Resource;
     use super::EventResult;
 
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -216,13 +255,13 @@ pub mod wl_bar {
     unsafe impl Send for WlBar {}
     unsafe impl Sync for WlBar {}
 
-    impl Resource for WlBar {
+    unsafe impl Resource for WlBar {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlBar {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
@@ -236,7 +275,7 @@ pub mod wl_bar {
 
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlBar { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlBar { ptr: ptr, data: Option::None }
@@ -275,45 +314,84 @@ pub mod wl_bar {
                 ::std::ptr::null_mut()
             }
         }
+        unsafe fn clone_unchecked(&self) -> WlBar {
+            WlBar {
+                ptr: self.ptr,
+                data: self.data.clone()
+            }
+        }
     }
 
-    pub trait Handler {
-        /// ask for a bar delivery
-        ///
-        /// Proceed to a bar delivery of given foo.
-        ///
-        /// This event only exists since version 2 of the interface
-        fn bar_delivery(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlBar, kind: super::wl_foo::DeliveryKind, target: &super::wl_foo::WlFoo, metadata: Vec<u8>) {}
+    unsafe impl<ID: 'static> Implementable<ID> for WlBar {
+        type Implementation = Implementation<ID>;
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
 
-        /// release this bar
-        ///
-        /// Notify the compositor that you have finished using this bar.
-        ///
-        /// This is a destructor, you cannot send events to this object once this method is called.
-        fn release(&mut self, evqh: &mut EventLoopHandle, client: &Client,  resource: &WlBar) {}
-
-        #[doc(hidden)]
-        unsafe fn __message(&mut self, evq: &mut EventLoopHandle, client: &Client, proxy: &WlBar, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+        let data: &mut (*mut EventLoopHandle, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>) =
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut _);
+        let evq = &mut *(data.0);
+        let mut kill = false;
+        {
+            let &mut (ref implementation, ref mut idata) = data.1.as_mut().unwrap().downcast_mut::<(Implementation<ID>, ID)>().unwrap();
             match opcode {
                 0 => {
                     let kind = {match super::wl_foo::DeliveryKind::from_raw(*(args.offset(0) as *const u32)) { Some(v) => v, Option::None => return Err(()) }};
                     let target = {Resource::from_ptr_initialized(*(args.offset(1) as *const *mut wl_resource))};
                     let metadata = {let array = *(args.offset(2) as *const *mut wl_array); ::std::slice::from_raw_parts((*array).data as *const u8, (*array).size as usize).to_owned()};
-                    self.bar_delivery(evq, client, proxy, kind, &target, metadata);
+                    (implementation.bar_delivery)(evq, idata, client, self, kind, &target, metadata);
                 },
                 1 => {
 
-                if let Some(ref data) = proxy.data {
-                    data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
-                }
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, proxy.ptr());
-                    self.release(evq, client, proxy);
+                (data.2).0.store(false, ::std::sync::atomic::Ordering::SeqCst);
+                kill = true;
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, self.ptr());
+                    (implementation.release)(evq, idata, client, self);
                 },
                 _ => return Err(())
             }
-            Ok(())
         }
 
+        if kill {
+            let _impl = data.1.take();
+            ::std::mem::drop(_impl);
+        }
+            Ok(())
+        }
+    }
+
+    pub struct Implementation<ID> {
+        /// ask for a bar delivery
+        ///
+        /// Proceed to a bar delivery of given foo.
+        ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_bar, kind, target, metadata
+        ///
+        /// This event only exists since version 2 of the interface
+        pub bar_delivery: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_bar: &WlBar, kind: super::wl_foo::DeliveryKind, target: &super::wl_foo::WlFoo, metadata: Vec<u8>),
+        /// release this bar
+        ///
+        /// Notify the compositor that you have finished using this bar.
+        ///
+        /// **Arguments:** event_queue_handle, interface_data, wl_bar
+        ///
+        /// This is a destructor, you cannot send events to this object once this method is called.
+        pub release: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_bar: &WlBar),
+    }
+
+    impl<ID> Copy for Implementation<ID> {}
+    impl<ID> Clone for Implementation<ID> {
+        fn clone(&self) -> Implementation<ID> {
+            *self
+        }
+    }
+
+    impl<ID> PartialEq for Implementation<ID> {
+        fn eq(&self, other: &Implementation<ID>) -> bool {
+            true
+            && (self.bar_delivery as usize == other.bar_delivery as usize)
+            && (self.release as usize == other.release as usize)
+
+        }
     }
 
     impl WlBar {
@@ -328,7 +406,7 @@ pub mod wl_callback {
     use super::EventLoopHandle;
     use super::Resource;
     use super::EventResult;
-    use super::Liveness;
+    use super::{Liveness, Implementable};
     use super::interfaces::*;
     use wayland_sys::common::*;
     use std::any::Any;
@@ -347,13 +425,13 @@ pub mod wl_callback {
 
     unsafe impl Send for WlCallback {}
     unsafe impl Sync for WlCallback {}
-    impl Resource for WlCallback {
+    unsafe impl Resource for WlCallback {
         fn ptr(&self) -> *mut wl_resource { self.ptr }
 
         unsafe fn from_ptr_new(ptr: *mut wl_resource) -> WlCallback {
             let data = Box::into_raw(Box::new((
                 ptr::null_mut::<c_void>(),
-                ptr::null_mut::<c_void>(),
+                Option::None::<Box<Any>>,
                 Arc::new((AtomicBool::new(true), AtomicPtr::new(ptr::null_mut())))
             )));
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_set_user_data, ptr, data as *mut c_void);
@@ -366,7 +444,7 @@ pub mod wl_callback {
             ) != 0;
 
             if rust_managed {
-                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+                let data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr) as *mut (*mut c_void, Option<Box<Any>>, Arc<(AtomicBool, AtomicPtr<()>)>);
                 WlCallback { ptr: ptr, data: Some((&*data).2.clone()) }
             } else {
                 WlCallback { ptr: ptr, data: Option::None }
@@ -404,6 +482,12 @@ pub mod wl_callback {
                 data.1.load(Ordering::SeqCst)
             } else {
                 ::std::ptr::null_mut()
+            }
+        }
+        unsafe fn clone_unchecked(&self) -> WlCallback {
+            WlCallback {
+                ptr: self.ptr,
+                data: self.data.clone()
             }
         }
     }

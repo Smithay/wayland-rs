@@ -23,7 +23,6 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::os::raw::c_int;
 use std::ptr;
-
 use wayland_sys::cursor::*;
 
 /// Checks if the wayland-cursor lib is available and can be used

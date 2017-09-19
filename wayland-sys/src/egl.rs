@@ -7,7 +7,7 @@
 use client::wl_proxy;
 use std::os::raw::c_int;
 
-pub enum wl_egl_window { }
+pub enum wl_egl_window {}
 
 external_library!(WaylandEgl, "wayland-egl",
     functions:

@@ -1,17 +1,23 @@
-use {Handler, Proxy};
+use {Implementable, Proxy};
 use std::any::Any;
+use std::cell::Cell;
 use std::io::{Error as IoError, Result as IoResult};
 use std::io::Write;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_int, c_void};
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 use wayland_sys::RUST_MANAGED;
-
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 
-type ProxyUserData = (*mut EventQueueHandle, *mut c_void, Arc<(AtomicBool, AtomicPtr<()>)>);
+type ProxyUserData = (
+    *mut EventQueueHandle,
+    Option<Box<Any>>,
+    Arc<(AtomicBool, AtomicPtr<()>)>,
+);
 
 /// Status of a registration attempt of a proxy.
 pub enum RegisterStatus {
@@ -23,6 +29,102 @@ pub enum RegisterStatus {
     Dead,
 }
 
+/// A state store
+///
+/// This struct allows you to store various values in a special
+/// storage that will be made available to your proxy implementations.
+pub struct State {
+    values: Vec<Option<(Box<Any>, Rc<Cell<bool>>)>>,
+}
+
+/// A token for accessing the state store contents
+pub struct StateToken<V> {
+    id: usize,
+    live: Rc<Cell<bool>>,
+    _type: PhantomData<V>,
+}
+
+impl<V> Clone for StateToken<V> {
+    fn clone(&self) -> StateToken<V> {
+        StateToken {
+            id: self.id,
+            live: self.live.clone(),
+            _type: PhantomData,
+        }
+    }
+}
+
+impl State {
+    /// Insert a new value in this state store
+    ///
+    /// Returns a clonable token that you can later use to access this
+    /// value.
+    pub fn insert<V: Any + 'static>(&mut self, value: V) -> StateToken<V> {
+        let boxed = Box::new(value) as Box<Any>;
+        let live = Rc::new(Cell::new(true));
+        {
+            // artificial scope to make the borrow checker happy
+            let empty_slot = self.values
+                .iter_mut()
+                .enumerate()
+                .find(|&(_, ref s)| s.is_none());
+            if let Some((id, slot)) = empty_slot {
+                *slot = Some((boxed, live.clone()));
+                return StateToken {
+                    id: id,
+                    live: live,
+                    _type: PhantomData,
+                };
+            }
+        }
+        self.values.push(Some((boxed, live.clone())));
+        StateToken {
+            id: self.values.len() - 1,
+            live: live,
+            _type: PhantomData,
+        }
+    }
+
+    /// Access value previously inserted in this state store
+    ///
+    /// Panics if the provided token corresponds to a value that was removed.
+    pub fn get<V: Any + 'static>(&self, token: &StateToken<V>) -> &V {
+        if !token.live.get() {
+            panic!("Attempted to access a state value that was already removed!");
+        }
+        self.values[token.id]
+            .as_ref()
+            .and_then(|t| t.0.downcast_ref::<V>())
+            .unwrap()
+    }
+
+    /// Mutably access value previously inserted in this state store
+    ///
+    /// Panics if the provided token corresponds to a value that was removed.
+    pub fn get_mut<V: Any + 'static>(&mut self, token: &StateToken<V>) -> &mut V {
+        if !token.live.get() {
+            panic!("Attempted to access a state value that was already removed!");
+        }
+        self.values[token.id]
+            .as_mut()
+            .and_then(|t| t.0.downcast_mut::<V>())
+            .unwrap()
+    }
+
+    /// Remove a value previously inserted in this state store
+    ///
+    /// Panics if the provided token corresponds to a value that was already
+    /// removed.
+    pub fn remove<V: Any + 'static>(&mut self, token: StateToken<V>) -> V {
+        if !token.live.get() {
+            panic!("Attempted to remove a state value that was already removed!");
+        }
+        let (boxed, live) = self.values[token.id].take().unwrap();
+        live.set(false);
+        *boxed.downcast().unwrap()
+    }
+}
+
 /// Handle to an event queue
 ///
 /// This handle gives you access to methods on an event queue
@@ -30,42 +132,31 @@ pub enum RegisterStatus {
 ///
 /// They are also available on an `EventQueue` object via `Deref`.
 pub struct EventQueueHandle {
-    handlers: Vec<Option<Box<Any + Send>>>,
+    state: State,
     wlevq: Option<*mut wl_event_queue>,
 }
 
-/// A trait to initialize handlers after they've been inserted in an event queue
-///
-/// Works with the `add_handler_with_init` method of `EventQueueHandle`.
-pub trait Init {
-    /// Init the handler
-    ///
-    /// `index` is the current index of the handler in the event queue (you can
-    /// use it to register objects to it)
-    fn init(&mut self, evqh: &mut EventQueueHandle, index: usize);
-}
-
 impl EventQueueHandle {
-    /// Register a proxy to a handler of this event queue.
+    /// Register a proxy to this event queue.
     ///
-    /// The H type must be provided and match the type of the targetted Handler, or
-    /// it will panic.
+    /// You are required to provide a valid implementation for this proxy
+    /// as well as some associated implementation data. This implementation
+    /// is expected to be a `static` struct holding the various relevant
+    /// function pointers.
     ///
-    /// This overwrites any precedently set Handler for this proxy.
+    /// This implementation data can typically contain indexes to state value
+    /// that the implementation will need to work on.
+    ///
+    /// This overwrites any precedently set implementation for this proxy.
     ///
     /// Returns appropriately and does nothing if this proxy is dead or already managed by
     /// something else than this library.
-    pub fn register<P, H>(&mut self, proxy: &P, handler_id: usize) -> RegisterStatus
+    pub fn register<P, ID>(&mut self, proxy: &P, implementation: P::Implementation, idata: ID)
+                           -> RegisterStatus
     where
-        P: Proxy,
-        H: Handler<P> + Any + Send + 'static,
+        P: Proxy + Implementable<ID>,
+        ID: 'static,
     {
-        let h = self.handlers[handler_id]
-            .as_ref()
-            .expect("Handler has already been removed.")
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.");
-
         match proxy.status() {
             ::Liveness::Dead => return RegisterStatus::Dead,
             ::Liveness::Unmanaged => return RegisterStatus::Unmanaged,
@@ -75,17 +166,17 @@ impl EventQueueHandle {
         unsafe {
             let data: *mut ProxyUserData =
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as *mut _;
-            // This cast from *const to *mut is legit because we enforce that a Handler
+            // This cast from *const to *mut is legit because we enforce that a proxy
             // can only be assigned to a single EventQueue.
             // (this is actually the whole point of the design of this lib)
             (&mut *data).0 = self as *const _ as *mut _;
-            (&mut *data).1 = h as *const _ as *mut c_void;
-            // even if this call fails, we updated the user_data, so the new handler is in place.
+            (&mut *data).1 = Some(Box::new((implementation, idata)) as Box<Any>);
+            // even if this call fails, we updated the user_data, so the new implementation is in place.
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_add_dispatcher,
                 proxy.ptr(),
-                dispatch_func::<P, H>,
+                dispatch_func::<P, ID>,
                 &RUST_MANAGED as *const _ as *const _,
                 data as *mut c_void
             );
@@ -102,149 +193,33 @@ impl EventQueueHandle {
         RegisterStatus::Registered
     }
 
-    fn insert_handler(&mut self, h: Box<Any + Send>) -> usize {
-        {
-            // artificial scope to make the borrow checker happy
-            let empty_slot = self.handlers.iter_mut().enumerate().find(|&(_, ref s)| {
-                s.is_none()
-            });
-            if let Some((id, slot)) = empty_slot {
-                *slot = Some(h);
-                return id;
-            }
-        }
-        self.handlers.push(Some(h));
-        self.handlers.len() - 1
-    }
-
-    /// Insert a new handler to this event queue
+    /// Get a handle to the internal state
     ///
-    /// Returns the index of this handler in the internal array, which is needed
-    /// to register proxies to it.
-    pub fn add_handler<H: Any + Send + 'static>(&mut self, handler: H) -> usize {
-        self.insert_handler(Box::new(handler) as Box<Any + Send>)
-    }
-
-    /// Insert a new handler with init
-    ///
-    /// Allows you to insert handlers that require some interaction with the
-    /// event loop in their initialization, like registering some objects to it.
-    ///
-    /// The handler must implement the `Init` trait, and its init method will
-    /// be called after its insertion.
-    pub fn add_handler_with_init<H: Init + Any + Send + 'static>(&mut self, handler: H) -> usize {
-        let mut box_ = Box::new(handler);
-        // this little juggling is to avoid the double-borrow, which is actually safe,
-        // as handlers cannot be mutably accessed outside of an event-dispatch,
-        // and this new handler cannot receive any events before the return
-        // of this function
-        let h = &mut *box_ as *mut H;
-        let index = self.insert_handler(box_ as Box<Any + Send>);
-        unsafe { (&mut *h).init(self, index) };
-        index
-    }
-
-    /// Remove a handler previously inserted in this event loop and returns it.
-    ///
-    /// Panics if the requested type does not match the type of the stored handler
-    /// or if the specified index was already removed.
-    ///
-    /// **Unsafety** This function is unsafe because removing a handler while some wayland
-    /// objects are still registered to it can lead to access freed memory. Also, the index
-    /// of this handler will be reused at next handler insertion.
-    pub unsafe fn remove_handler<H: Any + Send + 'static>(&mut self, idx: usize) -> H {
-        let is_type = self.handlers[idx]
-            .as_ref()
-            .expect("Handler has already been removed.")
-            .is::<H>();
-        assert!(is_type, "Handler type do not match.");
-        *(self.handlers[idx].take().unwrap().downcast().unwrap())
-    }
-}
-
-/// Guard to access internal state of an event queue
-///
-/// This guard allows you to get references to the handlers you
-/// previously stored inside an event queue.
-///
-/// It borrows the event queue, so no event dispatching is possible
-/// as long as the guard is in scope, for safety reasons.
-pub struct StateGuard<'evq> {
-    evq: &'evq mut EventQueue,
-}
-
-impl<'evq> StateGuard<'evq> {
-    /// Get a reference to a handler
-    ///
-    /// Provides a reference to a handler stored in this event loop.
-    ///
-    /// The H type must be provided and match the type of the targetted Handler, or
-    /// it will panic.
-    pub fn get_handler<H: Any + 'static>(&self, handler_id: usize) -> &H {
-        self.evq.handle.handlers[handler_id]
-            .as_ref()
-            .expect("Handler has already been removed")
-            .downcast_ref::<H>()
-            .expect("Handler type do not match.")
-    }
-
-    /// Get a mutable reference to a handler
-    ///
-    /// Provides a reference to a handler stored in this event loop.
-    ///
-    /// The H type must be provided and match the type of the targetted Handler, or
-    /// it will panic.
-    pub fn get_mut_handler<H: Any + 'static>(&mut self, handler_id: usize) -> &mut H {
-        self.evq.handle.handlers[handler_id]
-            .as_mut()
-            .expect("Handler has already been removed")
-            .downcast_mut::<H>()
-            .expect("Handler type do not match.")
+    /// The returned guard object allows you to get references
+    /// to the handler objects you previously inserted in this
+    /// event queue.
+    pub fn state(&mut self) -> &mut State {
+        &mut self.state
     }
 }
 
 /// An event queue managing wayland events
 ///
 /// Each wayland object can receive events from the server. To handle these events
-/// you must use a handler object: a struct (or enum) which you have implemented
-/// the appropriate `Handler` traits on it (each wayland interface defines a `Handler`
-/// trait in its module), and declared it using the `declare_handler!(..)` macro.
+/// you must associate to these objects an implementation: a struct defined in their
+/// respective module, in which you provide a set of functions that will handle each event.
 ///
-/// This handler contains the state all your handler methods will be able to access
-/// via the `&mut self` argument. You can then instantiate your type, and give ownership of
-/// the handler object to the event queue, via the `add_handler(..)` method. Then, each
-/// wayland object must be registered to a handler via the `register(..)` method (or its events
-/// will all be ignored).
+/// Your implementation can also access a shared state managed by the event queue. See
+/// the `State` struct and the `state()` method on `EventQueueHandle`. If you need this,
+/// the way to do it is:
+///
+/// - insert your state value in the event queue state store, your are then provided with a
+///   token to access it
+/// - provide this token (you can clone it) as implementation data to any wayland object
+///   that need to access this state in its event callbacks.
 ///
 /// The event queues also provides you control on the flow of the program, via the `dispatch()` and
 /// `dispatch_pending()` methods.
-///
-/// ## example of use
-///
-/// ```ignore
-/// struct MyHandler { /* ... */ }
-///
-/// impl wl_surface::Handler for MyHandler {
-///     // implementation of the handler methods
-/// }
-///
-/// declare_handler!(MyHandler, wl_surface::Handler, wl_surface::WlSurface);
-///
-/// fn main() {
-///     /* ... setup of your environment ... */
-///     let surface = compositor.create_surface().expect("Compositor cannot be destroyed.");
-///     let my_id = eventqueue.add_handler(MyHandler::new());
-///     eventqueue.register::<_, MyHandler>(&surface, my_id);
-///
-///     // main event loop
-///     loop {
-///         // flush requests to the server
-///         display.flush().unwrap();
-///         // dispatch events from the server, blocking if needed
-///         eventqueue.dispatch().unwrap();
-///     }
-/// }
-/// ```
 pub struct EventQueue {
     handle: Box<EventQueueHandle>,
     display: *mut wl_display,
@@ -316,7 +291,7 @@ impl EventQueue {
     /// Synchronous roundtrip
     ///
     /// This call will cause a synchonous roundtrip with the wayland server. It will block until all
-    /// pending requests of this queue are send to the server and it has processed all of them and
+    /// pending requests of this queue are sent to the server and it has processed all of them and
     /// send the appropriate events.
     ///
     /// Handlers are called as a consequence.
@@ -325,14 +300,12 @@ impl EventQueue {
     pub fn sync_roundtrip(&mut self) -> IoResult<i32> {
         let ret = unsafe {
             match self.handle.wlevq {
-                Some(evtq) => {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_roundtrip_queue,
-                        self.display,
-                        evtq
-                    )
-                }
+                Some(evtq) => ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_roundtrip_queue,
+                    self.display,
+                    evtq
+                ),
                 None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.display),
             }
         };
@@ -341,15 +314,6 @@ impl EventQueue {
         } else {
             Err(IoError::last_os_error())
         }
-    }
-
-    /// Get a handle to the internal state
-    ///
-    /// The returned guard object allows you to get references
-    /// to the handler objects you previously inserted in this
-    /// event queue.
-    pub fn state(&mut self) -> StateGuard {
-        StateGuard { evq: self }
     }
 
     /// Prepare an conccurent read
@@ -374,26 +338,24 @@ impl EventQueue {
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
         let ret = unsafe {
             match self.handle.wlevq {
-                Some(evtq) => {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_prepare_read_queue,
-                        self.display,
-                        evtq
-                    )
-                }
+                Some(evtq) => ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_prepare_read_queue,
+                    self.display,
+                    evtq
+                ),
                 None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.display),
             }
         };
         if ret >= 0 {
-            Some(ReadEventsGuard { display: self.display })
+            Some(ReadEventsGuard {
+                display: self.display,
+            })
         } else {
             None
         }
     }
 }
-
-unsafe impl Send for EventQueue {}
 
 impl Deref for EventQueue {
     type Target = EventQueueHandle;
@@ -451,16 +413,19 @@ pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_e
     EventQueue {
         display: display,
         handle: Box::new(EventQueueHandle {
-            handlers: Vec::new(),
+            state: State { values: Vec::new() },
             wlevq: evq,
         }),
     }
 }
 
-unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void, proxy: *mut c_void,
-                                                            opcode: u32, _msg: *const wl_message,
-                                                            args: *const wl_argument)
-                                                            -> c_int {
+unsafe extern "C" fn dispatch_func<P, ID>(_impl: *const c_void, proxy: *mut c_void, opcode: u32,
+                                          _msg: *const wl_message, args: *const wl_argument)
+                                          -> c_int
+where
+    P: Proxy + Implementable<ID>,
+    ID: 'static,
+{
     // sanity check, if it triggers, it is a bug
     if _impl != &RUST_MANAGED as *const _ as *const _ {
         let _ = write!(
@@ -473,20 +438,17 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
         let proxy = P::from_ptr_initialized(proxy as *mut wl_proxy);
-        let data = &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy.ptr()) as
-                              *mut ProxyUserData);
-        let evqhandle = &mut *data.0;
-        let handler = &mut *(data.1 as *mut H);
-        handler.message(evqhandle, &proxy, opcode, args)
+        proxy.__dispatch_msg(opcode, args)
     });
     match ret {
-        Ok(Ok(())) => return 0,   // all went well
+        Ok(Ok(())) => return 0, // all went well
         Ok(Err(())) => {
             // an unknown opcode was dispatched, this is not normal
             let _ = write!(
                 ::std::io::stderr(),
                 "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",
-                opcode, P::interface_name()
+                opcode,
+                P::interface_name()
             );
             ::libc::abort();
         }
@@ -501,127 +463,3 @@ unsafe extern "C" fn dispatch_func<P: Proxy, H: Handler<P>>(_impl: *const c_void
         }
     }
 }
-
-/// Synonym of the declare_handler! macro
-///
-/// This more distinctive can be used for projects that need to use
-/// both the client-side and server-side macros.
-#[macro_export]
-macro_rules! client_declare_handler(
-    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
-        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
-            unsafe fn message(&mut self,
-                              evq: &mut $crate::EventQueueHandle,
-                              proxy: &$handled_type,
-                              opcode: u32,
-                              args: *const $crate::sys::wl_argument
-                             ) -> ::std::result::Result<(),()> {
-                <$handler_trait>::__message(self, evq, proxy, opcode, args)
-            }
-        }
-    };
-    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
-        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self,
-                              evq: &mut $crate::EventQueueHandle,
-                              proxy: &$handled_type,
-                              opcode: u32,
-                              args: *const $crate::sys::wl_argument
-                             ) -> ::std::result::Result<(),()> {
-                <$handler_trait>::__message(self, evq, proxy, opcode, args)
-            }
-        }
-    };
-);
-
-
-/// Registers a handler type so it can be used in event queue
-///
-/// After having implemented the appropriate Handler trait for your type,
-/// declare it via this macro, like this:
-///
-/// ```ignore
-/// struct MyHandler;
-///
-/// impl wl_foo::Handler for MyHandler {
-///     ...
-/// }
-///
-/// declare_handler!(MyHandler, wl_foo::Handler, wl_foo::WlFoo);
-/// ```
-///
-/// If your type has type arguments, they must be specified using this special
-/// syntax to describe constraints on them:
-///
-/// ```ignore
-/// // Note that even if there are no constraints on U, there is a need to put this "empty list"
-/// declare_handler!(MyHandler<T: [Trait1, Trait2], U: []>, wl_foo::Handler, wl_foo::WlFoo);
-/// ```
-#[macro_export]
-macro_rules! declare_handler(
-    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $handler_trait: path, $handled_type: ty) => {
-        client_declare_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $handler_trait, $handled_type);
-    };
-    ($handler_struct: ident, $handler_trait: path, $handled_type: ty) => {
-        client_declare_handler!($handler_struct, $handler_trait, $handled_type);
-    };
-);
-
-/// Synonym of the declare_delegating_handler! macro
-///
-/// This more distinctive can be used for projects that need to use
-/// both the client-side and server-side macros.
-#[macro_export]
-macro_rules! client_declare_delegating_handler(
-    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
-        unsafe impl<$($tyarg : $($trait $(<$($traitarg),*>)* +)* 'static),*> $crate::Handler<$handled_type> for $handler_struct<$($tyarg),*> {
-            unsafe fn message(&mut self,
-                              evq: &mut $crate::EventQueueHandle,
-                              proxy: &$handled_type,
-                              opcode: u32,
-                              args: *const $crate::sys::wl_argument
-                             ) -> ::std::result::Result<(),()> {
-                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
-            }
-        }
-    };
-    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
-        unsafe impl $crate::Handler<$handled_type> for $handler_struct {
-            unsafe fn message(&mut self,
-                              evq: &mut $crate::EventQueueHandle,
-                              proxy: &$handled_type,
-                              opcode: u32,
-                              args: *const $crate::sys::wl_argument
-                             ) -> ::std::result::Result<(),()> {
-                <$handler_trait>::__message(&mut self.$($handler_field).+, evq, proxy, opcode, args)
-            }
-        }
-    };
-);
-
-/// Registers a handler type so it as delegating to one of its fields
-///
-/// This allows to declare your type as a handler, by delegating the impl
-/// to one of its fields (or subfields).
-///
-/// ```ignore
-/// // MySubHandler is a proper handler for wl_foo events
-/// struct MySubHandler;
-///
-/// struct MyHandler {
-///     sub: MySubHandler
-/// }
-///
-/// declare_delegating_handler!(MySubHandler, sub, wl_foo::Handler, wl_foo::WlFoo);
-/// ```
-///
-/// The syntax to use if your type has type arguments is the same as for `declare_handler!()`.
-#[macro_export]
-macro_rules! declare_delegating_handler(
-    ($handler_struct: ident <$($tyarg:ident : [$($trait: ident $(<$($traitarg:ty),*>)*),*]),*>, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
-        client_declare_delegating_handler!($handler_struct<$($tyarg: [$($trait $(<$($traitarg),*>)*),*]),*>, $($handler_field).+, $handler_trait, $handled_type);
-    };
-    ($handler_struct: ident, $($handler_field: ident).+ , $handler_trait: path, $handled_type: ty) => {
-        client_declare_delegating_handler!($handler_struct, $($handler_field).+, $handler_trait, $handled_type);
-    };
-);

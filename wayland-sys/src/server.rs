@@ -7,13 +7,13 @@ use super::common::*;
 use libc::{gid_t, pid_t, uid_t};
 use std::os::raw::{c_char, c_int, c_void};
 
-pub enum wl_client { }
-pub enum wl_display { }
-pub enum wl_event_loop { }
-pub enum wl_event_source { }
-pub enum wl_global { }
-pub enum wl_resource { }
-pub enum wl_shm_buffer { }
+pub enum wl_client {}
+pub enum wl_display {}
+pub enum wl_event_loop {}
+pub enum wl_event_source {}
+pub enum wl_global {}
+pub enum wl_resource {}
+pub enum wl_shm_buffer {}
 
 pub type wl_event_loop_fd_func_t = unsafe extern "C" fn(c_int, u32, *mut c_void) -> c_int;
 pub type wl_event_loop_timer_func_t = unsafe extern "C" fn(*mut c_void) -> c_int;

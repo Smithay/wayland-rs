@@ -1,6 +1,6 @@
 
 
-use event_loop::{EventLoop, create_event_loop};
+use event_loop::{create_event_loop, EventLoop};
 use std::env;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
@@ -8,7 +8,6 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
 use std::ptr;
-
 use wayland_sys::server::*;
 
 /// A wayland socket
@@ -24,11 +23,7 @@ pub struct Display {
 /// using the `add_socket_*` methods.
 pub fn create_display() -> (Display, EventLoop) {
     unsafe {
-        let ptr =
-            ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_create,
-        );
+        let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,);
         let el_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr);
         (Display { ptr: ptr }, create_event_loop(el_ptr, Some(ptr)))
     }
@@ -79,10 +74,7 @@ impl Display {
             }
             Err(IoError::new(
                 ErrorKind::PermissionDenied,
-                format!(
-                    "could not bind socket {}",
-                    socket_name.to_string_lossy()
-                ),
+                format!("could not bind socket {}", socket_name.to_string_lossy()),
             ))
         } else {
             Ok(())
@@ -178,11 +170,9 @@ impl Drop for Display {
 fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
-        None => {
-            Err(IoError::new(
-                ErrorKind::NotFound,
-                "XDG_RUNTIME_DIR env variable is not set",
-            ))
-        }
+        None => Err(IoError::new(
+            ErrorKind::NotFound,
+            "XDG_RUNTIME_DIR env variable is not set",
+        )),
     }
 }

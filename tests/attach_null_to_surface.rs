@@ -1,104 +1,80 @@
 #[macro_use]
-extern crate wayland_server as ways;
-#[macro_use]
 extern crate wayland_client as wayc;
+extern crate wayland_server as ways;
 
 mod helpers;
 
-use helpers::{TestClient, TestServer, roundtrip};
+use helpers::{roundtrip, TestClient, TestServer};
 
 mod server_utils {
-    use ways::{Client, EventLoop, EventLoopHandle, GlobalHandler, Init};
-    use ways::protocol::{wl_buffer, wl_compositor, wl_surface};
+    use ways::{EventLoop, StateToken};
+    use ways::protocol::{wl_compositor, wl_surface};
 
-    pub struct CompositorHandler {
-        hid: Option<usize>,
+    pub struct CompositorState {
         pub got_buffer: bool,
     }
 
-    impl CompositorHandler {
-        fn new() -> CompositorHandler {
-            CompositorHandler {
-                hid: None,
-                got_buffer: false,
-            }
+    impl CompositorState {
+        fn new() -> CompositorState {
+            CompositorState { got_buffer: false }
         }
     }
 
-    impl Init for CompositorHandler {
-        fn init(&mut self, _: &mut EventLoopHandle, index: usize) {
-            self.hid = Some(index)
+    fn compositor_impl() -> wl_compositor::Implementation<StateToken<CompositorState>> {
+        wl_compositor::Implementation {
+            create_surface: |evlh, token, _client, _compositor, surface| {
+                evlh.register(&surface, surface_impl(), token.clone());
+            },
+            create_region: |_, _, _, _, _| {},
         }
     }
 
-    impl GlobalHandler<wl_compositor::WlCompositor> for CompositorHandler {
-        fn bind(&mut self, evlh: &mut EventLoopHandle, _: &Client, comp: wl_compositor::WlCompositor) {
-            let hid = self.hid.expect("CompositorHandler was not initialized!");
-            evlh.register::<_, CompositorHandler>(&comp, hid);
+    fn surface_impl() -> wl_surface::Implementation<StateToken<CompositorState>> {
+        wl_surface::Implementation {
+            attach: |evlh, token, _client, _surface, buffer, _, _| {
+                assert!(buffer.is_none());
+                evlh.state().get_mut(token).got_buffer = true;
+            },
+            commit: |_, _, _, _| {},
+            damage: |_, _, _, _, _, _, _, _| {},
+            damage_buffer: |_, _, _, _, _, _, _, _| {},
+            destroy: |_, _, _, _| {},
+            frame: |_, _, _, _, _| {},
+            set_buffer_scale: |_, _, _, _, _| {},
+            set_buffer_transform: |_, _, _, _, _| {},
+            set_input_region: |_, _, _, _, _| {},
+            set_opaque_region: |_, _, _, _, _| {},
         }
     }
 
-    impl wl_compositor::Handler for CompositorHandler {
-        fn create_surface(&mut self, evlh: &mut EventLoopHandle, _: &Client,
-                          _: &wl_compositor::WlCompositor, surface: wl_surface::WlSurface) {
-            let hid = self.hid.expect("CompositorHandler was not initialized!");
-            evlh.register::<_, CompositorHandler>(&surface, hid);
-        }
-    }
-
-    impl wl_surface::Handler for CompositorHandler {
-        fn attach(&mut self, evqh: &mut EventLoopHandle, _client: &Client, surface: &wl_surface::WlSurface,
-                  buffer: Option<&wl_buffer::WlBuffer>, x: i32, y: i32) {
-            assert!(buffer.is_none());
-            self.got_buffer = true;
-        }
-    }
-
-    server_declare_handler!(
-        CompositorHandler,
-        wl_compositor::Handler,
-        wl_compositor::WlCompositor
-    );
-    server_declare_handler!(
-        CompositorHandler,
-        wl_surface::Handler,
-        wl_surface::WlSurface
-    );
-
-    pub fn insert_compositor(event_loop: &mut EventLoop) {
-        let hid = event_loop.add_handler_with_init(CompositorHandler::new());
-        let _ = event_loop.register_global::<wl_compositor::WlCompositor, CompositorHandler>(hid, 1);
+    pub fn insert_compositor(event_loop: &mut EventLoop) -> StateToken<CompositorState> {
+        let token = event_loop.state().insert(CompositorState::new());
+        let _ = event_loop.register_global::<wl_compositor::WlCompositor, _>(
+            1,
+            |evlh, token, _client, compositor| {
+                evlh.register(&compositor, compositor_impl(), token.clone());
+            },
+            token.clone(),
+        );
+        token
     }
 }
 
-mod client_utils {
-    use wayc::{EnvHandler, EventQueue};
-    use wayc::protocol::wl_registry::WlRegistry;
-
-    wayland_env!(pub ClientEnv,
-        compositor: ::wayc::protocol::wl_compositor::WlCompositor
-    );
-
-    pub fn insert_handler(event_queue: &mut EventQueue, registry: &WlRegistry) -> usize {
-        let hid = event_queue.add_handler(EnvHandler::<ClientEnv>::new());
-        event_queue.register::<_, EnvHandler<ClientEnv>>(registry, hid);
-        hid
-    }
-}
-
-use self::client_utils::ClientEnv;
+wayland_env!(pub ClientEnv,
+    compositor: ::wayc::protocol::wl_compositor::WlCompositor
+);
 
 #[test]
 fn attach_null() {
     // server setup
     let mut server = TestServer::new();
-    self::server_utils::insert_compositor(&mut server.event_loop);
+    let server_comp_token = self::server_utils::insert_compositor(&mut server.event_loop);
 
     // client setup
     //
     let mut client = TestClient::new(&server.socket_name);
     let client_registry = client.display.get_registry();
-    let client_handler_hid = self::client_utils::insert_handler(&mut client.event_queue, &client_registry);
+    let client_env_token = wayc::EnvHandler::<ClientEnv>::init(&mut client.event_queue, &client_registry);
 
     // double roundtrip for env init
     //
@@ -109,7 +85,7 @@ fn attach_null() {
     //
     {
         let state = client.event_queue.state();
-        let env = state.get_handler::<wayc::EnvHandler<ClientEnv>>(client_handler_hid);
+        let env = state.get(&client_env_token);
         let surface = env.compositor.create_surface();
         surface.attach(None, 0, 0);
     }
@@ -120,7 +96,7 @@ fn attach_null() {
     //
     {
         let state = server.event_loop.state();
-        let handler = state.get_handler::<server_utils::CompositorHandler>(0);
+        let handler = state.get(&server_comp_token);
         assert!(handler.got_buffer);
     }
 }
