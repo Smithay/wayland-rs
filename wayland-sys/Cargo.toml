@@ -1,6 +1,6 @@
 [package]
 name = "wayland-sys"
-version = "0.10.1"
+version = "0.10.2"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://smithay.github.io/wayland-rs/wayland_sys/"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -22,3 +22,6 @@ client = []
 cursor = []
 egl = []
 server = ["libc"]
+
+[package.metadata.docs.rs]
+all-features = true

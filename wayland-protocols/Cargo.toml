@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.10.1"
+version = "0.10.2"
 documentation = "https://smithay.github.io/wayland-rs/wayland_protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,16 +14,18 @@ categories = ["gui", "api-bindings"]
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.10.1", path = "../wayland-sys" }
-wayland-client = { version = "0.10.1", path = "../wayland-client", optional = true, default-features = false }
-wayland-server = { version = "0.10.1", path = "../wayland-server", optional = true }
+wayland-sys = { version = "0.10.2", path = "../wayland-sys" }
+wayland-client = { version = "0.10.2", path = "../wayland-client", optional = true, default-features = false }
+wayland-server = { version = "0.10.2", path = "../wayland-server", optional = true }
 bitflags = "0.9"
 
 [build-dependencies]
-wayland-scanner = { version = "0.10.1", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.10.2", path = "../wayland-scanner" }
 
 [features]
 client = ["wayland-client"]
 server = ["wayland-server"]
 unstable_protocols = []
 
+[package.metadata.docs.rs]
+all-features = true

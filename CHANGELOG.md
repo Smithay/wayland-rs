@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.10.2 - 2017-09-21
+
+- [server] Add `Resource::same_client_as(..)` for checking if two
+  resources are from the same client.
+
 ## 0.10.1 - 2017-09-19
 
 - [server] Correct some forgotten stuff in the previous release
