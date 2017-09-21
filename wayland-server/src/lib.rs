@@ -224,6 +224,29 @@ pub unsafe trait Resource {
     /// has no knowledge of its lifetime, and cannot ensure that the new handle
     /// will not outlive the object.
     unsafe fn clone_unchecked(&self) -> Self;
+    /// Checks wether this resource and the other are from the same client
+    ///
+    /// Returns `true` if both are alive and belong to the same client, `false`
+    /// otherwise.
+    fn same_client_as<R: Resource>(&self, other: &R) -> bool {
+        // comparing client pointers for equality is only meaningfull
+        // if resources are alive
+        if !(self.status() == Liveness::Alive && other.status() == Liveness::Alive) {
+            false
+        } else {
+            let my_client = unsafe { ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_client,
+                self.ptr()
+            ) };
+            let other_client = unsafe { ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_client,
+                other.ptr()
+            ) };
+            my_client == other_client
+        }
+    }
 }
 
 /// Common trait for wayland objects that can be registered to an EventQueue
