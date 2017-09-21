@@ -27,14 +27,14 @@ branches:
 
 before_script:
   - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+  - pip install 'travis-cargo<0.2' --user
+  - mkdir $(pwd)/socket
+  - export XDG_RUNTIME_DIR="$(pwd)/socket"
+  - which rustfmt || travis-cargo --only nightly install rustfmt-nightly -- --force
   - which mdbook || cargo install mdbook
   - which cargo-tarpaulin || cargo install cargo-tarpaulin
   - which cargo-install-update || cargo install cargo-update
   - cargo install-update -a
-  - pip install 'travis-cargo<0.2' --user
-  - mkdir $(pwd)/socket
-  - export XDG_RUNTIME_DIR="$(pwd)/socket"
-  - travis-cargo --only nightly install rustfmt-nightly -- --force
 
 os:
   - linux
