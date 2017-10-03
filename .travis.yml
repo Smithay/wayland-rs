@@ -47,12 +47,12 @@ script:
       fi
   - cargo build --all --all-features
   - cargo test
+  - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   - cargo doc --all --no-deps --all-features
 
 after_success:
   - cp ./doc_index.html ./target/doc/index.html
   - cp ./rust.css ./target/doc/rust.css
-  - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
 deploy:
   provider: pages
