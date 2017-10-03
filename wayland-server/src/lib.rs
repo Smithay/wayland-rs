@@ -234,16 +234,10 @@ pub unsafe trait Resource {
         if !(self.status() == Liveness::Alive && other.status() == Liveness::Alive) {
             false
         } else {
-            let my_client = unsafe { ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_get_client,
-                self.ptr()
-            ) };
-            let other_client = unsafe { ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_get_client,
-                other.ptr()
-            ) };
+            let my_client =
+                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr()) };
+            let other_client =
+                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr()) };
             my_client == other_client
         }
     }

@@ -26,11 +26,13 @@ branches:
     - master
 
 before_script:
-  - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
-  - pip install 'travis-cargo<0.2' --user
+  - export PATH=$HOME/.cargo/bin:$PATH
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
-  - which rustfmt || travis-cargo --only nightly install rustfmt-nightly -- --force
+  - |
+      if [ $TRAVIS_RUST_VERSION = "nightly" ]; then
+        which rustfmt || cargo install rustfmt-nightly -- --force
+      fi
   - which cargo-tarpaulin || cargo install cargo-tarpaulin
   - which cargo-install-update || cargo install cargo-update
   - cargo install-update -a
@@ -39,20 +41,17 @@ os:
   - linux
 
 script:
-  - travis-cargo --only nightly fmt -- --all -- --write-mode=diff
+  - |
+      if [ $TRAVIS_RUST_VERSION = "nightly" ]; then
+        cargo fmt --all -- --write-mode=diff
+      fi
   - cargo build --all --all-features
   - cargo test
   - cargo doc --all --no-deps --all-features
 
 after_success:
-  - cp ./index.html ./rust.css ./target/doc/
   - ./doc_upload.py
   - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-
-env:
-  global:
-    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
-    - secure: A/zuPuIu03Z+rqnDS/NNNjbXrg8Nc9lEGKzcBdpHgnyd23z37zreEEAKzFhjJKMx0np0ntDo5LVeLgT6d7fGaDFsJrBZHej3pxuG81MAJdLEmJNaCLCc1eCbwDHgJkEJ5HsblHTrYK0RjBvNL5I8+URuzEqXkwVr7UHJv5px1ZA=
 
 notifications:
     webhooks:
