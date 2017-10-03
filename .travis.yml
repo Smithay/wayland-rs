@@ -50,8 +50,18 @@ script:
   - cargo doc --all --no-deps --all-features
 
 after_success:
-  - ./doc_upload.py
+  - cp ./doc_index.html ./target/doc/index.html
+  - cp ./rust.css ./target/doc/rust.css
   - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  local_dir: target/doc
+  on:
+    branch: master
+    rust: stable
 
 notifications:
     webhooks:
