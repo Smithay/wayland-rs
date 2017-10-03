@@ -31,7 +31,6 @@ before_script:
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
   - which rustfmt || travis-cargo --only nightly install rustfmt-nightly -- --force
-  - which mdbook || cargo install mdbook
   - which cargo-tarpaulin || cargo install cargo-tarpaulin
   - which cargo-install-update || cargo install cargo-update
   - cargo install-update -a
@@ -46,7 +45,6 @@ script:
   - cargo doc --all --no-deps --all-features
 
 after_success:
-  - mdbook build
   - cp ./index.html ./rust.css ./target/doc/
   - ./doc_upload.py
   - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
