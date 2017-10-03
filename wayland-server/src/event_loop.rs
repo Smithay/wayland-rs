@@ -478,9 +478,8 @@ impl EventLoop {
     pub fn register_global<R: Resource, ID>(&mut self, version: i32, callback: GlobalCallback<R, ID>,
                                             idata: ID)
                                             -> Global<R, ID> {
-        let display = self.display.expect(
-            "Globals can only be registered on an event loop associated with a display.",
-        );
+        let display = self.display
+            .expect("Globals can only be registered on an event loop associated with a display.");
 
         let data = Box::new((
             callback,
