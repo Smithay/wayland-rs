@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.10.3 - 2017-10-04
+
+- [server] Update nix dependency to 0.9
+
 ## 0.10.2 - 2017-09-21
 
 - [server] Add `Resource::same_client_as(..)` for checking if two
