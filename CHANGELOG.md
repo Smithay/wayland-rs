@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.11.0 - 2017-10-09
+
+- **Breaking change**: Update bitflags dependency to 1.0. Generated code for
+  protocols will now have bitflags values as associated constants to these
+  bitflags structs.
+
 ## 0.10.3 - 2017-10-04
 
 - [server] Update nix dependency to 0.9
