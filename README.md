@@ -30,3 +30,6 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
  - [wayland-scanner](https://docs.rs/wayland-scanner/)
  - [wayland-sys](https://docs.rs/wayland-sys/)
 
+## Requirements
+
+Requires at least rust 1.20 to be used (using bitflags 1.0 for associated constants).
