@@ -137,8 +137,11 @@ pub mod wl_foo {
     #[repr(u32)]
     #[derive(Copy,Clone,Debug,PartialEq)]
     pub enum CakeKind {
+        /// mild cake without much flavor
         Basic = 0,
+        /// spicy cake to burn your tongue
         Spicy = 1,
+        /// fruity cake to get vitamins
         Fruity = 2,
     }
     impl CakeKind {
@@ -155,14 +158,18 @@ pub mod wl_foo {
         }
     }
 
-    bitflags! { #[doc = r#"possible delivery modes
-
-"#]
-    pub struct DeliveryKind: u32 {
-        const PickUp = 1;
-        const Drone = 2;
-        const Catapult = 4;
-    } }
+    bitflags! {
+        /// possible delivery modes
+        ///
+        pub struct DeliveryKind: u32 {
+            /// pick your cake up yourself
+            const PickUp = 1;
+            /// flying drone delivery
+            const Drone = 2;
+            /// because we fear nothing
+            const Catapult = 4;
+        }
+    }
 
     impl DeliveryKind {
         pub fn from_raw(n: u32) -> Option<DeliveryKind> {

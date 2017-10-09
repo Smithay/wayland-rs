@@ -35,7 +35,7 @@
         List of the possible kind of cake supported by the protocol.
       </description>
       <entry name="basic" value="0" summary="mild cake without much flavor" />
-      <entry name="spicy" value="1" summary="spicy cake to brun your tongue" />
+      <entry name="spicy" value="1" summary="spicy cake to burn your tongue" />
       <entry name="fruity" value="2" summary="fruity cake to get vitamins" since="3" />
     </enum>
 
