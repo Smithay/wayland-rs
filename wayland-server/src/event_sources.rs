@@ -110,10 +110,10 @@ where
         } else {
             let mut bits = FdInterest::empty();
             if mask & 0x02 > 0 {
-                bits = bits | WRITE;
+                bits = bits | FdInterest::WRITE;
             }
             if mask & 0x01 > 0 {
-                bits = bits | READ;
+                bits = bits | FdInterest::READ;
             }
             (implem.ready)(evlh, idata, fd, bits)
         }
