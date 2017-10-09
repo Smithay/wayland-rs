@@ -1,6 +1,5 @@
 use Side;
 use protocol::*;
-use std::collections::HashSet;
 use std::io::Result as IOResult;
 use std::io::Write;
 use util::*;
@@ -300,21 +299,6 @@ fn write_opcodes<O: Write>(messages: &[Message], out: &mut O, iname: &str) -> IO
 }
 
 fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
-    // check for conflicts in bitfield names
-    let mut bitfields_conflicts = false;
-    let mut bitfields_names = HashSet::new();
-
-    'outer: for enu in enums {
-        if enu.bitfield {
-            for entry in &enu.entries {
-                if !bitfields_names.insert(&entry.name[..]) {
-                    bitfields_conflicts = true;
-                    break 'outer;
-                }
-            }
-        }
-    }
-
     // generate contents
     for enu in enums {
         if enu.bitfield {
@@ -335,12 +319,7 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                 }
                 writeln!(
                     out,
-                    "            const {}{}{} = {};",
-                    if bitfields_conflicts {
-                        snake_to_camel(&enu.name)
-                    } else {
-                        String::new()
-                    },
+                    "            const {}{} = {};",
                     if entry.name.chars().next().unwrap().is_numeric() {
                         "_"
                     } else {
