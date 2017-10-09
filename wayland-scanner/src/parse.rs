@@ -250,7 +250,7 @@ fn parse_arg<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute>)
         match &attr.name.local_name[..] {
             "name" => arg.name = attr.value,
             "type" => arg.typ = parse_type(&attr.value),
-            "summary" => arg.summary = Some(attr.value),
+            "summary" => arg.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
             "interface" => arg.interface = Some(attr.value),
             "allow-null" => if attr.value == "true" {
                 arg.allow_null = true
@@ -300,7 +300,7 @@ fn parse_entry<'a, S: Read + 'a>(iter: &mut Events<S>, attrs: Vec<OwnedAttribute
             "name" => entry.name = attr.value,
             "value" => entry.value = attr.value,
             "since" => entry.since = attr.value.parse().unwrap(),
-            "summary" => entry.summary = Some(attr.value),
+            "summary" => entry.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
             _ => {}
         }
     }

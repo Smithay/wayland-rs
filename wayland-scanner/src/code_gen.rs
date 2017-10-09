@@ -318,31 +318,24 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
     // generate contents
     for enu in enums {
         if enu.bitfield {
+            writeln!(out, "    bitflags! {{")?;
             if let Some((ref short, ref long)) = enu.description {
-                writeln!(
-                    out,
-                    "    bitflags! {{ #[doc = r#\"{}\n\n{}\"#]\n    pub struct {}: u32 {{",
-                    short,
-                    long.lines()
-                        .map(|s| s.trim(),)
-                        .collect::<Vec<_>>()
-                        .join("\n",),
-                    snake_to_camel(&enu.name)
-                )?;
-            } else {
-                writeln!(
-                    out,
-                    "    bitflags! {{ pub struct {}: u32 {{",
-                    snake_to_camel(&enu.name)
-                )?;
+                write_doc(Some(short), long, false, out, 2)?;
             }
+            writeln!(
+                out,
+                "        pub struct {}: u32 {{",
+                snake_to_camel(&enu.name)
+            )?;
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
                     write_doc(Some(short), long, false, out, 3)?;
+                } else if let Some(ref summary) = entry.summary {
+                    writeln!(out, "            /// {}", summary)?;
                 }
                 writeln!(
                     out,
-                    "        const {}{}{} = {};",
+                    "            const {}{}{} = {};",
                     if bitfields_conflicts {
                         snake_to_camel(&enu.name)
                     } else {
@@ -357,7 +350,8 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
                     entry.value
                 )?;
             }
-            writeln!(out, "    }} }}")?;
+            writeln!(out, "        }}")?;
+            writeln!(out, "    }}")?;
             writeln!(out, "    impl {} {{", snake_to_camel(&enu.name))?;
             writeln!(
                 out,
@@ -387,6 +381,8 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
                     write_doc(Some(short), long, false, out, 2)?;
+                } else if let Some(ref summary) = entry.summary {
+                    writeln!(out, "        /// {}", summary)?;
                 }
                 writeln!(
                     out,
