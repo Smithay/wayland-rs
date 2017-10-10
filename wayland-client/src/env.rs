@@ -57,7 +57,7 @@ pub struct EnvHandler<H: EnvHandlerInner> {
 }
 
 impl<H: EnvHandlerInner + 'static> EnvHandler<H> {
-    /// Insert a new EnvHandler in this eventqueu and register the registry to it
+    /// Insert a new EnvHandler in this event queue and register the registry to it
     pub fn init(evqh: &mut EventQueueHandle, registry: &WlRegistry) -> StateToken<EnvHandler<H>> {
         let token = {
             let state = evqh.state();
@@ -67,6 +67,31 @@ impl<H: EnvHandlerInner + 'static> EnvHandler<H> {
             })
         };
         evqh.register(registry, env_handler_impl(), token.clone());
+        token
+    }
+
+    /// Insert a new EnvHandler in this event queue with a notify implementation
+    ///
+    /// Does the same as `EnvHandler::init(..)`, but you additionnaly supply an implementation
+    /// struct that the EnvHandler will use to notify you of events:
+    ///
+    /// - events of creation/deletion of a global are forwarded
+    /// - event of readiness of this EnvHandler (when all the necessary globals could be bound)
+    pub fn init_with_notify<ID: 'static>(evqh: &mut EventQueueHandle, registry: &WlRegistry,
+                                         notify: EnvNotify<ID>, idata: ID)
+                                         -> StateToken<EnvHandler<H>> {
+        let token = {
+            let state = evqh.state();
+            state.insert(EnvHandler {
+                globals: Vec::new(),
+                inner: None,
+            })
+        };
+        evqh.register(
+            registry,
+            env_handler_impl_notify(),
+            (token.clone(), (notify, idata)),
+        );
         token
     }
 
@@ -89,11 +114,13 @@ impl<H: EnvHandlerInner + 'static> EnvHandler<H> {
         &self.globals
     }
 
-    fn try_make_ready(&mut self, registry: &WlRegistry) {
+    /// Returns true if the env became ready after this call
+    fn try_make_ready(&mut self, registry: &WlRegistry) -> bool {
         if self.inner.is_some() {
-            return;
+            return false;
         }
         self.inner = H::create(registry, &self.globals);
+        self.ready()
     }
 }
 
@@ -120,6 +147,79 @@ fn env_handler_impl<H: EnvHandlerInner + 'static>() -> Implementation<StateToken
             me.globals.retain(|&(i, _, _)| i != name)
         },
     }
+}
+
+fn env_handler_impl_notify<H: EnvHandlerInner + 'static, ID: 'static>(
+    )
+    -> Implementation<(StateToken<EnvHandler<H>>, (EnvNotify<ID>, ID))>
+{
+    Implementation {
+        global: |evqh, &mut (ref token, (ref implem, ref mut idata)), registry, name, interface, version| {
+            (implem.new_global)(evqh, idata, registry, name, &interface, version);
+            let became_ready = {
+                let state = evqh.state();
+                let me = state.get_mut(token);
+                me.globals.push((name, interface, version));
+                me.try_make_ready(registry)
+            };
+            if became_ready {
+                (implem.ready)(evqh, idata, registry);
+            }
+        },
+        global_remove: |evqh, &mut (ref token, (ref implem, ref mut idata)), registry, name| {
+            (implem.del_global)(evqh, idata, registry, name);
+            let state = evqh.state();
+            let me = state.get_mut(token);
+            me.globals.retain(|&(i, _, _)| i != name);
+        },
+    }
+}
+
+/// An implementation to receive globals notifications for the EnvHandler
+///
+/// You can provide this implementation to have the EnvHandler notify you
+/// about new globals in addition to processing them.
+///
+/// See `EnvHandler::init_with_notify(..)`.
+pub struct EnvNotify<ID> {
+    /// A new global was advertized by the server
+    ///
+    /// Arguments are:
+    ///
+    /// - The `&mut EventQueueHandle`
+    /// - A mutable reference to the implementation data you provided
+    /// - A handle to the wayland registry
+    /// - the id of this new global
+    /// - the interface of this global
+    /// - the version of this global
+    new_global: fn(
+     evqh: &mut EventQueueHandle,
+     idata: &mut ID,
+     registry: &WlRegistry,
+     id: u32,
+     interface: &str,
+     version: u32,
+    ),
+    /// A global was removed by the server
+    ///
+    /// Arguments are:
+    ///
+    /// - The `&mut EventQueueHandle`
+    /// - A mutable reference to the implementation data you provided
+    /// - A handle to the wayland registry
+    /// - the id of the removed global
+    del_global: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry, id: u32),
+    /// The EnvHandler is ready
+    ///
+    /// This is called once all necessary globals defined with the `wayland_env!()`
+    /// macro were advertized and instanciated.
+    ///
+    /// Arguments are:
+    ///
+    /// - The `&mut EventQueueHandle`
+    /// - A mutable reference to the implementation data you provided
+    /// - A handle to the wayland registry
+    ready: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry),
 }
 
 /// Create an environment handling struct

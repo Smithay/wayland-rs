@@ -1,5 +1,10 @@
 # Change Log
 
+## Unreleased
+
+- [client] Add `EnvHandler::init_with_notify()` to still be notified about
+  global events when using `EnvHandler`.
+
 ## 0.11.0 - 2017-10-09
 
 - **Breaking change**: Update bitflags dependency to 1.0. Generated code for
