@@ -99,9 +99,9 @@
 extern crate bitflags;
 extern crate libc;
 extern crate nix;
+extern crate token_store;
 #[macro_use]
 extern crate wayland_sys;
-
 
 pub use client::Client;
 pub use display::{create_display, Display};

@@ -4,6 +4,7 @@
 
 - [client] Add `EnvHandler::init_with_notify()` to still be notified about
   global events when using `EnvHandler`.
+- [client/server] Externalise state logic to crate `token_store`
 
 ## 0.11.0 - 2017-10-09
 

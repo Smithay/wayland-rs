@@ -79,6 +79,7 @@
 #[macro_use]
 extern crate bitflags;
 extern crate libc;
+extern crate token_store;
 #[macro_use]
 extern crate wayland_sys;
 

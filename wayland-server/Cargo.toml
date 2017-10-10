@@ -18,6 +18,7 @@ wayland-sys = { version = "0.11.0", features = ["server"], path = "../wayland-sy
 libc = "0.2"
 nix = "0.9"
 bitflags = "1.0"
+token_store = "0.1"
 
 [build-dependencies]
 wayland-scanner = { version = "0.11.0", path = "../wayland-scanner" }

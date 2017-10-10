@@ -1,14 +1,12 @@
 use {Implementable, Proxy};
 use std::any::Any;
-use std::cell::Cell;
 use std::io::{Error as IoError, Result as IoResult};
 use std::io::Write;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_int, c_void};
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
+pub use token_store::{Store as State, Token as StateToken};
 use wayland_sys::RUST_MANAGED;
 use wayland_sys::client::*;
 use wayland_sys::common::*;
@@ -27,102 +25,6 @@ pub enum RegisterStatus {
     Unmanaged,
     /// The proxy was not registered because it is already destroyed.
     Dead,
-}
-
-/// A state store
-///
-/// This struct allows you to store various values in a special
-/// storage that will be made available to your proxy implementations.
-pub struct State {
-    values: Vec<Option<(Box<Any>, Rc<Cell<bool>>)>>,
-}
-
-/// A token for accessing the state store contents
-pub struct StateToken<V> {
-    id: usize,
-    live: Rc<Cell<bool>>,
-    _type: PhantomData<V>,
-}
-
-impl<V> Clone for StateToken<V> {
-    fn clone(&self) -> StateToken<V> {
-        StateToken {
-            id: self.id,
-            live: self.live.clone(),
-            _type: PhantomData,
-        }
-    }
-}
-
-impl State {
-    /// Insert a new value in this state store
-    ///
-    /// Returns a clonable token that you can later use to access this
-    /// value.
-    pub fn insert<V: Any + 'static>(&mut self, value: V) -> StateToken<V> {
-        let boxed = Box::new(value) as Box<Any>;
-        let live = Rc::new(Cell::new(true));
-        {
-            // artificial scope to make the borrow checker happy
-            let empty_slot = self.values
-                .iter_mut()
-                .enumerate()
-                .find(|&(_, ref s)| s.is_none());
-            if let Some((id, slot)) = empty_slot {
-                *slot = Some((boxed, live.clone()));
-                return StateToken {
-                    id: id,
-                    live: live,
-                    _type: PhantomData,
-                };
-            }
-        }
-        self.values.push(Some((boxed, live.clone())));
-        StateToken {
-            id: self.values.len() - 1,
-            live: live,
-            _type: PhantomData,
-        }
-    }
-
-    /// Access value previously inserted in this state store
-    ///
-    /// Panics if the provided token corresponds to a value that was removed.
-    pub fn get<V: Any + 'static>(&self, token: &StateToken<V>) -> &V {
-        if !token.live.get() {
-            panic!("Attempted to access a state value that was already removed!");
-        }
-        self.values[token.id]
-            .as_ref()
-            .and_then(|t| t.0.downcast_ref::<V>())
-            .unwrap()
-    }
-
-    /// Mutably access value previously inserted in this state store
-    ///
-    /// Panics if the provided token corresponds to a value that was removed.
-    pub fn get_mut<V: Any + 'static>(&mut self, token: &StateToken<V>) -> &mut V {
-        if !token.live.get() {
-            panic!("Attempted to access a state value that was already removed!");
-        }
-        self.values[token.id]
-            .as_mut()
-            .and_then(|t| t.0.downcast_mut::<V>())
-            .unwrap()
-    }
-
-    /// Remove a value previously inserted in this state store
-    ///
-    /// Panics if the provided token corresponds to a value that was already
-    /// removed.
-    pub fn remove<V: Any + 'static>(&mut self, token: StateToken<V>) -> V {
-        if !token.live.get() {
-            panic!("Attempted to remove a state value that was already removed!");
-        }
-        let (boxed, live) = self.values[token.id].take().unwrap();
-        live.set(false);
-        *boxed.downcast().unwrap()
-    }
 }
 
 /// Handle to an event queue
@@ -413,7 +315,7 @@ pub unsafe fn create_event_queue(display: *mut wl_display, evq: Option<*mut wl_e
     EventQueue {
         display: display,
         handle: Box::new(EventQueueHandle {
-            state: State { values: Vec::new() },
+            state: State::new(),
             wlevq: evq,
         }),
     }
