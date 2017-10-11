@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
-pub use token_store::{Store as State, Token as StateToken};
+pub use token_store::{Store as State, StoreProxy as StateProxy, Token as StateToken};
 use wayland_sys::RUST_MANAGED;
 use wayland_sys::client::*;
 use wayland_sys::common::*;

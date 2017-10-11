@@ -106,7 +106,7 @@ extern crate wayland_sys;
 pub use client::Client;
 pub use display::{create_display, Display};
 pub use event_loop::{resource_is_registered, EventLoop, EventLoopHandle, Global, GlobalCallback,
-                     RegisterStatus, State, StateToken};
+                     RegisterStatus, State, StateProxy, StateToken};
 pub use generated::interfaces as protocol_interfaces;
 pub use generated::server as protocol;
 use wayland_sys::common::{wl_argument, wl_interface};

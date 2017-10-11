@@ -7,7 +7,7 @@ use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
-pub use token_store::{Store as State, Token as StateToken};
+pub use token_store::{Store as State, StoreProxy as StateProxy, Token as StateToken};
 use wayland_sys::RUST_MANAGED;
 use wayland_sys::common::{wl_argument, wl_message};
 use wayland_sys::server::*;

@@ -100,7 +100,8 @@ pub mod cursor;
 
 pub use display::{connect_to, default_connect, ConnectError, FatalError};
 pub use env::{EnvHandler, EnvHandlerInner, EnvNotify};
-pub use event_queue::{EventQueue, EventQueueHandle, ReadEventsGuard, RegisterStatus, State, StateToken};
+pub use event_queue::{EventQueue, EventQueueHandle, ReadEventsGuard, RegisterStatus, State, StateProxy,
+                      StateToken};
 
 /// Common routines for wayland proxy objects.
 ///
