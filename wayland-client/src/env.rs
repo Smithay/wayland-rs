@@ -192,7 +192,7 @@ pub struct EnvNotify<ID> {
     /// - the id of this new global
     /// - the interface of this global
     /// - the version of this global
-    new_global: fn(
+    pub new_global: fn(
      evqh: &mut EventQueueHandle,
      idata: &mut ID,
      registry: &WlRegistry,
@@ -208,7 +208,7 @@ pub struct EnvNotify<ID> {
     /// - A mutable reference to the implementation data you provided
     /// - A handle to the wayland registry
     /// - the id of the removed global
-    del_global: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry, id: u32),
+    pub del_global: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry, id: u32),
     /// The EnvHandler is ready
     ///
     /// This is called once all necessary globals defined with the `wayland_env!()`
@@ -219,7 +219,7 @@ pub struct EnvNotify<ID> {
     /// - The `&mut EventQueueHandle`
     /// - A mutable reference to the implementation data you provided
     /// - A handle to the wayland registry
-    ready: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry),
+    pub ready: fn(evqh: &mut EventQueueHandle, idata: &mut ID, registry: &WlRegistry),
 }
 
 /// Create an environment handling struct

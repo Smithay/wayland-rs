@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Fields of `EnvNotify` were mistakenly private.
+
 ## 0.11.1 - 2017-10-11
 
 - [client] Add `EnvHandler::init_with_notify()` to still be notified about
