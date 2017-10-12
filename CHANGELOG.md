@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.2 - 2017-10-12
+
 - [client] Fields of `EnvNotify` were mistakenly private.
 
 ## 0.11.1 - 2017-10-11
