@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.3 - 2017-12-15
+
 - [client] Add `EnvHandler::clone_inner()`
 
 ## 0.11.2 - 2017-10-12
