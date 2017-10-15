@@ -4,6 +4,7 @@ use protocol::wl_registry::{Implementation, WlRegistry};
 #[doc(hidden)]
 pub trait EnvHandlerInner: Sized {
     fn create(&WlRegistry, &[(u32, String, u32)]) -> Option<Self>;
+    fn clone_env(&self) -> Self;
 }
 
 /// Utility type to handle the registry and global objects
@@ -112,6 +113,14 @@ impl<H: EnvHandlerInner + 'static> EnvHandler<H> {
     /// The type format of each tuple is: `(global_id, interface_name, global_version)`.
     pub fn globals(&self) -> &[(u32, String, u32)] {
         &self.globals
+    }
+
+    /// Retrieve an owned copy of the environment
+    ///
+    /// This clones the inner env so that you can have access to the
+    /// clobals without borrowing the event queue
+    pub fn clone_inner(&self) -> Option<H> {
+        self.inner.as_ref().map(|h| h.clone_env())
     }
 
     /// Returns true if the env became ready after this call
@@ -260,6 +269,9 @@ macro_rules! wayland_env(
             fn create(_registry: &$crate::protocol::wl_registry::WlRegistry, _globals: &[(u32, String, u32)]) -> Option<$name> {
                 Some($name)
             }
+            fn clone_env(&self) -> $name {
+                $name
+            }
         }
     };
     (pub $name: ident, $($global_name: ident : $global_type: path),+) => {
@@ -275,6 +287,9 @@ macro_rules! wayland_env(
         impl $crate::EnvHandlerInner for $name {
             fn create(_registry: &$crate::protocol::wl_registry::WlRegistry, _globals: &[(u32, String, u32)]) -> Option<$name> {
                 Some($name)
+            }
+            fn clone_env(&self) -> $name {
+                $name
             }
         }
     };
@@ -321,6 +336,14 @@ macro_rules! wayland_env(
                         $global_name: $global_name
                     ),+
                 })
+            }
+
+            fn clone_env(&self) -> $name {
+                $name {
+                    $(
+                        $global_name: $crate::Proxy::clone(&self.$global_name).unwrap()
+                    ),+
+                }
             }
         }
     };

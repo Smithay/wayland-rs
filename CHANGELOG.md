@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Add `EnvHandler::clone_inner()`
+
 ## 0.11.2 - 2017-10-12
 
 - [client] Fields of `EnvNotify` were mistakenly private.

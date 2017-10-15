@@ -92,42 +92,34 @@ fn main() {
     }
     let _ = tmp.flush();
 
+    // retrieve the env
+    let env = event_queue.state().get(&env_token).clone_inner().unwrap();
+
     // prepare the wayland surface
-    let (shell_surface, pointer) = {
-        // introduce a new scope because .state() borrows the event_queue
-        let state = event_queue.state();
-        // retrieve the EnvHandler
-        let env = state.get(&env_token);
-        let surface = env.compositor.create_surface();
-        let shell_surface = env.shell.get_shell_surface(&surface);
+    let surface = env.compositor.create_surface();
+    let shell_surface = env.shell.get_shell_surface(&surface);
 
-        let pool = env.shm
-            .create_pool(tmp.as_raw_fd(), (buf_x * buf_y * 4) as i32);
-        // match a buffer on the part we wrote on
-        let buffer = pool.create_buffer(
-            0,
-            buf_x as i32,
-            buf_y as i32,
-            (buf_x * 4) as i32,
-            wl_shm::Format::Argb8888,
-        ).expect("The pool cannot be already dead");
+    let pool = env.shm
+        .create_pool(tmp.as_raw_fd(), (buf_x * buf_y * 4) as i32);
+    // match a buffer on the part we wrote on
+    let buffer = pool.create_buffer(
+        0,
+        buf_x as i32,
+        buf_y as i32,
+        (buf_x * 4) as i32,
+        wl_shm::Format::Argb8888,
+    ).expect("The pool cannot be already dead");
 
-        // make our surface as a toplevel one
-        shell_surface.set_toplevel();
-        // attach the buffer to it
-        surface.attach(Some(&buffer), 0, 0);
-        // commit
-        surface.commit();
+    // make our surface as a toplevel one
+    shell_surface.set_toplevel();
+    // attach the buffer to it
+    surface.attach(Some(&buffer), 0, 0);
+    // commit
+    surface.commit();
 
-        let pointer = env.seat
-            .get_pointer()
-            .expect("Seat cannot be already destroyed.");
-
-        // we can let the other objects go out of scope
-        // their associated wyland objects won't automatically be destroyed
-        // and we don't need them in this example
-        (shell_surface, pointer)
-    };
+    let pointer = env.seat
+        .get_pointer()
+        .expect("Seat cannot be already destroyed.");
 
     event_queue.register(&shell_surface, shell_surface_impl(), ());
     event_queue.register(&pointer, pointer_impl(), ());
