@@ -47,7 +47,7 @@ script:
         cargo fmt --all -- --write-mode=diff
       fi
   - cargo build --all --all-features
-  - cargo test
+  - cargo test --all --all-features
   - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   - cargo doc --all --no-deps --all-features
 
