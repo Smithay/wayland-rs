@@ -13,4 +13,4 @@ keywords = ["wayland", "codegen"]
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-xml-rs = "0.6"
+xml-rs = "0.7"
