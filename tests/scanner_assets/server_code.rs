@@ -517,6 +517,9 @@ pub mod wl_callback {
             if let Some(ref data) = self.data {
                 data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
             }
+            let udata = unsafe { &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr()) as *mut UserData) };
+            let _impl = udata.1.take();
+            ::std::mem::drop(_impl);
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, self.ptr()); }
             EventResult::Sent(())
         }
