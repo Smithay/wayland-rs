@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.4 - 2017-10-16
+
 - [client] Update byteorder dependency to v1
 - [scanner] Update xml-rs dependency to 0.7
 
