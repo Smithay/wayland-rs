@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [scanner] Bugfix: properly destroy implementation data when a destructor
+  method is called.
+
 ## 0.11.3 - 2017-12-15
 
 - [client] Add `EnvHandler::clone_inner()`

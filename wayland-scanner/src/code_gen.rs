@@ -970,6 +970,9 @@ fn write_impl<O: Write>(messages: &[Message], out: &mut O, iname: &str, side: Si
             if let Some(ref data) = self.data {{
                 data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
             }}
+            let udata = unsafe {{ &mut *(ffi_dispatch!({0}, {1}_get_user_data, self.ptr()) as *mut UserData) }};
+            let _impl = udata.1.take();
+            ::std::mem::drop(_impl);
             unsafe {{ ffi_dispatch!({0}, {1}_destroy, self.ptr()); }}"#,
                 side.handle(),
                 side.object_ptr_type()

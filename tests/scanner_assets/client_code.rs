@@ -351,6 +351,9 @@ pub mod wl_bar {
             if let Some(ref data) = self.data {
                 data.0.store(false, ::std::sync::atomic::Ordering::SeqCst);
             }
+            let udata = unsafe { &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr()) as *mut UserData) };
+            let _impl = udata.1.take();
+            ::std::mem::drop(_impl);
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr()); }
             RequestResult::Sent(())
         }
