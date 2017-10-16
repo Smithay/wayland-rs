@@ -23,7 +23,7 @@ token_store = "0.1.1"
 wayland-scanner = { version = "0.11.3", path = "../wayland-scanner" }
 
 [dev-dependencies]
-byteorder = "0.5"
+byteorder = "1"
 tempfile = "2"
 
 [features]
