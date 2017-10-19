@@ -51,10 +51,13 @@ impl<ID> FdEventSource<ID> {
     }
 
     /// Remove this event source from its event loop
-    pub fn remove(self) {
+    ///
+    /// Returns the implementation data in case you have something to do with it.
+    pub fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
-            let _ = Box::from_raw(self.data);
+            let data = Box::from_raw(self.data);
+            data.2
         }
     }
 }
@@ -140,7 +143,7 @@ where
 /// use the `remove` method for that.
 pub struct TimerEventSource<ID> {
     ptr: *mut wl_event_source,
-    _data: Box<(TimerEventSourceImpl<ID>, *mut EventLoopHandle, ID)>,
+    data: *mut (TimerEventSourceImpl<ID>, *mut EventLoopHandle, ID),
 }
 
 
@@ -149,7 +152,7 @@ pub fn make_timer_event_source<ID>(ptr: *mut wl_event_source,
                                    -> TimerEventSource<ID> {
     TimerEventSource {
         ptr: ptr,
-        _data: data,
+        data: Box::into_raw(data),
     }
 }
 
@@ -173,9 +176,13 @@ impl<ID> TimerEventSource<ID> {
     }
 
     /// Remove this event source from its event loop
-    pub fn remove(self) {
+    ///
+    /// Returns the implementation data in case you have something to do with it.
+    pub fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
+            let data = Box::from_raw(self.data);
+            data.2
         }
     }
 }
@@ -217,7 +224,7 @@ where
 /// use the `remove` method for that.
 pub struct SignalEventSource<ID> {
     ptr: *mut wl_event_source,
-    _data: Box<(SignalEventSourceImpl<ID>, *mut EventLoopHandle, ID)>,
+    data: *mut (SignalEventSourceImpl<ID>, *mut EventLoopHandle, ID),
 }
 
 
@@ -228,15 +235,19 @@ pub fn make_signal_event_source<ID: 'static>(ptr: *mut wl_event_source,
                                              -> SignalEventSource<ID> {
     SignalEventSource {
         ptr: ptr,
-        _data: data,
+        data: Box::into_raw(data),
     }
 }
 
 impl<ID> SignalEventSource<ID> {
     /// Remove this event source from its event loop
-    pub fn remove(self) {
+    ///
+    /// Returns the implementation data in case you have something to do with it.
+    pub fn remove(self) -> ID{
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
+            let data = Box::from_raw(self.data);
+            data.2
         }
     }
 }

@@ -4,6 +4,8 @@
 
 - [scanner] Bugfix: properly destroy implementation data when a destructor
   method is called.
+- [server] Bugfix: don't destroy ID of Timer and Signal event sources on drop
+- [server] Event sources now return their ID on `destroy()`
 
 ## 0.11.3 - 2017-12-15
 
