@@ -1,13 +1,14 @@
 # Change Log
 
-## Unreleased
+## 0.11.4 - 2017-10-21
 
 - [scanner] Bugfix: properly destroy implementation data when a destructor
   method is called.
 - [server] Bugfix: don't destroy ID of Timer and Signal event sources on drop
 - [server] Event sources now return their ID on `destroy()`
+- [scanner] Update xml-rs dependency to 0.7
 
-## 0.11.3 - 2017-12-15
+## 0.11.3 - 2017-10-15
 
 - [client] Add `EnvHandler::clone_inner()`
 
