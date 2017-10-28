@@ -117,7 +117,13 @@ mod code_gen;
 pub use side::Side;
 
 fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
-    let pfile = File::open(prot).unwrap();
+    let pfile = match File::open(prot.as_ref()) {
+        Ok(f) => f,
+        Err(_) => panic!(
+            "Unable to open protocol file `{}`.",
+            prot.as_ref().display()
+        ),
+    };
     parse::parse_stream(pfile)
 }
 
