@@ -21,6 +21,10 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static str)] = &[
     ),
     ("idle-inhibit", "idle-inhibit/idle-inhibit-unstable-v1.xml"),
     ("input-method", "input-method/input-method-unstable-v1.xml"),
+    (
+        "keyboard-shortcuts-inhibit",
+        "keyboard-shortcuts-inhibit/keyboard-shortcuts-inhibit-unstable-v1.xml",
+    ),
     ("linux-dmabuf", "linux-dmabuf/linux-dmabuf-unstable-v1.xml"),
     (
         "pointer-constraints",
@@ -36,7 +40,7 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static str)] = &[
     ),
     ("tablet", "tablet/tablet-unstable-v2.xml"),
     ("text-input", "text-input/text-input-unstable-v1.xml"),
-    ("xdg-foreign", "xdg-foreign/xdg-foreign-unstable-v1.xml"),
+    ("xdg-foreign", "xdg-foreign/xdg-foreign-unstable-v2.xml"),
     ("xdg-shell", "xdg-shell/xdg-shell-unstable-v6.xml"),
 ];
 
