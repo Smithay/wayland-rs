@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 - 2017-10-29
+
 - [protocols] Rework internal structure to reflect versionning of unstable
   protocols (breaking change for unstable protocols)
 - [protocols] Add the [wayland-wall](https://github.com/wayland-wall/wayland-wall)
