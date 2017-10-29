@@ -20,7 +20,7 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("xdg-foreign", &["v1", "v2"]),
     ("xdg-output", &["v1"]),
     ("xdg-shell", &["v5", "v6"]),
-    ("xwayland-keyboard-grab", &["v1"])
+    ("xwayland-keyboard-grab", &["v1"]),
 ];
 
 static WALL_STABLE_PROTOCOLS: &'static [&'static str] = &[];
@@ -30,7 +30,7 @@ static WALL_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str]
     ("dock-manager", &["v1", "v2"]),
     ("launcher-menu", &["v1"]),
     ("notification-area", &["v1"]),
-    ("window-switcher", &["v1"])
+    ("window-switcher", &["v1"]),
 ];
 
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
@@ -95,13 +95,13 @@ fn main() {
 
     if var("CARGO_FEATURE_WALL_PROTOCOLS").ok().is_some() {
         for name in WALL_STABLE_PROTOCOLS {
-            let file = format!("{name}/{name}.xml", name=name);
+            let file = format!("{name}/{name}.xml", name = name);
             generate_protocol(
                 name,
                 &Path::new("./wall/stable").join(&file),
                 out_dir,
                 client,
-                server
+                server,
             );
         }
 
@@ -110,15 +110,15 @@ fn main() {
                 for version in versions {
                     let file = format!(
                         "{name}/{name}-unstable-{version}.xml",
-                        name=name,
-                        version=version
+                        name = name,
+                        version = version
                     );
                     generate_protocol(
-                        &format!("{name}-{version}", name=name, version=version),
+                        &format!("{name}-{version}", name = name, version = version),
                         &Path::new("./wall/unstable").join(file),
                         out_dir,
                         client,
-                        server
+                        server,
                     );
                 }
             }
