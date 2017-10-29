@@ -193,13 +193,13 @@ pub mod wl_foo {
         ///
         /// This will do some foo with its args.
         ///
-        /// **Arguments:** event_queue_handle, interface_data, wl_foo, number, unumber, text, float, file
+        /// **Arguments:** event_queue_handle, interface_data, client, wl_foo, number, unumber, text, float, file
         pub foo_it: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_foo: &WlFoo, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd),
         /// create a bar
         ///
         /// Create a bar which will do its bar job.
         ///
-        /// **Arguments:** event_queue_handle, interface_data, wl_foo, id
+        /// **Arguments:** event_queue_handle, interface_data, client, wl_foo, id
         pub create_bar: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_foo: &WlFoo, id: super::wl_bar::WlBar),
     }
     impl<ID> Copy for Implementation<ID> {}
@@ -373,7 +373,7 @@ pub mod wl_bar {
         ///
         /// Proceed to a bar delivery of given foo.
         ///
-        /// **Arguments:** event_queue_handle, interface_data, wl_bar, kind, target, metadata
+        /// **Arguments:** event_queue_handle, interface_data, client, wl_bar, kind, target, metadata
         ///
         /// This event only exists since version 2 of the interface
         pub bar_delivery: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_bar: &WlBar, kind: super::wl_foo::DeliveryKind, target: &super::wl_foo::WlFoo, metadata: Vec<u8>),
@@ -381,7 +381,7 @@ pub mod wl_bar {
         ///
         /// Notify the compositor that you have finished using this bar.
         ///
-        /// **Arguments:** event_queue_handle, interface_data, wl_bar
+        /// **Arguments:** event_queue_handle, interface_data, client, wl_bar
         ///
         /// This is a destructor, you cannot send events to this object once this method is called.
         pub release: fn(evqh: &mut EventLoopHandle, data: &mut ID, client: &Client,  wl_bar: &WlBar),

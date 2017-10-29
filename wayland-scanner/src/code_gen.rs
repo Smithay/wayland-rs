@@ -580,7 +580,8 @@ fn write_implementation<O: Write>(messages: &[Message], out: &mut O, side: Side,
         }
         write!(
             out,
-            "        ///\n        /// **Arguments:** event_queue_handle, interface_data, {}",
+            "        ///\n        /// **Arguments:** event_queue_handle, interface_data, {}{}",
+            if side == Side::Server { "client, " } else { "" },
             iname
         )?;
         for arg in &msg.args {
