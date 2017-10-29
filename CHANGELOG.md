@@ -6,6 +6,7 @@
   protocols (breaking change for unstable protocols)
 - [protocols] Add the [wayland-wall](https://github.com/wayland-wall/wayland-wall)
   protocol collection.
+- [client] No longer auto-close the connexion on `WlDisplay` drop (this was unsafe)
 
 ## 0.11.4 - 2017-10-21
 

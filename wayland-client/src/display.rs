@@ -186,16 +186,17 @@ impl WlDisplay {
             self.ptr() as *mut _
         )
     }
-}
 
-impl Drop for WlDisplay {
-    fn drop(&mut self) {
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_display_disconnect,
-                self.ptr() as *mut _
-            )
-        }
+    /// Close the wayland connection
+    ///
+    /// This is unsafe because you must ensure you do this only
+    /// after all wayland objects are destroyed, as this will
+    /// release the wayland shared state.
+    pub unsafe fn disconnect(self) {
+        ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_display_disconnect,
+            self.ptr() as *mut _
+        )
     }
 }
