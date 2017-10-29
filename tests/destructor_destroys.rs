@@ -53,13 +53,12 @@ fn destroy() {
     if let wayc::RequestResult::Sent(_) = msg2 {
         panic!("First message should fail.");
     }
-
 }
 
 #[test]
 fn destroy_implementation_data() {
-    use std::rc::Rc;
     use std::cell::Cell;
+    use std::rc::Rc;
     // Server setup
     //
     let mut server = TestServer::new();
@@ -78,7 +77,7 @@ fn destroy_implementation_data() {
     // Utility
     //
     struct IData {
-        destroyed: Rc<Cell<bool>>
+        destroyed: Rc<Cell<bool>>,
     }
 
     impl Drop for IData {
@@ -89,15 +88,18 @@ fn destroy_implementation_data() {
 
     // Final asserts
     //
-    let surface = client.event_queue.state().with_value(&client_env_token, |_, env| {
-        env.compositor.create_surface()
-    });
+    let surface = client
+        .event_queue
+        .state()
+        .with_value(&client_env_token, |_, env| env.compositor.create_surface());
 
-    let idata = IData { destroyed: Rc::new(Cell::new(false)) };
+    let idata = IData {
+        destroyed: Rc::new(Cell::new(false)),
+    };
     let destroyed = idata.destroyed.clone();
     let implem = wayc::protocol::wl_surface::Implementation {
-        enter: |_,_,_,_| {},
-        leave: |_,_,_,_| {}
+        enter: |_, _, _, _| {},
+        leave: |_, _, _, _| {},
     };
     client.event_queue.register(&surface, implem, idata);
     surface.destroy();

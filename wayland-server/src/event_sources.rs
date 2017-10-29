@@ -243,7 +243,7 @@ impl<ID> SignalEventSource<ID> {
     /// Remove this event source from its event loop
     ///
     /// Returns the implementation data in case you have something to do with it.
-    pub fn remove(self) -> ID{
+    pub fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
             let data = Box::from_raw(self.data);
