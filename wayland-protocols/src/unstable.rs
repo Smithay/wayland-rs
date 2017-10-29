@@ -1,6 +1,22 @@
+//! Unstable protocols from wayland-protocols
+//!
+//! The protocols described in this module are experimental and
+//! backward incompatible changes may be made. Backward compatible
+//! changes may be added together with the corresponding interface
+//! version bump.
+//!
+//! Backward incompatible changes are done by bumping the version
+//! number in the protocol and interface names and resetting the
+//! interface version. Once the protocol is to be declared stable,
+//! the 'z' prefix and the version number in the protocol and
+//! interface names are removed and the interface version number is
+//! reset.
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 pub mod fullscreen_shell {
+    //! Fullscreen shell protocol
+
     wayland_protocol_versioned!(
         "fullscreen-shell",
         [v1],
@@ -12,6 +28,8 @@ pub mod fullscreen_shell {
 }
 
 pub mod idle_inhibit {
+    //! Screensaver inhibition protocol
+
     wayland_protocol_versioned!(
         "idle-inhibit",
         [v1],
@@ -21,6 +39,8 @@ pub mod idle_inhibit {
 
 
 pub mod input_method {
+    //! Input method protocol
+
     wayland_protocol_versioned!(
         "input-method",
         [v1],
@@ -33,6 +53,12 @@ pub mod input_method {
 }
 
 pub mod keyboard_shortcuts_inhibit {
+    //! Protocol for inhibiting the compositor keyboard shortcuts
+    //!
+    //! This protocol specifies a way for a client to request the compositor
+    //! to ignore its own keyboard shortcuts for a given seat, so that all
+    //! key events from that seat get forwarded to a surface.
+
     wayland_protocol_versioned!(
         "keyboard-shortcuts-inhibit",
         [v1],
@@ -44,6 +70,8 @@ pub mod keyboard_shortcuts_inhibit {
 }
 
 pub mod linux_dmabuf {
+    //! Linux DMA-BUF protocol
+
     wayland_protocol_versioned!(
         "linux-dmabuf",
         [v1],
@@ -76,6 +104,8 @@ pub mod pointer_constraints {
 }
 
 pub mod pointer_gestures {
+    //! Pointer gestures protocol
+
     wayland_protocol_versioned!(
         "pointer-gestures",
         [v1],
@@ -201,6 +231,8 @@ pub mod tablet {
 }
 
 pub mod text_input {
+    //! Text input protocol
+
     wayland_protocol_versioned!(
         "text-input",
         [v1],
@@ -242,7 +274,36 @@ pub mod xdg_foreign {
     );
 }
 
+pub mod xdg_output {
+    //! Protocol to describe output regions
+    //!
+    //! This protocol aims at describing outputs in a way which is more in line
+    //! with the concept of an output on desktop oriented systems.
+    //!
+    //! Some information are more specific to the concept of an output for
+    //! a desktop oriented system and may not make sense in other applications,
+    //! such as IVI systems for example.
+    //!
+    //! Typically, the global compositor space on a desktop system is made of
+    //! a contiguous or overlapping set of rectangular regions.
+    //!
+    //! Some of the information provided in this protocol might be identical
+    //! to their counterparts already available from wl_output, in which case
+    //! the information provided by this protocol should be preferred to their
+    //! equivalent in wl_output. The goal is to move the desktop specific
+    //! concepts (such as output location within the global compositor space,
+    //! the connector name and types, etc.) out of the core wl_output protocol.
+
+    wayland_protocol_versioned!(
+        "xdg-output",
+        [v1],
+        [(wl_output, wl_output_interface)]
+    );
+}
+
 pub mod xdg_shell {
+    //! xdg shell protocol
+
     wayland_protocol_versioned!(
         "xdg-shell",
         [v5, v6],
@@ -250,6 +311,46 @@ pub mod xdg_shell {
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface),
             (wl_seat, wl_seat_interface)
+        ]
+    );
+}
+
+pub mod xwayland_keyboard_grab {
+    //! Protocol for grabbing the keyboard from Xwayland
+    //!
+    //! This protocol is application-specific to meet the needs of the X11
+    //! protocol through Xwayland. It provides a way for Xwayland to request
+    //! all keyboard events to be forwarded to a surface even when the
+    //! surface does not have keyboard focus.
+    //!
+    //! In the X11 protocol, a client may request an "active grab" on the
+    //! keyboard. On success, all key events are reported only to the
+    //! grabbing X11 client. For details, see XGrabKeyboard(3).
+    //!
+    //! The core Wayland protocol does not have a notion of an active
+    //! keyboard grab. When running in Xwayland, X11 applications may
+    //! acquire an active grab inside Xwayland but that cannot be translated
+    //! to the Wayland compositor who may set the input focus to some other
+    //! surface. In doing so, it breaks the X11 client assumption that all
+    //! key events are reported to the grabbing client.
+    //!
+    //! This protocol specifies a way for Xwayland to request all keyboard
+    //! be directed to the given surface. The protocol does not guarantee
+    //! that the compositor will honor this request and it does not
+    //! prescribe user interfaces on how to handle the respond. For example,
+    //! a compositor may inform the user that all key events are now
+    //! forwarded to the given client surface, or it may ask the user for
+    //! permission to do so.
+    //!
+    //! Compositors are required to restrict access to this application
+    //! specific protocol to Xwayland alone.
+
+    wayland_protocol_versioned!(
+        "xwayland-keyboard-grab",
+        [v1],
+        [
+            (wl_seat, wl_seat_interface),
+            (wl_surface, wl_surface_interface)
         ]
     );
 }

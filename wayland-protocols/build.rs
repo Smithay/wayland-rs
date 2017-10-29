@@ -18,7 +18,9 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("tablet", &["v1", "v2"]),
     ("text-input", &["v1"]),
     ("xdg-foreign", &["v1", "v2"]),
+    ("xdg-output", &["v1"]),
     ("xdg-shell", &["v5", "v6"]),
+    ("xwayland-keyboard-grab", &["v1"])
 ];
 
 static WALL_STABLE_PROTOCOLS: &'static [&'static str] = &[];
