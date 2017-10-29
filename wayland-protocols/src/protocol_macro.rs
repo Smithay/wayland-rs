@@ -19,6 +19,7 @@ macro_rules! wayland_protocol(
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_interfaces.rs"));
                 }
 
+                /// Client-side API of this protocol
                 pub mod api {
                     pub(crate) use wayland_client::{Proxy, Implementable, RequestResult, EventQueueHandle, Liveness};
                     pub(crate) use super::interfaces;
@@ -34,6 +35,7 @@ macro_rules! wayland_protocol(
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_interfaces.rs"));
                 }
 
+                /// Server-side API of this protocol
                 pub mod api {
                     pub(crate) use wayland_server::{Resource, Implementable, EventResult, Client, EventLoopHandle, Liveness};
                     pub(crate) use super::interfaces;
@@ -49,6 +51,7 @@ macro_rules! wayland_protocol(
 macro_rules! wayland_protocol_versioned(
     ($name: expr, [$($version: ident),*], $rest:tt) => {
         $(
+            #[allow(missing_docs)]
             pub mod $version {
                 wayland_protocol!(concat!($name, "-", stringify!($version)), $rest);
             }
