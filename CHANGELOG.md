@@ -1,5 +1,12 @@
 # Change Log
 
+## Unreleased
+
+- [protocols] Rework internal structure to reflect versionning of unstable
+  protocols (breaking change for unstable protocols)
+- [protocols] Add the [wayland-wall](https://github.com/wayland-wall/wayland-wall)
+  protocol collection.
+
 ## 0.11.4 - 2017-10-21
 
 - [scanner] Bugfix: properly destroy implementation data when a destructor
