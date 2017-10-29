@@ -8,11 +8,7 @@
 //!
 //! This module is behind the `wall-protocols` cargo feature.
 
-/// This module hosts the stable wayland-wall protocols
-///
-/// Currently empty as none of them are stable
-pub mod stable {
-}
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 /// This module hosts the unstable wayland-wall protocols
 ///
