@@ -126,6 +126,7 @@ pub mod sources {
     pub use event_sources::{FdEventSource, FdEventSourceImpl, FdInterest};
     pub use event_sources::{SignalEventSource, SignalEventSourceImpl};
     pub use event_sources::{TimerEventSource, TimerEventSourceImpl};
+    pub use event_sources::{IdleEventSource, IdleEventSourceImpl};
 }
 
 /// Common routines for wayland resource objects.

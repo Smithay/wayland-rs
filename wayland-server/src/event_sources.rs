@@ -1,10 +1,10 @@
-
-
 use EventLoopHandle;
+use std::cell::RefCell;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
+use std::rc::Rc;
 use wayland_sys::server::*;
 
 /// fd_event_source
@@ -289,6 +289,89 @@ where
     });
     match ret {
         Ok(()) => return 0, // all went well
+        Err(_) => {
+            // a panic occured
+            let _ = write!(
+                ::std::io::stderr(),
+                "[wayland-server error] A handler for a timer event source panicked, aborting.",
+            );
+            ::libc::abort();
+        }
+    }
+}
+
+/// Idle event source
+///
+/// A handle to an idle event source
+///
+/// Dropping this struct does not remove the event source,
+/// use the `remove` method for that.
+pub struct IdleEventSource<ID> {
+    ptr: *mut wl_event_source,
+    data: Rc<RefCell<(IdleEventSourceImpl<ID>, *mut EventLoopHandle, ID, bool)>>,
+}
+
+pub fn make_idle_event_source<ID>(ptr: *mut wl_event_source,
+                                  data: Rc<
+    RefCell<(IdleEventSourceImpl<ID>, *mut EventLoopHandle, ID, bool)>,
+>)
+                                  -> IdleEventSource<ID> {
+    IdleEventSource {
+        ptr: ptr,
+        data: data,
+    }
+}
+
+/// The idle-throttled callback
+pub type IdleEventSourceImpl<ID> = fn(&mut EventLoopHandle, idata: &mut ID);
+
+impl<ID> IdleEventSource<ID> {
+    /// Remove this event source from its event loop
+    ///
+    /// If this idle callback was not yet dispatched, cancel it.
+    ///
+    /// Returns the implementation data in case you have something to do with it.
+    pub fn remove(self) -> ID {
+        let dispatched = self.data.borrow().3;
+        if !dispatched {
+            unsafe {
+                // unregister this event source
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
+                // recreate the outstanding reference that was not consumed
+                let _ = Rc::from_raw(&*self.data);
+            }
+        }
+        // we are now the only oustanding reference
+        let data = Rc::try_unwrap(self.data)
+            .unwrap_or_else(|_| panic!("Idle Rc was not singly owned."))
+            .into_inner();
+        data.2
+    }
+}
+
+pub unsafe extern "C" fn event_source_idle_dispatcher<ID>(data: *mut c_void)
+where
+    ID: 'static,
+{
+    // We don't need to worry about panic-safeness, because if there is a panic,
+    // we'll abort the process, so no access to corrupted data is possible.
+    let ret = ::std::panic::catch_unwind(move || {
+        let data = &*(data as *mut RefCell<(IdleEventSourceImpl<ID>, *mut EventLoopHandle, ID, bool)>);
+        let mut data = data.borrow_mut();
+        let cb = data.0;
+        let evlh = &mut *(data.1);
+        let idata = &mut data.2;
+        cb(evlh, idata);
+    });
+    match ret {
+        Ok(()) => {
+            // all went well
+            // free the refence to the idata, as this event source cannot be called again
+            let data =
+                Rc::from_raw(data as *mut RefCell<(IdleEventSourceImpl<ID>, *mut EventLoopHandle, ID, bool)>);
+            // store that the dispatching occured
+            data.borrow_mut().3 = true;
+        }
         Err(_) => {
             // a panic occured
             let _ = write!(
