@@ -1,10 +1,12 @@
 use {Client, Implementable, Resource};
 use std::any::Any;
+use std::cell::RefCell;
 use std::io::{Error as IoError, Result as IoResult};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 pub use token_store::{Store as State, StoreProxy as StateProxy, Token as StateToken};
@@ -243,6 +245,40 @@ impl EventLoopHandle {
         } else {
             Ok(::event_sources::make_signal_event_source(ret, data))
         }
+    }
+
+    /// Add an idle event source to this event loop
+    ///
+    /// This is a kind of "defer this computation for when there is nothing else to do".
+    ///
+    /// The provided implementation callback will be called when the event loop has finished
+    /// processing all the pending I/O. This callback will be fired exactly once the first
+    /// time this condition is met.
+    ///
+    /// You can cancel it using the returned `IdleEventSource`.
+    pub fn add_idle_event_source<ID>(&mut self, implementation: ::event_sources::IdleEventSourceImpl<ID>,
+                                     idata: ID)
+                                     -> ::event_sources::IdleEventSource<ID>
+    where
+        ID: 'static,
+    {
+        let data = Rc::new(RefCell::new((
+            implementation,
+            self as *const _ as *mut EventLoopHandle,
+            idata,
+            false,
+        )));
+
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_idle,
+                self.ptr,
+                ::event_sources::event_source_idle_dispatcher::<ID>,
+                Rc::into_raw(data.clone()) as *mut _
+            )
+        };
+        ::event_sources::make_idle_event_source(ret, data)
     }
 }
 

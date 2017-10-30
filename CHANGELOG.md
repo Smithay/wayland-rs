@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Add idle event sources
+
 ## 0.12.0 - 2017-10-29
 
 - [protocols] Rework internal structure to reflect versionning of unstable
