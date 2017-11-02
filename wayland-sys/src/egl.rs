@@ -20,13 +20,29 @@ external_library!(WaylandEgl, "wayland-egl",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_EGL_OPTION: Option<WaylandEgl> = {
-        match WaylandEgl::open("libwayland-egl.so") {
-            Ok(h) => Some(h),
-            Err(::dlib::DlError::NotFound) => None,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                panic!("Found library libwayland-egl.so but symbol {} is missing.", s);
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-client.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-egl.so",
+                        "libwayland-egl.so.1"];
+
+        for ver in &versions {
+            match WaylandEgl::open(ver) {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::NotFound) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
+                        // only print debug messages if WAYLAND_RS_DEBUG is set
+                        eprintln!("[wayland-client] Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    }
+                    return None;
+                }
             }
         }
+        None
     };
     pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEgl = {
         WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")

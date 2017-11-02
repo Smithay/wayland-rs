@@ -41,13 +41,29 @@ external_library!(WaylandCursor, "wayland-cursor",
 #[cfg(feature = "dlopen")]
 lazy_static!(
     pub static ref WAYLAND_CURSOR_OPTION: Option<WaylandCursor> = {
-        match WaylandCursor::open("libwayland-cursor.so") {
-            Ok(h) => Some(h),
-            Err(::dlib::DlError::NotFound) => None,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                panic!("Found library libwayland-cursor.so but symbol {} is missing.", s);
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-client.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-cursor.so",
+                        "libwayland-cursor.so.0"];
+
+        for ver in &versions {
+            match WaylandCursor::open(ver) {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::NotFound) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
+                        // only print debug messages if WAYLAND_RS_DEBUG is set
+                        eprintln!("[wayland-client] Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    }
+                    return None;
+                }
             }
         }
+        None
     };
     pub static ref WAYLAND_CURSOR_HANDLE: &'static WaylandCursor = {
         WAYLAND_CURSOR_OPTION.as_ref().expect("Library libwayland-cursor.so could not be loaded.")

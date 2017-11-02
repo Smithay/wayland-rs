@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [server] Add idle event sources
+- [sys] More robust loading of wayland-egl and wayland-cursor (failed on ubuntu 17.04)
 
 ## 0.12.0 - 2017-10-29
 
