@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Move `register_global` to `EventLoopHandle`
+
 # 0.12.1 - 2017-11-02
 
 - [server] Add idle event sources
