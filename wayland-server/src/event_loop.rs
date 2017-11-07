@@ -67,6 +67,7 @@ pub struct EventLoopHandle {
     state: State,
     keep_going: bool,
     ptr: *mut wl_event_loop,
+    display: Option<*mut wl_display>,
 }
 
 impl EventLoopHandle {
@@ -280,6 +281,46 @@ impl EventLoopHandle {
         };
         ::event_sources::make_idle_event_source(ret, data)
     }
+
+    /// Register a global object to the display.
+    ///
+    /// Specify the version of the interface to advertize, as well as the callback that will
+    /// receive requests to create an object.
+    ///
+    /// This uses an "implementation data" mechanism similar to regular wayland objects.
+    ///
+    /// Panics:
+    ///
+    /// - if the event loop is not associated to a display
+    pub fn register_global<R: Resource, ID>(&mut self, version: i32, callback: GlobalCallback<R, ID>,
+                                            idata: ID)
+                                            -> Global<R, ID> {
+        let display = self.display
+            .expect("Globals can only be registered on an event loop associated with a display.");
+
+        let data = Box::new((
+            callback,
+            self as *const _ as *mut EventLoopHandle,
+            idata,
+        ));
+
+        let ptr = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_global_create,
+                display,
+                R::interface_ptr(),
+                version,
+                &*data as *const (GlobalCallback<R, ID>, *mut EventLoopHandle, ID) as *mut _,
+                global_bind::<R, ID>
+            )
+        };
+
+        Global {
+            ptr: ptr,
+            data: Box::into_raw(data),
+        }
+    }
 }
 
 /// Checks if a resource is registered with a given implementation on an event loop
@@ -312,17 +353,16 @@ where
 
 pub unsafe fn create_event_loop(ptr: *mut wl_event_loop, display: Option<*mut wl_display>) -> EventLoop {
     EventLoop {
-        display: display,
         handle: Box::new(EventLoopHandle {
             state: State::new(),
             keep_going: false,
             ptr: ptr,
+            display: display,
         }),
     }
 }
 
 pub struct EventLoop {
-    display: Option<*mut wl_display>,
     handle: Box<EventLoopHandle>,
 }
 
@@ -393,53 +433,13 @@ impl EventLoop {
     pub fn run(&mut self) -> IoResult<()> {
         self.handle.keep_going = true;
         loop {
-            if let Some(display) = self.display {
+            if let Some(display) = self.handle.display {
                 unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, display) };
             }
             self.dispatch(None)?;
             if !self.handle.keep_going {
                 return Ok(());
             }
-        }
-    }
-
-    /// Register a global object to the display.
-    ///
-    /// Specify the version of the interface to advertize, as well as the callback that will
-    /// receive requests to create an object.
-    ///
-    /// This uses an "implementation data" mechanism similar to regular wayland objects.
-    ///
-    /// Panics:
-    ///
-    /// - if the event loop is not associated to a display
-    pub fn register_global<R: Resource, ID>(&mut self, version: i32, callback: GlobalCallback<R, ID>,
-                                            idata: ID)
-                                            -> Global<R, ID> {
-        let display = self.display
-            .expect("Globals can only be registered on an event loop associated with a display.");
-
-        let data = Box::new((
-            callback,
-            &*self.handle as *const _ as *mut EventLoopHandle,
-            idata,
-        ));
-
-        let ptr = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_global_create,
-                display,
-                R::interface_ptr(),
-                version,
-                &*data as *const (GlobalCallback<R, ID>, *mut EventLoopHandle, ID) as *mut _,
-                global_bind::<R, ID>
-            )
-        };
-
-        Global {
-            ptr: ptr,
-            data: Box::into_raw(data),
         }
     }
 }
@@ -459,7 +459,7 @@ impl DerefMut for EventLoop {
 
 impl Drop for EventLoop {
     fn drop(&mut self) {
-        if self.display.is_none() {
+        if self.handle.display.is_none() {
             // only destroy the event_loop if it's not the one
             // from the display
             unsafe {
