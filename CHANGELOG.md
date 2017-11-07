@@ -2,9 +2,11 @@
 
 ## Unreleased
 
+## 0.12.2 - 2017-11-07
+
 - [server] Move `register_global` to `EventLoopHandle`
 
-# 0.12.1 - 2017-11-02
+## 0.12.1 - 2017-11-02
 
 - [server] Add idle event sources
 - [sys] More robust loading of wayland-egl and wayland-cursor (failed on ubuntu 17.04)
