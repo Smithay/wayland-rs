@@ -67,7 +67,12 @@ fn parse_protocol<'a, S: Read + 'a>(mut iter: Events<S>) -> Protocol {
                 match &name.local_name[..] {
                     "copyright" => {
                         // parse the copyright
-                        let copyright = extract_from!(iter => XmlEvent::Characters(copyright) => copyright);
+                        let copyright = match iter.next() {
+                            Some(Ok(XmlEvent::Characters(copyright))) |
+                            Some(Ok(XmlEvent::CData(copyright))) => copyright,
+                            e => panic!("Ill-formed protocol file: {:?}", e)
+                        };
+
                         extract_end_tag!(iter => "copyright");
                         protocol.copyright = Some(copyright);
                     }
