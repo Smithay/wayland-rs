@@ -302,7 +302,12 @@ pub mod xdg_output {
 }
 
 pub mod xdg_shell {
-    //! xdg shell protocol
+    //! XDG Shell protocol
+    //!
+    //! These are the old, unstable versions of the now stable XDG Shell protocol.
+    //!
+    //! They remain here for compatibility reasons, allowing you to support older
+    //! clients/server not yet implementing the new protocol.
 
     wayland_protocol_versioned!(
         "xdg-shell",

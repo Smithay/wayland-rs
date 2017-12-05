@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [protocols] XDG Shell is now stable
+
 ## 0.12.2 - 2017-11-07
 
 - [server] Move `register_global` to `EventLoopHandle`
