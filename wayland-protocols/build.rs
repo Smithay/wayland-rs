@@ -4,7 +4,7 @@ use std::env::var;
 use std::path::Path;
 use wayland_scanner::{generate_code, generate_interfaces, Side};
 
-static STABLE_PROTOCOLS: &'static [&'static str] = &["presentation-time", "viewporter"];
+static STABLE_PROTOCOLS: &'static [&'static str] = &["presentation-time", "viewporter", "xdg-shell"];
 
 static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
     ("fullscreen-shell", &["v1"]),
