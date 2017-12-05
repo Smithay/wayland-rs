@@ -48,7 +48,7 @@ script:
       fi
   - cargo build --all --all-features
   - cargo test --all --all-features
-  - cargo tarpaulin --ignore-tests -e wayland-sys -e wayland-client -e wayland-server -e wayland-protocols -e wayland-scanner --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+  - cargo tarpaulin --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   - cargo doc --all --no-deps --all-features
 
 after_success:
