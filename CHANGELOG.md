@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.3 - 2017-12-06
+
 - [protocols] XDG Shell is now stable
 
 ## 0.12.2 - 2017-11-07
