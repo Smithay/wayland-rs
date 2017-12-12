@@ -14,7 +14,7 @@ travis-ci = { repository = "smithay/wayland-rs" }
 [dependencies]
 dlib = "0.4"
 libc = { version = "0.2", optional = true }
-lazy_static = { version = "0.2", optional = true }
+lazy_static = { version = "1", optional = true }
 
 [features]
 dlopen = ["dlib/dlopen", "lazy_static"]

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [sys] Update lazy_static dependency to 1.0
+
 ## 0.12.4 - 2017-12-17
 
 - [server] Add a `ptr()` method to `Display` for ffi purpose
