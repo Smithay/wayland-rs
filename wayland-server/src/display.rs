@@ -157,6 +157,16 @@ impl Display {
     pub fn flush_clients(&self) {
         unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
     }
+
+    /// Obtain an FFI pointer
+    ///
+    /// This provides an FFI pointer to the underlying `*mut wl_display`. You'll typically
+    /// need it to interface with MESA for example.
+    ///
+    /// **Unsafety:** This pointer becomes invalid once the `Display` is dropped.
+    pub unsafe fn ptr(&self) -> *mut wl_display {
+        self.ptr
+    }
 }
 
 impl Drop for Display {

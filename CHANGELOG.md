@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Add a `ptr()` method to `Display` for ffi purpose
+
 ## 0.12.3 - 2017-12-06
 
 - [protocols] XDG Shell is now stable
