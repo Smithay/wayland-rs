@@ -25,6 +25,7 @@ wayland-scanner = { version = "0.12.4", path = "../wayland-scanner" }
 [features]
 client = ["wayland-client"]
 server = ["wayland-server"]
+misc_protocols = []
 wall_protocols = []
 unstable_protocols = []
 
