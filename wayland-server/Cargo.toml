@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.12.4"
+version = "0.12.5"
 documentation = "https://smithay.github.io/wayland-rs/wayland_server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,14 +14,14 @@ build = "build.rs"
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.12.4", features = ["server"], path = "../wayland-sys" }
+wayland-sys = { version = "0.12.5", features = ["server"], path = "../wayland-sys" }
 libc = "0.2"
 nix = "0.9"
 bitflags = "1.0"
 token_store = "0.1.1"
 
 [build-dependencies]
-wayland-scanner = { version = "0.12.4", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.12.5", path = "../wayland-scanner" }
 
 [features]
 dlopen = ["wayland-sys/dlopen"]

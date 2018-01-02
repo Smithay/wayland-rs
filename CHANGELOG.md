@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.12.5 - 2017-01-02
+
 - [sys] Update lazy_static dependency to 1.0
+- [protocols] Add KDE's server decoration protocol
 
 ## 0.12.4 - 2017-12-17
 
