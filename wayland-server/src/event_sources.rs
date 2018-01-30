@@ -50,6 +50,17 @@ impl<ID> FdEventSource<ID> {
         }
     }
 
+    /// Access the implementation data without removing it from the `EventLoop`
+    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+    where
+        F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
+    {
+        let mut data = unsafe { Box::from_raw(self.data) };
+        let res = f(&mut data.2, evlh);
+        self.data = Box::into_raw(data);
+        res
+    }
+
     /// Remove this event source from its event loop
     ///
     /// Returns the implementation data in case you have something to do with it.
@@ -175,6 +186,16 @@ impl<ID> TimerEventSource<ID> {
         }
     }
 
+    /// Access with the implementation data without removing it from the `EventLoop`
+    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+    where
+        F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
+    {
+        let mut data = unsafe { Box::from_raw(self.data) };
+        let res = f(&mut data.2, evlh);
+        self.data = Box::into_raw(data);
+        res
+    }
     /// Remove this event source from its event loop
     ///
     /// Returns the implementation data in case you have something to do with it.
@@ -240,6 +261,17 @@ pub fn make_signal_event_source<ID: 'static>(ptr: *mut wl_event_source,
 }
 
 impl<ID> SignalEventSource<ID> {
+    /// Access with the implementation data without removing it from the `EventLoop`
+    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+    where
+        F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
+    {
+        let mut data = unsafe { Box::from_raw(self.data) };
+        let res = f(&mut data.2, evlh);
+        self.data = Box::into_raw(data);
+        res
+    }
+
     /// Remove this event source from its event loop
     ///
     /// Returns the implementation data in case you have something to do with it.
@@ -326,6 +358,14 @@ pub fn make_idle_event_source<ID>(ptr: *mut wl_event_source,
 pub type IdleEventSourceImpl<ID> = fn(&mut EventLoopHandle, idata: &mut ID);
 
 impl<ID> IdleEventSource<ID> {
+    /// Access with the implementation data without removing it from the `EventLoop`
+    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+    where
+        F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
+    {
+        f(&mut self.data.borrow_mut().2, evlh)
+    }
+
     /// Remove this event source from its event loop
     ///
     /// If this idle callback was not yet dispatched, cancel it.
