@@ -1,6 +1,8 @@
 extern crate wayland_client as wayc;
 extern crate wayland_server as ways;
 
+use ways::sources::EventSource;
+
 mod helpers;
 
 use helpers::TestServer;
