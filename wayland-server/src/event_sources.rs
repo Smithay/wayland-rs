@@ -7,6 +7,20 @@ use std::os::unix::io::RawFd;
 use std::rc::Rc;
 use wayland_sys::server::*;
 
+/// Common functions of all event sources
+pub trait EventSource<ID> {
+    /// Access with the implementation data without removing it from the `EventLoop`
+    fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+        where F: FnOnce(&mut ID, &mut EventLoopHandle) -> R;
+
+    /// Remove this event source from its event loop
+    ///
+    /// Any outstanding calls will be cancelled.
+    ///
+    /// Returns the implementation data in case you have something to do with it.
+    fn remove(self) -> ID;
+}
+
 /// fd_event_source
 ///
 /// A handle to a registered FD event source
@@ -49,9 +63,10 @@ impl<ID> FdEventSource<ID> {
             );
         }
     }
+}
 
-    /// Access the implementation data without removing it from the `EventLoop`
-    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+impl<ID> EventSource<ID> for FdEventSource<ID> {
+    fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
     where
         F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
     {
@@ -61,10 +76,7 @@ impl<ID> FdEventSource<ID> {
         res
     }
 
-    /// Remove this event source from its event loop
-    ///
-    /// Returns the implementation data in case you have something to do with it.
-    pub fn remove(self) -> ID {
+    fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
             let data = Box::from_raw(self.data);
@@ -185,9 +197,11 @@ impl<ID> TimerEventSource<ID> {
             );
         }
     }
+}
 
-    /// Access with the implementation data without removing it from the `EventLoop`
-    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+
+impl<ID> EventSource<ID> for TimerEventSource<ID> {
+    fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
     where
         F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
     {
@@ -196,10 +210,8 @@ impl<ID> TimerEventSource<ID> {
         self.data = Box::into_raw(data);
         res
     }
-    /// Remove this event source from its event loop
-    ///
-    /// Returns the implementation data in case you have something to do with it.
-    pub fn remove(self) -> ID {
+
+    fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
             let data = Box::from_raw(self.data);
@@ -260,9 +272,8 @@ pub fn make_signal_event_source<ID: 'static>(ptr: *mut wl_event_source,
     }
 }
 
-impl<ID> SignalEventSource<ID> {
-    /// Access with the implementation data without removing it from the `EventLoop`
-    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+impl<ID> EventSource<ID> for SignalEventSource<ID> {
+    fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
     where
         F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
     {
@@ -272,10 +283,7 @@ impl<ID> SignalEventSource<ID> {
         res
     }
 
-    /// Remove this event source from its event loop
-    ///
-    /// Returns the implementation data in case you have something to do with it.
-    pub fn remove(self) -> ID {
+    fn remove(self) -> ID {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
             let data = Box::from_raw(self.data);
@@ -357,21 +365,15 @@ pub fn make_idle_event_source<ID>(ptr: *mut wl_event_source,
 /// The idle-throttled callback
 pub type IdleEventSourceImpl<ID> = fn(&mut EventLoopHandle, idata: &mut ID);
 
-impl<ID> IdleEventSource<ID> {
-    /// Access with the implementation data without removing it from the `EventLoop`
-    pub fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
+impl<ID> EventSource<ID> for IdleEventSource<ID> {
+    fn with_idata<F, R>(&mut self, evlh: &mut EventLoopHandle, f: F) -> R
     where
         F: FnOnce(&mut ID, &mut EventLoopHandle) -> R,
     {
         f(&mut self.data.borrow_mut().2, evlh)
     }
 
-    /// Remove this event source from its event loop
-    ///
-    /// If this idle callback was not yet dispatched, cancel it.
-    ///
-    /// Returns the implementation data in case you have something to do with it.
-    pub fn remove(self) -> ID {
+    fn remove(self) -> ID {
         let dispatched = self.data.borrow().3;
         if !dispatched {
             unsafe {

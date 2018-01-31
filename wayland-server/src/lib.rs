@@ -123,6 +123,7 @@ pub mod sources {
     // different kind of event sources that can be registered to and
     // event loop, other than the wayland protocol sockets.
 
+    pub use event_sources::EventSource;
     pub use event_sources::{FdEventSource, FdEventSourceImpl, FdInterest};
     pub use event_sources::{IdleEventSource, IdleEventSourceImpl};
     pub use event_sources::{SignalEventSource, SignalEventSourceImpl};
