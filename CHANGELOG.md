@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0 - 2017-02-21
+
 - **Breaking** [server] Return the implementation data when the creation of an event source fails
 
 ## 0.13.0 - 2017-02-21
