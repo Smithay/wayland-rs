@@ -153,7 +153,7 @@ impl EventLoopHandle {
     pub fn add_fd_event_source<ID: 'static>(&mut self, fd: RawFd,
                                             implementation: ::event_sources::FdEventSourceImpl<ID>,
                                             idata: ID, interest: ::event_sources::FdInterest)
-                                            -> IoResult<::event_sources::FdEventSource<ID>> {
+                                            -> Result<::event_sources::FdEventSource<ID>, (IoError, ID)> {
         let data = Box::new((
             implementation,
             self as *const _ as *mut EventLoopHandle,
@@ -172,7 +172,7 @@ impl EventLoopHandle {
             )
         };
         if ret.is_null() {
-            Err(IoError::last_os_error())
+            Err((IoError::last_os_error(), data.2))
         } else {
             Ok(::event_sources::make_fd_event_source(ret, data))
         }
@@ -186,7 +186,7 @@ impl EventLoopHandle {
     /// this event loop.
     pub fn add_timer_event_source<ID>(&mut self, implementation: ::event_sources::TimerEventSourceImpl<ID>,
                                       idata: ID)
-                                      -> IoResult<::event_sources::TimerEventSource<ID>>
+                                      -> Result<::event_sources::TimerEventSource<ID>, (IoError, ID)>
     where
         ID: 'static,
     {
@@ -206,7 +206,7 @@ impl EventLoopHandle {
             )
         };
         if ret.is_null() {
-            Err(IoError::last_os_error())
+            Err((IoError::last_os_error(), data.2))
         } else {
             Ok(::event_sources::make_timer_event_source(ret, data))
         }
@@ -221,7 +221,7 @@ impl EventLoopHandle {
     pub fn add_signal_event_source<ID>(&mut self,
                                        implementation: ::event_sources::SignalEventSourceImpl<ID>,
                                        idata: ID, signal: ::nix::sys::signal::Signal)
-                                       -> IoResult<::event_sources::SignalEventSource<ID>>
+                                       -> Result<::event_sources::SignalEventSource<ID>, (IoError, ID)>
     where
         ID: 'static,
     {
@@ -242,7 +242,7 @@ impl EventLoopHandle {
             )
         };
         if ret.is_null() {
-            Err(IoError::last_os_error())
+            Err((IoError::last_os_error(), data.2))
         } else {
             Ok(::event_sources::make_signal_event_source(ret, data))
         }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Breaking** [server] Return the implementation data when the creation of an event source fails
+
 ## 0.13.0 - 2017-02-21
 
 - [server] Add `with_idata` to event sources to access idata without removing the event source
