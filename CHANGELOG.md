@@ -2,12 +2,15 @@
 
 ## Unreleased
 
+## 0.13.0 - 2017-02-21
+
+- [server] Add `with_idata` to event sources to access idata without removing the event source
+- **Breaking** [server] Move common event source functions into new `EventSource` trait
+
 ## 0.12.5 - 2017-01-02
 
 - [sys] Update lazy_static dependency to 1.0
 - [protocols] Add KDE's server decoration protocol
-- [server] Add `with_idata` to event sources to access idata without removing the event source
-- [server] Move common event source functions into new `EventSource` trait
 
 ## 0.12.4 - 2017-12-17
 
