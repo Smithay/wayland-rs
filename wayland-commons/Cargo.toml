@@ -1,0 +1,14 @@
+[package]
+name = "wayland-commons"
+version = "0.20.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+repository = "https://github.com/smithay/wayland-rs"
+documentation = "https://smithay.github.io/wayland-rs/wayland_commons/"
+description = "Common types and structures used by wayland-client and wayland-server."
+license = "MIT"
+categories = ["gui", "api-bindings"]
+keywords = ["wayland"]
+
+[badges]
+travis-ci = { repository = "smithay/wayland-rs" }
+
