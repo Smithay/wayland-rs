@@ -13,4 +13,4 @@ wayland-protocols = { path = "./wayland-protocols", features = ["client", "serve
 difference = "1.0"
 
 [workspace]
-members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols" ]
+members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]

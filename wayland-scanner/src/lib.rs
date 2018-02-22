@@ -112,7 +112,6 @@ mod parse;
 mod protocol;
 mod side;
 mod interface_gen;
-mod code_gen;
 
 pub use side::Side;
 
@@ -165,7 +164,7 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
         .create(true)
         .open(target)
         .unwrap();
-    code_gen::write_protocol(protocol, &mut out, side).unwrap()
+    //code_gen::write_protocol(protocol, &mut out, side).unwrap()
 }
 
 /// Generate the interfaces for a protocol from/to IO streams
@@ -192,5 +191,5 @@ pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &m
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);
-    code_gen::write_protocol(protocol, target, side).unwrap()
+    //code_gen::write_protocol(protocol, target, side).unwrap()
 }
