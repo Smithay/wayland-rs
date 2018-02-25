@@ -30,7 +30,7 @@
 //! use std::env::var;
 //! use std::path::Path;
 //!
-//! use wayland_scanner::{Side, generate_code, generate_interfaces};
+//! use wayland_scanner::{Side, generate_c_code, generate_c_interfaces};
 //!
 //! fn main() {
 //!     // Location of the xml file, relative to the `Cargo.toml`
@@ -40,14 +40,14 @@
 //!     let out_dir_str = var("OUT_DIR").unwrap();
 //!     let out_dir = Path::new(&out_dir_str);
 //!
-//!     generate_code(
+//!     generate_c_code(
 //!         protocol_file,
 //!         out_dir.join("my_protocol_api.rs"),
 //!         Side::Client, // Replace by `Side::Server` for server-side code
 //!     );
 //!
 //!     // interfaces are the same for client and server
-//!     generate_interfaces(
+//!     generate_c_interfaces(
 //!         protocol_file,
 //!         out_dir.join("my_protocol_interfaces.rs")
 //!     );
@@ -83,17 +83,9 @@
 //!     }
 //!
 //!     pub mod client {
-//!         // These import are mandatory, and need to by `pub`, because
-//!         // submodules in the generated code will try to import them.
-//!         // Hopefully someday pub(restricted) and friends will
-//!         // allow for a cleaner way to do that
-//!         #[doc(hidden)] pub use wayland_client::{Proxy, Handler, EventQueueHandle, RequestResult};
-//!         // Replace the above line with this for server-side:
-//!         // #[doc(hidden)] pub use wayland_server::{Resource, Handler, EventLoopHandle, EventResult};
-//!         #[doc(hidden)] pub use super::interfaces;
 //!         // If you protocol interacts with objects from other protocols, you'll need to import
 //!         // their modules, like so:
-//!         #[doc(hidden)] pub use wayland_client::protocol::{wl_surface, wl_region};
+//!         pub(crate) use wayland_client::protocol::{wl_surface, wl_region};
 //!         include!(concat!(env!("OUT_DIR"), "/my_protocol_code.rs"));
 //!     }
 //! }
@@ -111,6 +103,7 @@ mod util;
 mod parse;
 mod protocol;
 mod side;
+mod common_gen;
 mod c_interface_gen;
 mod c_code_gen;
 

@@ -16,6 +16,7 @@ travis-ci = { repository = "smithay/wayland-rs" }
 [dependencies]
 wayland-commons = { version = "0.20.0", path = "../wayland-commons" }
 wayland-sys = { version = "0.20.0", features = ["client"], path = "../wayland-sys", optional = true }
+bitflags = "1.0"
 libc = "0.2"
 
 [build-dependencies]
