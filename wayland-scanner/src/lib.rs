@@ -111,7 +111,8 @@ mod util;
 mod parse;
 mod protocol;
 mod side;
-mod interface_gen;
+mod c_interface_gen;
+mod c_code_gen;
 
 pub use side::Side;
 
@@ -135,7 +136,7 @@ fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
 /// - `protocol`: a path to the XML file describing the protocol, absolute or relative to
 ///   the build script using this function.
 /// - `target`: the path of the file to store this interfaces in.
-pub fn generate_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, target: P2) {
+pub fn generate_c_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, target: P2) {
     let protocol = load_xml(protocol);
     let mut out = OpenOptions::new()
         .write(true)
@@ -143,7 +144,7 @@ pub fn generate_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, targe
         .create(true)
         .open(target)
         .unwrap();
-    //interface_gen::generate_interfaces(protocol, &mut out);
+    c_interface_gen::generate_interfaces(protocol, &mut out);
 }
 
 /// Generate the code for a protocol
@@ -156,7 +157,7 @@ pub fn generate_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, targe
 ///   the build script using this function.
 /// - `target`: the path of the file to store the code in.
 /// - `side`: the side (client or server) to generate code for.
-pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, side: Side) {
+pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, side: Side) {
     let protocol = load_xml(prot);
     let mut out = OpenOptions::new()
         .write(true)
@@ -164,7 +165,10 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
         .create(true)
         .open(target)
         .unwrap();
-    //code_gen::write_protocol(protocol, &mut out, side).unwrap()
+    match side {
+        Side::Client => c_code_gen::write_protocol_client(protocol, &mut out).unwrap(),
+        Side::Server => c_code_gen::write_protocol_server(protocol, &mut out).unwrap(),
+    }
 }
 
 /// Generate the interfaces for a protocol from/to IO streams
@@ -177,7 +181,7 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
 /// - `target`: a `Write`-able object to which the generated code will be outputed to
 pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
-    //interface_gen::generate_interfaces(protocol, target);
+    c_interface_gen::generate_interfaces(protocol, target);
 }
 
 /// Generate the code for a protocol from/to IO streams
@@ -189,7 +193,10 @@ pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &m
 /// - `protocol`: an object `Read`-able containing the XML protocol file
 /// - `target`: a `Write`-able object to which the generated code will be outputed to
 /// - `side`: the side (client or server) to generate code for.
-pub fn generate_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
+pub fn generate_c_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);
-    //code_gen::write_protocol(protocol, target, side).unwrap()
+    match side {
+        Side::Client => c_code_gen::write_protocol_client(protocol, target).unwrap(),
+        Side::Server => c_code_gen::write_protocol_server(protocol, target).unwrap(),
+    }
 }
