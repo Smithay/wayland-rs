@@ -63,14 +63,9 @@ pub union wl_argument {
     o: *const c_void,
     n: u32,
     a: *const wl_array,
-    h: RawFd
+    h: RawFd,
 }
 
-pub type wl_dispatcher_func_t = unsafe extern "C" fn(
-                                 *const c_void,
-                                 *mut c_void,
-                                 u32,
-                                 *const wl_message,
-                                 *const wl_argument,
-) -> c_int;
+pub type wl_dispatcher_func_t =
+    unsafe extern "C" fn(*const c_void, *mut c_void, u32, *const wl_message, *const wl_argument) -> c_int;
 pub type wl_log_func_t = unsafe extern "C" fn(*const c_char, ...);
