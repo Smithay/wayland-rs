@@ -12,3 +12,9 @@ keywords = ["wayland"]
 [badges]
 travis-ci = { repository = "smithay/wayland-rs" }
 
+[dependencies]
+wayland-sys = { version = "0.20.0", features = ["client"], path = "../wayland-sys", optional = true }
+
+[features]
+default = ["native_lib"]
+native_lib = [ "wayland-sys" ]

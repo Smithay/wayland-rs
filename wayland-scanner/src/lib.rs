@@ -143,7 +143,7 @@ pub fn generate_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, targe
         .create(true)
         .open(target)
         .unwrap();
-    interface_gen::generate_interfaces(protocol, &mut out);
+    //interface_gen::generate_interfaces(protocol, &mut out);
 }
 
 /// Generate the code for a protocol
@@ -177,7 +177,7 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
 /// - `target`: a `Write`-able object to which the generated code will be outputed to
 pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
-    interface_gen::generate_interfaces(protocol, target);
+    //interface_gen::generate_interfaces(protocol, target);
 }
 
 /// Generate the code for a protocol from/to IO streams

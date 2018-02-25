@@ -4,7 +4,7 @@ use protocol::*;
 use std::cmp;
 use std::io::Write;
 
-pub fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
+pub fn generate_c_interfaces<O: Write>(protocol: Protocol, out: &mut O) {
     writeln!(
         out,
         "//\n// This file was auto-generated, do not edit directly\n//\n"
