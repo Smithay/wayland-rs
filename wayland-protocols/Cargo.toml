@@ -14,7 +14,7 @@ categories = ["gui", "api-bindings"]
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.20.0", path = "../wayland-sys" }
+wayland-sys = { version = "0.20.0", path = "../wayland-sys", optional = true }
 wayland-client = { version = "0.20.0", path = "../wayland-client", optional = true, default-features = false }
 wayland-server = { version = "0.20.0", path = "../wayland-server", optional = true }
 bitflags = "1.0"
@@ -23,8 +23,10 @@ bitflags = "1.0"
 wayland-scanner = { version = "0.20.0", path = "../wayland-scanner" }
 
 [features]
+default = ["native_lib"]
 client = ["wayland-client"]
 server = ["wayland-server"]
+native_lib = ["wayland-sys", "wayland-client/native_lib", "wayland-server/native_lib"]
 misc_protocols = []
 wall_protocols = []
 unstable_protocols = []

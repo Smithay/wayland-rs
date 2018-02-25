@@ -2,7 +2,7 @@ extern crate wayland_scanner;
 
 use std::env::var;
 use std::path::Path;
-use wayland_scanner::{generate_code, generate_interfaces, Side};
+use wayland_scanner::*;
 
 static STABLE_PROTOCOLS: &'static [&'static str] = &["presentation-time", "viewporter", "xdg-shell"];
 
@@ -36,25 +36,27 @@ static WALL_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str]
 static MISC_STABLE_PROTOCOLS: &'static [&'static str] = &["server-decoration"];
 
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
-    generate_interfaces(
-        &protocol_file,
-        out_dir.join(&format!("{}_interfaces.rs", name)),
-    );
-
-    if client {
-        generate_code(
+    if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
+        generate_c_interfaces(
             &protocol_file,
-            out_dir.join(&format!("{}_client_api.rs", name)),
-            Side::Client,
+            out_dir.join(&format!("{}_c_interfaces.rs", name)),
         );
-    }
 
-    if server {
-        generate_code(
-            &protocol_file,
-            out_dir.join(&format!("{}_server_api.rs", name)),
-            Side::Server,
-        );
+        if client {
+            generate_c_code(
+                &protocol_file,
+                out_dir.join(&format!("{}_c_client_api.rs", name)),
+                Side::Client,
+            );
+        }
+
+        if server {
+            generate_c_code(
+                &protocol_file,
+                out_dir.join(&format!("{}_c_server_api.rs", name)),
+                Side::Server,
+            );
+        }
     }
 }
 
