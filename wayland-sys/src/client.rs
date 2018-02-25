@@ -2,6 +2,7 @@
 //!
 //! The generated handle is named `WAYLAND_CLIENT_HANDLE`
 
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 use super::common::*;
 use std::os::raw::{c_char, c_int, c_void};

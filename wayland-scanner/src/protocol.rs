@@ -1,4 +1,3 @@
-
 #[derive(Debug)]
 pub struct Protocol {
     pub name: String,
@@ -58,8 +57,7 @@ impl Interface {
                 if req.args.len() > 0 {
                     return Err(format!(
                         "Destructor request '{}.{}' cannot take arguments.",
-                        self.name,
-                        req.name
+                        self.name, req.name
                     ));
                 }
                 if found_destructor {
@@ -98,9 +96,9 @@ impl Message {
     }
 
     pub fn all_null(&self) -> bool {
-        self.args.iter().all(|a| {
-            !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some())
-        })
+        self.args
+            .iter()
+            .all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
     }
 }
 

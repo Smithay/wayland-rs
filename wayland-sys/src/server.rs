@@ -2,6 +2,7 @@
 //!
 //! The generated handle is named `WAYLAND_SERVER_HANDLE`
 
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 use super::common::*;
 use libc::{gid_t, pid_t, uid_t};

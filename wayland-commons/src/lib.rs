@@ -8,7 +8,9 @@ pub trait MessageGroup: Sized {
     #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(opcode: u32, args: *const syscom::wl_argument) -> Result<Self, ()>;
     #[cfg(feature = "native_lib")]
-    fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &[syscom::wl_argument]) -> T;
+    fn as_raw_c_in<F, T>(self, f: F) -> T
+    where
+        F: FnOnce(u32, &[syscom::wl_argument]) -> T;
 }
 
 pub trait Interface: 'static {
@@ -22,4 +24,3 @@ pub trait Interface: 'static {
 }
 
 pub type Implementation<Meta, M, ID> = fn(Meta, M, &mut ID);
-

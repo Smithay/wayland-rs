@@ -1,4 +1,4 @@
-use wayland_commons::{Interface, Implementation};
+use wayland_commons::{Implementation, Interface};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::wl_proxy;
@@ -8,31 +8,28 @@ use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
 pub(crate) struct ProxyInternal {
     alive: AtomicBool,
-    user_data: AtomicPtr<()>
+    user_data: AtomicPtr<()>,
 }
 
 impl ProxyInternal {
     fn new() -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
-            user_data: AtomicPtr::new(::std::ptr::null_mut())
+            user_data: AtomicPtr::new(::std::ptr::null_mut()),
         }
     }
 }
 
 pub struct Proxy<I: Interface> {
-	_i: ::std::marker::PhantomData<*const I>,
-    #[cfg(not(feature = "native_lib"))]
-    internal: Arc<ProxyInternal>,
-    #[cfg(feature = "native_lib")]
-    internal: Option<Arc<ProxyInternal>>,
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_proxy
+    _i: ::std::marker::PhantomData<*const I>,
+    #[cfg(not(feature = "native_lib"))] internal: Arc<ProxyInternal>,
+    #[cfg(feature = "native_lib")] internal: Option<Arc<ProxyInternal>>,
+    #[cfg(feature = "native_lib")] ptr: *mut wl_proxy,
 }
 
 impl<I: Interface> Proxy<I> {
     // returns false is external
-	pub fn is_alive(&self) -> bool {
+    pub fn is_alive(&self) -> bool {
         #[cfg(not(feature = "native_lib"))]
         {
             self.internal.alive.load(Ordering::Acquire)
@@ -44,21 +41,21 @@ impl<I: Interface> Proxy<I> {
                 .map(|i| i.alive.load(Ordering::Acquire))
                 .unwrap_or(false)
         }
-	}
-    
+    }
+
     #[cfg(feature = "native_lib")]
     pub fn is_external(&self) -> bool {
         self.internal.is_none()
     }
 
-	pub fn clone(&self) -> Proxy<I> {
-		Proxy {
+    pub fn clone(&self) -> Proxy<I> {
+        Proxy {
             _i: ::std::marker::PhantomData,
             internal: self.internal.clone(),
             #[cfg(feature = "native_lib")]
-            ptr: self.ptr
+            ptr: self.ptr,
         }
-	}
+    }
 
     #[cfg(feature = "native_lib")]
     pub fn c_ptr(&self) -> *mut wl_proxy {
@@ -70,18 +67,12 @@ impl<I: Interface> Proxy<I> {
         use wayland_sys::client::*;
 
         let is_managed = {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_get_listener,
-                ptr
-            ) == &::wayland_sys::RUST_MANAGED as *const u8 as *const _
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr)
+                == &::wayland_sys::RUST_MANAGED as *const u8 as *const _
         };
         let internal = if is_managed {
-            let user_data = ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_get_user_data,
-                ptr
-            ) as *mut self::native_machinery::ProxyUserData;
+            let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr)
+                as *mut self::native_machinery::ProxyUserData;
             Some((*user_data).internal.clone())
         } else {
             None
@@ -89,15 +80,14 @@ impl<I: Interface> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
             internal: internal,
-            ptr: ptr
+            ptr: ptr,
         }
     }
 }
 
 pub struct NewProxy<I: Interface> {
-	_i: ::std::marker::PhantomData<*const I>,
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_proxy
+    _i: ::std::marker::PhantomData<*const I>,
+    #[cfg(feature = "native_lib")] ptr: *mut wl_proxy,
 }
 
 impl<I: Interface + 'static> NewProxy<I> {
@@ -105,8 +95,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         self,
         idata: ID,
         implementation: Implementation<Proxy<I>, I::Events, ID>,
-    ) -> Proxy<I>
-    {
+    ) -> Proxy<I> {
         #[cfg(not(feature = "native_lib"))]
         {
             unimplemented!()
@@ -115,7 +104,10 @@ impl<I: Interface + 'static> NewProxy<I> {
         {
             use wayland_sys::client::*;
 
-            let new_user_data = Box::new(self::native_machinery::ProxyUserData::new(idata, implementation));
+            let new_user_data = Box::new(self::native_machinery::ProxyUserData::new(
+                idata,
+                implementation,
+            ));
             let internal = new_user_data.internal.clone();
 
             unsafe {
@@ -132,7 +124,7 @@ impl<I: Interface + 'static> NewProxy<I> {
             Proxy {
                 _i: ::std::marker::PhantomData,
                 internal: Some(internal),
-                ptr: self.ptr
+                ptr: self.ptr,
             }
         }
     }
@@ -141,7 +133,7 @@ impl<I: Interface + 'static> NewProxy<I> {
     pub unsafe fn new_from_c_ptr(ptr: *mut wl_proxy) -> Self {
         NewProxy {
             _i: ::std::marker::PhantomData,
-            ptr: ptr
+            ptr: ptr,
         }
     }
 }
@@ -150,15 +142,15 @@ impl<I: Interface + 'static> NewProxy<I> {
 mod native_machinery {
     use wayland_sys::common::*;
     use wayland_sys::client::*;
-    
+
     use std::any::Any;
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
-    use std::os::raw::{c_void, c_int};
+    use std::os::raw::{c_int, c_void};
 
-    use super::{Proxy, NewProxy};
+    use super::{NewProxy, Proxy};
 
-    use wayland_commons::{Interface, Implementation, MessageGroup};
+    use wayland_commons::{Implementation, Interface, MessageGroup};
 
     pub(crate) struct ProxyUserData {
         pub(crate) internal: Arc<super::ProxyInternal>,
@@ -168,11 +160,11 @@ mod native_machinery {
     impl ProxyUserData {
         pub(crate) fn new<I: Interface, ID: 'static>(
             idata: ID,
-            implem: Implementation<Proxy<I>, I::Events, ID>
+            implem: Implementation<Proxy<I>, I::Events, ID>,
         ) -> ProxyUserData {
             ProxyUserData {
                 internal: Arc::new(super::ProxyInternal::new()),
-                implem: Some(Box::new((implem, idata)) as Box<Any>)
+                implem: Some(Box::new((implem, idata)) as Box<Any>),
             }
         }
     }
@@ -182,7 +174,7 @@ mod native_machinery {
         proxy: *mut c_void,
         opcode: u32,
         msg: *const wl_message,
-        args: *const wl_argument
+        args: *const wl_argument,
     ) -> c_int
     where
         I: Interface,
@@ -201,10 +193,13 @@ mod native_machinery {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
             {
                 let user_data = &mut *(user_data as *mut ProxyUserData);
-                let implem = user_data.implem.as_mut().unwrap()
-                                  .downcast_mut::<(Implementation<Proxy<I>, I::Events, ID>, ID)>()
-                                  .unwrap();
-                let &mut(ref implem_func, ref mut idata) = implem;
+                let implem = user_data
+                    .implem
+                    .as_mut()
+                    .unwrap()
+                    .downcast_mut::<(Implementation<Proxy<I>, I::Events, ID>, ID)>()
+                    .unwrap();
+                let &mut (ref implem_func, ref mut idata) = implem;
                 if must_destroy {
                     user_data.internal.alive.store(false, Ordering::Release);
                 }
@@ -214,11 +209,7 @@ mod native_machinery {
             if must_destroy {
                 // final cleanup
                 let _ = Box::from_raw(user_data as *mut ProxyUserData);
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_proxy_destroy,
-                    proxy
-                );
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
             Ok(())
         });
@@ -232,14 +223,14 @@ mod native_machinery {
                     I::name()
                 );
                 ::libc::abort();
-            },
+            }
             Err(_) => {
                 eprintln!(
                     "[wayland-client error] A handler for {} panicked.",
                     I::name()
                 );
                 ::libc::abort()
-            } 
+            }
         }
     }
 }
