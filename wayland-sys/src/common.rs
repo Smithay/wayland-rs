@@ -2,6 +2,7 @@
 //! libraries.
 
 use std::os::raw::{c_char, c_int, c_void};
+use std::os::unix::io::RawFd;
 
 #[repr(C)]
 pub struct wl_message {
@@ -54,8 +55,15 @@ pub fn wl_fixed_from_int(i: i32) -> wl_fixed_t {
 // must be the appropriate size
 // can contain i32, u32 and pointers
 #[repr(C)]
-pub struct wl_argument {
-    _f: usize,
+pub union wl_argument {
+    i: i32,
+    u: u32,
+    f: wl_fixed_t,
+    s: *const c_char,
+    o: *const c_void,
+    n: u32,
+    a: *const wl_array,
+    h: RawFd
 }
 
 pub type wl_dispatcher_func_t = unsafe extern "C" fn(

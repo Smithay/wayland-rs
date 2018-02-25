@@ -16,11 +16,12 @@ travis-ci = { repository = "smithay/wayland-rs" }
 [dependencies]
 wayland-commons = { version = "0.20.0", path = "../wayland-commons" }
 wayland-sys = { version = "0.20.0", features = ["server"], path = "../wayland-sys", optional = true }
+libc = "0.2"
 
 [build-dependencies]
 wayland-scanner = { version = "0.20.0", path = "../wayland-scanner" }
 
 [features]
 default = ["native_lib"]
+native_lib = [ "wayland-sys", "wayland-commons/native_lib" ]
 dlopen = ["wayland-sys/dlopen"]
-native_lib = ["wayland-sys"]
