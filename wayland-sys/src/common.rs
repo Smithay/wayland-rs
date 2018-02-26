@@ -56,14 +56,14 @@ pub fn wl_fixed_from_int(i: i32) -> wl_fixed_t {
 // can contain i32, u32 and pointers
 #[repr(C)]
 pub union wl_argument {
-    i: i32,
-    u: u32,
-    f: wl_fixed_t,
-    s: *const c_char,
-    o: *const c_void,
-    n: u32,
-    a: *const wl_array,
-    h: RawFd,
+    pub i: i32,
+    pub u: u32,
+    pub f: wl_fixed_t,
+    pub s: *const c_char,
+    pub o: *const c_void,
+    pub n: u32,
+    pub a: *const wl_array,
+    pub h: RawFd,
 }
 
 pub type wl_dispatcher_func_t =
