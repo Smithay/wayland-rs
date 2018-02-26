@@ -22,6 +22,8 @@ extern crate wayland_client;
 #[cfg(feature = "server")]
 extern crate wayland_server;
 
+extern crate wayland_commons;
+
 #[macro_use]
 extern crate wayland_sys;
 

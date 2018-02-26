@@ -1,5 +1,4 @@
 use std::io::Result as IOResult;
-use std::cmp;
 use std::io::Write;
 
 use common_gen::*;
@@ -25,29 +24,15 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
             out,
             "    use super::sys::common::{{wl_argument, wl_interface, wl_array}};"
         )?;
-        writeln!(out, "    use super::sys::client::*;");
+        writeln!(out, "    use super::sys::client::*;")?;
 
         let iface_name = snake_to_camel(&iface.name);
 
         write_enums(&iface.enums, out)?;
         write_messagegroup("Requests", Side::Client, false, &iface.requests, out)?;
-        write_messagegroup_impl(
-            "Requests",
-            &iface_name,
-            Side::Client,
-            false,
-            &iface.requests,
-            out,
-        )?;
+        write_messagegroup_impl("Requests", Side::Client, false, &iface.requests, out)?;
         write_messagegroup("Events", Side::Client, true, &iface.events, out)?;
-        write_messagegroup_impl(
-            "Events",
-            &iface_name,
-            Side::Client,
-            true,
-            &iface.events,
-            out,
-        )?;
+        write_messagegroup_impl("Events", Side::Client, true, &iface.events, out)?;
         write_interface(&iface_name, &iface.name, out)?;
         write_client_methods(&iface_name, &iface.requests, out)?;
 
@@ -86,23 +71,9 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
 
         write_enums(&iface.enums, out)?;
         write_messagegroup("Requests", Side::Server, true, &iface.requests, out)?;
-        write_messagegroup_impl(
-            "Requests",
-            &iface_name,
-            Side::Server,
-            true,
-            &iface.requests,
-            out,
-        )?;
+        write_messagegroup_impl("Requests", Side::Server, true, &iface.requests, out)?;
         write_messagegroup("Events", Side::Server, false, &iface.events, out)?;
-        write_messagegroup_impl(
-            "Events",
-            &iface_name,
-            Side::Server,
-            false,
-            &iface.events,
-            out,
-        )?;
+        write_messagegroup_impl("Events", Side::Server, false, &iface.events, out)?;
         write_interface(&iface_name, &iface.name, out)?;
 
         writeln!(out, "}}\n")?;
@@ -113,7 +84,6 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
 
 pub fn write_messagegroup_impl<O: Write>(
     name: &str,
-    iface: &str,
     side: Side,
     receiver: bool,
     messages: &[Message],
@@ -124,6 +94,7 @@ pub fn write_messagegroup_impl<O: Write>(
     // is_destructor
     writeln!(out, "        fn is_destructor(&self) -> bool {{")?;
     writeln!(out, "            match *self {{")?;
+    let mut n = messages.len();
     for msg in messages {
         if msg.typ == Some(Type::Destructor) {
             write!(
@@ -136,9 +107,13 @@ pub fn write_messagegroup_impl<O: Write>(
                 write!(out, "{{ .. }} ")?;
             }
             writeln!(out, "=> true,")?;
+            n -= 1;
         }
     }
-    writeln!(out, "                _ => false")?;
+    if n > 0 {
+        // avoir "unreachable pattern" warnings =)
+        writeln!(out, "                _ => false")?;
+    }
     writeln!(out, "            }}")?;
     writeln!(out, "        }}\n")?;
 
@@ -355,7 +330,7 @@ pub fn write_messagegroup_impl<O: Write>(
                                 j, a.name
                             )?;
                             write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].s = _arg_{}.as_ptr();", j, j);
+                            writeln!(out, "_args_array[{}].s = _arg_{}.as_ptr();", j, j)?;
                         }
                     }
                     Type::Array => {
@@ -378,7 +353,7 @@ pub fn write_messagegroup_impl<O: Write>(
                         }
                     }
                     Type::NewId => {
-                        if let Some(ref iface) = a.interface {
+                        if a.interface.is_some() {
                             if side == Side::Server {
                                 // serialize like a regular object
                                 if a.allow_null {

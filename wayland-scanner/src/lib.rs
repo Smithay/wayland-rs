@@ -137,7 +137,7 @@ pub fn generate_c_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, tar
         .create(true)
         .open(target)
         .unwrap();
-    c_interface_gen::generate_interfaces(protocol, &mut out);
+    c_interface_gen::generate_interfaces(protocol, &mut out).unwrap()
 }
 
 /// Generate the code for a protocol
@@ -174,7 +174,7 @@ pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, s
 /// - `target`: a `Write`-able object to which the generated code will be outputed to
 pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
-    c_interface_gen::generate_interfaces(protocol, target);
+    c_interface_gen::generate_interfaces(protocol, target).unwrap();
 }
 
 /// Generate the code for a protocol from/to IO streams

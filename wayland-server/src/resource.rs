@@ -182,7 +182,7 @@ mod native_machinery {
     use std::sync::atomic::Ordering;
     use std::os::raw::{c_int, c_void};
 
-    use super::{NewResource, Resource};
+    use super::Resource;
 
     use wayland_commons::{Implementation, Interface, MessageGroup};
 
@@ -208,7 +208,7 @@ mod native_machinery {
         _implem: *const c_void,
         resource: *mut c_void,
         opcode: u32,
-        msg: *const wl_message,
+        _msg: *const wl_message,
         args: *const wl_argument,
     ) -> c_int
     where
