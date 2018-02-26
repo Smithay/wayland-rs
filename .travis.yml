@@ -4,6 +4,8 @@ cache: cargo
 
 dist: trusty
 
+sudo: required
+
 addons:
   apt:
     sources:
