@@ -13,7 +13,7 @@ pub trait MessageGroup: Sized {
     #[cfg(feature = "native_lib")]
     fn as_raw_c_in<F, T>(self, f: F) -> T
     where
-        F: FnOnce(u32, &[syscom::wl_argument]) -> T;
+        F: FnOnce(u32, &mut [syscom::wl_argument]) -> T;
 }
 
 pub trait Interface: 'static {
@@ -56,7 +56,7 @@ impl MessageGroup for NoMessage {
     }
     fn as_raw_c_in<F, T>(self, f: F) -> T
     where
-        F: FnOnce(u32, &[syscom::wl_argument]) -> T,
+        F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,
     {
         match self {}
     }

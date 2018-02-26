@@ -19,7 +19,7 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface}};\n"
+            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup}};\n"
         )?;
         writeln!(
             out,
@@ -49,6 +49,7 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
             out,
         )?;
         write_interface(&iface_name, &iface.name, out)?;
+        write_client_methods(&iface_name, &iface.requests, out)?;
 
         writeln!(out, "}}\n")?;
     }
@@ -73,7 +74,7 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Resource, NewResource, AnonymousObject, Interface}};\n"
+            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup}};\n"
         )?;
         writeln!(
             out,
@@ -172,8 +173,26 @@ pub fn write_messagegroup_impl<O: Write>(
                 for a in &msg.args {
                     write!(out, "                        {}: ", a.name)?;
                     match a.typ {
-                        Type::Uint => write!(out, "_args[{}].u", j)?,
-                        Type::Int => write!(out, "_args[{}].i", j)?,
+                        Type::Uint => if let Some(ref enu) = a.enum_ {
+                            write!(
+                                out,
+                                "{}::from_raw(_args[{}].u).ok_or(())?",
+                                dotted_to_relname(enu),
+                                j
+                            )?;
+                        } else {
+                            write!(out, "_args[{}].u", j)?;
+                        },
+                        Type::Int => if let Some(ref enu) = a.enum_ {
+                            write!(
+                                out,
+                                "{}::from_raw(_args[{}].i as u32).ok_or(())?",
+                                dotted_to_relname(enu),
+                                j
+                            )?;
+                        } else {
+                            write!(out, "_args[{}].i", j)?;
+                        },
                         Type::Fixed => write!(out, "(_args[{}].f as f64)/256.", j)?,
                         Type::String => {
                             if a.allow_null {
@@ -273,9 +292,9 @@ pub fn write_messagegroup_impl<O: Write>(
     // as_raw_c_in
     writeln!(
         out,
-        "        fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &[wl_argument]) -> T {{"
+        "        fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {{"
     )?;
-    if receiver || side == Side::Client {
+    if receiver {
         writeln!(
             out,
             "            panic!(\"{}::as_raw_c_in can not be used {:?}-side.\")",
@@ -309,8 +328,16 @@ pub fn write_messagegroup_impl<O: Write>(
             for a in &msg.args {
                 write!(out, "                    ")?;
                 match a.typ {
-                    Type::Uint => writeln!(out, "_args_array[{}].u = {};", j, a.name)?,
-                    Type::Int => writeln!(out, "_args_array[{}].i = {};", j, a.name)?,
+                    Type::Uint => if a.enum_.is_some() {
+                        writeln!(out, "_args_array[{}].u = {}.to_raw();", j, a.name)?;
+                    } else {
+                        writeln!(out, "_args_array[{}].u = {};", j, a.name)?;
+                    },
+                    Type::Int => if a.enum_.is_some() {
+                        writeln!(out, "_args_array[{}].i = {}.to_raw() as i32;", j, a.name)?;
+                    } else {
+                        writeln!(out, "_args_array[{}].i = {};", j, a.name)?;
+                    },
                     Type::Fixed => writeln!(out, "_args_array[{}].f = ({} * 256.) as i32;", j, a.name)?,
                     Type::String => {
                         if a.allow_null {
@@ -352,24 +379,41 @@ pub fn write_messagegroup_impl<O: Write>(
                     }
                     Type::NewId => {
                         if let Some(ref iface) = a.interface {
-                            // serialize like a regular object
-                            if a.allow_null {
-                                writeln!(out, "_args_array[{}].o = {}.map(|o| o.c_ptr() as *mut _).unwrap_or(::std::ptr::null_mut());", j, a.name)?;
+                            if side == Side::Server {
+                                // serialize like a regular object
+                                if a.allow_null {
+                                    writeln!(out, "_args_array[{}].o = {}.map(|o| o.c_ptr() as *mut _).unwrap_or(::std::ptr::null_mut());", j, a.name)?;
+                                } else {
+                                    writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
+                                }
                             } else {
-                                writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
+                                // this must be a NULL, ignore the dummy object received
+                                writeln!(out, "_args_array[{}].o = ::std::ptr::null_mut();", j)?;
                             }
                         } else {
-                            // we don't serialize this sepcial case, its only the registry (at
-                            // least for now)
-                            panic!("Outgoing untyped newproxies are not supported in events.");
+                            if side == Side::Server {
+                                panic!("Cannot serialize anonymous NewID from server.");
+                            }
+                            // The arg is actually (string, uint, NULL)
+                            writeln!(
+                                out,
+                                "let _arg_{}_s = ::std::ffi::CString::new({}.0).unwrap();",
+                                j, a.name
+                            )?;
+                            write!(out, "                    ")?;
+                            writeln!(out, "_args_array[{}].s = _arg_{}_s.as_ptr();", j, j)?;
+                            write!(out, "                    ")?;
+                            writeln!(out, "_args_array[{}].u = {}.1;", j + 1, a.name)?;
+                            write!(out, "                    ")?;
+                            writeln!(out, "_args_array[{}].o = ::std::ptr::null_mut();", j + 2)?;
+                            j += 2;
                         }
                     }
                     Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
                 }
-
                 j += 1;
             }
-            writeln!(out, "                    f({}, &_args_array)", i)?;
+            writeln!(out, "                    f({}, &mut _args_array)", i)?;
             writeln!(out, "                }},")?;
         }
         writeln!(out, "            }}")?;
@@ -399,4 +443,228 @@ fn write_interface<O: Write>(name: &str, low_name: &str, out: &mut O) -> IOResul
         low_name = low_name
     )?;
     Ok(())
+}
+
+fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O) -> IOResult<()> {
+    writeln!(out, "    pub trait RequestsTrait {{")?;
+    for msg in messages {
+        if let Some((ref short, ref long)) = msg.description {
+            write_doc(Some(short), long, false, out, 2)?;
+        }
+        if let Some(Type::Destructor) = msg.typ {
+            writeln!(
+                out,
+                "        ///\n        /// This is a destructor, you cannot send requests to this object any longer once this method is called.",
+            )?;
+        }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// Only available since version {} of the interface",
+                msg.since
+            )?;
+        }
+        print_method_prototype(name, &msg, out)?;
+        writeln!(out, ";")?;
+    }
+    writeln!(out, "    }}\n")?;
+
+    writeln!(out, "    impl RequestsTrait for Proxy<{}> {{", name)?;
+    for msg in messages {
+        let return_type = print_method_prototype(name, &msg, out)?;
+        writeln!(out, " {{")?;
+        // liveness sanity check
+        writeln!(
+            out,
+            "            if !self.is_external() && !self.is_alive() {{"
+        )?;
+        if return_type.is_some() {
+            writeln!(out, "                return Err(());")?;
+        } else {
+            writeln!(out, "                return;")?;
+        }
+        writeln!(out, "            }}")?;
+        // actually send the stuff
+        write!(
+            out,
+            "            let msg = Requests::{}",
+            snake_to_camel(&msg.name)
+        )?;
+        if msg.args.len() > 0 {
+            write!(out, " {{ ")?;
+            for a in &msg.args {
+                if a.typ == Type::NewId {
+                    if let Some(ref iface) = a.interface {
+                        write!(
+                            out,
+                            "{}: unsafe {{ Proxy::<super::{}::{}>::new_null() }}, ",
+                            a.name,
+                            iface,
+                            snake_to_camel(&iface)
+                        )?;
+                    } else {
+                        write!(out, "{}: (T::NAME.into(), version, unsafe {{ Proxy::<AnonymousObject>::new_null() }}),", a.name)?;
+                    }
+                } else if a.typ == Type::Object {
+                    if a.allow_null {
+                        write!(out, "{0} : {0}.map(|o| o.clone()), ", a.name)?;
+                    } else {
+                        write!(out, "{0}: {0}.clone(), ", a.name)?;
+                    }
+                } else {
+                    write!(out, "{}, ", a.name)?;
+                }
+            }
+            write!(out, " }}")?;
+        }
+        writeln!(out, ";")?;
+        if let Some(ret_type) = return_type {
+            if let Some(ref iface) = ret_type.interface {
+                writeln!(
+                    out,
+                    r#"
+            unsafe {{
+                let ret = msg.as_raw_c_in(|opcode, args| {{
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_marshal_array_constructor,
+                        self.c_ptr(),
+                        opcode,
+                        args.as_mut_ptr(),
+                        super::{0}::{1}::c_interface()
+                    )
+                }});
+                Ok(NewProxy::<super::{0}::{1}>::from_c_ptr(ret))
+            }}"#,
+                    iface,
+                    snake_to_camel(iface)
+                )?;
+            } else {
+                writeln!(
+                    out,
+                    r#"
+            unsafe {{
+                let ret = msg.as_raw_c_in(|opcode, args| {{
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_marshal_array_constructor_versioned,
+                        self.c_ptr(),
+                        opcode,
+                        args.as_mut_ptr(),
+                        T::c_interface(),
+                        version
+                    )
+                }});
+                Ok(NewProxy::<T>::from_c_ptr(ret))
+            }}"#
+                )?;
+            }
+        } else {
+            writeln!(
+                out,
+                r#"
+            unsafe {{
+                msg.as_raw_c_in(|opcode, args| {{
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_marshal_array,
+                        self.c_ptr(),
+                        opcode,
+                        args.as_mut_ptr()
+                    );
+                }});
+            }}"#
+            )?;
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+
+    Ok(())
+}
+
+fn print_method_prototype<'a, O: Write>(
+    iname: &str,
+    msg: &'a Message,
+    out: &mut O,
+) -> IOResult<Option<&'a Arg>> {
+    // detect new_id
+    let mut newid = None;
+    for arg in &msg.args {
+        match arg.typ {
+            Type::NewId => if newid.is_some() {
+                panic!(
+                    "Request {}.{} returns more than one new_id",
+                    iname, msg.name
+                );
+            } else {
+                newid = Some(arg);
+            },
+            _ => (),
+        }
+    }
+
+    // method start
+    match newid {
+        Some(arg) if arg.interface.is_none() => {
+            write!(
+                out,
+                "        fn {}{}<T: Interface>(&self, version: u32",
+                if is_keyword(&msg.name) { "_" } else { "" },
+                msg.name,
+            )?;
+        }
+        _ => {
+            write!(
+                out,
+                "        fn {}{}(&self",
+                if is_keyword(&msg.name) { "_" } else { "" },
+                msg.name
+            )?;
+        }
+    }
+
+    // print args
+    for arg in &msg.args {
+        write!(
+            out,
+            ", {}{}: {}{}{}",
+            if is_keyword(&arg.name) { "_" } else { "" },
+            arg.name,
+            if arg.allow_null { "Option<" } else { "" },
+            if let Some(ref name) = arg.enum_ {
+                dotted_to_relname(name)
+            } else {
+                match arg.typ {
+                    Type::Object => arg.interface
+                        .as_ref()
+                        .map(|s| format!("&Proxy<super::{}::{}>", s, snake_to_camel(s)))
+                        .unwrap_or(format!("&Proxy<super::AnonymousObject>")),
+                    Type::NewId => {
+                        // client-side, the return-type handles that
+                        continue;
+                    }
+                    _ => arg.typ.rust_type().into(),
+                }
+            },
+            if arg.allow_null { ">" } else { "" }
+        )?;
+    }
+    write!(out, ") ->")?;
+
+    // return type
+    write!(
+        out,
+        "{}",
+        if let Some(arg) = newid {
+            arg.interface
+                .as_ref()
+                .map(|s| format!("Result<NewProxy<super::{}::{}>, ()>", s, snake_to_camel(s)))
+                .unwrap_or("Result<NewProxy<T>, ()>".into())
+        } else {
+            "()".into()
+        }
+    )?;
+
+    Ok(newid)
 }

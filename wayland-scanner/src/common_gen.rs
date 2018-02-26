@@ -33,6 +33,21 @@ pub(crate) fn write_messagegroup<O: Write>(
         if let Some((ref short, ref long)) = m.description {
             write_doc(Some(short), long, false, out, 2)?;
         }
+        if let Some(Type::Destructor) = m.typ {
+            writeln!(
+                out,
+                "        ///\n        /// This is a destructor, once {} this object cannot be used any longer.",
+                if receiver { "received" } else { "sent" }
+            )?;
+        }
+        if m.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// Only available since version {} of the interface",
+                m.since
+            )?;
+        }
+
         write!(out, "        {}", snake_to_camel(&m.name))?;
         if m.args.len() > 0 {
             write!(out, " {{")?;
@@ -41,47 +56,51 @@ pub(crate) fn write_messagegroup<O: Write>(
                 if a.allow_null {
                     write!(out, "Option<")?;
                 }
-                match a.typ {
-                    Type::Uint => write!(out, "u32")?,
-                    Type::Int => write!(out, "i32")?,
-                    Type::Fixed => write!(out, "f64")?,
-                    Type::String => write!(out, "String")?,
-                    Type::Array => write!(out, "Vec<u8>")?,
-                    Type::Fd => write!(out, "::std::os::unix::io::RawFd")?,
-                    Type::Object => {
-                        if let Some(ref iface) = a.interface {
-                            write!(
-                                out,
-                                "{}<super::{}::{}>",
-                                side.object_name(),
-                                iface,
-                                snake_to_camel(iface)
-                            )?;
-                        } else {
-                            write!(out, "{}<AnonymousObject>", side.object_name())?;
+                if let Some(ref enu) = a.enum_ {
+                    write!(out, "{}", dotted_to_relname(enu))?;
+                } else {
+                    match a.typ {
+                        Type::Uint => write!(out, "u32")?,
+                        Type::Int => write!(out, "i32")?,
+                        Type::Fixed => write!(out, "f64")?,
+                        Type::String => write!(out, "String")?,
+                        Type::Array => write!(out, "Vec<u8>")?,
+                        Type::Fd => write!(out, "::std::os::unix::io::RawFd")?,
+                        Type::Object => {
+                            if let Some(ref iface) = a.interface {
+                                write!(
+                                    out,
+                                    "{}<super::{}::{}>",
+                                    side.object_name(),
+                                    iface,
+                                    snake_to_camel(iface)
+                                )?;
+                            } else {
+                                write!(out, "{}<AnonymousObject>", side.object_name())?;
+                            }
                         }
-                    }
-                    Type::NewId => {
-                        if let Some(ref iface) = a.interface {
-                            write!(
-                                out,
-                                "{}{}<super::{}::{}>",
-                                if receiver { "New" } else { "" },
-                                side.object_name(),
-                                iface,
-                                snake_to_camel(iface)
-                            )?;
-                        } else {
-                            // bind-like function
-                            write!(
-                                out,
-                                "(String, u32, {}{}<AnonymousObject>)",
-                                if receiver { "New" } else { "" },
-                                side.object_name()
-                            )?;
+                        Type::NewId => {
+                            if let Some(ref iface) = a.interface {
+                                write!(
+                                    out,
+                                    "{}{}<super::{}::{}>",
+                                    if receiver { "New" } else { "" },
+                                    side.object_name(),
+                                    iface,
+                                    snake_to_camel(iface)
+                                )?;
+                            } else {
+                                // bind-like function
+                                write!(
+                                    out,
+                                    "(String, u32, {}{}<AnonymousObject>)",
+                                    if receiver { "New" } else { "" },
+                                    side.object_name()
+                                )?;
+                            }
                         }
+                        Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
                     }
-                    Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
                 }
                 if a.allow_null {
                     write!(out, ">")?;
