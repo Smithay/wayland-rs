@@ -83,6 +83,16 @@ impl<I: Interface> Proxy<I> {
             ptr: ptr,
         }
     }
+
+    #[doc(hidden)]
+    #[cfg(feature = "native_lib")]
+    pub unsafe fn new_null() -> Proxy<I> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            internal: None,
+            ptr: ::std::ptr::null_mut(),
+        }
+    }
 }
 
 pub struct NewProxy<I: Interface> {
