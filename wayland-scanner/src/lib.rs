@@ -11,7 +11,7 @@
 //! ## How to use this crate
 //!
 //! This crate is to be used in a build script. It provides you two
-//! functions, `generate_code` and `generate_interfaces`. They'll
+//! functions, `generate_c_code` and `generate_c_interfaces`. They'll
 //! allow you to generate the code to use with the `wayland_client` or
 //! `wayland_server` crates for any XML wayland protocol file (NB: you don't
 //! need to do it for the core protocol, which is already included in both crates).
@@ -19,7 +19,7 @@
 //! First, have the XML files you want to use in your project, somewhere the build script
 //! will be able to read them.
 //!
-//! Then, you'll need to invoke both `generate_interfaces` *and* `generate_code` for
+//! Then, you'll need to invoke both `generate_c_interfaces` *and* `generate_c_code` for
 //! each of these files.
 //!
 //! A sample build script:
@@ -166,13 +166,13 @@ pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, s
 
 /// Generate the interfaces for a protocol from/to IO streams
 ///
-/// Like `generate_interfaces`, but takes IO Streams directly rather than filenames
+/// Like `generate_c_interfaces`, but takes IO Streams directly rather than filenames
 ///
 /// Args:
 ///
 /// - `protocol`: an object `Read`-able containing the XML protocol file
 /// - `target`: a `Write`-able object to which the generated code will be outputed to
-pub fn generate_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
+pub fn generate_c_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
     c_interface_gen::generate_interfaces(protocol, target).unwrap();
 }
