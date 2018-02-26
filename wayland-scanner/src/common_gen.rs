@@ -4,6 +4,7 @@ use std::io::Write;
 
 use protocol::*;
 use util::*;
+use Side;
 
 pub(crate) fn write_prefix<O: Write>(protocol: &Protocol, out: &mut O) -> IOResult<()> {
     writeln!(
@@ -17,6 +18,81 @@ pub(crate) fn write_prefix<O: Write>(protocol: &Protocol, out: &mut O) -> IOResu
     if let Some(ref text) = protocol.copyright {
         writeln!(out, "/*\n{}\n*/\n", text)?;
     }
+    Ok(())
+}
+
+pub(crate) fn write_messagegroup<O: Write>(
+    name: &str,
+    side: Side,
+    receiver: bool,
+    messages: &[Message],
+    out: &mut O,
+) -> IOResult<()> {
+    writeln!(out, "    pub enum {} {{", name)?;
+    for m in messages {
+        if let Some((ref short, ref long)) = m.description {
+            write_doc(Some(short), long, false, out, 2)?;
+        }
+        write!(out, "        {}", snake_to_camel(&m.name))?;
+        if m.args.len() > 0 {
+            write!(out, " {{")?;
+            for a in &m.args {
+                write!(out, "{}: ", a.name)?;
+                if a.allow_null {
+                    write!(out, "Option<")?;
+                }
+                match a.typ {
+                    Type::Uint => write!(out, "u32")?,
+                    Type::Int => write!(out, "i32")?,
+                    Type::Fixed => write!(out, "f64")?,
+                    Type::String => write!(out, "String")?,
+                    Type::Array => write!(out, "Vec<u8>")?,
+                    Type::Fd => write!(out, "::std::os::unix::io::RawFd")?,
+                    Type::Object => {
+                        if let Some(ref iface) = a.interface {
+                            write!(
+                                out,
+                                "{}<super::{}::{}>",
+                                side.object_name(),
+                                iface,
+                                snake_to_camel(iface)
+                            )?;
+                        } else {
+                            write!(out, "{}<AnonymousObject>", side.object_name())?;
+                        }
+                    }
+                    Type::NewId => {
+                        if let Some(ref iface) = a.interface {
+                            write!(
+                                out,
+                                "{}{}<super::{}::{}>",
+                                if receiver { "New" } else { "" },
+                                side.object_name(),
+                                iface,
+                                snake_to_camel(iface)
+                            )?;
+                        } else {
+                            // bind-like function
+                            write!(
+                                out,
+                                "(String, u32, {}{}<AnonymousObject>)",
+                                if receiver { "New" } else { "" },
+                                side.object_name()
+                            )?;
+                        }
+                    }
+                    Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+                }
+                if a.allow_null {
+                    write!(out, ">")?;
+                }
+                write!(out, ", ")?;
+            }
+            write!(out, "}}")?;
+        }
+        writeln!(out, ",")?
+    }
+    writeln!(out, "    }}\n")?;
     Ok(())
 }
 

@@ -99,7 +99,7 @@ impl<I: Interface> Resource<I> {
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_instance_of,
                 ptr,
-                I::C_INTERFACE,
+                I::c_interface(),
                 &::wayland_sys::RUST_MANAGED as *const u8 as *const _
             ) != 0
         };
@@ -164,7 +164,7 @@ impl<I: Interface + 'static> NewResource<I> {
     }
 
     #[cfg(feature = "native_lib")]
-    pub unsafe fn new_from_c_ptr(ptr: *mut wl_resource) -> Self {
+    pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
         NewResource {
             _i: ::std::marker::PhantomData,
             ptr: ptr,
@@ -220,7 +220,7 @@ mod native_machinery {
         // we'll abort the process, so no access to corrupted data is possible.
         let ret = ::std::panic::catch_unwind(move || {
             // parse the message:
-            let msg = I::Requests::from_raw_c(opcode, args)?;
+            let msg = I::Requests::from_raw_c(resource as *mut _, opcode, args)?;
             let must_destroy = msg.is_destructor();
             // create the proxy object
             let resource_obj = super::Resource::<I>::from_c_ptr(resource);
@@ -258,15 +258,12 @@ mod native_machinery {
                 eprintln!(
                     "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",
                     opcode,
-                    I::name()
+                    I::NAME
                 );
                 ::libc::abort();
             }
             Err(_) => {
-                eprintln!(
-                    "[wayland-client error] A handler for {} panicked.",
-                    I::name()
-                );
+                eprintln!("[wayland-client error] A handler for {} panicked.", I::NAME);
                 ::libc::abort()
             }
         }
@@ -300,7 +297,7 @@ mod native_machinery {
         if let Err(_) = ret {
             eprintln!(
                 "[wayland-client error] A destructor for {} panicked.",
-                I::name()
+                I::NAME
             );
             ::libc::abort()
         }
