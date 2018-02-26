@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-
 pub fn is_keyword(txt: &str) -> bool {
     match txt {
         "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue" | "crate"
@@ -27,10 +25,6 @@ pub fn snake_to_camel(input: &str) -> String {
             })
         })
         .collect()
-}
-
-pub fn snake_to_screaming(input: &str) -> String {
-    input.chars().map(|c| c.to_ascii_uppercase()).collect()
 }
 
 pub fn dotted_to_relname(input: &str) -> String {

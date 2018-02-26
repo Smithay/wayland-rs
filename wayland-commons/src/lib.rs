@@ -48,13 +48,13 @@ impl MessageGroup for NoMessage {
         match *self {}
     }
     unsafe fn from_raw_c(
-        obj: *mut c_void,
-        opcode: u32,
-        args: *const syscom::wl_argument,
+        _obj: *mut c_void,
+        _opcode: u32,
+        _args: *const syscom::wl_argument,
     ) -> Result<Self, ()> {
         Err(())
     }
-    fn as_raw_c_in<F, T>(self, f: F) -> T
+    fn as_raw_c_in<F, T>(self, _f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,
     {

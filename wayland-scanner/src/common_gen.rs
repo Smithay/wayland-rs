@@ -1,5 +1,4 @@
 use std::io::Result as IOResult;
-use std::cmp;
 use std::io::Write;
 
 use protocol::*;

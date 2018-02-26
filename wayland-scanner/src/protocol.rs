@@ -38,39 +38,6 @@ impl Interface {
             enums: Vec::new(),
         }
     }
-
-    pub fn destructor_sanitize(&self) -> Result<bool, String> {
-        let mut found_destructor = false;
-        for req in &self.requests {
-            if req.name == "destroy" {
-                if let Some(Type::Destructor) = req.typ {
-                    // all is good
-                } else {
-                    return Err(format!(
-                        "Request '{}.destroy' is not a destructor.",
-                        self.name
-                    ));
-                }
-            }
-            if let Some(Type::Destructor) = req.typ {
-                // sanity checks
-                if req.args.len() > 0 {
-                    return Err(format!(
-                        "Destructor request '{}.{}' cannot take arguments.",
-                        self.name, req.name
-                    ));
-                }
-                if found_destructor {
-                    return Err(format!(
-                        "Interface {} has more than one destructor.",
-                        self.name
-                    ));
-                }
-                found_destructor = true
-            }
-        }
-        Ok(found_destructor)
-    }
 }
 
 #[derive(Debug)]
