@@ -354,17 +354,7 @@ pub fn write_messagegroup_impl<O: Write>(
                     }
                     Type::NewId => {
                         if a.interface.is_some() {
-                            if side == Side::Server {
-                                // serialize like a regular object
-                                if a.allow_null {
-                                    writeln!(out, "_args_array[{}].o = {}.map(|o| o.c_ptr() as *mut _).unwrap_or(::std::ptr::null_mut());", j, a.name)?;
-                                } else {
-                                    writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
-                                }
-                            } else {
-                                // this must be a NULL, ignore the dummy object received
-                                writeln!(out, "_args_array[{}].o = ::std::ptr::null_mut();", j)?;
-                            }
+                            writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
                         } else {
                             if side == Side::Server {
                                 panic!("Cannot serialize anonymous NewID from server.");
@@ -459,6 +449,16 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
             writeln!(out, "                return;")?;
         }
         writeln!(out, "            }}")?;
+        // prepare the proxies if applicable
+        let mut has_newp = false;
+        for a in &msg.args {
+            if a.typ == Type::NewId {
+                if let Some(ref iface) = a.interface {
+                    writeln!(out, "            let _arg_{}_newproxy = self.child::<super::{}::{}>();", a.name, iface, snake_to_camel(&iface))?;
+                    has_newp = true;
+                }
+            }
+        }
         // actually send the stuff
         write!(
             out,
@@ -466,55 +466,36 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
             snake_to_camel(&msg.name)
         )?;
         if msg.args.len() > 0 {
-            write!(out, " {{ ")?;
+            writeln!(out, " {{")?;
             for a in &msg.args {
+                write!(out, "                ")?;
                 if a.typ == Type::NewId {
                     if let Some(ref iface) = a.interface {
-                        write!(
+                        writeln!(
                             out,
-                            "{}: unsafe {{ Proxy::<super::{}::{}>::new_null() }}, ",
+                            "{}: unsafe {{ Proxy::<super::{1}::{2}>::from_c_ptr(_arg_{0}_newproxy.c_ptr()) }},",
                             a.name,
                             iface,
                             snake_to_camel(&iface)
                         )?;
                     } else {
-                        write!(out, "{}: (T::NAME.into(), version, unsafe {{ Proxy::<AnonymousObject>::new_null() }}),", a.name)?;
+                        writeln!(out, "{}: (T::NAME.into(), version, unsafe {{ Proxy::<AnonymousObject>::new_null() }}),", a.name)?;
                     }
                 } else if a.typ == Type::Object {
                     if a.allow_null {
-                        write!(out, "{0} : {0}.map(|o| o.clone()), ", a.name)?;
+                        writeln!(out, "{0} : {0}.map(|o| o.clone()),", a.name)?;
                     } else {
-                        write!(out, "{0}: {0}.clone(), ", a.name)?;
+                        writeln!(out, "{0}: {0}.clone(),", a.name)?;
                     }
                 } else {
-                    write!(out, "{}, ", a.name)?;
+                    writeln!(out, "{0}: {0},", a.name)?;
                 }
             }
-            write!(out, " }}")?;
+            write!(out, "            }}")?;
         }
         writeln!(out, ";")?;
-        if let Some(ret_type) = return_type {
-            if let Some(ref iface) = ret_type.interface {
-                writeln!(
-                    out,
-                    r#"
-            unsafe {{
-                let ret = msg.as_raw_c_in(|opcode, args| {{
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array_constructor,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr(),
-                        super::{0}::{1}::c_interface()
-                    )
-                }});
-                Ok(NewProxy::<super::{0}::{1}>::from_c_ptr(ret))
-            }}"#,
-                    iface,
-                    snake_to_camel(iface)
-                )?;
-            } else {
+        match return_type {
+            Some(ret_type) if ret_type.interface.is_none() => {
                 writeln!(
                     out,
                     r#"
@@ -533,25 +514,24 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                 Ok(NewProxy::<T>::from_c_ptr(ret))
             }}"#
                 )?;
+            },
+            _ => {
+                writeln!(
+                    out,
+                    "            self.send(msg);"
+                )?;
+                if has_newp {
+                    for a in &msg.args {
+                        if a.typ == Type::NewId {
+                            if let Some(ref iface) = a.interface {
+                                writeln!(out, "            Ok(_arg_{}_newproxy)", a.name)?;
+                            }
+                        }
+                    }
+                }
             }
-        } else {
-            writeln!(
-                out,
-                r#"
-            unsafe {{
-                msg.as_raw_c_in(|opcode, args| {{
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr()
-                    );
-                }});
-            }}"#
-            )?;
         }
-        writeln!(out, "        }}")?;
+        writeln!(out, "        }}\n")?;
     }
     writeln!(out, "    }}")?;
 

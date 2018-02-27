@@ -1,7 +1,7 @@
-use wayland_commons::{Implementation, Interface};
+use wayland_commons::{Implementation, Interface, MessageGroup};
 
 #[cfg(feature = "native_lib")]
-use wayland_sys::client::wl_proxy;
+use wayland_sys::client::*;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
@@ -28,6 +28,36 @@ pub struct Proxy<I: Interface> {
 }
 
 impl<I: Interface> Proxy<I> {
+    pub fn send(&self, msg: I::Requests) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            if !self.internal.alive.load(Ordering::Acquire) {
+                // don't send message to dead objects !
+                return;
+            }
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            if let Some(ref internal) = self.internal {
+                // object is managed
+                if !internal.alive.load(Ordering::Acquire) {
+                    // don't send message to dead objects !
+                    return;
+                }
+            }
+            msg.as_raw_c_in(|opcode, args| unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_marshal_array,
+                    self.ptr,
+                    opcode,
+                    args.as_ptr() as *mut _
+                );
+            });
+        }
+    }
+
     // returns false is external
     pub fn is_alive(&self) -> bool {
         #[cfg(not(feature = "native_lib"))]
@@ -85,12 +115,38 @@ impl<I: Interface> Proxy<I> {
     }
 
     #[doc(hidden)]
-    #[cfg(feature = "native_lib")]
     pub unsafe fn new_null() -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
             internal: None,
-            ptr: ::std::ptr::null_mut(),
+            ptr: ::std::ptr::null_mut()
+        }
+    }
+
+    pub fn child<C: Interface>(&self) -> NewProxy<C> {
+        #[cfg(feature = "native_lib")]
+        {
+            let ptr = unsafe { ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_create,
+                self.ptr,
+                C::c_interface()
+            ) };
+            NewProxy {
+                _i: ::std::marker::PhantomData,
+                ptr: ptr,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "native_lib")]
+impl Proxy<::protocol::wl_display::WlDisplay> {
+    pub(crate) fn from_display(d: *mut wl_display) -> Proxy<::protocol::wl_display::WlDisplay> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            internal: None,
+            ptr: d as *mut wl_proxy
         }
     }
 }
@@ -137,6 +193,11 @@ impl<I: Interface + 'static> NewProxy<I> {
                 ptr: self.ptr,
             }
         }
+    }
+
+    #[cfg(feature = "native_lib")]
+    pub fn c_ptr(&self) -> *mut wl_proxy {
+        self.ptr
     }
 
     #[cfg(feature = "native_lib")]

@@ -107,7 +107,7 @@ pub mod wl_foo {
                 },
                 Requests::CreateBar { id, } => {
                     let mut _args_array: [wl_argument; 1] = unsafe { ::std::mem::zeroed() };
-                    _args_array[0].o = ::std::ptr::null_mut();
+                    _args_array[0].o = id.c_ptr() as *mut _;
                     f(1, &mut _args_array)
                 },
             }
@@ -175,40 +175,26 @@ pub mod wl_foo {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
-            let msg = Requests::FooIt { number, unumber, text, float, file,  };
-
-            unsafe {
-                msg.as_raw_c_in(|opcode, args| {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr()
-                    );
-                });
-            }
+            let msg = Requests::FooIt {
+                number: number,
+                unumber: unumber,
+                text: text,
+                float: float,
+                file: file,
+            };
+            self.send(msg);
         }
 
         fn create_bar(&self) ->Result<NewProxy<super::wl_bar::WlBar>, ()> {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
-            let msg = Requests::CreateBar { id: unsafe { Proxy::<super::wl_bar::WlBar>::new_null() },  };
-
-            unsafe {
-                let ret = msg.as_raw_c_in(|opcode, args| {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array_constructor,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr(),
-                        super::wl_bar::WlBar::c_interface()
-                    )
-                });
-                Ok(NewProxy::<super::wl_bar::WlBar>::from_c_ptr(ret))
-            }
+            let _arg_id_newproxy = self.child::<super::wl_bar::WlBar>();
+            let msg = Requests::CreateBar {
+                id: unsafe { Proxy::<super::wl_bar::WlBar>::from_c_ptr(_arg_id_newproxy.c_ptr()) },
+            };
+            self.send(msg);
+            Ok(_arg_id_newproxy)
         }
     }
 }
@@ -319,19 +305,13 @@ pub mod wl_bar {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
-            let msg = Requests::BarDelivery { kind, target: target.clone(), metadata,  };
 
-            unsafe {
-                msg.as_raw_c_in(|opcode, args| {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr()
-                    );
-                });
-            }
+            let msg = Requests::BarDelivery {
+                kind: kind,
+                target: target.clone(),
+                metadata: metadata,
+            };
+            self.send(msg);
         }
 
         fn release(&self) ->() {
@@ -339,18 +319,7 @@ pub mod wl_bar {
                 return;
             }
             let msg = Requests::Release;
-
-            unsafe {
-                msg.as_raw_c_in(|opcode, args| {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr()
-                    );
-                });
-            }
+            self.send(msg);
         }
     }
 }
@@ -508,7 +477,10 @@ pub mod wl_registry {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
-            let msg = Requests::Bind { name, id: (T::NAME.into(), version, unsafe { Proxy::<AnonymousObject>::new_null() }), };
+            let msg = Requests::Bind {
+                name: name,
+                id: (T::NAME.into(), version, unsafe { Proxy::<AnonymousObject>::new_null() }),
+            };
 
             unsafe {
                 let ret = msg.as_raw_c_in(|opcode, args| {
