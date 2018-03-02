@@ -1,7 +1,6 @@
 extern crate difference;
 extern crate wayland_scanner;
 
-
 use difference::{Changeset, Difference};
 use std::io::Cursor;
 use std::str::from_utf8;
@@ -18,19 +17,22 @@ const SERVER_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/server
 fn print_diff(diffs: &[Difference]) {
     println!("Partial diffs found:");
     let diffs = flatten_diffs(diffs);
-    let mut print_idx = diffs.iter()
-                             .enumerate()
-                             .flat_map(|(i, d)| if let &Difference::Same(_) = d {
-                                 Vec::new().into_iter()
-                             } else {
-                                 ((i-3)..(i+4)).collect::<Vec<usize>>().into_iter()
-                             })
-                             .collect::<Vec<_>>();
+    let mut print_idx = diffs
+        .iter()
+        .enumerate()
+        .flat_map(|(i, d)| {
+            if let &Difference::Same(_) = d {
+                Vec::new().into_iter()
+            } else {
+                ((i - 3)..(i + 4)).collect::<Vec<usize>>().into_iter()
+            }
+        })
+        .collect::<Vec<_>>();
     print_idx.sort();
     print_idx.dedup();
     let mut last_idx = 0;
     for idx in print_idx {
-        if idx != last_idx+1 {
+        if idx != last_idx + 1 {
             println!("\n=== Partial diff ===");
         }
         last_idx = idx;
@@ -43,11 +45,26 @@ fn print_diff(diffs: &[Difference]) {
 }
 
 fn flatten_diffs(diffs: &[Difference]) -> Vec<Difference> {
-    diffs.iter().flat_map(|d| match *d {
-        Difference::Same(ref x) => x.lines().map(Into::<String>::into).map(Difference::Same).collect::<Vec<_>>().into_iter(),
-        Difference::Add(ref x) => x.lines().map(Into::<String>::into).map(Difference::Add).collect::<Vec<_>>().into_iter(),
-        Difference::Rem(ref x) => x.lines().map(Into::<String>::into).map(Difference::Rem).collect::<Vec<_>>().into_iter(),
-    }).collect()
+    diffs
+        .iter()
+        .flat_map(|d| match *d {
+            Difference::Same(ref x) => x.lines()
+                .map(Into::<String>::into)
+                .map(Difference::Same)
+                .collect::<Vec<_>>()
+                .into_iter(),
+            Difference::Add(ref x) => x.lines()
+                .map(Into::<String>::into)
+                .map(Difference::Add)
+                .collect::<Vec<_>>()
+                .into_iter(),
+            Difference::Rem(ref x) => x.lines()
+                .map(Into::<String>::into)
+                .map(Difference::Rem)
+                .collect::<Vec<_>>()
+                .into_iter(),
+        })
+        .collect()
 }
 
 fn only_newlines_err(diffs: &[Difference]) -> bool {
