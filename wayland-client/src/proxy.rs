@@ -73,6 +73,34 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
+    pub fn set_user_data(&self, ptr: *mut ()) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            self.internal.user_data.store(ptr, Ordering::Release);
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            if let Some(ref inner) = self.internal {
+                inner.user_data.store(ptr, Ordering::Release);
+            }
+        }
+    }
+
+    pub fn get_user_data(&self) -> *mut () {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            self.internal.user_data.load(Ordering::Acquire)
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            if let Some(ref inner) = self.internal {
+                inner.user_data.load(Ordering::Acquire)
+            } else {
+                ::std::ptr::null_mut()
+            }
+        }
+    }
+
     #[cfg(feature = "native_lib")]
     pub fn is_external(&self) -> bool {
         self.internal.is_none()
@@ -119,19 +147,21 @@ impl<I: Interface> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
             internal: None,
-            ptr: ::std::ptr::null_mut()
+            ptr: ::std::ptr::null_mut(),
         }
     }
 
     pub fn child<C: Interface>(&self) -> NewProxy<C> {
         #[cfg(feature = "native_lib")]
         {
-            let ptr = unsafe { ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_create,
-                self.ptr,
-                C::c_interface()
-            ) };
+            let ptr = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_create,
+                    self.ptr,
+                    C::c_interface()
+                )
+            };
             NewProxy {
                 _i: ::std::marker::PhantomData,
                 ptr: ptr,
@@ -146,7 +176,7 @@ impl Proxy<::protocol::wl_display::WlDisplay> {
         Proxy {
             _i: ::std::marker::PhantomData,
             internal: None,
-            ptr: d as *mut wl_proxy
+            ptr: d as *mut wl_proxy,
         }
     }
 }

@@ -7,8 +7,13 @@ extern crate wayland_commons;
 #[macro_use]
 extern crate wayland_sys;
 
+mod display;
+mod event_queue;
 mod proxy;
+
 pub use proxy::{NewProxy, Proxy};
+pub use display::Display;
+pub use event_queue::EventQueue;
 #[cfg(feature = "native_lib")]
 pub use generated::c_api as protocol;
 
