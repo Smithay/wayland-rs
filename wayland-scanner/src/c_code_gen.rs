@@ -454,7 +454,13 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
         for a in &msg.args {
             if a.typ == Type::NewId {
                 if let Some(ref iface) = a.interface {
-                    writeln!(out, "            let _arg_{}_newproxy = self.child::<super::{}::{}>();", a.name, iface, snake_to_camel(&iface))?;
+                    writeln!(
+                        out,
+                        "            let _arg_{}_newproxy = self.child::<super::{}::{}>();",
+                        a.name,
+                        iface,
+                        snake_to_camel(&iface)
+                    )?;
                     has_newp = true;
                 }
             }
@@ -514,12 +520,9 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                 Ok(NewProxy::<T>::from_c_ptr(ret))
             }}"#
                 )?;
-            },
+            }
             _ => {
-                writeln!(
-                    out,
-                    "            self.send(msg);"
-                )?;
+                writeln!(out, "            self.send(msg);")?;
                 if has_newp {
                     for a in &msg.args {
                         if a.typ == Type::NewId {
