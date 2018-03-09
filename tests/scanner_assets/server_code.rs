@@ -502,6 +502,15 @@ pub mod wl_callback {
             }
         }
     }
+
+    unsafe impl<ID: 'static> Implementable<ID> for WlCallback {
+        type Implementation = ();
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self, client: &Client, opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            return Err(())
+        }
+    }
+
     const WL_CALLBACK_DONE: u32 = 0;
     impl WlCallback {
         /// done event

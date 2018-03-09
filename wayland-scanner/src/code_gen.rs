@@ -411,8 +411,27 @@ fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()> {
 }
 
 fn write_dispatch_func<O: Write>(messages: &[Message], out: &mut O, side: Side, iname: &str) -> IOResult<()> {
-    if iname == "wl_display" || messages.len() == 0 {
+    if iname == "wl_display" {
         // these are not implementable
+        return Ok(());
+    } else if messages.len() == 0 {
+        writeln!(
+            out,
+            r#"
+    unsafe impl<ID: 'static> Implementable<ID> for {} {{
+        type Implementation = ();
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self, {} opcode: u32, args: *const wl_argument) -> Result<(),()> {{
+            return Err(())
+        }}
+    }}"#,
+            snake_to_camel(iname),
+            if side == Side::Server {
+                "client: &Client,"
+            } else {
+                ""
+            }
+        )?;
         return Ok(());
     }
     writeln!(

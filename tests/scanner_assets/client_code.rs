@@ -324,6 +324,14 @@ pub mod wl_bar {
         }
     }
 
+    unsafe impl<ID: 'static> Implementable<ID> for WlBar {
+        type Implementation = ();
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            return Err(())
+        }
+    }
+
     const WL_BAR_BAR_DELIVERY: u32 = 0;
     const WL_BAR_RELEASE: u32 = 1;
 
@@ -546,6 +554,13 @@ pub mod wl_registry {
                 ptr: self.ptr,
                 data: self.data.clone()
             }
+        }
+    }
+    unsafe impl<ID: 'static> Implementable<ID> for WlRegistry {
+        type Implementation = ();
+        #[allow(unused_mut,unused_assignments)]
+        unsafe fn __dispatch_msg(&self,  opcode: u32, args: *const wl_argument) -> Result<(),()> {
+            return Err(())
         }
     }
     const WL_REGISTRY_BIND: u32 = 0;
