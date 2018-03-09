@@ -2,21 +2,25 @@
 
 ## Unreleased
 
-## 0.14.0 - 2017-02-21
+## 0.14.1 - 2018-03-09
+
+- [scanner] All objects are implementable (except display), as it is required to properly setup destructors.
+
+## 0.14.0 - 2018-02-21
 
 - **Breaking** [server] Return the implementation data when the creation of an event source fails
 
-## 0.13.0 - 2017-02-21
+## 0.13.0 - 2018-02-21
 
 - [server] Add `with_idata` to event sources to access idata without removing the event source
 - **Breaking** [server] Move common event source functions into new `EventSource` trait
 
-## 0.12.5 - 2017-01-02
+## 0.12.5 - 2018-01-02
 
 - [sys] Update lazy_static dependency to 1.0
 - [protocols] Add KDE's server decoration protocol
 
-## 0.12.4 - 2017-12-17
+## 0.12.4 - 2018-12-17
 
 - [server] Add a `ptr()` method to `Display` for ffi purpose
 
