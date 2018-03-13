@@ -30,6 +30,7 @@ pub(crate) struct DisplayInner {
 }
 
 impl DisplayInner {
+    #[cfg(feature = "native_lib")]
     pub(crate) fn ptr(&self) -> *mut wl_display {
         self.proxy.c_ptr() as *mut _
     }
@@ -113,6 +114,23 @@ impl Display {
 
                 Display::make_display(display_ptr)
             }
+        }
+    }
+
+    pub fn create_event_queue(&self) -> EventQueue {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        unsafe {
+            let ptr = ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_create_queue,
+                self.inner.ptr()
+            );
+
+            EventQueue::new(self.inner.clone(), Some(ptr))
         }
     }
 }
