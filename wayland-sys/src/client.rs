@@ -47,7 +47,6 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_add_dispatcher(*mut wl_proxy, wl_dispatcher_func_t, *const c_void, *mut c_void) -> c_int,
         fn wl_proxy_marshal_array_constructor(*mut wl_proxy, u32, *mut wl_argument, *const wl_interface) -> *mut wl_proxy,
         fn wl_proxy_marshal_array_constructor_versioned(*mut wl_proxy, u32, *mut wl_argument, *const wl_interface, u32) -> *mut wl_proxy,
-
         fn wl_proxy_marshal_array(*mut wl_proxy, u32, *mut wl_argument ) -> (),
         fn wl_proxy_set_user_data(*mut wl_proxy, *mut c_void) -> (),
         fn wl_proxy_get_user_data(*mut wl_proxy) -> *mut c_void,
@@ -55,6 +54,8 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_get_class(*mut wl_proxy) -> *const c_char,
         fn wl_proxy_set_queue(*mut wl_proxy, *mut wl_event_queue) -> (),
         fn wl_proxy_get_version(*mut wl_proxy) -> u32,
+        fn wl_proxy_create_wrapper(*mut wl_proxy) -> *mut wl_proxy,
+        fn wl_proxy_wrapper_destroy(*mut wl_proxy) -> (),
 
     // log
         fn wl_log_set_handler_client(wl_log_func_t) -> (),
