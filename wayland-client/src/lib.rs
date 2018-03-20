@@ -13,7 +13,7 @@ mod proxy;
 
 pub use proxy::{NewProxy, Proxy};
 pub use display::Display;
-pub use event_queue::EventQueue;
+pub use event_queue::{EventQueue, QueueToken};
 #[cfg(feature = "native_lib")]
 pub use generated::c_api as protocol;
 
