@@ -1,5 +1,7 @@
 use wayland_commons::{Implementation, Interface, MessageGroup};
 
+use LoopToken;
+
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
 
@@ -124,10 +126,42 @@ pub struct NewResource<I: Interface> {
 }
 
 impl<I: Interface + 'static> NewResource<I> {
-    pub fn implement<ID: 'static>(
+    /// Implement this resource using given function, destructor, and implementation data.
+    fn implement<ID: 'static + Send>(
         self,
         idata: ID,
-        implementation: Implementation<Resource<I>, I::Events, ID>,
+        implementation: Implementation<Resource<I>, I::Requests, ID>,
+        destructor: Option<Implementation<Resource<I>, (), ID>>,
+    ) -> Resource<I> {
+        unsafe { self.implement_inner(idata, implementation, destructor) }
+    }
+
+    /// Implement this resource using given function and implementation data.
+    ///
+    /// This method allows the implementation data to not be `Send`, but requires for
+    /// safety that you provide a token to the event loop owning the proxy. As the token
+    /// is not `Send`, this ensures you are implementing the resource from the same thread
+    /// as the event loop runs on.
+    ///
+    /// ** Unsafety **
+    ///
+    /// This function is unsafe if you create several wayland event loops and do not
+    /// provide a token to the right one.
+    pub unsafe fn implement_nonsend<ID: 'static>(
+        self,
+        idata: ID,
+        implementation: Implementation<Resource<I>, I::Requests, ID>,
+        destructor: Option<Implementation<Resource<I>, (), ID>>,
+        token: &LoopToken,
+    ) -> Resource<I> {
+        let _ = token;
+        self.implement_inner(idata, implementation, destructor)
+    }
+
+    unsafe fn implement_inner<ID: 'static>(
+        self,
+        idata: ID,
+        implementation: Implementation<Resource<I>, I::Requests, ID>,
         destructor: Option<Implementation<Resource<I>, (), ID>>,
     ) -> Resource<I> {
         #[cfg(not(feature = "native_lib"))]
@@ -143,17 +177,15 @@ impl<I: Interface + 'static> NewResource<I> {
             ));
             let internal = new_user_data.internal.clone();
 
-            unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_resource_set_dispatcher,
-                    self.ptr,
-                    self::native_machinery::resource_dispatcher::<I, ID>,
-                    &::wayland_sys::RUST_MANAGED as *const _ as *const _,
-                    Box::into_raw(new_user_data) as *mut _,
-                    Some(self::native_machinery::resource_destroy::<I, ID>)
-                );
-            }
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_set_dispatcher,
+                self.ptr,
+                self::native_machinery::resource_dispatcher::<I, ID>,
+                &::wayland_sys::RUST_MANAGED as *const _ as *const _,
+                Box::into_raw(new_user_data) as *mut _,
+                Some(self::native_machinery::resource_destroy::<I, ID>)
+            );
 
             Resource {
                 _i: ::std::marker::PhantomData,
@@ -194,7 +226,7 @@ mod native_machinery {
     impl ResourceUserData {
         pub(crate) fn new<I: Interface, ID: 'static>(
             idata: ID,
-            implem: Implementation<Resource<I>, I::Events, ID>,
+            implem: Implementation<Resource<I>, I::Requests, ID>,
             destructor: Option<Implementation<Resource<I>, (), ID>>,
         ) -> ResourceUserData {
             ResourceUserData {
@@ -222,7 +254,7 @@ mod native_machinery {
             // parse the message:
             let msg = I::Requests::from_raw_c(resource as *mut _, opcode, args)?;
             let must_destroy = msg.is_destructor();
-            // create the proxy object
+            // create the resource object
             let resource_obj = super::Resource::<I>::from_c_ptr(resource);
             // retrieve the impl
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
