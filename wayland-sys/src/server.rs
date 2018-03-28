@@ -65,6 +65,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_display_get_destroy_listener(*mut wl_display, wl_notify_func_t) -> *mut wl_listener,
         fn wl_global_create(*mut wl_display, *const wl_interface, c_int, *mut c_void, wl_global_bind_func_t) -> *mut wl_global,
         fn wl_display_init_shm(*mut wl_display) -> c_int,
+        fn wl_display_add_client_created_listener(*mut wl_display, *mut wl_listener) -> (),
     // wl_event_loop
         fn wl_event_loop_create() -> *mut wl_event_loop,
         fn wl_event_loop_destroy(*mut wl_event_loop) -> (),
@@ -181,6 +182,7 @@ pub mod signal {
     use super::WAYLAND_SERVER_HANDLE as WSH;
     use common::wl_list;
     use std::os::raw::c_void;
+    use std::ptr;
 
     // TODO: Is this really not UB ?
     macro_rules! offset_of(
@@ -242,7 +244,7 @@ pub mod signal {
                 }
             }
         );
-        return ::std::ptr::null_mut();
+        return ptr::null_mut();
     }
 
     pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
@@ -255,5 +257,40 @@ pub mod signal {
                 ((*l).notify)(l, data);
             }
         );
+    }
+
+    #[repr(C)]
+    struct ListenerWithUserData {
+        listener: wl_listener,
+        user_data: *mut c_void
+    }
+
+    pub fn rust_listener_create(notify: wl_notify_func_t) -> *mut wl_listener {
+        let data = Box::into_raw(Box::new(ListenerWithUserData {
+            listener: wl_listener {
+                link: wl_list {
+                    prev: ptr::null_mut(),
+                    next: ptr::null_mut()
+                },
+                notify: notify
+            },
+            user_data: ptr::null_mut()
+        }));
+        return unsafe { &mut (*data).listener as *mut wl_listener }
+    }
+
+    pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
+        let data = container_of!(listener, ListenerWithUserData, listener);
+        return (*data).user_data
+    }
+
+    pub unsafe fn rust_listener_set_user_data(listener: *mut wl_listener, user_data: *mut c_void) {
+        let data = container_of!(listener, ListenerWithUserData, listener);
+        (*data).user_data = user_data
+    }
+
+    pub unsafe fn rust_listener_destroy(listener: *mut wl_listener) {
+        let data = container_of!(listener, ListenerWithUserData, listener);
+        let _ = Box::from_raw(data);
     }
 }
