@@ -1,12 +1,13 @@
 #[cfg(feature = "native_lib")]
 use std::ffi::{CString, OsString};
+use std::os::raw::c_void;
 #[cfg(feature = "native_lib")]
 use std::os::unix::ffi::OsStringExt;
 use std::sync::Arc;
 
 use wayland_commons::Interface;
 
-use {EventLoop, Global, GlobalImplementation, LoopToken};
+use {Client, EventLoop, Global, GlobalImplementation, LoopToken};
 use globals::global_bind;
 
 #[cfg(feature = "native_lib")]
@@ -43,6 +44,17 @@ impl Display {
         let display = Display {
             inner: Arc::new(DisplayInner { ptr: ptr }),
         };
+
+        // setup the client_created listener
+        unsafe {
+            let listener = signal::rust_listener_create(client_created);
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_display_add_client_created_listener,
+                ptr,
+                listener
+            );
+        }
 
         let evq_ptr = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr) };
 
@@ -84,4 +96,10 @@ impl Display {
             Global::create(ptr, data)
         }
     }
+}
+
+#[cfg(feature = "native_lib")]
+unsafe extern "C" fn client_created(listener: *mut wl_listener, data: *mut c_void) {
+    // init the client
+    let _client = Client::from_ptr(data as *mut wl_client);
 }

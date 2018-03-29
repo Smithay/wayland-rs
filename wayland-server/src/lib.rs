@@ -7,17 +7,17 @@ extern crate wayland_commons;
 #[macro_use]
 extern crate wayland_sys;
 
+mod client;
 mod display;
 mod event_loop;
 mod globals;
 mod resource;
 
+pub use client::Client;
 pub use display::Display;
 pub use globals::{Global, GlobalImplementation};
 pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use resource::{NewResource, Resource};
-
-struct Client;
 
 #[cfg(feature = "native_lib")]
 pub use generated::c_api as protocol;

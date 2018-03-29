@@ -1,6 +1,6 @@
 use wayland_commons::{Implementation, Interface, MessageGroup};
 
-use LoopToken;
+use {Client, LoopToken};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
@@ -89,6 +89,52 @@ impl<I: Interface> Resource<I> {
         }
     }
 
+    pub fn set_user_data(&self, ptr: *mut ()) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            self.internal.user_data.store(ptr, Ordering::Release);
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            if let Some(ref inner) = self.internal {
+                inner.user_data.store(ptr, Ordering::Release);
+            }
+        }
+    }
+
+    pub fn get_user_data(&self) -> *mut () {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            self.internal.user_data.load(Ordering::Acquire)
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            if let Some(ref inner) = self.internal {
+                inner.user_data.load(Ordering::Acquire)
+            } else {
+                ::std::ptr::null_mut()
+            }
+        }
+    }
+
+    pub fn client(&self) -> Option<Client> {
+        if self.is_alive() {
+            #[cfg(not(feature = "native_lib"))]
+            {
+                unimplemented!()
+            }
+            #[cfg(feature = "native_lib")]
+            {
+                unsafe {
+                    let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
+                    Some(Client::from_ptr(client_ptr))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
     #[cfg(feature = "native_lib")]
     pub fn c_ptr(&self) -> *mut wl_resource {
         self.ptr
@@ -127,7 +173,7 @@ pub struct NewResource<I: Interface> {
 
 impl<I: Interface + 'static> NewResource<I> {
     /// Implement this resource using given function, destructor, and implementation data.
-    fn implement<ID: 'static + Send>(
+    pub fn implement<ID: 'static + Send>(
         self,
         idata: ID,
         implementation: Implementation<Resource<I>, I::Requests, ID>,
