@@ -1,8 +1,11 @@
-#[cfg(feature = "native_lib")]
-use std::ffi::{CString, OsString};
+use std::env;
+use std::ffi::{CStr, CString, OsStr, OsString};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::os::raw::c_void;
-#[cfg(feature = "native_lib")]
-use std::os::unix::ffi::OsStringExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::io::{IntoRawFd, RawFd};
+use std::path::PathBuf;
+use std::ptr;
 use std::sync::Arc;
 
 use wayland_commons::{Implementation, Interface};
@@ -99,10 +102,190 @@ impl Display {
             Global::create(ptr, data)
         }
     }
+
+    /// Flush events to the clients
+    ///
+    /// Will send as many pending events as possible to the respective sockets of the clients.
+    /// Will not block, but might not send everything if the socket buffer fills up.
+    pub fn flush_clients(&self) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_display_flush_clients,
+                    self.inner.ptr
+                )
+            };
+        }
+    }
 }
 
 #[cfg(feature = "native_lib")]
-unsafe extern "C" fn client_created(listener: *mut wl_listener, data: *mut c_void) {
+unsafe extern "C" fn client_created(_listener: *mut wl_listener, data: *mut c_void) {
     // init the client
     let _client = Client::from_ptr(data as *mut wl_client);
+}
+
+impl Display {
+    /// Add a listening socket to this display
+    ///
+    /// Wayland clients will be able to connect to your compositor from this socket.
+    ///
+    /// Socket will be created in the directory specified by the environment variable
+    /// `XDG_RUNTIME_DIR`.
+    ///
+    /// If a name is provided, it is used. Otherwise, if `WAYLAND_DISPLAY` environment
+    /// variable is set, its contents are used as socket name. Otherwise, `wayland-0` is used.
+    ///
+    /// Errors if `name` contains an interior null, or if `XDG_RUNTIME_DIR` is not set,
+    /// or if specified could not be bound (either it is already used or the compositor
+    /// does not have the rights to create it).
+    pub fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>
+    where
+        S: AsRef<OsStr>,
+    {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
+                Some(Ok(n)) => Some(n),
+                Some(Err(_)) => {
+                    return Err(IoError::new(
+                        ErrorKind::InvalidInput,
+                        "nulls are not allowed in socket name",
+                    ))
+                }
+                None => None,
+            };
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_display_add_socket,
+                    self.inner.ptr,
+                    cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
+                )
+            };
+            if ret == -1 {
+                // lets try to be helpfull
+                let mut socket_name = get_runtime_dir()?;
+                match name {
+                    Some(s) => socket_name.push(s.as_ref()),
+                    None => socket_name.push("wayland-0"),
+                }
+                Err(IoError::new(
+                    ErrorKind::PermissionDenied,
+                    format!("could not bind socket {}", socket_name.to_string_lossy()),
+                ))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    /// Add an automatically named listening socket to this display
+    ///
+    /// Wayland clients will be able to connect to your compositor from this socket.
+    ///
+    /// Socket will be created in the directory specified by the environment variable
+    /// `XDG_RUNTIME_DIR`. The directory is scanned for any name in the form `wayland-$d` with
+    /// `0 <= $d < 32` and the first available one is used.
+    ///
+    /// Errors if `XDG_RUNTIME_DIR` is not set, or all 32 names are already in use.
+    pub fn add_socket_auto(&mut self) -> IoResult<OsString> {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_display_add_socket_auto,
+                    self.inner.ptr
+                )
+            };
+            if ret.is_null() {
+                // try to be helpfull
+                let socket_name = get_runtime_dir()?;
+                Err(IoError::new(
+                    ErrorKind::Other,
+                    format!(
+                        "no available wayland-* name in {}",
+                        socket_name.to_string_lossy()
+                    ),
+                ))
+            } else {
+                let sockname = unsafe { CStr::from_ptr(ret) };
+                Ok(<OsString as OsStringExt>::from_vec(
+                    sockname.to_bytes().into(),
+                ))
+            }
+        }
+    }
+
+    /// Add existing listening socket to this display
+    ///
+    /// Wayland clients will be able to connect to your compositor from this socket.
+    ///
+    /// The existing socket fd must already be created, opened, and locked.
+    /// The fd must be properly set to CLOEXEC and bound to a socket file
+    /// with both bind() and listen() already called. An error is returned
+    /// otherwise.
+    pub fn add_socket_from<T>(&mut self, socket: T) -> IoResult<()>
+    where
+        T: IntoRawFd,
+    {
+        unsafe { self.add_socket_fd(socket.into_raw_fd()) }
+    }
+
+    /// Add existing listening socket to this display from a raw file descriptor
+    ///
+    /// Wayland clients will be able to connect to your compositor from this socket.
+    ///
+    /// The library takes ownership of the provided socket if this method returns
+    /// successfully.
+    ///
+    /// The existing socket fd must already be created, opened, and locked.
+    /// The fd must be properly set to CLOEXEC and bound to a socket file
+    /// with both bind() and listen() already called. An error is returned
+    /// otherwise.
+    pub unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let ret = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_display_add_socket_fd,
+                self.inner.ptr,
+                fd
+            );
+            if ret == 0 {
+                Ok(())
+            } else {
+                Err(IoError::new(ErrorKind::InvalidInput, "invalid socket fd"))
+            }
+        }
+    }
+}
+
+fn get_runtime_dir() -> IoResult<PathBuf> {
+    match env::var_os("XDG_RUNTIME_DIR") {
+        Some(s) => Ok(s.into()),
+        None => Err(IoError::new(
+            ErrorKind::NotFound,
+            "XDG_RUNTIME_DIR env variable is not set",
+        )),
+    }
 }
