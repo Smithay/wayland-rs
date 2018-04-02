@@ -15,7 +15,7 @@ mod resource;
 
 pub use client::Client;
 pub use display::Display;
-pub use globals::{Global, GlobalImplementation};
+pub use globals::Global;
 pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use resource::{NewResource, Resource};
 
