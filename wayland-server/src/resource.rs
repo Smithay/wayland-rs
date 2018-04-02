@@ -153,7 +153,7 @@ impl<I: Interface> Resource<I> {
         };
         let internal = if is_managed {
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr)
-                as *mut self::native_machinery::ResourceUserData;
+                as *mut self::native_machinery::ResourceUserData<I>;
             Some((*user_data).internal.clone())
         } else {
             None
@@ -173,13 +173,12 @@ pub struct NewResource<I: Interface> {
 
 impl<I: Interface + 'static> NewResource<I> {
     /// Implement this resource using given function, destructor, and implementation data.
-    pub fn implement<ID: 'static + Send>(
-        self,
-        idata: ID,
-        implementation: Implementation<Resource<I>, I::Requests, ID>,
-        destructor: Option<Implementation<Resource<I>, (), ID>>,
-    ) -> Resource<I> {
-        unsafe { self.implement_inner(idata, implementation, destructor) }
+    pub fn implement<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
+    where
+        Impl: Implementation<Resource<I>, I::Requests> + Send + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + Send + 'static,
+    {
+        unsafe { self.implement_inner(implementation, destructor) }
     }
 
     /// Implement this resource using given function and implementation data.
@@ -193,23 +192,25 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This function is unsafe if you create several wayland event loops and do not
     /// provide a token to the right one.
-    pub unsafe fn implement_nonsend<ID: 'static>(
+    pub unsafe fn implement_nonsend<Impl, Dest>(
         self,
-        idata: ID,
-        implementation: Implementation<Resource<I>, I::Requests, ID>,
-        destructor: Option<Implementation<Resource<I>, (), ID>>,
+        implementation: Impl,
+        destructor: Option<Dest>,
         token: &LoopToken,
-    ) -> Resource<I> {
+    ) -> Resource<I>
+    where
+        Impl: Implementation<Resource<I>, I::Requests> + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+    {
         let _ = token;
-        self.implement_inner(idata, implementation, destructor)
+        self.implement_inner(implementation, destructor)
     }
 
-    unsafe fn implement_inner<ID: 'static>(
-        self,
-        idata: ID,
-        implementation: Implementation<Resource<I>, I::Requests, ID>,
-        destructor: Option<Implementation<Resource<I>, (), ID>>,
-    ) -> Resource<I> {
+    unsafe fn implement_inner<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
+    where
+        Impl: Implementation<Resource<I>, I::Requests> + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+    {
         #[cfg(not(feature = "native_lib"))]
         {
             unimplemented!()
@@ -217,7 +218,6 @@ impl<I: Interface + 'static> NewResource<I> {
         #[cfg(feature = "native_lib")]
         {
             let new_user_data = Box::new(self::native_machinery::ResourceUserData::new(
-                idata,
                 implementation,
                 destructor,
             ));
@@ -227,10 +227,10 @@ impl<I: Interface + 'static> NewResource<I> {
                 WAYLAND_SERVER_HANDLE,
                 wl_resource_set_dispatcher,
                 self.ptr,
-                self::native_machinery::resource_dispatcher::<I, ID>,
+                self::native_machinery::resource_dispatcher::<I>,
                 &::wayland_sys::RUST_MANAGED as *const _ as *const _,
                 Box::into_raw(new_user_data) as *mut _,
-                Some(self::native_machinery::resource_destroy::<I, ID>)
+                Some(self::native_machinery::resource_destroy::<I>)
             );
 
             Resource {
@@ -255,7 +255,6 @@ mod native_machinery {
     use wayland_sys::common::*;
     use wayland_sys::server::*;
 
-    use std::any::Any;
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
     use std::os::raw::{c_int, c_void};
@@ -264,25 +263,32 @@ mod native_machinery {
 
     use wayland_commons::{Implementation, Interface, MessageGroup};
 
-    pub(crate) struct ResourceUserData {
+    pub(crate) struct ResourceUserData<I: Interface> {
+        _i: ::std::marker::PhantomData<*const I>,
         pub(crate) internal: Arc<super::ResourceInternal>,
-        implem: Option<Box<Any>>,
+        implem: Option<
+            (
+                Box<Implementation<Resource<I>, I::Requests>>,
+                Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>)>>,
+            ),
+        >,
     }
 
-    impl ResourceUserData {
-        pub(crate) fn new<I: Interface, ID: 'static>(
-            idata: ID,
-            implem: Implementation<Resource<I>, I::Requests, ID>,
-            destructor: Option<Implementation<Resource<I>, (), ID>>,
-        ) -> ResourceUserData {
+    impl<I: Interface> ResourceUserData<I> {
+        pub(crate) fn new<Impl, Dest>(implem: Impl, destructor: Option<Dest>) -> ResourceUserData<I>
+        where
+            Impl: Implementation<Resource<I>, I::Requests> + 'static,
+            Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+        {
             ResourceUserData {
+                _i: ::std::marker::PhantomData,
                 internal: Arc::new(super::ResourceInternal::new()),
-                implem: Some(Box::new((implem, idata, destructor)) as Box<Any>),
+                implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
             }
         }
     }
 
-    pub(crate) unsafe extern "C" fn resource_dispatcher<I: Interface, ID: 'static>(
+    pub(crate) unsafe extern "C" fn resource_dispatcher<I: Interface>(
         _implem: *const c_void,
         resource: *mut c_void,
         opcode: u32,
@@ -305,23 +311,14 @@ mod native_machinery {
             // retrieve the impl
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
             {
-                let user_data = &mut *(user_data as *mut ResourceUserData);
-                let implem = user_data
-                    .implem
-                    .as_mut()
-                    .unwrap()
-                    .downcast_mut::<(
-                        Implementation<Resource<I>, I::Requests, ID>,
-                        ID,
-                        Option<Implementation<Resource<I>, (), ID>>,
-                    )>()
-                    .unwrap();
-                let &mut (ref implem_func, ref mut idata, _) = implem;
+                let user_data = &mut *(user_data as *mut ResourceUserData<I>);
+                let implem = user_data.implem.as_mut().unwrap();
+                let &mut (ref mut implem_func, _) = implem;
                 if must_destroy {
                     user_data.internal.alive.store(false, Ordering::Release);
                 }
                 // call the impl
-                implem_func(resource_obj, msg, idata);
+                implem_func.receive(msg, resource_obj);
             }
             if must_destroy {
                 // final cleanup
@@ -347,28 +344,20 @@ mod native_machinery {
         }
     }
 
-    pub(crate) unsafe extern "C" fn resource_destroy<I: Interface, ID: 'static>(resource: *mut wl_resource) {
+    pub(crate) unsafe extern "C" fn resource_destroy<I: Interface>(resource: *mut wl_resource) {
         let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
 
         // We don't need to worry about panic-safeness, because if there is a panic,
         // we'll abort the process, so no access to corrupted data is possible.
         let ret = ::std::panic::catch_unwind(move || {
-            let mut user_data = Box::from_raw(user_data as *mut ResourceUserData);
+            let mut user_data = Box::from_raw(user_data as *mut ResourceUserData<I>);
             user_data.internal.alive.store(false, Ordering::Release);
-            let implem = user_data
-                .implem
-                .as_mut()
-                .unwrap()
-                .downcast_mut::<(
-                    Implementation<Resource<I>, I::Events, ID>,
-                    ID,
-                    Option<Implementation<Resource<I>, (), ID>>,
-                )>()
-                .unwrap();
-            let &mut (_, ref mut idata, ref destructor) = implem;
-            if let &Some(dest_func) = destructor {
+            let implem = user_data.implem.as_mut().unwrap();
+            let &mut (ref mut implem_func, ref mut destructor) = implem;
+            if let Some(mut dest_func) = destructor.take() {
+                let retrieved_implem = ::std::mem::replace(implem_func, Box::new(|_, _| {}));
                 let resource_obj = super::Resource::<I>::from_c_ptr(resource);
-                dest_func(resource_obj, (), idata);
+                dest_func(resource_obj, retrieved_implem);
             }
         });
 
