@@ -26,7 +26,18 @@ pub trait Interface: 'static {
     fn c_interface() -> *const ::syscom::wl_interface;
 }
 
-pub type Implementation<Meta, M, ID> = fn(Meta, M, &mut ID);
+pub trait Implementation<Meta, Msg> {
+    fn receive(&mut self, msg: Msg, meta: Meta);
+}
+
+impl<Meta, Msg, F> Implementation<Meta, Msg> for F
+where
+    F: FnMut(Msg, Meta),
+{
+    fn receive(&mut self, msg: Msg, meta: Meta) {
+        (self)(msg, meta)
+    }
+}
 
 pub struct AnonymousObject;
 

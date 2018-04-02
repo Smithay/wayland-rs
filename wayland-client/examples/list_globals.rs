@@ -11,7 +11,7 @@ fn main() {
     let registry = display
         .get_registry()
         .unwrap()
-        .implement((), |_, evt, _| match evt {
+        .implement(|evt, _| match evt {
             RegistryEvents::Global {
                 name,
                 interface,

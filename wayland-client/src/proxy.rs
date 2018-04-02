@@ -138,7 +138,7 @@ impl<I: Interface> Proxy<I> {
         };
         let internal = if is_managed {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr)
-                as *mut self::native_machinery::ProxyUserData;
+                as *mut self::native_machinery::ProxyUserData<I>;
             Some((*user_data).internal.clone())
         } else {
             None
@@ -237,17 +237,16 @@ pub struct NewProxy<I: Interface> {
 
 impl<I: Interface + 'static> NewProxy<I> {
     /// Implement this proxy using given function and implementation data.
-    pub fn implement<ID: 'static + Send>(
-        self,
-        idata: ID,
-        implementation: Implementation<Proxy<I>, I::Events, ID>,
-    ) -> Proxy<I> {
-        unsafe { self.implement_inner(idata, implementation) }
+    pub fn implement<Impl>(self, implementation: Impl) -> Proxy<I>
+    where
+        Impl: Implementation<Proxy<I>, I::Events> + Send + 'static,
+    {
+        unsafe { self.implement_inner(implementation) }
     }
 
     /// Implement this proxy using given function and implementation data.
     ///
-    /// This method allows the implementation data to not be `Send`, but requires for
+    /// This method allows the implementation to not be `Send`, but requires for
     /// safety that you provide a token to the event queue this proxy will be implemented
     /// on. This method will then ensure that this proxy is registered on this event queue,
     /// so that it cannot be dispatched from an other thread.
@@ -258,26 +257,23 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// old queue is being dispatched from an other thread.
     ///
     /// To ensure safety, see `Proxy::make_wrapper`.
-    pub unsafe fn implement_nonsend<ID: 'static>(
-        self,
-        idata: ID,
-        implementation: Implementation<Proxy<I>, I::Events, ID>,
-        queue: &QueueToken,
-    ) -> Proxy<I> {
+    pub unsafe fn implement_nonsend<Impl>(self, implementation: Impl, queue: &QueueToken) -> Proxy<I>
+    where
+        Impl: Implementation<Proxy<I>, I::Events> + 'static,
+    {
         #[cfg(not(feature = "native_lib"))]
         {}
         #[cfg(feature = "native_lib")]
         {
             queue.assign_proxy(self.c_ptr());
-            self.implement_inner(idata, implementation)
+            self.implement_inner(implementation)
         }
     }
 
-    unsafe fn implement_inner<ID: 'static>(
-        self,
-        idata: ID,
-        implementation: Implementation<Proxy<I>, I::Events, ID>,
-    ) -> Proxy<I> {
+    unsafe fn implement_inner<Impl>(self, implementation: Impl) -> Proxy<I>
+    where
+        Impl: Implementation<Proxy<I>, I::Events> + 'static,
+    {
         #[cfg(not(feature = "native_lib"))]
         {
             unimplemented!()
@@ -286,17 +282,14 @@ impl<I: Interface + 'static> NewProxy<I> {
         {
             use wayland_sys::client::*;
 
-            let new_user_data = Box::new(self::native_machinery::ProxyUserData::new(
-                idata,
-                implementation,
-            ));
+            let new_user_data = Box::new(self::native_machinery::ProxyUserData::new(implementation));
             let internal = new_user_data.internal.clone();
 
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
                 wl_proxy_add_dispatcher,
                 self.ptr,
-                self::native_machinery::proxy_dispatcher::<I, ID>,
+                self::native_machinery::proxy_dispatcher::<I>,
                 &::wayland_sys::RUST_MANAGED as *const _ as *const _,
                 Box::into_raw(new_user_data) as *mut _
             );
@@ -329,7 +322,6 @@ mod native_machinery {
     use wayland_sys::common::*;
     use wayland_sys::client::*;
 
-    use std::any::Any;
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
     use std::os::raw::{c_int, c_void};
@@ -338,24 +330,24 @@ mod native_machinery {
 
     use wayland_commons::{Implementation, Interface, MessageGroup};
 
-    pub(crate) struct ProxyUserData {
+    pub(crate) struct ProxyUserData<I: Interface> {
         pub(crate) internal: Arc<super::ProxyInternal>,
-        implem: Option<Box<Any>>,
+        implem: Option<Box<Implementation<Proxy<I>, I::Events>>>,
     }
 
-    impl ProxyUserData {
-        pub(crate) fn new<I: Interface, ID: 'static>(
-            idata: ID,
-            implem: Implementation<Proxy<I>, I::Events, ID>,
-        ) -> ProxyUserData {
+    impl<I: Interface> ProxyUserData<I> {
+        pub(crate) fn new<Impl>(implem: Impl) -> ProxyUserData<I>
+        where
+            Impl: Implementation<Proxy<I>, I::Events> + 'static,
+        {
             ProxyUserData {
                 internal: Arc::new(super::ProxyInternal::new()),
-                implem: Some(Box::new((implem, idata)) as Box<Any>),
+                implem: Some(Box::new(implem)),
             }
         }
     }
 
-    pub(crate) unsafe extern "C" fn proxy_dispatcher<I: Interface, ID: 'static>(
+    pub(crate) unsafe extern "C" fn proxy_dispatcher<I: Interface>(
         _implem: *const c_void,
         proxy: *mut c_void,
         opcode: u32,
@@ -378,23 +370,17 @@ mod native_machinery {
             // retrieve the impl
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
             {
-                let user_data = &mut *(user_data as *mut ProxyUserData);
-                let implem = user_data
-                    .implem
-                    .as_mut()
-                    .unwrap()
-                    .downcast_mut::<(Implementation<Proxy<I>, I::Events, ID>, ID)>()
-                    .unwrap();
-                let &mut (ref implem_func, ref mut idata) = implem;
+                let user_data = &mut *(user_data as *mut ProxyUserData<I>);
+                let implem = user_data.implem.as_mut().unwrap();
                 if must_destroy {
                     user_data.internal.alive.store(false, Ordering::Release);
                 }
                 // call the impl
-                implem_func(proxy_obj, msg, idata);
+                implem.receive(msg, proxy_obj);
             }
             if must_destroy {
                 // final cleanup
-                let _ = Box::from_raw(user_data as *mut ProxyUserData);
+                let _ = Box::from_raw(user_data as *mut ProxyUserData<I>);
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
             Ok(())
