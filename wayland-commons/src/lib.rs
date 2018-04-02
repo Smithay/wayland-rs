@@ -1,9 +1,13 @@
+#[macro_use]
+extern crate downcast_rs as downcast;
 #[cfg(feature = "native_lib")]
 extern crate wayland_sys;
 #[cfg(feature = "native_lib")]
 use wayland_sys::common as syscom;
 
 use std::os::raw::c_void;
+
+use downcast::Downcast;
 
 pub trait MessageGroup: Sized {
     fn is_destructor(&self) -> bool;
@@ -26,16 +30,31 @@ pub trait Interface: 'static {
     fn c_interface() -> *const ::syscom::wl_interface;
 }
 
-pub trait Implementation<Meta, Msg> {
+pub trait Implementation<Meta, Msg>: Downcast {
     fn receive(&mut self, msg: Msg, meta: Meta);
 }
 
+impl_downcast!(Implementation<Meta, Msg>);
+
 impl<Meta, Msg, F> Implementation<Meta, Msg> for F
 where
-    F: FnMut(Msg, Meta),
+    F: FnMut(Msg, Meta) + 'static,
 {
     fn receive(&mut self, msg: Msg, meta: Meta) {
         (self)(msg, meta)
+    }
+}
+
+pub fn downcast_impl<Msg: 'static, Meta: 'static, T: Implementation<Meta, Msg>>(
+    b: Box<Implementation<Meta, Msg>>,
+) -> Result<Box<T>, Box<Implementation<Meta, Msg>>> {
+    if b.is::<T>() {
+        unsafe {
+            let raw: *mut Implementation<Meta, Msg> = Box::into_raw(b);
+            Ok(Box::from_raw(raw as *mut T))
+        }
+    } else {
+        Err(b)
     }
 }
 
