@@ -5,9 +5,9 @@ use std::os::raw::c_void;
 use std::os::unix::ffi::OsStringExt;
 use std::sync::Arc;
 
-use wayland_commons::Interface;
+use wayland_commons::{Implementation, Interface};
 
-use {Client, EventLoop, Global, GlobalImplementation, LoopToken};
+use {Client, EventLoop, Global, LoopToken, NewResource};
 use globals::global_bind;
 
 #[cfg(feature = "native_lib")]
@@ -63,13 +63,15 @@ impl Display {
         (display, evq)
     }
 
-    pub fn create_global<I: Interface, ID: 'static>(
+    pub fn create_global<I: Interface, Impl>(
         &mut self,
         token: &LoopToken,
         version: u32,
-        implementation: GlobalImplementation<I, ID>,
-        idata: ID,
-    ) -> Global<I, ID> {
+        implementation: Impl,
+    ) -> Global<I>
+    where
+        Impl: Implementation<NewResource<I>, u32> + 'static,
+    {
         let token_inner = token
             .inner
             .inner
@@ -80,7 +82,8 @@ impl Display {
             "Display::create_global requires the token associated with the display event loop."
         );
 
-        let data = Box::new((implementation, idata));
+        let data = Box::new(Box::new(implementation)
+            as Box<Implementation<NewResource<I>, u32>>);
 
         unsafe {
             let ptr = ffi_dispatch!(
@@ -89,8 +92,8 @@ impl Display {
                 self.inner.ptr,
                 I::c_interface(),
                 version as i32,
-                &*data as *const (GlobalImplementation<I, ID>, ID) as *mut _,
-                global_bind::<I, ID>
+                &*data as *const Box<_> as *mut _,
+                global_bind::<I>
             );
 
             Global::create(ptr, data)
