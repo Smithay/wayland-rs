@@ -22,6 +22,18 @@ impl ProxyInternal {
     }
 }
 
+/// An handle to a wayland proxy
+///
+/// This represents a wayland object instanciated in your client
+/// session. Several handles to the same object can exist at a given
+/// time, and cloning them won't create a new protocol object, only
+/// clone the handle. The lifetime of the protocol object is **not**
+/// tied to the lifetime of these handles, but rather to sending or
+/// receiving destroying messages.
+///
+/// These handles are notably used to send requests to the server. To do
+/// you need to import the associated `RequestsTrait` trait from the module
+/// of this interface.
 pub struct Proxy<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
     #[cfg(not(feature = "native_lib"))] internal: Arc<ProxyInternal>,
@@ -34,6 +46,16 @@ unsafe impl<I: Interface> Send for Proxy<I> {}
 unsafe impl<I: Interface> Sync for Proxy<I> {}
 
 impl<I: Interface> Proxy<I> {
+    /// Send a request through this object
+    ///
+    /// This is the generic method to send requests.
+    ///
+    /// Several requests require the creation of new objects using
+    /// the `child()` method, which if done wrong can cause protocol
+    /// errors (in which case the server will terminate your connexion).
+    /// Thus unless your know exactly what you are doing, you should use
+    /// the helper methods provided by the various `RequestsTrait` for
+    /// each interface, which handle this correctly for you.
     pub fn send(&self, msg: I::Requests) {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -64,7 +86,12 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
-    // returns false is external
+    /// Check if the object associated with this proxy is still alive
+    ///
+    /// Will return `false` if either:
+    ///
+    /// - The object has been destroyed
+    /// - The object is not managed by this library (see the `from_c_ptr` method)
     pub fn is_alive(&self) -> bool {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -79,6 +106,15 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
+    /// Associate an arbitrary payload to this object
+    ///
+    /// The pointer you associate here can be retrieved from any
+    /// other proxy to the same wayland object.
+    ///
+    /// Setting or getting user data is done as an atomic operation.
+    /// You are responsible for the correct initialization of this
+    /// pointer, synchronisation of access, and destruction of the
+    /// contents at the appropriate time.
     pub fn set_user_data(&self, ptr: *mut ()) {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -92,6 +128,9 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
+    /// Retrieve the arbitrary payload associated to this object
+    ///
+    /// See `set_user_data` for explanations.
     pub fn get_user_data(&self) -> *mut () {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -108,10 +147,17 @@ impl<I: Interface> Proxy<I> {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Check whether this proxy is managed by the library or not
+    ///
+    /// See `from_c_ptr` for details.
     pub fn is_external(&self) -> bool {
         self.internal.is_none()
     }
 
+    /// Clone this proxy
+    ///
+    /// It only creates a new handle to the same wayland
+    /// object, and does not create a new one.
     pub fn clone(&self) -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
@@ -124,11 +170,32 @@ impl<I: Interface> Proxy<I> {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Get a raw pointer to the underlying wayland object
+    ///
+    /// Retrieve a pointer to the object from the `libwayland-client.so` library.
+    /// You will mostly need it to interface with C libraries needing access
+    /// to wayland objects (to initialize an opengl context for example).
     pub fn c_ptr(&self) -> *mut wl_proxy {
         self.ptr
     }
 
     #[cfg(feature = "native_lib")]
+    /// Create a `Proxy` instance from a C pointer
+    ///
+    /// Create a `Proxy` from a raw pointer to a wayland object from the
+    /// C library.
+    ///
+    /// If the pointer was previously obtained by the `c_ptr()` method, this
+    /// constructs a new proxy for the same object just like the `clone()`
+    /// method would have.
+    ///
+    /// If the object was created by some other C library you are interfacing
+    /// with, it will be created in an "unmanaged" state: wayland-client will
+    /// treat it as foreign, and as such most of the safeties will be absent.
+    /// Notably the lifetime of the object can't be tracked, so the `alive()`
+    /// method will always return `false` and you are responsible of not using
+    /// an object past its destruction (as this would cause a protocol error).
+    /// You will also be unable to associate any user data pointer to this object.
     pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Self {
         use wayland_sys::client::*;
 
@@ -163,6 +230,16 @@ impl<I: Interface> Proxy<I> {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Create a wrapper for this object for queue management
+    ///
+    /// As assigning a proxy to an event queue can be a racy operation
+    /// in contextes involving multiple thread, this provides a facility
+    /// to do this safely.
+    ///
+    /// The wrapper object created behaves like a regular `Proxy`, except that
+    /// all objects created as the result of its requests will be assigned to
+    /// the queue associated to the provided token, rather than the queue of
+    /// their parent. This does not change the queue of the proxy itself.
     pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
         if !self.is_external() && !self.is_alive() {
             return Err(());
@@ -182,6 +259,16 @@ impl<I: Interface> Proxy<I> {
         })
     }
 
+    /// Create a new child object
+    ///
+    /// This creates a new wayland object, considered as a
+    /// child of this object. It will notably inherit its interface
+    /// version.
+    ///
+    /// The created object should immediatly be implemented and sent
+    /// in a request to the server, to keep the object list properly
+    /// synchronized. Failure to do so will likely cause a protocol
+    /// error.
     pub fn child<C: Interface>(&self) -> NewProxy<C> {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -230,6 +317,17 @@ impl<I: Interface> Drop for Proxy<I> {
     }
 }
 
+/// A newly-created proxy that needs implementation
+///
+/// Whenever a new wayland object is created, you will
+/// receive it as a `NewProxy`. You then have to provide an
+/// implementation for it, in order to process the incoming
+/// events it may receive. Once this done you will be able
+/// to use it as a regular `Proxy`.
+///
+/// Implementations are structs implementing the appropriate
+/// variant of the `Implementation` trait. They can also be
+/// closures.
 pub struct NewProxy<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
     #[cfg(feature = "native_lib")] ptr: *mut wl_proxy,
@@ -304,11 +402,25 @@ impl<I: Interface + 'static> NewProxy<I> {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Get a raw pointer to the underlying wayland object
+    ///
+    /// Retrieve a pointer to the object from the `libwayland-client.so` library.
+    /// You will mostly need it to interface with C libraries needing access
+    /// to wayland objects (to initialize an opengl context for example).
+    ///
+    /// Use this if you need to pass an unimplemented object to the C library
+    /// you are interfacing with.
     pub fn c_ptr(&self) -> *mut wl_proxy {
         self.ptr
     }
 
     #[cfg(feature = "native_lib")]
+    /// Create a `NewProxy` instance from a C pointer.
+    ///
+    /// By doing so, you assert that this wayland object was newly created and
+    /// can be safely implemented. As implementing it will overwrite any previously
+    /// associated data or implementation, this can cause weird errors akin to
+    /// memory corruption if it was not the case.
     pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Self {
         NewProxy {
             _i: ::std::marker::PhantomData,
