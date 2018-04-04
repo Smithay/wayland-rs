@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate bitflags;
 extern crate libc;
@@ -14,12 +16,28 @@ mod proxy;
 pub use proxy::{NewProxy, Proxy};
 pub use display::Display;
 pub use event_queue::{EventQueue, QueueToken};
-#[cfg(feature = "native_lib")]
-pub use generated::c_api as protocol;
+
+/// Re-export of wayland-commons
+///
+/// Common traits and functions to work with wayland objects
+pub mod commons {
+    pub use wayland_commons::*;
+}
 
 #[cfg(feature = "native_lib")]
+/// C-associated types
+///
+/// Required for plugging wayland-server generated protocols
+/// or interfacing with C code using wayland objects.
 pub mod sys {
     pub use super::generated::c_interfaces as protocol_interfaces;
+    pub use wayland_sys::{common,client};
+}
+
+/// Generated interfaces for the core wayland protocol
+pub mod protocol {
+    #[cfg(feature = "native_lib")]
+    pub use generated::c_api::*;
 }
 
 mod generated {

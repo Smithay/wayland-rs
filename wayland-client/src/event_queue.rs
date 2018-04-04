@@ -13,11 +13,45 @@ struct EventQueueInner {
     inner: Arc<DisplayInner>,
 }
 
+/// An event queue for protocol messages
+///
+/// Event dispatching in wayland is made on a queue basis, allowing you
+/// to organise your objects into different queues that can be dispatched
+/// independently, for example from different threads.
+///
+/// And `EventQueue` is not `Send`, and thus must stay on the thread on which
+/// they were created. However the `Display` object is `Send + Sync`, allowing
+/// you to create the queues directly in the threads that host them.
+///
+/// When a queue is dispatched (via the `dispatch()` or `dispatch_pending()` methods)
+/// all the incoming messages from the server destinated to objects associated with
+/// the queue are processed sequentially, and the appropriate implementation for each
+/// is invoked. When all messages have been processed these methods return.
+///
+/// Thus, a typical single-queue event loop for a simple wayland app can be:
+///
+/// ```no_run
+/// # extern crate wayland_client;
+/// # use wayland_client::{Display};
+/// # fn main() {
+/// #     let (display, mut event_queue) = Display::connect_to_env().unwrap();
+/// loop {
+///     display.flush().unwrap();
+///     event_queue.dispatch().expect("An error occured during event dispatching!");
+/// }
+/// # }
+/// ```
 pub struct EventQueue {
     // EventQueue is *not* Send
     inner: Rc<EventQueueInner>,
 }
 
+/// A token representing this event queue
+///
+/// This token can be cloned and is meant to allow easier
+/// interaction with other functions in the library that
+/// require the specification of an event queue, like
+/// `Proxy::make_wrapper` and `NewProxy::implement_nonsend`.
 pub struct QueueToken {
     inner: Rc<EventQueueInner>,
 }
@@ -148,6 +182,9 @@ impl EventQueue {
         }
     }
 
+    /// Create a new token associated with this event queue
+    ///
+    /// See `QueueToken` documentation for its use.
     pub fn get_token(&self) -> QueueToken {
         QueueToken {
             inner: self.inner.clone(),
