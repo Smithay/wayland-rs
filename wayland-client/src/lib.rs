@@ -31,7 +31,7 @@ pub mod commons {
 /// or interfacing with C code using wayland objects.
 pub mod sys {
     pub use super::generated::c_interfaces as protocol_interfaces;
-    pub use wayland_sys::{common,client};
+    pub use wayland_sys::{client, common};
 }
 
 /// Generated interfaces for the core wayland protocol

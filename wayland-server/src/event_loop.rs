@@ -9,13 +9,14 @@ use std::sync::atomic;
 use wayland_commons::{downcast_impl, Implementation};
 
 use display::DisplayInner;
-use {FdEvent, FdInterest, IdleSource, SignalEvent, Source, TimerEvent};
+use sources::{FdEvent, FdInterest, IdleSource, SignalEvent, Source, TimerEvent};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
 
 pub(crate) struct EventLoopInner {
-    #[cfg(feature = "native_lib")] wlevl: *mut wl_event_loop,
+    #[cfg(feature = "native_lib")]
+    wlevl: *mut wl_event_loop,
     pub(crate) inner: Option<Arc<DisplayInner>>,
 }
 
@@ -197,8 +198,7 @@ impl LoopToken {
     where
         Impl: Implementation<(), TimerEvent> + 'static,
     {
-        let data = Box::new(Box::new(implementation)
-            as Box<Implementation<(), TimerEvent>>);
+        let data = Box::new(Box::new(implementation) as Box<Implementation<(), TimerEvent>>);
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -232,8 +232,7 @@ impl LoopToken {
     where
         Impl: Implementation<(), SignalEvent> + 'static,
     {
-        let data = Box::new(Box::new(implementation)
-            as Box<Implementation<(), SignalEvent>>);
+        let data = Box::new(Box::new(implementation) as Box<Implementation<(), SignalEvent>>);
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,

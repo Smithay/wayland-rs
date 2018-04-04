@@ -11,8 +11,10 @@ use wayland_commons::Implementation;
 
 pub struct Source<E> {
     _e: ::std::marker::PhantomData<*const E>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_event_source,
-    #[cfg(feature = "native_lib")] data: *mut Box<Implementation<(), E>>,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_event_source,
+    #[cfg(feature = "native_lib")]
+    data: *mut Box<Implementation<(), E>>,
 }
 
 impl<E> Source<E> {
@@ -183,7 +185,7 @@ pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void)
 
 pub struct SignalEvent(::nix::sys::signal::Signal);
 
-pub unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, data: *mut c_void) -> c_int {
+pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, data: *mut c_void) -> c_int {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {

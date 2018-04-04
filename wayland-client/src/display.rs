@@ -151,13 +151,7 @@ impl Display {
     ///
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<i32> {
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_display_flush,
-                self.inner.ptr()
-            )
-        };
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.inner.ptr()) };
         if ret >= 0 {
             Ok(ret)
         } else {

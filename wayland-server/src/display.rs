@@ -17,7 +17,8 @@ use globals::global_bind;
 use wayland_sys::server::*;
 
 pub(crate) struct DisplayInner {
-    #[cfg(feature = "native_lib")] pub(crate) ptr: *mut wl_display,
+    #[cfg(feature = "native_lib")]
+    pub(crate) ptr: *mut wl_display,
 }
 
 impl Drop for DisplayInner {
@@ -85,8 +86,7 @@ impl Display {
             "Display::create_global requires the token associated with the display event loop."
         );
 
-        let data = Box::new(Box::new(implementation)
-            as Box<Implementation<NewResource<I>, u32>>);
+        let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
 
         unsafe {
             let ptr = ffi_dispatch!(

@@ -13,14 +13,17 @@ mod display;
 mod event_loop;
 mod globals;
 mod resource;
-mod sources;
+pub mod sources;
 
 pub use client::Client;
 pub use display::Display;
 pub use globals::Global;
 pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use resource::{NewResource, Resource};
-pub use sources::{FdEvent, FdInterest, IdleSource, SignalEvent, Source, TimerEvent};
+
+pub mod commons {
+    pub use wayland_commons::*;
+}
 
 #[cfg(feature = "native_lib")]
 pub use generated::c_api as protocol;

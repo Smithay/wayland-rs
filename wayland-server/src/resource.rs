@@ -24,9 +24,12 @@ impl ResourceInternal {
 
 pub struct Resource<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(not(feature = "native_lib"))] internal: Arc<ResourceInternal>,
-    #[cfg(feature = "native_lib")] internal: Option<Arc<ResourceInternal>>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_resource,
+    #[cfg(not(feature = "native_lib"))]
+    internal: Arc<ResourceInternal>,
+    #[cfg(feature = "native_lib")]
+    internal: Option<Arc<ResourceInternal>>,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_resource,
 }
 
 impl<I: Interface> Resource<I> {
@@ -168,7 +171,8 @@ impl<I: Interface> Resource<I> {
 
 pub struct NewResource<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_resource,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_resource,
 }
 
 impl<I: Interface + 'static> NewResource<I> {
