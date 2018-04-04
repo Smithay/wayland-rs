@@ -1,6 +1,6 @@
 mod helpers;
 
-use helpers::{roundtrip, TestClient, TestServer};
+use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 #[test]
 fn skel() {
