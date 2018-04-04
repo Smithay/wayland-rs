@@ -9,7 +9,8 @@ use display::DisplayInner;
 use wayland_sys::client::*;
 
 struct EventQueueInner {
-    #[cfg(feature = "native_lib")] wlevq: Option<*mut wl_event_queue>,
+    #[cfg(feature = "native_lib")]
+    wlevq: Option<*mut wl_event_queue>,
     inner: Arc<DisplayInner>,
 }
 

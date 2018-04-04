@@ -36,10 +36,14 @@ impl ProxyInternal {
 /// of this interface.
 pub struct Proxy<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(not(feature = "native_lib"))] internal: Arc<ProxyInternal>,
-    #[cfg(feature = "native_lib")] internal: Option<Arc<ProxyInternal>>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_proxy,
-    #[cfg(feature = "native_lib")] is_wrapper: bool,
+    #[cfg(not(feature = "native_lib"))]
+    internal: Arc<ProxyInternal>,
+    #[cfg(feature = "native_lib")]
+    internal: Option<Arc<ProxyInternal>>,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_proxy,
+    #[cfg(feature = "native_lib")]
+    is_wrapper: bool,
 }
 
 unsafe impl<I: Interface> Send for Proxy<I> {}
@@ -330,7 +334,8 @@ impl<I: Interface> Drop for Proxy<I> {
 /// closures.
 pub struct NewProxy<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_proxy,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_proxy,
 }
 
 impl<I: Interface + 'static> NewProxy<I> {

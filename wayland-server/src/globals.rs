@@ -17,8 +17,10 @@ use wayland_sys::server::*;
 /// handle go out of scope.
 pub struct Global<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_global,
-    #[cfg(feature = "native_lib")] data: *mut Box<Implementation<NewResource<I>, u32>>,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_global,
+    #[cfg(feature = "native_lib")]
+    data: *mut Box<Implementation<NewResource<I>, u32>>,
 }
 
 impl<I: Interface> Global<I> {

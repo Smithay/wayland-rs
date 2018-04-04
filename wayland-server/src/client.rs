@@ -24,7 +24,8 @@ impl ClientInternal {
 
 pub struct Client {
     internal: Arc<ClientInternal>,
-    #[cfg(feature = "native_lib")] ptr: *mut wl_client,
+    #[cfg(feature = "native_lib")]
+    ptr: *mut wl_client,
 }
 
 impl Client {
@@ -90,8 +91,7 @@ impl Client {
 }
 
 unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_void) {
-    let internal = Box::from_raw(signal::rust_listener_get_user_data(listener)
-        as *mut Arc<ClientInternal>);
+    let internal = Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>);
     signal::rust_listener_set_user_data(listener, ptr::null_mut());
     // Store that we are dead
     internal.alive.store(false, Ordering::Release);
