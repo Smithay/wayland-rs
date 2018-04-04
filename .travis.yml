@@ -11,7 +11,6 @@ addons:
     sources:
       - sourceline: 'ppa:wayland.admin/daily-builds'
     packages:
-      - libssl-dev
       - libwayland-dev
 
 rust:
@@ -23,6 +22,13 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+  include:
+    - rust: stable
+      env: BUILD_FMT=1
+    - rust: stable
+      env: TARPAULIN=1
+    - rust: stable
+      env: BUILD_DOC=1
 
 branches:
   only:
@@ -33,29 +39,37 @@ before_script:
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
   - |
-      if [ $TRAVIS_RUST_VERSION = "nightly" ]; then
+      if [ -n "$BUILD_FMT" ]; then
         rustup component add rustfmt-preview
       fi
-  - which cargo-tarpaulin || cargo install cargo-tarpaulin
-  - which cargo-install-update || cargo install cargo-update
-  - cargo install-update -a
+  - |
+      if [ -n "$TARPAULIN" ]; then
+        bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+      fi
 
 os:
   - linux
 
 script:
   - |
-      if [ $TRAVIS_RUST_VERSION = "nightly" ]; then
+      if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
+      elif [ -n "$TARPAULIN" ]; then
+        cargo tarpaulin --ignore-tests --out Xml
+      elif [ -n "$BUILD_DOC" ]; then
+        cargo doc --all --no-deps --all-features
+      else
+        cargo test --all --all-features
       fi
-  - cargo build --all --all-features
-  - cargo test --all --all-features
-  - cargo tarpaulin --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-  - cargo doc --all --no-deps --all-features
 
 after_success:
-  - cp ./doc_index.html ./target/doc/index.html
-  - cp ./rust.css ./target/doc/rust.css
+  - |
+      if [ -n "$TARPAULIN" ]; then
+        bash <(curl -s https://codecov.io/bash)
+      elif [ -n "$BUILD_DOC" ]; then
+        cp ./doc_index.html ./target/doc/index.html
+        cp ./rust.css ./target/doc/rust.css
+      fi
 
 deploy:
   provider: pages
@@ -65,6 +79,7 @@ deploy:
   on:
     branch: master
     rust: stable
+    env: BUILD_DOC=1
 
 notifications:
     webhooks:
