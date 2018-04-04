@@ -5,8 +5,8 @@ publish = false
 
 [dependencies]
 wayland-scanner = { path = "./wayland-scanner" }
-wayland-client = { path = "./wayland-client", default-features = false, features = ["cursor"] }
-wayland-server = { path = "./wayland-server" }
+wayland-client = { path = "./wayland-client", default-features = false, features = ["cursor", "dlopen"] }
+wayland-server = { path = "./wayland-server", features = ["dlopen"] }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server", "unstable_protocols"] }
 
 [dev-dependencies]
