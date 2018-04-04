@@ -15,7 +15,7 @@ mod proxy;
 
 pub use proxy::{NewProxy, Proxy};
 pub use display::Display;
-pub use event_queue::{EventQueue, QueueToken};
+pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 
 /// Re-export of wayland-commons
 ///
