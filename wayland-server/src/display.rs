@@ -36,12 +36,24 @@ impl Drop for DisplayInner {
     }
 }
 
+/// The wayland display
+///
+/// This is the core of your wayland server, this object must
+/// be kept alive as long as your server is running. It allows
+/// you to manage listening sockets and clients.
 pub struct Display {
     inner: Arc<DisplayInner>,
 }
 
 impl Display {
     #[cfg(feature = "native_lib")]
+    /// Create a new display
+    ///
+    /// This method provides you a `Display` as well as the main `EventLoop`
+    /// which will host your clients' objects.
+    ///
+    /// Note that at this point, your server is not yet ready to receive connections,
+    /// your need to add listening sockets using the `add_socket*` methods.
     pub fn new() -> (Display, EventLoop) {
         let ptr = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,) };
 
@@ -67,6 +79,17 @@ impl Display {
         (display, evq)
     }
 
+    /// Create a new global object
+    ///
+    /// This object will be advertized to all clients, and they will
+    /// be able to instanciate it from their registries.
+    ///
+    /// Your implementation will be called whenever a client instanciates
+    /// this global.
+    ///
+    /// The version specified is the **highest supported version**, you must
+    /// be able to handle clients that choose to instanciate this global with
+    /// a lower version number.
     pub fn create_global<I: Interface, Impl>(
         &mut self,
         token: &LoopToken,
