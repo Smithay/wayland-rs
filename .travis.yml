@@ -4,7 +4,7 @@ cache: cargo
 
 dist: trusty
 
-sudo: false
+sudo: required
 
 rust:
   - 1.20.0
