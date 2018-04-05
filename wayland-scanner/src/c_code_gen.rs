@@ -526,7 +526,7 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                 if has_newp {
                     for a in &msg.args {
                         if a.typ == Type::NewId {
-                            if let Some(ref iface) = a.interface {
+                            if a.interface.is_some() {
                                 writeln!(out, "            Ok(_arg_{}_newproxy)", a.name)?;
                             }
                         }

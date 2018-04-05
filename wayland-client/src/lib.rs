@@ -27,7 +27,7 @@ pub mod commons {
 #[cfg(feature = "native_lib")]
 /// C-associated types
 ///
-/// Required for plugging wayland-server generated protocols
+/// Required for plugging wayland-scanner generated protocols
 /// or interfacing with C code using wayland objects.
 pub mod sys {
     pub use super::generated::c_interfaces as protocol_interfaces;

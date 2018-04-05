@@ -22,6 +22,9 @@ impl ClientInternal {
     }
 }
 
+/// A handle to a client connected to your server
+///
+/// There can be several handles referring to the same client
 pub struct Client {
     internal: Arc<ClientInternal>,
     #[cfg(feature = "native_lib")]
@@ -30,6 +33,7 @@ pub struct Client {
 
 impl Client {
     #[cfg(feature = "native_lib")]
+    /// Create a client from a `wayland-server.so` pointer
     pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
         // check if we are already registered
         let listener = ffi_dispatch!(
@@ -67,22 +71,51 @@ impl Client {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Retrieve a pointer to the underlying `wl_client` of `wayland-server.so`
     pub fn c_ptr(&self) -> *mut wl_client {
         self.ptr
     }
 
+    /// Check whether this client is still connected to the server
     pub fn alive(&self) -> bool {
         self.internal.alive.load(Ordering::Acquire)
     }
 
+    /// Flush the pending events to this client
+    pub fn flush(&self) {
+        if !self.alive() {
+            return;
+        }
+        unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, self.ptr);
+        }
+    }
+
+    /// Associate an arbitrary payload to this client
+    ///
+    /// The pointer you associate here can be retrieved from any
+    /// other handle to the same client.
+    ///
+    /// Setting or getting user data is done as an atomic operation.
+    /// You are responsible for the correct initialization of this
+    /// pointer, synchronisation of access, and destruction of the
+    /// contents at the appropriate time.
     pub fn set_user_data(&self, data: *mut ()) {
         self.internal.user_data.store(data, Ordering::Release);
     }
 
+    /// Retrieve the arbitrary payload associated to this client
+    ///
+    /// See `set_user_data` for explanations.
     pub fn get_user_data(&self) -> *mut () {
         self.internal.user_data.load(Ordering::Acquire)
     }
 
+    /// Set a destructor for this client
+    ///
+    /// the provided function will be called when the client disconnects
+    /// or is killed. It's argument is what you would get from calling
+    /// `get_user_data`.
     pub fn set_destructor(&self, destructor: fn(*mut ())) {
         self.internal
             .destructor

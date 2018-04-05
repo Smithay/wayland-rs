@@ -20,27 +20,54 @@ pub(crate) struct EventLoopInner {
     pub(crate) inner: Option<Arc<DisplayInner>>,
 }
 
+/// An event loop
+///
+/// This is an event loop primitive provided by the wayland C libraries.
+/// It is notably used for processing messages from the different clients
+/// of your server, but additionnal event sources can be associated to it.
+///
+/// You can also create other event loops (for a multithreaded server for example),
+/// however the wayland clients can only be processed from the original event loop
+/// created at the same time as the display.
+///
+/// The event loops *cannot* be moved accross threads, so make sure you create them
+/// on the thread you want to use them.
 pub struct EventLoop {
     // EventLoop is *not* Send
     inner: Rc<EventLoopInner>,
     stop_signal: Arc<atomic::AtomicBool>,
 }
 
+/// An event loop token
+///
+/// This token allows some manipulations of the event loop, mainly
+/// inserting new event sources in it.
+///
+/// These token are light and clone-able, allowing easy access to these
+/// functions without needing to share access to the main `EventLoop` object.
+#[derive(Clone)]
 pub struct LoopToken {
     pub(crate) inner: Rc<EventLoopInner>,
 }
 
+/// An event loop signal
+///
+/// This handle can be cloned and be send accross threads, and allows you to
+/// signal the event loop to stop running if you use the `EventLoop::run()`
+/// method.
 pub struct LoopSignal {
     inner: Arc<atomic::AtomicBool>,
 }
 
 impl LoopSignal {
+    /// Signal the event loop to stop running
     pub fn stop(&self) {
         self.inner.store(true, atomic::Ordering::Release);
     }
 }
 
 impl EventLoop {
+    /// Create a new event loop
     pub fn new() -> EventLoop {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -70,12 +97,14 @@ impl EventLoop {
         }
     }
 
+    /// Retrieve a `LoopToken` associated to this event loop
     pub fn token(&self) -> LoopToken {
         LoopToken {
             inner: self.inner.clone(),
         }
     }
 
+    /// Retrieve a `LoopSignal` associated to this event loop
     pub fn signal(&self) -> LoopSignal {
         LoopSignal {
             inner: self.stop_signal.clone(),
@@ -261,7 +290,8 @@ impl LoopToken {
     /// processing all the pending I/O. This callback will be fired exactly once the first
     /// time this condition is met.
     ///
-    /// You can cancel it using the returned `IdleEventSource`.
+    /// You can cancel or retrieve the implementation after it has fired using the
+    /// returned `IdleEventSource`.
     pub fn add_idle_event_source<Impl>(&self, implementation: Impl) -> IdleSource
     where
         Impl: Implementation<(), ()> + 'static,
