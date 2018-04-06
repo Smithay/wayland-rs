@@ -2,7 +2,7 @@
 //!
 //! ## Overview
 //!
-//! This crate provides the interfaces and machinnery to safely create
+//! This crate provides the interfaces and machinery to safely create
 //! client applications for the wayland protocol. It is a rust wrapper
 //! around the `libwayland-client.so` C library.
 //!
@@ -13,7 +13,7 @@
 //!
 //! ## Protocol and messages handling model
 //!
-//! The protocol being be-directionnal, you can send and receive messages.
+//! The protocol being bi-directional, you can send and receive messages.
 //! Sending messages is done via methods of `Proxy<_>` objects, receiving
 //! and handling them is done by providing implementations.
 //!
@@ -51,7 +51,7 @@
 //! called "events"), you need to provide an `Implementation` for each wayland object
 //! created in the protocol session. Whenever a new protocol object is created, you will
 //! receive a `NewProxy<I>` object. Providing an implementation via its `implement()` method
-//! will turn it into a regular `Rroxy<I>` object.
+//! will turn it into a regular `Proxy<I>` object.
 //!
 //! **All objects must be implemented**, even if it is an implementation doing nothing.
 //! Failure to do so (by dropping the `NewProxy<I>` for example) can cause future fatal
