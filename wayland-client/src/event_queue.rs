@@ -42,6 +42,10 @@ struct EventQueueInner {
 /// }
 /// # }
 /// ```
+///
+/// See `EventQueue::prepare_read()` if you need more control about when the connection
+/// socket is read. This will typically the case if you need to integrate other sources
+/// of event into the event loop of your application.
 pub struct EventQueue {
     // EventQueue is *not* Send
     inner: Rc<EventQueueInner>,
