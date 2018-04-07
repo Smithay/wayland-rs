@@ -2,7 +2,7 @@
 //!
 //! ## Overview
 //!
-//! This crate provides the interfaces and machinery to safely create server
+//! This crate provides the interfaces and machinery to safely create servers
 //! for the wayland protocol. It is a rust wrapper around the `libwayland-server.so`
 //! C library.
 //!
@@ -23,7 +23,7 @@
 //! main difference being that the handles to objects are represented by the `Resource<I>`
 //! type.
 //!
-//! These resources are used to senf messages to the clients (they are called "events" in the
+//! These resources are used to send messages to the clients (they are called "events" in the
 //! wayland context). This is done by the `Resource::<I>::send(..)` method.
 //!
 //! There is not a 1 to 1 mapping between `Resource<I>` instances and protocol objects. Rather,
