@@ -138,7 +138,7 @@ mod proxy;
 
 pub use proxy::{NewProxy, Proxy};
 pub use display::Display;
-pub use globals::{GlobalError, GlobalManager};
+pub use globals::{GlobalError, GlobalEvent, GlobalManager};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 
 #[cfg(feature = "cursor")]
