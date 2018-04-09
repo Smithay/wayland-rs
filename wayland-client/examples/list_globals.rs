@@ -4,7 +4,7 @@ use wayland_client::{Display, GlobalManager};
 
 use wayland_client::protocol::wl_display::RequestsTrait;
 
-// A minimal example printing the list of globals abvertized by the server and
+// A minimal example printing the list of globals advertized by the server and
 // then exiting
 
 fn main() {

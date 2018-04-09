@@ -24,7 +24,7 @@ fn main() {
             // with version 1 when advertized, and provide a callback that
             // will handle the created wl_seat to implement them
             //
-            // NOTE: the type annotations are necessayr because rustc's
+            // NOTE: the type annotations are necessary because rustc's
             // inference is apparently not smart enough
             [
                 wl_seat::WlSeat,
@@ -32,7 +32,7 @@ fn main() {
                 |seat: Result<NewProxy<_>, _>, ()| {
                     // here seat is a result, as failure can happen if the server
                     // advertized an lower version than we requested.
-                    // This cannot happer here as we requested version 1
+                    // This cannot happen here as we requested version 1
                     let seat = seat.unwrap();
                     let mut seat_name = None;
                     let mut caps = None;
