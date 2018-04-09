@@ -54,7 +54,7 @@ fn main() {
 
     // The compositor allows us to creates surfaces
     let compositor = globals
-        .instanciate::<wl_compositor::WlCompositor>(1)
+        .instanciate_auto::<wl_compositor::WlCompositor>()
         .unwrap()
         .implement(|_, _| {});
     let surface = compositor.create_surface().unwrap().implement(|_, _| {});
@@ -62,7 +62,7 @@ fn main() {
     // The SHM allows us to share memory with the server, and create buffers
     // on this shared memory to paint our surfaces
     let shm = globals
-        .instanciate::<wl_shm::WlShm>(1)
+        .instanciate_auto::<wl_shm::WlShm>()
         .unwrap()
         .implement(|_, _| {});
     let pool = shm.create_pool(
@@ -85,7 +85,7 @@ fn main() {
     // NOTE: the wl_shell interface is actually deprecated in favour of the xdg_shell
     // protocol, available in wayland-protocols. But this will do for this example.
     let shell = globals
-        .instanciate::<wl_shell::WlShell>(1)
+        .instanciate_auto::<wl_shell::WlShell>()
         .unwrap()
         .implement(|_, _| {});
     let shell_surface = shell.get_shell_surface(&surface).unwrap().implement(
@@ -111,7 +111,7 @@ fn main() {
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
     let _seat = globals
-        .instanciate::<wl_seat::WlSeat>(1)
+        .instanciate_auto::<wl_seat::WlSeat>()
         .unwrap()
         .implement(move |event, seat: Proxy<wl_seat::WlSeat>| {
             // The capabilities of a seat are known at runtime and we retrieve
