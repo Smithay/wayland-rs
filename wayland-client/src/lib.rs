@@ -57,7 +57,7 @@
 //! Failure to do so (by dropping the `NewProxy<I>` for example) can cause future fatal
 //! errors if the server tries to send an event to this object.
 //!
-//! An implementation is just a struct implementing the `Implementation<Proxy<I>, I::Events>`
+//! An implementation is just a struct implementing the `Implementation<Proxy<I>, I::Event>`
 //! trait, where `I` is the interface of the considered object:
 //!
 //! ```
@@ -70,15 +70,15 @@
 //!    // ...
 //! }
 //!
-//! impl Implementation<Proxy<wl_surface::WlSurface>, wl_surface::Events> for MyImpl {
-//!     fn receive(&mut self, msg: wl_surface::Events, proxy: Proxy<wl_surface::WlSurface>) {
+//! impl Implementation<Proxy<wl_surface::WlSurface>, wl_surface::Event> for MyImpl {
+//!     fn receive(&mut self, msg: wl_surface::Event, proxy: Proxy<wl_surface::WlSurface>) {
 //!         // process the message...
 //!     }
 //! }
 //! # fn main() {}
 //! ```
 //!
-//! The trait is also automatically implemented for `FnMut(I::Events, Proxy<I>)` closures,
+//! The trait is also automatically implemented for `FnMut(I::Event, Proxy<I>)` closures,
 //! so you can use them for simplicity if a full struct would be too cumbersome.
 //!
 //! ## Event Queues

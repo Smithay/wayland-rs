@@ -90,10 +90,10 @@ fn main() {
         .implement(|_, _| {});
     let shell_surface = shell.get_shell_surface(&surface).unwrap().implement(
         |event, shell_surface: Proxy<wl_shell_surface::WlShellSurface>| {
-            use wayland_client::protocol::wl_shell_surface::{Events, RequestsTrait};
+            use wayland_client::protocol::wl_shell_surface::{Event, RequestsTrait};
             // This ping/pong mechanism is used by the wayland server to detect
             // unresponsive applications
-            if let Events::Ping { serial } = event {
+            if let Event::Ping { serial } = event {
                 shell_surface.pong(serial);
             }
         },
@@ -117,35 +117,35 @@ fn main() {
             // The capabilities of a seat are known at runtime and we retrieve
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer here
-            use wayland_client::protocol::wl_seat::{Capability, Events as SeatEvents,
+            use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent,
                                                     RequestsTrait as SeatRequests};
-            use wayland_client::protocol::wl_pointer::Events as PointerEvents;
+            use wayland_client::protocol::wl_pointer::Event as PointerEvent;
 
-            if let SeatEvents::Capabilities { capabilities } = event {
+            if let SeatEvent::Capabilities { capabilities } = event {
                 if !pointer_created && capabilities.contains(Capability::Pointer) {
                     // create the pointer only once
                     pointer_created = true;
                     seat.get_pointer()
                         .unwrap()
                         .implement(|event, _| match event {
-                            PointerEvents::Enter {
+                            PointerEvent::Enter {
                                 surface_x,
                                 surface_y,
                                 ..
                             } => {
                                 println!("Pointer entered at ({}, {}).", surface_x, surface_y);
                             }
-                            PointerEvents::Leave { .. } => {
+                            PointerEvent::Leave { .. } => {
                                 println!("Pointer left.");
                             }
-                            PointerEvents::Motion {
+                            PointerEvent::Motion {
                                 surface_x,
                                 surface_y,
                                 ..
                             } => {
                                 println!("Pointer moved to ({}, {}).", surface_x, surface_y);
                             }
-                            PointerEvents::Button { button, state, .. } => {
+                            PointerEvent::Button { button, state, .. } => {
                                 println!("Button {} was {:?}.", button, state);
                             }
                             _ => {}

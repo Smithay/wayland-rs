@@ -60,11 +60,11 @@ pub trait Interface: 'static {
     /// Set of requests associated to this interface
     ///
     /// Requests are messages from the client to the server
-    type Requests: MessageGroup + 'static;
+    type Request: MessageGroup + 'static;
     /// Set of events associated to this interface
     ///
     /// Events are messages from the server to the client
-    type Events: MessageGroup + 'static;
+    type Event: MessageGroup + 'static;
     /// Name of this interface
     const NAME: &'static str;
     #[cfg(feature = "native_lib")]
@@ -130,8 +130,8 @@ pub struct AnonymousObject;
 pub enum NoMessage {}
 
 impl Interface for AnonymousObject {
-    type Requests = NoMessage;
-    type Events = NoMessage;
+    type Request = NoMessage;
+    type Event = NoMessage;
     const NAME: &'static str = "";
     #[cfg(feature = "native_lib")]
     fn c_interface() -> *const ::syscom::wl_interface {

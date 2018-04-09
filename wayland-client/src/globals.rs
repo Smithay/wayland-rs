@@ -29,7 +29,7 @@ pub enum GlobalError {
     VersionTooLow(u32),
 }
 
-/// Events provided to the user callback of GlobalManager
+/// Event provided to the user callback of GlobalManager
 pub enum GlobalEvent {
     /// A new global was created
     New {
@@ -61,14 +61,14 @@ impl GlobalManager {
         let registry = registry.implement(move |msg, _proxy| {
             let mut inner = inner.lock().unwrap();
             match msg {
-                wl_registry::Events::Global {
+                wl_registry::Event::Global {
                     name,
                     interface,
                     version,
                 } => {
                     inner.list.push((name, interface, version));
                 }
-                wl_registry::Events::GlobalRemove { name } => {
+                wl_registry::Event::GlobalRemove { name } => {
                     inner.list.retain(|&(n, _, _)| n != name);
                 }
             }
@@ -100,7 +100,7 @@ impl GlobalManager {
         let registry = registry.implement(move |msg, proxy| {
             let mut inner = inner.lock().unwrap();
             match msg {
-                wl_registry::Events::Global {
+                wl_registry::Event::Global {
                     name,
                     interface,
                     version,
@@ -115,7 +115,7 @@ impl GlobalManager {
                         proxy,
                     );
                 }
-                wl_registry::Events::GlobalRemove { name } => {
+                wl_registry::Event::GlobalRemove { name } => {
                     if let Some((i, _)) = inner
                         .list
                         .iter()

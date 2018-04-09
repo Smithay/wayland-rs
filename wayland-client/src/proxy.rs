@@ -60,7 +60,7 @@ impl<I: Interface> Proxy<I> {
     /// Thus unless your know exactly what you are doing, you should use
     /// the helper methods provided by the various `RequestsTrait` for
     /// each interface, which handle this correctly for you.
-    pub fn send(&self, msg: I::Requests) {
+    pub fn send(&self, msg: I::Request) {
         #[cfg(not(feature = "native_lib"))]
         {
             if !self.internal.alive.load(Ordering::Acquire) {
@@ -342,7 +342,7 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// Implement this proxy using given function and implementation data.
     pub fn implement<Impl>(self, implementation: Impl) -> Proxy<I>
     where
-        Impl: Implementation<Proxy<I>, I::Events> + Send + 'static,
+        Impl: Implementation<Proxy<I>, I::Event> + Send + 'static,
     {
         unsafe { self.implement_inner(implementation) }
     }
@@ -362,7 +362,7 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// To ensure safety, see `Proxy::make_wrapper`.
     pub unsafe fn implement_nonsend<Impl>(self, implementation: Impl, queue: &QueueToken) -> Proxy<I>
     where
-        Impl: Implementation<Proxy<I>, I::Events> + 'static,
+        Impl: Implementation<Proxy<I>, I::Event> + 'static,
     {
         #[cfg(not(feature = "native_lib"))]
         {}
@@ -375,7 +375,7 @@ impl<I: Interface + 'static> NewProxy<I> {
 
     unsafe fn implement_inner<Impl>(self, implementation: Impl) -> Proxy<I>
     where
-        Impl: Implementation<Proxy<I>, I::Events> + 'static,
+        Impl: Implementation<Proxy<I>, I::Event> + 'static,
     {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -449,13 +449,13 @@ mod native_machinery {
 
     pub(crate) struct ProxyUserData<I: Interface> {
         pub(crate) internal: Arc<super::ProxyInternal>,
-        implem: Option<Box<Implementation<Proxy<I>, I::Events>>>,
+        implem: Option<Box<Implementation<Proxy<I>, I::Event>>>,
     }
 
     impl<I: Interface> ProxyUserData<I> {
         pub(crate) fn new<Impl>(implem: Impl) -> ProxyUserData<I>
         where
-            Impl: Implementation<Proxy<I>, I::Events> + 'static,
+            Impl: Implementation<Proxy<I>, I::Event> + 'static,
         {
             ProxyUserData {
                 internal: Arc::new(super::ProxyInternal::new()),
@@ -480,7 +480,7 @@ mod native_machinery {
         // we'll abort the process, so no access to corrupted data is possible.
         let ret = ::std::panic::catch_unwind(move || {
             // parse the message:
-            let msg = I::Events::from_raw_c(proxy as *mut _, opcode, args)?;
+            let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
             let must_destroy = msg.is_destructor();
             // create the proxy object
             let proxy_obj = super::Proxy::<I>::from_c_ptr(proxy);

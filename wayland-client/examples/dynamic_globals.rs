@@ -37,12 +37,12 @@ fn main() {
                     let mut seat_name = None;
                     let mut caps = None;
                     seat.implement(move |event, _| {
-                        use wayland_client::protocol::wl_seat::Events;
+                        use wayland_client::protocol::wl_seat::Event;
                         match event {
-                            Events::Name { name } => {
+                            Event::Name { name } => {
                                 seat_name = Some(name);
                             }
-                            Events::Capabilities { capabilities } => {
+                            Event::Capabilities { capabilities } => {
                                 // We *should* have received the "name" event first
                                 caps = Some(capabilities);
                             }
@@ -63,9 +63,9 @@ fn main() {
                     let mut modes = Vec::new();
                     let mut scale = 1;
                     output.implement(move |event, _| {
-                        use wayland_client::protocol::wl_output::Events;
+                        use wayland_client::protocol::wl_output::Event;
                         match event {
-                            Events::Geometry {
+                            Event::Geometry {
                                 x,
                                 y,
                                 physical_width,
@@ -85,7 +85,7 @@ fn main() {
                                 println!(" -> subpixel orientation: {:?}", subpixel);
                                 name = format!("{} ({})", make, model);
                             }
-                            Events::Mode {
+                            Event::Mode {
                                 flags,
                                 width,
                                 height,
@@ -93,10 +93,10 @@ fn main() {
                             } => {
                                 modes.push((flags, width, height, refresh));
                             }
-                            Events::Scale { factor } => {
+                            Event::Scale { factor } => {
                                 scale = factor;
                             }
-                            Events::Done => {
+                            Event::Done => {
                                 println!("Modesetting information for output \"{}\"", name);
                                 println!(" -> scaling factor: {}", scale);
                                 println!(" -> mode list:");
