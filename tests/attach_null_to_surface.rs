@@ -25,11 +25,11 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<bool>> {
                 let compositor_seen_surface = seen_surface.clone();
                 compositor.implement(
                     move |event, _| {
-                        if let wl_compositor::Requests::CreateSurface { id: surface } = event {
+                        if let wl_compositor::Request::CreateSurface { id: surface } = event {
                             let my_seen_surface = compositor_seen_surface.clone();
                             surface.implement(
                                 move |event, _| {
-                                    if let wl_surface::Requests::Attach { buffer, x, y } = event {
+                                    if let wl_surface::Request::Attach { buffer, x, y } = event {
                                         assert!(buffer.is_none());
                                         *(my_seen_surface.lock().unwrap()) = true;
                                     } else {

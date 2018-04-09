@@ -29,10 +29,10 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
         let iface_name = snake_to_camel(&iface.name);
 
         write_enums(&iface.enums, out)?;
-        write_messagegroup("Requests", Side::Client, false, &iface.requests, out)?;
-        write_messagegroup_impl("Requests", Side::Client, false, &iface.requests, out)?;
-        write_messagegroup("Events", Side::Client, true, &iface.events, out)?;
-        write_messagegroup_impl("Events", Side::Client, true, &iface.events, out)?;
+        write_messagegroup("Request", Side::Client, false, &iface.requests, out)?;
+        write_messagegroup_impl("Request", Side::Client, false, &iface.requests, out)?;
+        write_messagegroup("Event", Side::Client, true, &iface.events, out)?;
+        write_messagegroup_impl("Event", Side::Client, true, &iface.events, out)?;
         write_interface(&iface_name, &iface.name, out)?;
         write_client_methods(&iface_name, &iface.requests, out)?;
 
@@ -70,10 +70,10 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
         let iface_name = snake_to_camel(&iface.name);
 
         write_enums(&iface.enums, out)?;
-        write_messagegroup("Requests", Side::Server, true, &iface.requests, out)?;
-        write_messagegroup_impl("Requests", Side::Server, true, &iface.requests, out)?;
-        write_messagegroup("Events", Side::Server, false, &iface.events, out)?;
-        write_messagegroup_impl("Events", Side::Server, false, &iface.events, out)?;
+        write_messagegroup("Request", Side::Server, true, &iface.requests, out)?;
+        write_messagegroup_impl("Request", Side::Server, true, &iface.requests, out)?;
+        write_messagegroup("Event", Side::Server, false, &iface.events, out)?;
+        write_messagegroup_impl("Event", Side::Server, false, &iface.events, out)?;
         write_interface(&iface_name, &iface.name, out)?;
 
         writeln!(out, "}}\n")?;
@@ -396,8 +396,8 @@ fn write_interface<O: Write>(name: &str, low_name: &str, out: &mut O) -> IOResul
     pub struct {name};
 
     impl Interface for {name} {{
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "{low_name}";
         fn c_interface() -> *const wl_interface {{
             unsafe {{ &super::super::c_interfaces::{low_name}_interface }}
@@ -468,7 +468,7 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
         // actually send the stuff
         write!(
             out,
-            "            let msg = Requests::{}",
+            "            let msg = Request::{}",
             snake_to_camel(&msg.name)
         )?;
         if msg.args.len() > 0 {

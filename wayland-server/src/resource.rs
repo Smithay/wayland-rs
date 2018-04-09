@@ -48,7 +48,7 @@ impl<I: Interface> Resource<I> {
     ///
     /// The event will be send to the client associated to this
     /// object.
-    pub fn send(&self, msg: I::Events) {
+    pub fn send(&self, msg: I::Event) {
         #[cfg(not(feature = "native_lib"))]
         {
             if !self.internal.alive.load(Ordering::Acquire) {
@@ -253,8 +253,8 @@ impl<I: Interface + 'static> NewResource<I> {
     /// Implement this resource using given function, destructor, and implementation data.
     pub fn implement<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
     where
-        Impl: Implementation<Resource<I>, I::Requests> + Send + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + Send + 'static,
+        Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
     {
         unsafe { self.implement_inner(implementation, destructor) }
     }
@@ -277,8 +277,8 @@ impl<I: Interface + 'static> NewResource<I> {
         token: &LoopToken,
     ) -> Resource<I>
     where
-        Impl: Implementation<Resource<I>, I::Requests> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+        Impl: Implementation<Resource<I>, I::Request> + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
         let _ = token;
         self.implement_inner(implementation, destructor)
@@ -286,8 +286,8 @@ impl<I: Interface + 'static> NewResource<I> {
 
     unsafe fn implement_inner<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
     where
-        Impl: Implementation<Resource<I>, I::Requests> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+        Impl: Implementation<Resource<I>, I::Request> + 'static,
+        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
         #[cfg(not(feature = "native_lib"))]
         {
@@ -365,8 +365,8 @@ mod native_machinery {
         pub(crate) internal: Arc<super::ResourceInternal>,
         implem: Option<
             (
-                Box<Implementation<Resource<I>, I::Requests>>,
-                Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>)>>,
+                Box<Implementation<Resource<I>, I::Request>>,
+                Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
             ),
         >,
     }
@@ -374,8 +374,8 @@ mod native_machinery {
     impl<I: Interface> ResourceUserData<I> {
         pub(crate) fn new<Impl, Dest>(implem: Impl, destructor: Option<Dest>) -> ResourceUserData<I>
         where
-            Impl: Implementation<Resource<I>, I::Requests> + 'static,
-            Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Requests>>) + 'static,
+            Impl: Implementation<Resource<I>, I::Request> + 'static,
+            Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
         {
             ResourceUserData {
                 _i: ::std::marker::PhantomData,
@@ -401,7 +401,7 @@ mod native_machinery {
         // we'll abort the process, so no access to corrupted data is possible.
         let ret = ::std::panic::catch_unwind(move || {
             // parse the message:
-            let msg = I::Requests::from_raw_c(resource as *mut _, opcode, args)?;
+            let msg = I::Request::from_raw_c(resource as *mut _, opcode, args)?;
             let must_destroy = msg.is_destructor();
             // create the resource object
             let resource_obj = super::Resource::<I>::from_c_ptr(resource);

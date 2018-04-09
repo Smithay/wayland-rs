@@ -48,7 +48,7 @@
 //! Failure to do so (by dropping the `NewResource<I>` for example) can cause future fatal
 //! protocol errors if the client tries to send a request to this object.
 //!
-//! An implementation is just a struct implementing the `Implementation<Resource<I>, I::Requests>`
+//! An implementation is just a struct implementing the `Implementation<Resource<I>, I::Request>`
 //! trait, where `I` is the interface of the considered object:
 //!
 //! ```
@@ -61,15 +61,15 @@
 //!    // ...
 //! }
 //!
-//! impl Implementation<Resource<wl_surface::WlSurface>, wl_surface::Requests> for MyImpl {
-//!     fn receive(&mut self, msg: wl_surface::Requests, resource: Resource<wl_surface::WlSurface>) {
+//! impl Implementation<Resource<wl_surface::WlSurface>, wl_surface::Request> for MyImpl {
+//!     fn receive(&mut self, msg: wl_surface::Request, resource: Resource<wl_surface::WlSurface>) {
 //!         // process the message...
 //!     }
 //! }
 //! # fn main() {}
 //! ```
 //!
-//! The trait is also automatically implemented for `FnMut(I::Requests, Resource<I>)` closures,
+//! The trait is also automatically implemented for `FnMut(I::Request, Resource<I>)` closures,
 //! so you can use them for simplicity if a full struct would be too cumbersome.
 //!
 //! The `Resource<I>` passed to your implementation is garanteed to be alive (as it just received

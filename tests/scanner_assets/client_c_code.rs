@@ -71,7 +71,7 @@ pub mod wl_foo {
         }
     }
 
-    pub enum Requests {
+    pub enum Request {
         /// do some foo
         ///
         /// This will do some foo with its args.
@@ -82,20 +82,20 @@ pub mod wl_foo {
         CreateBar {id: Proxy<super::wl_bar::WlBar>, },
     }
 
-    impl super::MessageGroup for Requests {
+    impl super::MessageGroup for Request {
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Requests,()> {
-            panic!("Requests::from_raw_c can not be used Client-side.")
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
+            panic!("Request::from_raw_c can not be used Client-side.")
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
             match self {
-                Requests::FooIt { number, unumber, text, float, file, } => {
+                Request::FooIt { number, unumber, text, float, file, } => {
                     let mut _args_array: [wl_argument; 5] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].i = number;
                     _args_array[1].u = unumber;
@@ -105,7 +105,7 @@ pub mod wl_foo {
                     _args_array[4].h = file;
                     f(0, &mut _args_array)
                 },
-                Requests::CreateBar { id, } => {
+                Request::CreateBar { id, } => {
                     let mut _args_array: [wl_argument; 1] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].o = id.c_ptr() as *mut _;
                     f(1, &mut _args_array)
@@ -114,7 +114,7 @@ pub mod wl_foo {
         }
     }
 
-    pub enum Events {
+    pub enum Event {
         /// a cake is possible
         ///
         /// The server advertizes that a kind of cake is available
@@ -123,18 +123,18 @@ pub mod wl_foo {
         Cake {kind: CakeKind, amount: u32, },
     }
 
-    impl super::MessageGroup for Events {
+    impl super::MessageGroup for Event {
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Events,()> {
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             match opcode {
                 0 => {
                     let _args = ::std::slice::from_raw_parts(args, 2);
-                    Ok(Events::Cake {
+                    Ok(Event::Cake {
                         kind: CakeKind::from_raw(_args[0].u).ok_or(())?,
                         amount: _args[1].u,
                 }) },
@@ -143,7 +143,7 @@ pub mod wl_foo {
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
-            panic!("Events::as_raw_c_in can not be used Client-side.")
+            panic!("Event::as_raw_c_in can not be used Client-side.")
         }
     }
 
@@ -151,8 +151,8 @@ pub mod wl_foo {
     pub struct WlFoo;
 
     impl Interface for WlFoo {
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "wl_foo";
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
@@ -175,7 +175,7 @@ pub mod wl_foo {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
-            let msg = Requests::FooIt {
+            let msg = Request::FooIt {
                 number: number,
                 unumber: unumber,
                 text: text,
@@ -190,7 +190,7 @@ pub mod wl_foo {
                 return Err(());
             }
             let _arg_id_newproxy = self.child::<super::wl_bar::WlBar>();
-            let msg = Requests::CreateBar {
+            let msg = Request::CreateBar {
                 id: unsafe { Proxy::<super::wl_bar::WlBar>::from_c_ptr(_arg_id_newproxy.c_ptr()) },
             };
             self.send(msg);
@@ -208,7 +208,7 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
-    pub enum Requests {
+    pub enum Request {
         /// ask for a bar delivery
         ///
         /// Proceed to a bar delivery of given foo.
@@ -223,21 +223,21 @@ pub mod wl_bar {
         Release,
     }
 
-    impl super::MessageGroup for Requests {
+    impl super::MessageGroup for Request {
         fn is_destructor(&self) -> bool {
             match *self {
-                Requests::Release => true,
+                Request::Release => true,
                 _ => false
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Requests,()> {
-            panic!("Requests::from_raw_c can not be used Client-side.")
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
+            panic!("Request::from_raw_c can not be used Client-side.")
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
             match self {
-                Requests::BarDelivery { kind, target, metadata, } => {
+                Request::BarDelivery { kind, target, metadata, } => {
                     let mut _args_array: [wl_argument; 3] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = kind.to_raw();
                     _args_array[1].o = target.c_ptr() as *mut _;
@@ -245,7 +245,7 @@ pub mod wl_bar {
                     _args_array[2].a = &_arg_2;
                     f(0, &mut _args_array)
                 },
-                Requests::Release => {
+                Request::Release => {
                     let mut _args_array: [wl_argument; 0] = unsafe { ::std::mem::zeroed() };
                     f(1, &mut _args_array)
                 },
@@ -253,23 +253,23 @@ pub mod wl_bar {
         }
     }
 
-    pub enum Events {
+    pub enum Event {
     }
 
-    impl super::MessageGroup for Events {
+    impl super::MessageGroup for Event {
         fn is_destructor(&self) -> bool {
             match *self {
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Events,()> {
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             match opcode {
                 _ => return Err(())
             }
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
-            panic!("Events::as_raw_c_in can not be used Client-side.")
+            panic!("Event::as_raw_c_in can not be used Client-side.")
         }
     }
 
@@ -277,8 +277,8 @@ pub mod wl_bar {
     pub struct WlBar;
 
     impl Interface for WlBar {
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "wl_bar";
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
@@ -306,7 +306,7 @@ pub mod wl_bar {
                 return;
             }
 
-            let msg = Requests::BarDelivery {
+            let msg = Request::BarDelivery {
                 kind: kind,
                 target: target.clone(),
                 metadata: metadata,
@@ -318,7 +318,7 @@ pub mod wl_bar {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
-            let msg = Requests::Release;
+            let msg = Request::Release;
             self.send(msg);
         }
     }
@@ -333,17 +333,17 @@ pub mod wl_display {
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
-    pub enum Requests {
+    pub enum Request {
     }
 
-    impl super::MessageGroup for Requests {
+    impl super::MessageGroup for Request {
         fn is_destructor(&self) -> bool {
             match *self {
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Requests,()> {
-            panic!("Requests::from_raw_c can not be used Client-side.")
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
+            panic!("Request::from_raw_c can not be used Client-side.")
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
@@ -352,23 +352,23 @@ pub mod wl_display {
         }
     }
 
-    pub enum Events {
+    pub enum Event {
     }
 
-    impl super::MessageGroup for Events {
+    impl super::MessageGroup for Event {
         fn is_destructor(&self) -> bool {
             match *self {
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Events,()> {
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             match opcode {
                 _ => return Err(())
             }
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
-            panic!("Events::as_raw_c_in can not be used Client-side.")
+            panic!("Event::as_raw_c_in can not be used Client-side.")
         }
     }
 
@@ -376,8 +376,8 @@ pub mod wl_display {
     pub struct WlDisplay;
 
     impl Interface for WlDisplay {
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "wl_display";
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_display_interface }
@@ -400,27 +400,27 @@ pub mod wl_registry {
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
-    pub enum Requests {
+    pub enum Request {
         /// bind an object to the display
         ///
         /// This request is a special code-path, as its new-id argument as no target type.
         Bind {name: u32, id: (String, u32, Proxy<AnonymousObject>), },
     }
 
-    impl super::MessageGroup for Requests {
+    impl super::MessageGroup for Request {
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Requests,()> {
-            panic!("Requests::from_raw_c can not be used Client-side.")
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
+            panic!("Request::from_raw_c can not be used Client-side.")
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
             match self {
-                Requests::Bind { name, id, } => {
+                Request::Bind { name, id, } => {
                     let mut _args_array: [wl_argument; 4] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = name;
                     let _arg_1_s = ::std::ffi::CString::new(id.0).unwrap();
@@ -433,23 +433,23 @@ pub mod wl_registry {
         }
     }
 
-    pub enum Events {
+    pub enum Event {
     }
 
-    impl super::MessageGroup for Events {
+    impl super::MessageGroup for Event {
         fn is_destructor(&self) -> bool {
             match *self {
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Events,()> {
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             match opcode {
                 _ => return Err(())
             }
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
-            panic!("Events::as_raw_c_in can not be used Client-side.")
+            panic!("Event::as_raw_c_in can not be used Client-side.")
         }
     }
 
@@ -457,8 +457,8 @@ pub mod wl_registry {
     pub struct WlRegistry;
 
     impl Interface for WlRegistry {
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "wl_registry";
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_registry_interface }
@@ -477,7 +477,7 @@ pub mod wl_registry {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
-            let msg = Requests::Bind {
+            let msg = Request::Bind {
                 name: name,
                 id: (T::NAME.into(), version, unsafe { Proxy::<AnonymousObject>::new_null() }),
             };
@@ -509,17 +509,17 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
-    pub enum Requests {
+    pub enum Request {
     }
 
-    impl super::MessageGroup for Requests {
+    impl super::MessageGroup for Request {
         fn is_destructor(&self) -> bool {
             match *self {
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Requests,()> {
-            panic!("Requests::from_raw_c can not be used Client-side.")
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
+            panic!("Request::from_raw_c can not be used Client-side.")
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
@@ -528,7 +528,7 @@ pub mod wl_callback {
         }
     }
 
-    pub enum Events {
+    pub enum Event {
         /// done event
         ///
         /// This event is actually a destructor, but the protocol XML has no wait of specifying it.
@@ -538,18 +538,18 @@ pub mod wl_callback {
         Done {callback_data: u32, },
     }
 
-    impl super::MessageGroup for Events {
+    impl super::MessageGroup for Event {
         fn is_destructor(&self) -> bool {
             match *self {
-                Events::Done { .. } => true,
+                Event::Done { .. } => true,
             }
         }
 
-        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Events,()> {
+        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             match opcode {
                 0 => {
                     let _args = ::std::slice::from_raw_parts(args, 1);
-                    Ok(Events::Done {
+                    Ok(Event::Done {
                         callback_data: _args[0].u,
                 }) },
                 _ => return Err(())
@@ -557,7 +557,7 @@ pub mod wl_callback {
         }
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
-            panic!("Events::as_raw_c_in can not be used Client-side.")
+            panic!("Event::as_raw_c_in can not be used Client-side.")
         }
     }
 
@@ -565,8 +565,8 @@ pub mod wl_callback {
     pub struct WlCallback;
 
     impl Interface for WlCallback {
-        type Requests = Requests;
-        type Events = Events;
+        type Request = Request;
+        type Event = Event;
         const NAME: &'static str = "wl_callback";
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
