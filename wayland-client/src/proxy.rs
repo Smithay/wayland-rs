@@ -110,6 +110,24 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
+    /// Retrieve the interface version of this wayland object instance
+    ///
+    /// Returns 0 on dead objects
+    pub fn version(&self) -> u32 {
+        if !self.is_alive() {
+            return 0;
+        }
+
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 }
+        }
+    }
+
     /// Associate an arbitrary payload to this object
     ///
     /// The pointer you associate here can be retrieved from any
