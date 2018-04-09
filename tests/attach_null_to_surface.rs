@@ -22,6 +22,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<bool>> {
             &loop_token,
             1,
             move |version, compositor: NewResource<_>| {
+                assert!(version == 1);
                 let compositor_seen_surface = seen_surface.clone();
                 compositor.implement(
                     move |event, _| {
@@ -31,6 +32,8 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<bool>> {
                                 move |event, _| {
                                     if let wl_surface::Request::Attach { buffer, x, y } = event {
                                         assert!(buffer.is_none());
+                                        assert!(x == 0);
+                                        assert!(y == 0);
                                         *(my_seen_surface.lock().unwrap()) = true;
                                     } else {
                                         panic!("Unexpected event on surface!");
@@ -66,7 +69,7 @@ fn attach_null() {
     roundtrip(&mut client, &mut server);
 
     let compositor = manager
-        .instanciate::<wayc::protocol::wl_compositor::WlCompositor>(1)
+        .instanciate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
         .unwrap()
         .implement(|_, _| {});
     let surface = compositor.create_surface().unwrap().implement(|_, _| {});

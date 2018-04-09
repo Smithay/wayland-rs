@@ -146,12 +146,26 @@ impl GlobalManager {
         }
     }
 
-    /// Instanciate a specific global
+    /// Instanciate a global with highest available version
     ///
     /// This method is only appropriate for globals that are expected to
     /// not exist with multiplicity (sur as `wl_compositor` or `wl_shm`),
     /// as it will only bind a single one.
-    pub fn instanciate<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
+    pub fn instanciate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
+        let inner = self.inner.lock().unwrap();
+        for &(id, ref interface, version) in &inner.list {
+            if interface == I::NAME {
+                 return Ok(self.registry.bind::<I>(version, id).unwrap());
+            }
+        }
+        Err(GlobalError::Missing)
+    }
+
+    /// Instanciate a global with a specific version
+    ///
+    /// Like `instanciate_auto`, but will bind a specific version of
+    /// this global an not the highest available.
+    pub fn instanciate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, server_version) in &inner.list {
             if interface == I::NAME {
