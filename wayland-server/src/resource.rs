@@ -248,6 +248,31 @@ impl<I: Interface> Resource<I> {
             ptr: ptr,
         }
     }
+
+    /// Check whether this resource has been implemented with given type
+    ///
+    /// Always returns false if the resource is no longer alive
+    pub fn is_implemented_with<Impl>(&self) -> bool
+    where
+        Impl: Implementation<Resource<I>, I::Request> + 'static,
+    {
+        if !self.is_alive() {
+            return false;
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let user_data = unsafe {
+                let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
+                    as *mut self::native_machinery::ResourceUserData<I>;
+                &*ptr
+            };
+            user_data.is_impl::<Impl>()
+        }
+    }
 }
 
 /// A newly-created resource that needs implementation
@@ -400,6 +425,16 @@ mod native_machinery {
                 internal: Arc::new(super::ResourceInternal::new()),
                 implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
             }
+        }
+
+        pub(crate) fn is_impl<Impl>(&self) -> bool
+        where
+            Impl: Implementation<Resource<I>, I::Request> + 'static,
+        {
+            self.implem
+                .as_ref()
+                .map(|implem| implem.0.is::<Impl>())
+                .unwrap_or(false)
         }
     }
 

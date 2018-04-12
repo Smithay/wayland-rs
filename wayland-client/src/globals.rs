@@ -155,7 +155,7 @@ impl GlobalManager {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, version) in &inner.list {
             if interface == I::NAME {
-                 return Ok(self.registry.bind::<I>(version, id).unwrap());
+                return Ok(self.registry.bind::<I>(version, id).unwrap());
             }
         }
         Err(GlobalError::Missing)
