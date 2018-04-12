@@ -137,6 +137,33 @@ impl<I: Interface> Resource<I> {
         }
     }
 
+    /// Posts a protocol error to this resource
+    ///
+    /// The error code can be obtained from the various `Error` enums of the protocols.
+    ///
+    /// An error is fatal to the client that caused it.
+    pub fn post_error(&self, error_code: u32, msg: String) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            // If `str` contains an interior null, the actual transmitted message will
+            // be truncated at this point.
+            unsafe {
+                let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_resource_post_error,
+                    self.ptr,
+                    error_code,
+                    cstring.as_ptr()
+                )
+            }
+        }
+    }
+
     /// Associate an arbitrary payload to this object
     ///
     /// The pointer you associate here can be retrieved from any
