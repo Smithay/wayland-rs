@@ -312,6 +312,31 @@ impl<I: Interface> Proxy<I> {
             }
         }
     }
+
+    /// Check whether this proxy has been implemented with given type
+    ///
+    /// Always returns false if the proxy is no longer alive
+    pub fn is_implemented_with<Impl>(&self) -> bool
+    where
+        Impl: Implementation<Proxy<I>, I::Event> + 'static,
+    {
+        if !self.is_alive() {
+            return false;
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let user_data = unsafe {
+                let ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
+                    as *mut self::native_machinery::ProxyUserData<I>;
+                &*ptr
+            };
+            user_data.is_impl::<Impl>()
+        }
+    }
 }
 
 #[cfg(feature = "native_lib")]
@@ -479,6 +504,16 @@ mod native_machinery {
                 internal: Arc::new(super::ProxyInternal::new()),
                 implem: Some(Box::new(implem)),
             }
+        }
+
+        pub(crate) fn is_impl<Impl>(&self) -> bool
+        where
+            Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        {
+            self.implem
+                .as_ref()
+                .map(|implem| implem.is::<Impl>())
+                .unwrap_or(false)
         }
     }
 
