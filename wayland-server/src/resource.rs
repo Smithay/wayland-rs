@@ -43,6 +43,9 @@ pub struct Resource<I: Interface> {
     ptr: *mut wl_resource,
 }
 
+unsafe impl<I: Interface> Send for Resource<I> {}
+unsafe impl<I: Interface> Sync for Resource<I> {}
+
 impl<I: Interface> Resource<I> {
     /// Send an event through this object
     ///
