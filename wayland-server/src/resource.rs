@@ -336,11 +336,11 @@ impl<I: Interface + 'static> NewResource<I> {
     /// is not `Send`, this ensures you are implementing the resource from the same thread
     /// as the event loop runs on.
     ///
-    /// ** Unsafety **
+    /// ** Panics **
     ///
-    /// This function is unsafe if you create several wayland event loops and do not
+    /// This function will panic if you create several wayland event loops and do not
     /// provide a token to the right one.
-    pub unsafe fn implement_nonsend<Impl, Dest>(
+    pub fn implement_nonsend<Impl, Dest>(
         self,
         implementation: Impl,
         destructor: Option<Dest>,
@@ -350,8 +350,10 @@ impl<I: Interface + 'static> NewResource<I> {
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
-        let _ = token;
-        self.implement_inner(implementation, destructor)
+        unsafe {
+            assert!(token.matches(self.ptr), "Tried to implement a Resource with the wrong LoopToken.");
+            self.implement_inner(implementation, destructor)
+        }
     }
 
     unsafe fn implement_inner<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
