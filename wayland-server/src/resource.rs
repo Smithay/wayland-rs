@@ -140,6 +140,22 @@ impl<I: Interface> Resource<I> {
         }
     }
 
+    /// Check if the other resource refers to the same underlying wayland object
+    pub fn equals(&self, other: &Resource<I>) -> bool {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            match (&self.internal, &other.internal) {
+                (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
+                (&None, &None) => self.ptr == other.ptr,
+                _ => false,
+            }
+        }
+    }
+
     /// Posts a protocol error to this resource
     ///
     /// The error code can be obtained from the various `Error` enums of the protocols.
@@ -354,7 +370,10 @@ impl<I: Interface + 'static> NewResource<I> {
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
         unsafe {
-            assert!(token.matches(self.ptr), "Tried to implement a Resource with the wrong LoopToken.");
+            assert!(
+                token.matches(self.ptr),
+                "Tried to implement a Resource with the wrong LoopToken."
+            );
             self.implement_inner(implementation, destructor)
         }
     }
