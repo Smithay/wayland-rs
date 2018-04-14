@@ -316,22 +316,14 @@ impl LoopToken {
     /// event loop
     #[cfg(feature = "native_lib")]
     pub(crate) unsafe fn matches(&self, resource_ptr: *mut wl_resource) -> bool {
-        let client_ptr = ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_resource_get_client,
-            resource_ptr
-        );
-        let display_ptr = ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_client_get_display,
-            client_ptr
-        );
+        let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource_ptr);
+        let display_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_display, client_ptr);
         let event_loop_ptr = ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_display_get_event_loop,
             display_ptr
         );
-        return event_loop_ptr == self.inner.wlevl
+        return event_loop_ptr == self.inner.wlevl;
     }
 }
 

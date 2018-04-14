@@ -191,6 +191,22 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
+    /// Check if the other proxy refers to the same underlying wayland object
+    pub fn equals(&self, other: &Proxy<I>) -> bool {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            match (&self.internal, &other.internal) {
+                (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
+                (&None, &None) => self.ptr == other.ptr,
+                _ => false,
+            }
+        }
+    }
+
     #[cfg(feature = "native_lib")]
     /// Get a raw pointer to the underlying wayland object
     ///
