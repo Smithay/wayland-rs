@@ -81,6 +81,12 @@ impl Client {
         self.internal.alive.load(Ordering::Acquire)
     }
 
+    /// Check whether this client handle refers to the same client as
+    /// an other
+    pub fn equals(&self, other: &Client) -> bool {
+        Arc::ptr_eq(&self.internal, &other.internal)
+    }
+
     /// Flush the pending events to this client
     pub fn flush(&self) {
         if !self.alive() {
