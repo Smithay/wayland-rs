@@ -156,6 +156,28 @@ impl<I: Interface> Resource<I> {
         }
     }
 
+    /// Check if this resource and the other belong to the same client
+    ///
+    /// Always return false if either of them is dead
+    pub fn same_client_as<II: Interface>(&self, other: &Resource<II>) -> bool {
+        if !(self.is_alive() && other.is_alive()) {
+            return false;
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            unsafe {
+                let my_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
+                let other_client_ptr =
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr);
+                my_client_ptr == other_client_ptr
+            }
+        }
+    }
+
     /// Posts a protocol error to this resource
     ///
     /// The error code can be obtained from the various `Error` enums of the protocols.
