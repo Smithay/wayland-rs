@@ -303,6 +303,14 @@ impl Display {
     }
 }
 
+#[cfg(feature = "native_lib")]
+impl Display {
+    /// Retrieve a pointer from the C lib to this `wl_display`
+    pub fn c_ptr(&self) -> *mut wl_display {
+        self.inner.ptr
+    }
+}
+
 fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
