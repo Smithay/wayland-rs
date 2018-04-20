@@ -234,8 +234,23 @@ impl<I: Interface> Proxy<I> {
     /// method will always return `false` and you are responsible of not using
     /// an object past its destruction (as this would cause a protocol error).
     /// You will also be unable to associate any user data pointer to this object.
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
     pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Self {
         use wayland_sys::client::*;
+
+        if ptr.is_null() {
+            return Proxy {
+                _i: ::std::marker::PhantomData,
+                internal: Some(Arc::new(ProxyInternal {
+                    alive: AtomicBool::new(false),
+                    user_data: AtomicPtr::new(::std::ptr::null_mut()),
+                })),
+                ptr: ptr,
+                is_wrapper: false,
+            };
+        }
 
         let is_managed = {
             ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr)
