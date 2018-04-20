@@ -75,7 +75,7 @@ deploy:
   on:
     branch: master
     rust: stable
-    env: BUILD_DOC=1
+    condition: $BUILD_DOC = 1
 
 notifications:
     webhooks:
