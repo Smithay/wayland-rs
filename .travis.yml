@@ -36,6 +36,8 @@ before_script:
         rustup component add rustfmt-preview
       elif [ -n "$TARPAULIN" ]; then
         bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+        # Building & running tests, we need to install the wayland lib
+        ./travis_install_wayland.sh "1.12.0"
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
       else
@@ -51,7 +53,7 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --ignore-tests --out Xml
+        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo tarpaulin --ignore-tests --out Xml
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
