@@ -1,6 +1,6 @@
-[![](http://meritbadge.herokuapp.com/wayland-client)](https://crates.io/crates/wayland-client)
+[![crates.io](http://meritbadge.herokuapp.com/wayland-client)](https://crates.io/crates/wayland-client)
 [![Build Status](https://travis-ci.org/Smithay/wayland-rs.svg?branch=master)](https://travis-ci.org/Smithay/wayland-rs)
-[![Coverage Status](https://coveralls.io/repos/github/Smithay/wayland-rs/badge.svg)](https://coveralls.io/github/Smithay/wayland-rs)
+[![codecov](https://codecov.io/gh/Smithay/wayland-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/Smithay/wayland-rs)
 
 # Wayland client
 
@@ -32,4 +32,5 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 ## Requirements
 
-Requires at least rust 1.20 to be used (using bitflags 1.0 for associated constants).
+Requires at least rust 1.20 to be used (using bitflags 1.0 for associated constants), and version 1.12 of the
+wayland system libraries.
