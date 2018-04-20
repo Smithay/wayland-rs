@@ -293,7 +293,21 @@ impl<I: Interface> Resource<I> {
     /// method will always return `false` and you are responsible of not using
     /// an object past its destruction (as this would cause a protocol error).
     /// You will also be unable to associate any user data pointer to this object.
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
     pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
+        if ptr.is_null() {
+            return Resource {
+                _i: ::std::marker::PhantomData,
+                internal: Some(Arc::new(ResourceInternal {
+                    alive: AtomicBool::new(false),
+                    user_data: AtomicPtr::new(::std::ptr::null_mut()),
+                })),
+                ptr: ptr,
+            };
+        }
+
         let is_managed = {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
