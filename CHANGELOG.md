@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.20.0 - Unreleased
+## 0.20.0 - 2018-04-21
 
 - **Breaking** Complete rework of the libraries, basically everything is changed.
 
