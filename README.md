@@ -8,10 +8,12 @@ These are bindings to the [reference implementation](http://wayland.freedesktop.
 of the wayland protocol. This is not a pure rust implementation of the wayland
 protocol, and thus requires `libwayland-client.so` to be available.
 
-This repository actually hosts 5 crates. The 3 main crates you'll likely want to use:
+This repository actually hosts 6 crates. The 4 main crates you'll likely want to use:
 
 - *wayland-client* and *wayland-server* are the main crates for client and server side bindings
 - *wayland-protocols* regroups bindings on the official protocol extentions available
+- *wayland-commons* contains various definitions that are used by the other crates. It is re-exported in both
+  *wayland-client* and *wayland-server*.
 
 And 2 internal crates, that you'll need only for integrating a custom protocol extension:
 
@@ -27,6 +29,7 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
  - [wayland-client](https://docs.rs/wayland-client/)
  - [wayland-server](https://docs.rs/wayland-server/)
  - [wayland-protocols](https://docs.rs/wayland-protocols/)
+ - [wayland-commons](https://docs.rs/wayland-commons/)
  - [wayland-scanner](https://docs.rs/wayland-scanner/)
  - [wayland-sys](https://docs.rs/wayland-sys/)
 
