@@ -41,6 +41,8 @@ pub struct Resource<I: Interface> {
     internal: Option<Arc<ResourceInternal>>,
     #[cfg(feature = "native_lib")]
     ptr: *mut wl_resource,
+    // this field is only a workaround for https://github.com/rust-lang/rust/issues/50153
+    _hack: (bool, bool)
 }
 
 unsafe impl<I: Interface> Send for Resource<I> {}
@@ -137,6 +139,7 @@ impl<I: Interface> Resource<I> {
             internal: self.internal.clone(),
             #[cfg(feature = "native_lib")]
             ptr: self.ptr,
+            _hack: (false, false)
         }
     }
 
@@ -305,6 +308,7 @@ impl<I: Interface> Resource<I> {
                     user_data: AtomicPtr::new(::std::ptr::null_mut()),
                 })),
                 ptr: ptr,
+                _hack: (false, false)
             };
         }
 
@@ -328,6 +332,7 @@ impl<I: Interface> Resource<I> {
             _i: ::std::marker::PhantomData,
             internal: internal,
             ptr: ptr,
+            _hack: (false, false)
         }
     }
 
@@ -445,6 +450,7 @@ impl<I: Interface + 'static> NewResource<I> {
                 _i: ::std::marker::PhantomData,
                 internal: Some(internal),
                 ptr: self.ptr,
+                _hack: (false, false)
             }
         }
     }

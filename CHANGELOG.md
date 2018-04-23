@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+## 0.20.1 - 2018-04-23
+
+- [server] Add a workaround in `Resource` definition to avoid https://github.com/rust-lang/rust/issues/50153
+
 ## 0.20.0 - 2018-04-21
 
 - **Breaking** Complete rework of the libraries, basically everything is changed.
