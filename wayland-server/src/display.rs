@@ -301,6 +301,24 @@ impl Display {
             }
         }
     }
+
+    /// Create a new client to this display from an already-existing connected Fd
+    pub unsafe fn create_client(&mut self, fd: RawFd) -> Client {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let ret = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_client_create,
+                self.inner.ptr,
+                fd
+            );
+            Client::from_ptr(ret)
+        }
+    }
 }
 
 #[cfg(feature = "native_lib")]

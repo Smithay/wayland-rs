@@ -25,6 +25,7 @@ impl ClientInternal {
 /// A handle to a client connected to your server
 ///
 /// There can be several handles referring to the same client
+#[derive(Clone)]
 pub struct Client {
     internal: Arc<ClientInternal>,
     #[cfg(feature = "native_lib")]
@@ -94,6 +95,18 @@ impl Client {
         }
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, self.ptr);
+        }
+    }
+
+    /// Kills this client
+    ///
+    /// Does nothing if the client is already dead
+    pub fn kill(&self) {
+        if !self.alive() {
+            return;
+        }
+        unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_destroy, self.ptr);
         }
     }
 
