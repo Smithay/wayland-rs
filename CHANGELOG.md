@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.2 - 2018-04-30
+
 - [server] Add methods for manual client management
 
 ## 0.20.1 - 2018-04-23
