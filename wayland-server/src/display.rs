@@ -6,7 +6,7 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
 use std::ptr;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use wayland_commons::{Implementation, Interface};
 
@@ -42,7 +42,7 @@ impl Drop for DisplayInner {
 /// be kept alive as long as your server is running. It allows
 /// you to manage listening sockets and clients.
 pub struct Display {
-    inner: Arc<DisplayInner>,
+    inner: Rc<DisplayInner>,
 }
 
 impl Display {
@@ -58,7 +58,7 @@ impl Display {
         let ptr = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,) };
 
         let display = Display {
-            inner: Arc::new(DisplayInner { ptr: ptr }),
+            inner: Rc::new(DisplayInner { ptr: ptr }),
         };
 
         // setup the client_created listener
@@ -92,23 +92,13 @@ impl Display {
     /// a lower version number.
     pub fn create_global<I: Interface, Impl>(
         &mut self,
-        token: &LoopToken,
+        _: &LoopToken,
         version: u32,
         implementation: Impl,
     ) -> Global<I>
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
-        let token_inner = token
-            .inner
-            .inner
-            .as_ref()
-            .expect("Display::create_global requires the token associated with the display event loop.");
-        assert!(
-            Arc::ptr_eq(&self.inner, token_inner),
-            "Display::create_global requires the token associated with the display event loop."
-        );
-
         let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
 
         unsafe {

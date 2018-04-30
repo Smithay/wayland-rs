@@ -17,7 +17,7 @@ use wayland_sys::server::*;
 pub(crate) struct EventLoopInner {
     #[cfg(feature = "native_lib")]
     wlevl: *mut wl_event_loop,
-    pub(crate) inner: Option<Arc<DisplayInner>>,
+    pub(crate) inner: Option<Rc<DisplayInner>>,
 }
 
 /// An event loop
@@ -87,7 +87,7 @@ impl EventLoop {
     }
 
     #[cfg(feature = "native_lib")]
-    pub(crate) unsafe fn display_new(disp_inner: Arc<DisplayInner>, ptr: *mut wl_event_loop) -> EventLoop {
+    pub(crate) unsafe fn display_new(disp_inner: Rc<DisplayInner>, ptr: *mut wl_event_loop) -> EventLoop {
         EventLoop {
             inner: Rc::new(EventLoopInner {
                 wlevl: ptr,
