@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.20.3 - 2018-05-07
+
+- [protocols] Tweak cargo features to avoid always pulling both wayland-client and wayland-server.
+
 ## 0.20.2 - 2018-04-30
 
 - [server] Add methods for manual client management
