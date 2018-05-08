@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Check availability of library in `Display::connect_to_env`
+
 ## 0.20.3 - 2018-05-07
 
 - [protocols] Tweak cargo features to avoid always pulling both wayland-client and wayland-server.
