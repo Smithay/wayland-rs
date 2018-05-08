@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.4 - 2018-05-08
+
 - [client] Check availability of library in `Display::connect_to_env`
 
 ## 0.20.3 - 2018-05-07
