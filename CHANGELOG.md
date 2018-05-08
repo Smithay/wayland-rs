@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Check availability of library in `Display::connect_to_env`
+
 ## 0.20.2 - 2018-04-30
 
 - [server] Add methods for manual client management

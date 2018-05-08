@@ -102,6 +102,10 @@ impl Display {
         }
         #[cfg(feature = "native_lib")]
         {
+            if !::wayland_sys::client::is_lib_available() {
+                return Err(ConnectError::NoWaylandLib);
+            }
+
             unsafe {
                 let display_ptr = ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
