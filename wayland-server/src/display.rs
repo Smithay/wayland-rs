@@ -300,12 +300,7 @@ impl Display {
         }
         #[cfg(feature = "native_lib")]
         {
-            let ret = ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_client_create,
-                self.inner.ptr,
-                fd
-            );
+            let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.inner.ptr, fd);
             Client::from_ptr(ret)
         }
     }
