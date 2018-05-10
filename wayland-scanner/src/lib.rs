@@ -99,23 +99,20 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
 
-mod util;
+mod c_code_gen;
+mod c_interface_gen;
+mod common_gen;
 mod parse;
 mod protocol;
 mod side;
-mod common_gen;
-mod c_interface_gen;
-mod c_code_gen;
+mod util;
 
 pub use side::Side;
 
 fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
     let pfile = match File::open(prot.as_ref()) {
         Ok(f) => f,
-        Err(_) => panic!(
-            "Unable to open protocol file `{}`.",
-            prot.as_ref().display()
-        ),
+        Err(_) => panic!("Unable to open protocol file `{}`.", prot.as_ref().display()),
     };
     parse::parse_stream(pfile)
 }

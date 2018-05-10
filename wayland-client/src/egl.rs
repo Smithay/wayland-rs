@@ -45,13 +45,7 @@ impl WlEglSurface {
     ///
     /// This function is unsafe because `surface` must be a valid wl_surface pointer
     pub unsafe fn new_from_raw(surface: *mut wl_proxy, width: i32, height: i32) -> WlEglSurface {
-        let ptr = ffi_dispatch!(
-            WAYLAND_EGL_HANDLE,
-            wl_egl_window_create,
-            surface,
-            width,
-            height
-        );
+        let ptr = ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_create, surface, width, height);
         WlEglSurface { ptr: ptr }
     }
 

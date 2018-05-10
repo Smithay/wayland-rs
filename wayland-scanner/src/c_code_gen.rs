@@ -1,10 +1,10 @@
 use std::io::Result as IOResult;
 use std::io::Write;
 
+use Side;
 use common_gen::*;
 use protocol::*;
 use util::*;
-use Side;
 
 pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
     write_prefix(&protocol, out)?;
@@ -97,12 +97,7 @@ pub fn write_messagegroup_impl<O: Write>(
     let mut n = messages.len();
     for msg in messages {
         if msg.typ == Some(Type::Destructor) {
-            write!(
-                out,
-                "                {}::{} ",
-                name,
-                snake_to_camel(&msg.name)
-            )?;
+            write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
             if msg.args.len() > 0 {
                 write!(out, "{{ .. }} ")?;
             }
@@ -278,12 +273,7 @@ pub fn write_messagegroup_impl<O: Write>(
     } else {
         writeln!(out, "            match self {{")?;
         for (i, msg) in messages.iter().enumerate() {
-            write!(
-                out,
-                "                {}::{} ",
-                name,
-                snake_to_camel(&msg.name)
-            )?;
+            write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
             if msg.args.len() > 0 {
                 write!(out, "{{ ")?;
                 for a in &msg.args {
@@ -439,10 +429,7 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
         let return_type = print_method_prototype(name, &msg, out)?;
         writeln!(out, " {{")?;
         // liveness sanity check
-        writeln!(
-            out,
-            "            if !self.is_external() && !self.is_alive() {{"
-        )?;
+        writeln!(out, "            if !self.is_external() && !self.is_alive() {{")?;
         if return_type.is_some() {
             writeln!(out, "                return Err(());")?;
         } else {
@@ -551,10 +538,7 @@ fn print_method_prototype<'a, O: Write>(
     for arg in &msg.args {
         match arg.typ {
             Type::NewId => if newid.is_some() {
-                panic!(
-                    "Request {}.{} returns more than one new_id",
-                    iname, msg.name
-                );
+                panic!("Request {}.{} returns more than one new_id", iname, msg.name);
             } else {
                 newid = Some(arg);
             },

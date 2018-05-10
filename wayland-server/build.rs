@@ -12,11 +12,7 @@ fn main() {
 
     if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
         // Generate the C code
-        generate_c_code(
-            protocol_file,
-            out_dir.join("wayland_c_api.rs"),
-            Side::Server,
-        );
+        generate_c_code(protocol_file, out_dir.join("wayland_c_api.rs"), Side::Server);
         generate_c_interfaces(protocol_file, out_dir.join("wayland_c_interfaces.rs"));
     }
 }

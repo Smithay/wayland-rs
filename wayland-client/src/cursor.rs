@@ -77,10 +77,7 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &Proxy<WlShm>) -> CursorTh
         }
     };
 
-    assert!(
-        !ptr.is_null(),
-        "Memory allocation failure while loading a theme."
-    );
+    assert!(!ptr.is_null(), "Memory allocation failure while loading a theme.");
 
     CursorTheme { theme: ptr }
 }
@@ -148,14 +145,7 @@ impl<'a> Cursor<'a> {
     /// after a given amount of time since the beginning of the animation,
     /// in milliseconds.
     pub fn frame(&self, duration: u32) -> usize {
-        let frame = unsafe {
-            ffi_dispatch!(
-                WAYLAND_CURSOR_HANDLE,
-                wl_cursor_frame,
-                self.cursor,
-                duration
-            )
-        };
+        let frame = unsafe { ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame, self.cursor, duration) };
         frame as usize
     }
 

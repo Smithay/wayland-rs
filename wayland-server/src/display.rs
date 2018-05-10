@@ -10,8 +10,8 @@ use std::rc::Rc;
 
 use wayland_commons::{Implementation, Interface};
 
-use {Client, EventLoop, Global, LoopToken, NewResource};
 use globals::global_bind;
+use {Client, EventLoop, Global, LoopToken, NewResource};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
@@ -127,13 +127,7 @@ impl Display {
         }
         #[cfg(feature = "native_lib")]
         {
-            unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_display_flush_clients,
-                    self.inner.ptr
-                )
-            };
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.inner.ptr) };
         }
     }
 }
@@ -219,28 +213,18 @@ impl Display {
         }
         #[cfg(feature = "native_lib")]
         {
-            let ret = unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_display_add_socket_auto,
-                    self.inner.ptr
-                )
-            };
+            let ret =
+                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.inner.ptr) };
             if ret.is_null() {
                 // try to be helpfull
                 let socket_name = get_runtime_dir()?;
                 Err(IoError::new(
                     ErrorKind::Other,
-                    format!(
-                        "no available wayland-* name in {}",
-                        socket_name.to_string_lossy()
-                    ),
+                    format!("no available wayland-* name in {}", socket_name.to_string_lossy()),
                 ))
             } else {
                 let sockname = unsafe { CStr::from_ptr(ret) };
-                Ok(<OsString as OsStringExt>::from_vec(
-                    sockname.to_bytes().into(),
-                ))
+                Ok(<OsString as OsStringExt>::from_vec(sockname.to_bytes().into()))
             }
         }
     }

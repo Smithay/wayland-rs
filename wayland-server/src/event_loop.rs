@@ -160,13 +160,7 @@ impl EventLoop {
         self.stop_signal.store(false, atomic::Ordering::Release);
         loop {
             if let Some(ref display_inner) = self.inner.inner {
-                unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_SERVER_HANDLE,
-                        wl_display_flush_clients,
-                        display_inner.ptr
-                    )
-                };
+                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, display_inner.ptr) };
             }
             self.dispatch(None)?;
             if self.stop_signal.load(atomic::Ordering::Acquire) {
@@ -318,11 +312,7 @@ impl LoopToken {
     pub(crate) unsafe fn matches(&self, resource_ptr: *mut wl_resource) -> bool {
         let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource_ptr);
         let display_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_display, client_ptr);
-        let event_loop_ptr = ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_display_get_event_loop,
-            display_ptr
-        );
+        let event_loop_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, display_ptr);
         return event_loop_ptr == self.inner.wlevl;
     }
 }

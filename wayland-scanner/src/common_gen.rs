@@ -1,9 +1,9 @@
 use std::io::Result as IOResult;
 use std::io::Write;
 
+use Side;
 use protocol::*;
 use util::*;
-use Side;
 
 pub(crate) fn write_prefix<O: Write>(protocol: &Protocol, out: &mut O) -> IOResult<()> {
     writeln!(
@@ -122,11 +122,7 @@ pub(crate) fn write_enums<O: Write>(enums: &[Enum], out: &mut O) -> IOResult<()>
             if let Some((ref short, ref long)) = enu.description {
                 write_doc(Some(short), long, false, out, 2)?;
             }
-            writeln!(
-                out,
-                "        pub struct {}: u32 {{",
-                snake_to_camel(&enu.name)
-            )?;
+            writeln!(out, "        pub struct {}: u32 {{", snake_to_camel(&enu.name))?;
             for entry in &enu.entries {
                 if let Some((ref short, ref long)) = entry.description {
                     write_doc(Some(short), long, false, out, 3)?;

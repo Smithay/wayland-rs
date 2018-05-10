@@ -329,14 +329,8 @@ impl<I: Interface> Proxy<I> {
         }
         #[cfg(feature = "native_lib")]
         {
-            let ptr = unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_proxy_create,
-                    self.ptr,
-                    C::c_interface()
-                )
-            };
+            let ptr =
+                unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create, self.ptr, C::c_interface()) };
             NewProxy {
                 _i: ::std::marker::PhantomData,
                 ptr: ptr,
@@ -510,12 +504,12 @@ impl<I: Interface + 'static> NewProxy<I> {
 
 #[cfg(feature = "native_lib")]
 mod native_machinery {
-    use wayland_sys::common::*;
     use wayland_sys::client::*;
+    use wayland_sys::common::*;
 
+    use std::os::raw::{c_int, c_void};
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
-    use std::os::raw::{c_int, c_void};
 
     use super::Proxy;
 

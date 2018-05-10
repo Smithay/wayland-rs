@@ -1,13 +1,13 @@
 #[cfg(feature = "native_lib")]
 use std::ffi::{CString, OsString};
 use std::io;
+use std::ops::Deref;
 #[cfg(feature = "native_lib")]
 use std::os::unix::ffi::OsStringExt;
 use std::sync::Arc;
-use std::ops::Deref;
 
-use Proxy;
 use EventQueue;
+use Proxy;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::*;
@@ -107,11 +107,8 @@ impl Display {
             }
 
             unsafe {
-                let display_ptr = ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_connect,
-                    ::std::ptr::null()
-                );
+                let display_ptr =
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null());
 
                 Display::make_display(display_ptr)
             }
@@ -171,11 +168,7 @@ impl Display {
         }
         #[cfg(feature = "native_lib")]
         unsafe {
-            let ptr = ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_display_create_queue,
-                self.inner.ptr()
-            );
+            let ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.inner.ptr());
 
             EventQueue::new(self.inner.clone(), Some(ptr))
         }

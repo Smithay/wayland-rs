@@ -1,6 +1,6 @@
-use std::io::Result as IOResult;
 use protocol::*;
 use std::cmp;
+use std::io::Result as IOResult;
 use std::io::Write;
 
 pub(crate) fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {

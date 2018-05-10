@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use commons::{Implementation, Interface};
-use {NewProxy, Proxy};
 use protocol::wl_registry::{self, RequestsTrait};
+use {NewProxy, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
@@ -116,12 +116,7 @@ impl GlobalManager {
                     );
                 }
                 wl_registry::Event::GlobalRemove { name } => {
-                    if let Some((i, _)) = inner
-                        .list
-                        .iter()
-                        .enumerate()
-                        .find(|&(_, &(n, _, _))| n == name)
-                    {
+                    if let Some((i, _)) = inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name) {
                         let (id, interface, _) = inner.list.swap_remove(i);
                         inner.callback.receive(
                             GlobalEvent::Removed {
@@ -162,7 +157,7 @@ impl GlobalManager {
     }
 
     #[doc(hidden)]
-    #[deprecated(since="0.20.5", note="Use the corrected `instantiate_auto` method instead.")]
+    #[deprecated(since = "0.20.5", note = "Use the corrected `instantiate_auto` method instead.")]
     pub fn instanciate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
         self.instantiate_auto()
     }
@@ -186,7 +181,7 @@ impl GlobalManager {
     }
 
     #[doc(hidden)]
-    #[deprecated(since="0.20.5", note="Use the corrected `instantiate_exact` method instead.")]
+    #[deprecated(since = "0.20.5", note = "Use the corrected `instantiate_exact` method instead.")]
     pub fn instanciate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
         self.instantiate_exact(version)
     }

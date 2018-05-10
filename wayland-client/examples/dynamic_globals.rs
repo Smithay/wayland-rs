@@ -76,10 +76,7 @@ fn main() {
                                 transform,
                             } => {
                                 println!("New output: \"{} ({})\"", make, model);
-                                println!(
-                                    " -> physical dimensions {}x{}",
-                                    physical_width, physical_height
-                                );
+                                println!(" -> physical dimensions {}x{}", physical_width, physical_height);
                                 println!(" -> location in the compositor space: ({}, {})", x, y);
                                 println!(" -> transform: {:?}", transform);
                                 println!(" -> subpixel orientation: {:?}", subpixel);

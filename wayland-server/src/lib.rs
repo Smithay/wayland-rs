@@ -113,8 +113,8 @@ pub mod sources;
 
 pub use client::Client;
 pub use display::Display;
-pub use globals::Global;
 pub use event_loop::{EventLoop, LoopSignal, LoopToken};
+pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
 /// Re-export of wayland-commons
@@ -151,9 +151,9 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
-        pub(crate) use {NewResource, Resource};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
+        pub(crate) use {NewResource, Resource};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
 }

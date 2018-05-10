@@ -97,11 +97,7 @@ impl EventQueue {
                     )
                 },
                 None => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch,
-                        self.inner.inner.ptr()
-                    )
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.inner.inner.ptr())
                 },
             };
             if ret >= 0 {

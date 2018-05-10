@@ -8,10 +8,10 @@
 //! event sources.
 
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::io::Error as IoError;
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
+use std::rc::Rc;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
@@ -272,10 +272,7 @@ impl IdleSource {
         ptr: *mut wl_event_source,
         data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
     ) -> IdleSource {
-        IdleSource {
-            ptr: ptr,
-            data: data,
-        }
+        IdleSource { ptr: ptr, data: data }
     }
 
     /// Remove this event source from its event loop

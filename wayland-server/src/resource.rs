@@ -488,9 +488,9 @@ mod native_machinery {
     use wayland_sys::common::*;
     use wayland_sys::server::*;
 
+    use std::os::raw::{c_int, c_void};
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
-    use std::os::raw::{c_int, c_void};
 
     use super::Resource;
 
@@ -499,12 +499,10 @@ mod native_machinery {
     pub(crate) struct ResourceUserData<I: Interface> {
         _i: ::std::marker::PhantomData<*const I>,
         pub(crate) internal: Arc<super::ResourceInternal>,
-        implem: Option<
-            (
-                Box<Implementation<Resource<I>, I::Request>>,
-                Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
-            ),
-        >,
+        implem: Option<(
+            Box<Implementation<Resource<I>, I::Request>>,
+            Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
+        )>,
     }
 
     impl<I: Interface> ResourceUserData<I> {
@@ -605,10 +603,7 @@ mod native_machinery {
         });
 
         if let Err(_) = ret {
-            eprintln!(
-                "[wayland-client error] A destructor for {} panicked.",
-                I::NAME
-            );
+            eprintln!("[wayland-client error] A destructor for {} panicked.", I::NAME);
             ::libc::abort()
         }
     }

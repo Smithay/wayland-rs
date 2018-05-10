@@ -8,15 +8,15 @@ use std::os::unix::io::AsRawFd;
 
 use byteorder::{NativeEndian, WriteBytesExt};
 
-use wayland_client::{Display, GlobalManager, Proxy};
-use wayland_client::protocol::{wl_compositor, wl_seat, wl_shell, wl_shell_surface, wl_shm};
-use wayland_client::protocol::wl_display::RequestsTrait as DisplayRequests;
 use wayland_client::protocol::wl_compositor::RequestsTrait as CompositorRequests;
-use wayland_client::protocol::wl_surface::RequestsTrait as SurfaceRequests;
-use wayland_client::protocol::wl_shm::RequestsTrait as ShmRequests;
-use wayland_client::protocol::wl_shm_pool::RequestsTrait as PoolRequests;
+use wayland_client::protocol::wl_display::RequestsTrait as DisplayRequests;
 use wayland_client::protocol::wl_shell::RequestsTrait as ShellRequests;
 use wayland_client::protocol::wl_shell_surface::RequestsTrait as ShellSurfaceRequests;
+use wayland_client::protocol::wl_shm::RequestsTrait as ShmRequests;
+use wayland_client::protocol::wl_shm_pool::RequestsTrait as PoolRequests;
+use wayland_client::protocol::wl_surface::RequestsTrait as SurfaceRequests;
+use wayland_client::protocol::{wl_compositor, wl_seat, wl_shell, wl_shell_surface, wl_shm};
+use wayland_client::{Display, GlobalManager, Proxy};
 
 fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
@@ -34,9 +34,7 @@ fn main() {
     let buf_y: u32 = 240;
 
     // create a tempfile to write the conents of the window on
-    let mut tmp = tempfile::tempfile()
-        .ok()
-        .expect("Unable to create a tempfile.");
+    let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {
         let x = (i % buf_x) as u32;
@@ -110,49 +108,42 @@ fn main() {
     // dynamically), however most "traditional" setups have a single
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
-    let _seat = globals
-        .instantiate_auto::<wl_seat::WlSeat>()
-        .unwrap()
-        .implement(move |event, seat: Proxy<wl_seat::WlSeat>| {
+    let _seat = globals.instantiate_auto::<wl_seat::WlSeat>().unwrap().implement(
+        move |event, seat: Proxy<wl_seat::WlSeat>| {
             // The capabilities of a seat are known at runtime and we retrieve
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer here
+            use wayland_client::protocol::wl_pointer::Event as PointerEvent;
             use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent,
                                                     RequestsTrait as SeatRequests};
-            use wayland_client::protocol::wl_pointer::Event as PointerEvent;
 
             if let SeatEvent::Capabilities { capabilities } = event {
                 if !pointer_created && capabilities.contains(Capability::Pointer) {
                     // create the pointer only once
                     pointer_created = true;
-                    seat.get_pointer()
-                        .unwrap()
-                        .implement(|event, _| match event {
-                            PointerEvent::Enter {
-                                surface_x,
-                                surface_y,
-                                ..
-                            } => {
-                                println!("Pointer entered at ({}, {}).", surface_x, surface_y);
-                            }
-                            PointerEvent::Leave { .. } => {
-                                println!("Pointer left.");
-                            }
-                            PointerEvent::Motion {
-                                surface_x,
-                                surface_y,
-                                ..
-                            } => {
-                                println!("Pointer moved to ({}, {}).", surface_x, surface_y);
-                            }
-                            PointerEvent::Button { button, state, .. } => {
-                                println!("Button {} was {:?}.", button, state);
-                            }
-                            _ => {}
-                        });
+                    seat.get_pointer().unwrap().implement(|event, _| match event {
+                        PointerEvent::Enter {
+                            surface_x, surface_y, ..
+                        } => {
+                            println!("Pointer entered at ({}, {}).", surface_x, surface_y);
+                        }
+                        PointerEvent::Leave { .. } => {
+                            println!("Pointer left.");
+                        }
+                        PointerEvent::Motion {
+                            surface_x, surface_y, ..
+                        } => {
+                            println!("Pointer moved to ({}, {}).", surface_x, surface_y);
+                        }
+                        PointerEvent::Button { button, state, .. } => {
+                            println!("Button {} was {:?}.", button, state);
+                        }
+                        _ => {}
+                    });
                 }
             }
-        });
+        },
+    );
 
     loop {
         display.flush().unwrap();

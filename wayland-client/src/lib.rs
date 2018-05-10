@@ -136,10 +136,10 @@ mod event_queue;
 mod globals;
 mod proxy;
 
-pub use proxy::{NewProxy, Proxy};
 pub use display::Display;
-pub use globals::{GlobalError, GlobalEvent, GlobalManager};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
+pub use globals::{GlobalError, GlobalEvent, GlobalManager};
+pub use proxy::{NewProxy, Proxy};
 
 #[cfg(feature = "cursor")]
 pub mod cursor;
@@ -181,9 +181,9 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
-        pub(crate) use {NewProxy, Proxy};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
+        pub(crate) use {NewProxy, Proxy};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
 }
