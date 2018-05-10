@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Fix a typo in the name of `instantiate_*` methods of `GlobalManager`. Old names
+  are kept for backward compatibility but marked as deprecated.
+
 ## 0.20.4 - 2018-05-08
 
 - [client] Check availability of library in `Display::connect_to_env`

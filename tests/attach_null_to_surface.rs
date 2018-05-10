@@ -69,7 +69,7 @@ fn attach_null() {
     roundtrip(&mut client, &mut server);
 
     let compositor = manager
-        .instanciate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
         .unwrap()
         .implement(|_, _| {});
     let surface = compositor.create_surface().unwrap().implement(|_, _| {});

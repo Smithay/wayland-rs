@@ -151,7 +151,7 @@ impl GlobalManager {
     /// This method is only appropriate for globals that are expected to
     /// not exist with multiplicity (sur as `wl_compositor` or `wl_shm`),
     /// as it will only bind a single one.
-    pub fn instanciate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
+    pub fn instantiate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, version) in &inner.list {
             if interface == I::NAME {
@@ -161,11 +161,17 @@ impl GlobalManager {
         Err(GlobalError::Missing)
     }
 
+    #[doc(hidden)]
+    #[deprecated(since="0.20.5", note="Use the corrected `instantiate_auto` method instead.")]
+    pub fn instanciate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
+        self.instantiate_auto()
+    }
+
     /// Instanciate a global with a specific version
     ///
-    /// Like `instanciate_auto`, but will bind a specific version of
+    /// Like `instantiate_auto`, but will bind a specific version of
     /// this global an not the highest available.
-    pub fn instanciate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
+    pub fn instantiate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, server_version) in &inner.list {
             if interface == I::NAME {
@@ -177,6 +183,12 @@ impl GlobalManager {
             }
         }
         Err(GlobalError::Missing)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(since="0.20.5", note="Use the corrected `instantiate_exact` method instead.")]
+    pub fn instanciate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
+        self.instantiate_exact(version)
     }
 
     /// Retrieve the list of currently known globals
@@ -226,7 +238,7 @@ impl GlobalManager {
 /// The supplied callbacks for each global kind must be an instance of a type
 /// implementing the `Interface<Result<NewProxy<I>, u32>, ()>` trait. The
 /// argument provided to your callback is a result containing the `NewProxy`
-/// of the newly instanciated global on success. The error case happens if the
+/// of the newly instantiated global on success. The error case happens if the
 /// server advertized a lower version of the global than the one you requested,
 /// in which case you are given the version it advertized.
 ///
