@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.20.6 - 2018-05-11
+
 - [client] Expose `ConnectError` which should have been public from start.
 
 ## 0.20.5 - 2018-05-10
