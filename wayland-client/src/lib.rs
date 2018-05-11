@@ -136,7 +136,7 @@ mod event_queue;
 mod globals;
 mod proxy;
 
-pub use display::Display;
+pub use display::{Display, ConnectError};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 pub use globals::{GlobalError, GlobalEvent, GlobalManager};
 pub use proxy::{NewProxy, Proxy};

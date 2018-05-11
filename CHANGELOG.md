@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Expose `ConnectError` which should have been public from start.
+
 ## 0.20.5 - 2018-05-10
 
 - [client] Fix a typo in the name of `instantiate_*` methods of `GlobalManager`. Old names
