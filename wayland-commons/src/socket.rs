@@ -344,3 +344,196 @@ impl<T: Copy + Default> Buffer<T> {
         &mut self.storage[(self.occupied)..]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wire::{Argument, ArgumentType, Message};
+
+    use std::ffi::CString;
+
+    fn same_file(a: RawFd, b: RawFd) -> bool {
+        let stat1 = ::nix::sys::stat::fstat(a).unwrap();
+        let stat2 = ::nix::sys::stat::fstat(b).unwrap();
+        stat1.st_dev == stat2.st_dev && stat1.st_ino == stat2.st_ino
+    }
+
+    // check if two messages are equal
+    //
+    // if arguments contain FDs, check that the fd point to
+    // the same file, rather than are the same number.
+    fn assert_eq_msgs(msg1: &Message, msg2: &Message) {
+        assert_eq!(msg1.sender_id, msg2.sender_id);
+        assert_eq!(msg1.opcode, msg2.opcode);
+        assert_eq!(msg1.args.len(), msg2.args.len());
+        for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
+            if let (&Argument::Fd(fd1), &Argument::Fd(fd2)) = (arg1, arg2) {
+                assert!(same_file(fd1, fd2));
+            } else {
+                assert_eq!(arg1, arg2);
+            }
+        }
+    }
+
+    #[test]
+    fn write_read_cycle() {
+        let msg = Message {
+            sender_id: 42,
+            opcode: 7,
+            args: vec![
+                Argument::Uint(3),
+                Argument::Fixed(-89),
+                Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
+                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                Argument::Object(88),
+                Argument::NewId(56),
+                Argument::Int(-25),
+            ],
+        };
+
+        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
+        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+
+        client.write_message(&msg).unwrap();
+        client.flush().unwrap();
+
+        static SIGNATURE: &'static [ArgumentType] = &[
+            ArgumentType::Uint,
+            ArgumentType::Fixed,
+            ArgumentType::Str,
+            ArgumentType::Array,
+            ArgumentType::Object,
+            ArgumentType::NewId,
+            ArgumentType::Int,
+        ];
+
+        let ret = server
+            .read_messages(
+                |sender_id, opcode| {
+                    if sender_id == 42 && opcode == 7 {
+                        Some(SIGNATURE)
+                    } else {
+                        None
+                    }
+                },
+                |message| {
+                    assert_eq_msgs(&message, &msg);
+                    true
+                },
+            )
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(ret, 1);
+    }
+
+    #[test]
+    fn write_read_cycle_fd() {
+        let msg = Message {
+            sender_id: 42,
+            opcode: 7,
+            args: vec![
+                Argument::Fd(1), // stdin
+                Argument::Fd(0), // stdout
+            ],
+        };
+
+        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
+        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+
+        client.write_message(&msg).unwrap();
+        client.flush().unwrap();
+
+        static SIGNATURE: &'static [ArgumentType] = &[ArgumentType::Fd, ArgumentType::Fd];
+
+        let ret = server
+            .read_messages(
+                |sender_id, opcode| {
+                    if sender_id == 42 && opcode == 7 {
+                        Some(SIGNATURE)
+                    } else {
+                        None
+                    }
+                },
+                |message| {
+                    assert_eq_msgs(&message, &msg);
+                    true
+                },
+            )
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(ret, 1);
+    }
+
+    #[test]
+    fn write_read_cycle_multiple() {
+        let messages = [
+            Message {
+                sender_id: 42,
+                opcode: 0,
+                args: vec![
+                    Argument::Int(42),
+                    Argument::Str(CString::new(&b"I like trains"[..]).unwrap()),
+                ],
+            },
+            Message {
+                sender_id: 42,
+                opcode: 1,
+                args: vec![
+                    Argument::Fd(1), // stdin
+                    Argument::Fd(0), // stdout
+                ],
+            },
+            Message {
+                sender_id: 42,
+                opcode: 2,
+                args: vec![
+                    Argument::Uint(3),
+                    Argument::Fd(2), // stderr
+                ],
+            },
+        ];
+
+        static SIGNATURES: &'static [&'static [ArgumentType]] = &[
+            &[ArgumentType::Int, ArgumentType::Str],
+            &[ArgumentType::Fd, ArgumentType::Fd],
+            &[ArgumentType::Uint, ArgumentType::Fd],
+        ];
+
+        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
+        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+
+        for msg in &messages {
+            client.write_message(msg).unwrap();
+        }
+        client.flush().unwrap();
+
+        let mut recv_msgs = Vec::new();
+        let ret = server
+            .read_messages(
+                |sender_id, opcode| {
+                    if sender_id == 42 {
+                        Some(SIGNATURES[opcode as usize])
+                    } else {
+                        None
+                    }
+                },
+                |message| {
+                    recv_msgs.push(message);
+                    true
+                },
+            )
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(ret, 3);
+        assert_eq!(recv_msgs.len(), 3);
+        for (msg1, msg2) in messages.iter().zip(recv_msgs.iter()) {
+            assert_eq_msgs(msg1, msg2);
+        }
+    }
+}

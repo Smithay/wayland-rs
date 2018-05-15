@@ -350,3 +350,46 @@ impl Drop for FdStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn into_from_raw_cycle() {
+        let mut bytes_buffer = vec![0; 1024];
+        let mut fd_buffer = vec![0; 10];
+
+        let msg = Message {
+            sender_id: 42,
+            opcode: 7,
+            args: vec![
+                Argument::Uint(3),
+                Argument::Fixed(-89),
+                Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
+                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                Argument::Object(88),
+                Argument::NewId(56),
+                Argument::Int(-25),
+            ],
+        };
+        // write the message to the buffers
+        msg.write_to_buffers(&mut bytes_buffer[..], &mut fd_buffer[..])
+            .unwrap();
+        // read them back
+        let (rebuilt, _, _) = Message::from_raw(
+            &bytes_buffer[..],
+            &[
+                ArgumentType::Uint,
+                ArgumentType::Fixed,
+                ArgumentType::Str,
+                ArgumentType::Array,
+                ArgumentType::Object,
+                ArgumentType::NewId,
+                ArgumentType::Int,
+            ],
+            &fd_buffer[..],
+        ).unwrap();
+        assert_eq!(rebuilt, msg);
+    }
+}
