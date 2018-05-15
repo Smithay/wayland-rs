@@ -17,6 +17,7 @@
 
 #[macro_use]
 extern crate downcast_rs as downcast;
+extern crate nix;
 #[cfg(feature = "native_lib")]
 extern crate wayland_sys;
 #[cfg(feature = "native_lib")]
@@ -25,6 +26,8 @@ use wayland_sys::common as syscom;
 use std::os::raw::c_void;
 
 use downcast::Downcast;
+
+pub mod wire;
 
 /// A group of messages
 ///

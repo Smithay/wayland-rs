@@ -15,6 +15,7 @@ travis-ci = { repository = "smithay/wayland-rs" }
 [dependencies]
 wayland-sys = { version = "0.20.11", path = "../wayland-sys", optional = true }
 downcast-rs = "1.0"
+nix = "0.10"
 
 [features]
 default = ["native_lib"]
