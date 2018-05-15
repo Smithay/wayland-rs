@@ -27,6 +27,9 @@ use std::os::raw::c_void;
 
 use downcast::Downcast;
 
+pub mod dispatching;
+pub mod map;
+pub mod socket;
 pub mod wire;
 
 /// A group of messages
@@ -37,6 +40,8 @@ pub mod wire;
 /// Implementations of this trait are supposed to be
 /// generated using the `wayland-scanner` crate.
 pub trait MessageGroup: Sized {
+    /// Wire representation of this MessageGroup
+    const MESSAGES: &'static [wire::MessageDesc];
     /// Whether this message is a destructor
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
@@ -70,6 +75,8 @@ pub trait Interface: 'static {
     type Event: MessageGroup + 'static;
     /// Name of this interface
     const NAME: &'static str;
+    /// Maximum supported version of this interface
+    const VERSION: u32;
     #[cfg(feature = "native_lib")]
     /// Pointer to the C representation of this interface
     fn c_interface() -> *const ::syscom::wl_interface;
@@ -136,6 +143,7 @@ impl Interface for AnonymousObject {
     type Request = NoMessage;
     type Event = NoMessage;
     const NAME: &'static str = "";
+    const VERSION: u32 = 0;
     #[cfg(feature = "native_lib")]
     fn c_interface() -> *const ::syscom::wl_interface {
         ::std::ptr::null()
@@ -143,6 +151,7 @@ impl Interface for AnonymousObject {
 }
 
 impl MessageGroup for NoMessage {
+    const MESSAGES: &'static [wire::MessageDesc] = &[];
     fn is_destructor(&self) -> bool {
         match *self {}
     }

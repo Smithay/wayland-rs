@@ -7,29 +7,55 @@ use std::ptr;
 use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
 
+/// Wire metadata of a given message
+pub struct MessageDesc {
+    /// Name of this message
+    pub name: &'static str,
+    /// Signature of the message
+    pub signature: &'static [ArgumentType],
+    /// Minimum required version of the interface
+    pub since: u32,
+}
+
 /// Enum of possible argument types as recognized by the wire
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ArgumentType {
+    /// i32
     Int,
+    /// u32
     Uint,
+    /// fixed point, 1/256 precision
     Fixed,
+    /// CString
     Str,
+    /// id of a wayland object
     Object,
+    /// id of a newly created wayland object
     NewId,
+    /// Vec<u8>
     Array,
+    /// RawFd
     Fd,
 }
 
 /// Enum of possible argument as recognized by the wire, including values
 #[derive(Clone, PartialEq, Debug)]
 pub enum Argument {
+    /// i32
     Int(i32),
+    /// u32
     Uint(u32),
+    /// fixed point, 1/256 precision
     Fixed(i32),
+    /// CString
     Str(CString),
+    /// id of a wayland object
     Object(u32),
+    /// id of a newly created wayland object
     NewId(u32),
+    /// Vec<u8>
     Array(Vec<u8>),
+    /// RawFd
     Fd(RawFd),
 }
 
