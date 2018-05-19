@@ -14,7 +14,7 @@ pub mod wl_foo {
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -83,6 +83,27 @@ pub mod wl_foo {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "foo_it",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Int,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Str,
+                    super::ArgumentType::Fixed,
+                    super::ArgumentType::Fd,
+                ]
+            },
+            super::MessageDesc {
+                name: "create_bar",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::NewId,
+                ]
+            },
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
@@ -124,6 +145,17 @@ pub mod wl_foo {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "cake",
+                since: 2,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                ]
+            },
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
@@ -154,9 +186,11 @@ pub mod wl_foo {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_foo";
+        const VERSION: u32 = 3;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
+
     }
 
     pub trait RequestsTrait {
@@ -204,7 +238,7 @@ pub mod wl_bar {
     //!
     //! This interface allows you to bar your foos.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -224,6 +258,24 @@ pub mod wl_bar {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "bar_delivery",
+                since: 2,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Object,
+                    super::ArgumentType::Array,
+                ]
+            },
+            super::MessageDesc {
+                name: "release",
+                since: 1,
+                signature: &[
+                ]
+            },
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
                 Request::Release => true,
@@ -257,6 +309,9 @@ pub mod wl_bar {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -280,9 +335,11 @@ pub mod wl_bar {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_bar";
+        const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
+
     }
 
     pub trait RequestsTrait {
@@ -329,7 +386,7 @@ pub mod wl_display {
     //!
     //! This global is special and should only generate code client-side, not server-side.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -337,6 +394,9 @@ pub mod wl_display {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -356,6 +416,9 @@ pub mod wl_display {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -379,9 +442,11 @@ pub mod wl_display {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_display";
+        const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_display_interface }
         }
+
     }
 
     pub trait RequestsTrait {
@@ -396,7 +461,7 @@ pub mod wl_registry {
     //!
     //! This global is special and should only generate code client-side, not server-side.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -408,6 +473,17 @@ pub mod wl_registry {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "bind",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::NewId,
+                ]
+            },
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
@@ -437,6 +513,9 @@ pub mod wl_registry {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -460,9 +539,11 @@ pub mod wl_registry {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_registry";
+        const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_registry_interface }
         }
+
     }
 
     pub trait RequestsTrait {
@@ -505,7 +586,7 @@ pub mod wl_callback {
     //!
     //! This object has a special behavior regarding its destructor.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -513,6 +594,8 @@ pub mod wl_callback {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -539,6 +622,16 @@ pub mod wl_callback {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "done",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Uint,
+                ]
+            },
+        ];
+
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
@@ -568,9 +661,11 @@ pub mod wl_callback {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_callback";
+        const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
         }
+
     }
 
     pub trait RequestsTrait {

@@ -35,6 +35,7 @@ macro_rules! wayland_protocol(
                 //! Client-side API of this protocol
                 pub(crate) use wayland_client::{NewProxy, Proxy};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+                pub(crate) use wayland_commons::wire::{MessageDesc, ArgumentType};
                 pub(crate) use wayland_sys as sys;
                 pub(crate) use wayland_client::protocol::{$($import),*};
                 $(
@@ -48,6 +49,7 @@ macro_rules! wayland_protocol(
                 //! Server-side API of this protocol
                 pub(crate) use wayland_server::{NewResource, Resource};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+                    pub(crate) use wayland_commons::wire::{MessageDesc, ArgumentType};
                 pub(crate) use wayland_sys as sys;
                 pub(crate) use wayland_server::protocol::{$($import),*};
                 $(

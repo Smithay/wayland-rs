@@ -20,13 +20,47 @@ pub(crate) fn write_prefix<O: Write>(protocol: &Protocol, out: &mut O) -> IOResu
     Ok(())
 }
 
-pub(crate) fn write_messagegroup<O: Write>(
+pub(crate) fn write_interface<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
+    name: &str,
+    low_name: &str,
+    version: u32,
+    out: &mut O,
+    addon: Option<F>,
+) -> IOResult<()> {
+    writeln!(
+        out,
+        r#"
+    pub struct {name};
+
+    impl Interface for {name} {{
+        type Request = Request;
+        type Event = Event;
+        const NAME: &'static str = "{low_name}";
+        const VERSION: u32 = {version};
+"#,
+        name = name,
+        low_name = low_name,
+        version = version,
+    )?;
+    if let Some(addon) = addon {
+        addon(out)?;
+    }
+    writeln!(out, "    }}")?;
+    Ok(())
+}
+
+pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
     name: &str,
     side: Side,
     receiver: bool,
     messages: &[Message],
     out: &mut O,
+    addon: Option<F>,
 ) -> IOResult<()> {
+    /*
+     * Enum definition
+     */
+
     writeln!(out, "    pub enum {} {{", name)?;
     for m in messages {
         if let Some((ref short, ref long)) = m.description {
@@ -111,6 +145,59 @@ pub(crate) fn write_messagegroup<O: Write>(
         writeln!(out, ",")?
     }
     writeln!(out, "    }}\n")?;
+
+    /*
+     * MessageGroup implementation
+     */
+
+    writeln!(out, "    impl super::MessageGroup for {} {{", name)?;
+
+    // MESSAGES
+    writeln!(out, "        const MESSAGES: &'static [super::MessageDesc] = &[")?;
+    for msg in messages {
+        writeln!(out, "            super::MessageDesc {{")?;
+        writeln!(out, "                name: \"{}\",", msg.name)?;
+        writeln!(out, "                since: {},", msg.since)?;
+        writeln!(out, "                signature: &[")?;
+        for arg in &msg.args {
+            writeln!(
+                out,
+                "                    super::ArgumentType::{},",
+                arg.typ.common_type()
+            )?;
+        }
+        writeln!(out, "                ]")?;
+        writeln!(out, "            }},")?;
+    }
+    writeln!(out, "        ];")?;
+
+    // is_destructor
+    writeln!(out, "        fn is_destructor(&self) -> bool {{")?;
+    writeln!(out, "            match *self {{")?;
+    let mut n = messages.len();
+    for msg in messages {
+        if msg.typ == Some(Type::Destructor) {
+            write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
+            if msg.args.len() > 0 {
+                write!(out, "{{ .. }} ")?;
+            }
+            writeln!(out, "=> true,")?;
+            n -= 1;
+        }
+    }
+    if n > 0 {
+        // avoir "unreachable pattern" warnings =)
+        writeln!(out, "                _ => false")?;
+    }
+    writeln!(out, "            }}")?;
+    writeln!(out, "        }}\n")?;
+
+    if let Some(addon) = addon {
+        addon(out)?;
+    }
+
+    writeln!(out, "    }}\n")?;
+
     Ok(())
 }
 

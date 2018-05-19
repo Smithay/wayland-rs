@@ -169,4 +169,18 @@ impl Type {
             _ => "()",
         }
     }
+
+    pub fn common_type(&self) -> &'static str {
+        match *self {
+            Type::Int => "Int",
+            Type::Uint => "Uint",
+            Type::Fixed => "Fixed",
+            Type::Array => "Array",
+            Type::Fd => "Fd",
+            Type::String => "Str",
+            Type::Object => "Object",
+            Type::NewId => "NewId",
+            Type::Destructor => panic!("Destructor is not a valid argument type."),
+        }
+    }
 }
