@@ -71,6 +71,9 @@ impl<I: Interface> Resource<I> {
                     return;
                 }
             }
+
+            let destructor = msg.is_destructor();
+
             msg.as_raw_c_in(|opcode, args| unsafe {
                 ffi_dispatch!(
                     WAYLAND_SERVER_HANDLE,
@@ -80,6 +83,16 @@ impl<I: Interface> Resource<I> {
                     args.as_ptr() as *mut _
                 );
             });
+
+            if destructor {
+                // we need to destroy the proxy now
+                if let Some(ref internal) = self.internal {
+                    internal.alive.store(false, Ordering::Release);
+                }
+                unsafe {
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, self.ptr);
+                }
+            }
         }
     }
 

@@ -78,6 +78,7 @@ impl<I: Interface> Proxy<I> {
                     return;
                 }
             }
+            let destructor = msg.is_destructor();
             msg.as_raw_c_in(|opcode, args| unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -87,6 +88,16 @@ impl<I: Interface> Proxy<I> {
                     args.as_ptr() as *mut _
                 );
             });
+
+            if destructor {
+                // we need to destroy the proxy now
+                if let Some(ref internal) = self.internal {
+                    internal.alive.store(false, Ordering::Release);
+                }
+                unsafe {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr);
+                }
+            }
         }
     }
 

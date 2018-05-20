@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client/server] Bugfix: Actually destroy the proxy/resource when sending a destructor message.
+
 ## 0.20.6 - 2018-05-11
 
 - [client] Expose `ConnectError` which should have been public from start.
