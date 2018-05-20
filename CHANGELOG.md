@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+# 0.20.7 - 2018-05-20
+
 - [client/server] Bugfix: Actually destroy the proxy/resource when sending a destructor message.
 
 ## 0.20.6 - 2018-05-11
