@@ -187,21 +187,6 @@ impl<I: Interface> Proxy<I> {
         self.internal.is_none()
     }
 
-    /// Clone this proxy
-    ///
-    /// It only creates a new handle to the same wayland
-    /// object, and does not create a new one.
-    pub fn clone(&self) -> Proxy<I> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            internal: self.internal.clone(),
-            #[cfg(feature = "native_lib")]
-            ptr: self.ptr,
-            #[cfg(feature = "native_lib")]
-            is_wrapper: self.is_wrapper,
-        }
-    }
-
     /// Check if the other proxy refers to the same underlying wayland object
     pub fn equals(&self, other: &Proxy<I>) -> bool {
         #[cfg(not(feature = "native_lib"))]
@@ -371,6 +356,19 @@ impl<I: Interface> Proxy<I> {
                 &*ptr
             };
             user_data.is_impl::<Impl>()
+        }
+    }
+}
+
+impl<I: Interface> Clone for Proxy<I> {
+    fn clone(&self) -> Proxy<I> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            internal: self.internal.clone(),
+            #[cfg(feature = "native_lib")]
+            ptr: self.ptr,
+            #[cfg(feature = "native_lib")]
+            is_wrapper: self.is_wrapper,
         }
     }
 }

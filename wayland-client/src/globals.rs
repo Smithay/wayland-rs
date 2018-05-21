@@ -14,6 +14,7 @@ struct Inner {
 /// This utility provides an implemenation for the registry
 /// that track the list of globals for you, as well as utilities
 /// to bind them.
+#[derive(Clone)]
 pub struct GlobalManager {
     inner: Arc<Mutex<Inner>>,
     registry: Proxy<wl_registry::WlRegistry>,

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client/server] Use `Clone` trait rather than inherent method for `clone()`.
+- [client] GlobalManager is now `Clone`.
+
 # 0.20.7 - 2018-05-20
 
 - [client/server] Bugfix: Actually destroy the proxy/resource when sending a destructor message.

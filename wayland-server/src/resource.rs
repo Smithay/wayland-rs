@@ -142,20 +142,6 @@ impl<I: Interface> Resource<I> {
         self.internal.is_none()
     }
 
-    /// Clone this resource
-    ///
-    /// It only creates a new handle to the same wayland
-    /// object, and does not create a new one.
-    pub fn clone(&self) -> Resource<I> {
-        Resource {
-            _i: ::std::marker::PhantomData,
-            internal: self.internal.clone(),
-            #[cfg(feature = "native_lib")]
-            ptr: self.ptr,
-            _hack: (false, false),
-        }
-    }
-
     /// Check if the other resource refers to the same underlying wayland object
     pub fn equals(&self, other: &Resource<I>) -> bool {
         #[cfg(not(feature = "native_lib"))]
@@ -492,6 +478,18 @@ impl<I: Interface + 'static> NewResource<I> {
         NewResource {
             _i: ::std::marker::PhantomData,
             ptr: ptr,
+        }
+    }
+}
+
+impl<I: Interface> Clone for Resource<I> {
+    fn clone(&self) -> Resource<I> {
+        Resource {
+            _i: ::std::marker::PhantomData,
+            internal: self.internal.clone(),
+            #[cfg(feature = "native_lib")]
+            ptr: self.ptr,
+            _hack: (false, false),
         }
     }
 }
