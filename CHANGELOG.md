@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+# 0.20.8 - 2018-05-22
+
 - [client/server] Use `Clone` trait rather than inherent method for `clone()`.
 - [client] GlobalManager is now `Clone`.
 
