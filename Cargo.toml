@@ -16,4 +16,4 @@ difference = "1.0"
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]
 
 [features]
-native_lib = ["wayland-client/native_lib", "wayland-server/native_lib", "wayland-protocols/native_lib"]
+native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protocols/native_lib"]

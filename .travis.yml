@@ -44,11 +44,13 @@ before_script:
         env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.12.0"
+        export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
       else
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.12.0"
+        export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       fi
 
 os:
@@ -59,11 +61,12 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo tarpaulin --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo tarpaulin --ignore-tests --out Xml --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo tarpaulin --features = "native_lib" --ignore-tests --out Xml --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
-        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo test --all --features "$FEATURES"
+        cargo test --all --features "$FEATURES"
       fi
 
 after_success:
