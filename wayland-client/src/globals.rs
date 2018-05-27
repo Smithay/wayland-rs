@@ -1,8 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use commons::{Implementation, Interface};
 use protocol::wl_registry::{self, RequestsTrait};
-use {NewProxy, Proxy};
+use {Implementation, Interface, NewProxy, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
@@ -254,9 +253,8 @@ impl GlobalManager {
 macro_rules! global_filter {
     ($([$interface:ty, $version:expr, $callback:expr]),*) => {
         {
-            use $crate::commons::{Implementation, Interface};
             use $crate::protocol::wl_registry::{self, RequestsTrait};
-            use $crate::{Proxy, GlobalEvent, NewProxy};
+            use $crate::{Proxy, GlobalEvent, NewProxy, Implementation, Interface};
             type Callback = Box<Implementation<Proxy<wl_registry::WlRegistry>, (u32, u32)> + Send>;
             let mut callbacks: Vec<(&'static str, Callback)> = Vec::new();
             // Create the callback list

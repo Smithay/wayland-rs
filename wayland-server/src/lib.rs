@@ -53,9 +53,8 @@
 //!
 //! ```
 //! // Example implementation for the wl_surface interface
-//! use wayland_server::Resource;
+//! use wayland_server::{Resource, Implementation};
 //! use wayland_server::protocol::wl_surface;
-//! use wayland_server::commons::Implementation;
 //!
 //! struct MyImpl {
 //!    // ...
@@ -117,12 +116,7 @@ pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
-/// Re-export of wayland-commons
-///
-/// Common traits and functions to work with wayland objects
-pub mod commons {
-    pub use wayland_commons::*;
-}
+pub use wayland_commons::{downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage};
 
 #[cfg(feature = "native_lib")]
 /// C-associated types

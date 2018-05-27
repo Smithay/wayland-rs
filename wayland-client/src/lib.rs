@@ -62,9 +62,8 @@
 //!
 //! ```
 //! // Example implementation for the wl_surface interface
-//! use wayland_client::Proxy;
+//! use wayland_client::{Proxy, Implementation};
 //! use wayland_client::protocol::wl_surface;
-//! use wayland_client::commons::Implementation;
 //!
 //! struct MyImpl {
 //!    // ...
@@ -147,12 +146,7 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-/// Re-export of wayland-commons
-///
-/// Common traits and functions to work with wayland objects
-pub mod commons {
-    pub use wayland_commons::*;
-}
+pub use wayland_commons::{downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage};
 
 #[cfg(feature = "native_lib")]
 /// C-associated types
