@@ -18,5 +18,4 @@ downcast-rs = "1.0"
 nix = "0.10"
 
 [features]
-default = ["native_lib"]
 native_lib = [ "wayland-sys" ]

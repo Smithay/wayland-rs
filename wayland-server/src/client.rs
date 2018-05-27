@@ -93,6 +93,11 @@ impl Client {
         if !self.alive() {
             return;
         }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, self.ptr);
         }
@@ -105,6 +110,11 @@ impl Client {
         if !self.alive() {
             return;
         }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_destroy, self.ptr);
         }
@@ -142,6 +152,7 @@ impl Client {
     }
 }
 
+#[cfg(feature = "native_lib")]
 unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_void) {
     let internal = Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>);
     signal::rust_listener_set_user_data(listener, ptr::null_mut());

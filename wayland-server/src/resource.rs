@@ -417,6 +417,11 @@ impl<I: Interface + 'static> NewResource<I> {
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
         unsafe {
             assert!(
                 token.matches(self.ptr),

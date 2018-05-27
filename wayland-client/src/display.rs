@@ -1,8 +1,6 @@
-#[cfg(feature = "native_lib")]
 use std::ffi::{CString, OsString};
 use std::io;
 use std::ops::Deref;
-#[cfg(feature = "native_lib")]
 use std::os::unix::ffi::OsStringExt;
 use std::sync::Arc;
 
@@ -191,11 +189,18 @@ impl Display {
     ///
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<i32> {
-        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.inner.ptr()) };
-        if ret >= 0 {
-            Ok(ret)
-        } else {
-            Err(io::Error::last_os_error())
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!();
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.inner.ptr()) };
+            if ret >= 0 {
+                Ok(ret)
+            } else {
+                Err(io::Error::last_os_error())
+            }
         }
     }
 

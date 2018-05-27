@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use wayland_commons::{Implementation, Interface};
 
+#[cfg(feature = "native_lib")]
 use globals::global_bind;
 use {Client, EventLoop, Global, LoopToken, NewResource};
 
@@ -99,20 +100,27 @@ impl Display {
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
 
-        unsafe {
-            let ptr = ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_global_create,
-                self.inner.ptr,
-                I::c_interface(),
-                version as i32,
-                &*data as *const Box<_> as *mut _,
-                global_bind::<I>
-            );
+            unsafe {
+                let ptr = ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_global_create,
+                    self.inner.ptr,
+                    I::c_interface(),
+                    version as i32,
+                    &*data as *const Box<_> as *mut _,
+                    global_bind::<I>
+                );
 
-            Global::create(ptr, data)
+                Global::create(ptr, data)
+            }
         }
     }
 

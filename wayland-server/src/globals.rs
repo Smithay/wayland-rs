@@ -51,6 +51,7 @@ impl<I: Interface> Global<I> {
     }
 }
 
+#[cfg(feature = "native_lib")]
 pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
     client: *mut wl_client,
     data: *mut c_void,

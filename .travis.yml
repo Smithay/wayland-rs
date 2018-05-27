@@ -12,6 +12,10 @@ rust:
   - beta
   - nightly
 
+env:
+  - FEATURES="native_lib"
+  - FEATURES=""
+
 matrix:
   allow_failures:
     - rust: nightly
@@ -59,7 +63,7 @@ script:
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
-        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo test --all --all-features
+        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo test --all --features "$FEATURES"
       fi
 
 after_success:

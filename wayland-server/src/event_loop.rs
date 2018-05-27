@@ -118,6 +118,10 @@ impl EventLoop {
     ///
     /// Returns the number of requests dispatched or an error.
     pub fn dispatch(&mut self, timeout: Option<u32>) -> IoResult<u32> {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
         #[cfg(feature = "native_lib")]
         {
             use std::i32;
@@ -158,6 +162,11 @@ impl EventLoop {
     /// set a timeout.
     pub fn run(&mut self) -> IoResult<()> {
         self.stop_signal.store(false, atomic::Ordering::Release);
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
         loop {
             if let Some(ref display_inner) = self.inner.inner {
                 unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, display_inner.ptr) };
@@ -186,25 +195,32 @@ impl LoopToken {
     where
         Impl: Implementation<(), FdEvent> + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), FdEvent>>);
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_event_loop_add_fd,
-                self.inner.wlevl,
-                fd,
-                interest.bits(),
-                ::sources::event_source_fd_dispatcher,
-                &*data as *const _ as *mut c_void
-            )
-        };
-        if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
-        } else {
-            Ok(Source::make(ret, data))
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let data = Box::new(Box::new(implementation) as Box<Implementation<(), FdEvent>>);
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_add_fd,
+                    self.inner.wlevl,
+                    fd,
+                    interest.bits(),
+                    ::sources::event_source_fd_dispatcher,
+                    &*data as *const _ as *mut c_void
+                )
+            };
+            if ret.is_null() {
+                Err((
+                    IoError::last_os_error(),
+                    *(downcast_impl(*data).map_err(|_| ()).unwrap()),
+                ))
+            } else {
+                Ok(Source::make(ret, data))
+            }
         }
     }
 
@@ -221,23 +237,30 @@ impl LoopToken {
     where
         Impl: Implementation<(), TimerEvent> + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), TimerEvent>>);
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_event_loop_add_timer,
-                self.inner.wlevl,
-                ::sources::event_source_timer_dispatcher,
-                &*data as *const _ as *mut c_void
-            )
-        };
-        if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
-        } else {
-            Ok(Source::make(ret, data))
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let data = Box::new(Box::new(implementation) as Box<Implementation<(), TimerEvent>>);
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_add_timer,
+                    self.inner.wlevl,
+                    ::sources::event_source_timer_dispatcher,
+                    &*data as *const _ as *mut c_void
+                )
+            };
+            if ret.is_null() {
+                Err((
+                    IoError::last_os_error(),
+                    *(downcast_impl(*data).map_err(|_| ()).unwrap()),
+                ))
+            } else {
+                Ok(Source::make(ret, data))
+            }
         }
     }
 
@@ -255,24 +278,31 @@ impl LoopToken {
     where
         Impl: Implementation<(), SignalEvent> + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), SignalEvent>>);
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_event_loop_add_signal,
-                self.inner.wlevl,
-                signal as c_int,
-                ::sources::event_source_signal_dispatcher,
-                &*data as *const _ as *mut c_void
-            )
-        };
-        if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
-        } else {
-            Ok(Source::make(ret, data))
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let data = Box::new(Box::new(implementation) as Box<Implementation<(), SignalEvent>>);
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_add_signal,
+                    self.inner.wlevl,
+                    signal as c_int,
+                    ::sources::event_source_signal_dispatcher,
+                    &*data as *const _ as *mut c_void
+                )
+            };
+            if ret.is_null() {
+                Err((
+                    IoError::last_os_error(),
+                    *(downcast_impl(*data).map_err(|_| ()).unwrap()),
+                ))
+            } else {
+                Ok(Source::make(ret, data))
+            }
         }
     }
 
@@ -290,20 +320,27 @@ impl LoopToken {
     where
         Impl: Implementation<(), ()> + 'static,
     {
-        let data = Rc::new(RefCell::new((
-            Box::new(implementation) as Box<Implementation<(), ()>>,
-            false,
-        )));
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_event_loop_add_idle,
-                self.inner.wlevl,
-                ::sources::event_source_idle_dispatcher,
-                Rc::into_raw(data.clone()) as *mut _
-            )
-        };
-        IdleSource::make(ret, data)
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            let data = Rc::new(RefCell::new((
+                Box::new(implementation) as Box<Implementation<(), ()>>,
+                false,
+            )));
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_loop_add_idle,
+                    self.inner.wlevl,
+                    ::sources::event_source_idle_dispatcher,
+                    Rc::into_raw(data.clone()) as *mut _
+                )
+            };
+            IdleSource::make(ret, data)
+        }
     }
 
     /// Checks whether given resource is indeed linked to this

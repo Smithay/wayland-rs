@@ -116,6 +116,7 @@ impl Source<FdEvent> {
     }
 }
 
+#[cfg(feature = "native_lib")]
 pub(crate) unsafe extern "C" fn event_source_fd_dispatcher(fd: c_int, mask: u32, data: *mut c_void) -> c_int {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
@@ -189,6 +190,11 @@ impl Source<TimerEvent> {
     /// Manually the delay to 0 stops the timer (the callback won't be
     /// called).
     pub fn set_delay_ms(&mut self, delay: i32) {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
         unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -200,6 +206,7 @@ impl Source<TimerEvent> {
     }
 }
 
+#[cfg(feature = "native_lib")]
 pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void) -> c_int {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
@@ -224,6 +231,7 @@ pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void)
 /// Contains an enum indicating which signal was received.
 pub struct SignalEvent(::nix::sys::signal::Signal);
 
+#[cfg(feature = "native_lib")]
 pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, data: *mut c_void) -> c_int {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
@@ -262,6 +270,7 @@ pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, da
 /// Dropping this struct does not remove the event source,
 /// use the `remove` method for that.
 pub struct IdleSource {
+    #[cfg(feature = "native_lib")]
     ptr: *mut wl_event_source,
     data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
 }
@@ -282,6 +291,11 @@ impl IdleSource {
     pub fn remove(self) -> Box<Implementation<(), ()>> {
         let dispatched = self.data.borrow().1;
         if !dispatched {
+            #[cfg(not(feature = "native_lib"))]
+            {
+                unimplemented!()
+            }
+            #[cfg(feature = "native_lib")]
             unsafe {
                 // unregister this event source
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
@@ -297,6 +311,7 @@ impl IdleSource {
     }
 }
 
+#[cfg(feature = "native_lib")]
 pub(crate) unsafe extern "C" fn event_source_idle_dispatcher(data: *mut c_void) {
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.

@@ -27,9 +27,8 @@ byteorder = "1.0"
 tempfile = "2.0"
 
 [features]
-default = ["egl", "cursor", "native_lib"]
 native_lib = [ "wayland-sys", "wayland-commons/native_lib" ]
-dlopen = ["wayland-sys/dlopen"]
-egl = ["wayland-sys/egl"]
-cursor = ["wayland-sys/cursor"]
+dlopen = ["wayland-sys/dlopen", "native_lib"]
+egl = ["wayland-sys/egl", "native_lib"]
+cursor = ["wayland-sys/cursor", "native_lib"]
 

@@ -5,12 +5,15 @@ publish = false
 
 [dependencies]
 wayland-scanner = { path = "./wayland-scanner" }
-wayland-client = { path = "./wayland-client", default-features = false, features = ["cursor", "dlopen"] }
-wayland-server = { path = "./wayland-server", features = ["dlopen"] }
-wayland-protocols = { path = "./wayland-protocols", features = ["client", "server", "unstable_protocols"] }
+wayland-client = { path = "./wayland-client", default-features = false }
+wayland-server = { path = "./wayland-server", default-features = false }
+wayland-protocols = { path = "./wayland-protocols", features = ["client", "server"] }
 
 [dev-dependencies]
 difference = "1.0"
 
 [workspace]
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]
+
+[features]
+native_lib = ["wayland-client/native_lib", "wayland-server/native_lib", "wayland-protocols/native_lib"]

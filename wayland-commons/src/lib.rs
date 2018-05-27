@@ -155,6 +155,7 @@ impl MessageGroup for NoMessage {
     fn is_destructor(&self) -> bool {
         match *self {}
     }
+    #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(
         _obj: *mut c_void,
         _opcode: u32,
@@ -162,6 +163,7 @@ impl MessageGroup for NoMessage {
     ) -> Result<Self, ()> {
         Err(())
     }
+    #[cfg(feature = "native_lib")]
     fn as_raw_c_in<F, T>(self, _f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,
