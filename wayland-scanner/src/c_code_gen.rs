@@ -446,10 +446,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                 if let Some(ref iface) = a.interface {
                     writeln!(
                         out,
-                        "            let _arg_{}_newproxy = self.child::<super::{}::{}>();",
+                        "            let _arg_{}_newproxy = implementor(self.child());",
                         a.name,
-                        iface,
-                        snake_to_camel(&iface)
                     )?;
                     has_newp = true;
                 }
@@ -466,14 +464,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
             for a in &msg.args {
                 write!(out, "                ")?;
                 if a.typ == Type::NewId {
-                    if let Some(ref iface) = a.interface {
-                        writeln!(
-                            out,
-                            "{}: unsafe {{ Proxy::<super::{1}::{2}>::from_c_ptr(_arg_{0}_newproxy.c_ptr()) }},",
-                            a.name,
-                            iface,
-                            snake_to_camel(&iface)
-                        )?;
+                    if a.interface.is_some() {
+                        writeln!(out, "{}: _arg_{0}_newproxy.clone(),", a.name,)?;
                     } else {
                         writeln!(out, "{}: (T::NAME.into(), version, unsafe {{ Proxy::<AnonymousObject>::new_null() }}),", a.name)?;
                     }
@@ -507,7 +499,7 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                         version
                     )
                 }});
-                Ok(NewProxy::<T>::from_c_ptr(ret))
+                Ok(implementor(NewProxy::<T>::from_c_ptr(ret)))
             }}"#
                 )?;
             }
@@ -529,87 +521,4 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
     writeln!(out, "    }}")?;
 
     Ok(())
-}
-
-fn print_method_prototype<'a, O: Write>(
-    iname: &str,
-    msg: &'a Message,
-    out: &mut O,
-) -> IOResult<Option<&'a Arg>> {
-    // detect new_id
-    let mut newid = None;
-    for arg in &msg.args {
-        match arg.typ {
-            Type::NewId => if newid.is_some() {
-                panic!("Request {}.{} returns more than one new_id", iname, msg.name);
-            } else {
-                newid = Some(arg);
-            },
-            _ => (),
-        }
-    }
-
-    // method start
-    match newid {
-        Some(arg) if arg.interface.is_none() => {
-            write!(
-                out,
-                "        fn {}{}<T: Interface>(&self, version: u32",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name,
-            )?;
-        }
-        _ => {
-            write!(
-                out,
-                "        fn {}{}(&self",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name
-            )?;
-        }
-    }
-
-    // print args
-    for arg in &msg.args {
-        write!(
-            out,
-            ", {}{}: {}{}{}",
-            if is_keyword(&arg.name) { "_" } else { "" },
-            arg.name,
-            if arg.allow_null { "Option<" } else { "" },
-            if let Some(ref name) = arg.enum_ {
-                dotted_to_relname(name)
-            } else {
-                match arg.typ {
-                    Type::Object => arg.interface
-                        .as_ref()
-                        .map(|s| format!("&Proxy<super::{}::{}>", s, snake_to_camel(s)))
-                        .unwrap_or(format!("&Proxy<super::AnonymousObject>")),
-                    Type::NewId => {
-                        // client-side, the return-type handles that
-                        continue;
-                    }
-                    _ => arg.typ.rust_type().into(),
-                }
-            },
-            if arg.allow_null { ">" } else { "" }
-        )?;
-    }
-    write!(out, ") ->")?;
-
-    // return type
-    write!(
-        out,
-        "{}",
-        if let Some(arg) = newid {
-            arg.interface
-                .as_ref()
-                .map(|s| format!("Result<NewProxy<super::{}::{}>, ()>", s, snake_to_camel(s)))
-                .unwrap_or("Result<NewProxy<T>, ()>".into())
-        } else {
-            "()".into()
-        }
-    )?;
-
-    Ok(newid)
 }

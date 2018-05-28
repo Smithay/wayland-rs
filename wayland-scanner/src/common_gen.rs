@@ -348,3 +348,106 @@ pub(crate) fn write_doc<O: Write>(
     }
     Ok(())
 }
+
+pub fn print_method_prototype<'a, O: Write>(
+    iname: &str,
+    msg: &'a Message,
+    out: &mut O,
+) -> IOResult<Option<&'a Arg>> {
+    // detect new_id
+    let mut newid = None;
+    for arg in &msg.args {
+        match arg.typ {
+            Type::NewId => if newid.is_some() {
+                panic!("Request {}.{} returns more than one new_id", iname, msg.name);
+            } else {
+                newid = Some(arg);
+            },
+            _ => (),
+        }
+    }
+
+    // method start
+    match newid {
+        Some(arg) => if arg.interface.is_none() {
+            write!(
+                out,
+                "        fn {}{}<T: Interface, F>(&self, version: u32",
+                if is_keyword(&msg.name) { "_" } else { "" },
+                msg.name,
+            )?;
+        } else {
+            write!(
+                out,
+                "        fn {}{}<F>(&self",
+                if is_keyword(&msg.name) { "_" } else { "" },
+                msg.name
+            )?;
+        },
+        _ => {
+            write!(
+                out,
+                "        fn {}{}(&self",
+                if is_keyword(&msg.name) { "_" } else { "" },
+                msg.name
+            )?;
+        }
+    }
+
+    // print args
+    for arg in &msg.args {
+        write!(
+            out,
+            ", {}{}: {}{}{}",
+            if is_keyword(&arg.name) { "_" } else { "" },
+            arg.name,
+            if arg.allow_null { "Option<" } else { "" },
+            if let Some(ref name) = arg.enum_ {
+                dotted_to_relname(name)
+            } else {
+                match arg.typ {
+                    Type::Object => arg.interface
+                        .as_ref()
+                        .map(|s| format!("&Proxy<super::{}::{}>", s, snake_to_camel(s)))
+                        .unwrap_or(format!("&Proxy<super::AnonymousObject>")),
+                    Type::NewId => {
+                        // client-side, the return-type handles that
+                        continue;
+                    }
+                    _ => arg.typ.rust_type().into(),
+                }
+            },
+            if arg.allow_null { ">" } else { "" }
+        )?;
+    }
+    if newid.is_some() {
+        write!(out, ", implementor: F")?;
+    }
+    write!(out, ") ->")?;
+
+    // return type and bound
+    if let Some(ref arg) = newid {
+        match arg.interface {
+            Some(ref iface) => {
+                write!(
+                    out,
+                    "Result<Proxy<super::{module}::{name}>, ()>
+                    where F: FnOnce(NewProxy<super::{module}::{name}>) -> Proxy<super::{module}::{name}>",
+                    module = iface,
+                    name = snake_to_camel(iface)
+                )?;
+            }
+            None => {
+                write!(
+                    out,
+                    "Result<Proxy<T>, ()>
+                    where F: FnOnce(NewProxy<T>) -> Proxy<T>"
+                )?;
+            }
+        }
+    } else {
+        write!(out, "()")?;
+    }
+
+    Ok(newid)
+}

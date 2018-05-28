@@ -14,5 +14,7 @@ fn main() {
         // Generate the C code
         generate_c_code(protocol_file, out_dir.join("wayland_c_api.rs"), Side::Server);
         generate_c_interfaces(protocol_file, out_dir.join("wayland_c_interfaces.rs"));
+    } else {
+        generate_rust_code(protocol_file, out_dir.join("wayland_rust_api.rs"), Side::Server);
     }
 }

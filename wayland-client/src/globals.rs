@@ -146,44 +146,42 @@ impl GlobalManager {
     /// This method is only appropriate for globals that are expected to
     /// not exist with multiplicity (sur as `wl_compositor` or `wl_shm`),
     /// as it will only bind a single one.
-    pub fn instantiate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
+    pub fn instantiate_auto<I: Interface, F>(&self, implementor: F) -> Result<Proxy<I>, GlobalError>
+    where
+        F: FnOnce(NewProxy<I>) -> Proxy<I>,
+    {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, version) in &inner.list {
             if interface == I::NAME {
-                return Ok(self.registry.bind::<I>(version, id).unwrap());
+                return Ok(self.registry.bind(version, id, implementor).unwrap());
             }
         }
         Err(GlobalError::Missing)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.20.5", note = "Use the corrected `instantiate_auto` method instead.")]
-    pub fn instanciate_auto<I: Interface>(&self) -> Result<NewProxy<I>, GlobalError> {
-        self.instantiate_auto()
     }
 
     /// Instanciate a global with a specific version
     ///
     /// Like `instantiate_auto`, but will bind a specific version of
     /// this global an not the highest available.
-    pub fn instantiate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
+    pub fn instantiate_exact<I: Interface, F>(
+        &self,
+        version: u32,
+        implementor: F,
+    ) -> Result<Proxy<I>, GlobalError>
+    where
+        F: FnOnce(NewProxy<I>) -> Proxy<I>,
+    {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, server_version) in &inner.list {
             if interface == I::NAME {
                 if version > server_version {
                     return Err(GlobalError::VersionTooLow(server_version));
                 } else {
-                    return Ok(self.registry.bind::<I>(version, id).unwrap());
+                    return Ok(self.registry.bind(version, id, implementor).unwrap());
                 }
             }
         }
         Err(GlobalError::Missing)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.20.5", note = "Use the corrected `instantiate_exact` method instead.")]
-    pub fn instanciate_exact<I: Interface>(&self, version: u32) -> Result<NewProxy<I>, GlobalError> {
-        self.instantiate_exact(version)
     }
 
     /// Retrieve the list of currently known globals

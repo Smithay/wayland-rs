@@ -162,6 +162,8 @@ pub mod sys {
 pub mod protocol {
     #[cfg(feature = "native_lib")]
     pub use generated::c_api::*;
+    #[cfg(not(feature = "native_lib"))]
+    pub use generated::rust_api::*;
 }
 
 mod generated {
@@ -180,5 +182,12 @@ mod generated {
         pub(crate) use wayland_sys as sys;
         pub(crate) use {NewProxy, Proxy};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
+    }
+    #[cfg(not(feature = "native_lib"))]
+    pub mod rust_api {
+        pub(crate) use wayland_commons::wire::{ArgumentType, MessageDesc};
+        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+        pub(crate) use {NewProxy, Proxy};
+        include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
     }
 }

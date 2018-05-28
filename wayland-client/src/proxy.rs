@@ -1,4 +1,4 @@
-use wayland_commons::{Implementation, Interface, MessageGroup};
+use wayland_commons::{AnonymousObject, Implementation, Interface, MessageGroup};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::*;
@@ -316,6 +316,17 @@ impl<I: Interface> Proxy<I> {
         })
     }
 
+    /// Create a new child object that do not inherit the version
+    /// number of its parent
+    ///
+    /// TODO: This can't be done with the C libs, thus should not
+    /// be part of the public API...
+    #[cfg(not(feature = "native_lib"))]
+    #[doc(hidden)]
+    pub fn child_versioned<C: Interface>(&self, version: u32) -> NewProxy<C> {
+        unimplemented!()
+    }
+
     /// Create a new child object
     ///
     /// This creates a new wayland object, considered as a
@@ -339,6 +350,18 @@ impl<I: Interface> Proxy<I> {
                 _i: ::std::marker::PhantomData,
                 ptr: ptr,
             }
+        }
+    }
+
+    /// Creates a handle of this proxy with its actual type erased
+    pub fn anonymize(&self) -> Proxy<AnonymousObject> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            internal: self.internal.clone(),
+            #[cfg(feature = "native_lib")]
+            ptr: self.ptr,
+            #[cfg(feature = "native_lib")]
+            is_wrapper: self.is_wrapper,
         }
     }
 
