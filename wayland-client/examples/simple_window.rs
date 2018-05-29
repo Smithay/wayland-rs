@@ -20,7 +20,7 @@ use wayland_client::{Display, GlobalManager, Proxy};
 
 fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
-    let globals = GlobalManager::new(display.get_registry().unwrap());
+    let globals = GlobalManager::new(&display);
 
     // roundtrip to retrieve the globals list
     event_queue.sync_roundtrip().unwrap();
@@ -52,30 +52,30 @@ fn main() {
 
     // The compositor allows us to creates surfaces
     let compositor = globals
-        .instantiate_auto::<wl_compositor::WlCompositor>()
-        .unwrap()
-        .implement(|_, _| {});
-    let surface = compositor.create_surface().unwrap().implement(|_, _| {});
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|comp| comp.implement(|_, _| {}))
+        .unwrap();
+    let surface = compositor
+        .create_surface(|surface| surface.implement(|_, _| {}))
+        .unwrap();
 
     // The SHM allows us to share memory with the server, and create buffers
     // on this shared memory to paint our surfaces
     let shm = globals
-        .instantiate_auto::<wl_shm::WlShm>()
-        .unwrap()
-        .implement(|_, _| {});
+        .instantiate_auto::<wl_shm::WlShm, _>(|shm| shm.implement(|_, _| {}))
+        .unwrap();
     let pool = shm.create_pool(
         tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
         (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
-    ).unwrap()
-        .implement(|_, _| {});
+        |pool| pool.implement(|_, _| {}),
+    ).unwrap();
     let buffer = pool.create_buffer(
         0,                        // Start of the buffer in the pool
         buf_x as i32,             // width of the buffer in pixels
         buf_y as i32,             // height of the buffer in pixels
         (buf_x * 4) as i32,       // number of bytes between the beginning of two consecutive lines
         wl_shm::Format::Argb8888, // chosen encoding for the data
-    ).unwrap()
-        .implement(|_, _| {});
+        |buffer| buffer.implement(|_, _| {}),
+    ).unwrap();
 
     // The shell allows us to define our surface as a "toplevel", meaning the
     // server will treat it as a window
@@ -83,19 +83,20 @@ fn main() {
     // NOTE: the wl_shell interface is actually deprecated in favour of the xdg_shell
     // protocol, available in wayland-protocols. But this will do for this example.
     let shell = globals
-        .instantiate_auto::<wl_shell::WlShell>()
-        .unwrap()
-        .implement(|_, _| {});
-    let shell_surface = shell.get_shell_surface(&surface).unwrap().implement(
-        |event, shell_surface: Proxy<wl_shell_surface::WlShellSurface>| {
-            use wayland_client::protocol::wl_shell_surface::{Event, RequestsTrait};
-            // This ping/pong mechanism is used by the wayland server to detect
-            // unresponsive applications
-            if let Event::Ping { serial } = event {
-                shell_surface.pong(serial);
-            }
-        },
-    );
+        .instantiate_auto::<wl_shell::WlShell, _>(|shell| shell.implement(|_, _| {}))
+        .unwrap();
+    let shell_surface = shell
+        .get_shell_surface(&surface, |shellsurface| {
+            shellsurface.implement(|event, shell_surface: Proxy<wl_shell_surface::WlShellSurface>| {
+                use wayland_client::protocol::wl_shell_surface::{Event, RequestsTrait};
+                // This ping/pong mechanism is used by the wayland server to detect
+                // unresponsive applications
+                if let Event::Ping { serial } = event {
+                    shell_surface.pong(serial);
+                }
+            })
+        })
+        .unwrap();
 
     // Set our surface as toplevel and define its contents
     shell_surface.set_toplevel();
@@ -108,8 +109,8 @@ fn main() {
     // dynamically), however most "traditional" setups have a single
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
-    let _seat = globals.instantiate_auto::<wl_seat::WlSeat>().unwrap().implement(
-        move |event, seat: Proxy<wl_seat::WlSeat>| {
+    globals.instantiate_auto::<wl_seat::WlSeat, _>(|seat| {
+        seat.implement(move |event, seat: Proxy<wl_seat::WlSeat>| {
             // The capabilities of a seat are known at runtime and we retrieve
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer here
@@ -121,29 +122,31 @@ fn main() {
                 if !pointer_created && capabilities.contains(Capability::Pointer) {
                     // create the pointer only once
                     pointer_created = true;
-                    seat.get_pointer().unwrap().implement(|event, _| match event {
-                        PointerEvent::Enter {
-                            surface_x, surface_y, ..
-                        } => {
-                            println!("Pointer entered at ({}, {}).", surface_x, surface_y);
-                        }
-                        PointerEvent::Leave { .. } => {
-                            println!("Pointer left.");
-                        }
-                        PointerEvent::Motion {
-                            surface_x, surface_y, ..
-                        } => {
-                            println!("Pointer moved to ({}, {}).", surface_x, surface_y);
-                        }
-                        PointerEvent::Button { button, state, .. } => {
-                            println!("Button {} was {:?}.", button, state);
-                        }
-                        _ => {}
+                    seat.get_pointer(|pointer| {
+                        pointer.implement(|event, _| match event {
+                            PointerEvent::Enter {
+                                surface_x, surface_y, ..
+                            } => {
+                                println!("Pointer entered at ({}, {}).", surface_x, surface_y);
+                            }
+                            PointerEvent::Leave { .. } => {
+                                println!("Pointer left.");
+                            }
+                            PointerEvent::Motion {
+                                surface_x, surface_y, ..
+                            } => {
+                                println!("Pointer moved to ({}, {}).", surface_x, surface_y);
+                            }
+                            PointerEvent::Button { button, state, .. } => {
+                                println!("Button {} was {:?}.", button, state);
+                            }
+                            _ => {}
+                        })
                     });
                 }
             }
-        },
-    );
+        })
+    });
 
     loop {
         display.flush().unwrap();

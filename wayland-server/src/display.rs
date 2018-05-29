@@ -80,6 +80,18 @@ impl Display {
         (display, evq)
     }
 
+    #[cfg(not(feature = "native_lib"))]
+    /// Create a new display
+    ///
+    /// This method provides you a `Display` as well as the main `EventLoop`
+    /// which will host your clients' objects.
+    ///
+    /// Note that at this point, your server is not yet ready to receive connections,
+    /// your need to add listening sockets using the `add_socket*` methods.
+    pub fn new() -> (Display, EventLoop) {
+        unimplemented!()
+    }
+
     /// Create a new global object
     ///
     /// This object will be advertized to all clients, and they will
