@@ -1,18 +1,8 @@
-use std::io::{Error as IoError, Result as IoResult};
-use std::ptr;
+use std::cell::RefCell;
+use std::io;
 use std::rc::Rc;
-use std::sync::Arc;
 
-use display::DisplayInner;
-
-#[cfg(feature = "native_lib")]
-use wayland_sys::client::*;
-
-struct EventQueueInner {
-    #[cfg(feature = "native_lib")]
-    wlevq: Option<*mut wl_event_queue>,
-    inner: Arc<DisplayInner>,
-}
+use imp::EventQueueInner;
 
 /// An event queue for protocol messages
 ///
@@ -48,7 +38,7 @@ struct EventQueueInner {
 /// of event into the event loop of your application.
 pub struct EventQueue {
     // EventQueue is *not* Send
-    inner: Rc<EventQueueInner>,
+    pub(crate) inner: Rc<RefCell<EventQueueInner>>,
 }
 
 /// A token representing this event queue
@@ -58,20 +48,15 @@ pub struct EventQueue {
 /// require the specification of an event queue, like
 /// `Proxy::make_wrapper` and `NewProxy::implement_nonsend`.
 pub struct QueueToken {
-    inner: Rc<EventQueueInner>,
+    pub(crate) inner: Rc<RefCell<EventQueueInner>>,
 }
 
 impl EventQueue {
-    #[cfg(feature = "native_lib")]
-    pub(crate) unsafe fn new(inner: Arc<DisplayInner>, evq: Option<*mut wl_event_queue>) -> EventQueue {
+    pub(crate) fn new(inner: EventQueueInner) -> EventQueue {
         EventQueue {
-            inner: Rc::new(EventQueueInner {
-                inner: inner,
-                wlevq: evq,
-            }),
+            inner: Rc::new(RefCell::new(inner)),
         }
     }
-
     /// Dispatches events from the internal buffer.
     ///
     /// Dispatches all events to their appropriaters.
@@ -82,32 +67,8 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
-    pub fn dispatch(&mut self) -> IoResult<u32> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = match self.inner.wlevq {
-                Some(evq) => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_queue,
-                        self.inner.inner.ptr(),
-                        evq
-                    )
-                },
-                None => unsafe {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.inner.inner.ptr())
-                },
-            };
-            if ret >= 0 {
-                Ok(ret as u32)
-            } else {
-                Err(IoError::last_os_error())
-            }
-        }
+    pub fn dispatch(&mut self) -> io::Result<u32> {
+        self.inner.borrow_mut().dispatch()
     }
 
     /// Dispatches pending events from the internal buffer.
@@ -118,36 +79,8 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
-    pub fn dispatch_pending(&mut self) -> IoResult<u32> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = match self.inner.wlevq {
-                Some(evq) => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_queue_pending,
-                        self.inner.inner.ptr(),
-                        evq
-                    )
-                },
-                None => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_pending,
-                        self.inner.inner.ptr()
-                    )
-                },
-            };
-            if ret >= 0 {
-                Ok(ret as u32)
-            } else {
-                Err(IoError::last_os_error())
-            }
-        }
+    pub fn dispatch_pending(&mut self) -> io::Result<u32> {
+        self.inner.borrow_mut().dispatch_pending()
     }
 
     /// Synchronous roundtrip
@@ -159,34 +92,8 @@ impl EventQueue {
     /// Handlers are called as a consequence.
     ///
     /// On success returns the number of dispatched events.
-    pub fn sync_roundtrip(&mut self) -> IoResult<i32> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = unsafe {
-                match self.inner.wlevq {
-                    Some(evtq) => ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_roundtrip_queue,
-                        self.inner.inner.ptr(),
-                        evtq
-                    ),
-                    None => ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_roundtrip,
-                        self.inner.inner.ptr()
-                    ),
-                }
-            };
-            if ret >= 0 {
-                Ok(ret)
-            } else {
-                Err(IoError::last_os_error())
-            }
-        }
+    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
+        self.inner.borrow_mut().sync_roundtrip()
     }
 
     /// Create a new token associated with this event queue
@@ -218,59 +125,12 @@ impl EventQueue {
     /// This call will otherwise not block on the server socket if it is empty, and return
     /// an io error `WouldBlock` in such cases.
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = unsafe {
-                match self.inner.wlevq {
-                    Some(evtq) => ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_prepare_read_queue,
-                        self.inner.inner.ptr(),
-                        evtq
-                    ),
-                    None => ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_prepare_read,
-                        self.inner.inner.ptr()
-                    ),
-                }
-            };
-            if ret >= 0 {
-                Some(ReadEventsGuard {
-                    inner: self.inner.clone(),
-                })
-            } else {
-                None
-            }
-        }
-    }
-}
-
-#[cfg(feature = "native_lib")]
-impl QueueToken {
-    pub(crate) unsafe fn assign_proxy(&self, proxy: *mut wl_proxy) {
-        ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_set_queue,
-            proxy,
-            self.inner.wlevq.unwrap_or(ptr::null_mut())
-        )
-    }
-}
-
-impl Drop for EventQueueInner {
-    fn drop(&mut self) {
-        #[cfg(feature = "nativel_lib")]
-        {
-            if let Some(evq) = self.wlevq {
-                unsafe {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_event_queue_destroy, evq);
-                }
-            }
+        match self.inner.borrow().prepare_read() {
+            Ok(()) => Some(ReadEventsGuard {
+                inner: self.inner.clone(),
+                done: false,
+            }),
+            Err(()) => None,
         }
     }
 }
@@ -279,7 +139,8 @@ impl Drop for EventQueueInner {
 ///
 /// See `EventQueue::prepare_read()` for details about its use.
 pub struct ReadEventsGuard {
-    inner: Rc<EventQueueInner>,
+    inner: Rc<RefCell<EventQueueInner>>,
+    done: bool,
 }
 
 impl ReadEventsGuard {
@@ -287,28 +148,9 @@ impl ReadEventsGuard {
     ///
     /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
     /// until they are all consumed or destroyed.
-    pub fn read_events(self) -> IoResult<i32> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_read_events,
-                    self.inner.inner.ptr()
-                )
-            };
-            // Don't run destructor that would cancel the read intent
-            ::std::mem::forget(self);
-            if ret >= 0 {
-                Ok(ret)
-            } else {
-                Err(IoError::last_os_error())
-            }
-        }
+    pub fn read_events(mut self) -> io::Result<i32> {
+        self.done = true;
+        self.inner.borrow().read_events()
     }
 
     /// Cancel the read
@@ -316,20 +158,16 @@ impl ReadEventsGuard {
     /// Will cancel the read intention associated with this guard. Never blocks.
     ///
     /// Has the same effet as letting the guard go out of scope.
-    pub fn cancel(self) {
+    pub fn cancel(mut self) {
         // just run the destructor
+        self.done = true;
     }
 }
 
 impl Drop for ReadEventsGuard {
     fn drop(&mut self) {
-        #[cfg(feature = "native_lib")]
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_display_cancel_read,
-                self.inner.inner.ptr()
-            )
+        if !self.done {
+            self.inner.borrow().cancel_read();
         }
     }
 }

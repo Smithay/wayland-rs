@@ -1,14 +1,15 @@
-use std::ffi::{CString, OsString};
+use std::ffi::OsString;
 use std::io;
 use std::ops::Deref;
-use std::os::unix::ffi::OsStringExt;
+use std::rc::Rc;
 use std::sync::Arc;
 
-use EventQueue;
-use Proxy;
+use {EventQueue, Proxy};
+
+use imp::DisplayInner;
 
 #[cfg(feature = "native_lib")]
-use wayland_sys::client::*;
+use wayland_sys::client::wl_display;
 
 /// Enum representing the possible reasons why connecting to the wayland server failed
 #[derive(Debug)]
@@ -25,43 +26,6 @@ pub enum ConnectError {
     InvalidName,
 }
 
-pub(crate) struct DisplayInner {
-    proxy: Proxy<::protocol::wl_display::WlDisplay>,
-    display: *mut wl_display,
-}
-
-unsafe impl Send for DisplayInner {}
-unsafe impl Sync for DisplayInner {}
-
-impl DisplayInner {
-    #[cfg(feature = "native_lib")]
-    pub(crate) fn ptr(&self) -> *mut wl_display {
-        self.display
-    }
-}
-
-impl Drop for DisplayInner {
-    fn drop(&mut self) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe {
-                if self.proxy.c_ptr() == (self.display as *mut _) {
-                    // disconnect only if we are owning this display
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_disconnect,
-                        self.proxy.c_ptr() as *mut wl_display
-                    );
-                }
-            }
-        }
-    }
-}
-
 /// A connection to a wayland server
 ///
 /// This object both represent the connection to the server, and as such
@@ -70,26 +34,52 @@ impl Drop for DisplayInner {
 /// your need objects. The inner `Proxy<WlDisplay>` can be accessed via
 /// `Deref`.
 pub struct Display {
-    inner: Arc<DisplayInner>,
+    pub(crate) inner: Arc<DisplayInner>,
 }
 
 impl Display {
-    #[cfg(feature = "native_lib")]
-    unsafe fn make_display(ptr: *mut wl_display) -> Result<(Display, EventQueue), ConnectError> {
-        if ptr.is_null() {
-            return Err(ConnectError::NoCompositorListening);
-        }
+    /// Attempt to connect to a wayland server using the contents of the environment variables
+    ///
+    /// If the `WAYLAND_DISPLAY` variable is set, it will try to connect to the socket it points
+    /// to. Otherwise, it will default to `wayland-0`.
+    ///
+    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
+    /// the `WlDisplay` wayland object.
+    ///
+    /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
+    pub fn connect_to_env() -> Result<(Display, EventQueue), ConnectError> {
+        let (d_inner, evq_inner) = DisplayInner::connect_to_name(None)?;
+        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+    }
 
-        let display = Display {
-            inner: Arc::new(DisplayInner {
-                proxy: Proxy::from_display(ptr),
-                display: ptr,
-            }),
-        };
+    /// Attempt to connect to a wayland server socket with given name
+    ///
+    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
+    /// the `WlDisplay` wayland object.
+    ///
+    /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
+    pub fn connect_to_name<S: Into<OsString>>(name: S) -> Result<(Display, EventQueue), ConnectError> {
+        let (d_inner, evq_inner) = DisplayInner::connect_to_name(Some(name.into()))?;
+        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+    }
 
-        let evq = EventQueue::new(display.inner.clone(), None);
+    /// Non-blocking write to the server
+    ///
+    /// Outgoing messages to the server are buffered by the library for efficiency. This method
+    /// flushes the internal buffer to the server socket.
+    ///
+    /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
+    /// requests coul be written, will return an io error `WouldBlock`.
+    ///
+    /// On success returns the number of written requests.
+    pub fn flush(&self) -> io::Result<i32> {
+        self.inner.flush()
+    }
 
-        Ok((display, evq))
+    /// Create a new event queue associated with this wayland connection
+    pub fn create_event_queue(&self) -> EventQueue {
+        let evq_inner = DisplayInner::create_event_queue(&self.inner);
+        EventQueue::new(evq_inner)
     }
 
     #[cfg(feature = "native_lib")]
@@ -103,125 +93,14 @@ impl Display {
     /// then provide them to you. You can then use them as if they came from a direct
     /// wayland connection.
     pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> (Display, EventQueue) {
-        let evq_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display_ptr);
-
-        let wrapper_ptr = ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_create_wrapper,
-            display_ptr as *mut _
-        );
-        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapper_ptr, evq_ptr);
-
-        let display = Display {
-            inner: Arc::new(DisplayInner {
-                proxy: Proxy::from_display_wrapper(wrapper_ptr),
-                display: display_ptr,
-            }),
-        };
-
-        let evq = EventQueue::new(display.inner.clone(), Some(evq_ptr));
-        (display, evq)
-    }
-
-    /// Attempt to connect to a wayland server using the contents of the environment variables
-    ///
-    /// If the `WAYLAND_DISPLAY` variable is set, it will try to connect to the socket it points
-    /// to. Otherwise, it will default to `wayland-0`.
-    ///
-    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
-    /// the `WlDisplay` wayland object.
-    ///
-    /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
-    pub fn connect_to_env() -> Result<(Display, EventQueue), ConnectError> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            if !::wayland_sys::client::is_lib_available() {
-                return Err(ConnectError::NoWaylandLib);
-            }
-
-            unsafe {
-                let display_ptr =
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null());
-
-                Display::make_display(display_ptr)
-            }
-        }
-    }
-
-    /// Attempt to connect to a wayland server socket with given name
-    ///
-    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
-    /// the `WlDisplay` wayland object.
-    ///
-    /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
-    pub fn connect_to_name<S: Into<OsString>>(name: S) -> Result<(Display, EventQueue), ConnectError> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            if !::wayland_sys::client::is_lib_available() {
-                return Err(ConnectError::NoWaylandLib);
-            }
-
-            let name = CString::new(name.into().into_vec()).map_err(|_| ConnectError::InvalidName)?;
-
-            unsafe {
-                let display_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, name.as_ptr());
-
-                Display::make_display(display_ptr)
-            }
-        }
-    }
-
-    /// Non-blocking write to the server
-    ///
-    /// Outgoing messages to the server are buffered by the library for efficiency. This method
-    /// flushes the internal buffer to the server socket.
-    ///
-    /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
-    /// requests coul be written, will return an io error `WouldBlock`.
-    ///
-    /// On success returns the number of written requests.
-    pub fn flush(&self) -> io::Result<i32> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.inner.ptr()) };
-            if ret >= 0 {
-                Ok(ret)
-            } else {
-                Err(io::Error::last_os_error())
-            }
-        }
-    }
-
-    /// Create a new event queue associated with this wayland connection
-    pub fn create_event_queue(&self) -> EventQueue {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        unsafe {
-            let ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, self.inner.ptr());
-
-            EventQueue::new(self.inner.clone(), Some(ptr))
-        }
+        let (d_inner, evq_inner) = DisplayInner::from_external(display_ptr);
+        (Display { inner: d_inner }, EventQueue::new(evq_inner))
     }
 }
 
 impl Deref for Display {
     type Target = Proxy<::protocol::wl_display::WlDisplay>;
     fn deref(&self) -> &Proxy<::protocol::wl_display::WlDisplay> {
-        &self.inner.proxy
+        self.inner.get_proxy()
     }
 }
