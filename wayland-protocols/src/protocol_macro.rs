@@ -27,6 +27,7 @@ macro_rules! wayland_protocol(
                     pub(crate) use wayland_sys as sys;
                     pub(crate) use wayland_client::protocol::{$($import),*};
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_c_client_api.rs"));
+                    pub use super::c_interfaces;
                 }
             }
 
@@ -44,6 +45,7 @@ macro_rules! wayland_protocol(
                     pub(crate) use wayland_sys as sys;
                     pub(crate) use wayland_server::protocol::{$($import),*};
                     include!(concat!(env!("OUT_DIR"), "/", $name, "_c_server_api.rs"));
+                    pub use super::c_interfaces;
                 }
             }
         }
