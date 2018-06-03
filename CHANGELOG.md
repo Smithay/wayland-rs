@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [client] Allow the creation of a `Display` from a foreign `wl_display`
+- [protocols] Expose generated C interfaces for protocol interop
 
 # 0.20.8 - 2018-05-22
 
