@@ -29,12 +29,13 @@ pub enum ConnectError {
 
 pub(crate) struct DisplayInner {
     proxy: Proxy<::protocol::wl_display::WlDisplay>,
+    display: *mut wl_display
 }
 
 impl DisplayInner {
     #[cfg(feature = "native_lib")]
     pub(crate) fn ptr(&self) -> *mut wl_display {
-        self.proxy.c_ptr() as *mut _
+        self.display
     }
 }
 
@@ -47,11 +48,14 @@ impl Drop for DisplayInner {
         #[cfg(feature = "native_lib")]
         {
             unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_disconnect,
-                    self.proxy.c_ptr() as *mut wl_display
-                );
+                if self.proxy.c_ptr() == (self.display as *mut _) {
+                    // disconnect only if we are owning this display
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_display_disconnect,
+                        self.proxy.c_ptr() as *mut wl_display
+                    );
+                }
             }
         }
     }
@@ -78,12 +82,53 @@ impl Display {
         let display = Display {
             inner: Arc::new(DisplayInner {
                 proxy: Proxy::from_display(ptr),
+                display: ptr
             }),
         };
 
         let evq = EventQueue::new(display.inner.clone(), None);
 
         Ok((display, evq))
+    }
+
+    #[cfg(feature = "native_lib")]
+    /// Create a Display and Event Queue from an external display
+    ///
+    /// This allows you to interface with an already-existing wayland connection,
+    /// for example provided by a GUI toolkit.
+    ///
+    /// To avoid interferences with the owner of the connection, wayland-client will
+    /// create a new event queue and register a wrapper of the `wl_display` to this queue,
+    /// then provide them to you. You can then use them as if they came from a direct
+    /// wayland connection.
+    pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> (Display, EventQueue) {
+        let evq_ptr = ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_display_create_queue,
+            display_ptr
+        );
+
+        let wrapper_ptr = ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_proxy_create_wrapper,
+            display_ptr as *mut _
+        );
+        ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_proxy_set_queue,
+            wrapper_ptr,
+            evq_ptr
+        );
+
+        let display = Display {
+            inner: Arc::new(DisplayInner {
+                proxy: Proxy::from_display_wrapper(wrapper_ptr),
+                display: display_ptr
+            }),
+        };
+
+        let evq = EventQueue::new(display.inner.clone(), Some(evq_ptr));
+        (display, evq)
     }
 
     /// Attempt to connect to a wayland server using the contents of the environment variables

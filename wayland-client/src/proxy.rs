@@ -383,6 +383,15 @@ impl Proxy<::protocol::wl_display::WlDisplay> {
             is_wrapper: false,
         }
     }
+
+    pub(crate) fn from_display_wrapper(d: *mut wl_proxy) -> Proxy<::protocol::wl_display::WlDisplay> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            internal: None,
+            ptr: d as *mut wl_proxy,
+            is_wrapper: true,
+        }
+    }
 }
 
 impl<I: Interface> Drop for Proxy<I> {
