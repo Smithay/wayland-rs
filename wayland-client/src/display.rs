@@ -29,7 +29,7 @@ pub enum ConnectError {
 
 pub(crate) struct DisplayInner {
     proxy: Proxy<::protocol::wl_display::WlDisplay>,
-    display: *mut wl_display
+    display: *mut wl_display,
 }
 
 impl DisplayInner {
@@ -82,7 +82,7 @@ impl Display {
         let display = Display {
             inner: Arc::new(DisplayInner {
                 proxy: Proxy::from_display(ptr),
-                display: ptr
+                display: ptr,
             }),
         };
 
@@ -102,28 +102,19 @@ impl Display {
     /// then provide them to you. You can then use them as if they came from a direct
     /// wayland connection.
     pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> (Display, EventQueue) {
-        let evq_ptr = ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_display_create_queue,
-            display_ptr
-        );
+        let evq_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display_ptr);
 
         let wrapper_ptr = ffi_dispatch!(
             WAYLAND_CLIENT_HANDLE,
             wl_proxy_create_wrapper,
             display_ptr as *mut _
         );
-        ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_set_queue,
-            wrapper_ptr,
-            evq_ptr
-        );
+        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapper_ptr, evq_ptr);
 
         let display = Display {
             inner: Arc::new(DisplayInner {
                 proxy: Proxy::from_display_wrapper(wrapper_ptr),
-                display: display_ptr
+                display: display_ptr,
             }),
         };
 
