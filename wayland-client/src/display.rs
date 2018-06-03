@@ -70,7 +70,11 @@ pub struct Display {
 
 impl Display {
     #[cfg(feature = "native_lib")]
-    unsafe fn make_display(ptr: *mut wl_display) -> Result<(Display, EventQueue), ConnectError> {
+    /// Wrap an existing wayland connection (e.g. from a UI toolkit) into Rust wrappers.
+    ///
+    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
+    /// the `WlDisplay` wayland object.
+    pub unsafe fn make_display(ptr: *mut wl_display) -> Result<(Display, EventQueue), ConnectError> {
         if ptr.is_null() {
             return Err(ConnectError::NoCompositorListening);
         }
