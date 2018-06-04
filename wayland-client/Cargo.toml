@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.20.9"
+version = "0.20.10"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,13 +14,13 @@ build = "build.rs"
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-commons = { version = "0.20.9", path = "../wayland-commons" }
-wayland-sys = { version = "0.20.9", features = ["client"], path = "../wayland-sys", optional = true }
+wayland-commons = { version = "0.20.10", path = "../wayland-commons" }
+wayland-sys = { version = "0.20.10", features = ["client"], path = "../wayland-sys", optional = true }
 bitflags = "1.0"
 libc = "0.2"
 
 [build-dependencies]
-wayland-scanner = { version = "0.20.9", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.20.10", path = "../wayland-scanner" }
 
 [dev-dependencies]
 byteorder = "1.0"

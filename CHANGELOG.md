@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+# 0.20.10 - 2018-06-04
+
 - [client] Fix regression from previous release where `Display` was no longer
   `Send` and `Sync`.
 
