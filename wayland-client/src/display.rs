@@ -32,6 +32,9 @@ pub(crate) struct DisplayInner {
     display: *mut wl_display,
 }
 
+unsafe impl Send for DisplayInner {}
+unsafe impl Sync for DisplayInner {}
+
 impl DisplayInner {
     #[cfg(feature = "native_lib")]
     pub(crate) fn ptr(&self) -> *mut wl_display {

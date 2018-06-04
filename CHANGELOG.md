@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Fix regression from previous release where `Display` was no longer
+  `Send` and `Sync`.
+
 # 0.20.9 - 2018-06-03
 
 - [client] Allow the creation of a `Display` from a foreign `wl_display`
