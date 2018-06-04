@@ -1,10 +1,10 @@
 use protocol::*;
 use std::io::Read;
-use xml::EventReader;
 use xml::attribute::OwnedAttribute;
 use xml::reader::Events;
 use xml::reader::ParserConfig;
 use xml::reader::XmlEvent;
+use xml::EventReader;
 
 macro_rules! extract_from(
     ($it: expr => $pattern: pat => $result: expr) => (

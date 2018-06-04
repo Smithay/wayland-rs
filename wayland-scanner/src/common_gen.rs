@@ -1,9 +1,9 @@
 use std::io::Result as IOResult;
 use std::io::Write;
 
-use Side;
 use protocol::*;
 use util::*;
+use Side;
 
 pub(crate) fn write_prefix<O: Write>(protocol: &Protocol, out: &mut O) -> IOResult<()> {
     writeln!(

@@ -1,7 +1,7 @@
 use std::os::raw::c_void;
 use std::ptr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::Arc;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;

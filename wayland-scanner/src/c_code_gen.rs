@@ -1,10 +1,10 @@
 use std::io::Result as IOResult;
 use std::io::Write;
 
-use Side;
 use common_gen::*;
 use protocol::*;
 use util::*;
+use Side;
 
 pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
     write_prefix(&protocol, out)?;

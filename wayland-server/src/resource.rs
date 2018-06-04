@@ -5,8 +5,8 @@ use {Client, LoopToken};
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::Arc;
 
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
@@ -500,8 +500,8 @@ mod native_machinery {
     use wayland_sys::server::*;
 
     use std::os::raw::{c_int, c_void};
-    use std::sync::Arc;
     use std::sync::atomic::Ordering;
+    use std::sync::Arc;
 
     use super::Resource;
 

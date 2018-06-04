@@ -5,8 +5,8 @@ use wayland_sys::client::*;
 
 use event_queue::QueueToken;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::Arc;
 
 pub(crate) struct ProxyInternal {
     alive: AtomicBool,
@@ -526,8 +526,8 @@ mod native_machinery {
     use wayland_sys::common::*;
 
     use std::os::raw::{c_int, c_void};
-    use std::sync::Arc;
     use std::sync::atomic::Ordering;
+    use std::sync::Arc;
 
     use super::Proxy;
 

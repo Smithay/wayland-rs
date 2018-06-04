@@ -1,9 +1,9 @@
-extern crate wayland_server as ways;
 extern crate wayland_client as wayc;
+extern crate wayland_server as ways;
 
 fn ensure_send<I: Send>() {}
 fn ensure_sync<I: Sync>() {}
-fn ensure_both<I: Send+Sync>() {}
+fn ensure_both<I: Send + Sync>() {}
 
 #[test]
 fn send_sync_client() {

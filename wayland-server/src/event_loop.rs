@@ -3,8 +3,8 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic;
+use std::sync::Arc;
 
 use wayland_commons::{downcast_impl, Implementation};
 

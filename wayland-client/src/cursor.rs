@@ -14,7 +14,6 @@
 //! displayed at which time, as well as handles to the buffers containing
 //! these frames, to attach them to a wayland surface.
 
-use Proxy;
 use protocol::wl_buffer::WlBuffer;
 use protocol::wl_shm::WlShm;
 use std::ffi::{CStr, CString};
@@ -23,6 +22,7 @@ use std::ops::Deref;
 use std::os::raw::c_int;
 use std::ptr;
 use wayland_sys::cursor::*;
+use Proxy;
 
 /// Checks if the wayland-cursor lib is available and can be used
 ///

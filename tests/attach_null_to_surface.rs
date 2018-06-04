@@ -9,8 +9,8 @@ use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
 use wayc::protocol::wl_surface::RequestsTrait as SurfaceRequests;
 
 fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<bool>> {
-    use ways::NewResource;
     use ways::protocol::{wl_compositor, wl_surface};
+    use ways::NewResource;
 
     let seen_surface = Arc::new(Mutex::new(false));
     let seen_surface2 = seen_surface.clone();
