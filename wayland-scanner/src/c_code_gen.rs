@@ -325,7 +325,7 @@ pub fn write_messagegroup_impl<O: Write>(
                     }
                     Type::Array => {
                         if a.allow_null {
-                            writeln!(out, "let _arg_{} = {}.as_ref().map(|vec| wl_array {{ size: vec.len(), alloc: vec.capacity(), data: vec.as_ptr() as *mut_ }});", j, a.name)?;
+                            writeln!(out, "let _arg_{} = {}.as_ref().map(|vec| wl_array {{ size: vec.len(), alloc: vec.capacity(), data: vec.as_ptr() as *mut _ }});", j, a.name)?;
                             write!(out, "                    ")?;
                             writeln!(out, "_args_array[{}].a = _arg_{}.as_ref().map(|a| a as *const wl_array).unwrap_or(::std::ptr::null());", j, j)?;
                         } else {

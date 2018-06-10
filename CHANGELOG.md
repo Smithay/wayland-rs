@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
+
 # 0.20.10 - 2018-06-04
 
 - [client] Fix regression from previous release where `Display` was no longer
