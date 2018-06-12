@@ -57,7 +57,7 @@ fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: b
         if client {
             generate_rust_code(
                 &protocol_file,
-                out_dir.join(&format!("{}_c_client_api.rs", name)),
+                out_dir.join(&format!("{}_rust_client_api.rs", name)),
                 Side::Client,
             );
         }
@@ -65,7 +65,7 @@ fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: b
         if server {
             generate_rust_code(
                 &protocol_file,
-                out_dir.join(&format!("{}_c_server_api.rs", name)),
+                out_dir.join(&format!("{}_rust_server_api.rs", name)),
                 Side::Server,
             );
         }

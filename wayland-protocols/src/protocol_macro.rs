@@ -10,6 +10,33 @@ macro_rules! wayland_protocol(
         #[cfg(all(feature = "native_lib", any(feature = "client", feature = "server")))]
         pub use self::generated::c_interfaces;
 
+        #[cfg(all(not(feature = "native_lib"), any(feature = "client", feature = "server")))]
+        mod generated {
+            #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
+            #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
+            #![allow(missing_docs)]
+
+            #[cfg(feature = "client")]
+            pub mod client {
+                //! Client-side API of this protocol
+                pub(crate) use wayland_client::{NewProxy, Proxy};
+                pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+                pub(crate) use wayland_commons::wire::{MessageDesc, ArgumentType};
+                pub(crate) use wayland_client::protocol::{$($import),*};
+                include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_client_api.rs"));
+            }
+
+            #[cfg(feature = "server")]
+            pub mod server {
+                //! Server-side API of this protocol
+                pub(crate) use wayland_server::{NewResource, Resource};
+                pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+                    pub(crate) use wayland_commons::wire::{MessageDesc, ArgumentType};
+                pub(crate) use wayland_server::protocol::{$($import),*};
+                include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_server_api.rs"));
+            }
+        }
+
         #[cfg(all(feature = "native_lib", any(feature = "client", feature = "server")))]
         mod generated {
             #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
