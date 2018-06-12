@@ -227,7 +227,7 @@ impl<I: Interface + 'static> NewResource<I> {
 }
 
 #[cfg(feature = "native_lib")]
-impl<I:Interface> NewResource<I> {
+impl<I: Interface> NewResource<I> {
     /// Get a raw pointer to the underlying wayland object
     ///
     /// Retrieve a pointer to the object from the `libwayland-server.so` library.
