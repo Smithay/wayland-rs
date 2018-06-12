@@ -57,14 +57,6 @@ impl<I: Interface> Resource<I> {
         self.inner.version()
     }
 
-    #[cfg(feature = "native_lib")]
-    /// Check whether this resource is managed by the library or not
-    ///
-    /// See `from_c_ptr` for details.
-    pub fn is_external(&self) -> bool {
-        self.inner.is_external()
-    }
-
     /// Check if the other resource refers to the same underlying wayland object
     pub fn equals(&self, other: &Resource<I>) -> bool {
         self.inner.equals(&other.inner)
@@ -113,7 +105,26 @@ impl<I: Interface> Resource<I> {
         self.inner.client().map(Client::make)
     }
 
-    #[cfg(feature = "native_lib")]
+    /// Check whether this resource has been implemented with given type
+    ///
+    /// Always returns false if the resource is no longer alive
+    pub fn is_implemented_with<Impl>(&self) -> bool
+    where
+        Impl: Implementation<Resource<I>, I::Request> + 'static,
+    {
+        self.inner.is_implemented_with::<I, Impl>()
+    }
+}
+
+#[cfg(feature = "native_lib")]
+impl<I: Interface> Resource<I> {
+    /// Check whether this resource is managed by the library or not
+    ///
+    /// See `from_c_ptr` for details.
+    pub fn is_external(&self) -> bool {
+        self.inner.is_external()
+    }
+
     /// Get a raw pointer to the underlying wayland object
     ///
     /// Retrieve a pointer to the object from the `libwayland-server.so` library.
@@ -123,7 +134,6 @@ impl<I: Interface> Resource<I> {
         self.inner.c_ptr()
     }
 
-    #[cfg(feature = "native_lib")]
     /// Create a `Resource` instance from a C pointer
     ///
     /// Create a `Resource` from a raw pointer to a wayland object from the
@@ -148,16 +158,6 @@ impl<I: Interface> Resource<I> {
             _i: ::std::marker::PhantomData,
             inner: ResourceInner::from_c_ptr::<I>(ptr),
         }
-    }
-
-    /// Check whether this resource has been implemented with given type
-    ///
-    /// Always returns false if the resource is no longer alive
-    pub fn is_implemented_with<Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-    {
-        self.inner.is_implemented_with::<I, Impl>()
     }
 }
 
@@ -224,8 +224,10 @@ impl<I: Interface + 'static> NewResource<I> {
             inner,
         }
     }
+}
 
-    #[cfg(feature = "native_lib")]
+#[cfg(feature = "native_lib")]
+impl<I:Interface> NewResource<I> {
     /// Get a raw pointer to the underlying wayland object
     ///
     /// Retrieve a pointer to the object from the `libwayland-server.so` library.
@@ -238,7 +240,6 @@ impl<I: Interface + 'static> NewResource<I> {
         self.inner.c_ptr()
     }
 
-    #[cfg(feature = "native_lib")]
     /// Create a `NewResource` instance from a C pointer.
     ///
     /// By doing so, you assert that this wayland object was newly created and

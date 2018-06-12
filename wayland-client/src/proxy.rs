@@ -5,9 +5,6 @@ use wayland_sys::client::*;
 
 use event_queue::QueueToken;
 
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::Arc;
-
 use imp::{NewProxyInner, ProxyInner};
 
 /// An handle to a wayland proxy
@@ -96,83 +93,9 @@ impl<I: Interface> Proxy<I> {
         self.inner.get_user_data()
     }
 
-    #[cfg(feature = "native_lib")]
-    /// Check whether this proxy is managed by the library or not
-    ///
-    /// See `from_c_ptr` for details.
-    pub fn is_external(&self) -> bool {
-        self.inner.is_external()
-    }
-
     /// Check if the other proxy refers to the same underlying wayland object
     pub fn equals(&self, other: &Proxy<I>) -> bool {
         self.inner.equals(&other.inner)
-    }
-
-    #[cfg(feature = "native_lib")]
-    /// Get a raw pointer to the underlying wayland object
-    ///
-    /// Retrieve a pointer to the object from the `libwayland-client.so` library.
-    /// You will mostly need it to interface with C libraries needing access
-    /// to wayland objects (to initialize an opengl context for example).
-    pub fn c_ptr(&self) -> *mut wl_proxy {
-        self.inner.c_ptr()
-    }
-
-    #[cfg(feature = "native_lib")]
-    /// Create a `Proxy` instance from a C pointer
-    ///
-    /// Create a `Proxy` from a raw pointer to a wayland object from the
-    /// C library.
-    ///
-    /// If the pointer was previously obtained by the `c_ptr()` method, this
-    /// constructs a new proxy for the same object just like the `clone()`
-    /// method would have.
-    ///
-    /// If the object was created by some other C library you are interfacing
-    /// with, it will be created in an "unmanaged" state: wayland-client will
-    /// treat it as foreign, and as such most of the safeties will be absent.
-    /// Notably the lifetime of the object can't be tracked, so the `alive()`
-    /// method will always return `false` and you are responsible of not using
-    /// an object past its destruction (as this would cause a protocol error).
-    /// You will also be unable to associate any user data pointer to this object.
-    ///
-    /// In order to handle protocol races, invoking it with a NULL pointer will
-    /// create an already-dead object.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Proxy<I> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: ProxyInner::from_c_ptr::<I>(ptr),
-        }
-    }
-
-    #[doc(hidden)]
-    #[cfg(feature = "native_lib")]
-    pub unsafe fn new_null() -> Proxy<I> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: ProxyInner::new_null(),
-        }
-    }
-
-    #[cfg(feature = "native_lib")]
-    /// Create a wrapper for this object for queue management
-    ///
-    /// As assigning a proxy to an event queue can be a racy operation
-    /// in contextes involving multiple thread, this provides a facility
-    /// to do this safely.
-    ///
-    /// The wrapper object created behaves like a regular `Proxy`, except that
-    /// all objects created as the result of its requests will be assigned to
-    /// the queue associated to the provided token, rather than the queue of
-    /// their parent. This does not change the queue of the proxy itself.
-    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
-        let inner = self.inner.make_wrapper(&*queue.inner.borrow())?;
-
-        Ok(Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        })
     }
 
     /// Create a new child object that do not inherit the version
@@ -219,6 +142,78 @@ impl<I: Interface> Proxy<I> {
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
     {
         self.inner.is_implemented_with::<I, Impl>()
+    }
+}
+
+#[cfg(feature = "native_lib")]
+impl<I: Interface> Proxy<I> {
+    /// Check whether this proxy is managed by the library or not
+    ///
+    /// See `from_c_ptr` for details.
+    pub fn is_external(&self) -> bool {
+        self.inner.is_external()
+    }
+
+    /// Get a raw pointer to the underlying wayland object
+    ///
+    /// Retrieve a pointer to the object from the `libwayland-client.so` library.
+    /// You will mostly need it to interface with C libraries needing access
+    /// to wayland objects (to initialize an opengl context for example).
+    pub fn c_ptr(&self) -> *mut wl_proxy {
+        self.inner.c_ptr()
+    }
+
+    /// Create a `Proxy` instance from a C pointer
+    ///
+    /// Create a `Proxy` from a raw pointer to a wayland object from the
+    /// C library.
+    ///
+    /// If the pointer was previously obtained by the `c_ptr()` method, this
+    /// constructs a new proxy for the same object just like the `clone()`
+    /// method would have.
+    ///
+    /// If the object was created by some other C library you are interfacing
+    /// with, it will be created in an "unmanaged" state: wayland-client will
+    /// treat it as foreign, and as such most of the safeties will be absent.
+    /// Notably the lifetime of the object can't be tracked, so the `alive()`
+    /// method will always return `false` and you are responsible of not using
+    /// an object past its destruction (as this would cause a protocol error).
+    /// You will also be unable to associate any user data pointer to this object.
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
+    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Proxy<I> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            inner: ProxyInner::from_c_ptr::<I>(ptr),
+        }
+    }
+
+    #[doc(hidden)]
+    pub unsafe fn new_null() -> Proxy<I> {
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            inner: ProxyInner::new_null(),
+        }
+    }
+
+    /// Create a wrapper for this object for queue management
+    ///
+    /// As assigning a proxy to an event queue can be a racy operation
+    /// in contextes involving multiple thread, this provides a facility
+    /// to do this safely.
+    ///
+    /// The wrapper object created behaves like a regular `Proxy`, except that
+    /// all objects created as the result of its requests will be assigned to
+    /// the queue associated to the provided token, rather than the queue of
+    /// their parent. This does not change the queue of the proxy itself.
+    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
+        let inner = self.inner.make_wrapper(&*queue.inner.borrow())?;
+
+        Ok(Proxy {
+            _i: ::std::marker::PhantomData,
+            inner,
+        })
     }
 }
 
@@ -290,8 +285,10 @@ impl<I: Interface + 'static> NewProxy<I> {
             inner: inner,
         }
     }
+}
 
-    #[cfg(feature = "native_lib")]
+#[cfg(feature = "native_lib")]
+impl<I: Interface + 'static> NewProxy<I> {
     /// Get a raw pointer to the underlying wayland object
     ///
     /// Retrieve a pointer to the object from the `libwayland-client.so` library.
@@ -304,7 +301,6 @@ impl<I: Interface + 'static> NewProxy<I> {
         self.inner.c_ptr()
     }
 
-    #[cfg(feature = "native_lib")]
     /// Create a `NewProxy` instance from a C pointer.
     ///
     /// By doing so, you assert that this wayland object was newly created and
