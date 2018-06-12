@@ -233,8 +233,7 @@ where
 /// ```no_run
 /// # #[macro_use] extern crate wayland_client;
 /// use wayland_client::GlobalManager;
-/// # use wayland_client::{Display, NewProxy};
-/// use wayland_client::protocol::wl_display::RequestsTrait;
+/// # use wayland_client::{Display, NewProxy, Proxy};
 /// use wayland_client::protocol::{wl_output, wl_seat};
 ///
 /// # fn main() {
@@ -242,7 +241,7 @@ where
 /// # let seat_implementor: fn(NewProxy<_>) -> Proxy<_> = unimplemented!();
 /// # let output_implementor: fn(NewProxy<_>) -> Proxy<_> = unimplemented!();
 /// let globals = GlobalManager::new_with_cb(
-///     display.get_registry().unwrap(),
+///     &display,
 ///     global_filter!(
 ///         // Bind all wl_seat with version 4
 ///         [wl_seat::WlSeat, 4, seat_implementor],

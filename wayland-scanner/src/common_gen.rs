@@ -432,7 +432,7 @@ pub fn print_method_prototype<'a, O: Write>(
                 write!(
                     out,
                     "Result<Proxy<super::{module}::{name}>, ()>
-                    where F: FnOnce(NewProxy<super::{module}::{name}>) -> Proxy<super::{module}::{name}>",
+            where F: FnOnce(NewProxy<super::{module}::{name}>) -> Proxy<super::{module}::{name}>",
                     module = iface,
                     name = snake_to_camel(iface)
                 )?;
@@ -441,7 +441,7 @@ pub fn print_method_prototype<'a, O: Write>(
                 write!(
                     out,
                     "Result<Proxy<T>, ()>
-                    where F: FnOnce(NewProxy<T>) -> Proxy<T>"
+            where F: FnOnce(NewProxy<T>) -> Proxy<T>"
                 )?;
             }
         }

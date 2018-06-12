@@ -43,10 +43,6 @@ fn main() {
                                 caps = Some(capabilities);
                             }
                         }
-                        Event::Capabilities { capabilities } => {
-                            // We *should* have received the "name" event first
-                            caps = Some(capabilities);
-                        }
                     })
                 }
             ],

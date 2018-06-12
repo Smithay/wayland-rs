@@ -430,7 +430,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
     writeln!(out, "    impl RequestsTrait for Proxy<{}> {{", name)?;
     for msg in messages {
         let return_type = print_method_prototype(name, &msg, out)?;
-        writeln!(out, " {{")?;
+        writeln!(out, "")?;
+        writeln!(out, "        {{")?;
         // liveness sanity check
         writeln!(out, "            if !self.is_external() && !self.is_alive() {{")?;
         if return_type.is_some() {

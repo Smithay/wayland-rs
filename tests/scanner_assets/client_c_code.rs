@@ -201,11 +201,13 @@ pub mod wl_foo {
         /// create a bar
         ///
         /// Create a bar which will do its bar job.
-        fn create_bar(&self) ->Result<NewProxy<super::wl_bar::WlBar>, ()>;
+        fn create_bar<F>(&self, implementor: F) ->Result<Proxy<super::wl_bar::WlBar>, ()>
+            where F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>;
     }
 
     impl RequestsTrait for Proxy<WlFoo> {
-        fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->() {
+        fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
@@ -219,13 +221,15 @@ pub mod wl_foo {
             self.send(msg);
         }
 
-        fn create_bar(&self) ->Result<NewProxy<super::wl_bar::WlBar>, ()> {
+        fn create_bar<F>(&self, implementor: F) ->Result<Proxy<super::wl_bar::WlBar>, ()>
+            where F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>
+        {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
-            let _arg_id_newproxy = self.child::<super::wl_bar::WlBar>();
+            let _arg_id_newproxy = implementor(self.child());
             let msg = Request::CreateBar {
-                id: unsafe { Proxy::<super::wl_bar::WlBar>::from_c_ptr(_arg_id_newproxy.c_ptr()) },
+                id: _arg_id_newproxy.clone(),
             };
             self.send(msg);
             Ok(_arg_id_newproxy)
@@ -358,7 +362,8 @@ pub mod wl_bar {
     }
 
     impl RequestsTrait for Proxy<WlBar> {
-        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->() {
+        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
@@ -371,7 +376,8 @@ pub mod wl_bar {
             self.send(msg);
         }
 
-        fn release(&self) ->() {
+        fn release(&self) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
@@ -550,11 +556,14 @@ pub mod wl_registry {
         /// bind an object to the display
         ///
         /// This request is a special code-path, as its new-id argument as no target type.
-        fn bind<T: Interface>(&self, version: u32, name: u32) ->Result<NewProxy<T>, ()>;
+        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) ->Result<Proxy<T>, ()>
+            where F: FnOnce(NewProxy<T>) -> Proxy<T>;
     }
 
     impl RequestsTrait for Proxy<WlRegistry> {
-        fn bind<T: Interface>(&self, version: u32, name: u32) ->Result<NewProxy<T>, ()> {
+        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) ->Result<Proxy<T>, ()>
+            where F: FnOnce(NewProxy<T>) -> Proxy<T>
+        {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
@@ -575,7 +584,7 @@ pub mod wl_registry {
                         version
                     )
                 });
-                Ok(NewProxy::<T>::from_c_ptr(ret))
+                Ok(implementor(NewProxy::<T>::from_c_ptr(ret)))
             }
         }
     }
