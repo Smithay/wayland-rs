@@ -1,6 +1,6 @@
 use std::os::raw::{c_int, c_void};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::Arc;
 
 use wayland_commons::MessageGroup;
 use {Implementation, Interface, Proxy};
@@ -30,6 +30,9 @@ pub(crate) struct ProxyInner {
     ptr: *mut wl_proxy,
     is_wrapper: bool,
 }
+
+unsafe impl Send for ProxyInner {}
+unsafe impl Sync for ProxyInner {}
 
 impl ProxyInner {
     pub(crate) fn is_alive(&self) -> bool {

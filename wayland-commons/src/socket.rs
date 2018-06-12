@@ -2,9 +2,9 @@
 
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 
-use nix::Result as NixResult;
 use nix::sys::socket;
 use nix::sys::uio;
+use nix::Result as NixResult;
 
 use wire::{ArgumentType, Message, MessageParseError, MessageWriteError};
 

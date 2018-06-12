@@ -7,16 +7,12 @@
 //! See the methods of the `LoopToken` type for the methods used to create these
 //! event sources.
 
-use std::cell::RefCell;
 use std::io::Error as IoError;
-use std::os::raw::{c_int, c_void};
 use std::os::unix::io::RawFd;
-use std::rc::Rc;
-
-#[cfg(feature = "native_lib")]
-use wayland_sys::server::*;
 
 use wayland_commons::Implementation;
+
+use imp::{IdleSourceInner, SourceInner};
 
 /// A handle to an event source
 ///
@@ -28,21 +24,12 @@ use wayland_commons::Implementation;
 /// Dropping this object will *not* remove the event source from the event
 /// loop, you need to use the `remove()` method for that.
 pub struct Source<E> {
-    _e: ::std::marker::PhantomData<*const E>,
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_event_source,
-    #[cfg(feature = "native_lib")]
-    data: *mut Box<Implementation<(), E>>,
+    inner: SourceInner<E>,
 }
 
 impl<E> Source<E> {
-    #[cfg(feature = "native_lib")]
-    pub(crate) fn make(ptr: *mut wl_event_source, data: Box<Box<Implementation<(), E>>>) -> Source<E> {
-        Source {
-            _e: ::std::marker::PhantomData,
-            ptr: ptr,
-            data: Box::into_raw(data),
-        }
+    pub(crate) fn make(inner: SourceInner<E>) -> Source<E> {
+        Source { inner }
     }
 
     /// Remove this event source from the event loop
@@ -50,18 +37,7 @@ impl<E> Source<E> {
     /// You are returned the implementation you provided
     /// for this event source at creation.
     pub fn remove(self) -> Box<Implementation<(), E>> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe {
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
-                let data = Box::from_raw(self.data);
-                *data
-            }
-        }
+        self.inner.remove()
     }
 }
 
@@ -98,81 +74,7 @@ pub enum FdEvent {
 impl Source<FdEvent> {
     /// Change the registered interest for this FD
     pub fn update_mask(&mut self, mask: FdInterest) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_event_source_fd_update,
-                    self.ptr,
-                    mask.bits()
-                );
-            }
-        }
-    }
-}
-
-#[cfg(feature = "native_lib")]
-pub(crate) unsafe extern "C" fn event_source_fd_dispatcher(fd: c_int, mask: u32, data: *mut c_void) -> c_int {
-    // We don't need to worry about panic-safeness, because if there is a panic,
-    // we'll abort the process, so no access to corrupted data is possible.
-    let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), FdEvent>>);
-        if mask & 0x08 > 0 {
-            // EPOLLERR
-            use nix::sys::socket;
-            let err = match socket::getsockopt(fd, socket::sockopt::SocketError) {
-                Ok(err) => err,
-                Err(_) => {
-                    // error while retrieving the error code ???
-                    eprintln!(
-                        "[wayland-server error] Error while retrieving error code on socket {}, aborting.",
-                        fd
-                    );
-                    ::libc::abort();
-                }
-            };
-            implem.receive(
-                FdEvent::Error {
-                    fd: fd,
-                    error: IoError::from_raw_os_error(err),
-                },
-                (),
-            );
-        } else if mask & 0x04 > 0 {
-            // EPOLLHUP
-            implem.receive(
-                FdEvent::Error {
-                    fd: fd,
-                    error: IoError::new(::std::io::ErrorKind::ConnectionAborted, ""),
-                },
-                (),
-            );
-        } else {
-            let mut bits = FdInterest::empty();
-            if mask & 0x02 > 0 {
-                bits = bits | FdInterest::WRITE;
-            }
-            if mask & 0x01 > 0 {
-                bits = bits | FdInterest::READ;
-            }
-            implem.receive(FdEvent::Ready { fd: fd, mask: bits }, ());
-        }
-    });
-    match ret {
-        Ok(()) => return 0, // all went well
-        Err(_) => {
-            // a panic occured
-            eprintln!(
-                "[wayland-server error] A handler for fd {} event source panicked, aborting.",
-                fd
-            );
-            ::libc::abort();
-        }
+        self.inner.update_mask(mask)
     }
 }
 
@@ -190,37 +92,7 @@ impl Source<TimerEvent> {
     /// Manually the delay to 0 stops the timer (the callback won't be
     /// called).
     pub fn set_delay_ms(&mut self, delay: i32) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_event_source_timer_update,
-                self.ptr,
-                delay
-            );
-        }
-    }
-}
-
-#[cfg(feature = "native_lib")]
-pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void) -> c_int {
-    // We don't need to worry about panic-safeness, because if there is a panic,
-    // we'll abort the process, so no access to corrupted data is possible.
-    let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), TimerEvent>>);
-        implem.receive(TimerEvent, ());
-    });
-    match ret {
-        Ok(()) => return 0, // all went well
-        Err(_) => {
-            // a panic occured
-            eprintln!("[wayland-server error] A handler for a timer event source panicked, aborting.",);
-            ::libc::abort();
-        }
+        self.inner.set_delay_ms(delay)
     }
 }
 
@@ -229,37 +101,7 @@ pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void)
 /// An event generated by an UNIX signal event source
 ///
 /// Contains an enum indicating which signal was received.
-pub struct SignalEvent(::nix::sys::signal::Signal);
-
-#[cfg(feature = "native_lib")]
-pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, data: *mut c_void) -> c_int {
-    // We don't need to worry about panic-safeness, because if there is a panic,
-    // we'll abort the process, so no access to corrupted data is possible.
-    let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), SignalEvent>>);
-        let sig = match ::nix::sys::signal::Signal::from_c_int(signal) {
-            Ok(sig) => sig,
-            Err(_) => {
-                // Actually, this cannot happen, as we cannot register an event source for
-                // an unknown signal...
-                eprintln!(
-                    "[wayland-server error] Unknown signal in signal event source: {}, aborting.",
-                    signal
-                );
-                ::libc::abort();
-            }
-        };
-        implem.receive(SignalEvent(sig), ());
-    });
-    match ret {
-        Ok(()) => return 0, // all went well
-        Err(_) => {
-            // a panic occured
-            eprintln!("[wayland-server error] A handler for a timer event source panicked, aborting.",);
-            ::libc::abort();
-        }
-    }
-}
+pub struct SignalEvent(pub ::nix::sys::signal::Signal);
 
 // Idle event source
 
@@ -270,18 +112,12 @@ pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, da
 /// Dropping this struct does not remove the event source,
 /// use the `remove` method for that.
 pub struct IdleSource {
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_event_source,
-    data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
+    inner: IdleSourceInner,
 }
 
 impl IdleSource {
-    #[cfg(feature = "native_lib")]
-    pub(crate) fn make(
-        ptr: *mut wl_event_source,
-        data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
-    ) -> IdleSource {
-        IdleSource { ptr: ptr, data: data }
+    pub(crate) fn make(inner: IdleSourceInner) -> IdleSource {
+        IdleSource { inner }
     }
 
     /// Remove this event source from its event loop
@@ -289,49 +125,6 @@ impl IdleSource {
     /// You retrieve the associated implementation. The event source
     /// is removed and if it hadn't been fired yet, it is cancelled.
     pub fn remove(self) -> Box<Implementation<(), ()>> {
-        let dispatched = self.data.borrow().1;
-        if !dispatched {
-            #[cfg(not(feature = "native_lib"))]
-            {
-                unimplemented!()
-            }
-            #[cfg(feature = "native_lib")]
-            unsafe {
-                // unregister this event source
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
-                // recreate the outstanding reference that was not consumed
-                let _ = Rc::from_raw(&*self.data);
-            }
-        }
-        // we are now the only oustanding reference
-        let data = Rc::try_unwrap(self.data)
-            .unwrap_or_else(|_| panic!("Idle Rc was not singly owned."))
-            .into_inner();
-        data.0
-    }
-}
-
-#[cfg(feature = "native_lib")]
-pub(crate) unsafe extern "C" fn event_source_idle_dispatcher(data: *mut c_void) {
-    // We don't need to worry about panic-safeness, because if there is a panic,
-    // we'll abort the process, so no access to corrupted data is possible.
-    let ret = ::std::panic::catch_unwind(move || {
-        let data = &*(data as *mut RefCell<(Box<Implementation<(), ()>>, bool)>);
-        let mut data = data.borrow_mut();
-        data.0.receive((), ());
-    });
-    match ret {
-        Ok(()) => {
-            // all went well
-            // free the refence to the idata, as this event source cannot be called again
-            let data = Rc::from_raw(data as *mut RefCell<(Box<Implementation<(), ()>>, bool)>);
-            // store that the dispatching occured
-            data.borrow_mut().1 = true;
-        }
-        Err(_) => {
-            // a panic occured
-            eprintln!("[wayland-server error] A handler for a timer event source panicked, aborting.",);
-            ::libc::abort();
-        }
+        self.inner.remove()
     }
 }

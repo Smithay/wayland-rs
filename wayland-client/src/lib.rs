@@ -148,11 +148,11 @@ pub mod egl;
 
 pub use wayland_commons::{downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage};
 
-// C-lib based implementation
+// rust implementation
 #[cfg(not(feature = "native_lib"))]
 #[path = "rust_imp/mod.rs"]
 mod imp;
-// rust implementation
+// C-lib based implementation
 #[cfg(feature = "native_lib")]
 #[path = "native_lib/mod.rs"]
 mod imp;

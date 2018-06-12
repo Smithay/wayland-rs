@@ -1,41 +1,17 @@
+use std::cell::RefCell;
 use std::env;
-use std::ffi::{CStr, CString, OsStr, OsString};
+use std::ffi::{OsStr, OsString};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
-use std::os::raw::c_void;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
-use std::ptr;
 use std::rc::Rc;
 
-use wayland_commons::{Implementation, Interface};
-
 #[cfg(feature = "native_lib")]
-use globals::global_bind;
-use {Client, EventLoop, Global, LoopToken, NewResource};
+use wayland_sys::server::wl_display;
 
-#[cfg(feature = "native_lib")]
-use wayland_sys::server::*;
+use imp::DisplayInner;
 
-pub(crate) struct DisplayInner {
-    #[cfg(feature = "native_lib")]
-    pub(crate) ptr: *mut wl_display,
-}
-
-impl Drop for DisplayInner {
-    fn drop(&mut self) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe {
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.ptr);
-            }
-        }
-    }
-}
+use {Client, EventLoop, Global, Implementation, Interface, LoopToken, NewResource};
 
 /// The wayland display
 ///
@@ -43,11 +19,10 @@ impl Drop for DisplayInner {
 /// be kept alive as long as your server is running. It allows
 /// you to manage listening sockets and clients.
 pub struct Display {
-    inner: Rc<DisplayInner>,
+    inner: Rc<RefCell<DisplayInner>>,
 }
 
 impl Display {
-    #[cfg(feature = "native_lib")]
     /// Create a new display
     ///
     /// This method provides you a `Display` as well as the main `EventLoop`
@@ -56,40 +31,9 @@ impl Display {
     /// Note that at this point, your server is not yet ready to receive connections,
     /// your need to add listening sockets using the `add_socket*` methods.
     pub fn new() -> (Display, EventLoop) {
-        let ptr = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,) };
+        let (display_inner, evl_inner) = DisplayInner::new();
 
-        let display = Display {
-            inner: Rc::new(DisplayInner { ptr: ptr }),
-        };
-
-        // setup the client_created listener
-        unsafe {
-            let listener = signal::rust_listener_create(client_created);
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_display_add_client_created_listener,
-                ptr,
-                listener
-            );
-        }
-
-        let evq_ptr = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr) };
-
-        let evq = unsafe { EventLoop::display_new(display.inner.clone(), evq_ptr) };
-
-        (display, evq)
-    }
-
-    #[cfg(not(feature = "native_lib"))]
-    /// Create a new display
-    ///
-    /// This method provides you a `Display` as well as the main `EventLoop`
-    /// which will host your clients' objects.
-    ///
-    /// Note that at this point, your server is not yet ready to receive connections,
-    /// your need to add listening sockets using the `add_socket*` methods.
-    pub fn new() -> (Display, EventLoop) {
-        unimplemented!()
+        (Display { inner: display_inner }, EventLoop::make(evl_inner))
     }
 
     /// Create a new global object
@@ -105,35 +49,18 @@ impl Display {
     /// a lower version number.
     pub fn create_global<I: Interface, Impl>(
         &mut self,
-        _: &LoopToken,
+        token: &LoopToken,
         version: u32,
         implementation: Impl,
     ) -> Global<I>
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
-
-            unsafe {
-                let ptr = ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_global_create,
-                    self.inner.ptr,
-                    I::c_interface(),
-                    version as i32,
-                    &*data as *const Box<_> as *mut _,
-                    global_bind::<I>
-                );
-
-                Global::create(ptr, data)
-            }
-        }
+        Global::create(
+            self.inner
+                .borrow_mut()
+                .create_global(&*token.inner, version, implementation),
+        )
     }
 
     /// Flush events to the clients
@@ -141,21 +68,8 @@ impl Display {
     /// Will send as many pending events as possible to the respective sockets of the clients.
     /// Will not block, but might not send everything if the socket buffer fills up.
     pub fn flush_clients(&self) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.inner.ptr) };
-        }
+        self.inner.borrow_mut().flush_clients()
     }
-}
-
-#[cfg(feature = "native_lib")]
-unsafe extern "C" fn client_created(_listener: *mut wl_listener, data: *mut c_void) {
-    // init the client
-    let _client = Client::from_ptr(data as *mut wl_client);
 }
 
 impl Display {
@@ -176,45 +90,7 @@ impl Display {
     where
         S: AsRef<OsStr>,
     {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
-                Some(Ok(n)) => Some(n),
-                Some(Err(_)) => {
-                    return Err(IoError::new(
-                        ErrorKind::InvalidInput,
-                        "nulls are not allowed in socket name",
-                    ))
-                }
-                None => None,
-            };
-            let ret = unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_display_add_socket,
-                    self.inner.ptr,
-                    cname.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
-                )
-            };
-            if ret == -1 {
-                // lets try to be helpfull
-                let mut socket_name = get_runtime_dir()?;
-                match name {
-                    Some(s) => socket_name.push(s.as_ref()),
-                    None => socket_name.push("wayland-0"),
-                }
-                Err(IoError::new(
-                    ErrorKind::PermissionDenied,
-                    format!("could not bind socket {}", socket_name.to_string_lossy()),
-                ))
-            } else {
-                Ok(())
-            }
-        }
+        self.inner.borrow_mut().add_socket(name)
     }
 
     /// Add an automatically named listening socket to this display
@@ -227,26 +103,7 @@ impl Display {
     ///
     /// Errors if `XDG_RUNTIME_DIR` is not set, or all 32 names are already in use.
     pub fn add_socket_auto(&mut self) -> IoResult<OsString> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret =
-                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.inner.ptr) };
-            if ret.is_null() {
-                // try to be helpfull
-                let socket_name = get_runtime_dir()?;
-                Err(IoError::new(
-                    ErrorKind::Other,
-                    format!("no available wayland-* name in {}", socket_name.to_string_lossy()),
-                ))
-            } else {
-                let sockname = unsafe { CStr::from_ptr(ret) };
-                Ok(<OsString as OsStringExt>::from_vec(sockname.to_bytes().into()))
-            }
-        }
+        self.inner.borrow_mut().add_socket_auto()
     }
 
     /// Add existing listening socket to this display
@@ -275,38 +132,13 @@ impl Display {
     /// The fd must be properly set to CLOEXEC and bound to a socket file
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
-    pub unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_display_add_socket_fd,
-                self.inner.ptr,
-                fd
-            );
-            if ret == 0 {
-                Ok(())
-            } else {
-                Err(IoError::new(ErrorKind::InvalidInput, "invalid socket fd"))
-            }
-        }
+    pub unsafe fn add_socket_fd(&self, fd: RawFd) -> IoResult<()> {
+        self.inner.borrow_mut().add_socket_fd(fd)
     }
 
     /// Create a new client to this display from an already-existing connected Fd
-    pub unsafe fn create_client(&mut self, fd: RawFd) -> Client {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.inner.ptr, fd);
-            Client::from_ptr(ret)
-        }
+    pub unsafe fn create_client(&self, fd: RawFd) -> Client {
+        Client::make(self.inner.borrow_mut().create_client(fd))
     }
 }
 
@@ -314,11 +146,11 @@ impl Display {
 impl Display {
     /// Retrieve a pointer from the C lib to this `wl_display`
     pub fn c_ptr(&self) -> *mut wl_display {
-        self.inner.ptr
+        self.inner.borrow().ptr()
     }
 }
 
-fn get_runtime_dir() -> IoResult<PathBuf> {
+pub(crate) fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
         None => Err(IoError::new(

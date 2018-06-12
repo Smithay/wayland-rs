@@ -128,6 +128,15 @@ pub mod sys {
     pub use wayland_sys::{common, server};
 }
 
+// rust implementation
+#[cfg(not(feature = "native_lib"))]
+#[path = "rust_imp/mod.rs"]
+mod imp;
+// C-lib based implementation
+#[cfg(feature = "native_lib")]
+#[path = "native_lib/mod.rs"]
+mod imp;
+
 /// Generated interfaces for the core wayland protocol
 pub mod protocol {
     #[cfg(feature = "native_lib")]

@@ -23,7 +23,7 @@ use imp::{NewProxyInner, ProxyInner};
 /// you need to import the associated `RequestsTrait` trait from the module
 /// of this interface.
 pub struct Proxy<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
+    _i: ::std::marker::PhantomData<&'static I>,
     inner: ProxyInner,
 }
 
@@ -35,9 +35,6 @@ impl<I: Interface> Clone for Proxy<I> {
         }
     }
 }
-
-unsafe impl<I: Interface> Send for Proxy<I> {}
-unsafe impl<I: Interface> Sync for Proxy<I> {}
 
 impl <I: Interface> PartialEq for Proxy<I> {
     fn eq(&self, other: &Proxy<I>) -> bool {
@@ -225,13 +222,14 @@ impl<I: Interface> Proxy<I> {
     }
 }
 
-
 #[cfg(feature = "native_lib")]
 impl Proxy<::protocol::wl_display::WlDisplay> {
-    pub(crate) unsafe fn from_c_display_wrapper(ptr: *mut wl_proxy) -> Proxy<::protocol::wl_display::WlDisplay> {
+    pub(crate) unsafe fn from_c_display_wrapper(
+        ptr: *mut wl_proxy,
+    ) -> Proxy<::protocol::wl_display::WlDisplay> {
         Proxy {
             _i: ::std::marker::PhantomData,
-            inner: ProxyInner::from_c_display_wrapper(ptr)
+            inner: ProxyInner::from_c_display_wrapper(ptr),
         }
     }
 }

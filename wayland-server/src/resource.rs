@@ -1,26 +1,11 @@
-use wayland_commons::{Implementation, Interface, MessageGroup};
+use wayland_commons::{Implementation, Interface};
 
 use {Client, LoopToken};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
 
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::Arc;
-
-pub(crate) struct ResourceInternal {
-    alive: AtomicBool,
-    user_data: AtomicPtr<()>,
-}
-
-impl ResourceInternal {
-    fn new() -> ResourceInternal {
-        ResourceInternal {
-            alive: AtomicBool::new(true),
-            user_data: AtomicPtr::new(::std::ptr::null_mut()),
-        }
-    }
-}
+use imp::{NewResourceInner, ResourceInner};
 
 /// An handle to a wayland resource
 ///
@@ -34,19 +19,9 @@ impl ResourceInternal {
 /// These handles are notably used to send events to the associated client,
 /// via the `send` method.
 pub struct Resource<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(not(feature = "native_lib"))]
-    internal: Arc<ResourceInternal>,
-    #[cfg(feature = "native_lib")]
-    internal: Option<Arc<ResourceInternal>>,
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_resource,
-    // this field is only a workaround for https://github.com/rust-lang/rust/issues/50153
-    _hack: (bool, bool),
+    _i: ::std::marker::PhantomData<&'static I>,
+    inner: ResourceInner,
 }
-
-unsafe impl<I: Interface> Send for Resource<I> {}
-unsafe impl<I: Interface> Sync for Resource<I> {}
 
 impl <I: Interface> PartialEq for Resource<I> {
     fn eq(&self, other: &Resource<I>) -> bool {
@@ -62,46 +37,7 @@ impl<I: Interface> Resource<I> {
     /// The event will be send to the client associated to this
     /// object.
     pub fn send(&self, msg: I::Event) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            if !self.internal.alive.load(Ordering::Acquire) {
-                // don't send message to dead objects !
-                return;
-            }
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            if let Some(ref internal) = self.internal {
-                // object is managed
-                if !internal.alive.load(Ordering::Acquire) {
-                    // don't send message to dead objects !
-                    return;
-                }
-            }
-
-            let destructor = msg.is_destructor();
-
-            msg.as_raw_c_in(|opcode, args| unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_resource_post_event_array,
-                    self.ptr,
-                    opcode,
-                    args.as_ptr() as *mut _
-                );
-            });
-
-            if destructor {
-                // we need to destroy the proxy now
-                if let Some(ref internal) = self.internal {
-                    internal.alive.store(false, Ordering::Release);
-                }
-                unsafe {
-                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, self.ptr);
-                }
-            }
-        }
+        self.inner.send::<I>(msg)
     }
 
     /// Check if the object associated with this resource is still alive
@@ -111,35 +47,14 @@ impl<I: Interface> Resource<I> {
     /// - The object has been destroyed
     /// - The object is not managed by this library (see the `from_c_ptr` method)
     pub fn is_alive(&self) -> bool {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            self.internal.alive.load(Ordering::Acquire)
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            self.internal
-                .as_ref()
-                .map(|i| i.alive.load(Ordering::Acquire))
-                .unwrap_or(false)
-        }
+        self.inner.is_alive()
     }
 
     /// Retrieve the interface version of this wayland object instance
     ///
     /// Returns 0 on dead objects
     pub fn version(&self) -> u32 {
-        if !self.is_alive() {
-            return 0;
-        }
-
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr) as u32 }
-        }
+        self.inner.version()
     }
 
     #[cfg(feature = "native_lib")]
@@ -147,45 +62,19 @@ impl<I: Interface> Resource<I> {
     ///
     /// See `from_c_ptr` for details.
     pub fn is_external(&self) -> bool {
-        self.internal.is_none()
+        self.inner.is_external()
     }
 
     /// Check if the other resource refers to the same underlying wayland object
     pub fn equals(&self, other: &Resource<I>) -> bool {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            match (&self.internal, &other.internal) {
-                (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
-                (&None, &None) => self.ptr == other.ptr,
-                _ => false,
-            }
-        }
+        self.inner.equals(&other.inner)
     }
 
     /// Check if this resource and the other belong to the same client
     ///
     /// Always return false if either of them is dead
     pub fn same_client_as<II: Interface>(&self, other: &Resource<II>) -> bool {
-        if !(self.is_alive() && other.is_alive()) {
-            return false;
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            unsafe {
-                let my_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
-                let other_client_ptr =
-                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr);
-                my_client_ptr == other_client_ptr
-            }
-        }
+        self.inner.same_client_as(&other.inner)
     }
 
     /// Posts a protocol error to this resource
@@ -194,25 +83,7 @@ impl<I: Interface> Resource<I> {
     ///
     /// An error is fatal to the client that caused it.
     pub fn post_error(&self, error_code: u32, msg: String) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            // If `str` contains an interior null, the actual transmitted message will
-            // be truncated at this point.
-            unsafe {
-                let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_resource_post_error,
-                    self.ptr,
-                    error_code,
-                    cstring.as_ptr()
-                )
-            }
-        }
+        self.inner.post_error(error_code, msg)
     }
 
     /// Associate an arbitrary payload to this object
@@ -225,55 +96,21 @@ impl<I: Interface> Resource<I> {
     /// pointer, synchronisation of access, and destruction of the
     /// contents at the appropriate time.
     pub fn set_user_data(&self, ptr: *mut ()) {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            self.internal.user_data.store(ptr, Ordering::Release);
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            if let Some(ref inner) = self.internal {
-                inner.user_data.store(ptr, Ordering::Release);
-            }
-        }
+        self.inner.set_user_data(ptr)
     }
 
     /// Retrieve the arbitrary payload associated to this object
     ///
     /// See `set_user_data` for explanations.
     pub fn get_user_data(&self) -> *mut () {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            self.internal.user_data.load(Ordering::Acquire)
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            if let Some(ref inner) = self.internal {
-                inner.user_data.load(Ordering::Acquire)
-            } else {
-                ::std::ptr::null_mut()
-            }
-        }
+        self.inner.get_user_data()
     }
 
     /// Retrieve an handle to the client associated with this resource
     ///
     /// Returns `None` if the resource is no longer alive.
     pub fn client(&self) -> Option<Client> {
-        if self.is_alive() {
-            #[cfg(not(feature = "native_lib"))]
-            {
-                unimplemented!()
-            }
-            #[cfg(feature = "native_lib")]
-            {
-                unsafe {
-                    let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
-                    Some(Client::from_ptr(client_ptr))
-                }
-            }
-        } else {
-            None
-        }
+        self.inner.client().map(Client::make)
     }
 
     #[cfg(feature = "native_lib")]
@@ -283,7 +120,7 @@ impl<I: Interface> Resource<I> {
     /// You will mostly need it to interface with C libraries needing access
     /// to wayland objects (to initialize an opengl context for example).
     pub fn c_ptr(&self) -> *mut wl_resource {
-        self.ptr
+        self.inner.c_ptr()
     }
 
     #[cfg(feature = "native_lib")]
@@ -307,39 +144,9 @@ impl<I: Interface> Resource<I> {
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
     pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
-        if ptr.is_null() {
-            return Resource {
-                _i: ::std::marker::PhantomData,
-                internal: Some(Arc::new(ResourceInternal {
-                    alive: AtomicBool::new(false),
-                    user_data: AtomicPtr::new(::std::ptr::null_mut()),
-                })),
-                ptr: ptr,
-                _hack: (false, false),
-            };
-        }
-
-        let is_managed = {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_instance_of,
-                ptr,
-                I::c_interface(),
-                &::wayland_sys::RUST_MANAGED as *const u8 as *const _
-            ) != 0
-        };
-        let internal = if is_managed {
-            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr)
-                as *mut self::native_machinery::ResourceUserData<I>;
-            Some((*user_data).internal.clone())
-        } else {
-            None
-        };
         Resource {
             _i: ::std::marker::PhantomData,
-            internal: internal,
-            ptr: ptr,
-            _hack: (false, false),
+            inner: ResourceInner::from_c_ptr::<I>(ptr),
         }
     }
 
@@ -350,22 +157,7 @@ impl<I: Interface> Resource<I> {
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
     {
-        if !self.is_alive() {
-            return false;
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!();
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let user_data = unsafe {
-                let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
-                    as *mut self::native_machinery::ResourceUserData<I>;
-                &*ptr
-            };
-            user_data.is_impl::<Impl>()
-        }
+        self.inner.is_implemented_with::<I, Impl>()
     }
 }
 
@@ -382,8 +174,7 @@ impl<I: Interface> Resource<I> {
 /// closures.
 pub struct NewResource<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    #[cfg(feature = "native_lib")]
-    ptr: *mut wl_resource,
+    inner: NewResourceInner,
 }
 
 impl<I: Interface + 'static> NewResource<I> {
@@ -393,7 +184,14 @@ impl<I: Interface + 'static> NewResource<I> {
         Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
     {
-        unsafe { self.implement_inner(implementation, destructor) }
+        let inner = unsafe {
+            self.inner
+                .implement::<I, Impl, Dest>(implementation, destructor, None)
+        };
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
     }
 
     /// Implement this resource using given function and implementation data.
@@ -417,53 +215,13 @@ impl<I: Interface + 'static> NewResource<I> {
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
     {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        unsafe {
-            assert!(
-                token.matches(self.ptr),
-                "Tried to implement a Resource with the wrong LoopToken."
-            );
-            self.implement_inner(implementation, destructor)
-        }
-    }
-
-    unsafe fn implement_inner<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-    {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            let new_user_data = Box::new(self::native_machinery::ResourceUserData::new(
-                implementation,
-                destructor,
-            ));
-            let internal = new_user_data.internal.clone();
-
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_resource_set_dispatcher,
-                self.ptr,
-                self::native_machinery::resource_dispatcher::<I>,
-                &::wayland_sys::RUST_MANAGED as *const _ as *const _,
-                Box::into_raw(new_user_data) as *mut _,
-                Some(self::native_machinery::resource_destroy::<I>)
-            );
-
-            Resource {
-                _i: ::std::marker::PhantomData,
-                internal: Some(internal),
-                ptr: self.ptr,
-                _hack: (false, false),
-            }
+        let inner = unsafe {
+            self.inner
+                .implement::<I, Impl, Dest>(implementation, destructor, Some(&token.inner))
+        };
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner,
         }
     }
 
@@ -477,7 +235,7 @@ impl<I: Interface + 'static> NewResource<I> {
     /// Use this if you need to pass an unimplemented object to the C library
     /// you are interfacing with.
     pub fn c_ptr(&self) -> *mut wl_resource {
-        self.ptr
+        self.inner.c_ptr()
     }
 
     #[cfg(feature = "native_lib")]
@@ -490,7 +248,7 @@ impl<I: Interface + 'static> NewResource<I> {
     pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
         NewResource {
             _i: ::std::marker::PhantomData,
-            ptr: ptr,
+            inner: NewResourceInner::from_c_ptr(ptr),
         }
     }
 }
@@ -499,136 +257,7 @@ impl<I: Interface> Clone for Resource<I> {
     fn clone(&self) -> Resource<I> {
         Resource {
             _i: ::std::marker::PhantomData,
-            internal: self.internal.clone(),
-            #[cfg(feature = "native_lib")]
-            ptr: self.ptr,
-            _hack: (false, false),
-        }
-    }
-}
-
-#[cfg(feature = "native_lib")]
-mod native_machinery {
-    use wayland_sys::common::*;
-    use wayland_sys::server::*;
-
-    use std::os::raw::{c_int, c_void};
-    use std::sync::atomic::Ordering;
-    use std::sync::Arc;
-
-    use super::Resource;
-
-    use wayland_commons::{Implementation, Interface, MessageGroup};
-
-    pub(crate) struct ResourceUserData<I: Interface> {
-        _i: ::std::marker::PhantomData<*const I>,
-        pub(crate) internal: Arc<super::ResourceInternal>,
-        implem: Option<(
-            Box<Implementation<Resource<I>, I::Request>>,
-            Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
-        )>,
-    }
-
-    impl<I: Interface> ResourceUserData<I> {
-        pub(crate) fn new<Impl, Dest>(implem: Impl, destructor: Option<Dest>) -> ResourceUserData<I>
-        where
-            Impl: Implementation<Resource<I>, I::Request> + 'static,
-            Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        {
-            ResourceUserData {
-                _i: ::std::marker::PhantomData,
-                internal: Arc::new(super::ResourceInternal::new()),
-                implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
-            }
-        }
-
-        pub(crate) fn is_impl<Impl>(&self) -> bool
-        where
-            Impl: Implementation<Resource<I>, I::Request> + 'static,
-        {
-            self.implem
-                .as_ref()
-                .map(|implem| implem.0.is::<Impl>())
-                .unwrap_or(false)
-        }
-    }
-
-    pub(crate) unsafe extern "C" fn resource_dispatcher<I: Interface>(
-        _implem: *const c_void,
-        resource: *mut c_void,
-        opcode: u32,
-        _msg: *const wl_message,
-        args: *const wl_argument,
-    ) -> c_int
-    where
-        I: Interface,
-    {
-        let resource = resource as *mut wl_resource;
-
-        // We don't need to worry about panic-safeness, because if there is a panic,
-        // we'll abort the process, so no access to corrupted data is possible.
-        let ret = ::std::panic::catch_unwind(move || {
-            // parse the message:
-            let msg = I::Request::from_raw_c(resource as *mut _, opcode, args)?;
-            let must_destroy = msg.is_destructor();
-            // create the resource object
-            let resource_obj = super::Resource::<I>::from_c_ptr(resource);
-            // retrieve the impl
-            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
-            {
-                let user_data = &mut *(user_data as *mut ResourceUserData<I>);
-                let implem = user_data.implem.as_mut().unwrap();
-                let &mut (ref mut implem_func, _) = implem;
-                if must_destroy {
-                    user_data.internal.alive.store(false, Ordering::Release);
-                }
-                // call the impl
-                implem_func.receive(msg, resource_obj);
-            }
-            if must_destroy {
-                // final cleanup
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, resource);
-            }
-            Ok(())
-        });
-        // check the return status
-        match ret {
-            Ok(Ok(())) => return 0,
-            Ok(Err(())) => {
-                eprintln!(
-                    "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",
-                    opcode,
-                    I::NAME
-                );
-                ::libc::abort();
-            }
-            Err(_) => {
-                eprintln!("[wayland-client error] A handler for {} panicked.", I::NAME);
-                ::libc::abort()
-            }
-        }
-    }
-
-    pub(crate) unsafe extern "C" fn resource_destroy<I: Interface>(resource: *mut wl_resource) {
-        let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
-
-        // We don't need to worry about panic-safeness, because if there is a panic,
-        // we'll abort the process, so no access to corrupted data is possible.
-        let ret = ::std::panic::catch_unwind(move || {
-            let mut user_data = Box::from_raw(user_data as *mut ResourceUserData<I>);
-            user_data.internal.alive.store(false, Ordering::Release);
-            let implem = user_data.implem.as_mut().unwrap();
-            let &mut (ref mut implem_func, ref mut destructor) = implem;
-            if let Some(mut dest_func) = destructor.take() {
-                let retrieved_implem = ::std::mem::replace(implem_func, Box::new(|_, _| {}));
-                let resource_obj = super::Resource::<I>::from_c_ptr(resource);
-                dest_func(resource_obj, retrieved_implem);
-            }
-        });
-
-        if let Err(_) = ret {
-            eprintln!("[wayland-client error] A destructor for {} panicked.", I::NAME);
-            ::libc::abort()
+            inner: self.inner.clone(),
         }
     }
 }

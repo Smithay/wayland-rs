@@ -13,8 +13,11 @@ use super::EventQueueInner;
 
 pub(crate) struct DisplayInner {
     proxy: Proxy<WlDisplay>,
-    display: *mut wl_display
+    display: *mut wl_display,
 }
+
+unsafe impl Send for DisplayInner {}
+unsafe impl Sync for DisplayInner {}
 
 unsafe fn make_display(ptr: *mut wl_display) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
     if ptr.is_null() {
@@ -80,27 +83,18 @@ impl DisplayInner {
     }
 
     pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> (Arc<DisplayInner>, EventQueueInner) {
-        let evq_ptr = ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_display_create_queue,
-            display_ptr
-        );
+        let evq_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display_ptr);
 
         let wrapper_ptr = ffi_dispatch!(
             WAYLAND_CLIENT_HANDLE,
             wl_proxy_create_wrapper,
             display_ptr as *mut _
         );
-        ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_set_queue,
-            wrapper_ptr,
-            evq_ptr
-        );
+        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapper_ptr, evq_ptr);
 
         let display = Arc::new(DisplayInner {
             proxy: Proxy::from_c_display_wrapper(wrapper_ptr),
-            display: display_ptr
+            display: display_ptr,
         });
 
         let evq = EventQueueInner::new(display.clone(), Some(evq_ptr));
