@@ -185,10 +185,46 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
             n -= 1;
         }
     }
+
     if n > 0 {
         // avoir "unreachable pattern" warnings =)
         writeln!(out, "                _ => false")?;
     }
+    writeln!(out, "            }}")?;
+    writeln!(out, "        }}\n")?;
+
+    // child
+    writeln!(
+        out,
+        "        fn child(opcode: u16, version: u32) -> Option<Object> {{"
+    )?;
+    writeln!(out, "            match opcode {{")?;
+    for (opcode, msg) in messages.iter().enumerate() {
+        let mut it = msg.args.iter().filter_map(|a| {
+            if a.typ == Type::NewId {
+                a.interface.clone()
+            } else {
+                None
+            }
+        });
+        if let Some(new_iface) = it.next() {
+            writeln!(
+                out,
+                "                {} => Some(Object::from_interface::<super::{}::{}>(version)),",
+                opcode,
+                new_iface,
+                snake_to_camel(&new_iface)
+            )?;
+            n -= 1;
+        }
+        assert!(
+            it.next().is_none(),
+            "Got a message with more than one new_id in {}.{}",
+            name,
+            msg.name
+        );
+    }
+    writeln!(out, "                _ => None")?;
     writeln!(out, "            }}")?;
     writeln!(out, "        }}\n")?;
 

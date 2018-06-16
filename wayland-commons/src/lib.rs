@@ -21,9 +21,9 @@ extern crate nix;
 #[cfg(feature = "native_lib")]
 extern crate wayland_sys;
 #[cfg(feature = "native_lib")]
-use wayland_sys::common as syscom;
-
 use std::os::raw::c_void;
+#[cfg(feature = "native_lib")]
+use wayland_sys::common as syscom;
 
 use downcast::Downcast;
 
@@ -46,6 +46,8 @@ pub trait MessageGroup: Sized {
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
+    /// Retrieve the child `Object` associated with this message if any
+    fn child(opcode: u16, version: u32) -> Option<::map::Object>;
     #[cfg(feature = "native_lib")]
     /// Construct a message of this group from its C representation
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
@@ -154,6 +156,9 @@ impl MessageGroup for NoMessage {
     const MESSAGES: &'static [wire::MessageDesc] = &[];
     fn is_destructor(&self) -> bool {
         match *self {}
+    }
+    fn child(_: u16, _: u32) -> Option<::map::Object> {
+        None
     }
     #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(

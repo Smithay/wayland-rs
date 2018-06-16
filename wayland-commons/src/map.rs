@@ -1,13 +1,12 @@
 //! Wayland objects map
 
-use std::sync::{Arc, Mutex};
-
-use dispatching::Dispatcher;
+use {Interface, MessageGroup};
 
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF000000;
 
 /// The representation of a protocol object
+#[derive(Copy, Clone)]
 pub struct Object {
     /// Interface name of this object
     pub interface: &'static str,
@@ -17,8 +16,38 @@ pub struct Object {
     pub requests: &'static [::wire::MessageDesc],
     /// Description of the events of this object
     pub events: &'static [::wire::MessageDesc],
-    /// Dispatcher associated with this object
-    pub dispatcher: Mutex<Box<Dispatcher>>,
+    childs_from_events: fn(u16, u32) -> Option<Object>,
+    childs_from_requests: fn(u16, u32) -> Option<Object>,
+}
+
+impl Object {
+    /// Create an Object corresponding to given interface and version
+    pub fn from_interface<I: Interface>(version: u32) -> Object {
+        Object {
+            interface: I::NAME,
+            version: version,
+            requests: I::Request::MESSAGES,
+            events: I::Event::MESSAGES,
+            childs_from_events: childs_from::<I::Event>,
+            childs_from_requests: childs_from::<I::Request>,
+        }
+    }
+
+    /// Create an optional `Object` corresponding to the possible `new_id` associated
+    /// with given event opcode
+    pub fn event_child(&self, opcode: u16, version: u32) -> Option<Object> {
+        (self.childs_from_events)(opcode, version)
+    }
+
+    /// Create an optional `Object` corresponding to the possible `new_id` associated
+    /// with given request opcode
+    pub fn request_child(&self, opcode: u16, version: u32) -> Option<Object> {
+        (self.childs_from_requests)(opcode, version)
+    }
+}
+
+fn childs_from<M: MessageGroup>(opcode: u16, version: u32) -> Option<Object> {
+    M::child(opcode, version)
 }
 
 /// A holder for the object store of a connection
@@ -26,8 +55,8 @@ pub struct Object {
 /// Keeps track of which object id is associated to which
 /// interface object, and which is currently unused.
 pub struct ObjectMap {
-    client_objects: Vec<Option<Arc<Object>>>,
-    server_objects: Vec<Option<Arc<Object>>>,
+    client_objects: Vec<Option<Object>>,
+    server_objects: Vec<Option<Object>>,
 }
 
 impl ObjectMap {
@@ -40,7 +69,7 @@ impl ObjectMap {
     }
 
     /// Find an object in the store
-    pub fn find(&self, id: u32) -> Option<Arc<Object>> {
+    pub fn find(&self, id: u32) -> Option<Object> {
         if id >= SERVER_ID_LIMIT {
             self.server_objects
                 .get((id - SERVER_ID_LIMIT - 1) as usize)
@@ -69,7 +98,7 @@ impl ObjectMap {
     ///
     /// Can fail if the requested id is not the next free id of this store.
     /// (In which case this is a protocol error)
-    pub fn insert_at(&mut self, id: u32, object: Arc<Object>) -> Result<(), ()> {
+    pub fn insert_at(&mut self, id: u32, object: Object) -> Result<(), ()> {
         if id >= SERVER_ID_LIMIT {
             insert_in_at(&mut self.server_objects, (id - SERVER_ID_LIMIT) as usize, object)
         } else {
@@ -78,18 +107,18 @@ impl ObjectMap {
     }
 
     /// Allocate a new id for an object in the client namespace
-    pub fn client_insert_new(&mut self, object: Arc<Object>) -> u32 {
+    pub fn client_insert_new(&mut self, object: Object) -> u32 {
         insert_in(&mut self.client_objects, object)
     }
 
     /// Allocate a new id for an object in the server namespace
-    pub fn server_insert_new(&mut self, object: Arc<Object>) -> u32 {
+    pub fn server_insert_new(&mut self, object: Object) -> u32 {
         insert_in(&mut self.server_objects, object) + SERVER_ID_LIMIT
     }
 }
 
 // insert a new object in a store at the first free place
-fn insert_in(store: &mut Vec<Option<Arc<Object>>>, object: Arc<Object>) -> u32 {
+fn insert_in(store: &mut Vec<Option<Object>>, object: Object) -> u32 {
     match store.iter().position(|p| p.is_none()) {
         Some(id) => {
             store[id] = Some(object);
@@ -103,14 +132,15 @@ fn insert_in(store: &mut Vec<Option<Arc<Object>>>, object: Arc<Object>) -> u32 {
 }
 
 // insert an object at a given place in a store
-fn insert_in_at(store: &mut Vec<Option<Arc<Object>>>, id: usize, object: Arc<Object>) -> Result<(), ()> {
+fn insert_in_at(store: &mut Vec<Option<Object>>, id: usize, object: Object) -> Result<(), ()> {
+    let id = id - 1;
     if id > store.len() {
         Err(())
     } else if id == store.len() {
         store.push(Some(object));
         Ok(())
     } else {
-        let place = &mut store[(id - 1)];
+        let place = &mut store[id];
         if place.is_some() {
             return Err(());
         }

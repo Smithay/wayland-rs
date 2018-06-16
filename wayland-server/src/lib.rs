@@ -156,6 +156,7 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
+        pub(crate) use wayland_commons::map::Object;
         pub(crate) use wayland_commons::wire::{ArgumentType, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
@@ -164,6 +165,7 @@ mod generated {
     }
     #[cfg(not(feature = "native_lib"))]
     pub mod rust_api {
+        pub(crate) use wayland_commons::map::Object;
         pub(crate) use wayland_commons::wire::{ArgumentType, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use {NewResource, Resource};
