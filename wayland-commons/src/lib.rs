@@ -47,7 +47,7 @@ pub trait MessageGroup: Sized {
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
     /// Retrieve the child `Object` associated with this message if any
-    fn child(opcode: u16, version: u32) -> Option<::map::Object>;
+    fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<::map::Object<Meta>>;
     #[cfg(feature = "native_lib")]
     /// Construct a message of this group from its C representation
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
@@ -157,7 +157,7 @@ impl MessageGroup for NoMessage {
     fn is_destructor(&self) -> bool {
         match *self {}
     }
-    fn child(_: u16, _: u32) -> Option<::map::Object> {
+    fn child<M: Clone>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
         None
     }
     #[cfg(feature = "native_lib")]

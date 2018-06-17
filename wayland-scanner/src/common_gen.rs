@@ -196,7 +196,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
     // child
     writeln!(
         out,
-        "        fn child(opcode: u16, version: u32) -> Option<Object> {{"
+        "        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {{"
     )?;
     writeln!(out, "            match opcode {{")?;
     for (opcode, msg) in messages.iter().enumerate() {
@@ -210,7 +210,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
         if let Some(new_iface) = it.next() {
             writeln!(
                 out,
-                "                {} => Some(Object::from_interface::<super::{}::{}>(version)),",
+                "                {} => Some(Object::from_interface::<super::{}::{}>(version, meta.clone())),",
                 opcode,
                 new_iface,
                 snake_to_camel(&new_iface)
