@@ -1,63 +1,11 @@
-use std::ffi::OsString;
-use std::io;
-use std::sync::Arc;
-
-use protocol::wl_display::WlDisplay;
-
-use {ConnectError, Implementation, Interface, Proxy};
+use {Implementation, Interface, Proxy};
 
 mod connection;
+mod display;
 mod queues;
 
-pub(crate) struct DisplayInner {}
-
-impl DisplayInner {
-    pub fn connect_to_name(
-        name: Option<OsString>,
-    ) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
-        unimplemented!()
-    }
-
-    pub(crate) fn flush(&self) -> io::Result<i32> {
-        unimplemented!()
-    }
-
-    pub(crate) fn create_event_queue(me: &Arc<DisplayInner>) -> EventQueueInner {
-        unimplemented!()
-    }
-
-    pub(crate) fn get_proxy(&self) -> &Proxy<WlDisplay> {
-        unimplemented!()
-    }
-}
-
-pub(crate) struct EventQueueInner {}
-
-impl EventQueueInner {
-    pub fn dispatch(&mut self) -> io::Result<u32> {
-        unimplemented!()
-    }
-
-    pub fn dispatch_pending(&mut self) -> io::Result<u32> {
-        unimplemented!()
-    }
-
-    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
-        unimplemented!()
-    }
-
-    pub(crate) fn prepare_read(&self) -> Result<(), ()> {
-        unimplemented!()
-    }
-
-    pub(crate) fn read_events(&self) -> io::Result<i32> {
-        unimplemented!()
-    }
-
-    pub(crate) fn cancel_read(&self) {
-        unimplemented!()
-    }
-}
+pub(crate) use self::display::DisplayInner;
+pub(crate) use self::queues::EventQueueInner;
 
 #[derive(Clone)]
 pub(crate) struct ProxyInner {}

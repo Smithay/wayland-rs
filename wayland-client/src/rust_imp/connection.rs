@@ -10,9 +10,17 @@ use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 
 use super::queues::QueueBuffer;
 
+#[derive(Clone)]
+pub(crate) enum Error {
+    Protocol,
+    Parse(MessageParseError),
+    Nix(::nix::Error),
+}
+
 pub(crate) struct Connection {
     socket: BufferedSocket,
     map: Arc<Mutex<ObjectMap<QueueBuffer>>>,
+    last_error: Option<Error>,
 }
 
 impl Connection {
@@ -26,6 +34,7 @@ impl Connection {
         Connection {
             socket,
             map: Arc::new(Mutex::new(map)),
+            last_error: None,
         }
     }
 
@@ -37,14 +46,18 @@ impl Connection {
         self.socket.flush()
     }
 
-    pub(crate) fn read_events(&mut self) -> NixResult<Result<usize, MessageParseError>> {
+    pub(crate) fn read_events(&mut self) -> Result<usize, Error> {
+        if let Some(ref err) = self.last_error {
+            return Err(err.clone());
+        }
         // acquire the map lock, this means no objects can be created nor destroyed while we
         // are reading events
         let mut map = self.map.lock().unwrap();
         // wrap it in a RefCell for cheap sharing in the two closures below
         let map = RefCell::new(&mut *map);
+        let last_error = &mut self.last_error;
         // read messages
-        self.socket.read_messages(
+        let ret = self.socket.read_messages(
             |id, opcode| {
                 map.borrow()
                     .find(id)
@@ -90,6 +103,7 @@ impl Connection {
                             new_id
                         );
                         // abort parsing, this is an unrecoverable error
+                        *last_error = Some(Error::Protocol);
                         return false;
                     }
                 } else {
@@ -103,6 +117,21 @@ impl Connection {
                 // continue parsing
                 true
             },
-        )
+        );
+        match ret {
+            Ok(Ok(n)) => if let Some(ref e) = *last_error {
+                Err(e.clone())
+            } else {
+                Ok(n)
+            },
+            Ok(Err(e)) => {
+                *last_error = Some(Error::Parse(e.clone()));
+                Err(Error::Parse(e))
+            }
+            Err(e) => {
+                *last_error = Some(Error::Nix(e));
+                Err(Error::Nix(e))
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::io;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::os::unix::io::RawFd;
 use std::sync::Arc;
 
 use {EventQueue, Proxy};
@@ -63,6 +63,17 @@ impl Display {
         Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
     }
 
+    /// Attempt to connect to an already connected unix socket on given FD
+    ///
+    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
+    /// the `WlDisplay` wayland object.
+    ///
+    /// Will take ownership of the FD.
+    pub unsafe fn from_fd(fd: RawFd) -> Result<(Display, EventQueue), ConnectError> {
+        let (d_inner, evq_inner) = DisplayInner::from_fd(fd)?;
+        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+    }
+
     /// Non-blocking write to the server
     ///
     /// Outgoing messages to the server are buffered by the library for efficiency. This method
@@ -72,7 +83,7 @@ impl Display {
     /// requests coul be written, will return an io error `WouldBlock`.
     ///
     /// On success returns the number of written requests.
-    pub fn flush(&self) -> io::Result<i32> {
+    pub fn flush(&self) -> io::Result<()> {
         self.inner.flush()
     }
 

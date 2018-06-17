@@ -58,14 +58,28 @@ impl DisplayInner {
         }
     }
 
+    pub unsafe fn from_fd(fd: RawFd) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
+        if !::wayland_sys::client::is_lib_available() {
+            return Err(ConnectError::NoWaylandLib);
+        }
+
+        let display_ptr = ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_display_connect_to_fd,
+            name.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
+        );
+
+        make_display(display_ptr)
+    }
+
     pub(crate) fn ptr(&self) -> *mut wl_display {
         self.display
     }
 
-    pub(crate) fn flush(&self) -> io::Result<i32> {
+    pub(crate) fn flush(&self) -> io::Result<()> {
         let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.ptr()) };
         if ret >= 0 {
-            Ok(ret)
+            Ok(())
         } else {
             Err(io::Error::last_os_error())
         }

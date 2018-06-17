@@ -87,7 +87,7 @@ pub struct Message {
 }
 
 /// Error generated when trying to serialize a message into buffers
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MessageWriteError {
     /// The buffer is too small to hold the message contents
     BufferTooSmall,
@@ -96,7 +96,7 @@ pub enum MessageWriteError {
 }
 
 /// Error generated when trying to deserialize a message from buffers
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MessageParseError {
     /// The message references a FD but the buffer FD is empty
     MissingFD,
