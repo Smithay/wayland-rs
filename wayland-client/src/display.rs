@@ -60,7 +60,7 @@ impl Display {
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
     pub fn connect_to_env() -> Result<(Display, EventQueue), ConnectError> {
-        let fd = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
+        if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
             // set the CLOEXEC flag on this FD
@@ -71,7 +71,7 @@ impl Display {
             match result {
                 Ok(_) => {
                     // setting the O_CLOEXEC worked
-                    fd
+                    unsafe { Display::from_fd(fd) }
                 }
                 Err(e) => {
                     // something went wrong in F_GETFD or F_SETFD
@@ -86,11 +86,8 @@ impl Display {
             socket_path.push(env::var_os("WAYLAND_DISPLAY").unwrap_or_else(|| "wayland-0".into()));
 
             let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
-            socket.into_raw_fd()
-        };
-
-        let (d_inner, evq_inner) = unsafe { DisplayInner::from_fd(fd) }?;
-        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+            unsafe { Display::from_fd(socket.into_raw_fd()) }
+        }
     }
 
     /// Attempt to connect to a wayland server socket with given name
@@ -106,11 +103,10 @@ impl Display {
         socket_path.push(name.into());
 
         let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
-        let (d_inner, evq_inner) = unsafe { DisplayInner::from_fd(socket.into_raw_fd()) }?;
-        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+        unsafe { Display::from_fd(socket.into_raw_fd()) }
     }
 
-    /// Attempt to connect to an already connected unix socket on given FD
+    /// Attempt to use an already connected unix socket on given FD to start a wayland connection
     ///
     /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
     /// the `WlDisplay` wayland object.
