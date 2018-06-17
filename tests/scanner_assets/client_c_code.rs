@@ -14,7 +14,7 @@ pub mod wl_foo {
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -110,6 +110,13 @@ pub mod wl_foo {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.clone())),
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
             panic!("Request::from_raw_c can not be used Client-side.")
         }
@@ -159,6 +166,12 @@ pub mod wl_foo {
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -242,7 +255,7 @@ pub mod wl_bar {
     //!
     //! This interface allows you to bar your foos.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -287,6 +300,12 @@ pub mod wl_bar {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
             panic!("Request::from_raw_c can not be used Client-side.")
         }
@@ -318,6 +337,12 @@ pub mod wl_bar {
 
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -392,7 +417,7 @@ pub mod wl_display {
     //!
     //! This global is special and should only generate code client-side, not server-side.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -405,6 +430,12 @@ pub mod wl_display {
 
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -427,6 +458,12 @@ pub mod wl_display {
 
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -467,7 +504,7 @@ pub mod wl_registry {
     //!
     //! This global is special and should only generate code client-side, not server-side.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -493,6 +530,12 @@ pub mod wl_registry {
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -524,6 +567,12 @@ pub mod wl_registry {
 
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -595,7 +644,7 @@ pub mod wl_callback {
     //!
     //! This object has a special behavior regarding its destructor.
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
 
@@ -607,6 +656,12 @@ pub mod wl_callback {
         ];
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -644,6 +699,12 @@ pub mod wl_callback {
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 

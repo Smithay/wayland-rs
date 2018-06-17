@@ -14,7 +14,7 @@ pub mod wl_foo {
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
 
@@ -109,6 +109,13 @@ pub mod wl_foo {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.clone())),
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
             match opcode {
                 0 => {
@@ -161,6 +168,12 @@ pub mod wl_foo {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             panic!("Event::from_raw_c can not be used Server-side.")
         }
@@ -196,7 +209,7 @@ pub mod wl_bar {
     //!
     //! This interface allows you to bar your foos.
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
 
@@ -241,6 +254,12 @@ pub mod wl_bar {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
             match opcode {
                 0 => {
@@ -273,6 +292,12 @@ pub mod wl_bar {
             }
         }
 
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
             panic!("Event::from_raw_c can not be used Server-side.")
         }
@@ -302,7 +327,7 @@ pub mod wl_callback {
     //!
     //! This object has a special behavior regarding its destructor.
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
 
@@ -315,6 +340,12 @@ pub mod wl_callback {
 
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
@@ -353,6 +384,12 @@ pub mod wl_callback {
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
+            }
+        }
+
+        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
             }
         }
 
