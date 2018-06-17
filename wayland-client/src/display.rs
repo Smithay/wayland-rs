@@ -1,8 +1,13 @@
+use std::env;
 use std::ffi::OsString;
 use std::io;
 use std::ops::Deref;
-use std::os::unix::io::RawFd;
+use std::os::unix::io::{IntoRawFd, RawFd};
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
 use std::sync::Arc;
+
+use nix::fcntl;
 
 use {EventQueue, Proxy};
 
@@ -17,6 +22,8 @@ pub enum ConnectError {
     /// The library was compiled with the `dlopen` feature, and the `libwayland-client.so`
     /// library could not be found at runtime
     NoWaylandLib,
+    /// The `XDG_RUNTIME_DIR` variable is not set while it should be
+    XdgRuntimeDirNotSet,
     /// Any needed library was found, but the listening socket of the server could not be
     /// found.
     ///
@@ -24,6 +31,8 @@ pub enum ConnectError {
     NoCompositorListening,
     /// The provided socket name is invalid
     InvalidName,
+    /// The FD provided in `WAYLAND_SOCKET` was invalid
+    InvalidFd,
 }
 
 /// A connection to a wayland server
@@ -40,6 +49,9 @@ pub struct Display {
 impl Display {
     /// Attempt to connect to a wayland server using the contents of the environment variables
     ///
+    /// First of all, if the `WAYLAND_SOCKET` environment variable is set, it'll try to interpret
+    /// it as a FD number to use
+    ///
     /// If the `WAYLAND_DISPLAY` variable is set, it will try to connect to the socket it points
     /// to. Otherwise, it will default to `wayland-0`.
     ///
@@ -48,7 +60,36 @@ impl Display {
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
     pub fn connect_to_env() -> Result<(Display, EventQueue), ConnectError> {
-        let (d_inner, evq_inner) = DisplayInner::connect_to_name(None)?;
+        let fd = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
+            // We should connect to the provided WAYLAND_SOCKET
+            let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+            // set the CLOEXEC flag on this FD
+            let flags = fcntl::fcntl(fd, fcntl::FcntlArg::F_GETFD);
+            let result = flags
+                .map(|f| fcntl::FdFlag::from_bits(f).unwrap() | fcntl::FdFlag::FD_CLOEXEC)
+                .and_then(|f| fcntl::fcntl(fd, fcntl::FcntlArg::F_SETFD(f)));
+            match result {
+                Ok(_) => {
+                    // setting the O_CLOEXEC worked
+                    fd
+                }
+                Err(e) => {
+                    // something went wrong in F_GETFD or F_SETFD
+                    let _ = ::nix::unistd::close(fd);
+                    return Err(ConnectError::InvalidFd);
+                }
+            }
+        } else {
+            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+                .map(Into::<PathBuf>::into)
+                .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
+            socket_path.push(env::var_os("WAYLAND_DISPLAY").unwrap_or_else(|| "wayland-0".into()));
+
+            let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
+            socket.into_raw_fd()
+        };
+
+        let (d_inner, evq_inner) = unsafe { DisplayInner::from_fd(fd) }?;
         Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
     }
 
@@ -59,7 +100,13 @@ impl Display {
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
     pub fn connect_to_name<S: Into<OsString>>(name: S) -> Result<(Display, EventQueue), ConnectError> {
-        let (d_inner, evq_inner) = DisplayInner::connect_to_name(Some(name.into()))?;
+        let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+            .map(Into::<PathBuf>::into)
+            .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
+        socket_path.push(name.into());
+
+        let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
+        let (d_inner, evq_inner) = unsafe { DisplayInner::from_fd(socket.into_raw_fd()) }?;
         Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
     }
 

@@ -1,6 +1,7 @@
 use std::ffi::{CString, OsString};
 use std::io;
 use std::os::unix::ffi::OsStringExt;
+use std::os::unix::io::RawFd;
 use std::ptr;
 use std::sync::Arc;
 
@@ -35,39 +36,12 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<(Arc<DisplayInner>, Event
 }
 
 impl DisplayInner {
-    pub fn connect_to_name(
-        name: Option<OsString>,
-    ) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
-        if !::wayland_sys::client::is_lib_available() {
-            return Err(ConnectError::NoWaylandLib);
-        }
-
-        let name = match name {
-            Some(s) => Some(CString::new(s.into_vec()).map_err(|_| ConnectError::InvalidName)?),
-            None => None,
-        };
-
-        unsafe {
-            let display_ptr = ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_display_connect,
-                name.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
-            );
-
-            make_display(display_ptr)
-        }
-    }
-
     pub unsafe fn from_fd(fd: RawFd) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
         if !::wayland_sys::client::is_lib_available() {
             return Err(ConnectError::NoWaylandLib);
         }
 
-        let display_ptr = ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_display_connect_to_fd,
-            name.as_ref().map(|s| s.as_ptr()).unwrap_or(ptr::null())
-        );
+        let display_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect_to_fd, fd);
 
         make_display(display_ptr)
     }

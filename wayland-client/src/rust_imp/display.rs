@@ -17,12 +17,6 @@ pub(crate) struct DisplayInner {
 }
 
 impl DisplayInner {
-    pub fn connect_to_name(
-        name: Option<OsString>,
-    ) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
-        unimplemented!()
-    }
-
     pub unsafe fn from_fd(fd: RawFd) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
         let buffer = super::queues::create_queue_buffer();
         let dsiplay_object = Object::from_interface::<WlDisplay>(1, buffer.clone());
