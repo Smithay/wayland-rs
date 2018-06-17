@@ -124,6 +124,7 @@
 #[macro_use]
 extern crate bitflags;
 extern crate libc;
+extern crate nix;
 
 extern crate wayland_commons;
 #[cfg(feature = "native_lib")]

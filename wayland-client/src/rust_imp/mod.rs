@@ -6,6 +6,9 @@ use protocol::wl_display::WlDisplay;
 
 use {ConnectError, Implementation, Interface, Proxy};
 
+mod connection;
+mod queues;
+
 pub(crate) struct DisplayInner {}
 
 impl DisplayInner {
