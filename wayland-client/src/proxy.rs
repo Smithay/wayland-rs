@@ -73,6 +73,11 @@ impl<I: Interface> Proxy<I> {
         self.inner.version()
     }
 
+    /// Retrieve the object id of this wayland object
+    pub fn id(&self) -> u32 {
+        self.inner.id()
+    }
+
     /// Associate an arbitrary payload to this object
     ///
     /// The pointer you associate here can be retrieved from any
@@ -106,7 +111,10 @@ impl<I: Interface> Proxy<I> {
     #[cfg(not(feature = "native_lib"))]
     #[doc(hidden)]
     pub fn child_versioned<C: Interface>(&self, version: u32) -> NewProxy<C> {
-        unimplemented!()
+        NewProxy {
+            _i: ::std::marker::PhantomData,
+            inner: self.inner.child_versioned::<C>(version)
+        }
     }
 
     /// Create a new child object

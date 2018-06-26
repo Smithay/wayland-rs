@@ -1,6 +1,4 @@
-use std::ffi::{CString, OsString};
 use std::io;
-use std::os::unix::ffi::OsStringExt;
 use std::os::unix::io::RawFd;
 use std::ptr;
 use std::sync::Arc;

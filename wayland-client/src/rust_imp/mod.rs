@@ -19,6 +19,10 @@ impl ProxyInner {
         unimplemented!()
     }
 
+    pub(crate) fn id(&self) -> u32 {
+        unimplemented!()
+    }
+
     pub fn set_user_data(&self, ptr: *mut ()) {
         unimplemented!()
     }
@@ -47,6 +51,10 @@ impl ProxyInner {
     }
 
     pub(crate) fn child<I: Interface>(&self) -> NewProxyInner {
+        unimplemented!()
+    }
+
+    pub fn child_versioned<C: Interface>(&self, version: u32) -> NewProxyInner {
         unimplemented!()
     }
 }

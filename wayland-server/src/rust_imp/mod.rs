@@ -198,6 +198,10 @@ impl ResourceInner {
         unimplemented!()
     }
 
+    pub(crate) fn id(&self) -> u32 {
+        unimplemented!()
+    }
+
     pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,

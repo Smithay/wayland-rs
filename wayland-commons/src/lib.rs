@@ -42,12 +42,17 @@ pub mod wire;
 pub trait MessageGroup: Sized {
     /// Wire representation of this MessageGroup
     const MESSAGES: &'static [wire::MessageDesc];
+    type Map;
     /// Whether this message is a destructor
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
     /// Retrieve the child `Object` associated with this message if any
     fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<::map::Object<Meta>>;
+    /// Construct a message from its raw representation
+    fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
+    /// Turn this message into its raw representation
+    fn into_raw(self, send_id: u32) -> wire::Message;
     #[cfg(feature = "native_lib")]
     /// Construct a message of this group from its C representation
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
@@ -154,11 +159,18 @@ impl Interface for AnonymousObject {
 
 impl MessageGroup for NoMessage {
     const MESSAGES: &'static [wire::MessageDesc] = &[];
+    type Map = ();
     fn is_destructor(&self) -> bool {
         match *self {}
     }
     fn child<M: Clone>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
         None
+    }
+    fn from_raw(_: wire::Message, map: &mut ()) -> Result<Self,()> {
+        Err(())
+    }
+    fn into_raw(self, _: u32) -> wire::Message {
+        match self {}
     }
     #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(

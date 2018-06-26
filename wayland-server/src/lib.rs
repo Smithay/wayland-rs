@@ -145,6 +145,17 @@ pub mod protocol {
     pub use generated::rust_api::*;
 }
 
+pub struct ResourceMap {}
+
+impl ResourceMap {
+    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Resource<I>> {
+        unimplemented!()
+    }
+    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewResource<I>> {
+        unimplemented!()
+    }
+}
+
 mod generated {
     #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
     #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
@@ -157,18 +168,18 @@ mod generated {
     #[cfg(feature = "native_lib")]
     pub mod c_api {
         pub(crate) use wayland_commons::map::Object;
-        pub(crate) use wayland_commons::wire::{ArgumentType, MessageDesc};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, MessageDesc, Message};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {NewResource, Resource};
+        pub(crate) use {NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
     #[cfg(not(feature = "native_lib"))]
     pub mod rust_api {
         pub(crate) use wayland_commons::map::Object;
-        pub(crate) use wayland_commons::wire::{ArgumentType, MessageDesc};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, MessageDesc, Message};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
-        pub(crate) use {NewResource, Resource};
+        pub(crate) use {NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
     }
 }

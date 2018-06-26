@@ -46,20 +46,27 @@ impl ProxyInner {
         self.internal.is_none()
     }
 
-    pub fn version(&self) -> u32 {
+    pub(crate) fn version(&self) -> u32 {
         if !self.is_alive() {
             return 0;
         }
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 }
     }
 
-    pub fn set_user_data(&self, ptr: *mut ()) {
+    pub(crate) fn id(&self) -> u32 {
+        if !self.is_alive() {
+            return 0;
+        }
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, self.ptr) }
+    }
+
+    pub(crate) fn set_user_data(&self, ptr: *mut ()) {
         if let Some(ref inner) = self.internal {
             inner.user_data.store(ptr, Ordering::Release);
         }
     }
 
-    pub fn get_user_data(&self) -> *mut () {
+    pub(crate) fn get_user_data(&self) -> *mut () {
         if let Some(ref inner) = self.internal {
             inner.user_data.load(Ordering::Acquire)
         } else {

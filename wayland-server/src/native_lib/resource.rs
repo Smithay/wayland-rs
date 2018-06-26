@@ -143,6 +143,16 @@ impl ResourceInner {
         }
     }
 
+  pub(crate) fn id(&self) -> u32 {
+        if self.is_alive() {
+            unsafe {
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, self.ptr)
+            }
+        } else {
+            0
+        }
+    }
+
     pub(crate) fn c_ptr(&self) -> *mut wl_resource {
         self.ptr
     }
