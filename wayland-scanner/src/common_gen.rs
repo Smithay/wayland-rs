@@ -416,7 +416,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                         writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.0.into()) }}),", a.name)?;
                         writeln!(out, "                        Argument::Uint({}.1),", a.name)?;
                         writeln!(out, "                        Argument::NewId({}.2.id()),", a.name)?;
-                    }
+                    },
                     Type::Object => if a.allow_null {
                         writeln!(out, "                        Argument::Object({}.map(|o| o.id()).unwrap_or(0)),", a.name)?;
                     } else {
