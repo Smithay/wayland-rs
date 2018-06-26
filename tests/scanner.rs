@@ -2,6 +2,7 @@ extern crate difference;
 extern crate wayland_scanner;
 
 use difference::{Changeset, Difference};
+use std::cmp::{min, max};
 use std::io::Cursor;
 use std::str::from_utf8;
 use wayland_scanner::Side;
@@ -17,6 +18,7 @@ const SERVER_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/server
 fn print_diff(diffs: &[Difference]) {
     println!("Partial diffs found:");
     let diffs = flatten_diffs(diffs);
+    let n = diffs.len();
     let mut print_idx = diffs
         .iter()
         .enumerate()
@@ -24,7 +26,7 @@ fn print_diff(diffs: &[Difference]) {
             if let &Difference::Same(_) = d {
                 Vec::new().into_iter()
             } else {
-                ((i - 3)..(i + 4)).collect::<Vec<usize>>().into_iter()
+                ((max(i, 3)-3)..(min(i + 4, n))).collect::<Vec<usize>>().into_iter()
             }
         })
         .collect::<Vec<_>>();
@@ -33,7 +35,11 @@ fn print_diff(diffs: &[Difference]) {
     let mut last_idx = 0;
     for idx in print_idx {
         if idx != last_idx + 1 {
-            println!("\n=== Partial diff ===");
+            let location: usize = diffs[0..idx].iter().filter_map(|d| match d {
+                &Difference::Same(_) | &Difference::Rem(_) => Some(1),
+                &Difference::Add(_) => None
+            }).sum();
+            println!("\n=== Partial diff starting at line {} ===", location+1);
         }
         last_idx = idx;
         match diffs[idx] {
@@ -48,33 +54,23 @@ fn flatten_diffs(diffs: &[Difference]) -> Vec<Difference> {
     diffs
         .iter()
         .flat_map(|d| match *d {
-            Difference::Same(ref x) => x.lines()
+            Difference::Same(ref x) => x.split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Same)
                 .collect::<Vec<_>>()
                 .into_iter(),
-            Difference::Add(ref x) => x.lines()
+            Difference::Add(ref x) => x.split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Add)
                 .collect::<Vec<_>>()
                 .into_iter(),
-            Difference::Rem(ref x) => x.lines()
+            Difference::Rem(ref x) => x.split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Rem)
                 .collect::<Vec<_>>()
                 .into_iter(),
         })
         .collect()
-}
-
-fn only_newlines_err(diffs: &[Difference]) -> bool {
-    for d in diffs {
-        match *d {
-            Difference::Add(_) | Difference::Rem(_) => return false,
-            _ => {}
-        }
-    }
-    return true;
 }
 
 #[test]
@@ -86,7 +82,7 @@ fn c_interfaces_generation() {
         from_utf8(&out).expect("Output of scanner was not UTF8."),
         "\n",
     );
-    if changeset.distance != 0 && !only_newlines_err(&changeset.diffs) {
+    if changeset.distance != 0 {
         print_diff(&changeset.diffs);
         panic!(
             "Scanner output does not match expected output: d = {}",
@@ -104,7 +100,7 @@ fn client_c_code_generation() {
         from_utf8(&out).expect("Output of scanner was not UTF8."),
         "\n",
     );
-    if changeset.distance != 0 && !only_newlines_err(&changeset.diffs) {
+    if changeset.distance != 0 {
         print_diff(&changeset.diffs);
         panic!(
             "Scanner output does not match expected output: d = {}",
@@ -122,7 +118,7 @@ fn server_c_code_generation() {
         from_utf8(&out).expect("Output of scanner was not UTF8."),
         "\n",
     );
-    if changeset.distance != 0 && !only_newlines_err(&changeset.diffs) {
+    if changeset.distance != 0 {
         print_diff(&changeset.diffs);
         panic!(
             "Scanner output does not match expected output: d = {}",

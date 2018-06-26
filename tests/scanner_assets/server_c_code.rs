@@ -1,3 +1,4 @@
+
 //
 // This file was auto-generated, do not edit directly.
 //
@@ -13,11 +14,10 @@ pub mod wl_foo {
     //!
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
-
     /// Possible cake kinds
     ///
     /// List of the possible kind of cake supported by the protocol.
@@ -59,7 +59,6 @@ pub mod wl_foo {
             const Catapult = 4;
         }
     }
-
     impl DeliveryKind {
         pub fn from_raw(n: u32) -> Option<DeliveryKind> {
             Some(DeliveryKind::from_bits_truncate(n))
@@ -102,7 +101,7 @@ pub mod wl_foo {
                 ]
             },
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
@@ -114,6 +113,69 @@ pub mod wl_foo {
                 1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.clone())),
                 _ => None
             }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                0 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Request::FooIt {
+                        number: {
+                            if let Some(Argument::Int(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        unumber: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        text: {
+                            if let Some(Argument::Str(val)) = args.next() {
+                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into());
+                                s
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        float: {
+                            if let Some(Argument::Fixed(val)) = args.next() {
+                                (val as f64) / 256.
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        file: {
+                            if let Some(Argument::Fd(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                    })
+                },
+                1 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Request::CreateBar {
+                        id: {
+                            if let Some(Argument::NewId(val)) = args.next() {
+                                map.get_new(val).ok_or(())?
+                            } else {
+                                return Err(())
+                            }
+                        },
+                    })
+                },
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Request::into_raw can not be used Server-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
@@ -161,7 +223,7 @@ pub mod wl_foo {
                 ]
             },
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
@@ -171,6 +233,23 @@ pub mod wl_foo {
         fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Event::from_raw can not be used Server-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
+                Event::Cake { kind, amount, } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Uint(kind.to_raw()),
+                        Argument::Uint(amount),
+                    ]
+                },
             }
         }
 
@@ -198,9 +277,12 @@ pub mod wl_foo {
         type Event = Event;
         const NAME: &'static str = "wl_foo";
         const VERSION: u32 = 3;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
+
     }
 }
 
@@ -208,11 +290,10 @@ pub mod wl_bar {
     //! Interface for bars
     //!
     //! This interface allows you to bar your foos.
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
-
     pub enum Request {
         /// ask for a bar delivery
         ///
@@ -246,7 +327,7 @@ pub mod wl_bar {
                 ]
             },
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 Request::Release => true,
@@ -258,6 +339,46 @@ pub mod wl_bar {
             match opcode {
                 _ => None
             }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                0 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Request::BarDelivery {
+                        kind: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                super::wl_foo::DeliveryKind::from_raw(val).ok_or(())?
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        target: {
+                            if let Some(Argument::Object(val)) = args.next() {
+                                map.get(val).ok_or(())?
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        metadata: {
+                            if let Some(Argument::Array(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                    })
+                },
+                1 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Request::Release)
+                },
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Request::into_raw can not be used Server-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
@@ -286,7 +407,7 @@ pub mod wl_bar {
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -295,6 +416,15 @@ pub mod wl_bar {
         fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Event::from_raw can not be used Server-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
             }
         }
 
@@ -316,9 +446,12 @@ pub mod wl_bar {
         type Event = Event;
         const NAME: &'static str = "wl_bar";
         const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
+
     }
 }
 
@@ -326,18 +459,17 @@ pub mod wl_callback {
     //! callback object
     //!
     //! This object has a special behavior regarding its destructor.
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
 
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
-
     pub enum Request {
     }
 
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
             }
@@ -347,6 +479,16 @@ pub mod wl_callback {
             match opcode {
                 _ => None
             }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Request::into_raw can not be used Server-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
@@ -380,7 +522,7 @@ pub mod wl_callback {
                 ]
             },
         ];
-
+        type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
@@ -390,6 +532,22 @@ pub mod wl_callback {
         fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Event::from_raw can not be used Server-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
+                Event::Done { callback_data, } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Uint(callback_data),
+                    ]
+                },
             }
         }
 
@@ -416,9 +574,12 @@ pub mod wl_callback {
         type Event = Event;
         const NAME: &'static str = "wl_callback";
         const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
         }
+
     }
 }
 

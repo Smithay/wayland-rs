@@ -10,7 +10,7 @@ wayland-server = { path = "./wayland-server", default-features = false }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server"] }
 
 [dev-dependencies]
-difference = "1.0"
+difference = "2.0"
 
 [workspace]
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]

@@ -12,6 +12,8 @@ pub(crate) fn create_queue_buffer() -> QueueBuffer {
     Arc::new(Mutex::new(VecDeque::new()))
 }
 
+pub(crate) struct QueueImpls {}
+
 pub(crate) struct EventQueueInner {
     connection: Arc<Mutex<Connection>>,
     buffer: QueueBuffer,

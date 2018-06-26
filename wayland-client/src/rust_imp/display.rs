@@ -1,4 +1,3 @@
-use std::ffi::OsString;
 use std::io;
 use std::os::unix::io::RawFd;
 use std::sync::{Arc, Mutex};
@@ -19,9 +18,8 @@ pub(crate) struct DisplayInner {
 impl DisplayInner {
     pub unsafe fn from_fd(fd: RawFd) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
         let buffer = super::queues::create_queue_buffer();
-        let dsiplay_object = Object::from_interface::<WlDisplay>(1, buffer.clone());
-        let connection = Arc::new(Mutex::new(Connection::new(fd, dsiplay_object)));
-
+        let display_object = Object::from_interface::<WlDisplay>(1, buffer.clone());
+        let connection = Arc::new(Mutex::new(Connection::new(fd, display_object)));
         let event_queue = EventQueueInner::new(connection.clone(), Some(buffer));
         let display = DisplayInner { connection };
         Ok((Arc::new(display), event_queue))
