@@ -27,7 +27,6 @@ use wayland_sys::common as syscom;
 
 use downcast::Downcast;
 
-pub mod dispatching;
 pub mod map;
 pub mod socket;
 pub mod wire;
@@ -48,7 +47,11 @@ pub trait MessageGroup: Sized {
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
     /// Retrieve the child `Object` associated with this message if any
-    fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<::map::Object<Meta>>;
+    fn child<Meta: self::map::ObjectMetadata>(
+        opcode: u16,
+        version: u32,
+        meta: &Meta,
+    ) -> Option<::map::Object<Meta>>;
     /// Construct a message from its raw representation
     fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
     /// Turn this message into its raw representation
@@ -163,10 +166,10 @@ impl MessageGroup for NoMessage {
     fn is_destructor(&self) -> bool {
         match *self {}
     }
-    fn child<M: Clone>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
+    fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
         None
     }
-    fn from_raw(_: wire::Message, map: &mut ()) -> Result<Self,()> {
+    fn from_raw(_: wire::Message, map: &mut ()) -> Result<Self, ()> {
         Err(())
     }
     fn into_raw(self, _: u32) -> wire::Message {

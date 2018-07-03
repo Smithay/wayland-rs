@@ -8,6 +8,7 @@ use wayland_commons::map::{Object, ObjectMap};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 
+use super::proxy::ObjectMeta;
 use super::queues::QueueBuffer;
 
 #[derive(Clone)]
@@ -19,12 +20,12 @@ pub(crate) enum Error {
 
 pub(crate) struct Connection {
     socket: BufferedSocket,
-    map: Arc<Mutex<ObjectMap<QueueBuffer>>>,
+    pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     last_error: Option<Error>,
 }
 
 impl Connection {
-    pub(crate) unsafe fn new(fd: RawFd, initial_object: Object<QueueBuffer>) -> Connection {
+    pub(crate) unsafe fn new(fd: RawFd, initial_object: Object<ObjectMeta>) -> Connection {
         let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
 
         let mut map = ObjectMap::new();
@@ -113,7 +114,7 @@ impl Connection {
                 }
 
                 // send the message to the appropriate pending queue
-                object.meta.lock().unwrap().push_back(msg);
+                object.meta.buffer.lock().unwrap().push_back(msg);
                 // continue parsing
                 true
             },

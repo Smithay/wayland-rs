@@ -18,7 +18,7 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument}};\n"
+            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
         )?;
         writeln!(
             out,
@@ -77,7 +77,7 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument}};\n"
+            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
         )?;
         writeln!(
             out,

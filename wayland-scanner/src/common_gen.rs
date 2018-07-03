@@ -203,7 +203,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
     // child
     writeln!(
         out,
-        "        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {{"
+        "        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {{"
     )?;
     writeln!(out, "            match opcode {{")?;
     for (opcode, msg) in messages.iter().enumerate() {
@@ -217,7 +217,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
         if let Some(new_iface) = it.next() {
             writeln!(
                 out,
-                "                {} => Some(Object::from_interface::<super::{}::{}>(version, meta.clone())),",
+                "                {} => Some(Object::from_interface::<super::{}::{}>(version, meta.child())),",
                 opcode,
                 new_iface,
                 snake_to_camel(&new_iface)
@@ -236,7 +236,10 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
     writeln!(out, "        }}\n")?;
 
     // from_raw
-    writeln!(out, "        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {{")?;
+    writeln!(
+        out,
+        "        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {{"
+    )?;
     if !receiver {
         writeln!(
             out,
@@ -270,7 +273,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::Uint => {
                             writeln!(out, "                            if let Some(Argument::Uint(val)) = args.next() {{")?;
                             write!(out, "                                ")?;
@@ -282,14 +285,14 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::Fixed => {
                             writeln!(out, "                            if let Some(Argument::Fixed(val)) = args.next() {{")?;
                             writeln!(out, "                                (val as f64) / 256.")?;
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::Array => {
                             writeln!(out, "                            if let Some(Argument::Array(val)) = args.next() {{")?;
                             if a.allow_null {
@@ -300,7 +303,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::String => {
                             writeln!(out, "                            if let Some(Argument::Str(val)) = args.next() {{")?;
                             writeln!(out, "                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into());")?;
@@ -308,19 +311,21 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                                 writeln!(out, "                                if s.len() == 0 {{ None }} else {{ Some(s) }}")?;
                             } else {
                                 writeln!(out, "                                s")?;
-
                             }
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::Fd => {
-                            writeln!(out, "                            if let Some(Argument::Fd(val)) = args.next() {{")?;
+                            writeln!(
+                                out,
+                                "                            if let Some(Argument::Fd(val)) = args.next() {{"
+                            )?;
                             writeln!(out, "                                val")?;
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::Object => {
                             writeln!(out, "                            if let Some(Argument::Object(val)) = args.next() {{")?;
                             if a.allow_null {
@@ -331,7 +336,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                             writeln!(out, "                            }} else {{")?;
                             writeln!(out, "                                return Err(())")?;
                             writeln!(out, "                            }}")?;
-                        },
+                        }
                         Type::NewId => {
                             writeln!(out, "                            if let Some(Argument::NewId(val)) = args.next() {{")?;
                             if a.allow_null {
@@ -385,31 +390,47 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
             for a in &msg.args {
                 match a.typ {
                     Type::Int => if a.enum_.is_some() {
-                        writeln!(out, "                        Argument::Int({}.to_raw() as i32),", a.name)?;
+                        writeln!(
+                            out,
+                            "                        Argument::Int({}.to_raw() as i32),",
+                            a.name
+                        )?;
                     } else {
                         writeln!(out, "                        Argument::Int({}),", a.name)?;
                     },
                     Type::Uint => if a.enum_.is_some() {
-                        writeln!(out, "                        Argument::Uint({}.to_raw()),", a.name)?;
+                        writeln!(
+                            out,
+                            "                        Argument::Uint({}.to_raw()),",
+                            a.name
+                        )?;
                     } else {
                         writeln!(out, "                        Argument::Uint({}),", a.name)?;
                     },
                     Type::Fixed => {
-                        writeln!(out, "                        Argument::Fixed(({} * 256.) as i32),", a.name)?;
-                    },
+                        writeln!(
+                            out,
+                            "                        Argument::Fixed(({} * 256.) as i32),",
+                            a.name
+                        )?;
+                    }
                     Type::String => if a.allow_null {
                         writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.map(Into::into).unwrap_or_else(Vec::new)) }}),", a.name)?;
                     } else {
                         writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.into()) }}),", a.name)?;
                     },
                     Type::Array => if a.allow_null {
-                        writeln!(out, "                        Argument::Array({}.unwrap_or_else(Vec::new),", a.name)?;
+                        writeln!(
+                            out,
+                            "                        Argument::Array({}.unwrap_or_else(Vec::new),",
+                            a.name
+                        )?;
                     } else {
                         writeln!(out, "                        Argument::Array({}),", a.name)?;
                     },
                     Type::Fd => {
                         writeln!(out, "                        Argument::Fd({}),", a.name)?;
-                    },
+                    }
                     Type::NewId => if a.interface.is_some() {
                         writeln!(out, "                        Argument::NewId({}.id()),", a.name)?;
                     } else {
@@ -418,7 +439,11 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                         writeln!(out, "                        Argument::NewId({}.2.id()),", a.name)?;
                     },
                     Type::Object => if a.allow_null {
-                        writeln!(out, "                        Argument::Object({}.map(|o| o.id()).unwrap_or(0)),", a.name)?;
+                        writeln!(
+                            out,
+                            "                        Argument::Object({}.map(|o| o.id()).unwrap_or(0)),",
+                            a.name
+                        )?;
                     } else {
                         writeln!(out, "                        Argument::Object({}.id()),", a.name)?;
                     },

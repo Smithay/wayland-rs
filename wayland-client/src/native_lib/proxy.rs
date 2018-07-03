@@ -42,6 +42,13 @@ impl ProxyInner {
             .unwrap_or(false)
     }
 
+    pub(crate) fn is_interface<I: Interface>(&self) -> bool {
+        unsafe {
+            let iface_name_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, self.ptr);
+            iface_name_ptr == (*I::c_interface()).name
+        }
+    }
+
     pub(crate) fn is_external(&self) -> bool {
         self.internal.is_none()
     }
@@ -293,6 +300,7 @@ where
             let implem = user_data.implem.as_mut().unwrap();
             if must_destroy {
                 user_data.internal.alive.store(false, Ordering::Release);
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
             // call the impl
             implem.receive(msg, proxy_obj);
@@ -300,7 +308,6 @@ where
         if must_destroy {
             // final cleanup
             let _ = Box::from_raw(user_data as *mut ProxyUserData<I>);
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
         }
         Ok(())
     });

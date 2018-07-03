@@ -110,7 +110,6 @@ impl<I: Interface> Resource<I> {
         self.inner.id()
     }
 
-
     /// Check whether this resource has been implemented with given type
     ///
     /// Always returns false if the resource is no longer alive

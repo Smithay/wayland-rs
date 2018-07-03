@@ -123,6 +123,8 @@
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate downcast_rs as downcast;
 extern crate libc;
 extern crate nix;
 
@@ -139,6 +141,7 @@ mod proxy;
 pub use display::{ConnectError, Display};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
+pub use imp::ProxyMap;
 pub use proxy::{NewProxy, Proxy};
 
 #[cfg(feature = "cursor")]
@@ -176,17 +179,6 @@ pub mod protocol {
     pub use generated::rust_api::*;
 }
 
-pub struct ProxyMap {}
-
-impl ProxyMap {
-    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Proxy<I>> {
-        unimplemented!()
-    }
-    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewProxy<I>> {
-        unimplemented!()
-    }
-}
-
 mod generated {
     #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
     #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
@@ -198,8 +190,8 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
-        pub(crate) use wayland_commons::map::Object;
-        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, MessageDesc, Message};
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
         pub(crate) use {NewProxy, Proxy, ProxyMap};
@@ -207,8 +199,8 @@ mod generated {
     }
     #[cfg(not(feature = "native_lib"))]
     pub mod rust_api {
-        pub(crate) use wayland_commons::map::Object;
-        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, MessageDesc, Message};
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use {NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));

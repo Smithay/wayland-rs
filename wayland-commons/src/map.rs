@@ -5,9 +5,13 @@ use {Interface, MessageGroup};
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF000000;
 
+pub trait ObjectMetadata: Clone {
+    fn child(&self) -> Self;
+}
+
 /// The representation of a protocol object
 #[derive(Clone)]
-pub struct Object<Meta: Clone> {
+pub struct Object<Meta: ObjectMetadata> {
     /// Interface name of this object
     pub interface: &'static str,
     /// Version of this object
@@ -24,7 +28,7 @@ pub struct Object<Meta: Clone> {
     childs_from_requests: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
 }
 
-impl<Meta: Clone> Object<Meta> {
+impl<Meta: ObjectMetadata> Object<Meta> {
     /// Create an Object corresponding to given interface and version
     pub fn from_interface<I: Interface>(version: u32, meta: Meta) -> Object<Meta> {
         Object {
@@ -50,9 +54,22 @@ impl<Meta: Clone> Object<Meta> {
     pub fn request_child(&self, opcode: u16) -> Option<Object<Meta>> {
         (self.childs_from_requests)(opcode, self.version, &self.meta)
     }
+
+    pub fn is_interface<I: Interface>(&self) -> bool {
+        // First line should be sufficient unless there are two interfaces with the
+        // same name in the set of all used protocol extensions
+        // Let's be extra careful =)
+        self.interface == I::NAME
+            && (self.childs_from_events as usize) == (childs_from::<I::Event, Meta> as usize)
+            && (self.childs_from_requests as usize) == (childs_from::<I::Request, Meta> as usize)
+    }
 }
 
-fn childs_from<M: MessageGroup, Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+fn childs_from<M: MessageGroup, Meta: ObjectMetadata>(
+    opcode: u16,
+    version: u32,
+    meta: &Meta,
+) -> Option<Object<Meta>> {
     M::child(opcode, version, meta)
 }
 
@@ -60,12 +77,12 @@ fn childs_from<M: MessageGroup, Meta: Clone>(opcode: u16, version: u32, meta: &M
 ///
 /// Keeps track of which object id is associated to which
 /// interface object, and which is currently unused.
-pub struct ObjectMap<Meta: Clone> {
+pub struct ObjectMap<Meta: ObjectMetadata> {
     client_objects: Vec<Object<Meta>>,
     server_objects: Vec<Object<Meta>>,
 }
 
-impl<Meta: Clone> ObjectMap<Meta> {
+impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     /// Create a new empty object map
     pub fn new() -> ObjectMap<Meta> {
         ObjectMap {
@@ -128,10 +145,22 @@ impl<Meta: Clone> ObjectMap<Meta> {
     pub fn server_insert_new(&mut self, object: Object<Meta>) -> u32 {
         insert_in(&mut self.server_objects, object) + SERVER_ID_LIMIT
     }
+
+    pub fn with_meta<F: FnOnce(&mut Meta)>(&mut self, id: u32, f: F) {
+        if id >= SERVER_ID_LIMIT {
+            if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize) {
+                f(&mut place.meta)
+            }
+        } else {
+            if let Some(place) = self.client_objects.get_mut((id - 1) as usize) {
+                f(&mut place.meta)
+            }
+        }
+    }
 }
 
 // insert a new object in a store at the first free place
-fn insert_in<Meta: Clone>(store: &mut Vec<Object<Meta>>, object: Object<Meta>) -> u32 {
+fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Object<Meta>>, object: Object<Meta>) -> u32 {
     match store.iter().position(|o| o.zombie) {
         Some(id) => {
             store[id] = object;
@@ -145,7 +174,7 @@ fn insert_in<Meta: Clone>(store: &mut Vec<Object<Meta>>, object: Object<Meta>) -
 }
 
 // insert an object at a given place in a store
-fn insert_in_at<Meta: Clone>(
+fn insert_in_at<Meta: ObjectMetadata>(
     store: &mut Vec<Object<Meta>>,
     id: usize,
     object: Object<Meta>,
