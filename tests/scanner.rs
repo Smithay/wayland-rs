@@ -2,7 +2,7 @@ extern crate difference;
 extern crate wayland_scanner;
 
 use difference::{Changeset, Difference};
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 use std::io::Cursor;
 use std::str::from_utf8;
 use wayland_scanner::Side;
@@ -26,7 +26,9 @@ fn print_diff(diffs: &[Difference]) {
             if let &Difference::Same(_) = d {
                 Vec::new().into_iter()
             } else {
-                ((max(i, 3)-3)..(min(i + 4, n))).collect::<Vec<usize>>().into_iter()
+                ((max(i, 3) - 3)..(min(i + 4, n)))
+                    .collect::<Vec<usize>>()
+                    .into_iter()
             }
         })
         .collect::<Vec<_>>();
@@ -35,11 +37,14 @@ fn print_diff(diffs: &[Difference]) {
     let mut last_idx = 0;
     for idx in print_idx {
         if idx != last_idx + 1 {
-            let location: usize = diffs[0..idx].iter().filter_map(|d| match d {
-                &Difference::Same(_) | &Difference::Rem(_) => Some(1),
-                &Difference::Add(_) => None
-            }).sum();
-            println!("\n=== Partial diff starting at line {} ===", location+1);
+            let location: usize = diffs[0..idx]
+                .iter()
+                .filter_map(|d| match d {
+                    &Difference::Same(_) | &Difference::Rem(_) => Some(1),
+                    &Difference::Add(_) => None,
+                })
+                .sum();
+            println!("\n=== Partial diff starting at line {} ===", location + 1);
         }
         last_idx = idx;
         match diffs[idx] {
