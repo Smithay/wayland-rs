@@ -72,6 +72,12 @@ impl EventQueue {
         }
     }
 
+    #[cfg(feature = "native_lib")]
+    /// Gets the raw wl_event_queue pointer.
+    pub fn as_ptr(&self) -> *mut wl_event_queue {
+        self.inner.wlevq.unwrap_or_else(|| ptr::null_mut())
+    }
+
     /// Dispatches events from the internal buffer.
     ///
     /// Dispatches all events to their appropriaters.
