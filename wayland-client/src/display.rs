@@ -95,6 +95,12 @@ impl Display {
     }
 
     #[cfg(feature = "native_lib")]
+    /// Gets the raw wl_display pointer.
+    pub fn as_ptr(&self) -> *mut wl_display {
+        self.inner.display
+    }
+
+    #[cfg(feature = "native_lib")]
     /// Create a Display and Event Queue from an external display
     ///
     /// This allows you to interface with an already-existing wayland connection,
