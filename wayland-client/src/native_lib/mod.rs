@@ -6,6 +6,8 @@ pub(crate) use self::display::DisplayInner;
 pub(crate) use self::event_queue::EventQueueInner;
 pub(crate) use self::proxy::{NewProxyInner, ProxyInner};
 
+use {Interface, Proxy, NewProxy};
+
 pub enum ProxyMap {}
 
 impl ProxyMap {

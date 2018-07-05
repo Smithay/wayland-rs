@@ -228,7 +228,7 @@ impl<I: Interface> Proxy<I> {
     /// the queue associated to the provided token, rather than the queue of
     /// their parent. This does not change the queue of the proxy itself.
     pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
-        let inner = self.inner.make_wrapper(&*queue.inner.borrow())?;
+        let inner = self.inner.make_wrapper(&queue.inner)?;
 
         Ok(Proxy {
             _i: ::std::marker::PhantomData,
@@ -306,7 +306,7 @@ impl<I: Interface + 'static> NewProxy<I> {
     {
         #[cfg(feature = "native_lib")]
         {
-            queue.inner.borrow().assign_proxy(self.inner.c_ptr());
+            queue.inner.assign_proxy(self.inner.c_ptr());
         }
         #[cfg(not(feature = "native_lib"))]
         {
