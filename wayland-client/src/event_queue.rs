@@ -75,7 +75,7 @@ impl EventQueue {
     /// Dispatches events from the internal buffer.
     ///
     /// Dispatches all events to their appropriaters.
-    /// If not events were in the internal buffer, will block until
+    /// If no events were in the internal buffer, will block until
     /// some events are read and dispatch them.
     /// This process can insert events in the internal buffers of
     /// other event queues.
@@ -111,7 +111,7 @@ impl EventQueue {
     /// Dispatches pending events from the internal buffer.
     ///
     /// Dispatches all events to their appropriaters.
-    /// Never blocks, if not events were pending, simply returns
+    /// Never blocks, if no events were pending, simply returns
     /// `Ok(0)`.
     ///
     /// If an error is returned, your connection with the wayland
