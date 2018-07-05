@@ -2,15 +2,11 @@ use std::collections::VecDeque;
 use std::io;
 use std::sync::{Arc, Mutex};
 
-use wayland_commons::map::{Object, ObjectMap};
+use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
-use wayland_commons::MessageGroup;
 
 use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
-use super::ProxyMap;
-
-use {Implementation, Interface, Proxy};
 
 pub(crate) type QueueBuffer = Arc<Mutex<VecDeque<Message>>>;
 
@@ -22,19 +18,24 @@ pub(crate) struct EventQueueInner {
     pub(crate) connection: Arc<Mutex<Connection>>,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     pub(crate) buffer: QueueBuffer,
+    display_buffer: QueueBuffer,
 }
 
 impl EventQueueInner {
     pub(crate) fn new(connection: Arc<Mutex<Connection>>, buffer: Option<QueueBuffer>) -> EventQueueInner {
-        let map = connection.lock().unwrap().map.clone();
+        let (map, display_buffer) = {
+            let mut cx = connection.lock().unwrap();
+            (cx.map.clone(), cx.display_buffer.clone())
+        };
         EventQueueInner {
             connection,
             map,
             buffer: buffer.unwrap_or_else(create_queue_buffer),
+            display_buffer,
         }
     }
 
-    pub(crate) fn dispatch(&mut self) -> io::Result<u32> {
+    pub(crate) fn dispatch(&self) -> io::Result<u32> {
         // don't read events if there are some pending
         if let Err(()) = self.prepare_read() {
             return self.dispatch_pending();
@@ -51,8 +52,7 @@ impl EventQueueInner {
         self.dispatch_pending()
     }
 
-    pub(crate) fn dispatch_pending(&mut self) -> io::Result<u32> {
-        let mut buffer = self.buffer.lock().unwrap();
+    fn dispatch_buffer(&self, buffer: &mut VecDeque<Message>) -> io::Result<u32> {
         let mut count = 0;
         let mut proxymap = super::ProxyMap::make(self.map.clone(), self.connection.clone());
         for msg in buffer.drain(..) {
@@ -78,7 +78,23 @@ impl EventQueueInner {
         Ok(count)
     }
 
-    pub(crate) fn sync_roundtrip(&mut self) -> io::Result<i32> {
+    pub(crate) fn dispatch_pending(&self) -> io::Result<u32> {
+        // First always dispatch the display buffer
+        let display_dispatched = {
+            let mut buffer = self.display_buffer.lock().unwrap();
+            self.dispatch_buffer(&mut *buffer)
+        }?;
+
+        // Then our actual buffer
+        let self_dispatched = {
+            let mut buffer = self.buffer.lock().unwrap();
+            self.dispatch_buffer(&mut *buffer)
+        }?;
+
+        Ok(display_dispatched + self_dispatched)
+    }
+
+    pub(crate) fn sync_roundtrip(&self) -> io::Result<i32> {
         unimplemented!()
     }
 

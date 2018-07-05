@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
 
@@ -38,7 +37,7 @@ use imp::EventQueueInner;
 /// of event into the event loop of your application.
 pub struct EventQueue {
     // EventQueue is *not* Send
-    pub(crate) inner: Rc<RefCell<EventQueueInner>>,
+    pub(crate) inner: Rc<EventQueueInner>,
 }
 
 /// A token representing this event queue
@@ -48,13 +47,13 @@ pub struct EventQueue {
 /// require the specification of an event queue, like
 /// `Proxy::make_wrapper` and `NewProxy::implement_nonsend`.
 pub struct QueueToken {
-    pub(crate) inner: Rc<RefCell<EventQueueInner>>,
+    pub(crate) inner: Rc<EventQueueInner>,
 }
 
 impl EventQueue {
     pub(crate) fn new(inner: EventQueueInner) -> EventQueue {
         EventQueue {
-            inner: Rc::new(RefCell::new(inner)),
+            inner: Rc::new(inner),
         }
     }
     /// Dispatches events from the internal buffer.
@@ -68,7 +67,7 @@ impl EventQueue {
     /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
     pub fn dispatch(&mut self) -> io::Result<u32> {
-        self.inner.borrow_mut().dispatch()
+        self.inner.dispatch()
     }
 
     /// Dispatches pending events from the internal buffer.
@@ -80,7 +79,7 @@ impl EventQueue {
     /// If an error is returned, your connection with the wayland
     /// compositor is probably lost.
     pub fn dispatch_pending(&mut self) -> io::Result<u32> {
-        self.inner.borrow_mut().dispatch_pending()
+        self.inner.dispatch_pending()
     }
 
     /// Synchronous roundtrip
@@ -93,7 +92,7 @@ impl EventQueue {
     ///
     /// On success returns the number of dispatched events.
     pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
-        self.inner.borrow_mut().sync_roundtrip()
+        self.inner.sync_roundtrip()
     }
 
     /// Create a new token associated with this event queue
@@ -125,7 +124,7 @@ impl EventQueue {
     /// This call will otherwise not block on the server socket if it is empty, and return
     /// an io error `WouldBlock` in such cases.
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
-        match self.inner.borrow().prepare_read() {
+        match self.inner.prepare_read() {
             Ok(()) => Some(ReadEventsGuard {
                 inner: self.inner.clone(),
                 done: false,
@@ -139,7 +138,7 @@ impl EventQueue {
 ///
 /// See `EventQueue::prepare_read()` for details about its use.
 pub struct ReadEventsGuard {
-    inner: Rc<RefCell<EventQueueInner>>,
+    inner: Rc<EventQueueInner>,
     done: bool,
 }
 
@@ -150,7 +149,7 @@ impl ReadEventsGuard {
     /// until they are all consumed or destroyed.
     pub fn read_events(mut self) -> io::Result<i32> {
         self.done = true;
-        self.inner.borrow().read_events()
+        self.inner.read_events()
     }
 
     /// Cancel the read
@@ -167,7 +166,7 @@ impl ReadEventsGuard {
 impl Drop for ReadEventsGuard {
     fn drop(&mut self) {
         if !self.done {
-            self.inner.borrow().cancel_read();
+            self.inner.cancel_read();
         }
     }
 }

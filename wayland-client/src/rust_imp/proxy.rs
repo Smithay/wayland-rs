@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::MessageGroup;
 
-use super::connection::{Connection, Error as CError};
+use super::connection::Connection;
 use super::queues::QueueBuffer;
 use super::{Dispatcher, EventQueueInner};
 use {Implementation, Interface, Proxy};
@@ -33,6 +33,15 @@ impl ObjectMeta {
         ObjectMeta {
             buffer,
             alive: Arc::new(AtomicBool::new(true)),
+            user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
+            dispatcher: super::default_dispatcher(),
+        }
+    }
+
+    fn dead() -> ObjectMeta {
+        ObjectMeta {
+            buffer: super::queues::create_queue_buffer(),
+            alive: Arc::new(AtomicBool::new(false)),
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
         }
@@ -96,7 +105,6 @@ impl ProxyInner {
         // thread is sending a message an accidentaly sending that message
         // after ours if ours is a destructor
         let mut conn_lock = self.connection.lock().unwrap();
-        let mut map_lock = self.map.lock().unwrap();
         if !self.is_alive() {
             return;
         }
@@ -107,7 +115,6 @@ impl ProxyInner {
             .expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
-            map_lock.kill(self.id);
         }
     }
 
@@ -168,25 +175,37 @@ impl NewProxyInner {
         }
     }
 
+    /// Racy method, if called, must be called before any event ot this object
+    /// is read from the socket, or it'll end up in the wrong queue...
+    pub(crate) unsafe fn assign_queue(&self, queue: &EventQueueInner) {
+        let _ = self.map.lock().unwrap().with(self.id, |obj| {
+            obj.meta.buffer = queue.buffer.clone();
+        });
+    }
+
     // Invariants: Impl is either `Send` or we are on the same thread as the target event loop
     pub(crate) unsafe fn implement<I: Interface, Impl>(self, implementation: Impl) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
-        let object = {
-            let mut map_lock = self.map.lock().unwrap();
-            map_lock.with_meta(self.id, |meta| {
-                meta.dispatcher = super::make_dispatcher(implementation)
-            });
-            // The object cannot be dead (or recycled), because for it to occur we would have
-            // received a message destroying it, which would have caused a panic by the default
-            // dispatcher if the proxy was not yet implemented.
-            // As a result, if this .expect() triggers, there is a bug in the lib.
-            map_lock
-                .find_alive(self.id)
-                .expect("Trying to implement a dead object!")
+        let object = self.map.lock().unwrap().with(self.id, |obj| {
+            obj.meta.dispatcher = super::make_dispatcher(implementation);
+            obj.clone()
+        });
+
+        let object = match object {
+            Ok(obj) => obj,
+            Err(()) => {
+                // We are tyring to implement a non-existent object
+                // This is either a bug in the lib (a NewProxy was created while it should not
+                // have been possible) or an object was created and the server destroyed it
+                // before it could be implemented.
+                // Thus, we just create a dummy already-dead Proxy
+                Object::from_interface::<I>(1, ObjectMeta::dead())
+            }
         };
+
         ProxyInner {
             map: self.map,
             connection: self.connection,

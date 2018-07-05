@@ -20,8 +20,6 @@ pub struct Object<Meta: ObjectMetadata> {
     pub requests: &'static [::wire::MessageDesc],
     /// Description of the events of this object
     pub events: &'static [::wire::MessageDesc],
-    /// True if this is a zombie, a defunct object
-    pub zombie: bool,
     /// Metadata associated to this object (ex: its event queue client side)
     pub meta: Meta,
     childs_from_events: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
@@ -36,7 +34,6 @@ impl<Meta: ObjectMetadata> Object<Meta> {
             version: version,
             requests: I::Request::MESSAGES,
             events: I::Event::MESSAGES,
-            zombie: false,
             meta: meta,
             childs_from_events: childs_from::<I::Event, Meta>,
             childs_from_requests: childs_from::<I::Request, Meta>,
@@ -78,8 +75,8 @@ fn childs_from<M: MessageGroup, Meta: ObjectMetadata>(
 /// Keeps track of which object id is associated to which
 /// interface object, and which is currently unused.
 pub struct ObjectMap<Meta: ObjectMetadata> {
-    client_objects: Vec<Object<Meta>>,
-    server_objects: Vec<Object<Meta>>,
+    client_objects: Vec<Option<Object<Meta>>>,
+    server_objects: Vec<Option<Object<Meta>>>,
 }
 
 impl<Meta: ObjectMetadata> ObjectMap<Meta> {
@@ -96,30 +93,23 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         if id >= SERVER_ID_LIMIT {
             self.server_objects
                 .get((id - SERVER_ID_LIMIT - 1) as usize)
-                .cloned()
+                .and_then(|x| x.clone())
         } else {
-            self.client_objects.get((id - 1) as usize).cloned()
+            self.client_objects.get((id - 1) as usize).and_then(|x| x.clone())
         }
     }
 
-    /// Find a non-zombie object in the store
-    pub fn find_alive(&self, id: u32) -> Option<Object<Meta>> {
-        self.find(id).and_then(|o| if !o.zombie { Some(o) } else { None })
-    }
-
-    /// Marks an object from the store as dead
-    ///
-    /// It marks its field `zombie = true`.
+    /// Remove an object from the store
     ///
     /// Does nothing if the object didn't previously exists
-    pub fn kill(&mut self, id: u32) {
+    pub fn remove(&mut self, id: u32) {
         if id >= SERVER_ID_LIMIT {
             if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize) {
-                place.zombie = true;
+                *place = None;
             }
         } else {
             if let Some(place) = self.client_objects.get_mut((id - 1) as usize) {
-                place.zombie = true;
+                *place = None;
             }
         }
     }
@@ -146,28 +136,34 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         insert_in(&mut self.server_objects, object) + SERVER_ID_LIMIT
     }
 
-    pub fn with_meta<F: FnOnce(&mut Meta)>(&mut self, id: u32, f: F) {
+    pub fn with<T, F: FnOnce(&mut Object<Meta>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
         if id >= SERVER_ID_LIMIT {
-            if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize) {
-                f(&mut place.meta)
+            if let Some(&mut Some(ref mut obj)) =
+                self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize)
+            {
+                Ok(f(obj))
+            } else {
+                Err(())
             }
         } else {
-            if let Some(place) = self.client_objects.get_mut((id - 1) as usize) {
-                f(&mut place.meta)
+            if let Some(&mut Some(ref mut obj)) = self.client_objects.get_mut((id - 1) as usize) {
+                Ok(f(obj))
+            } else {
+                Err(())
             }
         }
     }
 }
 
 // insert a new object in a store at the first free place
-fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Object<Meta>>, object: Object<Meta>) -> u32 {
-    match store.iter().position(|o| o.zombie) {
+fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Option<Object<Meta>>>, object: Object<Meta>) -> u32 {
+    match store.iter().position(|o| o.is_none()) {
         Some(id) => {
-            store[id] = object;
+            store[id] = Some(object);
             id as u32 + 1
         }
         None => {
-            store.push(object);
+            store.push(Some(object));
             store.len() as u32
         }
     }
@@ -175,7 +171,7 @@ fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Object<Meta>>, object: Object
 
 // insert an object at a given place in a store
 fn insert_in_at<Meta: ObjectMetadata>(
-    store: &mut Vec<Object<Meta>>,
+    store: &mut Vec<Option<Object<Meta>>>,
     id: usize,
     object: Object<Meta>,
 ) -> Result<(), ()> {
@@ -183,14 +179,14 @@ fn insert_in_at<Meta: ObjectMetadata>(
     if id > store.len() {
         Err(())
     } else if id == store.len() {
-        store.push(object);
+        store.push(Some(object));
         Ok(())
     } else {
         let previous = &mut store[id];
-        if !previous.zombie {
+        if !previous.is_none() {
             return Err(());
         }
-        *previous = object;
+        *previous = Some(object);
         Ok(())
     }
 }

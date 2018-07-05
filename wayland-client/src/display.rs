@@ -73,7 +73,7 @@ impl Display {
                     // setting the O_CLOEXEC worked
                     unsafe { Display::from_fd(fd) }
                 }
-                Err(e) => {
+                Err(_) => {
                     // something went wrong in F_GETFD or F_SETFD
                     let _ = ::nix::unistd::close(fd);
                     return Err(ConnectError::InvalidFd);

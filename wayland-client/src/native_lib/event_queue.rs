@@ -16,7 +16,7 @@ impl EventQueueInner {
         EventQueueInner { inner, wlevq }
     }
 
-    pub fn dispatch(&mut self) -> io::Result<u32> {
+    pub fn dispatch(&self) -> io::Result<u32> {
         let ret = match self.wlevq {
             Some(evq) => unsafe {
                 ffi_dispatch!(
@@ -35,7 +35,7 @@ impl EventQueueInner {
         }
     }
 
-    pub fn dispatch_pending(&mut self) -> io::Result<u32> {
+    pub fn dispatch_pending(&self) -> io::Result<u32> {
         let ret = match self.wlevq {
             Some(evq) => unsafe {
                 ffi_dispatch!(
@@ -60,7 +60,7 @@ impl EventQueueInner {
         }
     }
 
-    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
+    pub fn sync_roundtrip(&self) -> io::Result<i32> {
         let ret = unsafe {
             match self.wlevq {
                 Some(evtq) => ffi_dispatch!(

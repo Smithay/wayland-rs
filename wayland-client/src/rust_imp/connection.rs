@@ -21,21 +21,24 @@ pub(crate) enum Error {
 pub(crate) struct Connection {
     socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-    last_error: Option<Error>,
+    pub(crate) last_error: Option<Error>,
+    pub(crate) display_buffer: QueueBuffer,
 }
 
 impl Connection {
-    pub(crate) unsafe fn new(fd: RawFd, initial_object: Object<ObjectMeta>) -> Connection {
+    pub(crate) unsafe fn new(fd: RawFd, display_object: Object<ObjectMeta>) -> Connection {
         let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
 
         let mut map = ObjectMap::new();
         // Insert first pre-existing object
-        map.insert_at(1, initial_object).unwrap();
+        let display_buffer = display_object.meta.buffer.clone();
+        map.insert_at(1, display_object).unwrap();
 
         Connection {
             socket,
             map: Arc::new(Mutex::new(map)),
             last_error: None,
+            display_buffer,
         }
     }
 
@@ -67,20 +70,21 @@ impl Connection {
             },
             |msg| {
                 let mut map = map.borrow_mut();
-                let object = map.find(msg.sender_id).unwrap();
-
-                if object.zombie {
-                    // this is a message sent to a dead object
-                    // to avoid dying because of races, we just consume it into void
-                    // closing any associated FDs
-                    for a in msg.args {
-                        if let Argument::Fd(fd) = a {
-                            let _ = ::nix::unistd::close(fd);
+                let object = match map.find(msg.sender_id) {
+                    Some(obj) => obj,
+                    None => {
+                        // this is a message sent to a destroyed object
+                        // to avoid dying because of races, we just consume it into void
+                        // closing any associated FDs
+                        for a in msg.args {
+                            if let Argument::Fd(fd) = a {
+                                let _ = ::nix::unistd::close(fd);
+                            }
                         }
+                        // continue parsing to the next message
+                        return true;
                     }
-                    // continue parsing to the next message
-                    return true;
-                }
+                };
 
                 // create a new object if applicable
                 if let Some(child) = object.event_child(msg.opcode) {
@@ -99,7 +103,7 @@ impl Connection {
                     let child_interface = child.interface;
                     if let Err(()) = map.insert_at(new_id, child) {
                         eprintln!(
-                            "[wayland-client] Protocol error: tried to create an object \"{}\" with already used id \"{}\".",
+                            "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
                             child_interface,
                             new_id
                         );

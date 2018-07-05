@@ -24,7 +24,7 @@ use ProxyMap;
 /// of this interface.
 pub struct Proxy<I: Interface> {
     _i: ::std::marker::PhantomData<&'static I>,
-    inner: ProxyInner,
+    pub(crate) inner: ProxyInner,
 }
 
 impl<I: Interface> Clone for Proxy<I> {
@@ -308,7 +308,11 @@ impl<I: Interface + 'static> NewProxy<I> {
         {
             queue.inner.borrow().assign_proxy(self.inner.c_ptr());
         }
-        let inner = unsafe { self.inner.implement::<I, _>(implementation) };
+        #[cfg(not(feature = "native_lib"))]
+        {
+            self.inner.assign_queue(&queue.inner);
+        }
+        let inner = self.inner.implement::<I, _>(implementation);
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: inner,

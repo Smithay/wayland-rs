@@ -84,7 +84,7 @@ where
         let message = I::Event::from_raw(msg, map)?;
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);
-            proxy.map.lock().unwrap().kill(proxy.id);
+            proxy.map.lock().unwrap().remove(proxy.id);
             self.implementation
                 .receive(message, Proxy::<I>::wrap(proxy.clone()));
         } else {
@@ -109,7 +109,7 @@ where
 pub(crate) fn default_dispatcher() -> Arc<Mutex<Dispatcher + Send>> {
     struct DefaultDisp;
     impl Dispatcher for DefaultDisp {
-        fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
+        fn dispatch(&mut self, _msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Result<(), ()> {
             eprintln!(
                 "[wayland-client] Received an event for unimplemented object {}@{}.",
                 proxy.object.interface, proxy.id

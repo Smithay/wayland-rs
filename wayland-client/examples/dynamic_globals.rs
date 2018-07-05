@@ -3,7 +3,6 @@ extern crate wayland_client;
 
 use wayland_client::{Display, GlobalManager};
 
-use wayland_client::protocol::wl_display::RequestsTrait;
 use wayland_client::protocol::{wl_output, wl_seat};
 
 // An example showcasing the capability of GlobalManager to handle

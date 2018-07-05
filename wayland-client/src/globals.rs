@@ -203,7 +203,7 @@ impl GlobalManager {
 
 pub trait GlobalImplementor<I: Interface> {
     fn new_global(&mut self, global: NewProxy<I>) -> Proxy<I>;
-    fn error(&mut self, version: u32) {}
+    fn error(&mut self, _version: u32) {}
 }
 
 impl<F, I: Interface> GlobalImplementor<I> for F
