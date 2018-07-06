@@ -17,6 +17,7 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("relative-pointer", &["v1"]),
     ("tablet", &["v1", "v2"]),
     ("text-input", &["v1"]),
+    ("xdg-decoration", &["v1"]),
     ("xdg-foreign", &["v1", "v2"]),
     ("xdg-output", &["v1"]),
     ("xdg-shell", &["v5", "v6"]),

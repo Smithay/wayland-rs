@@ -10,7 +10,8 @@ pub mod presentation_time {
         [
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -25,7 +26,8 @@ pub mod xdg_shell {
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -39,6 +41,7 @@ pub mod viewporter {
         "viewporter",
         [
             (wl_surface, wl_surface_interface)
-        ]
+        ],
+        []
     );
 }

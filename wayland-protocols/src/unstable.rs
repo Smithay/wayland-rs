@@ -23,7 +23,8 @@ pub mod fullscreen_shell {
         [
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -33,7 +34,8 @@ pub mod idle_inhibit {
     wayland_protocol_versioned!(
         "idle-inhibit",
         [v1],
-        [(wl_surface, wl_surface_interface)]
+        [(wl_surface, wl_surface_interface)],
+        []
     );
 }
 
@@ -48,7 +50,8 @@ pub mod input_method {
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface),
             (wl_keyboard, wl_keyboard_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -65,7 +68,8 @@ pub mod keyboard_shortcuts_inhibit {
         [
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -75,7 +79,8 @@ pub mod linux_dmabuf {
     wayland_protocol_versioned!(
         "linux-dmabuf",
         [v1],
-        [(wl_buffer, wl_buffer_interface)]
+        [(wl_buffer, wl_buffer_interface)],
+        []
     );
 }
 
@@ -99,7 +104,8 @@ pub mod pointer_constraints {
             (wl_surface, wl_surface_interface),
             (wl_pointer, wl_pointer_interface),
             (wl_region, wl_region_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -112,7 +118,8 @@ pub mod pointer_gestures {
         [
             (wl_surface, wl_surface_interface),
             (wl_pointer, wl_pointer_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -136,7 +143,8 @@ pub mod relative_pointer {
     wayland_protocol_versioned!(
         "relative-pointer",
         [v1],
-        [(wl_pointer, wl_pointer_interface)]
+        [(wl_pointer, wl_pointer_interface)],
+        []
     );
 }
 
@@ -226,7 +234,8 @@ pub mod tablet {
         [
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -239,6 +248,32 @@ pub mod text_input {
         [
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface)
+        ],
+        []
+    );
+}
+
+pub mod xdg_decoration {
+    //! This interface allows a compositor to announce support for server-side
+    //! decorations.
+
+    //! A window decoration is a set of window controls as deemed appropriate by
+    //! the party managing them, such as user interface components used to move,
+    //! resize and change a window's state.
+
+    //! A client can use this protocol to request being decorated by a supporting
+    //! compositor.
+
+    //! If compositor and client do not negotiate the use of a server-side
+    //! decoration using this protocol, clients continue to self-decorate as they
+    //! see fit.
+
+    wayland_protocol_versioned!(
+        "xdg-decoration",
+        [v1],
+        [],
+        [
+            (xdg_shell, xdg_toplevel, xdg_toplevel_interface)
         ]
     );
 }
@@ -247,6 +282,7 @@ pub mod xdg_foreign {
     //! Protocol for exporting xdg surface handles
     //!
     //! This protocol specifies a way for making it possible to reference a surface
+    //! aOaOa
     //! of a different client. With such a reference, a client can, by using the
     //! interfaces provided by this protocol, manipulate the relationship between
     //! its own surfaces and the surface of some other client. For example, stack
@@ -270,7 +306,8 @@ pub mod xdg_foreign {
     wayland_protocol_versioned!(
         "xdg-foreign",
         [v1, v2],
-        [(wl_surface, wl_surface_interface)]
+        [(wl_surface, wl_surface_interface)],
+        []
     );
 }
 
@@ -297,7 +334,8 @@ pub mod xdg_output {
     wayland_protocol_versioned!(
         "xdg-output",
         [v1],
-        [(wl_output, wl_output_interface)]
+        [(wl_output, wl_output_interface)],
+        []
     );
 }
 
@@ -316,7 +354,8 @@ pub mod xdg_shell {
             (wl_surface, wl_surface_interface),
             (wl_output, wl_output_interface),
             (wl_seat, wl_seat_interface)
-        ]
+        ],
+        []
     );
 }
 
@@ -356,6 +395,7 @@ pub mod xwayland_keyboard_grab {
         [
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface)
-        ]
+        ],
+        []
     );
 }

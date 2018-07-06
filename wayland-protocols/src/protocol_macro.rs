@@ -1,6 +1,6 @@
 #[macro_escape]
 macro_rules! wayland_protocol(
-    ($name: expr, [$(($import: ident, $interface: ident)),*]) => {
+    ($name: expr, [$(($import: ident, $interface: ident)),*], [$(($prot_name:ident, $prot_import: ident, $prot_iface: ident)),*]) => {
         #[cfg(feature = "client")]
         pub use self::generated::client;
 
@@ -24,7 +24,9 @@ macro_rules! wayland_protocol(
                 pub use wayland_client::sys::protocol_interfaces::{$($interface),*};
                 #[cfg(all(not(feature = "client"), feature = "server"))]
                 pub use wayland_server::sys::protocol_interfaces::{$($interface),*};
-
+                $(
+                    pub(crate) use ::$prot_name::c_interfaces::$prot_iface;
+                )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_c_interfaces.rs"));
             }
 
@@ -35,6 +37,9 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_sys as sys;
                 pub(crate) use wayland_client::protocol::{$($import),*};
+                $(
+                    pub(crate) use ::$prot_name::client::$prot_import;
+                )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_c_client_api.rs"));
             }
 
@@ -45,6 +50,9 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_sys as sys;
                 pub(crate) use wayland_server::protocol::{$($import),*};
+                $(
+                    pub(crate) use ::$prot_name::server::$prot_import;
+                )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_c_server_api.rs"));
             }
         }
@@ -53,11 +61,11 @@ macro_rules! wayland_protocol(
 
 #[macro_escape]
 macro_rules! wayland_protocol_versioned(
-    ($name: expr, [$($version: ident),*], $rest:tt) => {
+    ($name: expr, [$($version: ident),*], $std_imports:tt, $prot_imports:tt) => {
         $(
             #[allow(missing_docs)]
             pub mod $version {
-                wayland_protocol!(concat!($name, "-", stringify!($version)), $rest);
+                wayland_protocol!(concat!($name, "-", stringify!($version)), $std_imports, $prot_imports);
             }
         )*
     }
