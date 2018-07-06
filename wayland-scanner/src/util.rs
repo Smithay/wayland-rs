@@ -1,6 +1,3 @@
-#[allow(unused_imports)]
-use std::ascii::AsciiExt;
-
 pub fn is_keyword(txt: &str) -> bool {
     match txt {
         "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue" | "crate"
