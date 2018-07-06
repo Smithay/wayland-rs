@@ -27,7 +27,8 @@ pub mod unstable {
             [
                 (wl_output, wl_output_interface),
                 (wl_surface, wl_surface_interface)
-            ]
+            ],
+            []
         );
     }
 
@@ -39,7 +40,8 @@ pub mod unstable {
             [
                 (wl_output, wl_output_interface),
                 (wl_surface, wl_surface_interface)
-            ]
+            ],
+            []
         );
     }
 
@@ -51,7 +53,8 @@ pub mod unstable {
             [
                 (wl_seat, wl_seat_interface),
                 (wl_surface, wl_surface_interface)
-            ]
+            ],
+            []
         );
     }
 
@@ -62,7 +65,8 @@ pub mod unstable {
             [v1],
             [
                 (wl_surface, wl_surface_interface)
-            ]
+            ],
+            []
         );
     }
 
@@ -74,7 +78,8 @@ pub mod unstable {
             [
                 (wl_seat, wl_seat_interface),
                 (wl_surface, wl_surface_interface)
-            ]
+            ],
+            []
         );
     }
 }

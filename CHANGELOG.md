@@ -3,7 +3,7 @@
 ## Unreleased
 
 - [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
-- [protocols] Integrate `xdg-decoration` protocol
+- [protocols] Integrate `xdg-decoration` protocol to replace KDE's decoration protocol.
 
 # 0.20.10 - 2018-06-04
 
