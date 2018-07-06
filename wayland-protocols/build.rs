@@ -34,8 +34,6 @@ static WALL_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str]
     ("window-switcher", &["v1"]),
 ];
 
-static MISC_STABLE_PROTOCOLS: &'static [&'static str] = &["server-decoration"];
-
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
     if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
         generate_c_interfaces(&protocol_file, out_dir.join(&format!("{}_c_interfaces.rs", name)));
@@ -124,13 +122,6 @@ fn main() {
                     );
                 }
             }
-        }
-    }
-
-    if var("CARGO_FEATURE_MISC_PROTOCOLS").ok().is_some() {
-        for name in MISC_STABLE_PROTOCOLS {
-            let file = format!("{name}.xml", name = name);
-            generate_protocol(name, &Path::new("./misc").join(&file), out_dir, client, server);
         }
     }
 }
