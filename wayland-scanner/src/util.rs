@@ -1,4 +1,5 @@
 #[allow(unused_imports)]
+#[allow(deprecated)]
 use std::ascii::AsciiExt;
 
 pub fn is_keyword(txt: &str) -> bool {
