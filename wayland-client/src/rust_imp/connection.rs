@@ -19,10 +19,10 @@ pub(crate) enum Error {
 }
 
 pub(crate) struct Connection {
-    socket: BufferedSocket,
+    pub(crate) socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     pub(crate) last_error: Option<Error>,
-    pub(crate) display_buffer: QueueBuffer,
+    pub(crate) display_buffer: QueueBuffer
 }
 
 impl Connection {

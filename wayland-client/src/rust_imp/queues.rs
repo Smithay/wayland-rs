@@ -1,8 +1,11 @@
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io;
+use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+
+use nix::poll::{poll, PollFd, EventFlags};
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
@@ -43,19 +46,59 @@ impl EventQueueInner {
             return self.dispatch_pending();
         }
 
-        self.connection.lock().unwrap().flush().map_err(|e| match e {
-            ::nix::Error::Sys(errno) => io::Error::from(errno),
-            _ => unreachable!(),
-        })?;
-
-        // TODO: block on wait for read readiness before reading
-        loop {
-            let ret = self.read_events();
-            match ret {
-                Ok(_) => break,
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(e)
+        // temporarily retrieve the socket Fd, only using it for POLL-ing!
+        let socket_fd;
+        {
+            // Flush the outgoing socket
+            let mut conn_lock = self.connection.lock().unwrap();
+            socket_fd = conn_lock.socket.get_socket().as_raw_fd();
+            loop {
+                match conn_lock.flush() {
+                    Ok(_) => break,
+                    Err(::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
+                        // EAGAIN, we need to wait before writing, so we poll the socket
+                        let poll_ret = poll(&mut [PollFd::new(socket_fd, EventFlags::POLLOUT)], -1);
+                        match poll_ret {
+                            Ok(_) => continue,
+                            Err(::nix::Error::Sys(e)) => {
+                                self.cancel_read();
+                                return Err(e.into())
+                            },
+                            Err(_) => unreachable!()
+                        }
+                    },
+                    Err(::nix::Error::Sys(e)) => {
+                        if e != ::nix::errno::Errno::EPIPE {
+                            // don't abort on EPIPE, so we can continue reading
+                            // to get the protocol error
+                            self.cancel_read();
+                            return Err(e.into())
+                        }
+                    },
+                    Err(_) => unreachable!()
+                }
             }
+        }
+
+        // wait for incoming messages to arrive
+        match poll(&mut [PollFd::new(socket_fd, EventFlags::POLLIN)], -1) {
+            Ok(_) => (),
+            Err(::nix::Error::Sys(e)) => {
+                self.cancel_read();
+                return Err(e.into())
+            },
+            Err(_) => unreachable!()
+        }
+
+        match self.read_events() {
+            Ok(_) => (),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                // we waited for read readiness be then received a WouldBlock error
+                // this means that an other thread was also reading events and read them
+                // under our nose
+                // this is alright, continue
+            },
+            Err(e) => return Err(e),
         }
 
         self.dispatch_pending()
