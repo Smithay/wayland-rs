@@ -118,8 +118,18 @@ impl ProxyInner {
         }
         let destructor = msg.is_destructor();
         // TODO: figure our if this can fail and still be recoverable ?
+        let msg = msg.into_raw(self.id);
+        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
+            println!(
+                " -> {}@{}: {} {:?}",
+                I::NAME,
+                self.id,
+                self.object.requests[msg.opcode as usize].name,
+                msg.args
+            );
+        }
         let _ = conn_lock
-            .write_message(&msg.into_raw(self.id))
+            .write_message(&msg)
             .expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);

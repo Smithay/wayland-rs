@@ -33,7 +33,7 @@ impl ProxyMap {
 
     pub fn get<I: Interface>(&mut self, id: u32) -> Option<Proxy<I>> {
         ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(|object| {
-            debug_assert!(object.is_interface::<I>());
+            debug_assert!(I::NAME == "<anonymous>" || object.is_interface::<I>());
             Proxy::wrap(object)
         })
     }
@@ -81,6 +81,15 @@ where
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
+        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
+            println!(
+                " <- {}@{}: {} {:?}",
+                proxy.object.interface,
+                proxy.id,
+                proxy.object.events[msg.opcode as usize].name,
+                msg.args
+            );
+        }
         let message = I::Event::from_raw(msg, map)?;
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);

@@ -60,7 +60,7 @@ impl EventQueueInner {
         }
     }
 
-    pub fn sync_roundtrip(&self) -> io::Result<i32> {
+    pub fn sync_roundtrip(&self) -> io::Result<u32> {
         let ret = unsafe {
             match self.wlevq {
                 Some(evtq) => ffi_dispatch!(

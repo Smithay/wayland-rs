@@ -46,7 +46,6 @@ impl <I: Interface> Eq for Proxy<I> {}
 
 impl<I: Interface> Proxy<I> {
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
-        debug_assert!(inner.is_interface::<I>());
         Proxy {
             _i: ::std::marker::PhantomData,
             inner,
