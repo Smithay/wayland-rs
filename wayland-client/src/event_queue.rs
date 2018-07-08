@@ -91,7 +91,7 @@ impl EventQueue {
     /// Handlers are called as a consequence.
     ///
     /// On success returns the number of dispatched events.
-    pub fn sync_roundtrip(&mut self) -> io::Result<i32> {
+    pub fn sync_roundtrip(&mut self) -> io::Result<u32> {
         self.inner.sync_roundtrip()
     }
 

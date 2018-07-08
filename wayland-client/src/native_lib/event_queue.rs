@@ -73,7 +73,7 @@ impl EventQueueInner {
             }
         };
         if ret >= 0 {
-            Ok(ret)
+            Ok(ret as u32)
         } else {
             Err(io::Error::last_os_error())
         }

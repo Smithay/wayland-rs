@@ -15,6 +15,8 @@ pub(crate) struct ObjectMeta {
     pub(crate) alive: Arc<AtomicBool>,
     pub(crate) user_data: Arc<AtomicPtr<()>>,
     pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
+    pub(crate) server_destroyed: bool,
+    pub(crate) client_destroyed: bool,
 }
 
 impl ObjectMetadata for ObjectMeta {
@@ -24,6 +26,8 @@ impl ObjectMetadata for ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
+            server_destroyed: false,
+            client_destroyed: false
         }
     }
 }
@@ -35,6 +39,8 @@ impl ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
+            server_destroyed: false,
+            client_destroyed: false
         }
     }
 
@@ -44,6 +50,8 @@ impl ObjectMeta {
             alive: Arc::new(AtomicBool::new(false)),
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
+            server_destroyed: true,
+            client_destroyed: true
         }
     }
 }
@@ -115,6 +123,17 @@ impl ProxyInner {
             .expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
+            {
+                // cleanup the map as appropriate
+                let mut map = conn_lock.map.lock().unwrap();
+                let server_destroyed = map.with(self.id, |obj| {
+                    obj.meta.client_destroyed = true;
+                    obj.meta.server_destroyed
+                }).unwrap_or(false);
+                if server_destroyed {
+                    map.remove(self.id);
+                }
+            }
         }
     }
 

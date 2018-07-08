@@ -262,7 +262,7 @@ impl Proxy<::protocol::wl_display::WlDisplay> {
 /// closures.
 pub struct NewProxy<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
-    inner: NewProxyInner,
+    pub(crate) inner: NewProxyInner,
 }
 
 impl<I: Interface + 'static> NewProxy<I> {

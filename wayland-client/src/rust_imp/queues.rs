@@ -1,5 +1,7 @@
+use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use wayland_commons::map::ObjectMap;
@@ -47,7 +49,14 @@ impl EventQueueInner {
         })?;
 
         // TODO: block on wait for read readiness before reading
-        self.read_events()?;
+        loop {
+            let ret = self.read_events();
+            match ret {
+                Ok(_) => break,
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => continue,
+                Err(e) => return Err(e)
+            }
+        }
 
         self.dispatch_pending()
     }
@@ -94,11 +103,49 @@ impl EventQueueInner {
         Ok(display_dispatched + self_dispatched)
     }
 
-    pub(crate) fn sync_roundtrip(&self) -> io::Result<i32> {
-        unimplemented!()
+    pub(crate) fn sync_roundtrip(&self) -> io::Result<u32> {
+        use protocol::wl_display::{WlDisplay, RequestsTrait as DisplayRequests};
+        use protocol::wl_callback::{WlCallback, Event as CbEvent};
+        use Proxy;
+        // first retrieve the display and make a wrapper for it in this event queue
+        let display: Proxy<WlDisplay> = Proxy::wrap(
+            ProxyInner::from_id(1, self.map.clone(), self.connection.clone())
+                .unwrap()
+                .make_wrapper(self)
+                .unwrap()
+        );
+
+        let done = Rc::new(Cell::new(false));
+        let ret = display.sync(|np| Proxy::wrap(
+            unsafe {
+                let done2 = done.clone();
+                np.inner.implement::<WlCallback, _>(
+                    move |CbEvent::Done { .. }, _| {
+                        done2.set(true);
+                    }
+                )
+            }
+        ));
+
+        if let Err(()) = ret {
+            return Err(::nix::errno::Errno::EPROTO.into())
+        }
+
+        let mut dispatched = 0;
+
+        loop {
+            dispatched += self.dispatch()?;
+            if done.get() {
+                return Ok(dispatched)
+            }
+        }
     }
 
     pub(crate) fn prepare_read(&self) -> Result<(), ()> {
+        if !self.buffer.lock().unwrap().is_empty() {
+            return Err(())
+        }
+
         // TODO: un-mock
         Ok(())
     }

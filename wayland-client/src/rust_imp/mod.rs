@@ -84,7 +84,17 @@ where
         let message = I::Event::from_raw(msg, map)?;
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);
-            proxy.map.lock().unwrap().remove(proxy.id);
+            {
+                // cleanup the map as appropriate
+                let mut map = proxy.map.lock().unwrap();
+                let server_destroyed = map.with(proxy.id, |obj| {
+                    obj.meta.client_destroyed = true;
+                    obj.meta.server_destroyed
+                }).unwrap_or(false);
+                if server_destroyed {
+                    map.remove(proxy.id);
+                }
+            }
             self.implementation
                 .receive(message, Proxy::<I>::wrap(proxy.clone()));
         } else {

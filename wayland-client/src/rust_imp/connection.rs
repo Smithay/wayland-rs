@@ -11,7 +11,7 @@ use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 use super::proxy::ObjectMeta;
 use super::queues::QueueBuffer;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum Error {
     Protocol,
     Parse(MessageParseError),
@@ -133,6 +133,11 @@ impl Connection {
                 *last_error = Some(Error::Parse(e.clone()));
                 Err(Error::Parse(e))
             }
+            // non-fatal error
+            Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
+                Err(Error::Nix(e))
+            }
+            // fatal errors
             Err(e) => {
                 *last_error = Some(Error::Nix(e));
                 Err(Error::Nix(e))
