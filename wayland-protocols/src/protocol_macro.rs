@@ -24,6 +24,9 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
                 pub(crate) use wayland_client::protocol::{$($import),*};
+                $(
+                    pub(crate) use ::$prot_name::client::$prot_import;
+                )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_client_api.rs"));
             }
 
@@ -35,6 +38,9 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
                 pub(crate) use wayland_server::protocol::{$($import),*};
+                $(
+                    pub(crate) use ::$prot_name::server::$prot_import;
+                )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_server_api.rs"));
             }
         }
