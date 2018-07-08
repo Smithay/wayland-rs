@@ -536,4 +536,49 @@ mod tests {
             assert_eq_msgs(msg1, msg2);
         }
     }
+
+    #[test]
+    fn parse_with_string_len_multiple_of_4() {
+        let msg = Message {
+            sender_id: 2,
+            opcode: 0,
+            args: vec![
+                Argument::Uint(18),
+                Argument::Str(CString::new(&b"wl_shell"[..]).unwrap()),
+                Argument::Uint(1),
+            ],
+        };
+
+        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
+        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+
+        client.write_message(&msg).unwrap();
+        client.flush().unwrap();
+
+        static SIGNATURE: &'static [ArgumentType] = &[
+            ArgumentType::Uint,
+            ArgumentType::Str,
+            ArgumentType::Uint,
+        ];
+
+        let ret = server
+            .read_messages(
+                |sender_id, opcode| {
+                    if sender_id == 2 && opcode == 0 {
+                        Some(SIGNATURE)
+                    } else {
+                        None
+                    }
+                },
+                |message| {
+                    assert_eq_msgs(&message, &msg);
+                    true
+                },
+            )
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(ret, 1);
+    }
 }

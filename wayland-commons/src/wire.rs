@@ -1,6 +1,6 @@
 //! Types and routines used to manipulate arguments from the wire format
 
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::os::unix::io::RawFd;
 use std::ptr;
 
@@ -212,17 +212,16 @@ impl Message {
         fn read_array_from_payload(
             array_len: usize,
             payload: &[u32],
-        ) -> Result<(Vec<u8>, &[u32]), MessageParseError> {
+        ) -> Result<(&[u8], &[u32]), MessageParseError> {
             let word_len = array_len / 4 + if array_len % 4 != 0 { 1 } else { 0 };
             if word_len > payload.len() {
                 return Err(MessageParseError::MissingData);
             }
             let (array_contents, rest) = payload.split_at(word_len);
-            let mut v = vec![0; array_len];
-            unsafe {
-                ptr::copy(array_contents.as_ptr() as *const u8, v.as_mut_ptr(), array_len);
-            }
-            Ok((v, rest))
+            let array = unsafe {
+                ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len)
+            };
+            Ok((array, rest))
         }
 
         if raw.len() < 2 {
@@ -259,17 +258,21 @@ impl Message {
                         ArgumentType::Uint => Ok(Argument::Uint(front)),
                         ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
                         ArgumentType::Str => {
-                            read_array_from_payload(front as usize - 1, tail).map(|(v, rest)| {
-                                tail = rest;
-                                Argument::Str(unsafe { CString::from_vec_unchecked(v) })
-                            })
+                            read_array_from_payload(front as usize, tail)
+                                .and_then(|(v, rest)| {
+                                    tail = rest;
+                                    match CStr::from_bytes_with_nul(v) {
+                                        Ok(s) => Ok(Argument::Str(s.into())),
+                                        Err(_) => Err(MessageParseError::Malformed)
+                                    }
+                                })
                         }
                         ArgumentType::Object => Ok(Argument::Object(front)),
                         ArgumentType::NewId => Ok(Argument::NewId(front)),
                         ArgumentType::Array => {
                             read_array_from_payload(front as usize, tail).map(|(v, rest)| {
                                 tail = rest;
-                                Argument::Array(v)
+                                Argument::Array(v.into())
                             })
                         }
                         ArgumentType::Fd => unreachable!(),

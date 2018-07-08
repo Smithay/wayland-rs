@@ -152,7 +152,7 @@ pub enum NoMessage {}
 impl Interface for AnonymousObject {
     type Request = NoMessage;
     type Event = NoMessage;
-    const NAME: &'static str = "";
+    const NAME: &'static str = "<anonymous>";
     const VERSION: u32 = 0;
     #[cfg(feature = "native_lib")]
     fn c_interface() -> *const ::syscom::wl_interface {
