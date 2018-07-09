@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use nix::poll::{poll, PollFd, EventFlags};
+use nix::poll::{poll, EventFlags, PollFd};
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
@@ -62,20 +62,20 @@ impl EventQueueInner {
                             Ok(_) => continue,
                             Err(::nix::Error::Sys(e)) => {
                                 self.cancel_read();
-                                return Err(e.into())
-                            },
-                            Err(_) => unreachable!()
+                                return Err(e.into());
+                            }
+                            Err(_) => unreachable!(),
                         }
-                    },
+                    }
                     Err(::nix::Error::Sys(e)) => {
                         if e != ::nix::errno::Errno::EPIPE {
                             // don't abort on EPIPE, so we can continue reading
                             // to get the protocol error
                             self.cancel_read();
-                            return Err(e.into())
+                            return Err(e.into());
                         }
-                    },
-                    Err(_) => unreachable!()
+                    }
+                    Err(_) => unreachable!(),
                 }
             }
         }
@@ -85,9 +85,9 @@ impl EventQueueInner {
             Ok(_) => (),
             Err(::nix::Error::Sys(e)) => {
                 self.cancel_read();
-                return Err(e.into())
-            },
-            Err(_) => unreachable!()
+                return Err(e.into());
+            }
+            Err(_) => unreachable!(),
         }
 
         match self.read_events() {
@@ -97,7 +97,7 @@ impl EventQueueInner {
                 // this means that an other thread was also reading events and read them
                 // under our nose
                 // this is alright, continue
-            },
+            }
             Err(e) => return Err(e),
         }
 
@@ -147,31 +147,30 @@ impl EventQueueInner {
     }
 
     pub(crate) fn sync_roundtrip(&self) -> io::Result<u32> {
-        use protocol::wl_display::{WlDisplay, RequestsTrait as DisplayRequests};
-        use protocol::wl_callback::{WlCallback, Event as CbEvent};
+        use protocol::wl_callback::{Event as CbEvent, WlCallback};
+        use protocol::wl_display::{RequestsTrait as DisplayRequests, WlDisplay};
         use Proxy;
         // first retrieve the display and make a wrapper for it in this event queue
         let display: Proxy<WlDisplay> = Proxy::wrap(
             ProxyInner::from_id(1, self.map.clone(), self.connection.clone())
                 .unwrap()
                 .make_wrapper(self)
-                .unwrap()
+                .unwrap(),
         );
 
         let done = Rc::new(Cell::new(false));
-        let ret = display.sync(|np| Proxy::wrap(
-            unsafe {
+        let ret = display.sync(|np| {
+            Proxy::wrap(unsafe {
                 let done2 = done.clone();
-                np.inner.implement::<WlCallback, _>(
-                    move |CbEvent::Done { .. }, _| {
+                np.inner
+                    .implement::<WlCallback, _>(move |CbEvent::Done { .. }, _| {
                         done2.set(true);
-                    }
-                )
-            }
-        ));
+                    })
+            })
+        });
 
         if let Err(()) = ret {
-            return Err(::nix::errno::Errno::EPROTO.into())
+            return Err(::nix::errno::Errno::EPROTO.into());
         }
 
         let mut dispatched = 0;
@@ -179,14 +178,14 @@ impl EventQueueInner {
         loop {
             dispatched += self.dispatch()?;
             if done.get() {
-                return Ok(dispatched)
+                return Ok(dispatched);
             }
         }
     }
 
     pub(crate) fn prepare_read(&self) -> Result<(), ()> {
         if !self.buffer.lock().unwrap().is_empty() {
-            return Err(())
+            return Err(());
         }
 
         // TODO: un-mock

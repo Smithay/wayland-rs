@@ -27,7 +27,7 @@ impl ObjectMetadata for ObjectMeta {
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
-            client_destroyed: false
+            client_destroyed: false,
         }
     }
 }
@@ -40,7 +40,7 @@ impl ObjectMeta {
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
-            client_destroyed: false
+            client_destroyed: false,
         }
     }
 
@@ -51,7 +51,7 @@ impl ObjectMeta {
             user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
             dispatcher: super::default_dispatcher(),
             server_destroyed: true,
-            client_destroyed: true
+            client_destroyed: true,
         }
     }
 }
@@ -128,9 +128,7 @@ impl ProxyInner {
                 msg.args
             );
         }
-        let _ = conn_lock
-            .write_message(&msg)
-            .expect("Sending a message failed.");
+        let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
             {

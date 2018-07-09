@@ -60,8 +60,7 @@ fn parse_protocol<R: Read>(mut reader: EventReader<R>) -> Protocol {
                     "copyright" => {
                         // parse the copyright
                         let copyright = match reader.next() {
-                            Ok(XmlEvent::Characters(copyright))
-                            | Ok(XmlEvent::CData(copyright)) => copyright,
+                            Ok(XmlEvent::Characters(copyright)) | Ok(XmlEvent::CData(copyright)) => copyright,
                             e => panic!("Ill-formed protocol file: {:?}", e),
                         };
 

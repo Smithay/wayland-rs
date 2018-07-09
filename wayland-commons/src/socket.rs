@@ -556,11 +556,8 @@ mod tests {
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
 
-        static SIGNATURE: &'static [ArgumentType] = &[
-            ArgumentType::Uint,
-            ArgumentType::Str,
-            ArgumentType::Uint,
-        ];
+        static SIGNATURE: &'static [ArgumentType] =
+            &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint];
 
         let ret = server
             .read_messages(

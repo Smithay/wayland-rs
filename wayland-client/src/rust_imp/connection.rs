@@ -22,7 +22,7 @@ pub(crate) struct Connection {
     pub(crate) socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     pub(crate) last_error: Option<Error>,
-    pub(crate) display_buffer: QueueBuffer
+    pub(crate) display_buffer: QueueBuffer,
 }
 
 impl Connection {
@@ -134,9 +134,7 @@ impl Connection {
                 Err(Error::Parse(e))
             }
             // non-fatal error
-            Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
-                Err(Error::Nix(e))
-            }
+            Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => Err(Error::Nix(e)),
             // fatal errors
             Err(e) => {
                 *last_error = Some(Error::Nix(e));

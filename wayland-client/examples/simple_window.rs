@@ -115,8 +115,9 @@ fn main() {
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer here
             use wayland_client::protocol::wl_pointer::Event as PointerEvent;
-            use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent,
-                                                    RequestsTrait as SeatRequests};
+            use wayland_client::protocol::wl_seat::{
+                Capability, Event as SeatEvent, RequestsTrait as SeatRequests,
+            };
 
             if let SeatEvent::Capabilities { capabilities } = event {
                 if !pointer_created && capabilities.contains(Capability::Pointer) {

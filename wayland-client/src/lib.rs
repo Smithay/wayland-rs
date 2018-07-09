@@ -150,7 +150,9 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-pub use wayland_commons::{downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{
+    downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage,
+};
 
 // rust implementation
 #[cfg(not(feature = "native_lib"))]

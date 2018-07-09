@@ -84,10 +84,7 @@ where
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             println!(
                 " <- {}@{}: {} {:?}",
-                proxy.object.interface,
-                proxy.id,
-                proxy.object.events[msg.opcode as usize].name,
-                msg.args
+                proxy.object.interface, proxy.id, proxy.object.events[msg.opcode as usize].name, msg.args
             );
         }
         let message = I::Event::from_raw(msg, map)?;

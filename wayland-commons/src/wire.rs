@@ -1,6 +1,6 @@
 //! Types and routines used to manipulate arguments from the wire format
 
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;
 use std::ptr;
 
@@ -218,9 +218,8 @@ impl Message {
                 return Err(MessageParseError::MissingData);
             }
             let (array_contents, rest) = payload.split_at(word_len);
-            let array = unsafe {
-                ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len)
-            };
+            let array =
+                unsafe { ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len) };
             Ok((array, rest))
         }
 
@@ -258,14 +257,13 @@ impl Message {
                         ArgumentType::Uint => Ok(Argument::Uint(front)),
                         ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
                         ArgumentType::Str => {
-                            read_array_from_payload(front as usize, tail)
-                                .and_then(|(v, rest)| {
-                                    tail = rest;
-                                    match CStr::from_bytes_with_nul(v) {
-                                        Ok(s) => Ok(Argument::Str(s.into())),
-                                        Err(_) => Err(MessageParseError::Malformed)
-                                    }
-                                })
+                            read_array_from_payload(front as usize, tail).and_then(|(v, rest)| {
+                                tail = rest;
+                                match CStr::from_bytes_with_nul(v) {
+                                    Ok(s) => Ok(Argument::Str(s.into())),
+                                    Err(_) => Err(MessageParseError::Malformed),
+                                }
+                            })
                         }
                         ArgumentType::Object => Ok(Argument::Object(front)),
                         ArgumentType::NewId => Ok(Argument::NewId(front)),
