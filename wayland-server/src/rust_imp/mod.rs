@@ -1,94 +1,12 @@
-use std::cell::RefCell;
-use std::ffi::{OsStr, OsString};
-use std::io::Result as IoResult;
-use std::os::unix::io::RawFd;
-use std::rc::Rc;
+use {Implementation, Interface, Resource};
 
-use {Implementation, Interface, NewResource, Resource};
-
+mod clients;
+mod display;
 mod event_loop;
 
+pub(crate) use self::clients::ClientInner;
+pub(crate) use self::display::DisplayInner;
 pub(crate) use self::event_loop::{EventLoopInner, IdleSourceInner, SourceInner};
-
-// Clients
-
-#[derive(Clone)]
-pub(crate) struct ClientInner {}
-
-impl ClientInner {
-    pub(crate) fn alive(&self) -> bool {
-        unimplemented!()
-    }
-
-    pub(crate) fn equals(&self, other: &ClientInner) -> bool {
-        unimplemented!()
-    }
-
-    pub(crate) fn flush(&self) {
-        unimplemented!()
-    }
-
-    pub(crate) fn kill(&self) {
-        unimplemented!()
-    }
-
-    pub(crate) fn set_user_data(&self, data: *mut ()) {
-        unimplemented!()
-    }
-
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        unimplemented!()
-    }
-
-    pub(crate) fn set_destructor(&self, destructor: fn(*mut ())) {
-        unimplemented!()
-    }
-}
-
-// Display
-
-pub(crate) struct DisplayInner {}
-
-impl DisplayInner {
-    pub(crate) fn new() -> (Rc<RefCell<DisplayInner>>, EventLoopInner) {
-        unimplemented!()
-    }
-
-    pub(crate) fn create_global<I: Interface, Impl>(
-        &mut self,
-        _: &EventLoopInner,
-        version: u32,
-        implementation: Impl,
-    ) -> GlobalInner<I>
-    where
-        Impl: Implementation<NewResource<I>, u32> + 'static,
-    {
-        unimplemented!()
-    }
-
-    pub(crate) fn flush_clients(&mut self) {
-        unimplemented!()
-    }
-
-    pub(crate) fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>
-    where
-        S: AsRef<OsStr>,
-    {
-        unimplemented!()
-    }
-
-    pub(crate) fn add_socket_auto(&mut self) -> IoResult<OsString> {
-        unimplemented!()
-    }
-
-    pub(crate) unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
-        unimplemented!()
-    }
-
-    pub unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
-        unimplemented!()
-    }
-}
 
 // Globals
 

@@ -15,24 +15,18 @@ use super::DisplayInner;
 
 pub(crate) struct EventLoopInner {
     pub(crate) display: Option<Rc<RefCell<DisplayInner>>>,
-    poll: Rc<Poll>,
-    sources: Rc<RefCell<SourceList>>,
+    sources_poll: SourcesPoll,
     idles: RefCell<Vec<Rc<RefCell<Option<Box<Implementation<(), ()>>>>>>>,
 }
 
-impl EventLoopInner {
-    pub(crate) fn new() -> EventLoopInner {
-        EventLoopInner {
-            display: None,
-            poll: Rc::new(Poll::new().unwrap()),
-            sources: Rc::new(RefCell::new(SourceList::new())),
-            idles: RefCell::new(Vec::new()),
-        }
-    }
+#[derive(Clone)]
+pub(crate) struct SourcesPoll {
+    poll: Rc<Poll>,
+    sources: Rc<RefCell<SourceList>>,
+}
 
-    pub(crate) fn dispatch(&self, timeout: Option<u32>) -> io::Result<u32> {
-        self.dispatch_idles();
-
+impl SourcesPoll {
+    fn dispatch(&self, timeout: Option<u32>) -> io::Result<()> {
         let mut evts = Events::with_capacity(32);
 
         self.poll
@@ -43,15 +37,7 @@ impl EventLoopInner {
             self.sources.borrow().send_ready(idx, evt.readiness());
         }
 
-        self.dispatch_idles();
-
-        Ok(0)
-    }
-
-    pub(crate) fn flush_clients_if_display(&self) {
-        if let Some(ref display) = self.display {
-            display.borrow_mut().flush_clients();
-        }
+        Ok(())
     }
 
     fn insert_source<Impl, E>(
@@ -90,6 +76,39 @@ impl EventLoopInner {
             }
         }
     }
+}
+
+impl EventLoopInner {
+    pub(crate) fn new() -> EventLoopInner {
+        EventLoopInner {
+            display: None,
+            sources_poll: SourcesPoll {
+                poll: Rc::new(Poll::new().unwrap()),
+                sources: Rc::new(RefCell::new(SourceList::new())),
+            },
+            idles: RefCell::new(Vec::new()),
+        }
+    }
+
+    pub(crate) fn get_poll(&self) -> SourcesPoll {
+        self.sources_poll.clone()
+    }
+
+    pub(crate) fn dispatch(&self, timeout: Option<u32>) -> io::Result<u32> {
+        self.dispatch_idles();
+
+        self.sources_poll.dispatch(timeout)?;
+
+        self.dispatch_idles();
+
+        Ok(0)
+    }
+
+    pub(crate) fn flush_clients_if_display(&self) {
+        if let Some(ref display) = self.display {
+            display.borrow_mut().flush_clients();
+        }
+    }
 
     pub(crate) fn add_fd_event_source<Impl>(
         &self,
@@ -100,7 +119,7 @@ impl EventLoopInner {
     where
         Impl: Implementation<(), FdEvent> + 'static,
     {
-        self.insert_source(
+        self.sources_poll.insert_source(
             fd,
             interest.into(),
             implementation,
@@ -120,7 +139,8 @@ impl EventLoopInner {
         if fd < 0 {
             return Err((io::Error::last_os_error(), implementation));
         }
-        self.insert_source(fd, Ready::readable(), implementation, TimerEvent)
+        self.sources_poll
+            .insert_source(fd, Ready::readable(), implementation, TimerEvent)
     }
 
     pub(crate) fn add_signal_event_source<Impl>(
@@ -143,7 +163,8 @@ impl EventLoopInner {
             Err(_) => unreachable!(),
         };
 
-        self.insert_source(fd, Ready::readable(), implementation, SignalEvent(signal))
+        self.sources_poll
+            .insert_source(fd, Ready::readable(), implementation, SignalEvent(signal))
     }
 
     pub(crate) fn add_idle_event_source<Impl>(&self, implementation: Impl) -> IdleSourceInner
@@ -211,13 +232,6 @@ impl SourceList {
                 return;
             }
         }
-    }
-
-    fn fds(&self) -> Vec<RawFd> {
-        self.sources
-            .iter()
-            .flat_map(|o| o.as_ref().map(|s| s.0))
-            .collect()
     }
 }
 
