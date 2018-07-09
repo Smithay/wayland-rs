@@ -96,6 +96,7 @@
 #[macro_use]
 extern crate bitflags;
 extern crate libc;
+extern crate mio;
 extern crate nix;
 
 extern crate wayland_commons;
@@ -116,7 +117,9 @@ pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
-pub use wayland_commons::{downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{
+    downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage,
+};
 
 #[cfg(feature = "native_lib")]
 /// C-associated types
