@@ -14,7 +14,7 @@ pub mod wl_foo {
     //!
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
@@ -108,9 +108,9 @@ pub mod wl_foo {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
-                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.clone())),
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
                 _ => None
             }
         }
@@ -230,7 +230,7 @@ pub mod wl_foo {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
             }
@@ -290,7 +290,7 @@ pub mod wl_bar {
     //! Interface for bars
     //!
     //! This interface allows you to bar your foos.
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
@@ -335,7 +335,7 @@ pub mod wl_bar {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
             }
@@ -413,7 +413,7 @@ pub mod wl_bar {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
             }
@@ -459,7 +459,7 @@ pub mod wl_callback {
     //! callback object
     //!
     //! This object has a special behavior regarding its destructor.
-    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument};
+    use super::{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::server::*;
@@ -475,7 +475,7 @@ pub mod wl_callback {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
             }
@@ -529,7 +529,7 @@ pub mod wl_callback {
             }
         }
 
-        fn child<Meta: Clone>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
             }
