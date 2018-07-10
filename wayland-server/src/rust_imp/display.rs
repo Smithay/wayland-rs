@@ -2,21 +2,27 @@ use std::cell::RefCell;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::io;
-use std::os::unix::io::{FromRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::rc::Rc;
 
+use mio::Ready;
+
 use display::get_runtime_dir;
+use sources::{FdEvent, FdInterest};
 use {Implementation, Interface, NewResource};
 
 use super::clients::ClientManager;
 use super::event_loop::SourcesPoll;
-use super::{ClientInner, EventLoopInner, GlobalInner};
+use super::globals::GlobalManager;
+use super::{ClientInner, EventLoopInner, GlobalInner, SourceInner};
 
 pub(crate) struct DisplayInner {
     sources_poll: SourcesPoll,
     clients_mgr: Rc<RefCell<ClientManager>>,
+    global_mgr: GlobalManager,
+    listeners: Vec<SourceInner<FdEvent>>,
 }
 
 impl DisplayInner {
@@ -26,6 +32,8 @@ impl DisplayInner {
         let display = Rc::new(RefCell::new(DisplayInner {
             sources_poll: evl.get_poll(),
             clients_mgr: Rc::new(RefCell::new(ClientManager::new(evl.get_poll()))),
+            global_mgr: GlobalManager::new(),
+            listeners: Vec::new(),
         }));
 
         evl.display = Some(display.clone());
@@ -35,22 +43,42 @@ impl DisplayInner {
 
     pub(crate) fn create_global<I: Interface, Impl>(
         &mut self,
-        _: &EventLoopInner,
+        evl: &EventLoopInner,
         version: u32,
         implementation: Impl,
     ) -> GlobalInner<I>
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
-        unimplemented!()
+        self.global_mgr.add_global(evl, version, implementation)
     }
 
     pub(crate) fn flush_clients(&mut self) {
-        unimplemented!()
+        self.clients_mgr.borrow_mut().flush_all()
     }
 
-    fn add_unix_listener(&mut self, socket: UnixListener) -> io::Result<()> {
-        unimplemented!()
+    fn add_unix_listener(&mut self, listener: UnixListener) -> io::Result<()> {
+        let fd = listener.as_raw_fd();
+
+        listener.set_nonblocking(true)?;
+
+        let source = self.sources_poll
+            .insert_source(
+                fd,
+                Ready::readable(),
+                ListenerImplementation {
+                    listener,
+                    client_mgr: self.clients_mgr.clone(),
+                },
+                FdEvent::Ready {
+                    fd,
+                    mask: FdInterest::READ,
+                },
+            )
+            .map_err(|(e, _)| e)?;
+
+        self.listeners.push(source);
+        Ok(())
     }
 
     pub(crate) fn add_socket<S>(&mut self, name: Option<S>) -> io::Result<()>
@@ -99,5 +127,56 @@ impl DisplayInner {
 
     pub unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
         self.clients_mgr.borrow_mut().init_client(fd)
+    }
+}
+
+struct ListenerImplementation {
+    listener: UnixListener,
+    client_mgr: Rc<RefCell<ClientManager>>,
+}
+
+impl ListenerImplementation {
+    fn eprint_error(&self, verb: &str, error: io::Error) {
+        if let Ok(addr) = self.listener.local_addr() {
+            if let Some(path) = addr.as_pathname() {
+                eprintln!(
+                    "[wayland-server] Error {} listening socket {} : {}",
+                    verb,
+                    path.display(),
+                    error
+                );
+                return;
+            }
+        }
+        eprintln!(
+            "[wayland-server] Error {} listening socket <unnamed> : {}",
+            verb, error
+        );
+    }
+}
+
+impl Implementation<(), FdEvent> for ListenerImplementation {
+    fn receive(&mut self, event: FdEvent, (): ()) {
+        match event {
+            FdEvent::Ready { .. } => {
+                // one (or more) clients connected to the socket
+                loop {
+                    match self.listener.accept() {
+                        Ok((stream, _)) => unsafe {
+                            self.client_mgr.borrow_mut().init_client(stream.into_raw_fd());
+                        },
+                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            // we have exhausted all the pending connections
+                            break;
+                        }
+                        Err(e) => {
+                            // this is a legitimate error
+                            self.eprint_error("accepting connection on", e);
+                        }
+                    }
+                }
+            }
+            FdEvent::Error { error, .. } => self.eprint_error("polling", error),
+        }
     }
 }

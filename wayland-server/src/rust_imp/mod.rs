@@ -1,95 +1,24 @@
-use {Implementation, Interface, Resource};
+use {Interface, NewResource, Resource};
 
 mod clients;
 mod display;
 mod event_loop;
+mod globals;
+mod resources;
 
 pub(crate) use self::clients::ClientInner;
 pub(crate) use self::display::DisplayInner;
 pub(crate) use self::event_loop::{EventLoopInner, IdleSourceInner, SourceInner};
+pub(crate) use self::globals::GlobalInner;
+pub(crate) use self::resources::{NewResourceInner, ResourceInner};
 
-// Globals
+pub struct ResourceMap {}
 
-pub(crate) struct GlobalInner<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
-}
-
-impl<I: Interface> GlobalInner<I> {
-    pub fn destroy(self) {
+impl ResourceMap {
+    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Resource<I>> {
         unimplemented!()
     }
-}
-
-// Resource
-
-pub(crate) struct ResourceInner {}
-
-impl ResourceInner {
-    pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
-        unimplemented!()
-    }
-
-    pub(crate) fn is_alive(&self) -> bool {
-        unimplemented!()
-    }
-
-    pub(crate) fn version(&self) -> u32 {
-        unimplemented!()
-    }
-
-    pub(crate) fn equals(&self, other: &ResourceInner) -> bool {
-        unimplemented!()
-    }
-
-    pub(crate) fn same_client_as(&self, other: &ResourceInner) -> bool {
-        unimplemented!()
-    }
-
-    pub(crate) fn post_error(&self, error_code: u32, msg: String) {
-        unimplemented!()
-    }
-
-    pub(crate) fn set_user_data(&self, ptr: *mut ()) {
-        unimplemented!()
-    }
-
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        unimplemented!()
-    }
-
-    pub(crate) fn client(&self) -> Option<ClientInner> {
-        unimplemented!()
-    }
-
-    pub(crate) fn id(&self) -> u32 {
-        unimplemented!()
-    }
-
-    pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-    {
-        unimplemented!()
-    }
-
-    pub(crate) fn clone(&self) -> ResourceInner {
-        unimplemented!()
-    }
-}
-
-pub(crate) struct NewResourceInner {}
-
-impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
-        self,
-        implementation: Impl,
-        destructor: Option<Dest>,
-        token: Option<&EventLoopInner>,
-    ) -> ResourceInner
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-    {
+    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewResource<I>> {
         unimplemented!()
     }
 }

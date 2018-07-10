@@ -140,23 +140,14 @@ mod imp;
 #[path = "native_lib/mod.rs"]
 mod imp;
 
+pub use imp::ResourceMap;
+
 /// Generated interfaces for the core wayland protocol
 pub mod protocol {
     #[cfg(feature = "native_lib")]
     pub use generated::c_api::*;
     #[cfg(not(feature = "native_lib"))]
     pub use generated::rust_api::*;
-}
-
-pub struct ResourceMap {}
-
-impl ResourceMap {
-    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Resource<I>> {
-        unimplemented!()
-    }
-    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewResource<I>> {
-        unimplemented!()
-    }
 }
 
 mod generated {

@@ -47,4 +47,8 @@ impl ClientManager {
     pub(crate) unsafe fn init_client(&mut self, fd: RawFd) -> ClientInner {
         unimplemented!()
     }
+
+    pub(crate) fn flush_all(&mut self) {
+        unimplemented!()
+    }
 }

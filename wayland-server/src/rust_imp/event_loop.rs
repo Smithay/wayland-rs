@@ -40,7 +40,7 @@ impl SourcesPoll {
         Ok(())
     }
 
-    fn insert_source<Impl, E>(
+    pub(crate) fn insert_source<Impl, E>(
         &self,
         fd: RawFd,
         interest: Ready,
