@@ -95,6 +95,8 @@
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate downcast_rs as downcast;
 extern crate libc;
 extern crate mio;
 extern crate nix;

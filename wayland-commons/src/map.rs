@@ -22,8 +22,12 @@ pub struct Object<Meta: ObjectMetadata> {
     pub events: &'static [::wire::MessageDesc],
     /// Metadata associated to this object (ex: its event queue client side)
     pub meta: Meta,
-    childs_from_events: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
-    childs_from_requests: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
+    /// A function which, from an opcode, a version, and the Meta, creates a child
+    /// object associated with this event if any
+    pub childs_from_events: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
+    /// A function which, from an opcode, a version, and the Meta, creates a child
+    /// object associated with this request if any
+    pub childs_from_requests: fn(u16, u32, &Meta) -> Option<Object<Meta>>,
 }
 
 impl<Meta: ObjectMetadata> Object<Meta> {

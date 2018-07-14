@@ -117,7 +117,6 @@ impl ProxyInner {
             return;
         }
         let destructor = msg.is_destructor();
-        // TODO: figure our if this can fail and still be recoverable ?
         let msg = msg.into_raw(self.id);
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             println!(
@@ -128,6 +127,7 @@ impl ProxyInner {
                 msg.args
             );
         }
+        // TODO: figure our if this can fail and still be recoverable ?
         let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
@@ -146,7 +146,7 @@ impl ProxyInner {
     }
 
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
-        self.is_alive() && other.is_alive() && self.id == other.id
+        self.is_alive() && Arc::ptr_eq(&self.object.meta.alive, &other.object.meta.alive)
     }
 
     pub(crate) fn make_wrapper(&self, queue: &EventQueueInner) -> Result<ProxyInner, ()> {

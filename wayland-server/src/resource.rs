@@ -1,4 +1,4 @@
-use wayland_commons::{Implementation, Interface};
+use wayland_commons::{Implementation, Interface, MessageGroup};
 
 use {Client, LoopToken};
 
@@ -32,6 +32,13 @@ impl <I: Interface> PartialEq for Resource<I> {
 impl <I: Interface> Eq for Resource<I> {}
 
 impl<I: Interface> Resource<I> {
+    pub(crate) fn wrap(inner: ResourceInner) -> Resource<I> {
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
+    }
+
     /// Send an event through this object
     ///
     /// The event will be send to the client associated to this
@@ -116,6 +123,7 @@ impl<I: Interface> Resource<I> {
     pub fn is_implemented_with<Impl>(&self) -> bool
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         self.inner.is_implemented_with::<I, Impl>()
     }
@@ -183,11 +191,19 @@ pub struct NewResource<I: Interface> {
 }
 
 impl<I: Interface + 'static> NewResource<I> {
+    pub(crate) fn wrap(inner: NewResourceInner) -> NewResource<I> {
+        NewResource {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
+    }
+
     /// Implement this resource using given function, destructor, and implementation data.
     pub fn implement<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
             self.inner
@@ -219,6 +235,7 @@ impl<I: Interface + 'static> NewResource<I> {
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
             self.inner
