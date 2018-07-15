@@ -21,7 +21,7 @@ use super::{ClientInner, EventLoopInner, GlobalInner, SourceInner};
 pub(crate) struct DisplayInner {
     sources_poll: SourcesPoll,
     clients_mgr: Rc<RefCell<ClientManager>>,
-    global_mgr: GlobalManager,
+    global_mgr: Rc<RefCell<GlobalManager>>,
     listeners: Vec<SourceInner<FdEvent>>,
 }
 
@@ -29,10 +29,15 @@ impl DisplayInner {
     pub(crate) fn new() -> (Rc<RefCell<DisplayInner>>, EventLoopInner) {
         let mut evl = EventLoopInner::new();
 
+        let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
+
         let display = Rc::new(RefCell::new(DisplayInner {
             sources_poll: evl.get_poll(),
-            clients_mgr: Rc::new(RefCell::new(ClientManager::new(evl.get_poll()))),
-            global_mgr: GlobalManager::new(),
+            clients_mgr: Rc::new(RefCell::new(ClientManager::new(
+                evl.get_poll(),
+                global_mgr.clone(),
+            ))),
+            global_mgr,
             listeners: Vec::new(),
         }));
 
@@ -50,7 +55,9 @@ impl DisplayInner {
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
-        self.global_mgr.add_global(evl, version, implementation)
+        self.global_mgr
+            .borrow_mut()
+            .add_global(evl, version, implementation)
     }
 
     pub(crate) fn flush_clients(&mut self) {

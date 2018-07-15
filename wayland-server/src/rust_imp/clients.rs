@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use mio::Ready;
@@ -16,6 +17,7 @@ use sources::{FdEvent, FdInterest};
 use Implementation;
 
 use super::event_loop::SourcesPoll;
+use super::globals::GlobalManager;
 use super::resources::{ObjectMeta, ResourceInner};
 use super::SourceInner;
 
@@ -239,13 +241,15 @@ impl ClientInner {
 pub(crate) struct ClientManager {
     sources_poll: SourcesPoll,
     clients: Vec<(RefCell<Option<SourceInner<FdEvent>>>, ClientInner)>,
+    global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
 impl ClientManager {
-    pub(crate) fn new(sources_poll: SourcesPoll) -> ClientManager {
+    pub(crate) fn new(sources_poll: SourcesPoll, global_mgr: Rc<RefCell<GlobalManager>>) -> ClientManager {
         ClientManager {
             sources_poll,
             clients: Vec::new(),
+            global_mgr,
         }
     }
 
@@ -255,7 +259,9 @@ impl ClientManager {
             version: 1,
             requests: DISPLAY_REQUESTS,
             events: DISPLAY_EVENTS,
-            meta: ObjectMeta::with_dispatcher(DisplayDispatcher {}),
+            meta: ObjectMeta::with_dispatcher(DisplayDispatcher {
+                global_mgr: self.global_mgr.clone(),
+            }),
             childs_from_events: no_child,
             childs_from_requests: display_req_child,
         };
@@ -430,28 +436,91 @@ impl Implementation<(), FdEvent> for ClientImplementation {
     }
 }
 
-struct DisplayDispatcher {}
+struct DisplayDispatcher {
+    global_mgr: Rc<RefCell<GlobalManager>>,
+}
 
 impl super::Dispatcher for DisplayDispatcher {
     fn dispatch(
         &mut self,
         msg: Message,
         resource: ResourceInner,
-        _map: &mut super::ResourceMap,
+        map: &mut super::ResourceMap,
     ) -> Result<(), ()> {
-        unimplemented!()
+        use protocol::wl_callback;
+        match msg.opcode {
+            // sync
+            0 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
+                if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
+                    let cb = cb.implement(|r, _| match r {}, None::<fn(_, _)>);
+                    // TODO: send a more meaningful serial ?
+                    cb.send(wl_callback::Event::Done { callback_data: 0 });
+                } else {
+                    return Err(());
+                }
+            } else {
+                return Err(());
+            },
+            // get_registry
+            1 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
+                // we don't have a regular object for the registry, rather we insert the
+                // dispatcher by hand
+                map.map.lock().unwrap().with(new_id, |obj| {
+                    obj.meta.dispatcher = Arc::new(Mutex::new(RegistryDispatcher {
+                        global_mgr: self.global_mgr.clone(),
+                    }));
+                })?;
+                self.global_mgr
+                    .borrow_mut()
+                    .new_registry(new_id, map.client.clone());
+            } else {
+                return Err(());
+            },
+            _ => return Err(()),
+        }
+        Ok(())
     }
 }
 
-struct RegistryDispatcher {}
+struct RegistryDispatcher {
+    global_mgr: Rc<RefCell<GlobalManager>>,
+}
 
 impl super::Dispatcher for RegistryDispatcher {
     fn dispatch(
         &mut self,
         msg: Message,
         resource: ResourceInner,
-        _map: &mut super::ResourceMap,
+        map: &mut super::ResourceMap,
     ) -> Result<(), ()> {
-        unimplemented!()
+        let mut iter = msg.args.into_iter();
+        let global_id = match iter.next() {
+            Some(Argument::Uint(u)) => u,
+            _ => return Err(()),
+        };
+        let interface = match iter.next() {
+            Some(Argument::Str(s)) => s,
+            _ => return Err(()),
+        };
+        let version = match iter.next() {
+            Some(Argument::Uint(u)) => u,
+            _ => return Err(()),
+        };
+        let new_id = match iter.next() {
+            Some(Argument::NewId(id)) => id,
+            _ => return Err(()),
+        };
+        self.global_mgr.borrow().bind(
+            new_id,
+            global_id,
+            &interface.to_string_lossy(),
+            version,
+            map.client.clone(),
+        )
     }
 }
+
+// These unsafe impl is "technically wrong", but actually right for the same
+// reasons as super::ImplDispatcher
+unsafe impl Send for DisplayDispatcher {}
+unsafe impl Send for RegistryDispatcher {}
