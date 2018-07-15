@@ -75,24 +75,20 @@ impl ClientConnection {
         })
     }
 
-    pub(crate) fn read_requests(&mut self, buffer: &mut VecDeque<Message>) -> Result<usize, Error> {
+    pub(crate) fn read_request(&mut self) -> Result<Option<Message>, Error> {
         if let Some(ref err) = self.last_error {
             return Err(err.clone());
         }
         // acquire the map lock, this means no objects can be created nor destroyed while we
         // are reading requests
         let mut map = self.map.lock().unwrap();
-        // wrap it in a RefCell for cheap sharing in the two closures below
-        let map = RefCell::new(&mut *map);
-        let last_error = &mut self.last_error;
         // read messages
-        let ret = self.socket.read_messages(
-            |id, opcode| {
-                map.borrow()
-                    .find(id)
-                    .and_then(|o| o.requests.get(opcode as usize))
-                    .map(|desc| desc.signature)
-            },
+        let ret = self.socket.read_one_message(|id, opcode| {
+            map.find(id)
+                .and_then(|o| o.requests.get(opcode as usize))
+                .map(|desc| desc.signature)
+        });
+        /*
             |msg| {
                 let mut map = map.borrow_mut();
                 let object = match map.find(msg.sender_id) {
@@ -150,25 +146,87 @@ impl ClientConnection {
                 // continue parsing
                 true
             },
-        );
-        match ret {
-            Ok(Ok(n)) => if let Some(ref e) = *last_error {
-                Err(e.clone())
-            } else {
-                Ok(n)
-            },
-            Ok(Err(e)) => {
-                *last_error = Some(Error::Parse(e.clone()));
-                Err(Error::Parse(e))
+        );*/
+        let msg = match ret {
+            Ok(msg) => msg,
+            Err(MessageParseError::Malformed) => {
+                self.last_error = Some(Error::Parse(MessageParseError::Malformed));
+                return Err(Error::Parse(MessageParseError::Malformed));
             }
-            // non-fatal error
-            Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => Ok(0),
-            // fatal errors
-            Err(e) => {
-                *last_error = Some(Error::Nix(e));
-                Err(Error::Nix(e))
+            Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
+                // missing data, read sockets and try again
+                self.socket.fill_incoming_buffers().map_err(Error::Nix)?;
+                match self.socket.read_one_message(|id, opcode| {
+                    map.find(id)
+                        .and_then(|o| o.requests.get(opcode as usize))
+                        .map(|desc| desc.signature)
+                }) {
+                    Ok(msg) => msg,
+                    Err(MessageParseError::Malformed) => {
+                        self.last_error = Some(Error::Parse(MessageParseError::Malformed));
+                        return Err(Error::Parse(MessageParseError::Malformed));
+                    }
+                    Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
+                        // still nothing, there is nothing to read
+                        return Ok(None);
+                    }
+                }
             }
+        };
+
+        // we reach here, there is now a message to process in msg
+
+        // find the object that sent this message
+        let object = match map.find(msg.sender_id) {
+            Some(obj) => obj,
+            None => {
+                // this is a message sent to a destroyed object
+                // to avoid dying because of races, we just consume it into void
+                // closing any associated FDs
+                for a in msg.args {
+                    if let Argument::Fd(fd) = a {
+                        let _ = ::nix::unistd::close(fd);
+                    }
+                }
+                return Ok(None);
+            }
+        };
+
+        // create a new object if applicable
+        if let Some(child) = object.request_child(msg.opcode) {
+            let new_id = msg.args
+                .iter()
+                .flat_map(|a| {
+                    if let Argument::NewId(nid) = a {
+                        Some(nid)
+                    } else {
+                        None
+                    }
+                })
+                .cloned()
+                .next()
+                .unwrap();
+            let child_interface = child.interface;
+            if let Err(()) = map.insert_at(new_id, child) {
+                eprintln!(
+                    "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
+                    child_interface,
+                    new_id
+                );
+                // abort parsing, this is an unrecoverable error
+                self.last_error = Some(Error::Protocol);
+                return Err(Error::Protocol);
+            }
+        } else {
+            // debug assert: if this opcode does not define a child, then there should be no
+            // NewId argument, unless we are the registry
+            debug_assert!(
+                object.interface == "wl_registry"
+                    || msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId) == false
+            );
         }
+
+        Ok(Some(msg))
     }
 }
 
@@ -395,25 +453,26 @@ struct ClientImplementation {
     map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
 }
 
-impl Implementation<(), FdEvent> for ClientImplementation {
-    fn receive(&mut self, event: FdEvent, (): ()) {
-        match event {
-            FdEvent::Ready { .. } => {
-                let mut buffer = VecDeque::new();
-                let ret = if let Some(ref mut data) = *self.inner.data.lock().unwrap() {
-                    data.read_requests(&mut buffer)
-                } else {
-                    // do nothing if the client is already dead, this is a spurious wakeup
-                    Ok(0)
-                };
+impl ClientImplementation {
+    fn process_messages(&self) {
+        loop {
+            // we must process the messages one by one, because message parsing depends
+            // on the contents of the object map, which each message can change...
+            let ret = if let Some(ref mut data) = *self.inner.data.lock().unwrap() {
+                data.read_request()
+            } else {
+                // client is now dead, abort
+                return;
+            };
 
-                if let Err(e) = ret {
-                    self.inner.kill();
+            match ret {
+                Ok(None) => {
+                    // nothing more to read
+                    return;
                 }
-
-                // now dispatch the requests
-                let mut resourcemap = super::ResourceMap::make(self.map.clone(), self.inner.clone());
-                for msg in buffer.drain(..) {
+                Ok(Some(msg)) => {
+                    // there is a message to dispatch
+                    let mut resourcemap = super::ResourceMap::make(self.map.clone(), self.inner.clone());
                     let id = msg.sender_id;
                     if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
                         let object = res.object.clone();
@@ -427,7 +486,20 @@ impl Implementation<(), FdEvent> for ClientImplementation {
                         return;
                     }
                 }
+                Err(e) => {
+                    // on error, kill the client
+                    self.inner.kill();
+                    return;
+                }
             }
+        }
+    }
+}
+
+impl Implementation<(), FdEvent> for ClientImplementation {
+    fn receive(&mut self, event: FdEvent, (): ()) {
+        match event {
+            FdEvent::Ready { .. } => self.process_messages(),
             FdEvent::Error { .. } => {
                 // in case of error, kill the client
                 self.inner.kill();

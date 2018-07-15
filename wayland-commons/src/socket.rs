@@ -184,7 +184,7 @@ impl BufferedSocket {
         Ok(())
     }
 
-    fn fill_incoming_buffers(&mut self) -> NixResult<()> {
+    pub fn fill_incoming_buffers(&mut self) -> NixResult<()> {
         // clear the buffers if they have no content
         if !self.in_data.has_content() {
             self.in_data.clear();
