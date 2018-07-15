@@ -184,6 +184,76 @@ impl BufferedSocket {
         Ok(())
     }
 
+    fn fill_incoming_buffers(&mut self) -> NixResult<()> {
+        // clear the buffers if they have no content
+        if !self.in_data.has_content() {
+            self.in_data.clear();
+        }
+        if !self.in_fds.has_content() {
+            self.in_fds.clear();
+        }
+        // receive a message
+        let (in_bytes, in_fds) = {
+            let words = self.in_data.get_writable_storage();
+            let bytes =
+                unsafe { ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4) };
+            let fds = self.in_fds.get_writable_storage();
+            self.socket.rcv_msg(bytes, fds)?
+        };
+        // advance the storage
+        self.in_data
+            .advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
+        self.in_fds.advance(in_fds);
+        Ok(())
+    }
+
+    /// Read and deserialize a single message from the incoming buffers socket
+    ///
+    /// This method requires one closure that given an object id and an opcode,
+    /// must provide the signature of the associated request/event, in the form of
+    /// a `&'static [ArgumentType]`. If it returns `None`, meaning that
+    /// the couple object/opcode does not exist, an error will be returned.
+    ///
+    /// There are 3 possibilities of return value:
+    ///
+    /// - `Ok(Ok(msg))`: no error occured, this is the message
+    /// - `Ok(Err(e))`: either a malformed message was encountered or we need more data,
+    ///    in the latter case you need to try calling `fill_incoming_buffers()`.
+    /// - `Err(e)`: an I/O error occured reading from the socked, details are in `e`
+    ///   (this can be a "wouldblock" error, which just means that no message is available
+    ///   to read)
+    pub fn read_one_message<F>(&mut self, mut signature: F) -> Result<Message, MessageParseError>
+    where
+        F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
+    {
+        let (msg, read_data, read_fd) = {
+            let mut data = self.in_data.get_contents();
+            let mut fds = self.in_fds.get_contents();
+            if data.len() < 2 {
+                return Err(MessageParseError::MissingData);
+            }
+            let object_id = data[0];
+            let opcode = (data[1] & 0x0000FFFF) as u16;
+            if let Some(sig) = signature(object_id, opcode) {
+                match Message::from_raw(data, sig, fds) {
+                    Ok((msg, rest_data, rest_fds)) => {
+                        (msg, data.len() - rest_data.len(), fds.len() - rest_fds.len())
+                    }
+                    // TODO: gracefully handle wayland messages split accross unix messages ?
+                    Err(e) => return Err(e),
+                }
+            } else {
+                // no signature found ?
+                return Err(MessageParseError::Malformed);
+            }
+        };
+
+        self.in_data.offset(read_data);
+        self.in_fds.offset(read_fd);
+
+        Ok(msg)
+    }
+
     /// Read and deserialize messages from the socket
     ///
     /// This method requires two closures:
@@ -218,84 +288,60 @@ impl BufferedSocket {
         F1: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
         F2: FnMut(Message) -> bool,
     {
-        // first, receive some data from the socket
-        let (in_bytes, in_fds) = {
-            let words = self.in_data.get_writable_storage();
-            let bytes =
-                unsafe { ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4) };
-            let fds = self.in_fds.get_writable_storage();
-            self.socket.rcv_msg(bytes, fds)?
-        };
-        self.in_data
-            .advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
-        self.in_fds.advance(in_fds);
-
         // message parsing
         let mut dispatched = 0;
-        let mut result = Ok(0);
-        let (rest_data_ptr, rest_data_len, rest_fds_ptr, rest_fds_len) = {
-            let mut data = self.in_data.get_contents();
-            let mut fds = self.in_fds.get_contents();
 
+        loop {
+            let mut err = None;
+            // first parse any leftover messages
             loop {
-                if data.len() < 2 {
-                    break;
-                }
-                let object_id = data[0];
-                let opcode = (data[1] & 0x0000FFFF) as u16;
-                if let Some(sig) = signature(object_id, opcode) {
-                    match Message::from_raw(data, sig, fds) {
-                        Ok((msg, rest_data, rest_fds)) => {
-                            let ret = callback(msg);
-                            data = rest_data;
-                            fds = rest_fds;
-                            dispatched += 1;
-                            if !ret {
-                                break;
-                            }
-                        }
-                        Err(e @ MessageParseError::Malformed) => {
-                            result = Err(e);
-                            break;
-                        }
-                        Err(_) => {
-                            // missing data or fd, we can't progress until next socket message
+                match self.read_one_message(&mut signature) {
+                    Ok(msg) => {
+                        let keep_going = callback(msg);
+                        dispatched += 1;
+                        if !keep_going {
                             break;
                         }
                     }
-                } else {
-                    // no signature found ?
-                    result = Err(MessageParseError::Malformed);
-                    break;
+                    Err(e) => {
+                        err = Some(e);
+                        break;
+                    }
                 }
             }
-            (data.as_ptr(), data.len(), fds.as_ptr(), fds.len())
-        };
 
-        // copy back any leftover content to the front of the buffer
-        self.in_data.clear();
-        self.in_fds.clear();
-        if rest_data_len > 0 {
-            unsafe {
-                ::std::ptr::copy(
-                    rest_data_ptr,
-                    self.in_data.get_writable_storage().as_mut_ptr(),
-                    rest_data_len,
-                );
+            // copy back any leftover content to the front of the buffer
+            self.in_data.move_to_front();
+            self.in_fds.move_to_front();
+
+            if let Some(MessageParseError::Malformed) = err {
+                // early stop here
+                return Ok(Err(MessageParseError::Malformed));
             }
-            self.in_data.set_occupied(rest_data_len);
-        }
-        if rest_fds_len > 0 {
-            unsafe {
-                ::std::ptr::copy(
-                    rest_fds_ptr,
-                    self.in_fds.get_writable_storage().as_mut_ptr(),
-                    rest_fds_len,
-                );
+
+            if err.is_none() && self.in_data.has_content() {
+                // we stopped reading without error while there is content? That means
+                // the user requested an early stopping
+                return Ok(Ok(dispatched));
             }
-            self.in_fds.set_occupied(rest_fds_len);
+
+            // now, try to get more data
+            match self.fill_incoming_buffers() {
+                Ok(()) => (),
+                Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
+                    // stop looping, returning Ok() or EAGAIN depending on whether messages
+                    // were dispatched
+                    if dispatched == 0 {
+                        return Err(e);
+                    } else {
+                        break;
+                    }
+                }
+                Err(e) => return Err(e),
+            }
         }
-        Ok(result.map(|_| dispatched))
+
+        Ok(Ok(dispatched))
     }
 }
 
@@ -306,6 +352,7 @@ impl BufferedSocket {
 struct Buffer<T: Copy> {
     storage: Vec<T>,
     occupied: usize,
+    offset: usize,
 }
 
 impl<T: Copy + Default> Buffer<T> {
@@ -313,7 +360,13 @@ impl<T: Copy + Default> Buffer<T> {
         Buffer {
             storage: vec![T::default(); size],
             occupied: 0,
+            offset: 0,
         }
+    }
+
+    /// Check if this buffer has content to read
+    fn has_content(&self) -> bool {
+        self.occupied > self.offset
     }
 
     /// Advance the internal counter of occupied space
@@ -321,9 +374,9 @@ impl<T: Copy + Default> Buffer<T> {
         self.occupied += bytes;
     }
 
-    /// Sets the internal counter of occupied space
-    fn set_occupied(&mut self, bytes: usize) {
-        self.occupied = bytes;
+    /// Advance the read offset of current occupied space
+    fn offset(&mut self, bytes: usize) {
+        self.offset += bytes;
     }
 
     /// Clears the contents of the buffer
@@ -332,16 +385,31 @@ impl<T: Copy + Default> Buffer<T> {
     /// allowing previous content to be overwritten.
     fn clear(&mut self) {
         self.occupied = 0;
+        self.offset = 0;
     }
 
     /// Get the current contents of the occupied space of the buffer
     fn get_contents(&self) -> &[T] {
-        &self.storage[..(self.occupied)]
+        &self.storage[(self.offset)..(self.occupied)]
     }
 
     /// Get mutable access to the unoccupied space of the buffer
     fn get_writable_storage(&mut self) -> &mut [T] {
         &mut self.storage[(self.occupied)..]
+    }
+
+    /// Move the unread contents of the buffer to the front, to ensure
+    /// maximal write space availability
+    fn move_to_front(&mut self) {
+        unsafe {
+            ::std::ptr::copy(
+                &self.storage[self.offset] as *const T,
+                &mut self.storage[0] as *mut T,
+                self.occupied - self.offset,
+            );
+        }
+        self.occupied -= self.offset;
+        self.offset = 0;
     }
 }
 
