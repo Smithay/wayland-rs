@@ -50,20 +50,8 @@ unsafe impl<I: Interface> Send for Proxy<I> {}
 unsafe impl<I: Interface> Sync for Proxy<I> {}
 
 impl <I: Interface> PartialEq for Proxy<I> {
-    /// Check if the other proxy refers to the same underlying wayland object
     fn eq(&self, other: &Proxy<I>) -> bool {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            unimplemented!()
-        }
-        #[cfg(feature = "native_lib")]
-        {
-            match (&self.internal, &other.internal) {
-                (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
-                (&None, &None) => self.ptr == other.ptr,
-                _ => false,
-            }
-        }
+        self.equals(other)
     }
 }
 
@@ -205,6 +193,22 @@ impl<I: Interface> Proxy<I> {
     /// See `from_c_ptr` for details.
     pub fn is_external(&self) -> bool {
         self.internal.is_none()
+    }
+
+    /// Check if the other proxy refers to the same underlying wayland object
+    pub fn equals(&self, other: &Proxy<I>) -> bool {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            unimplemented!()
+        }
+        #[cfg(feature = "native_lib")]
+        {
+            match (&self.internal, &other.internal) {
+                (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
+                (&None, &None) => self.ptr == other.ptr,
+                _ => false,
+            }
+        }
     }
 
     #[cfg(feature = "native_lib")]
