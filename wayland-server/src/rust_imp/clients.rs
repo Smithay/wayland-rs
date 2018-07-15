@@ -26,11 +26,14 @@ pub(crate) enum Error {
     Nix(::nix::Error),
 }
 
+struct UserData(*mut ());
+
+unsafe impl Send for UserData {}
+
 pub(crate) struct ClientConnection {
-    source: Option<SourceInner<FdEvent>>,
     socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-    user_data: *mut (),
+    user_data: UserData,
     destructor: Option<fn(*mut ())>,
     last_error: Option<Error>,
 }
@@ -45,9 +48,8 @@ impl ClientConnection {
 
         ClientConnection {
             socket,
-            source: None,
             map: Arc::new(Mutex::new(map)),
-            user_data: ::std::ptr::null_mut(),
+            user_data: UserData(::std::ptr::null_mut()),
             destructor: None,
             last_error: None,
         }
@@ -190,26 +192,23 @@ impl ClientInner {
 
     pub(crate) fn kill(&self) {
         if let Some(mut clientconn) = self.data.lock().unwrap().take() {
-            if let Some(source) = clientconn.source.take() {
-                source.remove();
-            }
             let _ = clientconn.socket.flush();
             let _ = ::nix::unistd::close(clientconn.socket.into_socket().into_raw_fd());
             if let Some(destructor) = clientconn.destructor {
-                destructor(clientconn.user_data);
+                destructor(clientconn.user_data.0);
             }
         }
     }
 
     pub(crate) fn set_user_data(&self, data: *mut ()) {
         if let Some(ref mut client_data) = *self.data.lock().unwrap() {
-            client_data.user_data = data;
+            client_data.user_data.0 = data;
         }
     }
 
     pub(crate) fn get_user_data(&self) -> *mut () {
         if let Some(ref mut client_data) = *self.data.lock().unwrap() {
-            client_data.user_data
+            client_data.user_data.0
         } else {
             ::std::ptr::null_mut()
         }
@@ -239,7 +238,7 @@ impl ClientInner {
 
 pub(crate) struct ClientManager {
     sources_poll: SourcesPoll,
-    clients: Vec<ClientInner>,
+    clients: Vec<(RefCell<Option<SourceInner<FdEvent>>>, ClientInner)>,
 }
 
 impl ClientManager {
@@ -268,7 +267,7 @@ impl ClientManager {
             data: Arc::new(Mutex::new(Some(cx))),
         };
 
-        match self.sources_poll.insert_source(
+        let source = match self.sources_poll.insert_source(
             fd,
             Ready::readable(),
             ClientImplementation {
@@ -280,29 +279,35 @@ impl ClientManager {
                 mask: FdInterest::READ,
             },
         ) {
-            Ok(source) => {
-                client.data.lock().unwrap().as_mut().unwrap().source = Some(source);
-            }
+            Ok(source) => Some(source),
             Err((e, _)) => {
                 eprintln!(
                     "[wayland-server] Failed to insert client into event loop: {:?}",
                     e
                 );
+                client.kill();
+                None
             }
-        }
+        };
 
-        self.clients.push(client.clone());
+        if source.is_some() {
+            self.clients.push((RefCell::new(source), client.clone()));
+        }
 
         client
     }
 
     pub(crate) fn flush_all(&mut self) {
         // flush all clients and cleanup dead ones
-        self.clients.retain(|c| {
+        self.clients.retain(|&(ref s, ref c)| {
             if let Some(ref mut data) = *c.data.lock().unwrap() {
                 let _ = data.flush();
                 true
             } else {
+                // This is a dead client, clean it up
+                if let Some(source) = s.borrow_mut().take() {
+                    source.remove();
+                }
                 false
             }
         });
