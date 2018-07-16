@@ -49,6 +49,14 @@ pub struct Proxy<I: Interface> {
 unsafe impl<I: Interface> Send for Proxy<I> {}
 unsafe impl<I: Interface> Sync for Proxy<I> {}
 
+impl <I: Interface> PartialEq for Proxy<I> {
+    fn eq(&self, other: &Proxy<I>) -> bool {
+        self.equals(other)
+    }
+}
+
+impl <I: Interface> Eq for Proxy<I> {}
+
 impl<I: Interface> Proxy<I> {
     /// Send a request through this object
     ///
