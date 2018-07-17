@@ -200,6 +200,10 @@ impl BufferedSocket {
             let fds = self.in_fds.get_writable_storage();
             self.socket.rcv_msg(bytes, fds)?
         };
+        if in_bytes == 0 {
+            // the other end of the socket was closed
+            return Err(::nix::Error::Sys(::nix::errno::Errno::EPIPE));
+        }
         // advance the storage
         self.in_data
             .advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
