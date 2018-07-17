@@ -55,7 +55,7 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo tarpaulin --ignore-tests --out Xml
+        env LD_LIBRARY_PATH=~/install/lib:$LD_LIBRARY_PATH cargo tarpaulin --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
@@ -64,9 +64,7 @@ script:
 
 after_success:
   - |
-      if [ -n "$TARPAULIN" ]; then
-        bash <(curl -s https://codecov.io/bash)
-      elif [ -n "$BUILD_DOC" ]; then
+      if [ -n "$BUILD_DOC" ]; then
         cp ./doc_index.html ./target/doc/index.html
         cp ./rust.css ./target/doc/rust.css
       fi
