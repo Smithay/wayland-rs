@@ -118,18 +118,17 @@ impl DisplayInner {
     }
 
     pub(crate) fn add_socket_auto(&mut self) -> io::Result<OsString> {
-        let mut last_err = io::Error::new(
-            io::ErrorKind::AddrInUse,
-            "All sockets from wayland-0 to wayland-31 are already in use.",
-        );
         for i in 0..32 {
             let name = format!("wayland-{}", i);
             match self.add_socket(Some(&name)) {
                 Ok(()) => return Ok(name.into()),
-                Err(e) => last_err = e,
+                Err(_) => continue,
             }
         }
-        Err(last_err)
+        Err(io::Error::new(
+            io::ErrorKind::AddrInUse,
+            "All sockets from wayland-0 to wayland-31 are already in use.",
+        ))
     }
 
     pub(crate) unsafe fn add_socket_fd(&mut self, fd: RawFd) -> io::Result<()> {
@@ -188,6 +187,24 @@ impl Implementation<(), FdEvent> for ListenerImplementation {
                 }
             }
             FdEvent::Error { error, .. } => self.eprint_error("polling", error),
+        }
+    }
+}
+
+impl Drop for DisplayInner {
+    fn drop(&mut self) {
+        for l in self.listeners.drain(..) {
+            l.remove();
+        }
+    }
+}
+
+impl Drop for ListenerImplementation {
+    fn drop(&mut self) {
+        if let Ok(socketaddr) = self.listener.local_addr() {
+            if let Some(path) = socketaddr.as_pathname() {
+                let _ = ::std::fs::remove_file(path);
+            }
         }
     }
 }
