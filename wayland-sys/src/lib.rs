@@ -14,7 +14,7 @@
 //! if `dlopen` is on, the extern function if not). The easiest way to do this is to glob import
 //! the appropriate module. For example:
 //!
-//! ```no_run
+//! ```ignore
 //! #[macro_use] extern crate wayland_sys;
 //!
 //! use wayland_sys::client::*;
