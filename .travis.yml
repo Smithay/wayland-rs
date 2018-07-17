@@ -39,9 +39,7 @@ before_script:
       if [ -n "$BUILD_FMT" ]; then
         rustup component add rustfmt-preview
       elif [ -n "$TARPAULIN" ]; then
-        which cargo-install-update || cargo install cargo-update
-        cargo install-update cargo-update
-        env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
+        env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.12.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
