@@ -48,6 +48,14 @@ pub struct Resource<I: Interface> {
 unsafe impl<I: Interface> Send for Resource<I> {}
 unsafe impl<I: Interface> Sync for Resource<I> {}
 
+impl <I: Interface> PartialEq for Resource<I> {
+    fn eq(&self, other: &Resource<I>) -> bool {
+        self.equals(other)
+    }
+}
+
+impl <I: Interface> Eq for Resource<I> {}
+
 impl<I: Interface> Resource<I> {
     /// Send an event through this object
     ///
