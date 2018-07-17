@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+# 0.20.11 - 2018-07-17
+
 - [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
 - [protocols] Integrate `xdg-decoration` protocol to replace KDE's decoration protocol.
+- [client] `Proxy` now implements `PartialEq` and `Eq`
+- [server] `Resource` now implements `PartialEq` and `Eq`
 
 # 0.20.10 - 2018-06-04
 
