@@ -80,7 +80,7 @@ impl GlobalManager {
         let destroyed_marker = data.destroyed.clone();
 
         self.globals.push(data);
-        let id = self.globals.len() as u32;
+        let id = self.globals.len() as u32 + 1;
 
         send_new_global(&self.registries.borrow(), id, I::NAME, version);
 
@@ -99,7 +99,7 @@ impl GlobalManager {
                 continue;
             }
             let interface = CString::new(global.interface.as_bytes().to_owned()).unwrap();
-            send_global_msg(&reg, id as u32, interface, global.version);
+            send_global_msg(&reg, id as u32+1, interface, global.version);
         }
         self.registries.borrow_mut().push(reg);
 
@@ -116,7 +116,7 @@ impl GlobalManager {
         version: u32,
         client: ClientInner,
     ) -> Result<(), ()> {
-        if let Some(ref global_data) = self.globals.get(global_id as usize) {
+        if let Some(ref global_data) = self.globals.get((global_id-1) as usize) {
             if global_data.interface != interface {
                 client.post_error(
                     registry_id,
@@ -146,7 +146,7 @@ impl GlobalManager {
                 );
             } else {
                 // all is good, we insert the object in the map and send it the events
-                (global_data.implem)(resource_newid, version, client);
+                return (global_data.implem)(resource_newid, version, client);
             }
         } else {
             client.post_error(
@@ -166,7 +166,7 @@ impl GlobalManager {
 }
 
 fn send_global_msg(reg: &(u32, ClientInner), global_id: u32, interface: CString, version: u32) {
-    if let Some(mut clientconn) = reg.1.data.lock().unwrap().take() {
+    if let Some(ref mut clientconn) = *reg.1.data.lock().unwrap() {
         let _ = clientconn.write_message(&Message {
             sender_id: reg.0,
             opcode: 0,

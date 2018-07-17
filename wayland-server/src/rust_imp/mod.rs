@@ -88,7 +88,7 @@ where
                 " <- {}@{}: {} {:?}",
                 resource.object.interface,
                 resource.id,
-                resource.object.events[msg.opcode as usize].name,
+                resource.object.requests[msg.opcode as usize].name,
                 msg.args
             );
         }

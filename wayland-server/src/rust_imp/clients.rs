@@ -272,13 +272,18 @@ impl ClientManager {
             data: Arc::new(Mutex::new(Some(cx))),
         };
 
+        let implementation = ClientImplementation {
+            inner: client.clone(),
+            map,
+        };
+
+        // process any pending messages before inserting it into the event loop
+        implementation.process_messages();
+
         let source = match self.sources_poll.insert_source(
             fd,
             Ready::readable(),
-            ClientImplementation {
-                inner: client.clone(),
-                map,
-            },
+            implementation,
             FdEvent::Ready {
                 fd,
                 mask: FdInterest::READ,
@@ -348,7 +353,7 @@ const DISPLAY_EVENTS: &'static [MessageDesc] = &[
 const REGISTRY_REQUESTS: &'static [MessageDesc] = &[MessageDesc {
     name: "bind",
     since: 1,
-    signature: &[ArgumentType::Uint, ArgumentType::NewId],
+    signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint, ArgumentType::NewId],
 }];
 
 const REGISTRY_EVENTS: &'static [MessageDesc] = &[
@@ -407,7 +412,7 @@ impl ClientImplementation {
             };
 
             match ret {
-                Ok(None) => {
+                Ok(None) | Err(Error::Nix(::nix::Error::Sys(::nix::errno::Errno::EAGAIN))) => {
                     // nothing more to read
                     return;
                 }
@@ -435,7 +440,7 @@ impl ClientImplementation {
                         );
                         return;
                     }
-                }
+                },
                 Err(e) => {
                     // on error, kill the client
                     self.inner.kill();

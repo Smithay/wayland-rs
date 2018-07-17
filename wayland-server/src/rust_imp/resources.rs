@@ -86,7 +86,7 @@ impl ResourceInner {
                     " -> {}@{}: {} {:?}",
                     I::NAME,
                     self.id,
-                    self.object.requests[msg.opcode as usize].name,
+                    self.object.events[msg.opcode as usize].name,
                     msg.args
                 );
             }
