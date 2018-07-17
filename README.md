@@ -35,5 +35,4 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 ## Requirements
 
-Requires at least rust 1.20 to be used (using bitflags 1.0 for associated constants), and version 1.12 of the
-wayland system libraries.
+Requires at least rust 1.21 to be used, and version 1.12 of the wayland system libraries.

@@ -7,7 +7,7 @@ dist: trusty
 sudo: required
 
 rust:
-  - 1.20.0
+  - 1.21.0
   - stable
   - beta
   - nightly
