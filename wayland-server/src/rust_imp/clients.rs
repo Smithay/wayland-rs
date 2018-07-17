@@ -88,65 +88,6 @@ impl ClientConnection {
                 .and_then(|o| o.requests.get(opcode as usize))
                 .map(|desc| desc.signature)
         });
-        /*
-            |msg| {
-                let mut map = map.borrow_mut();
-                let object = match map.find(msg.sender_id) {
-                    Some(obj) => obj,
-                    None => {
-                        // this is a message sent to a destroyed object
-                        // to avoid dying because of races, we just consume it into void
-                        // closing any associated FDs
-                        for a in msg.args {
-                            if let Argument::Fd(fd) = a {
-                                let _ = ::nix::unistd::close(fd);
-                            }
-                        }
-                        // continue parsing to the next message
-                        return true;
-                    }
-                };
-
-                // create a new object if applicable
-                if let Some(child) = object.request_child(msg.opcode) {
-                    let new_id = msg.args
-                        .iter()
-                        .flat_map(|a| {
-                            if let Argument::NewId(nid) = a {
-                                Some(nid)
-                            } else {
-                                None
-                            }
-                        })
-                        .cloned()
-                        .next()
-                        .unwrap();
-                    let child_interface = child.interface;
-                    if let Err(()) = map.insert_at(new_id, child) {
-                        eprintln!(
-                            "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
-                            child_interface,
-                            new_id
-                        );
-                        // abort parsing, this is an unrecoverable error
-                        *last_error = Some(Error::Protocol);
-                        return false;
-                    }
-                } else {
-                    // debug assert: if this opcode does not define a child, then there should be no
-                    // NewId argument, unless we are the registry
-                    debug_assert!(
-                        object.interface == "wl_registry"
-                            || msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId) == false
-                    );
-                }
-
-                // send the message to the appropriate pending queue
-                buffer.push_back(msg);
-                // continue parsing
-                true
-            },
-        );*/
         let msg = match ret {
             Ok(msg) => msg,
             Err(MessageParseError::Malformed) => {
@@ -474,15 +415,24 @@ impl ClientImplementation {
                     // there is a message to dispatch
                     let mut resourcemap = super::ResourceMap::make(self.map.clone(), self.inner.clone());
                     let id = msg.sender_id;
+                    let opcode = msg.opcode;
                     if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
                         let object = res.object.clone();
                         let mut dispatcher = object.meta.dispatcher.lock().unwrap();
                         if let Err(()) = dispatcher.dispatch(msg, res, &mut resourcemap) {
-                            self.inner.kill();
+                            self.inner.post_error(
+                                1,
+                                super::display::DISPLAY_ERROR_INVALID_METHOD,
+                                format!("invalid method {}, object {}@{}", opcode, object.interface, id),
+                            );
                             return;
                         }
                     } else {
-                        self.inner.kill();
+                        self.inner.post_error(
+                            1,
+                            super::display::DISPLAY_ERROR_INVALID_OBJECT,
+                            format!("invalid object {}", id),
+                        );
                         return;
                     }
                 }
@@ -516,7 +466,7 @@ impl super::Dispatcher for DisplayDispatcher {
     fn dispatch(
         &mut self,
         msg: Message,
-        resource: ResourceInner,
+        _resource: ResourceInner,
         map: &mut super::ResourceMap,
     ) -> Result<(), ()> {
         use protocol::wl_callback;
@@ -583,6 +533,7 @@ impl super::Dispatcher for RegistryDispatcher {
             _ => return Err(()),
         };
         self.global_mgr.borrow().bind(
+            resource.id,
             new_id,
             global_id,
             &interface.to_string_lossy(),

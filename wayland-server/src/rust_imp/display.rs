@@ -18,6 +18,10 @@ use super::event_loop::SourcesPoll;
 use super::globals::GlobalManager;
 use super::{ClientInner, EventLoopInner, GlobalInner, SourceInner};
 
+pub(crate) const DISPLAY_ERROR_INVALID_OBJECT: u32 = 0;
+pub(crate) const DISPLAY_ERROR_INVALID_METHOD: u32 = 1;
+pub(crate) const DISPLAY_ERROR_NO_MEMORY: u32 = 2;
+
 pub(crate) struct DisplayInner {
     sources_poll: SourcesPoll,
     clients_mgr: Rc<RefCell<ClientManager>>,
