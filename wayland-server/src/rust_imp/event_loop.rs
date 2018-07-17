@@ -34,7 +34,10 @@ impl SourcesPoll {
 
         for evt in evts {
             let Token(idx) = evt.token();
-            self.sources.borrow().send_ready(idx, evt.readiness());
+            let dispatcher = self.sources.borrow().get_dispatcher(idx);
+            if let Some(dispatcher) = dispatcher {
+                dispatcher.borrow_mut().ready(evt.readiness());
+            }
         }
 
         Ok(())
@@ -202,10 +205,10 @@ impl SourceList {
         SourceList { sources: Vec::new() }
     }
 
-    fn send_ready(&self, idx: usize, ready: Ready) {
+    fn get_dispatcher(&self, idx: usize) -> Option<Rc<RefCell<EventDispatcher>>> {
         match self.sources.get(idx) {
-            Some(Some((_, dispatcher))) => dispatcher.borrow_mut().ready(ready),
-            _ => (),
+            Some(Some((_, dispatcher))) => Some(dispatcher.clone()),
+            _ => None,
         }
     }
 
