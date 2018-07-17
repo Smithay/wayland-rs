@@ -91,13 +91,12 @@ impl Connection {
                     let new_id = msg.args
                         .iter()
                         .flat_map(|a| {
-                            if let Argument::NewId(nid) = a {
+                            if let &Argument::NewId(nid) = a {
                                 Some(nid)
                             } else {
                                 None
                             }
                         })
-                        .cloned()
                         .next()
                         .unwrap();
                     let child_interface = child.interface;

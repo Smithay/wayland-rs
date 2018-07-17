@@ -138,13 +138,12 @@ impl ClientConnection {
             let new_id = msg.args
                 .iter()
                 .flat_map(|a| {
-                    if let Argument::NewId(nid) = a {
+                    if let &Argument::NewId(nid) = a {
                         Some(nid)
                     } else {
                         None
                     }
                 })
-                .cloned()
                 .next()
                 .unwrap();
             let child_interface = child.interface;
@@ -353,7 +352,12 @@ const DISPLAY_EVENTS: &'static [MessageDesc] = &[
 const REGISTRY_REQUESTS: &'static [MessageDesc] = &[MessageDesc {
     name: "bind",
     since: 1,
-    signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint, ArgumentType::NewId],
+    signature: &[
+        ArgumentType::Uint,
+        ArgumentType::Str,
+        ArgumentType::Uint,
+        ArgumentType::NewId,
+    ],
 }];
 
 const REGISTRY_EVENTS: &'static [MessageDesc] = &[
@@ -440,7 +444,7 @@ impl ClientImplementation {
                         );
                         return;
                     }
-                },
+                }
                 Err(e) => {
                     // on error, kill the client
                     self.inner.kill();

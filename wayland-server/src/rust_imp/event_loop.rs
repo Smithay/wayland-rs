@@ -207,7 +207,7 @@ impl SourceList {
 
     fn get_dispatcher(&self, idx: usize) -> Option<Rc<RefCell<EventDispatcher>>> {
         match self.sources.get(idx) {
-            Some(Some((_, dispatcher))) => Some(dispatcher.clone()),
+            Some(&Some((_, ref dispatcher))) => Some(dispatcher.clone()),
             _ => None,
         }
     }
@@ -225,7 +225,7 @@ impl SourceList {
 
     fn del_source(&mut self, source: Rc<RefCell<EventDispatcher>>) {
         for src in &mut self.sources {
-            let found = if let Some(ref s) = src {
+            let found = if let &mut Some(ref s) = src {
                 Rc::ptr_eq(&source, &s.1)
             } else {
                 false

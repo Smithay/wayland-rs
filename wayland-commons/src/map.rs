@@ -57,12 +57,7 @@ impl<Meta: ObjectMetadata> Object<Meta> {
     }
 
     pub fn is_interface<I: Interface>(&self) -> bool {
-        // First line should be sufficient unless there are two interfaces with the
-        // same name in the set of all used protocol extensions
-        // Let's be extra careful =)
         self.interface == I::NAME
-            && (self.childs_from_events as usize) == (childs_from::<I::Event, Meta> as usize)
-            && (self.childs_from_requests as usize) == (childs_from::<I::Request, Meta> as usize)
     }
 }
 

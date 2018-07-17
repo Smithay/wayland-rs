@@ -59,7 +59,10 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) {
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
     let token = client.event_queue.get_token();
-    client.display.sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), &token)}).unwrap();
+    client
+        .display
+        .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), &token) })
+        .unwrap();
     while !done.get() {
         client.display.flush().unwrap();
         ::std::thread::sleep(::std::time::Duration::from_millis(100));

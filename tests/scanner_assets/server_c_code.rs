@@ -136,7 +136,7 @@ pub mod wl_foo {
                         },
                         text: {
                             if let Some(Argument::Str(val)) = args.next() {
-                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into());
+                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into());
                                 s
                             } else {
                                 return Err(())
@@ -370,7 +370,6 @@ pub mod wl_bar {
                     })
                 },
                 1 => {
-                    let mut args = msg.args.into_iter();
                     Ok(Request::Release)
                 },
                 _ => Err(()),

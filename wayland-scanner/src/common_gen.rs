@@ -250,7 +250,9 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
         writeln!(out, "            match msg.opcode {{")?;
         for (opcode, msg) in messages.iter().enumerate() {
             writeln!(out, "                {} => {{", opcode)?;
-            writeln!(out, "                    let mut args = msg.args.into_iter();")?;
+            if msg.args.len() > 0 {
+                writeln!(out, "                    let mut args = msg.args.into_iter();")?;
+            }
             write!(
                 out,
                 "                    Ok({}::{}",
@@ -306,7 +308,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                         }
                         Type::String => {
                             writeln!(out, "                            if let Some(Argument::Str(val)) = args.next() {{")?;
-                            writeln!(out, "                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into());")?;
+                            writeln!(out, "                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into());")?;
                             if a.allow_null {
                                 writeln!(out, "                                if s.len() == 0 {{ None }} else {{ Some(s) }}")?;
                             } else {

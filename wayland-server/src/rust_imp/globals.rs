@@ -99,7 +99,7 @@ impl GlobalManager {
                 continue;
             }
             let interface = CString::new(global.interface.as_bytes().to_owned()).unwrap();
-            send_global_msg(&reg, id as u32+1, interface, global.version);
+            send_global_msg(&reg, id as u32 + 1, interface, global.version);
         }
         self.registries.borrow_mut().push(reg);
 
@@ -116,7 +116,7 @@ impl GlobalManager {
         version: u32,
         client: ClientInner,
     ) -> Result<(), ()> {
-        if let Some(ref global_data) = self.globals.get((global_id-1) as usize) {
+        if let Some(ref global_data) = self.globals.get((global_id - 1) as usize) {
             if global_data.interface != interface {
                 client.post_error(
                     registry_id,
