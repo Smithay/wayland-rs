@@ -60,7 +60,7 @@ script:
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
         cargo tarpaulin --ignore-tests --out Xml --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-        cargo tarpaulin --features = "native_lib" --ignore-tests --out Xml --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo tarpaulin --features "native_lib" --ignore-tests --out Xml --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
