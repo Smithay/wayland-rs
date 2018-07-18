@@ -23,13 +23,7 @@ matrix:
     - rust: stable
       env: BUILD_FMT=1
     - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES=""
-    - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES="native_lib"
+      env: TARPAULIN=1
     - rust: stable
       env: BUILD_DOC=1
 
@@ -45,9 +39,7 @@ before_script:
       if [ -n "$BUILD_FMT" ]; then
         rustup component add rustfmt-preview
       elif [ -n "$TARPAULIN" ]; then
-        which cargo-install-update || cargo install cargo-update
-        cargo install-update cargo-update
-        env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
+        cargo install cargo-tarpaulin --git https://github.com/vberger/tarpaulin.git --force
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.12.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
@@ -67,7 +59,8 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --features "$FEATURES" --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo tarpaulin --features "" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF rust_impl
+        cargo tarpaulin --features "native_lib" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
