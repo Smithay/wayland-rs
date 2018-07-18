@@ -7,31 +7,7 @@ dist: trusty
 sudo: required
 
 rust:
-  - 1.21.0
   - stable
-  - beta
-  - nightly
-
-env:
-  - FEATURES="native_lib"
-  - FEATURES=""
-
-matrix:
-  allow_failures:
-    - rust: nightly
-  include:
-    - rust: stable
-      env: BUILD_FMT=1
-    - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES=""
-    - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES="native_lib"
-    - rust: stable
-      env: BUILD_DOC=1
 
 branches:
   only:
@@ -41,60 +17,15 @@ before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
-  - |
-      if [ -n "$BUILD_FMT" ]; then
-        rustup component add rustfmt-preview
-      elif [ -n "$TARPAULIN" ]; then
-        which cargo-install-update || cargo install cargo-update
-        cargo install-update cargo-update
-        env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
-        # Building & running tests, we need to install the wayland lib
-        ./travis_install_wayland.sh "1.12.0"
-        export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
-      elif [ -n "$BUILD_DOC" ]; then
-        echo "Building doc, nothing to install..."
-      else
-        # Building & running tests, we need to install the wayland lib
-        ./travis_install_wayland.sh "1.12.0"
-        export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
-      fi
+  - env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --git https://github.com/vberger/tarpaulin.git --force
+  - ./travis_install_wayland.sh "1.12.0"
+  - export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
 
 os:
   - linux
 
 script:
   - |
-      if [ -n "$BUILD_FMT" ]; then
-        cargo fmt --all -- --write-mode=diff
-      elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --features "$FEATURES" --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-      elif [ -n "$BUILD_DOC" ]; then
-        cargo doc --all --no-deps --all-features
-      else
-        cargo test --all --features "$FEATURES"
-      fi
+      cargo tarpaulin --features "" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF rust_impl
+      cargo tarpaulin --features "native_lib" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF native_lib
 
-after_success:
-  - |
-      if [ -n "$BUILD_DOC" ]; then
-        cp ./doc_index.html ./target/doc/index.html
-        cp ./rust.css ./target/doc/rust.css
-      fi
-
-deploy:
-  provider: pages
-  skip_cleanup: true
-  github_token: $GITHUB_TOKEN
-  local_dir: "target/doc"
-  on:
-    branch: master
-    rust: stable
-    condition: $BUILD_DOC = 1
-
-notifications:
-    webhooks:
-        urls:
-            - "https://scalar.vector.im/api/neb/services/hooks/dHJhdmlzLWNpLyU0MGxldmFucyUzQXNhZmFyYWRlZy5uZXQvJTIxRkt4aGprSUNwakJWelZlQ2RGJTNBc2FmYXJhZGVnLm5ldA"
-        on_success: change
-        on_failure: always
-        on_start: never
