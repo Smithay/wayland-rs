@@ -1,3 +1,4 @@
+
 //
 // This file was auto-generated, do not edit directly.
 //
@@ -13,11 +14,10 @@ pub mod wl_foo {
     //!
     //! This is the dedicated interface for doing foos over any
     //! kind of other foos.
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
-
     /// Possible cake kinds
     ///
     /// List of the possible kind of cake supported by the protocol.
@@ -32,7 +32,6 @@ pub mod wl_foo {
         /// fruity cake to get vitamins
         Fruity = 2,
     }
-
     impl CakeKind {
         pub fn from_raw(n: u32) -> Option<CakeKind> {
             match n {
@@ -60,7 +59,6 @@ pub mod wl_foo {
             const Catapult = 4;
         }
     }
-
     impl DeliveryKind {
         pub fn from_raw(n: u32) -> Option<DeliveryKind> {
             Some(DeliveryKind::from_bits_truncate(n))
@@ -83,9 +81,64 @@ pub mod wl_foo {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "foo_it",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Int,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Str,
+                    super::ArgumentType::Fixed,
+                    super::ArgumentType::Fd,
+                ]
+            },
+            super::MessageDesc {
+                name: "create_bar",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::NewId,
+                ]
+            },
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
+            }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Request::from_raw can not be used Client-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
+                Request::FooIt { number, unumber, text, float, file, } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Int(number),
+                        Argument::Uint(unumber),
+                        Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(text.into()) }),
+                        Argument::Fixed((float * 256.) as i32),
+                        Argument::Fd(file),
+                    ]
+                },
+                Request::CreateBar { id, } => Message {
+                    sender_id: sender_id,
+                    opcode: 1,
+                    args: vec![
+                        Argument::NewId(id.id()),
+                    ]
+                },
             }
         }
 
@@ -124,10 +177,56 @@ pub mod wl_foo {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "cake",
+                since: 2,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                ]
+            },
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
             }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                0 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Event::Cake {
+                        kind: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                CakeKind::from_raw(val).ok_or(())?
+                            } else {
+                                return Err(())
+                            }
+                        },
+                        amount: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                    })
+                },
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Event::into_raw can not be used Client-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
@@ -154,11 +253,14 @@ pub mod wl_foo {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_foo";
+        const VERSION: u32 = 3;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
-    }
 
+    }
     pub trait RequestsTrait {
         /// do some foo
         ///
@@ -167,11 +269,13 @@ pub mod wl_foo {
         /// create a bar
         ///
         /// Create a bar which will do its bar job.
-        fn create_bar(&self) ->Result<NewProxy<super::wl_bar::WlBar>, ()>;
+        fn create_bar<F>(&self, implementor: F) ->Result<Proxy<super::wl_bar::WlBar>, ()>
+            where F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>;
     }
 
     impl RequestsTrait for Proxy<WlFoo> {
-        fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->() {
+        fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
@@ -185,17 +289,20 @@ pub mod wl_foo {
             self.send(msg);
         }
 
-        fn create_bar(&self) ->Result<NewProxy<super::wl_bar::WlBar>, ()> {
+        fn create_bar<F>(&self, implementor: F) ->Result<Proxy<super::wl_bar::WlBar>, ()>
+            where F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>
+        {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
-            let _arg_id_newproxy = self.child::<super::wl_bar::WlBar>();
+            let _arg_id_newproxy = implementor(self.child());
             let msg = Request::CreateBar {
-                id: unsafe { Proxy::<super::wl_bar::WlBar>::from_c_ptr(_arg_id_newproxy.c_ptr()) },
+                id: _arg_id_newproxy.clone(),
             };
             self.send(msg);
             Ok(_arg_id_newproxy)
         }
+
     }
 }
 
@@ -203,11 +310,10 @@ pub mod wl_bar {
     //! Interface for bars
     //!
     //! This interface allows you to bar your foos.
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
-
     pub enum Request {
         /// ask for a bar delivery
         ///
@@ -224,10 +330,58 @@ pub mod wl_bar {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "bar_delivery",
+                since: 2,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Object,
+                    super::ArgumentType::Array,
+                ]
+            },
+            super::MessageDesc {
+                name: "release",
+                since: 1,
+                signature: &[
+                ]
+            },
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 Request::Release => true,
                 _ => false
+            }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Request::from_raw can not be used Client-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
+                Request::BarDelivery { kind, target, metadata, } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Uint(kind.to_raw()),
+                        Argument::Object(target.id()),
+                        Argument::Array(metadata),
+                    ]
+                },
+                Request::Release => Message {
+                    sender_id: sender_id,
+                    opcode: 1,
+                    args: vec![
+                    ]
+                },
             }
         }
 
@@ -257,9 +411,28 @@ pub mod wl_bar {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
             }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Event::into_raw can not be used Client-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
@@ -280,11 +453,14 @@ pub mod wl_bar {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_bar";
+        const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
-    }
 
+    }
     pub trait RequestsTrait {
         /// ask for a bar delivery
         ///
@@ -301,11 +477,11 @@ pub mod wl_bar {
     }
 
     impl RequestsTrait for Proxy<WlBar> {
-        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->() {
+        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
-
             let msg = Request::BarDelivery {
                 kind: kind,
                 target: target.clone(),
@@ -314,13 +490,15 @@ pub mod wl_bar {
             self.send(msg);
         }
 
-        fn release(&self) ->() {
+        fn release(&self) ->()
+        {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
             let msg = Request::Release;
             self.send(msg);
         }
+
     }
 }
 
@@ -328,17 +506,34 @@ pub mod wl_display {
     //! core global object
     //!
     //! This global is special and should only generate code client-side, not server-side.
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
-
     pub enum Request {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Request::from_raw can not be used Client-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
             }
         }
 
@@ -356,9 +551,28 @@ pub mod wl_display {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
             }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Event::into_raw can not be used Client-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
@@ -379,11 +593,14 @@ pub mod wl_display {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_display";
+        const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_display_interface }
         }
-    }
 
+    }
     pub trait RequestsTrait {
     }
 
@@ -395,11 +612,10 @@ pub mod wl_registry {
     //! global registry object
     //!
     //! This global is special and should only generate code client-side, not server-side.
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
-
     pub enum Request {
         /// bind an object to the display
         ///
@@ -408,9 +624,45 @@ pub mod wl_registry {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "bind",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::NewId,
+                ]
+            },
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 _ => false
+            }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Request::from_raw can not be used Client-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
+                Request::Bind { name, id, } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Uint(name),
+                        Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(id.0.into()) }),
+                        Argument::Uint(id.1),
+                        Argument::NewId(id.2.id()),
+                    ]
+                },
             }
         }
 
@@ -437,9 +689,28 @@ pub mod wl_registry {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
             }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Event::into_raw can not be used Client-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
@@ -460,20 +731,26 @@ pub mod wl_registry {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_registry";
+        const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_registry_interface }
         }
-    }
 
+    }
     pub trait RequestsTrait {
         /// bind an object to the display
         ///
         /// This request is a special code-path, as its new-id argument as no target type.
-        fn bind<T: Interface>(&self, version: u32, name: u32) ->Result<NewProxy<T>, ()>;
+        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) ->Result<Proxy<T>, ()>
+            where F: FnOnce(NewProxy<T>) -> Proxy<T>;
     }
 
     impl RequestsTrait for Proxy<WlRegistry> {
-        fn bind<T: Interface>(&self, version: u32, name: u32) ->Result<NewProxy<T>, ()> {
+        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) ->Result<Proxy<T>, ()>
+            where F: FnOnce(NewProxy<T>) -> Proxy<T>
+        {
             if !self.is_external() && !self.is_alive() {
                 return Err(());
             }
@@ -494,9 +771,10 @@ pub mod wl_registry {
                         version
                     )
                 });
-                Ok(NewProxy::<T>::from_c_ptr(ret))
+                Ok(implementor(NewProxy::<T>::from_c_ptr(ret)))
             }
         }
+
     }
 }
 
@@ -504,17 +782,34 @@ pub mod wl_callback {
     //! callback object
     //!
     //! This object has a special behavior regarding its destructor.
+    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata};
 
-    use super::{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup};
     use super::sys::common::{wl_argument, wl_interface, wl_array};
     use super::sys::client::*;
-
     pub enum Request {
     }
 
     impl super::MessageGroup for Request {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+            }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            panic!("Request::from_raw can not be used Client-side.")
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            match self {
             }
         }
 
@@ -539,10 +834,48 @@ pub mod wl_callback {
     }
 
     impl super::MessageGroup for Event {
+        const MESSAGES: &'static [super::MessageDesc] = &[
+            super::MessageDesc {
+                name: "done",
+                since: 1,
+                signature: &[
+                    super::ArgumentType::Uint,
+                ]
+            },
+        ];
+        type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
             }
+        }
+
+        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+            match opcode {
+                _ => None
+            }
+        }
+
+        fn from_raw(msg: Message, map: &mut Self::Map) -> Result<Self, ()> {
+            match msg.opcode {
+                0 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Event::Done {
+                        callback_data: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(())
+                            }
+                        },
+                    })
+                },
+                _ => Err(()),
+            }
+        }
+
+        fn into_raw(self, sender_id: u32) -> Message {
+            panic!("Event::into_raw can not be used Client-side.")
         }
 
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Event,()> {
@@ -568,11 +901,14 @@ pub mod wl_callback {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_callback";
+        const VERSION: u32 = 1;
+
+
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
         }
-    }
 
+    }
     pub trait RequestsTrait {
     }
 

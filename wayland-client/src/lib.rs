@@ -62,9 +62,8 @@
 //!
 //! ```
 //! // Example implementation for the wl_surface interface
-//! use wayland_client::Proxy;
+//! use wayland_client::{Proxy, Implementation};
 //! use wayland_client::protocol::wl_surface;
-//! use wayland_client::commons::Implementation;
 //!
 //! struct MyImpl {
 //!    // ...
@@ -124,7 +123,10 @@
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate downcast_rs as downcast;
 extern crate libc;
+extern crate nix;
 
 extern crate wayland_commons;
 #[cfg(feature = "native_lib")]
@@ -138,7 +140,8 @@ mod proxy;
 
 pub use display::{ConnectError, Display};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
-pub use globals::{GlobalError, GlobalEvent, GlobalManager};
+pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
+pub use imp::ProxyMap;
 pub use proxy::{NewProxy, Proxy};
 
 #[cfg(feature = "cursor")]
@@ -147,12 +150,18 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-/// Re-export of wayland-commons
-///
-/// Common traits and functions to work with wayland objects
-pub mod commons {
-    pub use wayland_commons::*;
-}
+pub use wayland_commons::{
+    downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage,
+};
+
+// rust implementation
+#[cfg(not(feature = "native_lib"))]
+#[path = "rust_imp/mod.rs"]
+mod imp;
+// C-lib based implementation
+#[cfg(feature = "native_lib")]
+#[path = "native_lib/mod.rs"]
+mod imp;
 
 #[cfg(feature = "native_lib")]
 /// C-associated types
@@ -168,6 +177,8 @@ pub mod sys {
 pub mod protocol {
     #[cfg(feature = "native_lib")]
     pub use generated::c_api::*;
+    #[cfg(not(feature = "native_lib"))]
+    pub use generated::rust_api::*;
 }
 
 mod generated {
@@ -181,9 +192,19 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {NewProxy, Proxy};
+        pub(crate) use {NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
+    }
+    #[cfg(not(feature = "native_lib"))]
+    pub mod rust_api {
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
+        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+        pub(crate) use {NewProxy, Proxy, ProxyMap};
+        include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
     }
 }

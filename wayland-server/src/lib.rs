@@ -53,9 +53,8 @@
 //!
 //! ```
 //! // Example implementation for the wl_surface interface
-//! use wayland_server::Resource;
+//! use wayland_server::{Resource, Implementation};
 //! use wayland_server::protocol::wl_surface;
-//! use wayland_server::commons::Implementation;
 //!
 //! struct MyImpl {
 //!    // ...
@@ -96,7 +95,10 @@
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate downcast_rs as downcast;
 extern crate libc;
+extern crate mio;
 extern crate nix;
 
 extern crate wayland_commons;
@@ -117,12 +119,9 @@ pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
-/// Re-export of wayland-commons
-///
-/// Common traits and functions to work with wayland objects
-pub mod commons {
-    pub use wayland_commons::*;
-}
+pub use wayland_commons::{
+    downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage,
+};
 
 #[cfg(feature = "native_lib")]
 /// C-associated types
@@ -134,10 +133,23 @@ pub mod sys {
     pub use wayland_sys::{common, server};
 }
 
+// rust implementation
+#[cfg(not(feature = "native_lib"))]
+#[path = "rust_imp/mod.rs"]
+mod imp;
+// C-lib based implementation
+#[cfg(feature = "native_lib")]
+#[path = "native_lib/mod.rs"]
+mod imp;
+
+pub use imp::ResourceMap;
+
 /// Generated interfaces for the core wayland protocol
 pub mod protocol {
     #[cfg(feature = "native_lib")]
     pub use generated::c_api::*;
+    #[cfg(not(feature = "native_lib"))]
+    pub use generated::rust_api::*;
 }
 
 mod generated {
@@ -151,9 +163,19 @@ mod generated {
     }
     #[cfg(feature = "native_lib")]
     pub mod c_api {
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {NewResource, Resource};
+        pub(crate) use {NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
+    }
+    #[cfg(not(feature = "native_lib"))]
+    pub mod rust_api {
+        pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+        pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
+        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+        pub(crate) use {NewResource, Resource, ResourceMap};
+        include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
     }
 }

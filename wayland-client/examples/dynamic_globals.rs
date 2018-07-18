@@ -3,7 +3,6 @@ extern crate wayland_client;
 
 use wayland_client::{Display, GlobalManager};
 
-use wayland_client::protocol::wl_display::RequestsTrait;
 use wayland_client::protocol::{wl_output, wl_seat};
 
 // An example showcasing the capability of GlobalManager to handle
@@ -16,7 +15,7 @@ fn main() {
     // We create a GlobalManager with a callback, that will be
     // advertized of any global creation or deletion
     let _globals = GlobalManager::new_with_cb(
-        display.get_registry().unwrap(),
+        &display,
         // This macro generates a callback for auto-creating the globals
         // that interest us and calling our provided callbacks
         global_filter!(
@@ -26,11 +25,7 @@ fn main() {
             //
             // NOTE: the type annotations are necessary because rustc's
             // inference is apparently not smart enough
-            [wl_seat::WlSeat, 1, |seat: Result<NewProxy<_>, _>, ()| {
-                // here seat is a result, as failure can happen if the server
-                // advertized an lower version than we requested.
-                // This cannot happen here as we requested version 1
-                let seat = seat.unwrap();
+            [wl_seat::WlSeat, 1, |seat: NewProxy<_>| {
                 let mut seat_name = None;
                 let mut caps = None;
                 seat.implement(move |event, _| {
@@ -44,14 +39,10 @@ fn main() {
                             caps = Some(capabilities);
                         }
                     }
-                    if let (&Some(ref caps), &Some(ref name)) = (&caps, &seat_name) {
-                        println!("New seat \"{}\" with capabilities [ {:?} ]", name, caps);
-                    }
-                });
+                })
             }],
             // Same thing with wl_output, but we require version 2
-            [wl_output::WlOutput, 2, |output: Result<NewProxy<_>, _>, ()| {
-                let output = output.unwrap();
+            [wl_output::WlOutput, 2, |output: NewProxy<_>| {
                 let mut name = "<unknown>".to_owned();
                 let mut modes = Vec::new();
                 let mut scale = 1;
@@ -101,7 +92,7 @@ fn main() {
                             }
                         }
                     }
-                });
+                })
             }]
         ),
     );

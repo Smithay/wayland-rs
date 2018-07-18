@@ -61,16 +61,19 @@ fn attach_null() {
     // Client setup
     //
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(client.display.get_registry().unwrap());
+    let manager = wayc::GlobalManager::new(&client.display);
 
     // Initial sync
     roundtrip(&mut client, &mut server);
 
     let compositor = manager
-        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
-        .unwrap()
-        .implement(|_, _| {});
-    let surface = compositor.create_surface().unwrap().implement(|_, _| {});
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
+            comp.implement(|_, _| {})
+        })
+        .unwrap();
+    let surface = compositor
+        .create_surface(|surface| surface.implement(|_, _| {}))
+        .unwrap();
     surface.attach(None, 0, 0);
 
     roundtrip(&mut client, &mut server);

@@ -17,14 +17,19 @@
 
 #[macro_use]
 extern crate downcast_rs as downcast;
+extern crate nix;
 #[cfg(feature = "native_lib")]
 extern crate wayland_sys;
 #[cfg(feature = "native_lib")]
+use std::os::raw::c_void;
+#[cfg(feature = "native_lib")]
 use wayland_sys::common as syscom;
 
-use std::os::raw::c_void;
-
 use downcast::Downcast;
+
+pub mod map;
+pub mod socket;
+pub mod wire;
 
 /// A group of messages
 ///
@@ -34,10 +39,23 @@ use downcast::Downcast;
 /// Implementations of this trait are supposed to be
 /// generated using the `wayland-scanner` crate.
 pub trait MessageGroup: Sized {
+    /// Wire representation of this MessageGroup
+    const MESSAGES: &'static [wire::MessageDesc];
+    type Map;
     /// Whether this message is a destructor
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
+    /// Retrieve the child `Object` associated with this message if any
+    fn child<Meta: self::map::ObjectMetadata>(
+        opcode: u16,
+        version: u32,
+        meta: &Meta,
+    ) -> Option<::map::Object<Meta>>;
+    /// Construct a message from its raw representation
+    fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
+    /// Turn this message into its raw representation
+    fn into_raw(self, send_id: u32) -> wire::Message;
     #[cfg(feature = "native_lib")]
     /// Construct a message of this group from its C representation
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
@@ -67,6 +85,8 @@ pub trait Interface: 'static {
     type Event: MessageGroup + 'static;
     /// Name of this interface
     const NAME: &'static str;
+    /// Maximum supported version of this interface
+    const VERSION: u32;
     #[cfg(feature = "native_lib")]
     /// Pointer to the C representation of this interface
     fn c_interface() -> *const ::syscom::wl_interface;
@@ -132,7 +152,8 @@ pub enum NoMessage {}
 impl Interface for AnonymousObject {
     type Request = NoMessage;
     type Event = NoMessage;
-    const NAME: &'static str = "";
+    const NAME: &'static str = "<anonymous>";
+    const VERSION: u32 = 0;
     #[cfg(feature = "native_lib")]
     fn c_interface() -> *const ::syscom::wl_interface {
         ::std::ptr::null()
@@ -140,9 +161,21 @@ impl Interface for AnonymousObject {
 }
 
 impl MessageGroup for NoMessage {
+    const MESSAGES: &'static [wire::MessageDesc] = &[];
+    type Map = ();
     fn is_destructor(&self) -> bool {
         match *self {}
     }
+    fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
+        None
+    }
+    fn from_raw(_: wire::Message, map: &mut ()) -> Result<Self, ()> {
+        Err(())
+    }
+    fn into_raw(self, _: u32) -> wire::Message {
+        match self {}
+    }
+    #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(
         _obj: *mut c_void,
         _opcode: u32,
@@ -150,6 +183,7 @@ impl MessageGroup for NoMessage {
     ) -> Result<Self, ()> {
         Err(())
     }
+    #[cfg(feature = "native_lib")]
     fn as_raw_c_in<F, T>(self, _f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,

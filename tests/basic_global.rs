@@ -14,7 +14,7 @@ fn simple_global() {
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(client.display.get_registry().unwrap());
+    let manager = wayc::GlobalManager::new(&client.display);
 
     roundtrip(&mut client, &mut server);
     let globals = manager.list();
@@ -40,7 +40,7 @@ fn multi_versions() {
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(client.display.get_registry().unwrap());
+    let manager = wayc::GlobalManager::new(&client.display);
 
     roundtrip(&mut client, &mut server);
     let globals = manager.list();

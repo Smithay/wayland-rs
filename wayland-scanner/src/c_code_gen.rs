@@ -18,7 +18,7 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup}};\n"
+            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
         )?;
         writeln!(
             out,
@@ -29,11 +29,29 @@ pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -
         let iface_name = snake_to_camel(&iface.name);
 
         write_enums(&iface.enums, out)?;
-        write_messagegroup("Request", Side::Client, false, &iface.requests, out)?;
-        write_messagegroup_impl("Request", Side::Client, false, &iface.requests, out)?;
-        write_messagegroup("Event", Side::Client, true, &iface.events, out)?;
-        write_messagegroup_impl("Event", Side::Client, true, &iface.events, out)?;
-        write_interface(&iface_name, &iface.name, out)?;
+        write_messagegroup(
+            "Request",
+            Side::Client,
+            false,
+            &iface.requests,
+            out,
+            Some(|out: &mut _| messagegroup_c_addon("Request", Side::Client, false, &iface.requests, out)),
+        )?;
+        write_messagegroup(
+            "Event",
+            Side::Client,
+            true,
+            &iface.events,
+            out,
+            Some(|out: &mut _| messagegroup_c_addon("Event", Side::Client, true, &iface.events, out)),
+        )?;
+        write_interface(
+            &iface_name,
+            &iface.name,
+            iface.version,
+            out,
+            Some(|out: &mut _| interface_c_addon(&iface.name, out)),
+        )?;
         write_client_methods(&iface_name, &iface.requests, out)?;
 
         writeln!(out, "}}\n")?;
@@ -59,7 +77,7 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
 
         writeln!(
             out,
-            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup}};\n"
+            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
         )?;
         writeln!(
             out,
@@ -70,11 +88,29 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
         let iface_name = snake_to_camel(&iface.name);
 
         write_enums(&iface.enums, out)?;
-        write_messagegroup("Request", Side::Server, true, &iface.requests, out)?;
-        write_messagegroup_impl("Request", Side::Server, true, &iface.requests, out)?;
-        write_messagegroup("Event", Side::Server, false, &iface.events, out)?;
-        write_messagegroup_impl("Event", Side::Server, false, &iface.events, out)?;
-        write_interface(&iface_name, &iface.name, out)?;
+        write_messagegroup(
+            "Request",
+            Side::Server,
+            true,
+            &iface.requests,
+            out,
+            Some(|out: &mut _| messagegroup_c_addon("Request", Side::Server, true, &iface.requests, out)),
+        )?;
+        write_messagegroup(
+            "Event",
+            Side::Server,
+            false,
+            &iface.events,
+            out,
+            Some(|out: &mut _| messagegroup_c_addon("Event", Side::Server, false, &iface.events, out)),
+        )?;
+        write_interface(
+            &iface_name,
+            &iface.name,
+            iface.version,
+            out,
+            Some(|out: &mut _| interface_c_addon(&iface.name, out)),
+        )?;
 
         writeln!(out, "}}\n")?;
     }
@@ -82,36 +118,13 @@ pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -
     Ok(())
 }
 
-pub fn write_messagegroup_impl<O: Write>(
+pub fn messagegroup_c_addon<O: Write>(
     name: &str,
     side: Side,
     receiver: bool,
     messages: &[Message],
     out: &mut O,
 ) -> IOResult<()> {
-    writeln!(out, "    impl super::MessageGroup for {} {{", name)?;
-
-    // is_destructor
-    writeln!(out, "        fn is_destructor(&self) -> bool {{")?;
-    writeln!(out, "            match *self {{")?;
-    let mut n = messages.len();
-    for msg in messages {
-        if msg.typ == Some(Type::Destructor) {
-            write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
-            if msg.args.len() > 0 {
-                write!(out, "{{ .. }} ")?;
-            }
-            writeln!(out, "=> true,")?;
-            n -= 1;
-        }
-    }
-    if n > 0 {
-        // avoir "unreachable pattern" warnings =)
-        writeln!(out, "                _ => false")?;
-    }
-    writeln!(out, "            }}")?;
-    writeln!(out, "        }}\n")?;
-
     // from_raw_c
     writeln!(out, "        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<{},()> {{", name)?;
     if !receiver {
@@ -375,29 +388,19 @@ pub fn write_messagegroup_impl<O: Write>(
     }
     writeln!(out, "        }}")?;
 
-    writeln!(out, "    }}\n")?;
     Ok(())
 }
 
-fn write_interface<O: Write>(name: &str, low_name: &str, out: &mut O) -> IOResult<()> {
+fn interface_c_addon<O: Write>(low_name: &str, out: &mut O) -> IOResult<()> {
     writeln!(
         out,
         r#"
-    pub struct {name};
-
-    impl Interface for {name} {{
-        type Request = Request;
-        type Event = Event;
-        const NAME: &'static str = "{low_name}";
         fn c_interface() -> *const wl_interface {{
             unsafe {{ &super::super::c_interfaces::{low_name}_interface }}
         }}
-    }}
 "#,
-        name = name,
         low_name = low_name
-    )?;
-    Ok(())
+    )
 }
 
 fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O) -> IOResult<()> {
@@ -427,7 +430,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
     writeln!(out, "    impl RequestsTrait for Proxy<{}> {{", name)?;
     for msg in messages {
         let return_type = print_method_prototype(name, &msg, out)?;
-        writeln!(out, " {{")?;
+        writeln!(out, "")?;
+        writeln!(out, "        {{")?;
         // liveness sanity check
         writeln!(out, "            if !self.is_external() && !self.is_alive() {{")?;
         if return_type.is_some() {
@@ -443,10 +447,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                 if let Some(ref iface) = a.interface {
                     writeln!(
                         out,
-                        "            let _arg_{}_newproxy = self.child::<super::{}::{}>();",
+                        "            let _arg_{}_newproxy = implementor(self.child());",
                         a.name,
-                        iface,
-                        snake_to_camel(&iface)
                     )?;
                     has_newp = true;
                 }
@@ -463,14 +465,8 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
             for a in &msg.args {
                 write!(out, "                ")?;
                 if a.typ == Type::NewId {
-                    if let Some(ref iface) = a.interface {
-                        writeln!(
-                            out,
-                            "{}: unsafe {{ Proxy::<super::{1}::{2}>::from_c_ptr(_arg_{0}_newproxy.c_ptr()) }},",
-                            a.name,
-                            iface,
-                            snake_to_camel(&iface)
-                        )?;
+                    if a.interface.is_some() {
+                        writeln!(out, "{}: _arg_{0}_newproxy.clone(),", a.name,)?;
                     } else {
                         writeln!(out, "{}: (T::NAME.into(), version, unsafe {{ Proxy::<AnonymousObject>::new_null() }}),", a.name)?;
                     }
@@ -504,7 +500,7 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
                         version
                     )
                 }});
-                Ok(NewProxy::<T>::from_c_ptr(ret))
+                Ok(implementor(NewProxy::<T>::from_c_ptr(ret)))
             }}"#
                 )?;
             }
@@ -526,87 +522,4 @@ fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O)
     writeln!(out, "    }}")?;
 
     Ok(())
-}
-
-fn print_method_prototype<'a, O: Write>(
-    iname: &str,
-    msg: &'a Message,
-    out: &mut O,
-) -> IOResult<Option<&'a Arg>> {
-    // detect new_id
-    let mut newid = None;
-    for arg in &msg.args {
-        match arg.typ {
-            Type::NewId => if newid.is_some() {
-                panic!("Request {}.{} returns more than one new_id", iname, msg.name);
-            } else {
-                newid = Some(arg);
-            },
-            _ => (),
-        }
-    }
-
-    // method start
-    match newid {
-        Some(arg) if arg.interface.is_none() => {
-            write!(
-                out,
-                "        fn {}{}<T: Interface>(&self, version: u32",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name,
-            )?;
-        }
-        _ => {
-            write!(
-                out,
-                "        fn {}{}(&self",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name
-            )?;
-        }
-    }
-
-    // print args
-    for arg in &msg.args {
-        write!(
-            out,
-            ", {}{}: {}{}{}",
-            if is_keyword(&arg.name) { "_" } else { "" },
-            arg.name,
-            if arg.allow_null { "Option<" } else { "" },
-            if let Some(ref name) = arg.enum_ {
-                dotted_to_relname(name)
-            } else {
-                match arg.typ {
-                    Type::Object => arg.interface
-                        .as_ref()
-                        .map(|s| format!("&Proxy<super::{}::{}>", s, snake_to_camel(s)))
-                        .unwrap_or(format!("&Proxy<super::AnonymousObject>")),
-                    Type::NewId => {
-                        // client-side, the return-type handles that
-                        continue;
-                    }
-                    _ => arg.typ.rust_type().into(),
-                }
-            },
-            if arg.allow_null { ">" } else { "" }
-        )?;
-    }
-    write!(out, ") ->")?;
-
-    // return type
-    write!(
-        out,
-        "{}",
-        if let Some(arg) = newid {
-            arg.interface
-                .as_ref()
-                .map(|s| format!("Result<NewProxy<super::{}::{}>, ()>", s, snake_to_camel(s)))
-                .unwrap_or("Result<NewProxy<T>, ()>".into())
-        } else {
-            "()".into()
-        }
-    )?;
-
-    Ok(newid)
 }
