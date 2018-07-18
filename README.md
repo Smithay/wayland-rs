@@ -2,21 +2,31 @@
 [![Build Status](https://travis-ci.org/Smithay/wayland-rs.svg?branch=master)](https://travis-ci.org/Smithay/wayland-rs)
 [![codecov](https://codecov.io/gh/Smithay/wayland-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/Smithay/wayland-rs)
 
-# Wayland client
+# Wayland rust crates
 
-These are bindings to the [reference implementation](http://wayland.freedesktop.org/)
-of the wayland protocol. This is not a pure rust implementation of the wayland
-protocol, and thus requires `libwayland-client.so` to be available.
+This project contains rust crates for using the wayland protocol, both client side and server side.
 
-This repository actually hosts 6 crates. The 4 main crates you'll likely want to use:
+There are two ways to use them:
+
+- By default, they use a pure rust implementation of the protocol
+- If you set the `native_lib` cargo feature, they will rather act as bindings on top of the wayland system C
+  libraries, and this will add methods to access pointers to the C objects in the API. You'll need to use this
+  feature if you need to interact with a C library that requires wayland objects (typically to intialize an
+  OpenGL context)
+
+If you use the `native_lib` feature, the crates thus obviously require that the wayland C libs are installed
+on your system. You can however require that they are dynamically loaded at startup rather than directly
+linked by setting the `dlopen` flag. This can be useful if you want to ship a binary that should gracelly
+handle the absence of these libs (by fallbacking to X11 for example).
+
+This repository actually hosts 6 crates. The 3 main crates you'll likely want to use:
 
 - *wayland-client* and *wayland-server* are the main crates for client and server side bindings
 - *wayland-protocols* regroups bindings on the official protocol extentions available
-- *wayland-commons* contains various definitions that are used by the other crates. It is re-exported in both
-  *wayland-client* and *wayland-server*.
 
 And 2 internal crates, that you'll need only for integrating a custom protocol extension:
 
+- *wayland-commons* contains the protocol logic that can be shared between client-side and server-side
 - *wayland-sys* is the actual C bindings, on which the crates are built
 - *wayland-scanner* is the crate used to convert the XML protocol specifications into rust code
 
@@ -35,4 +45,5 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 ## Requirements
 
-Requires at least rust 1.21 to be used, and version 1.12 of the wayland system libraries.
+Requires at least rust 1.21 to be used, and version 1.12 of the wayland system libraries if using the
+`native_lib` cargo feature.

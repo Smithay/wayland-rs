@@ -1,6 +1,6 @@
 [package]
 name = "wayland-commons"
-version = "0.20.11"
+version = "0.21.0-alpha1"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://smithay.github.io/wayland-rs/wayland_commons/"
@@ -13,7 +13,7 @@ keywords = ["wayland"]
 travis-ci = { repository = "smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.20.11", path = "../wayland-sys", optional = true }
+wayland-sys = { version = "0.21.0-alpha1", path = "../wayland-sys", optional = true }
 downcast-rs = "1.0"
 nix = "0.11"
 

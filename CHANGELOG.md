@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+# 0.21.0-alpha1 - 2018-07-18
+
+- Complete refactor of the library to integrate a pure rust implementation of the protocol,
+  controlled by the `native_lib` switch cargo feature
+
 # 0.20.11 - 2018-07-17
 
 - [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
