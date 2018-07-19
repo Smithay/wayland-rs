@@ -64,8 +64,10 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --features "" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF rust_impl
-        cargo tarpaulin --features "native_lib" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF native_lib
+        cargo tarpaulin --all --features "" --ignore-tests --out Xml
+        bash <(curl -s https://codecov.io/bash) -cF rust_impl
+        cargo tarpaulin --all --features "native_lib" --ignore-tests --out Xml
+        bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
