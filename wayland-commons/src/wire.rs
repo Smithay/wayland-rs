@@ -232,7 +232,7 @@ impl Message {
         let opcode = (word_2 & 0x0000FFFF) as u16;
         let len = (word_2 >> 16) as usize / 4;
 
-        if len < 2 {
+        if len < 2 || len > raw.len() {
             return Err(MessageParseError::Malformed);
         }
 
