@@ -4,8 +4,6 @@ cache: cargo
 
 dist: trusty
 
-sudo: required
-
 rust:
   - 1.21.0
   - stable
@@ -23,13 +21,8 @@ matrix:
     - rust: stable
       env: BUILD_FMT=1
     - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES=""
-    - rust: stable
-      env:
-        - TARPAULIN=1
-        - FEATURES="native_lib"
+      env: TARPAULIN=1
+      sudo: required
     - rust: stable
       env: BUILD_DOC=1
 
@@ -48,6 +41,8 @@ before_script:
         which cargo-install-update || cargo install cargo-update
         cargo install-update cargo-update
         env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
+        # sanity check, tarpaulin may fail to run after a rust upgrade and then needs recompilation
+        cargo tarpaulin --version || env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.12.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
@@ -67,7 +62,8 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --write-mode=diff
       elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --features "$FEATURES" --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+        cargo tarpaulin --features "" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF rust_impl
+        cargo tarpaulin --features "native_lib" --ignore-tests --out Xml && bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       else
