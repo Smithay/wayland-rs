@@ -4,6 +4,8 @@ cache: cargo
 
 dist: trusty
 
+sudo: false
+
 rust:
   - 1.21.0
   - stable
@@ -22,7 +24,7 @@ matrix:
       env: BUILD_FMT=1
     - rust: stable
       env: TARPAULIN=1
-      sudo: required
+      sudo: true
     - rust: stable
       env: BUILD_DOC=1
 
