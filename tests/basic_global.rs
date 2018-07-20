@@ -2,7 +2,6 @@ mod helpers;
 
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
-use wayc::protocol::wl_display::RequestsTrait;
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 
 #[test]
