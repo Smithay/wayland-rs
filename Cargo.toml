@@ -2,6 +2,7 @@
 name = "wayland-test"
 version = "0.0.1"
 publish = false
+autotests = true
 
 [dependencies]
 wayland-scanner = { path = "./wayland-scanner" }
@@ -18,3 +19,7 @@ members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server"
 
 [features]
 native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protocols/native_lib"]
+
+[[test]]
+harness = false
+name = "event_loop_signal"
