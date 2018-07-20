@@ -53,44 +53,6 @@ fn dispatch_idle() {
     assert!(dispatched.get());
 }
 
-// This test cannot run as-is because cargo test spawns a new thread to run the
-// test, failing the sigprocmask...
-#[test]
-#[ignore]
-fn signal_event() {
-    use nix::sys::signal::{kill, sigprocmask, SigSet, SigmaskHow, Signal};
-    use nix::unistd::Pid;
-
-    let mut event_loop = EventLoop::new();
-
-    let signal_received = Rc::new(Cell::new(false));
-
-    // block USR1
-    let mut sigset = SigSet::empty();
-    sigset.add(Signal::SIGUSR1);
-    sigprocmask(SigmaskHow::SIG_BLOCK, Some(&sigset), None);
-
-    // add a signal event source for it
-    let signal_source = event_loop
-        .token()
-        .add_signal_event_source(Signal::SIGUSR1, {
-            let signal = signal_received.clone();
-            move |SignalEvent(sig), ()| {
-                assert!(sig == Signal::SIGUSR1);
-                signal.set(true);
-            }
-        })
-        .map_err(|(e, _)| e)
-        .unwrap();
-
-    // send ourselves a SIGUSR1
-    kill(Pid::this(), Signal::SIGUSR1);
-
-    event_loop.dispatch(Some(10));
-
-    assert!(signal_received.get());
-}
-
 #[test]
 fn event_loop_run() {
     let mut event_loop = EventLoop::new();
