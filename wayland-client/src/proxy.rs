@@ -36,13 +36,13 @@ impl<I: Interface> Clone for Proxy<I> {
     }
 }
 
-impl <I: Interface> PartialEq for Proxy<I> {
+impl<I: Interface> PartialEq for Proxy<I> {
     fn eq(&self, other: &Proxy<I>) -> bool {
         self.equals(other)
     }
 }
 
-impl <I: Interface> Eq for Proxy<I> {}
+impl<I: Interface> Eq for Proxy<I> {}
 
 impl<I: Interface> Proxy<I> {
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {

@@ -23,13 +23,13 @@ pub struct Resource<I: Interface> {
     inner: ResourceInner,
 }
 
-impl <I: Interface> PartialEq for Resource<I> {
+impl<I: Interface> PartialEq for Resource<I> {
     fn eq(&self, other: &Resource<I>) -> bool {
         self.equals(other)
     }
 }
 
-impl <I: Interface> Eq for Resource<I> {}
+impl<I: Interface> Eq for Resource<I> {}
 
 impl<I: Interface> Resource<I> {
     pub(crate) fn wrap(inner: ResourceInner) -> Resource<I> {
