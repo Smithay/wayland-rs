@@ -56,6 +56,13 @@ impl Display {
     where
         Impl: Implementation<NewResource<I>, u32> + 'static,
     {
+        assert!(
+            version <= I::VERSION,
+            "Cannot create global {} with version {}, maximum protocol version is {}.",
+            I::NAME,
+            I::VERSION,
+            version
+        );
         Global::create(
             self.inner
                 .borrow_mut()

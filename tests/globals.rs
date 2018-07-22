@@ -172,6 +172,16 @@ fn auto_instanciate() {
 }
 
 #[test]
+#[should_panic]
+fn wrong_version_create_global() {
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    server
+        .display
+        .create_global::<ServerCompositor, _>(&loop_token, 42, |_, _| {});
+}
+
+#[test]
 fn wrong_global() {
     use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
     use wayc::protocol::wl_output::WlOutput;
