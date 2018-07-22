@@ -21,7 +21,7 @@ pub struct GlobalManager {
 }
 
 /// An error that occured trying to bind a global
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum GlobalError {
     /// The requested global was missing
     Missing,

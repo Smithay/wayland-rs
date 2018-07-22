@@ -64,7 +64,7 @@ fn attach_null() {
     let manager = wayc::GlobalManager::new(&client.display);
 
     // Initial sync
-    roundtrip(&mut client, &mut server);
+    roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
         .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
@@ -76,7 +76,7 @@ fn attach_null() {
         .unwrap();
     surface.attach(None, 0, 0);
 
-    roundtrip(&mut client, &mut server);
+    roundtrip(&mut client, &mut server).unwrap();
 
     assert!(*seen_surface.lock().unwrap());
 }

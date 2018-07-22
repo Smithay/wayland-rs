@@ -25,14 +25,14 @@ native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protoco
 name = "attach_null_to_surface"
 
 [[test]]
-name = "basic_global"
-
-[[test]]
 name = "event_loop"
 
 [[test]]
 name = "event_loop_signal"
 harness = false
+
+[[test]]
+name = "globals"
 
 [[test]]
 name = "scanner"

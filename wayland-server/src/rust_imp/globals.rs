@@ -188,7 +188,7 @@ fn send_new_global(registries: &[(u32, ClientInner)], global_id: u32, interface:
 
 fn send_destroyed_global(registries: &[(u32, ClientInner)], global_id: u32) {
     for &(id, ref client) in registries {
-        if let Some(mut clientconn) = client.data.lock().unwrap().take() {
+        if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
             let _ = clientconn.write_message(&Message {
                 sender_id: id,
                 opcode: 1,
