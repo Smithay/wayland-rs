@@ -3,8 +3,8 @@ mod helpers;
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
-use ways::protocol::wl_shell::WlShell as ServerShell;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
+use ways::protocol::wl_shell::WlShell as ServerShell;
 
 use std::sync::{Arc, Mutex};
 
@@ -63,7 +63,7 @@ fn dynamic_global() {
     server
         .display
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-    
+
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
 
@@ -80,7 +80,7 @@ fn dynamic_global() {
     let output = server
         .display
         .create_global::<ServerOutput, _>(&loop_token, 1, |_, _| {});
-    
+
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 3);
 
@@ -102,14 +102,13 @@ fn global_manager_cb() {
 
     let counter = Arc::new(Mutex::new(0));
     let counter2 = counter.clone();
-    
+
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new_with_cb(
-        &client.display,
-        move |event, _| if let GlobalEvent::New{ .. } = event {
+    let manager = wayc::GlobalManager::new_with_cb(&client.display, move |event, _| {
+        if let GlobalEvent::New { .. } = event {
             *(counter2.lock().unwrap()) += 1;
         }
-    );
+    });
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -131,8 +130,8 @@ fn global_manager_cb() {
 #[test]
 fn auto_instanciate() {
     use wayc::protocol::wl_compositor::WlCompositor;
-    use wayc::protocol::wl_shell::WlShell;
     use wayc::protocol::wl_output::WlOutput;
+    use wayc::protocol::wl_shell::WlShell;
     use wayc::GlobalError;
 
     let mut server = TestServer::new();
@@ -143,40 +142,56 @@ fn auto_instanciate() {
     server
         .display
         .create_global::<ServerShell, _>(&loop_token, 1, |_, _| {});
-    
+
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let compositor = manager.instantiate_auto::<WlCompositor, _>(|newp| newp.implement(|_, _| {})).unwrap();
+    let compositor = manager
+        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement(|_, _| {}))
+        .unwrap();
     assert!(compositor.version() == 4);
-    let shell = manager.instantiate_auto::<WlShell, _>(|newp| newp.implement(|_, _| {})).unwrap();
+    let shell = manager
+        .instantiate_auto::<WlShell, _>(|newp| newp.implement(|_, _| {}))
+        .unwrap();
     assert!(shell.version() == 1);
 
-    assert!(manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement(|_, _| {})) == Err(GlobalError::VersionTooLow(4)));
-    assert!(manager.instantiate_exact::<WlOutput, _>(5, |newp| newp.implement(|_, _| {})) == Err(GlobalError::Missing));
-    assert!(manager.instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {})) == Err(GlobalError::Missing));
+    assert!(
+        manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement(|_, _| {}))
+            == Err(GlobalError::VersionTooLow(4))
+    );
+    assert!(
+        manager.instantiate_exact::<WlOutput, _>(5, |newp| newp.implement(|_, _| {}))
+            == Err(GlobalError::Missing)
+    );
+    assert!(
+        manager.instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}))
+            == Err(GlobalError::Missing)
+    );
 }
 
 #[test]
 fn wrong_global() {
     use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
     use wayc::protocol::wl_output::WlOutput;
+    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
     let loop_token = server.event_loop.token();
     server
         .display
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-    
+
     let mut client = TestClient::new(&server.socket_name);
-    let registry = client.display.get_registry(|newp| newp.implement(|_, _| {})).unwrap();
+    let registry = client
+        .display
+        .get_registry(|newp| newp.implement(|_, _| {}))
+        .unwrap();
 
     // instanciate a wrong global, this shoudl kill the client
 
-    registry.bind::<WlOutput,_>(2,1, |newp| newp.implement(|_,_| {}));
+    registry.bind::<WlOutput, _>(2, 1, |newp| newp.implement(|_, _| {}));
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
