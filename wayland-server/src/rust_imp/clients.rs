@@ -279,6 +279,12 @@ impl ClientManager {
         // process any pending messages before inserting it into the event loop
         implementation.process_messages();
 
+        if !client.alive() {
+            // client already made a protocol error and we killed it, there is no point
+            // inserting it in the event loop
+            return client;
+        }
+
         let source = match self.sources_poll.insert_source(
             fd,
             Ready::readable(),

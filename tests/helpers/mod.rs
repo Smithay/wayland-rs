@@ -8,6 +8,7 @@ pub extern crate wayland_server as ways;
 
 use std::cell::Cell;
 use std::ffi::{OsStr, OsString};
+use std::io;
 use std::rc::Rc;
 
 pub struct TestServer {
@@ -53,7 +54,7 @@ impl TestClient {
     }
 }
 
-pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) {
+pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result<()> {
     use self::wayc::protocol::wl_display::RequestsTrait;
     // send to the server
     let done = Rc::new(Cell::new(false));
@@ -64,14 +65,15 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) {
         .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), &token) })
         .unwrap();
     while !done.get() {
-        client.display.flush().unwrap();
+        client.display.flush()?;
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // make it answer messages
         server.answer();
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
-        client.event_queue.dispatch_pending().unwrap();
-        client.event_queue.prepare_read().unwrap().read_events().unwrap();
-        client.event_queue.dispatch_pending().unwrap();
+        client.event_queue.dispatch_pending()?;
+        client.event_queue.prepare_read().unwrap().read_events()?;
+        client.event_queue.dispatch_pending()?;
     }
+    Ok(())
 }
