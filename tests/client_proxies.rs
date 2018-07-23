@@ -109,3 +109,26 @@ fn proxy_is_implemented() {
     assert!(compositor3.is_implemented_with::<CompImpl1>());
     assert!(!compositor3.is_implemented_with::<CompImpl2>());
 }
+
+#[test]
+fn proxy_wrapper() {
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    server
+        .display
+        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+
+    let mut event_queue_2 = client.display.create_event_queue();
+    let manager = wayc::GlobalManager::new(&client.display.make_wrapper(&event_queue_2.get_token()).unwrap());
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // event_queue_2 has not been dispatched
+    assert!(manager.list().len() == 0);
+
+    event_queue_2.dispatch_pending();
+
+    assert!(manager.list().len() == 1);
+}

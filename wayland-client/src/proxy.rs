@@ -162,6 +162,25 @@ impl<I: Interface> Proxy<I> {
     {
         self.inner.is_implemented_with::<I, Impl>()
     }
+
+    /// Create a wrapper for this object for queue management
+    ///
+    /// As assigning a proxy to an event queue can be a racy operation
+    /// in contextes involving multiple thread, this provides a facility
+    /// to do this safely.
+    ///
+    /// The wrapper object created behaves like a regular `Proxy`, except that
+    /// all objects created as the result of its requests will be assigned to
+    /// the queue associated to the provided token, rather than the queue of
+    /// their parent. This does not change the queue of the proxy itself.
+    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
+        let inner = self.inner.make_wrapper(&queue.inner)?;
+
+        Ok(Proxy {
+            _i: ::std::marker::PhantomData,
+            inner,
+        })
+    }
 }
 
 #[cfg(feature = "native_lib")]
@@ -214,25 +233,6 @@ impl<I: Interface> Proxy<I> {
             _i: ::std::marker::PhantomData,
             inner: ProxyInner::new_null(),
         }
-    }
-
-    /// Create a wrapper for this object for queue management
-    ///
-    /// As assigning a proxy to an event queue can be a racy operation
-    /// in contextes involving multiple thread, this provides a facility
-    /// to do this safely.
-    ///
-    /// The wrapper object created behaves like a regular `Proxy`, except that
-    /// all objects created as the result of its requests will be assigned to
-    /// the queue associated to the provided token, rather than the queue of
-    /// their parent. This does not change the queue of the proxy itself.
-    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
-        let inner = self.inner.make_wrapper(&queue.inner)?;
-
-        Ok(Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        })
     }
 }
 
