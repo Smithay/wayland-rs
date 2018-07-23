@@ -52,6 +52,15 @@ impl TestClient {
             event_queue: event_queue,
         }
     }
+
+    pub fn new_auto() -> TestClient {
+        let (display, event_queue) =
+            self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
+        TestClient {
+            display: display,
+            event_queue: event_queue,
+        }
+    }
 }
 
 pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result<()> {
