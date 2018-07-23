@@ -34,6 +34,9 @@ name = "client_connect_to_socket"
 harness = false
 
 [[test]]
+name = "client_proxies"
+
+[[test]]
 name = "event_loop"
 
 [[test]]

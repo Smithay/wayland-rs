@@ -104,7 +104,7 @@ impl ProxyInner {
     }
 
     pub fn get_user_data(&self) -> *mut () {
-        self.object.meta.user_data.load(Ordering::Release)
+        self.object.meta.user_data.load(Ordering::Acquire)
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
