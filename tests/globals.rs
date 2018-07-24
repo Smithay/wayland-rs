@@ -104,10 +104,9 @@ fn global_manager_cb() {
     let counter2 = counter.clone();
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new_with_cb(&client.display, move |event, _| {
-        if let GlobalEvent::New { .. } = event {
-            *(counter2.lock().unwrap()) += 1;
-        }
+    let manager = wayc::GlobalManager::new_with_cb(&client.display, move |event, _| match event {
+        GlobalEvent::New { .. } => *(counter2.lock().unwrap()) += 1,
+        GlobalEvent::Removed { .. } => *(counter2.lock().unwrap()) -= 1,
     });
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -118,13 +117,21 @@ fn global_manager_cb() {
     server
         .display
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-    server
+    let comp = server
         .display
         .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
 
     roundtrip(&mut client, &mut server).unwrap();
 
+    assert!(manager.list().len() == 4);
     assert!(*counter.lock().unwrap() == 4);
+
+    comp.destroy();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    assert!(manager.list().len() == 3);
+    assert!(*counter.lock().unwrap() == 3);
 }
 
 #[test]
