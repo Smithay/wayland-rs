@@ -3,6 +3,8 @@ use wayland_sys::server::wl_client;
 
 use imp::ClientInner;
 
+use {Interface, NewResource};
+
 /// A handle to a client connected to your server
 ///
 /// There can be several handles referring to the same client
@@ -80,5 +82,9 @@ impl Client {
     /// `get_user_data`.
     pub fn set_destructor(&self, destructor: fn(*mut ())) {
         self.inner.set_destructor(destructor)
+    }
+
+    pub fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResource<I>> {
+        self.inner.create_resource::<I>(version).map(NewResource::wrap)
     }
 }
