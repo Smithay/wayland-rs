@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::ffi::CString;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
@@ -14,11 +13,11 @@ use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
 use sources::{FdEvent, FdInterest};
-use Implementation;
+use {Implementation, Interface};
 
 use super::event_loop::SourcesPoll;
 use super::globals::GlobalManager;
-use super::resources::{ObjectMeta, ResourceInner};
+use super::resources::{NewResourceInner, ObjectMeta, ResourceInner};
 use super::SourceInner;
 
 #[derive(Clone, Debug)]
@@ -233,6 +232,23 @@ impl ClientInner {
             });
         }
         self.kill();
+    }
+
+    pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResourceInner> {
+        let (id, map) = {
+            if let Some(ref cx) = *self.data.lock().unwrap() {
+                (
+                    cx.map
+                        .lock()
+                        .unwrap()
+                        .server_insert_new(Object::from_interface::<I>(version, ObjectMeta::new())),
+                    cx.map.clone(),
+                )
+            } else {
+                return None;
+            }
+        };
+        Some(NewResourceInner::from_id(id, map, self.clone()).unwrap())
     }
 }
 

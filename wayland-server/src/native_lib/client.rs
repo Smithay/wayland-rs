@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use wayland_sys::server::*;
 
+use super::resource::NewResourceInner;
+use Interface;
+
 pub(crate) struct ClientInternal {
     alive: AtomicBool,
     user_data: AtomicPtr<()>,
@@ -103,6 +106,23 @@ impl ClientInner {
         self.internal
             .destructor
             .store(destructor as *const () as *mut (), Ordering::Release);
+    }
+
+    pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResourceInner> {
+        if !self.alive() {
+            return None;
+        }
+        unsafe {
+            let ptr = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_create,
+                self.ptr(),
+                I::c_interface(),
+                version as i32,
+                0
+            );
+            Some(NewResourceInner::from_c_ptr(ptr))
+        }
     }
 }
 

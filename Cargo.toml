@@ -51,3 +51,6 @@ name = "scanner"
 
 [[test]]
 name = "send_sync"
+
+[[test]]
+name = "server_created_object"
