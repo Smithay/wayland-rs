@@ -160,6 +160,7 @@ impl Interface for AnonymousObject {
     }
 }
 
+#[cfg_attr(tarpaulin, skip)]
 impl MessageGroup for NoMessage {
     const MESSAGES: &'static [wire::MessageDesc] = &[];
     type Map = ();
