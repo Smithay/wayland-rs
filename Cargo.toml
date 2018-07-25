@@ -12,6 +12,7 @@ wayland-protocols = { path = "./wayland-protocols", features = ["client", "serve
 
 [dev-dependencies]
 difference = "2.0"
+tempfile = "2.0"
 nix = "0.11"
 
 [workspace]
@@ -23,7 +24,7 @@ native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protoco
 # Manual list of the tests, required because some need `harness = false`
 
 [[test]]
-name = "attach_null_to_surface"
+name = "attach_to_surface"
 
 [[test]]
 name = "client_connect_to_env"
