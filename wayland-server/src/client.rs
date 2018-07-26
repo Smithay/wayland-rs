@@ -84,6 +84,12 @@ impl Client {
         self.inner.set_destructor(destructor)
     }
 
+    /// Create a new resource for this client
+    ///
+    /// To ensure the state coherence between client and server, this
+    /// resource should immediatly be implemented and sent to the client
+    /// through and appropriate event. Failure to do so will likely cause
+    /// protocol errors.
     pub fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResource<I>> {
         self.inner.create_resource::<I>(version).map(NewResource::wrap)
     }

@@ -37,6 +37,7 @@ pub(crate) struct ClientConnection {
     user_data: UserData,
     destructor: Option<fn(*mut ())>,
     last_error: Option<Error>,
+    pending_destructors: Vec<ResourceInner>,
 }
 
 impl ClientConnection {
@@ -53,6 +54,23 @@ impl ClientConnection {
             user_data: UserData(::std::ptr::null_mut()),
             destructor: None,
             last_error: None,
+            pending_destructors: Vec::new(),
+        }
+    }
+
+    pub(crate) fn schedule_destructor(&mut self, resource: ResourceInner) {
+        self.pending_destructors.push(resource);
+    }
+
+    pub(crate) fn call_destructors(&mut self) {
+        for resource in self.pending_destructors.drain(..) {
+            resource
+                .object
+                .meta
+                .dispatcher
+                .lock()
+                .unwrap()
+                .destroy(resource.clone());
         }
     }
 
@@ -192,6 +210,7 @@ impl ClientInner {
     pub(crate) fn kill(&self) {
         if let Some(mut clientconn) = self.data.lock().unwrap().take() {
             let _ = clientconn.socket.flush();
+            clientconn.call_destructors();
             let _ = ::nix::unistd::close(clientconn.socket.into_socket().into_raw_fd());
             if let Some(destructor) = clientconn.destructor {
                 destructor(clientconn.user_data.0);
@@ -332,8 +351,8 @@ impl ClientManager {
         // flush all clients and cleanup dead ones
         self.clients.retain(|&(ref s, ref c)| {
             if let Some(ref mut data) = *c.data.lock().unwrap() {
-                let _ = data.flush();
-                true
+                data.call_destructors();
+                data.flush().is_ok()
             } else {
                 // This is a dead client, clean it up
                 if let Some(source) = s.borrow_mut().take() {
@@ -467,7 +486,7 @@ impl ClientImplementation {
                         return;
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     // on error, kill the client
                     self.inner.kill();
                     return;
@@ -533,6 +552,8 @@ impl super::Dispatcher for DisplayDispatcher {
         }
         Ok(())
     }
+
+    fn destroy(&mut self, _resource: ResourceInner) {}
 }
 
 struct RegistryDispatcher {
@@ -572,6 +593,8 @@ impl super::Dispatcher for RegistryDispatcher {
             map.client.clone(),
         )
     }
+
+    fn destroy(&mut self, _resource: ResourceInner) {}
 }
 
 // These unsafe impl is "technically wrong", but actually right for the same
