@@ -94,6 +94,8 @@ impl ResourceInner {
             let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
             if destructor {
                 self.object.meta.alive.store(false, Ordering::Release);
+                // schedule a destructor
+                conn_lock.schedule_destructor(self.clone());
                 // send delete_id
                 let _ = conn_lock.delete_id(self.id);
             }
@@ -177,7 +179,7 @@ impl NewResourceInner {
         self,
         implementation: Impl,
         destructor: Option<Dest>,
-        token: Option<&EventLoopInner>,
+        _token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
@@ -185,7 +187,7 @@ impl NewResourceInner {
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {
-            obj.meta.dispatcher = super::make_dispatcher(implementation);
+            obj.meta.dispatcher = super::make_dispatcher(implementation, destructor);
             obj.clone()
         });
 

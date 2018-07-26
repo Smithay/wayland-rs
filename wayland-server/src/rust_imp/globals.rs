@@ -46,7 +46,7 @@ impl GlobalManager {
 
     pub(crate) fn add_global<I: Interface, Impl>(
         &mut self,
-        event_loop: &EventLoopInner,
+        _event_loop: &EventLoopInner,
         version: u32,
         implementation: Impl,
     ) -> GlobalInner<I>
