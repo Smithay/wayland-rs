@@ -1,6 +1,5 @@
 use std::io;
 use std::os::unix::io::RawFd;
-use std::ptr;
 use std::sync::Arc;
 
 use protocol::wl_display::WlDisplay;

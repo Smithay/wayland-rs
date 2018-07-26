@@ -8,13 +8,20 @@ pub(crate) use self::proxy::{NewProxyInner, ProxyInner};
 
 use {Interface, NewProxy, Proxy};
 
+/// This type only exists for type-level compatibility
+/// with the rust implementation.
+///
+/// It is an empty enum that cannot be instanciated
 pub enum ProxyMap {}
 
 impl ProxyMap {
-    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Proxy<I>> {
+    /// Unusable method only existing for type-level compatibility
+    pub fn get<I: Interface>(&mut self, _: u32) -> Option<Proxy<I>> {
         match *self {}
     }
-    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewProxy<I>> {
+
+    /// Unusable method only existing for type-level compatibility
+    pub fn get_new<I: Interface>(&mut self, _: u32) -> Option<NewProxy<I>> {
         match *self {}
     }
 }

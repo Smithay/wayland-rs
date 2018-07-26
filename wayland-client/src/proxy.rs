@@ -45,6 +45,7 @@ impl<I: Interface> PartialEq for Proxy<I> {
 impl<I: Interface> Eq for Proxy<I> {}
 
 impl<I: Interface> Proxy<I> {
+    #[allow(dead_code)]
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
@@ -265,6 +266,7 @@ pub struct NewProxy<I: Interface> {
 }
 
 impl<I: Interface + 'static> NewProxy<I> {
+    #[allow(dead_code)]
     pub(crate) fn wrap(inner: NewProxyInner) -> NewProxy<I> {
         NewProxy {
             _i: ::std::marker::PhantomData,

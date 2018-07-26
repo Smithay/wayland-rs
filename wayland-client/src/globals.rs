@@ -201,8 +201,18 @@ impl GlobalManager {
     }
 }
 
+/// A trait for implementation of the global advertizement
+///
+/// It is automatically implemented for `FnMut(NewProxy<I>) -> Proxy<I>`
+/// closures, in which case the `error` messages are ignored.
 pub trait GlobalImplementor<I: Interface> {
+    /// A new global of given interface has been instanciated and you are
+    /// supposed to provide an implementation for it.
     fn new_global(&mut self, global: NewProxy<I>) -> Proxy<I>;
+    /// A global was advertized but its version was lower than the minimal version
+    /// you requested.
+    ///
+    /// The advertized version is provided as argument.
     fn error(&mut self, _version: u32) {}
 }
 
