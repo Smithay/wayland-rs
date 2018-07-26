@@ -60,17 +60,22 @@ impl GlobalManager {
             destroyed: Rc::new(Cell::new(false)),
             implem: Box::new(move |newid, version, client| {
                 // insert the object in the map, and call the global bind callback
-                if let Some(ref clientconn) = *client.data.lock().unwrap() {
+                // This is done in two times to ensure the client lock is not locked during
+                // the callback
+                let map = if let Some(ref clientconn) = *client.data.lock().unwrap() {
                     clientconn
                         .map
                         .lock()
                         .unwrap()
                         .insert_at(newid, Object::from_interface::<I>(version, ObjectMeta::new()))?;
+                    Some(clientconn.map.clone())
+                } else {
+                    None
+                };
+                if let Some(map) = map {
                     implem.borrow_mut().receive(
                         version,
-                        NewResource::wrap(
-                            NewResourceInner::from_id(newid, clientconn.map.clone(), client.clone()).unwrap(),
-                        ),
+                        NewResource::wrap(NewResourceInner::from_id(newid, map, client.clone()).unwrap()),
                     )
                 }
                 Ok(())

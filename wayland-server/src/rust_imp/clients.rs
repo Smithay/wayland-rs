@@ -38,10 +38,15 @@ pub(crate) struct ClientConnection {
     destructor: Option<fn(*mut ())>,
     last_error: Option<Error>,
     pending_destructors: Vec<ResourceInner>,
+    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
 }
 
 impl ClientConnection {
-    unsafe fn new(fd: RawFd, display_object: Object<ObjectMeta>) -> ClientConnection {
+    unsafe fn new(
+        fd: RawFd,
+        display_object: Object<ObjectMeta>,
+        zombies: Arc<Mutex<Vec<ClientConnection>>>,
+    ) -> ClientConnection {
         let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
 
         let mut map = ObjectMap::new();
@@ -55,6 +60,7 @@ impl ClientConnection {
             destructor: None,
             last_error: None,
             pending_destructors: Vec::new(),
+            zombie_clients: zombies,
         }
     }
 
@@ -185,6 +191,25 @@ impl ClientConnection {
 
         Ok(Some(msg))
     }
+
+    fn cleanup(self) {
+        let dummy_client = ClientInner {
+            data: Arc::new(Mutex::new(None)),
+        };
+        self.map.lock().unwrap().with_all(|id, obj| {
+            let resource = ResourceInner {
+                id,
+                object: obj.clone(),
+                map: self.map.clone(),
+                client: dummy_client.clone(),
+            };
+            obj.meta.dispatcher.lock().unwrap().destroy(resource);
+        });
+        let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
+        if let Some(destructor) = self.destructor {
+            destructor(self.user_data.0);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -210,11 +235,9 @@ impl ClientInner {
     pub(crate) fn kill(&self) {
         if let Some(mut clientconn) = self.data.lock().unwrap().take() {
             let _ = clientconn.socket.flush();
-            clientconn.call_destructors();
-            let _ = ::nix::unistd::close(clientconn.socket.into_socket().into_raw_fd());
-            if let Some(destructor) = clientconn.destructor {
-                destructor(clientconn.user_data.0);
-            }
+            // call all objects destructors
+            let zombies = clientconn.zombie_clients.clone();
+            zombies.lock().unwrap().push(clientconn);
         }
     }
 
@@ -274,6 +297,7 @@ impl ClientInner {
 pub(crate) struct ClientManager {
     sources_poll: SourcesPoll,
     clients: Vec<(RefCell<Option<SourceInner<FdEvent>>>, ClientInner)>,
+    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
@@ -282,6 +306,7 @@ impl ClientManager {
         ClientManager {
             sources_poll,
             clients: Vec::new(),
+            zombie_clients: Arc::new(Mutex::new(Vec::new())),
             global_mgr,
         }
     }
@@ -299,7 +324,7 @@ impl ClientManager {
             childs_from_requests: display_req_child,
         };
 
-        let cx = ClientConnection::new(fd, display_object);
+        let cx = ClientConnection::new(fd, display_object, self.zombie_clients.clone());
         let map = cx.map.clone();
 
         let client = ClientInner {
@@ -361,6 +386,11 @@ impl ClientManager {
                 false
             }
         });
+
+        let mut guard = self.zombie_clients.lock().unwrap();
+        for zombie in guard.drain(..) {
+            zombie.cleanup();
+        }
     }
 }
 

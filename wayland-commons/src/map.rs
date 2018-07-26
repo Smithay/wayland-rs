@@ -160,6 +160,20 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
             }
         }
     }
+
+    /// Mutably access all objects of the map in sequence
+    pub fn with_all<F: FnMut(u32, &mut Object<Meta>)>(&mut self, mut f: F) {
+        for (id, place) in self.client_objects.iter_mut().enumerate() {
+            if let Some(ref mut obj) = *place {
+                f(id as u32 + 1, obj);
+            }
+        }
+        for (id, place) in self.server_objects.iter_mut().enumerate() {
+            if let Some(ref mut obj) = *place {
+                f(id as u32 + 1 + SERVER_ID_LIMIT, obj);
+            }
+        }
+    }
 }
 
 // insert a new object in a store at the first free place
