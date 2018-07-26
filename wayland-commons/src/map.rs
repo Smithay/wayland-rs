@@ -5,7 +5,12 @@ use {Interface, MessageGroup};
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF000000;
 
+/// A trait representing the metadata a wayland implementation
+/// may attach to an object.
 pub trait ObjectMetadata: Clone {
+    /// Create the metadata for a child object
+    ///
+    /// Mostly needed for client side, to propagate the event queues
     fn child(&self) -> Self;
 }
 
@@ -56,7 +61,9 @@ impl<Meta: ObjectMetadata> Object<Meta> {
         (self.childs_from_requests)(opcode, self.version, &self.meta)
     }
 
+    /// Check whether this object is of given interface
     pub fn is_interface<I: Interface>(&self) -> bool {
+        // TODO: we might want to be more robust than that
         self.interface == I::NAME
     }
 }
@@ -135,6 +142,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         insert_in(&mut self.server_objects, object) + SERVER_ID_LIMIT
     }
 
+    /// Mutably access an object of the map
     pub fn with<T, F: FnOnce(&mut Object<Meta>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
         if id >= SERVER_ID_LIMIT {
             if let Some(&mut Some(ref mut obj)) =

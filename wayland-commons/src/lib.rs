@@ -41,6 +41,8 @@ pub mod wire;
 pub trait MessageGroup: Sized {
     /// Wire representation of this MessageGroup
     const MESSAGES: &'static [wire::MessageDesc];
+    /// The wrapper type for ObjectMap allowing the mapping of Object and
+    /// NewId arguments to the object map during parsing.
     type Map;
     /// Whether this message is a destructor
     ///
@@ -170,7 +172,7 @@ impl MessageGroup for NoMessage {
     fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
         None
     }
-    fn from_raw(_: wire::Message, map: &mut ()) -> Result<Self, ()> {
+    fn from_raw(_: wire::Message, _: &mut ()) -> Result<Self, ()> {
         Err(())
     }
     fn into_raw(self, _: u32) -> wire::Message {
