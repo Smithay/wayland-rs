@@ -32,7 +32,9 @@ impl TestServer {
     }
 
     pub fn answer(&mut self) {
-        // for some reason, two dispatches are needed
+        self.event_loop.dispatch(Some(10)).unwrap();
+        self.display.flush_clients();
+        // TODO: find out why native_lib requires two dispatches
         self.event_loop.dispatch(Some(10)).unwrap();
         self.display.flush_clients();
     }
