@@ -39,6 +39,9 @@ harness = false
 name = "client_proxies"
 
 [[test]]
+name = "destructors"
+
+[[test]]
 name = "event_loop"
 
 [[test]]
