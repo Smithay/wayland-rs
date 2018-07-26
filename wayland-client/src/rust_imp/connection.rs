@@ -21,7 +21,7 @@ pub(crate) enum Error {
 pub(crate) struct Connection {
     pub(crate) socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-    pub(crate) last_error: Option<Error>,
+    pub(crate) last_error: Arc<Mutex<Option<Error>>>,
     pub(crate) display_buffer: QueueBuffer,
 }
 
@@ -37,7 +37,7 @@ impl Connection {
         Connection {
             socket,
             map: Arc::new(Mutex::new(map)),
-            last_error: None,
+            last_error: Arc::new(Mutex::new(None)),
             display_buffer,
         }
     }
@@ -51,7 +51,7 @@ impl Connection {
     }
 
     pub(crate) fn read_events(&mut self) -> Result<usize, Error> {
-        if let Some(ref err) = self.last_error {
+        if let Some(ref err) = *self.last_error.lock().unwrap() {
             return Err(err.clone());
         }
         // acquire the map lock, this means no objects can be created nor destroyed while we
@@ -59,7 +59,7 @@ impl Connection {
         let mut map = self.map.lock().unwrap();
         // wrap it in a RefCell for cheap sharing in the two closures below
         let map = RefCell::new(&mut *map);
-        let last_error = &mut self.last_error;
+        let mut last_error = self.last_error.lock().unwrap();
         // read messages
         let ret = self.socket.read_messages(
             |id, opcode| {

@@ -32,7 +32,7 @@ impl DisplayInner {
 
         // give access to the map to the display impl
         let impl_map = map;
-        let impl_conn = connection.clone();
+        let impl_last_error = connection.lock().unwrap().last_error.clone();
         // our implementation is Send, we are safe
         let display_proxy = display_newproxy.implement::<WlDisplay, _>(move |event, _| match event {
             wl_display::Event::Error {
@@ -47,7 +47,7 @@ impl DisplayInner {
                     object_id.id(),
                     message
                 );
-                impl_conn.lock().unwrap().last_error = Some(super::connection::Error::Protocol);
+                *impl_last_error.lock().unwrap() = Some(super::connection::Error::Protocol);
             }
             wl_display::Event::DeleteId { id } => {
                 // cleanup the map as appropriate
