@@ -5,6 +5,7 @@ publish = false
 autotests = false
 
 [dependencies]
+wayland-commons = { path = "./wayland-commons" }
 wayland-scanner = { path = "./wayland-scanner" }
 wayland-client = { path = "./wayland-client", default-features = false }
 wayland-server = { path = "./wayland-server", default-features = false }
@@ -19,7 +20,7 @@ nix = "0.11"
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]
 
 [features]
-native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protocols/native_lib"]
+native_lib = ["wayland-client/dlopen", "wayland-server/dlopen", "wayland-protocols/native_lib", "wayland-commons/native_lib"]
 
 # Manual list of the tests, required because some need `harness = false`
 
@@ -46,6 +47,9 @@ harness = false
 
 [[test]]
 name = "globals"
+
+[[test]]
+name = "protocol_errors"
 
 [[test]]
 name = "scanner"
