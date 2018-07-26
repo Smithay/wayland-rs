@@ -42,13 +42,6 @@ impl ProxyInner {
             .unwrap_or(false)
     }
 
-    pub(crate) fn is_interface<I: Interface>(&self) -> bool {
-        unsafe {
-            let iface_name_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, self.ptr);
-            iface_name_ptr == (*I::c_interface()).name
-        }
-    }
-
     pub(crate) fn is_external(&self) -> bool {
         self.internal.is_none()
     }

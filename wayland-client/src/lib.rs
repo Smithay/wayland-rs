@@ -123,6 +123,7 @@
 
 #[macro_use]
 extern crate bitflags;
+#[cfg(not(feature = "native_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
 extern crate libc;

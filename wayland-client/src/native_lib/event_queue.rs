@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use wayland_sys::client::*;
 
-use super::{DisplayInner, ProxyInner};
+use super::DisplayInner;
 
 pub(crate) struct EventQueueInner {
     wlevq: Option<*mut wl_event_queue>,
