@@ -129,9 +129,10 @@ where
     }
 
     fn destroy(&mut self, resource: ResourceInner) {
-        let implem = self.implementation.take().unwrap();
-        if let Some(mut dest) = self.destructor.take() {
-            dest(Resource::<I>::wrap(resource), Box::new(implem))
+        if let Some(implem) = self.implementation.take() {
+            if let Some(mut dest) = self.destructor.take() {
+                dest(Resource::<I>::wrap(resource), Box::new(implem))
+            }
         }
     }
 }
