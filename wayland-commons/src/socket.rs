@@ -91,6 +91,12 @@ impl IntoRawFd for Socket {
     }
 }
 
+impl Drop for Socket {
+    fn drop(&mut self) {
+        let _ = ::nix::unistd::close(self.fd);
+    }
+}
+
 /*
  * BufferedSocket
  */
