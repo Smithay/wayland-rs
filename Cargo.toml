@@ -36,6 +36,9 @@ name = "client_connect_to_socket"
 harness = false
 
 [[test]]
+name = "client_dispatch"
+
+[[test]]
 name = "client_proxies"
 
 [[test]]
