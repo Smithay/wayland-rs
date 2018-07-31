@@ -105,6 +105,9 @@ impl ProxyInner {
     }
 
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
+        if !self.is_alive() {
+            return false;
+        }
         match (&self.internal, &other.internal) {
             (&Some(ref my_inner), &Some(ref other_inner)) => Arc::ptr_eq(my_inner, other_inner),
             (&None, &None) => self.ptr == other.ptr,
