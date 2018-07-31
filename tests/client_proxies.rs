@@ -3,8 +3,10 @@ mod helpers;
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
+use ways::protocol::wl_output::WlOutput as ServerOutput;
 
 use wayc::protocol::wl_compositor;
+use wayc::protocol::wl_output;
 use wayc::{Implementation, Proxy};
 
 struct CompImpl1;
@@ -128,7 +130,43 @@ fn proxy_wrapper() {
     // event_queue_2 has not been dispatched
     assert!(manager.list().len() == 0);
 
-    event_queue_2.dispatch_pending();
+    event_queue_2.dispatch_pending().unwrap();
 
     assert!(manager.list().len() == 1);
+}
+
+#[test]
+fn dead_proxies() {
+    use self::wl_output::RequestsTrait;
+
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    server
+        .display
+        .create_global::<ServerOutput, _>(&loop_token, 3, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let output = manager
+        .instantiate_auto::<wl_output::WlOutput, _>(|newp| newp.implement(|_, _| {}))
+        .unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let output2 = output.clone();
+
+    assert!(output == output2);
+    assert!(output.is_alive());
+    assert!(output2.is_alive());
+
+    // kill the output
+    output.release();
+
+    // dead proxies are never equal
+    assert!(output != output2);
+    assert!(!output.is_alive());
+    assert!(!output2.is_alive());
 }
