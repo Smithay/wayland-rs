@@ -127,7 +127,7 @@ impl ResourceInner {
     }
 
     pub(crate) fn get_user_data(&self) -> *mut () {
-        self.object.meta.user_data.load(Ordering::Release)
+        self.object.meta.user_data.load(Ordering::Acquire)
     }
 
     pub(crate) fn client(&self) -> Option<ClientInner> {
