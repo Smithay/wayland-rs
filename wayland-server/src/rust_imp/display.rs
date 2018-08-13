@@ -74,7 +74,8 @@ impl DisplayInner {
 
         listener.set_nonblocking(true)?;
 
-        let source = self.sources_poll
+        let source = self
+            .sources_poll
             .insert_source(
                 fd,
                 Ready::readable(),

@@ -63,19 +63,21 @@ fn main() {
     let shm = globals
         .instantiate_auto::<wl_shm::WlShm, _>(|shm| shm.implement(|_, _| {}))
         .unwrap();
-    let pool = shm.create_pool(
-        tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
-        (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
-        |pool| pool.implement(|_, _| {}),
-    ).unwrap();
-    let buffer = pool.create_buffer(
-        0,                        // Start of the buffer in the pool
-        buf_x as i32,             // width of the buffer in pixels
-        buf_y as i32,             // height of the buffer in pixels
-        (buf_x * 4) as i32,       // number of bytes between the beginning of two consecutive lines
-        wl_shm::Format::Argb8888, // chosen encoding for the data
-        |buffer| buffer.implement(|_, _| {}),
-    ).unwrap();
+    let pool =
+        shm.create_pool(
+            tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
+            (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
+            |pool| pool.implement(|_, _| {}),
+        ).unwrap();
+    let buffer =
+        pool.create_buffer(
+            0,                        // Start of the buffer in the pool
+            buf_x as i32,             // width of the buffer in pixels
+            buf_y as i32,             // height of the buffer in pixels
+            (buf_x * 4) as i32,       // number of bytes between the beginning of two consecutive lines
+            wl_shm::Format::Argb8888, // chosen encoding for the data
+            |buffer| buffer.implement(|_, _| {}),
+        ).unwrap();
 
     // The shell allows us to define our surface as a "toplevel", meaning the
     // server will treat it as a window

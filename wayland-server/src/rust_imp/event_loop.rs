@@ -67,7 +67,8 @@ impl SourcesPoll {
             token,
             fd,
         };
-        match self.poll
+        match self
+            .poll
             .register(&EventedFd(&fd), token, interest, PollOpt::empty())
         {
             Ok(()) => Ok(source),
@@ -275,7 +276,8 @@ where
 
 impl SourceInner<FdEvent> {
     pub(crate) fn update_mask(&mut self, mask: FdInterest) {
-        let _ = self.poll
+        let _ = self
+            .poll
             .reregister(&EventedFd(&self.fd), self.token, mask.into(), PollOpt::empty());
     }
 }

@@ -158,7 +158,8 @@ impl ClientConnection {
 
         // create a new object if applicable
         if let Some(child) = object.request_child(msg.opcode) {
-            let new_id = msg.args
+            let new_id = msg
+                .args
                 .iter()
                 .flat_map(|a| {
                     if let &Argument::NewId(nid) = a {

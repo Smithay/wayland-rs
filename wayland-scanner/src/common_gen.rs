@@ -675,7 +675,8 @@ pub fn print_method_prototype<'a, O: Write>(
                 dotted_to_relname(name)
             } else {
                 match arg.typ {
-                    Type::Object => arg.interface
+                    Type::Object => arg
+                        .interface
                         .as_ref()
                         .map(|s| format!("&Proxy<super::{}::{}>", s, snake_to_camel(s)))
                         .unwrap_or(format!("&Proxy<super::AnonymousObject>")),

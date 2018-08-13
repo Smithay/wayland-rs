@@ -154,9 +154,11 @@ fn attach_buffer() {
     let mut file = tempfile::tempfile().unwrap();
     write!(file, "I like trains!").unwrap();
     file.flush().unwrap();
-    let pool = shm.create_pool(file.as_raw_fd(), 42, |newp| newp.implement(|_, _| {}))
+    let pool = shm
+        .create_pool(file.as_raw_fd(), 42, |newp| newp.implement(|_, _| {}))
         .unwrap();
-    let buffer = pool.create_buffer(0, 0, 0, 0, Format::Argb8888, |newb| newb.implement(|_, _| {}))
+    let buffer = pool
+        .create_buffer(0, 0, 0, 0, Format::Argb8888, |newb| newb.implement(|_, _| {}))
         .unwrap();
 
     let compositor = manager

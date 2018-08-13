@@ -83,8 +83,7 @@ where
     I: Interface,
     Impl: Implementation<Proxy<I>, I::Event> + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
-{
-}
+{}
 
 impl<I, Impl> Dispatcher for ImplDispatcher<I, Impl>
 where
@@ -105,10 +104,11 @@ where
             {
                 // cleanup the map as appropriate
                 let mut map = proxy.map.lock().unwrap();
-                let server_destroyed = map.with(proxy.id, |obj| {
-                    obj.meta.client_destroyed = true;
-                    obj.meta.server_destroyed
-                }).unwrap_or(false);
+                let server_destroyed =
+                    map.with(proxy.id, |obj| {
+                        obj.meta.client_destroyed = true;
+                        obj.meta.server_destroyed
+                    }).unwrap_or(false);
                 if server_destroyed {
                     map.remove(proxy.id);
                 }

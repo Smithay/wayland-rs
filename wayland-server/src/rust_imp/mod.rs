@@ -85,8 +85,7 @@ where
     I: Interface,
     Impl: Implementation<Resource<I>, I::Request> + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
-{
-}
+{}
 
 impl<I, Impl> Dispatcher for ImplDispatcher<I, Impl>
 where

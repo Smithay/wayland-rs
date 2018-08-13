@@ -59,17 +59,20 @@ fn flatten_diffs(diffs: &[Difference]) -> Vec<Difference> {
     diffs
         .iter()
         .flat_map(|d| match *d {
-            Difference::Same(ref x) => x.split("\n")
+            Difference::Same(ref x) => x
+                .split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Same)
                 .collect::<Vec<_>>()
                 .into_iter(),
-            Difference::Add(ref x) => x.split("\n")
+            Difference::Add(ref x) => x
+                .split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Add)
                 .collect::<Vec<_>>()
                 .into_iter(),
-            Difference::Rem(ref x) => x.split("\n")
+            Difference::Rem(ref x) => x
+                .split("\n")
                 .map(Into::<String>::into)
                 .map(Difference::Rem)
                 .collect::<Vec<_>>()
