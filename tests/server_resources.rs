@@ -45,10 +45,10 @@ fn resource_equals() {
 
     // create two outputs
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -87,10 +87,10 @@ fn resource_user_data() {
 
     // create two outputs
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -131,10 +131,10 @@ fn resource_is_implemented() {
 
     // create two outputs
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -173,10 +173,10 @@ fn dead_resources() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let client_output1 = manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

@@ -35,11 +35,11 @@ fn proxy_equals() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -63,22 +63,19 @@ fn proxy_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, 0xDEADBEEFusize))
         .unwrap();
-
-    compositor1.set_user_data(0xDEADBEEF as usize as *mut _);
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, 0xBADC0FFEusize))
         .unwrap();
-
-    compositor2.set_user_data(0xBADC0FFE as usize as *mut _);
 
     let compositor3 = compositor1.clone();
 
-    assert!(compositor1.get_user_data() as usize == 0xDEADBEEF);
-    assert!(compositor2.get_user_data() as usize == 0xBADC0FFE);
-    assert!(compositor3.get_user_data() as usize == 0xDEADBEEF);
+    assert!(compositor1.user_data::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor2.user_data::<usize>() == Some(&0xBADC0FFE));
+    assert!(compositor3.user_data::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor1.user_data::<u32>() == None);
 }
 
 #[test]
@@ -95,11 +92,11 @@ fn proxy_is_implemented() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl2))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl2, ()))
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -151,7 +148,7 @@ fn dead_proxies() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let output = manager
-        .instantiate_auto::<wl_output::WlOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<wl_output::WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

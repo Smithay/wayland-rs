@@ -162,10 +162,12 @@ impl EventQueueInner {
         let ret = display.sync(|np| {
             Proxy::wrap(unsafe {
                 let done2 = done.clone();
-                np.inner
-                    .implement::<WlCallback, _>(move |CbEvent::Done { .. }, _| {
+                np.inner.implement::<WlCallback, (), _>(
+                    move |CbEvent::Done { .. }, _| {
                         done2.set(true);
-                    })
+                    },
+                    (),
+                )
             })
         });
 

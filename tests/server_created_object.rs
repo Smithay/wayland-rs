@@ -52,10 +52,10 @@ fn data_offer() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement(|_, _| {}))
+        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement(|_, _| {}, ()))
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement(|_, _| {}))
+        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement(|_, _| {}, ()))
         .unwrap();
 
     let received = Arc::new(Mutex::new(false));
@@ -63,14 +63,17 @@ fn data_offer() {
 
     ddmgr
         .get_data_device(&seat, move |newdd| {
-            newdd.implement(move |evt, _| match evt {
-                CDDEvt::DataOffer { id } => {
-                    let doffer = id.implement(|_, _| {});
-                    assert!(doffer.version() == 3);
-                    *received2.lock().unwrap() = true;
-                }
-                _ => unimplemented!(),
-            })
+            newdd.implement(
+                move |evt, _| match evt {
+                    CDDEvt::DataOffer { id } => {
+                        let doffer = id.implement(|_, _| {}, ());
+                        assert!(doffer.version() == 3);
+                        *received2.lock().unwrap() = true;
+                    }
+                    _ => unimplemented!(),
+                },
+                (),
+            )
         })
         .unwrap();
 

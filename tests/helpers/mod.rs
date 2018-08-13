@@ -73,7 +73,7 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
     let token = client.event_queue.get_token();
     client
         .display
-        .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), &token) })
+        .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), (), &token) })
         .unwrap();
     while !done.get() {
         client.display.flush()?;

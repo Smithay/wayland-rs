@@ -89,23 +89,15 @@ impl<I: Interface> Proxy<I> {
         self.inner.id()
     }
 
-    /// Associate an arbitrary payload to this object
+    /// Access the arbitrary payload associated to this object
     ///
-    /// The pointer you associate here can be retrieved from any
-    /// other proxy to the same wayland object.
+    /// You need to specify the expected type of this payload, and this
+    /// function will return `None` if the types don't match.
     ///
-    /// Setting or getting user data is done as an atomic operation.
-    /// You are responsible for the correct initialization of this
-    /// pointer, synchronisation of access, and destruction of the
-    /// contents at the appropriate time.
-    pub fn set_user_data(&self, ptr: *mut ()) {
-        self.inner.set_user_data(ptr)
-    }
-
-    /// Retrieve the arbitrary payload associated to this object
-    ///
-    /// See `set_user_data` for explanations.
-    pub fn get_user_data(&self) -> *mut () {
+    /// This value is associated to the Proxy when you implement it, and you
+    /// cannot access it mutably afterwards. If you need interior mutability,
+    /// you are responsible for using a `Mutex` or similar type to achieve it.
+    pub fn user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
         self.inner.get_user_data()
     }
 
@@ -275,12 +267,13 @@ impl<I: Interface + 'static> NewProxy<I> {
     }
 
     /// Implement this proxy using given function and implementation data.
-    pub fn implement<Impl>(self, implementation: Impl) -> Proxy<I>
+    pub fn implement<Impl, UD>(self, implementation: Impl, user_data: UD) -> Proxy<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + Send + 'static,
+        UD: Send + Sync + 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
-        let inner = unsafe { self.inner.implement::<I, _>(implementation) };
+        let inner = unsafe { self.inner.implement::<I, UD, _>(implementation, user_data) };
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: inner,
@@ -300,9 +293,15 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// old queue is being dispatched from an other thread.
     ///
     /// To ensure safety, see `Proxy::make_wrapper`.
-    pub unsafe fn implement_nonsend<Impl>(self, implementation: Impl, queue: &QueueToken) -> Proxy<I>
+    pub unsafe fn implement_nonsend<Impl, UD>(
+        self,
+        implementation: Impl,
+        user_data: UD,
+        queue: &QueueToken,
+    ) -> Proxy<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        UD: Send + Sync + 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
         #[cfg(feature = "native_lib")]
@@ -313,7 +312,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         {
             self.inner.assign_queue(&queue.inner);
         }
-        let inner = self.inner.implement::<I, _>(implementation);
+        let inner = self.inner.implement::<I, UD, _>(implementation, user_data);
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: inner,
