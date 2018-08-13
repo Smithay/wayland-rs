@@ -34,34 +34,37 @@ impl DisplayInner {
         let impl_map = map;
         let impl_last_error = connection.lock().unwrap().last_error.clone();
         // our implementation is Send, we are safe
-        let display_proxy = display_newproxy.implement::<WlDisplay, _>(move |event, _| match event {
-            wl_display::Event::Error {
-                object_id,
-                code,
-                message,
-            } => {
-                eprintln!(
-                    "[wayland-client] Protocol error {} on object {}@{}: {}",
+        let display_proxy = display_newproxy.implement::<WlDisplay, (), _>(
+            move |event, _| match event {
+                wl_display::Event::Error {
+                    object_id,
                     code,
-                    object_id.inner.object.interface,
-                    object_id.id(),
-                    message
-                );
-                *impl_last_error.lock().unwrap() = Some(super::connection::Error::Protocol);
-            }
-            wl_display::Event::DeleteId { id } => {
-                // cleanup the map as appropriate
-                let mut map = impl_map.lock().unwrap();
-                let client_destroyed =
-                    map.with(id, |obj| {
-                        obj.meta.server_destroyed = true;
-                        obj.meta.client_destroyed
-                    }).unwrap_or(false);
-                if client_destroyed {
-                    map.remove(id);
+                    message,
+                } => {
+                    eprintln!(
+                        "[wayland-client] Protocol error {} on object {}@{}: {}",
+                        code,
+                        object_id.inner.object.interface,
+                        object_id.id(),
+                        message
+                    );
+                    *impl_last_error.lock().unwrap() = Some(super::connection::Error::Protocol);
                 }
-            }
-        });
+                wl_display::Event::DeleteId { id } => {
+                    // cleanup the map as appropriate
+                    let mut map = impl_map.lock().unwrap();
+                    let client_destroyed =
+                        map.with(id, |obj| {
+                            obj.meta.server_destroyed = true;
+                            obj.meta.client_destroyed
+                        }).unwrap_or(false);
+                    if client_destroyed {
+                        map.remove(id);
+                    }
+                }
+            },
+            (),
+        );
 
         let default_event_queue = EventQueueInner::new(connection.clone(), None);
 

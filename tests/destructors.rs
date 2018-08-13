@@ -34,7 +34,7 @@ fn resource_destructor() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let output = manager
-        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -71,7 +71,7 @@ fn resource_destructor_cleanup() {
     roundtrip(&mut client, &mut server).unwrap();
 
     manager
-        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -110,7 +110,7 @@ fn client_destructor_cleanup() {
     roundtrip(&mut client, &mut server).unwrap();
 
     manager
-        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}))
+        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

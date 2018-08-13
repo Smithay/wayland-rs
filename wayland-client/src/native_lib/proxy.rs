@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::os::raw::{c_int, c_void};
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use wayland_commons::MessageGroup;
@@ -12,14 +13,14 @@ use wayland_sys::common::*;
 
 pub struct ProxyInternal {
     alive: AtomicBool,
-    user_data: AtomicPtr<()>,
+    user_data: Box<Any + Send + Sync + 'static>,
 }
 
 impl ProxyInternal {
-    pub fn new() -> ProxyInternal {
+    pub fn new<UD: Send + Sync + 'static>(user_data: UD) -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
-            user_data: AtomicPtr::new(::std::ptr::null_mut()),
+            user_data: Box::new(user_data),
         }
     }
 }
@@ -60,17 +61,11 @@ impl ProxyInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, self.ptr) }
     }
 
-    pub(crate) fn set_user_data(&self, ptr: *mut ()) {
+    pub(crate) fn get_user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
         if let Some(ref inner) = self.internal {
-            inner.user_data.store(ptr, Ordering::Release);
-        }
-    }
-
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        if let Some(ref inner) = self.internal {
-            inner.user_data.load(Ordering::Acquire)
+            inner.user_data.downcast_ref::<UD>()
         } else {
-            ::std::ptr::null_mut()
+            None
         }
     }
 
@@ -163,7 +158,7 @@ impl ProxyInner {
             return ProxyInner {
                 internal: Some(Arc::new(ProxyInternal {
                     alive: AtomicBool::new(false),
-                    user_data: AtomicPtr::new(::std::ptr::null_mut()),
+                    user_data: Box::new(()),
                 })),
                 ptr: ptr,
                 is_wrapper: false,
@@ -210,11 +205,16 @@ pub(crate) struct NewProxyInner {
 }
 
 impl NewProxyInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl>(self, implementation: Impl) -> ProxyInner
+    pub(crate) unsafe fn implement<I: Interface, UD, Impl>(
+        self,
+        implementation: Impl,
+        user_data: UD,
+    ) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        UD: Send + Sync + 'static,
     {
-        let new_user_data = Box::new(ProxyUserData::new(implementation));
+        let new_user_data = Box::new(ProxyUserData::new(implementation, user_data));
         let internal = new_user_data.internal.clone();
 
         ffi_dispatch!(
@@ -248,12 +248,13 @@ struct ProxyUserData<I: Interface> {
 }
 
 impl<I: Interface> ProxyUserData<I> {
-    fn new<Impl>(implem: Impl) -> ProxyUserData<I>
+    fn new<Impl, UD>(implem: Impl, user_data: UD) -> ProxyUserData<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        UD: Send + Sync + 'static,
     {
         ProxyUserData {
-            internal: Arc::new(ProxyInternal::new()),
+            internal: Arc::new(ProxyInternal::new(user_data)),
             implem: Some(Box::new(implem)),
         }
     }

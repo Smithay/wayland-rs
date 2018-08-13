@@ -61,21 +61,24 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement(move |msg, _proxy| {
-                    let mut inner = inner.lock().unwrap();
-                    match msg {
-                        wl_registry::Event::Global {
-                            name,
-                            interface,
-                            version,
-                        } => {
-                            inner.list.push((name, interface, version));
+                registry.implement(
+                    move |msg, _proxy| {
+                        let mut inner = inner.lock().unwrap();
+                        match msg {
+                            wl_registry::Event::Global {
+                                name,
+                                interface,
+                                version,
+                            } => {
+                                inner.list.push((name, interface, version));
+                            }
+                            wl_registry::Event::GlobalRemove { name } => {
+                                inner.list.retain(|&(n, _, _)| n != name);
+                            }
                         }
-                        wl_registry::Event::GlobalRemove { name } => {
-                            inner.list.retain(|&(n, _, _)| n != name);
-                        }
-                    }
-                })
+                    },
+                    (),
+                )
             })
             .expect("Attempted to create a GlobalManager from a dead display.");
 
@@ -104,45 +107,48 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement(move |msg, proxy| {
-                    let mut inner = inner.lock().unwrap();
-                    match msg {
-                        wl_registry::Event::Global {
-                            name,
-                            interface,
-                            version,
-                        } => {
-                            inner.list.push((name, interface.clone(), version));
-                            inner.callback.receive(
-                                GlobalEvent::New {
-                                    id: name,
-                                    interface: interface,
-                                    version: version,
-                                },
-                                proxy,
-                            );
-                        }
-                        wl_registry::Event::GlobalRemove { name } => {
-                            if let Some((i, _)) =
-                                inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
-                            {
-                                let (id, interface, _) = inner.list.swap_remove(i);
+                registry.implement(
+                    move |msg, proxy| {
+                        let mut inner = inner.lock().unwrap();
+                        match msg {
+                            wl_registry::Event::Global {
+                                name,
+                                interface,
+                                version,
+                            } => {
+                                inner.list.push((name, interface.clone(), version));
                                 inner.callback.receive(
-                                    GlobalEvent::Removed {
-                                        id: id,
+                                    GlobalEvent::New {
+                                        id: name,
                                         interface: interface,
+                                        version: version,
                                     },
                                     proxy,
                                 );
-                            } else {
-                                panic!(
+                            }
+                            wl_registry::Event::GlobalRemove { name } => {
+                                if let Some((i, _)) =
+                                    inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
+                                {
+                                    let (id, interface, _) = inner.list.swap_remove(i);
+                                    inner.callback.receive(
+                                        GlobalEvent::Removed {
+                                            id: id,
+                                            interface: interface,
+                                        },
+                                        proxy,
+                                    );
+                                } else {
+                                    panic!(
                                     "Wayland protocol error: the server removed non-existing global \"{}\".",
                                     name
                                 );
+                                }
                             }
                         }
-                    }
-                })
+                    },
+                    (),
+                )
             })
             .expect("Attempted to create a GlobalManager from a dead display.");
 
