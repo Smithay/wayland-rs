@@ -1,6 +1,3 @@
 [submodule "wayland-protocols/protocols"]
 	path = wayland-protocols/protocols
 	url = https://anongit.freedesktop.org/git/wayland/wayland-protocols.git
-[submodule "wayland-protocols/wall"]
-	path = wayland-protocols/wall
-	url = https://github.com/wayland-wall/wayland-wall.git

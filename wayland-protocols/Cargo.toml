@@ -28,7 +28,6 @@ default = ["native_lib"]
 client = ["wayland-client"]
 server = ["wayland-server"]
 native_lib = []
-wall_protocols = []
 unstable_protocols = []
 
 [package.metadata.docs.rs]

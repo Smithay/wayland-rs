@@ -24,16 +24,6 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("xwayland-keyboard-grab", &["v1"]),
 ];
 
-static WALL_STABLE_PROTOCOLS: &'static [&'static str] = &[];
-
-static WALL_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
-    ("background", &["v1", "v2"]),
-    ("dock-manager", &["v1", "v2"]),
-    ("launcher-menu", &["v1"]),
-    ("notification-area", &["v1"]),
-    ("window-switcher", &["v1"]),
-];
-
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
     if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
         generate_c_interfaces(&protocol_file, out_dir.join(&format!("{}_c_interfaces.rs", name)));
@@ -89,38 +79,6 @@ fn main() {
                     client,
                     server,
                 );
-            }
-        }
-    }
-
-    if var("CARGO_FEATURE_WALL_PROTOCOLS").ok().is_some() {
-        for name in WALL_STABLE_PROTOCOLS {
-            let file = format!("{name}/{name}.xml", name = name);
-            generate_protocol(
-                name,
-                &Path::new("./wall/stable").join(&file),
-                out_dir,
-                client,
-                server,
-            );
-        }
-
-        if var("CARGO_FEATURE_UNSTABLE_PROTOCOLS").ok().is_some() {
-            for &(name, versions) in WALL_UNSTABLE_PROTOCOLS {
-                for version in versions {
-                    let file = format!(
-                        "{name}/{name}-unstable-{version}.xml",
-                        name = name,
-                        version = version
-                    );
-                    generate_protocol(
-                        &format!("{name}-{version}", name = name, version = version),
-                        &Path::new("./wall/unstable").join(file),
-                        out_dir,
-                        client,
-                        server,
-                    );
-                }
             }
         }
     }
