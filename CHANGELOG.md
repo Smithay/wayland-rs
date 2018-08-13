@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [protocols] Remove support for wayland-wall, which has been discontinued.
+
 # 0.21.0-alpha1 - 2018-07-18
 
 - Complete refactor of the library to integrate a pure rust implementation of the protocol,

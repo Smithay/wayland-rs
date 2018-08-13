@@ -29,7 +29,6 @@ server = ["wayland-server"]
 native_lib = []
 native_client = ["client", "native_lib", "wayland-client/native_lib"]
 native_server = ["server", "native_lib", "wayland-server/native_lib"]
-wall_protocols = []
 unstable_protocols = []
 
 [package.metadata.docs.rs]
