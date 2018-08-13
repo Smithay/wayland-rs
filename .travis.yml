@@ -62,7 +62,7 @@ os:
 script:
   - |
       if [ -n "$BUILD_FMT" ]; then
-        cargo fmt --all -- --write-mode=diff
+        cargo fmt --all -- --check
       elif [ -n "$TARPAULIN" ]; then
         cargo tarpaulin --all --features "" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF rust_impl
