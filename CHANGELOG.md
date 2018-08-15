@@ -2,34 +2,36 @@
 
 ## Unreleased
 
+## 0.20.12 - 2018-08-15
+
 - [client] Add `Display::get_display_ptr()` to differentiate between the wrapper and the
   actual `wl_display`
 - [protocols] Remove support for wayland-wall, which has been discontinued.
 
-# 0.20.11 - 2018-07-17
+## 0.20.11 - 2018-07-17
 
 - [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
 - [protocols] Integrate `xdg-decoration` protocol to replace KDE's decoration protocol.
 - [client] `Proxy` now implements `PartialEq` and `Eq`
 - [server] `Resource` now implements `PartialEq` and `Eq`
 
-# 0.20.10 - 2018-06-04
+## 0.20.10 - 2018-06-04
 
 - [client] Fix regression from previous release where `Display` was no longer
   `Send` and `Sync`.
 
-# 0.20.9 - 2018-06-03
+## 0.20.9 - 2018-06-03
 
 - [client] Allow the creation of a `Display` from a foreign `wl_display`
 - [protocols] Expose generated C interfaces for protocol interop
 - [protocols] Update wayland-protocols to 1.14
 
-# 0.20.8 - 2018-05-22
+## 0.20.8 - 2018-05-22
 
 - [client/server] Use `Clone` trait rather than inherent method for `clone()`.
 - [client] GlobalManager is now `Clone`.
 
-# 0.20.7 - 2018-05-20
+## 0.20.7 - 2018-05-20
 
 - [client/server] Bugfix: Actually destroy the proxy/resource when sending a destructor message.
 
