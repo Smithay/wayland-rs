@@ -146,9 +146,24 @@ impl Display {
     /// create a new event queue and register a wrapper of the `wl_display` to this queue,
     /// then provide them to you. You can then use them as if they came from a direct
     /// wayland connection.
+    ///
+    /// Note that if you need to retrieve the actual `wl_display` pointer back (rather than
+    /// its wrapper), you must use the `get_display_ptr()` method.
     pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> (Display, EventQueue) {
         let (d_inner, evq_inner) = DisplayInner::from_external(display_ptr);
         (Display { inner: d_inner }, EventQueue::new(evq_inner))
+    }
+
+    #[cfg(feature = "native_lib")]
+    /// Retrieve the `wl_display` pointer
+    ///
+    /// If this `Display` was created from an external `wl_display`, its `c_ptr()` method will
+    /// return a wrapper to the actual display. While this is perfectly good as a `wl_proxy`
+    /// pointer, to send requests, this is not the actual `wl_display` and cannot be used as such.
+    ///
+    /// This method will give you the `wl_display`.
+    pub fn get_display_ptr(&self) -> *mut wl_display {
+        self.inner.ptr()
     }
 }
 

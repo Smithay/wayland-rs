@@ -3,6 +3,8 @@
 ## Unreleased
 
 - [protocols] Remove support for wayland-wall, which has been discontinued.
+- [client] Add `Display::get_display_ptr()` to differentiate between the wrapper and the
+  actual `wl_display`
 
 # 0.21.0-alpha1 - 2018-07-18
 
