@@ -98,6 +98,14 @@ impl<I: Interface> Proxy<I> {
     /// cannot access it mutably afterwards. If you need interior mutability,
     /// you are responsible for using a `Mutex` or similar type to achieve it.
     pub fn user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
+        unsafe { self.inner.get_user_data() }
+    }
+
+    /// Access the arbitrary payload associated to this object
+    ///
+    /// Same as `user_data`, but does not require the user data to be `Send + Sync`.
+    /// It is thus unsafe because it may only be called from the right thread.
+    pub unsafe fn user_data_nonsend<UD: 'static>(&self) -> Option<&UD> {
         self.inner.get_user_data()
     }
 
@@ -301,7 +309,7 @@ impl<I: Interface + 'static> NewProxy<I> {
     ) -> Proxy<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: Send + Sync + 'static,
+        UD: 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
         #[cfg(feature = "native_lib")]

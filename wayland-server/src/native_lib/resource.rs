@@ -10,18 +10,31 @@ use {Implementation, Interface, MessageGroup, Resource};
 
 use super::{ClientInner, EventLoopInner};
 
+struct UserData {
+    data: Box<Any + 'static>,
+}
+
+// similarly as for implementations, we need to be able to store non-Send
+// data in the UserData, but accessing it is `unsafe`, so the frontend is
+// responsible for ensuring threaded access is correct
+unsafe impl Send for UserData {}
+unsafe impl Sync for UserData {}
+
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
-    user_data: Arc<Box<Any + Send + Sync + 'static>>,
+    user_data: Arc<UserData>,
 }
 
 impl ResourceInternal {
     fn new<UD>(user_data: UD) -> ResourceInternal
-    where UD: Send + Sync + 'static
+    where
+        UD: 'static,
     {
         ResourceInternal {
             alive: AtomicBool::new(true),
-            user_data: Arc::new(Box::new(user_data)),
+            user_data: Arc::new(UserData {
+                data: Box::new(user_data),
+            }),
         }
     }
 }
@@ -121,11 +134,12 @@ impl ResourceInner {
         }
     }
 
-    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
-    where UD: Send + Sync + 'static
+    pub(crate) unsafe fn get_user_data<UD>(&self) -> Option<&UD>
+    where
+        UD: 'static,
     {
         if let Some(ref inner) = self.internal {
-            inner.user_data.downcast_ref()
+            inner.user_data.data.downcast_ref()
         } else {
             None
         }
@@ -159,7 +173,7 @@ impl ResourceInner {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Arc::new(Box::new(())),
+                    user_data: Arc::new(UserData { data: Box::new(()) }),
                 })),
                 ptr: ptr,
                 _hack: (false, false),
@@ -228,7 +242,7 @@ impl NewResourceInner {
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        UD: Send + Sync + 'static
+        UD: 'static,
     {
         if let Some(token) = token {
             assert!(
@@ -275,11 +289,15 @@ pub(crate) struct ResourceUserData<I: Interface> {
 }
 
 impl<I: Interface> ResourceUserData<I> {
-    pub(crate) fn new<Impl, Dest, UD>(implem: Impl, destructor: Option<Dest>, user_data: UD) -> ResourceUserData<I>
+    pub(crate) fn new<Impl, Dest, UD>(
+        implem: Impl,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> ResourceUserData<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        UD: Send + Sync + 'static
+        UD: 'static,
     {
         ResourceUserData {
             _i: ::std::marker::PhantomData,

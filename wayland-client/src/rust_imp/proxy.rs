@@ -10,11 +10,21 @@ use super::queues::QueueBuffer;
 use super::{Dispatcher, EventQueueInner};
 use {Implementation, Interface, Proxy};
 
+struct UserData {
+    data: Box<Any + 'static>,
+}
+
+// similarly as for implementations, we need to be able to store non-Send
+// data in the UserData, but accessing it is `unsafe`, so the frontend is
+// responsible for ensuring threaded access is correct
+unsafe impl Send for UserData {}
+unsafe impl Sync for UserData {}
+
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
     pub(crate) buffer: QueueBuffer,
     pub(crate) alive: Arc<AtomicBool>,
-    pub(crate) user_data: Arc<Box<Any + Send + Sync + 'static>>,
+    user_data: Arc<UserData>,
     pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
     pub(crate) server_destroyed: bool,
     pub(crate) client_destroyed: bool,
@@ -25,7 +35,7 @@ impl ObjectMetadata for ObjectMeta {
         ObjectMeta {
             buffer: self.buffer.clone(),
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(Box::new(()) as Box<_>),
+            user_data: Arc::new(UserData { data: Box::new(()) }),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
@@ -38,7 +48,7 @@ impl ObjectMeta {
         ObjectMeta {
             buffer,
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(Box::new(()) as Box<_>),
+            user_data: Arc::new(UserData { data: Box::new(()) }),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
@@ -49,7 +59,7 @@ impl ObjectMeta {
         ObjectMeta {
             buffer: super::queues::create_queue_buffer(),
             alive: Arc::new(AtomicBool::new(false)),
-            user_data: Arc::new(Box::new(()) as Box<_>),
+            user_data: Arc::new(UserData { data: Box::new(()) }),
             dispatcher: super::default_dispatcher(),
             server_destroyed: true,
             client_destroyed: true,
@@ -100,8 +110,8 @@ impl ProxyInner {
         }
     }
 
-    pub fn get_user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
-        self.object.meta.user_data.downcast_ref::<UD>()
+    pub(crate) unsafe fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
+        self.object.meta.user_data.data.downcast_ref::<UD>()
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
@@ -216,12 +226,14 @@ impl NewProxyInner {
     ) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: Send + Sync + 'static,
+        UD: 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {
             obj.meta.dispatcher = super::make_dispatcher(implementation);
-            obj.meta.user_data = Arc::new(Box::new(user_data) as Box<_>);
+            obj.meta.user_data = Arc::new(UserData {
+                data: Box::new(user_data),
+            });
             obj.clone()
         });
 

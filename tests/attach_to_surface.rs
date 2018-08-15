@@ -47,14 +47,14 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
                                 }
                             },
                             None::<fn(_, _)>,
-                            ()
+                            (),
                         );
                     } else {
                         panic!("Unexpected request on compositor!");
                     }
                 },
                 None::<fn(_, _)>,
-                ()
+                (),
             );
         },
     );
@@ -94,11 +94,11 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
                             }
                         },
                         None::<fn(_, _)>,
-                        ()
+                        (),
                     );
                 },
                 None::<fn(_, _)>,
-                ()
+                (),
             );
         });
 

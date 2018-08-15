@@ -89,6 +89,14 @@ impl<I: Interface> Resource<I> {
     /// cannot access it mutably afterwards. If you need interior mutability,
     /// you are responsible for using a `Mutex` or similar type to achieve it.
     pub fn user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
+        unsafe { self.inner.get_user_data() }
+    }
+
+    /// Access the arbitrary payload associated to this object
+    ///
+    /// Same as `user_data`, but does not require the user data to be `Send + Sync`.
+    /// It is thus unsafe because it may only be called from the right thread.
+    pub unsafe fn user_data_nonsend<UD: 'static>(&self) -> Option<&UD> {
         self.inner.get_user_data()
     }
 
@@ -186,7 +194,12 @@ impl<I: Interface + 'static> NewResource<I> {
     }
 
     /// Implement this resource using given function, destructor, and user data.
-    pub fn implement<Impl, Dest, UD>(self, implementation: Impl, destructor: Option<Dest>, user_data: UD) -> Resource<I>
+    pub fn implement<Impl, Dest, UD>(
+        self,
+        implementation: Impl,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> Resource<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
@@ -224,12 +237,16 @@ impl<I: Interface + 'static> NewResource<I> {
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        UD: Send + Sync + 'static,
+        UD: 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
-            self.inner
-                .implement::<I, Impl, Dest, UD>(implementation, destructor, user_data, Some(&token.inner))
+            self.inner.implement::<I, Impl, Dest, UD>(
+                implementation,
+                destructor,
+                user_data,
+                Some(&token.inner),
+            )
         };
         Resource {
             _i: ::std::marker::PhantomData,
