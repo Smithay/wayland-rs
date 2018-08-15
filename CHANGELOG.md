@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Add `Display::get_display_ptr()` to differentiate between the wrapper and the
+  actual `wl_display`
+
 # 0.20.11 - 2018-07-17
 
 - [scanner] Fixed `*mut_` typo when generating code for nullable array arguments
