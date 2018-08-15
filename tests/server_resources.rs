@@ -35,7 +35,7 @@ fn resource_equals() {
             outputs2
                 .lock()
                 .unwrap()
-                .push(newo.implement(|_, _| {}, None::<fn(_, _)>));
+                .push(newo.implement(|_, _| {}, None::<fn(_, _)>, ()));
         });
 
     let mut client = TestClient::new(&server.socket_name);
@@ -75,8 +75,7 @@ fn resource_user_data() {
         .display
         .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |_, newo: NewResource<_>| {
             let mut guard = outputs2.lock().unwrap();
-            let output = newo.implement(|_, _| {}, None::<fn(_, _)>);
-            output.set_user_data((1000 + guard.len()) as *mut ());
+            let output = newo.implement(|_, _| {}, None::<fn(_, _)>, 1000 + guard.len());
             guard.push(output);
         });
 
@@ -96,12 +95,10 @@ fn resource_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let outputs_lock = outputs.lock().unwrap();
-    assert!(outputs_lock[0].get_user_data() as usize == 1000);
-    assert!(outputs_lock[1].get_user_data() as usize == 1001);
+    assert!(outputs_lock[0].user_data::<usize>() == Some(&1000));
+    assert!(outputs_lock[1].user_data::<usize>() == Some(&1001));
     let cloned = outputs_lock[0].clone();
-    assert!(cloned.get_user_data() as usize == 1000);
-    outputs_lock[0].set_user_data(4242usize as *mut ());
-    assert!(cloned.get_user_data() as usize == 4242);
+    assert!(cloned.user_data::<usize>() == Some(&1000));
 }
 
 #[test]
@@ -117,9 +114,9 @@ fn resource_is_implemented() {
         .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |_, newo: NewResource<_>| {
             let mut guard = outputs2.lock().unwrap();
             let output = if guard.len() == 0 {
-                newo.implement(Impl1, None::<fn(_, _)>)
+                newo.implement(Impl1, None::<fn(_, _)>, ())
             } else {
-                newo.implement(Impl2, None::<fn(_, _)>)
+                newo.implement(Impl2, None::<fn(_, _)>, ())
             };
             guard.push(output);
         });
@@ -164,7 +161,7 @@ fn dead_resources() {
             outputs2
                 .lock()
                 .unwrap()
-                .push(newo.implement(|_, _| {}, None::<fn(_, _)>));
+                .push(newo.implement(|_, _| {}, None::<fn(_, _)>, ()));
         });
 
     let mut client = TestClient::new(&server.socket_name);

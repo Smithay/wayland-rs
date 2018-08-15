@@ -25,6 +25,7 @@ fn resource_destructor() {
                 Some(move |_, _| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
+                ()
             );
         });
 
@@ -62,6 +63,7 @@ fn resource_destructor_cleanup() {
                 Some(move |_, _| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
+                ()
             );
         });
 
@@ -95,7 +97,7 @@ fn client_destructor_cleanup() {
         .display
         .create_global::<ServerOutput, _>(&loop_token, 3, move |_, newo: NewResource<_>| {
             let destructor_called_resource = destructor_called_global.clone();
-            let output = newo.implement(|_, _| {}, None::<fn(_, _)>);
+            let output = newo.implement(|_, _| {}, None::<fn(_, _)>, ());
             let client = output.client().unwrap();
             client.set_user_data(Box::into_raw(Box::new(destructor_called_resource)) as *mut _);
             client.set_destructor(|data| {

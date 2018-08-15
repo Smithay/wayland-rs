@@ -1,4 +1,5 @@
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::any::Any;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use {Implementation, Interface, Resource};
@@ -12,7 +13,7 @@ use super::{ClientInner, Dispatcher, EventLoopInner};
 pub(crate) struct ObjectMeta {
     pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
     pub(crate) alive: Arc<AtomicBool>,
-    pub(crate) user_data: Arc<AtomicPtr<()>>,
+    pub(crate) user_data: Arc<Box<Any + Send + Sync + 'static>>,
 }
 
 impl ObjectMetadata for ObjectMeta {
@@ -25,7 +26,7 @@ impl ObjectMeta {
     pub(crate) fn new() -> ObjectMeta {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
+            user_data: Arc::new(Box::new(())),
             dispatcher: super::default_dispatcher(),
         }
     }
@@ -33,15 +34,16 @@ impl ObjectMeta {
     pub(crate) fn dead() -> ObjectMeta {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(false)),
-            user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
+            user_data: Arc::new(Box::new(())),
             dispatcher: super::default_dispatcher(),
         }
     }
 
-    pub(crate) fn with_dispatcher<D: Dispatcher>(disp: D) -> ObjectMeta {
+    pub(crate) fn with_dispatcher<D: Dispatcher>(disp: D) -> ObjectMeta
+    {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(AtomicPtr::new(::std::ptr::null_mut())),
+            user_data: Arc::new(Box::new(())),
             dispatcher: Arc::new(Mutex::new(disp)),
         }
     }
@@ -122,12 +124,10 @@ impl ResourceInner {
         self.client.post_error(self.id, error_code, msg)
     }
 
-    pub(crate) fn set_user_data(&self, ptr: *mut ()) {
-        self.object.meta.user_data.store(ptr, Ordering::Release)
-    }
-
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        self.object.meta.user_data.load(Ordering::Acquire)
+    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
+    where UD: Send + Sync + 'static
+    {
+        self.object.meta.user_data.downcast_ref()
     }
 
     pub(crate) fn client(&self) -> Option<ClientInner> {
@@ -175,19 +175,22 @@ impl NewResourceInner {
         }
     }
 
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
+    pub(crate) unsafe fn implement<I: Interface, Impl, Dest, UD>(
         self,
         implementation: Impl,
         destructor: Option<Dest>,
+        user_data: UD,
         _token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        UD: Send + Sync + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {
             obj.meta.dispatcher = super::make_dispatcher(implementation, destructor);
+            obj.meta.user_data = Arc::new(Box::new(user_data));
             obj.clone()
         });
 
