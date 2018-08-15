@@ -25,7 +25,7 @@ fn resource_destructor() {
                 Some(move |_, _| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
-                ()
+                (),
             );
         });
 
@@ -63,7 +63,7 @@ fn resource_destructor_cleanup() {
                 Some(move |_, _| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
-                ()
+                (),
             );
         });
 

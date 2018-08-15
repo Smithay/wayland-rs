@@ -11,16 +11,28 @@ use super::EventQueueInner;
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 
+struct UserData {
+    data: Box<Any + 'static>,
+}
+
+// similarly as for implementations, we need to be able to store non-Send
+// data in the UserData, but accessing it is `unsafe`, so the frontend is
+// responsible for ensuring threaded access is correct
+unsafe impl Send for UserData {}
+unsafe impl Sync for UserData {}
+
 pub struct ProxyInternal {
     alive: AtomicBool,
-    user_data: Box<Any + Send + Sync + 'static>,
+    user_data: UserData,
 }
 
 impl ProxyInternal {
-    pub fn new<UD: Send + Sync + 'static>(user_data: UD) -> ProxyInternal {
+    pub fn new<UD: 'static>(user_data: UD) -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
-            user_data: Box::new(user_data),
+            user_data: UserData {
+                data: Box::new(user_data),
+            },
         }
     }
 }
@@ -61,9 +73,9 @@ impl ProxyInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, self.ptr) }
     }
 
-    pub(crate) fn get_user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
+    pub(crate) unsafe fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
         if let Some(ref inner) = self.internal {
-            inner.user_data.downcast_ref::<UD>()
+            inner.user_data.data.downcast_ref::<UD>()
         } else {
             None
         }
@@ -158,7 +170,7 @@ impl ProxyInner {
             return ProxyInner {
                 internal: Some(Arc::new(ProxyInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Box::new(()),
+                    user_data: UserData { data: Box::new(()) },
                 })),
                 ptr: ptr,
                 is_wrapper: false,
@@ -212,7 +224,7 @@ impl NewProxyInner {
     ) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: Send + Sync + 'static,
+        UD: 'static,
     {
         let new_user_data = Box::new(ProxyUserData::new(implementation, user_data));
         let internal = new_user_data.internal.clone();
@@ -251,7 +263,7 @@ impl<I: Interface> ProxyUserData<I> {
     fn new<Impl, UD>(implem: Impl, user_data: UD) -> ProxyUserData<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: Send + Sync + 'static,
+        UD: 'static,
     {
         ProxyUserData {
             internal: Arc::new(ProxyInternal::new(user_data)),

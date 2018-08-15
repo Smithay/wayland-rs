@@ -42,7 +42,7 @@ fn data_offer() {
                     _ => unimplemented!(),
                 },
                 None::<fn(_, _)>,
-                ()
+                (),
             );
         },
     );
