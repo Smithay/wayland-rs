@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::os::raw::{c_int, c_void};
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use wayland_sys::common::*;
@@ -11,14 +12,16 @@ use super::{ClientInner, EventLoopInner};
 
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
-    user_data: AtomicPtr<()>,
+    user_data: Arc<Box<Any + Send + Sync + 'static>>,
 }
 
 impl ResourceInternal {
-    fn new() -> ResourceInternal {
+    fn new<UD>(user_data: UD) -> ResourceInternal
+    where UD: Send + Sync + 'static
+    {
         ResourceInternal {
             alive: AtomicBool::new(true),
-            user_data: AtomicPtr::new(::std::ptr::null_mut()),
+            user_data: Arc::new(Box::new(user_data)),
         }
     }
 }
@@ -118,17 +121,13 @@ impl ResourceInner {
         }
     }
 
-    pub(crate) fn set_user_data(&self, ptr: *mut ()) {
+    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
+    where UD: Send + Sync + 'static
+    {
         if let Some(ref inner) = self.internal {
-            inner.user_data.store(ptr, Ordering::Release);
-        }
-    }
-
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        if let Some(ref inner) = self.internal {
-            inner.user_data.load(Ordering::Acquire)
+            inner.user_data.downcast_ref()
         } else {
-            ::std::ptr::null_mut()
+            None
         }
     }
 
@@ -160,7 +159,7 @@ impl ResourceInner {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: AtomicPtr::new(::std::ptr::null_mut()),
+                    user_data: Arc::new(Box::new(())),
                 })),
                 ptr: ptr,
                 _hack: (false, false),
@@ -219,15 +218,17 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
+    pub(crate) unsafe fn implement<I: Interface, Impl, Dest, UD>(
         self,
         implementation: Impl,
         destructor: Option<Dest>,
+        user_data: UD,
         token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        UD: Send + Sync + 'static
     {
         if let Some(token) = token {
             assert!(
@@ -235,7 +236,7 @@ impl NewResourceInner {
                 "Tried to implement a Resource with the wrong LoopToken."
             )
         }
-        let new_user_data = Box::new(ResourceUserData::new(implementation, destructor));
+        let new_user_data = Box::new(ResourceUserData::new(implementation, destructor, user_data));
         let internal = new_user_data.internal.clone();
 
         ffi_dispatch!(
@@ -274,14 +275,15 @@ pub(crate) struct ResourceUserData<I: Interface> {
 }
 
 impl<I: Interface> ResourceUserData<I> {
-    pub(crate) fn new<Impl, Dest>(implem: Impl, destructor: Option<Dest>) -> ResourceUserData<I>
+    pub(crate) fn new<Impl, Dest, UD>(implem: Impl, destructor: Option<Dest>, user_data: UD) -> ResourceUserData<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        UD: Send + Sync + 'static
     {
         ResourceUserData {
             _i: ::std::marker::PhantomData,
-            internal: Arc::new(ResourceInternal::new()),
+            internal: Arc::new(ResourceInternal::new(user_data)),
             implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
         }
     }

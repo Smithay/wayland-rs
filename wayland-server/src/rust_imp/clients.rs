@@ -555,7 +555,7 @@ impl super::Dispatcher for DisplayDispatcher {
             // sync
             0 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                 if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
-                    let cb = cb.implement(|r, _| match r {}, None::<fn(_, _)>);
+                    let cb = cb.implement(|r, _| match r {}, None::<fn(_, _)>, ());
                     // TODO: send a more meaningful serial ?
                     cb.send(wl_callback::Event::Done { callback_data: 0 });
                 } else {

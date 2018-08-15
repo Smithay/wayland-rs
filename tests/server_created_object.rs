@@ -29,19 +29,20 @@ fn data_offer() {
             new_resource.implement(
                 |request, _| match request {
                     SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement(|_, _| {}, None::<fn(_, _)>);
+                        let ddevice = id.implement(|_, _| {}, None::<fn(_, _)>, ());
                         // create a data offer and send it
                         let offer = ddevice
                             .client()
                             .unwrap()
                             .create_resource::<ServerDO>(ddevice.version())
                             .unwrap()
-                            .implement(|_, _| {}, None::<fn(_, _)>);
+                            .implement(|_, _| {}, None::<fn(_, _)>, ());
                         ddevice.send(SDDEvt::DataOffer { id: offer })
                     }
                     _ => unimplemented!(),
                 },
                 None::<fn(_, _)>,
+                ()
             );
         },
     );

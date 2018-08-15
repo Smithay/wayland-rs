@@ -85,23 +85,10 @@ impl<I: Interface> Resource<I> {
         self.inner.post_error(error_code, msg)
     }
 
-    /// Associate an arbitrary payload to this object
-    ///
-    /// The pointer you associate here can be retrieved from any
-    /// other resource handle to the same wayland object.
-    ///
-    /// Setting or getting user data is done as an atomic operation.
-    /// You are responsible for the correct initialization of this
-    /// pointer, synchronisation of access, and destruction of the
-    /// contents at the appropriate time.
-    pub fn set_user_data(&self, ptr: *mut ()) {
-        self.inner.set_user_data(ptr)
-    }
-
-    /// Retrieve the arbitrary payload associated to this object
-    ///
-    /// See `set_user_data` for explanations.
-    pub fn get_user_data(&self) -> *mut () {
+    /// This value is associated to the Resource when you implement it, and you
+    /// cannot access it mutably afterwards. If you need interior mutability,
+    /// you are responsible for using a `Mutex` or similar type to achieve it.
+    pub fn user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
         self.inner.get_user_data()
     }
 
@@ -198,16 +185,17 @@ impl<I: Interface + 'static> NewResource<I> {
         }
     }
 
-    /// Implement this resource using given function, destructor, and implementation data.
-    pub fn implement<Impl, Dest>(self, implementation: Impl, destructor: Option<Dest>) -> Resource<I>
+    /// Implement this resource using given function, destructor, and user data.
+    pub fn implement<Impl, Dest, UD>(self, implementation: Impl, destructor: Option<Dest>, user_data: UD) -> Resource<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
+        UD: Send + Sync + 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
             self.inner
-                .implement::<I, Impl, Dest>(implementation, destructor, None)
+                .implement::<I, Impl, Dest, UD>(implementation, destructor, user_data, None)
         };
         Resource {
             _i: ::std::marker::PhantomData,
@@ -226,20 +214,22 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This function will panic if you create several wayland event loops and do not
     /// provide a token to the right one.
-    pub fn implement_nonsend<Impl, Dest>(
+    pub fn implement_nonsend<Impl, Dest, UD>(
         self,
         implementation: Impl,
         destructor: Option<Dest>,
+        user_data: UD,
         token: &LoopToken,
     ) -> Resource<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        UD: Send + Sync + 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
             self.inner
-                .implement::<I, Impl, Dest>(implementation, destructor, Some(&token.inner))
+                .implement::<I, Impl, Dest, UD>(implementation, destructor, user_data, Some(&token.inner))
         };
         Resource {
             _i: ::std::marker::PhantomData,

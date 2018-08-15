@@ -47,12 +47,14 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
                                 }
                             },
                             None::<fn(_, _)>,
+                            ()
                         );
                     } else {
                         panic!("Unexpected request on compositor!");
                     }
                 },
                 None::<fn(_, _)>,
+                ()
             );
         },
     );
@@ -86,15 +88,17 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
                                 let mut buffer_guard = pool_buffer.lock().unwrap();
                                 let buf = buffer_guard.as_mut().unwrap();
                                 assert!(buf.1.is_none());
-                                buf.1 = Some(id.implement(|_, _| {}, None::<fn(_, _)>));
+                                buf.1 = Some(id.implement(|_, _| {}, None::<fn(_, _)>, ()));
                             } else {
                                 panic!("Unexpected request on buffer!");
                             }
                         },
                         None::<fn(_, _)>,
+                        ()
                     );
                 },
                 None::<fn(_, _)>,
+                ()
             );
         });
 

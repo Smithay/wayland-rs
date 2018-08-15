@@ -6,6 +6,7 @@
 - [client] Add `Display::get_display_ptr()` to differentiate between the wrapper and the
   actual `wl_display`
 - [client] Rework user-data mechanism to introduce type-safety
+- [server] Rework `Resource` user-data mechanism to introduce type-safety
 
 # 0.21.0-alpha1 - 2018-07-18
 
