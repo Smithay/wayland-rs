@@ -1,8 +1,8 @@
-use std::any::Any;
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use wayland_commons::utils::UserData;
 use wayland_commons::MessageGroup;
 use {Implementation, Interface, Proxy};
 
@@ -11,28 +11,16 @@ use super::EventQueueInner;
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 
-struct UserData {
-    data: Box<Any + 'static>,
-}
-
-// similarly as for implementations, we need to be able to store non-Send
-// data in the UserData, but accessing it is `unsafe`, so the frontend is
-// responsible for ensuring threaded access is correct
-unsafe impl Send for UserData {}
-unsafe impl Sync for UserData {}
-
 pub struct ProxyInternal {
     alive: AtomicBool,
     user_data: UserData,
 }
 
 impl ProxyInternal {
-    pub fn new<UD: 'static>(user_data: UD) -> ProxyInternal {
+    pub fn new(user_data: UserData) -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
-            user_data: UserData {
-                data: Box::new(user_data),
-            },
+            user_data,
         }
     }
 }
@@ -73,9 +61,9 @@ impl ProxyInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, self.ptr) }
     }
 
-    pub(crate) unsafe fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
+    pub(crate) fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
         if let Some(ref inner) = self.internal {
-            inner.user_data.data.downcast_ref::<UD>()
+            inner.user_data.get::<UD>()
         } else {
             None
         }
@@ -170,7 +158,7 @@ impl ProxyInner {
             return ProxyInner {
                 internal: Some(Arc::new(ProxyInternal {
                     alive: AtomicBool::new(false),
-                    user_data: UserData { data: Box::new(()) },
+                    user_data: UserData::empty(),
                 })),
                 ptr: ptr,
                 is_wrapper: false,
@@ -217,14 +205,13 @@ pub(crate) struct NewProxyInner {
 }
 
 impl NewProxyInner {
-    pub(crate) unsafe fn implement<I: Interface, UD, Impl>(
+    pub(crate) unsafe fn implement<I: Interface, Impl>(
         self,
         implementation: Impl,
-        user_data: UD,
+        user_data: UserData,
     ) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: 'static,
     {
         let new_user_data = Box::new(ProxyUserData::new(implementation, user_data));
         let internal = new_user_data.internal.clone();
@@ -260,10 +247,9 @@ struct ProxyUserData<I: Interface> {
 }
 
 impl<I: Interface> ProxyUserData<I> {
-    fn new<Impl, UD>(implem: Impl, user_data: UD) -> ProxyUserData<I>
+    fn new<Impl>(implem: Impl, user_data: UserData) -> ProxyUserData<I>
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: 'static,
     {
         ProxyUserData {
             internal: Arc::new(ProxyInternal::new(user_data)),

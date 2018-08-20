@@ -3,6 +3,7 @@ use std::os::unix::io::RawFd;
 use std::sync::{Arc, Mutex};
 
 use wayland_commons::map::Object;
+use wayland_commons::utils::UserData;
 
 use protocol::wl_display::{self, WlDisplay};
 
@@ -34,7 +35,7 @@ impl DisplayInner {
         let impl_map = map;
         let impl_last_error = connection.lock().unwrap().last_error.clone();
         // our implementation is Send, we are safe
-        let display_proxy = display_newproxy.implement::<WlDisplay, (), _>(
+        let display_proxy = display_newproxy.implement::<WlDisplay, _>(
             move |event, _| match event {
                 wl_display::Event::Error {
                     object_id,
@@ -63,7 +64,7 @@ impl DisplayInner {
                     }
                 }
             },
-            (),
+            UserData::empty(),
         );
 
         let default_event_queue = EventQueueInner::new(connection.clone(), None);

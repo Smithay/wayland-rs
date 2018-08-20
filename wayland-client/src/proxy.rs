@@ -1,3 +1,4 @@
+use wayland_commons::utils::UserData;
 use wayland_commons::{AnonymousObject, Implementation, Interface};
 
 #[cfg(feature = "native_lib")]
@@ -92,20 +93,14 @@ impl<I: Interface> Proxy<I> {
     /// Access the arbitrary payload associated to this object
     ///
     /// You need to specify the expected type of this payload, and this
-    /// function will return `None` if the types don't match.
+    /// function will return `None` if either the types don't match or
+    /// you are attempting to access a non `Send + Sync` user data from the
+    /// wrong thread.
     ///
     /// This value is associated to the Proxy when you implement it, and you
     /// cannot access it mutably afterwards. If you need interior mutability,
     /// you are responsible for using a `Mutex` or similar type to achieve it.
-    pub fn user_data<UD: Send + Sync + 'static>(&self) -> Option<&UD> {
-        unsafe { self.inner.get_user_data() }
-    }
-
-    /// Access the arbitrary payload associated to this object
-    ///
-    /// Same as `user_data`, but does not require the user data to be `Send + Sync`.
-    /// It is thus unsafe because it may only be called from the right thread.
-    pub unsafe fn user_data_nonsend<UD: 'static>(&self) -> Option<&UD> {
+    pub fn user_data<UD: 'static>(&self) -> Option<&UD> {
         self.inner.get_user_data()
     }
 
@@ -281,7 +276,10 @@ impl<I: Interface + 'static> NewProxy<I> {
         UD: Send + Sync + 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
-        let inner = unsafe { self.inner.implement::<I, UD, _>(implementation, user_data) };
+        let inner = unsafe {
+            self.inner
+                .implement::<I, _>(implementation, UserData::new_threadsafe(user_data))
+        };
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: inner,
@@ -320,7 +318,9 @@ impl<I: Interface + 'static> NewProxy<I> {
         {
             self.inner.assign_queue(&queue.inner);
         }
-        let inner = self.inner.implement::<I, UD, _>(implementation, user_data);
+        let inner = self
+            .inner
+            .implement::<I, _>(implementation, UserData::new(user_data));
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: inner,
