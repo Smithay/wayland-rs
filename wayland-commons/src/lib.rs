@@ -29,6 +29,7 @@ use downcast::Downcast;
 
 pub mod map;
 pub mod socket;
+pub mod utils;
 pub mod wire;
 
 /// A group of messages

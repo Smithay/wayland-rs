@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use nix::poll::{poll, EventFlags, PollFd};
 
 use wayland_commons::map::ObjectMap;
+use wayland_commons::utils::UserData;
 use wayland_commons::wire::Message;
 
 use super::connection::{Connection, Error as CError};
@@ -162,11 +163,11 @@ impl EventQueueInner {
         let ret = display.sync(|np| {
             Proxy::wrap(unsafe {
                 let done2 = done.clone();
-                np.inner.implement::<WlCallback, (), _>(
+                np.inner.implement::<WlCallback, _>(
                     move |CbEvent::Done { .. }, _| {
                         done2.set(true);
                     },
-                    (),
+                    UserData::empty(),
                 )
             })
         });

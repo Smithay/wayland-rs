@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -6,19 +5,11 @@ use std::sync::Arc;
 use wayland_sys::common::*;
 use wayland_sys::server::*;
 
+use wayland_commons::utils::UserData;
+
 use {Implementation, Interface, MessageGroup, Resource};
 
 use super::{ClientInner, EventLoopInner};
-
-struct UserData {
-    data: Box<Any + 'static>,
-}
-
-// similarly as for implementations, we need to be able to store non-Send
-// data in the UserData, but accessing it is `unsafe`, so the frontend is
-// responsible for ensuring threaded access is correct
-unsafe impl Send for UserData {}
-unsafe impl Sync for UserData {}
 
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
@@ -26,15 +17,10 @@ pub(crate) struct ResourceInternal {
 }
 
 impl ResourceInternal {
-    fn new<UD>(user_data: UD) -> ResourceInternal
-    where
-        UD: 'static,
-    {
+    fn new(user_data: UserData) -> ResourceInternal {
         ResourceInternal {
             alive: AtomicBool::new(true),
-            user_data: Arc::new(UserData {
-                data: Box::new(user_data),
-            }),
+            user_data: Arc::new(user_data),
         }
     }
 }
@@ -134,12 +120,12 @@ impl ResourceInner {
         }
     }
 
-    pub(crate) unsafe fn get_user_data<UD>(&self) -> Option<&UD>
+    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
     where
         UD: 'static,
     {
         if let Some(ref inner) = self.internal {
-            inner.user_data.data.downcast_ref()
+            inner.user_data.get()
         } else {
             None
         }
@@ -173,7 +159,7 @@ impl ResourceInner {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Arc::new(UserData { data: Box::new(()) }),
+                    user_data: Arc::new(UserData::empty()),
                 })),
                 ptr: ptr,
                 _hack: (false, false),
@@ -232,17 +218,16 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest, UD>(
+    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
         self,
         implementation: Impl,
         destructor: Option<Dest>,
-        user_data: UD,
+        user_data: UserData,
         token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        UD: 'static,
     {
         if let Some(token) = token {
             assert!(
@@ -289,15 +274,14 @@ pub(crate) struct ResourceUserData<I: Interface> {
 }
 
 impl<I: Interface> ResourceUserData<I> {
-    pub(crate) fn new<Impl, Dest, UD>(
+    pub(crate) fn new<Impl, Dest>(
         implem: Impl,
         destructor: Option<Dest>,
-        user_data: UD,
+        user_data: UserData,
     ) -> ResourceUserData<I>
     where
         Impl: Implementation<Resource<I>, I::Request> + 'static,
         Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
-        UD: 'static,
     {
         ResourceUserData {
             _i: ::std::marker::PhantomData,

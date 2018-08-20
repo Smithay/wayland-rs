@@ -1,24 +1,14 @@
-use std::any::Any;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
+use wayland_commons::utils::UserData;
 use wayland_commons::MessageGroup;
 
 use super::connection::Connection;
 use super::queues::QueueBuffer;
 use super::{Dispatcher, EventQueueInner};
 use {Implementation, Interface, Proxy};
-
-struct UserData {
-    data: Box<Any + 'static>,
-}
-
-// similarly as for implementations, we need to be able to store non-Send
-// data in the UserData, but accessing it is `unsafe`, so the frontend is
-// responsible for ensuring threaded access is correct
-unsafe impl Send for UserData {}
-unsafe impl Sync for UserData {}
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
@@ -35,7 +25,7 @@ impl ObjectMetadata for ObjectMeta {
         ObjectMeta {
             buffer: self.buffer.clone(),
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(UserData { data: Box::new(()) }),
+            user_data: Arc::new(UserData::empty()),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
@@ -48,7 +38,7 @@ impl ObjectMeta {
         ObjectMeta {
             buffer,
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(UserData { data: Box::new(()) }),
+            user_data: Arc::new(UserData::empty()),
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
@@ -59,7 +49,7 @@ impl ObjectMeta {
         ObjectMeta {
             buffer: super::queues::create_queue_buffer(),
             alive: Arc::new(AtomicBool::new(false)),
-            user_data: Arc::new(UserData { data: Box::new(()) }),
+            user_data: Arc::new(UserData::empty()),
             dispatcher: super::default_dispatcher(),
             server_destroyed: true,
             client_destroyed: true,
@@ -110,8 +100,8 @@ impl ProxyInner {
         }
     }
 
-    pub(crate) unsafe fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
-        self.object.meta.user_data.data.downcast_ref::<UD>()
+    pub(crate) fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
+        self.object.meta.user_data.get::<UD>()
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
@@ -219,21 +209,18 @@ impl NewProxyInner {
     }
 
     // Invariants: Impl is either `Send` or we are on the same thread as the target event loop
-    pub(crate) unsafe fn implement<I: Interface, UD, Impl>(
+    pub(crate) unsafe fn implement<I: Interface, Impl>(
         self,
         implementation: Impl,
-        user_data: UD,
+        user_data: UserData,
     ) -> ProxyInner
     where
         Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        UD: 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {
             obj.meta.dispatcher = super::make_dispatcher(implementation);
-            obj.meta.user_data = Arc::new(UserData {
-                data: Box::new(user_data),
-            });
+            obj.meta.user_data = Arc::new(user_data);
             obj.clone()
         });
 
