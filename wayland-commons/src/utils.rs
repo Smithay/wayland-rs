@@ -56,11 +56,11 @@ impl UserData {
     ///   is attempted from an other thread than the one it was created on
     pub fn get<T: 'static>(&self) -> Option<&T> {
         match self.inner {
-            UserDataInner::ThreadSafe(ref val) => val.downcast_ref(),
+            UserDataInner::ThreadSafe(ref val) => Any::downcast_ref::<T>(&**val),
             UserDataInner::NonThreadSafe(ref val, threadid) => {
                 // only give access if we are on the right thread
                 if threadid == thread::current().id() {
-                    val.downcast_ref()
+                    Any::downcast_ref::<T>(&**val)
                 } else {
                     None
                 }
