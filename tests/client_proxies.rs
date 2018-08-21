@@ -79,6 +79,35 @@ fn proxy_user_data() {
 }
 
 #[test]
+fn proxy_user_data_wrong_thread() {
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    server
+        .display
+        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let compositor = manager
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| unsafe {
+            newp.implement_nonsend(CompImpl1, 0xDEADBEEFusize, &client.event_queue.get_token())
+        })
+        .unwrap();
+
+    // we can access on the right thread
+    assert!(compositor.user_data::<usize>().is_some());
+
+    // but not in a new one
+    ::std::thread::spawn(move || {
+        assert!(compositor.user_data::<usize>().is_none());
+    }).join()
+        .unwrap();
+}
+
+#[test]
 fn proxy_is_implemented() {
     let mut server = TestServer::new();
     let loop_token = server.event_loop.token();
