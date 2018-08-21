@@ -102,6 +102,46 @@ fn resource_user_data() {
 }
 
 #[test]
+fn resource_user_data_wrong_thread() {
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    let loop_token2 = loop_token.clone();
+
+    let outputs = Arc::new(Mutex::new(None));
+    let outputs2 = outputs.clone();
+
+    server
+        .display
+        .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |_, newo: NewResource<_>| {
+            let mut guard = outputs2.lock().unwrap();
+            let output = newo.implement_nonsend(|_, _| {}, None::<fn(_, _)>, 0xDEADBEEFusize, &loop_token2);
+            *guard = Some(output);
+        });
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    manager
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
+        .unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let output = outputs.lock().unwrap().take().unwrap();
+
+    // we can access on the right thread
+    assert!(output.user_data::<usize>().is_some());
+
+    // but not in a new one
+    ::std::thread::spawn(move || {
+        assert!(output.user_data::<usize>().is_none());
+    }).join()
+        .unwrap();
+}
+
+#[test]
 fn resource_is_implemented() {
     let mut server = TestServer::new();
     let loop_token = server.event_loop.token();
