@@ -23,22 +23,21 @@ fn main() {
     sigprocmask(SigmaskHow::SIG_BLOCK, Some(&sigset), None).unwrap();
 
     // add a signal event source for it
-    let signal_source = event_loop
+    event_loop
         .token()
         .add_signal_event_source(Signal::SIGUSR1, {
             let signal = signal_received.clone();
-            move |SignalEvent(sig), ()| {
+            move |SignalEvent(sig)| {
                 assert!(sig == Signal::SIGUSR1);
                 signal.set(true);
             }
         })
-        .map_err(|(e, _)| e)
         .unwrap();
 
     // send ourselves a SIGUSR1
-    kill(Pid::this(), Signal::SIGUSR1);
+    kill(Pid::this(), Signal::SIGUSR1).unwrap();
 
-    event_loop.dispatch(Some(10));
+    event_loop.dispatch(Some(10)).unwrap();
 
     assert!(signal_received.get());
 }

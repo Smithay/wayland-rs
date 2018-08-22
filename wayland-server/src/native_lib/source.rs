@@ -5,18 +5,16 @@ use std::rc::Rc;
 
 use wayland_sys::server::*;
 
-use Implementation;
-
 use sources::*;
 
 pub(crate) struct SourceInner<E> {
     _e: ::std::marker::PhantomData<*const E>,
     ptr: *mut wl_event_source,
-    data: *mut Box<Implementation<(), E>>,
+    data: *mut Box<FnMut(E)>,
 }
 
 impl<E> SourceInner<E> {
-    pub(crate) fn make(ptr: *mut wl_event_source, data: Box<Box<Implementation<(), E>>>) -> SourceInner<E> {
+    pub(crate) fn make(ptr: *mut wl_event_source, data: Box<Box<FnMut(E)>>) -> SourceInner<E> {
         SourceInner {
             _e: ::std::marker::PhantomData,
             ptr: ptr,
@@ -24,11 +22,11 @@ impl<E> SourceInner<E> {
         }
     }
 
-    pub(crate) fn remove(self) -> Box<Implementation<(), E>> {
+    pub(crate) fn remove(self) {
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_source_remove, self.ptr);
-            let data = Box::from_raw(self.data);
-            *data
+            // properly drop
+            Box::from_raw(self.data);
         }
     }
 }
@@ -52,7 +50,7 @@ pub(crate) unsafe extern "C" fn event_source_fd_dispatcher(fd: c_int, mask: u32,
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), FdEvent>>);
+        let implem = &mut *(data as *mut Box<FnMut(FdEvent)>);
         if mask & 0x08 > 0 {
             // EPOLLERR
             use nix::sys::socket;
@@ -67,22 +65,16 @@ pub(crate) unsafe extern "C" fn event_source_fd_dispatcher(fd: c_int, mask: u32,
                     ::libc::abort();
                 }
             };
-            implem.receive(
-                FdEvent::Error {
-                    fd: fd,
-                    error: IoError::from_raw_os_error(err),
-                },
-                (),
-            );
+            implem(FdEvent::Error {
+                fd: fd,
+                error: IoError::from_raw_os_error(err),
+            });
         } else if mask & 0x04 > 0 {
             // EPOLLHUP
-            implem.receive(
-                FdEvent::Error {
-                    fd: fd,
-                    error: IoError::new(::std::io::ErrorKind::ConnectionAborted, ""),
-                },
-                (),
-            );
+            implem(FdEvent::Error {
+                fd: fd,
+                error: IoError::new(::std::io::ErrorKind::ConnectionAborted, ""),
+            });
         } else {
             let mut bits = FdInterest::empty();
             if mask & 0x02 > 0 {
@@ -91,7 +83,7 @@ pub(crate) unsafe extern "C" fn event_source_fd_dispatcher(fd: c_int, mask: u32,
             if mask & 0x01 > 0 {
                 bits = bits | FdInterest::READ;
             }
-            implem.receive(FdEvent::Ready { fd: fd, mask: bits }, ());
+            implem(FdEvent::Ready { fd: fd, mask: bits });
         }
     });
     match ret {
@@ -126,8 +118,8 @@ pub(crate) unsafe extern "C" fn event_source_timer_dispatcher(data: *mut c_void)
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), TimerEvent>>);
-        implem.receive(TimerEvent, ());
+        let implem = &mut *(data as *mut Box<FnMut(TimerEvent)>);
+        implem(TimerEvent);
     });
     match ret {
         Ok(()) => return 0, // all went well
@@ -145,7 +137,7 @@ pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, da
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<(), SignalEvent>>);
+        let implem = &mut *(data as *mut Box<FnMut(SignalEvent)>);
         let sig = match ::nix::sys::signal::Signal::from_c_int(signal) {
             Ok(sig) => sig,
             Err(_) => {
@@ -158,7 +150,7 @@ pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, da
                 ::libc::abort();
             }
         };
-        implem.receive(SignalEvent(sig), ());
+        implem(SignalEvent(sig));
     });
     match ret {
         Ok(()) => return 0, // all went well
@@ -174,18 +166,18 @@ pub(crate) unsafe extern "C" fn event_source_signal_dispatcher(signal: c_int, da
 
 pub(crate) struct IdleSourceInner {
     ptr: *mut wl_event_source,
-    data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
+    data: Rc<RefCell<(Box<FnMut()>, bool)>>,
 }
 
 impl IdleSourceInner {
     pub(crate) fn make(
         ptr: *mut wl_event_source,
-        data: Rc<RefCell<(Box<Implementation<(), ()>>, bool)>>,
+        data: Rc<RefCell<(Box<FnMut()>, bool)>>,
     ) -> IdleSourceInner {
         IdleSourceInner { ptr, data }
     }
 
-    pub(crate) fn remove(self) -> Box<Implementation<(), ()>> {
+    pub(crate) fn remove(self) {
         let dispatched = self.data.borrow().1;
         if !dispatched {
             unsafe {
@@ -195,11 +187,6 @@ impl IdleSourceInner {
                 let _ = Rc::from_raw(&*self.data);
             }
         }
-        // we are now the only oustanding reference
-        let data = Rc::try_unwrap(self.data)
-            .unwrap_or_else(|_| panic!("Idle Rc was not singly owned."))
-            .into_inner();
-        data.0
     }
 }
 
@@ -207,15 +194,15 @@ pub(crate) unsafe extern "C" fn event_source_idle_dispatcher(data: *mut c_void) 
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        let data = &*(data as *mut RefCell<(Box<Implementation<(), ()>>, bool)>);
+        let data = &*(data as *mut RefCell<(Box<FnMut()>, bool)>);
         let mut data = data.borrow_mut();
-        data.0.receive((), ());
+        (&mut data.0)();
     });
     match ret {
         Ok(()) => {
             // all went well
             // free the refence to the idata, as this event source cannot be called again
-            let data = Rc::from_raw(data as *mut RefCell<(Box<Implementation<(), ()>>, bool)>);
+            let data = Rc::from_raw(data as *mut RefCell<(Box<FnMut()>, bool)>);
             // store that the dispatching occured
             data.borrow_mut().1 = true;
         }

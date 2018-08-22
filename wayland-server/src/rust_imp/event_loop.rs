@@ -9,14 +9,13 @@ use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
 
 use sources::*;
-use Implementation;
 
 use super::DisplayInner;
 
 pub(crate) struct EventLoopInner {
     pub(crate) display: Option<Rc<RefCell<DisplayInner>>>,
     sources_poll: SourcesPoll,
-    idles: RefCell<Vec<Rc<RefCell<Option<Box<Implementation<(), ()>>>>>>>,
+    idles: RefCell<Vec<Rc<RefCell<Option<Box<FnMut()>>>>>>,
 }
 
 #[derive(Clone)]
@@ -43,15 +42,15 @@ impl SourcesPoll {
         Ok(())
     }
 
-    pub(crate) fn insert_source<Impl, E>(
+    pub(crate) fn insert_source<F, E>(
         &self,
         fd: RawFd,
         interest: Ready,
-        implementation: Impl,
+        implementation: F,
         evt: E,
-    ) -> Result<SourceInner<E>, (io::Error, Impl)>
+    ) -> Result<SourceInner<E>, io::Error>
     where
-        Impl: Implementation<(), E> + 'static,
+        F: FnMut(E) + 'static,
         SourceDispatcher<E>: EventDispatcher,
     {
         let implem = Rc::new(RefCell::new(SourceDispatcher {
@@ -67,18 +66,9 @@ impl SourcesPoll {
             token,
             fd,
         };
-        match self
-            .poll
-            .register(&EventedFd(&fd), token, interest, PollOpt::empty())
-        {
-            Ok(()) => Ok(source),
-            Err(e) => {
-                let implem = source.remove();
-                // convert the implem back
-                let implem = unsafe { Box::from_raw(Box::into_raw(implem) as _) };
-                Err((e, *implem))
-            }
-        }
+        self.poll
+            .register(&EventedFd(&fd), token, interest, PollOpt::empty())?;
+        Ok(source)
     }
 }
 
@@ -114,14 +104,14 @@ impl EventLoopInner {
         }
     }
 
-    pub(crate) fn add_fd_event_source<Impl>(
+    pub(crate) fn add_fd_event_source<F>(
         &self,
         fd: RawFd,
         interest: FdInterest,
-        implementation: Impl,
-    ) -> Result<SourceInner<FdEvent>, (io::Error, Impl)>
+        implementation: F,
+    ) -> Result<SourceInner<FdEvent>, io::Error>
     where
-        Impl: Implementation<(), FdEvent> + 'static,
+        F: FnMut(FdEvent) + 'static,
     {
         self.sources_poll.insert_source(
             fd,
@@ -131,29 +121,29 @@ impl EventLoopInner {
         )
     }
 
-    pub(crate) fn add_timer_event_source<Impl>(
+    pub(crate) fn add_timer_event_source<F>(
         &self,
-        implementation: Impl,
-    ) -> Result<SourceInner<TimerEvent>, (io::Error, Impl)>
+        implementation: F,
+    ) -> Result<SourceInner<TimerEvent>, io::Error>
     where
-        Impl: Implementation<(), TimerEvent> + 'static,
+        F: FnMut(TimerEvent) + 'static,
     {
         use libc::{timerfd_create, CLOCK_MONOTONIC, TFD_CLOEXEC, TFD_NONBLOCK};
         let fd = unsafe { timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK) };
         if fd < 0 {
-            return Err((io::Error::last_os_error(), implementation));
+            return Err(io::Error::last_os_error());
         }
         self.sources_poll
             .insert_source(fd, Ready::readable(), implementation, TimerEvent)
     }
 
-    pub(crate) fn add_signal_event_source<Impl>(
+    pub(crate) fn add_signal_event_source<F>(
         &self,
         signal: ::nix::sys::signal::Signal,
-        implementation: Impl,
-    ) -> Result<SourceInner<SignalEvent>, (io::Error, Impl)>
+        implementation: F,
+    ) -> Result<SourceInner<SignalEvent>, io::Error>
     where
-        Impl: Implementation<(), SignalEvent> + 'static,
+        F: FnMut(SignalEvent) + 'static,
     {
         use nix::sys::signal::SigSet;
         use nix::sys::signalfd::{signalfd, SfdFlags};
@@ -163,7 +153,7 @@ impl EventLoopInner {
 
         let fd = match signalfd(-1, &set, SfdFlags::SFD_NONBLOCK | SfdFlags::SFD_CLOEXEC) {
             Ok(fd) => fd,
-            Err(::nix::Error::Sys(e)) => return Err((e.into(), implementation)),
+            Err(::nix::Error::Sys(e)) => return Err(e.into()),
             Err(_) => unreachable!(),
         };
 
@@ -171,9 +161,9 @@ impl EventLoopInner {
             .insert_source(fd, Ready::readable(), implementation, SignalEvent(signal))
     }
 
-    pub(crate) fn add_idle_event_source<Impl>(&self, implementation: Impl) -> IdleSourceInner
+    pub(crate) fn add_idle_event_source<F>(&self, implementation: F) -> IdleSourceInner
     where
-        Impl: Implementation<(), ()> + 'static,
+        F: FnMut() + 'static,
     {
         let implem = Rc::new(RefCell::new(Some(Box::new(implementation) as Box<_>)));
         self.idles.borrow_mut().push(implem.clone());
@@ -184,7 +174,7 @@ impl EventLoopInner {
         let idles = ::std::mem::replace(&mut *self.idles.borrow_mut(), Vec::new());
         for idle in idles {
             if let Some(ref mut implem) = *idle.borrow_mut() {
-                implem.receive((), ());
+                implem();
             }
         }
     }
@@ -242,7 +232,7 @@ impl SourceList {
 // Sources
 
 pub(crate) struct SourceDispatcher<E> {
-    implem: Box<Implementation<(), E>>,
+    implem: Box<FnMut(E)>,
     fd: RawFd,
     evt: E,
 }
@@ -259,16 +249,11 @@ impl<E: 'static> SourceInner<E>
 where
     SourceDispatcher<E>: EventDispatcher,
 {
-    pub(crate) fn remove(self) -> Box<Implementation<(), E>> {
+    pub(crate) fn remove(self) {
         let _ = self.poll.deregister(&EventedFd(&self.fd));
         self.list
             .borrow_mut()
             .del_source(self.dispatcher.clone() as Rc<_>);
-        let dispatcher = match Rc::try_unwrap(self.dispatcher) {
-            Ok(d) => d,
-            Err(_) => unreachable!(),
-        };
-        dispatcher.into_inner().implem
     }
 }
 
@@ -284,17 +269,14 @@ impl SourceInner<FdEvent> {
 
 impl EventDispatcher for SourceDispatcher<FdEvent> {
     fn ready(&mut self, ready: Ready) {
-        self.implem.receive(
-            FdEvent::Ready {
-                fd: self.fd,
-                mask: ready.into(),
-            },
-            (),
-        );
+        (self.implem)(FdEvent::Ready {
+            fd: self.fd,
+            mask: ready.into(),
+        });
     }
 
     fn error(&mut self, error: io::Error) {
-        self.implem.receive(FdEvent::Error { fd: self.fd, error }, ());
+        (self.implem)(FdEvent::Error { fd: self.fd, error });
     }
 }
 
@@ -323,7 +305,7 @@ impl SourceInner<TimerEvent> {
 
 impl EventDispatcher for SourceDispatcher<TimerEvent> {
     fn ready(&mut self, _: Ready) {
-        self.implem.receive(self.evt, ());
+        (self.implem)(self.evt);
     }
 
     fn error(&mut self, _: io::Error) {}
@@ -333,7 +315,7 @@ impl EventDispatcher for SourceDispatcher<TimerEvent> {
 
 impl EventDispatcher for SourceDispatcher<SignalEvent> {
     fn ready(&mut self, _: Ready) {
-        self.implem.receive(self.evt, ());
+        (self.implem)(self.evt);
     }
 
     fn error(&mut self, _: io::Error) {}
@@ -342,12 +324,12 @@ impl EventDispatcher for SourceDispatcher<SignalEvent> {
 // Idle event source
 
 pub(crate) struct IdleSourceInner {
-    implem: Rc<RefCell<Option<Box<Implementation<(), ()>>>>>,
+    implem: Rc<RefCell<Option<Box<FnMut()>>>>,
 }
 
 impl IdleSourceInner {
-    pub(crate) fn remove(self) -> Box<Implementation<(), ()>> {
-        self.implem.borrow_mut().take().unwrap()
+    pub(crate) fn remove(self) {
+        self.implem.borrow_mut().take();
     }
 }
 

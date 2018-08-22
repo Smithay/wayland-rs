@@ -12,7 +12,7 @@ use wayland_sys::server::*;
 use super::{ClientInner, EventLoopInner, GlobalInner};
 
 use display::get_runtime_dir;
-use {Implementation, Interface, NewResource};
+use {Interface, NewResource};
 
 pub(crate) struct DisplayInner {
     pub(crate) ptr: *mut wl_display,
@@ -51,16 +51,16 @@ impl DisplayInner {
         self.ptr
     }
 
-    pub(crate) fn create_global<I: Interface, Impl>(
+    pub(crate) fn create_global<I: Interface, F>(
         &mut self,
         _: &EventLoopInner,
         version: u32,
-        implementation: Impl,
+        implementation: F,
     ) -> GlobalInner<I>
     where
-        Impl: Implementation<NewResource<I>, u32> + 'static,
+        F: FnMut(NewResource<I>, u32) + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<NewResource<I>, u32>>);
+        let data = Box::new(Box::new(implementation) as Box<FnMut(NewResource<I>, u32)>);
 
         unsafe {
             let ptr = ffi_dispatch!(

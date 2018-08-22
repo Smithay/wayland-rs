@@ -3,7 +3,6 @@ mod helpers;
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;
-use ways::NewResource;
 
 use wayc::protocol::wl_output::{RequestsTrait, WlOutput};
 
@@ -18,11 +17,11 @@ fn resource_destructor() {
     let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |_, newo: NewResource<_>| {
+        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
             newo.implement(
                 |_, _| {},
-                Some(move |_, _| {
+                Some(move |_| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
                 (),
@@ -56,11 +55,11 @@ fn resource_destructor_cleanup() {
     let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |_, newo: NewResource<_>| {
+        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
             newo.implement(
                 |_, _| {},
-                Some(move |_, _| {
+                Some(move |_| {
                     *destructor_called_resource.lock().unwrap() = true;
                 }),
                 (),
@@ -95,9 +94,9 @@ fn client_destructor_cleanup() {
     let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |_, newo: NewResource<_>| {
+        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            let output = newo.implement(|_, _| {}, None::<fn(_, _)>, ());
+            let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
             let client = output.client().unwrap();
             client.set_user_data(Box::into_raw(Box::new(destructor_called_resource)) as *mut _);
             client.set_destructor(|data| {

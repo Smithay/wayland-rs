@@ -8,7 +8,7 @@ use wayland_commons::MessageGroup;
 use super::connection::Connection;
 use super::queues::QueueBuffer;
 use super::{Dispatcher, EventQueueInner};
-use {Implementation, Interface, Proxy};
+use {Interface, Proxy};
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
@@ -153,19 +153,6 @@ impl ProxyInner {
         Ok(wrapper)
     }
 
-    pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
-    where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        I::Event: MessageGroup<Map = super::ProxyMap>,
-    {
-        self.object
-            .meta
-            .dispatcher
-            .lock()
-            .unwrap()
-            .is::<super::ImplDispatcher<I, Impl>>()
-    }
-
     pub(crate) fn child<I: Interface>(&self) -> NewProxyInner {
         self.child_versioned::<I>(self.object.version)
     }
@@ -209,13 +196,13 @@ impl NewProxyInner {
     }
 
     // Invariants: Impl is either `Send` or we are on the same thread as the target event loop
-    pub(crate) unsafe fn implement<I: Interface, Impl>(
+    pub(crate) unsafe fn implement<I: Interface, F>(
         self,
-        implementation: Impl,
+        implementation: F,
         user_data: UserData,
     ) -> ProxyInner
     where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        F: FnMut(I::Event, Proxy<I>) + 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {

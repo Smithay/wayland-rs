@@ -57,28 +57,8 @@
 //! Failure to do so (by dropping the `NewProxy<I>` for example) can cause future fatal
 //! errors if the server tries to send an event to this object.
 //!
-//! An implementation is just a struct implementing the `Implementation<Proxy<I>, I::Event>`
-//! trait, where `I` is the interface of the considered object:
-//!
-//! ```
-//! // Example implementation for the wl_surface interface
-//! use wayland_client::{Proxy, Implementation};
-//! use wayland_client::protocol::wl_surface;
-//!
-//! struct MyImpl {
-//!    // ...
-//! }
-//!
-//! impl Implementation<Proxy<wl_surface::WlSurface>, wl_surface::Event> for MyImpl {
-//!     fn receive(&mut self, msg: wl_surface::Event, proxy: Proxy<wl_surface::WlSurface>) {
-//!         // process the message...
-//!     }
-//! }
-//! # fn main() {}
-//! ```
-//!
-//! The trait is also automatically implemented for `FnMut(I::Event, Proxy<I>)` closures,
-//! so you can use them for simplicity if a full struct would be too cumbersome.
+//! An implementation is just an `FnMut(I::Event, Proxy<I>), where `I` is the interface of
+//! the considered object.
 //!
 //! ## Event Queues
 //!
@@ -151,9 +131,7 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-pub use wayland_commons::{
-    downcast_impl, AnonymousObject, Implementation, Interface, MessageGroup, NoMessage,
-};
+pub use wayland_commons::{AnonymousObject, Interface, MessageGroup, NoMessage};
 
 // rust implementation
 #[cfg(not(feature = "native_lib"))]

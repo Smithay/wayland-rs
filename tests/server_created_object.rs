@@ -8,7 +8,6 @@ use ways::protocol::wl_data_device::Event as SDDEvt;
 use ways::protocol::wl_data_device_manager::{Request as SDDMReq, WlDataDeviceManager as ServerDDMgr};
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;
-use ways::NewResource;
 
 use wayc::protocol::wl_data_device::Event as CDDEvt;
 use wayc::protocol::wl_data_device_manager::{RequestsTrait, WlDataDeviceManager as ClientDDMgr};
@@ -21,31 +20,29 @@ fn data_offer() {
     server
         .display
         .create_global::<ServerSeat, _>(&loop_token, 1, |_, _| {});
-    server.display.create_global::<ServerDDMgr, _>(
-        &loop_token,
-        3,
-        |version, new_resource: NewResource<_>| {
+    server
+        .display
+        .create_global::<ServerDDMgr, _>(&loop_token, 3, |new_resource, version| {
             assert!(version == 3);
             new_resource.implement(
                 |request, _| match request {
                     SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement(|_, _| {}, None::<fn(_, _)>, ());
+                        let ddevice = id.implement(|_, _| {}, None::<fn(_)>, ());
                         // create a data offer and send it
                         let offer = ddevice
                             .client()
                             .unwrap()
                             .create_resource::<ServerDO>(ddevice.version())
                             .unwrap()
-                            .implement(|_, _| {}, None::<fn(_, _)>, ());
+                            .implement(|_, _| {}, None::<fn(_)>, ());
                         ddevice.send(SDDEvt::DataOffer { id: offer })
                     }
                     _ => unimplemented!(),
                 },
-                None::<fn(_, _)>,
+                None::<fn(_)>,
                 (),
             );
-        },
-    );
+        });
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);

@@ -1,5 +1,5 @@
 use wayland_commons::utils::UserData;
-use wayland_commons::{AnonymousObject, Implementation, Interface};
+use wayland_commons::{AnonymousObject, Interface};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::*;
@@ -148,17 +148,6 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
-    /// Check whether this proxy has been implemented with given type
-    ///
-    /// Always returns false if the proxy is no longer alive
-    pub fn is_implemented_with<Impl>(&self) -> bool
-    where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
-        I::Event: MessageGroup<Map = super::ProxyMap>,
-    {
-        self.inner.is_implemented_with::<I, Impl>()
-    }
-
     /// Create a wrapper for this object for queue management
     ///
     /// As assigning a proxy to an event queue can be a racy operation
@@ -270,9 +259,9 @@ impl<I: Interface + 'static> NewProxy<I> {
     }
 
     /// Implement this proxy using given function and implementation data.
-    pub fn implement<Impl, UD>(self, implementation: Impl, user_data: UD) -> Proxy<I>
+    pub fn implement<F, UD>(self, implementation: F, user_data: UD) -> Proxy<I>
     where
-        Impl: Implementation<Proxy<I>, I::Event> + Send + 'static,
+        F: FnMut(I::Event, Proxy<I>) + Send + 'static,
         UD: Send + Sync + 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
@@ -306,7 +295,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         queue: &QueueToken,
     ) -> Proxy<I>
     where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        Impl: FnMut(I::Event, Proxy<I>) + 'static,
         UD: 'static,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
