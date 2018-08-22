@@ -98,10 +98,8 @@ fn client_destructor_cleanup() {
             let destructor_called_resource = destructor_called_global.clone();
             let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
             let client = output.client().unwrap();
-            client.set_user_data(Box::into_raw(Box::new(destructor_called_resource)) as *mut _);
-            client.set_destructor(|data| {
-                let signal: Box<Arc<Mutex<bool>>> = unsafe { Box::from_raw(data as *mut _) };
-                *signal.lock().unwrap() = true;
+            client.add_destructor(move |_| {
+                *destructor_called_resource.lock().unwrap() = true;
             });
         });
 

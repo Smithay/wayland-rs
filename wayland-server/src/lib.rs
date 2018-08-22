@@ -99,6 +99,7 @@ pub use event_loop::{EventLoop, LoopSignal, LoopToken};
 pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
+pub use wayland_commons::utils::UserDataMap;
 pub use wayland_commons::{AnonymousObject, Interface, MessageGroup, NoMessage};
 
 #[cfg(feature = "native_lib")]

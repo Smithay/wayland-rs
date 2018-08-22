@@ -67,4 +67,7 @@ name = "send_sync"
 name = "server_created_object"
 
 [[test]]
+name = "server_clients"
+
+[[test]]
 name = "server_resources"

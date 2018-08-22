@@ -13,7 +13,8 @@ use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
 use sources::{FdEvent, FdInterest};
-use Interface;
+
+use {Interface, UserDataMap};
 
 use super::event_loop::SourcesPoll;
 use super::globals::GlobalManager;
@@ -27,15 +28,11 @@ pub(crate) enum Error {
     Nix(::nix::Error),
 }
 
-struct UserData(*mut ());
-
-unsafe impl Send for UserData {}
-
 pub(crate) struct ClientConnection {
     socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-    user_data: UserData,
-    destructor: Option<fn(*mut ())>,
+    user_data_map: Arc<UserDataMap>,
+    destructors: Vec<Box<FnMut(&UserDataMap) + Send>>,
     last_error: Option<Error>,
     pending_destructors: Vec<ResourceInner>,
     zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
@@ -56,8 +53,8 @@ impl ClientConnection {
         ClientConnection {
             socket,
             map: Arc::new(Mutex::new(map)),
-            user_data: UserData(::std::ptr::null_mut()),
-            destructor: None,
+            user_data_map: Arc::new(UserDataMap::new()),
+            destructors: Vec::new(),
             last_error: None,
             pending_destructors: Vec::new(),
             zombie_clients: zombies,
@@ -193,9 +190,10 @@ impl ClientConnection {
         Ok(Some(msg))
     }
 
-    fn cleanup(self) {
+    fn cleanup(mut self) {
         let dummy_client = ClientInner {
             data: Arc::new(Mutex::new(None)),
+            user_data_map: self.user_data_map.clone(),
         };
         self.map.lock().unwrap().with_all(|id, obj| {
             let resource = ResourceInner {
@@ -207,8 +205,8 @@ impl ClientConnection {
             obj.meta.dispatcher.lock().unwrap().destroy(resource);
         });
         let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
-        if let Some(destructor) = self.destructor {
-            destructor(self.user_data.0);
+        for mut destructor in self.destructors.drain(..) {
+            destructor(&self.user_data_map);
         }
     }
 }
@@ -216,6 +214,7 @@ impl ClientConnection {
 #[derive(Clone)]
 pub(crate) struct ClientInner {
     pub(crate) data: Arc<Mutex<Option<ClientConnection>>>,
+    user_data_map: Arc<UserDataMap>,
 }
 
 impl ClientInner {
@@ -242,23 +241,20 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn set_user_data(&self, data: *mut ()) {
-        if let Some(ref mut client_data) = *self.data.lock().unwrap() {
-            client_data.user_data.0 = data;
-        }
+    pub(crate) fn user_data_map(&self) -> &UserDataMap {
+        &self.user_data_map
     }
 
-    pub(crate) fn get_user_data(&self) -> *mut () {
+    pub(crate) fn add_destructor<F: FnOnce(&UserDataMap) + Send + 'static>(&self, destructor: F) {
         if let Some(ref mut client_data) = *self.data.lock().unwrap() {
-            client_data.user_data.0
-        } else {
-            ::std::ptr::null_mut()
-        }
-    }
-
-    pub(crate) fn set_destructor(&self, destructor: fn(*mut ())) {
-        if let Some(ref mut client_data) = *self.data.lock().unwrap() {
-            client_data.destructor = Some(destructor);
+            // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
+            // currently =(
+            let mut opt_dest = Some(destructor);
+            client_data.destructors.push(Box::new(move |data_map| {
+                if let Some(dest) = opt_dest.take() {
+                    dest(data_map);
+                }
+            }));
         }
     }
 
@@ -327,9 +323,11 @@ impl ClientManager {
 
         let cx = ClientConnection::new(fd, display_object, self.zombie_clients.clone());
         let map = cx.map.clone();
+        let user_data_map = cx.user_data_map.clone();
 
         let client = ClientInner {
             data: Arc::new(Mutex::new(Some(cx))),
+            user_data_map,
         };
 
         let mut implementation = ClientImplementation {

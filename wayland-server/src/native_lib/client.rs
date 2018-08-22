@@ -1,25 +1,25 @@
 use std::os::raw::c_void;
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use wayland_sys::server::*;
 
 use super::resource::NewResourceInner;
-use Interface;
+use {Interface, UserDataMap};
 
 pub(crate) struct ClientInternal {
     alive: AtomicBool,
-    user_data: AtomicPtr<()>,
-    destructor: AtomicPtr<()>,
+    user_data_map: UserDataMap,
+    destructors: Mutex<Vec<Box<FnMut(&UserDataMap) + Send + 'static>>>,
 }
 
 impl ClientInternal {
     fn new() -> ClientInternal {
         ClientInternal {
             alive: AtomicBool::new(true),
-            user_data: AtomicPtr::new(::std::ptr::null_mut()),
-            destructor: AtomicPtr::new(::std::ptr::null_mut()),
+            user_data_map: UserDataMap::new(),
+            destructors: Mutex::new(Vec::new()),
         }
     }
 }
@@ -94,18 +94,23 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn set_user_data(&self, data: *mut ()) {
-        self.internal.user_data.store(data, Ordering::Release);
+    pub(crate) fn user_data_map(&self) -> &UserDataMap {
+        &self.internal.user_data_map
     }
 
-    pub(crate) fn get_user_data(&self) -> *mut () {
-        self.internal.user_data.load(Ordering::Acquire)
-    }
-
-    pub(crate) fn set_destructor(&self, destructor: fn(*mut ())) {
+    pub(crate) fn add_destructor<F: FnOnce(&UserDataMap) + Send + 'static>(&self, destructor: F) {
+        // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
+        // currently =(
+        let mut opt_dest = Some(destructor);
         self.internal
-            .destructor
-            .store(destructor as *const () as *mut (), Ordering::Release);
+            .destructors
+            .lock()
+            .unwrap()
+            .push(Box::new(move |data_map| {
+                if let Some(dest) = opt_dest.take() {
+                    dest(data_map);
+                }
+            }))
     }
 
     pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResourceInner> {
@@ -131,11 +136,11 @@ unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_vo
     signal::rust_listener_set_user_data(listener, ptr::null_mut());
     // Store that we are dead
     internal.alive.store(false, Ordering::Release);
-    // TODO: call the user callback
-    let destructor = internal.destructor.load(Ordering::Acquire);
-    if !destructor.is_null() {
-        let destructor_func: fn(*mut ()) = ::std::mem::transmute(destructor);
-        destructor_func(internal.user_data.load(Ordering::Acquire));
+
+    let mut destructors = internal.destructors.lock().unwrap();
+    for mut destructor in destructors.drain(..) {
+        destructor(&internal.user_data_map);
     }
+
     signal::rust_listener_destroy(listener);
 }
