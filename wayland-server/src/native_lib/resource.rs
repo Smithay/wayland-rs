@@ -7,7 +7,7 @@ use wayland_sys::server::*;
 
 use wayland_commons::utils::UserData;
 
-use {Implementation, Interface, MessageGroup, Resource};
+use {Interface, MessageGroup, Resource};
 
 use super::{ClientInner, EventLoopInner};
 
@@ -189,21 +189,6 @@ impl ResourceInner {
         }
     }
 
-    pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-    {
-        if !self.is_alive() {
-            return false;
-        }
-        let user_data = unsafe {
-            let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
-                as *mut self::ResourceUserData<I>;
-            &*ptr
-        };
-        user_data.is_impl::<Impl>()
-    }
-
     pub(crate) fn clone(&self) -> ResourceInner {
         ResourceInner {
             internal: self.internal.clone(),
@@ -218,16 +203,16 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
+    pub(crate) unsafe fn implement<I: Interface, F, Dest>(
         self,
-        implementation: Impl,
+        implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
         token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        F: FnMut(I::Request, Resource<I>) + 'static,
+        Dest: FnMut(Resource<I>) + 'static,
     {
         if let Some(token) = token {
             assert!(
@@ -268,36 +253,26 @@ pub(crate) struct ResourceUserData<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
     pub(crate) internal: Arc<ResourceInternal>,
     implem: Option<(
-        Box<Implementation<Resource<I>, I::Request>>,
-        Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
+        Box<FnMut(I::Request, Resource<I>)>,
+        Option<Box<FnMut(Resource<I>)>>,
     )>,
 }
 
 impl<I: Interface> ResourceUserData<I> {
-    pub(crate) fn new<Impl, Dest>(
-        implem: Impl,
+    pub(crate) fn new<F, Dest>(
+        implem: F,
         destructor: Option<Dest>,
         user_data: UserData,
     ) -> ResourceUserData<I>
     where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        F: FnMut(I::Request, Resource<I>) + 'static,
+        Dest: FnMut(Resource<I>) + 'static,
     {
         ResourceUserData {
             _i: ::std::marker::PhantomData,
             internal: Arc::new(ResourceInternal::new(user_data)),
             implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
         }
-    }
-
-    pub(crate) fn is_impl<Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-    {
-        self.implem
-            .as_ref()
-            .map(|implem| implem.0.is::<Impl>())
-            .unwrap_or(false)
     }
 }
 
@@ -331,7 +306,7 @@ where
                 user_data.internal.alive.store(false, Ordering::Release);
             }
             // call the impl
-            implem_func.receive(msg, resource_obj);
+            implem_func(msg, resource_obj);
         }
         if must_destroy {
             // final cleanup
@@ -366,11 +341,10 @@ pub(crate) unsafe extern "C" fn resource_destroy<I: Interface>(resource: *mut wl
         let mut user_data = Box::from_raw(user_data as *mut ResourceUserData<I>);
         user_data.internal.alive.store(false, Ordering::Release);
         let implem = user_data.implem.as_mut().unwrap();
-        let &mut (ref mut implem_func, ref mut destructor) = implem;
+        let &mut (_, ref mut destructor) = implem;
         if let Some(mut dest_func) = destructor.take() {
-            let retrieved_implem = ::std::mem::replace(implem_func, Box::new(|_, _| {}));
             let resource_obj = Resource::<I>::from_c_ptr(resource);
-            dest_func(resource_obj, retrieved_implem);
+            dest_func(resource_obj);
         }
     });
 

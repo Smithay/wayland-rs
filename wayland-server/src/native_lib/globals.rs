@@ -1,6 +1,6 @@
 use std::os::raw::c_void;
 
-use wayland_commons::{Implementation, Interface};
+use wayland_commons::Interface;
 
 use wayland_sys::server::*;
 
@@ -9,13 +9,13 @@ use NewResource;
 pub(crate) struct GlobalInner<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
     ptr: *mut wl_global,
-    data: *mut Box<Implementation<NewResource<I>, u32>>,
+    data: *mut Box<FnMut(NewResource<I>, u32)>,
 }
 
 impl<I: Interface> GlobalInner<I> {
     pub(crate) unsafe fn create(
         ptr: *mut wl_global,
-        data: Box<Box<Implementation<NewResource<I>, u32>>>,
+        data: Box<Box<FnMut(NewResource<I>, u32)>>,
     ) -> GlobalInner<I> {
         GlobalInner {
             _i: ::std::marker::PhantomData,
@@ -43,7 +43,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
 ) {
     // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<Implementation<NewResource<I>, u32>>);
+        let implem = &mut *(data as *mut Box<FnMut(NewResource<I>, u32)>);
         let ptr = ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_resource_create,
@@ -53,7 +53,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
             id
         );
         let resource = NewResource::from_c_ptr(ptr as *mut wl_resource);
-        implem.receive(version, resource);
+        implem(resource, version);
     });
     match ret {
         Ok(()) => (), // all went well

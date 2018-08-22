@@ -10,8 +10,6 @@
 use std::io::Error as IoError;
 use std::os::unix::io::RawFd;
 
-use wayland_commons::Implementation;
-
 use imp::{IdleSourceInner, SourceInner};
 
 /// A handle to an event source
@@ -74,7 +72,7 @@ impl Source<FdEvent> {
     ///
     /// You are returned the implementation you provided
     /// for this event source at creation.
-    pub fn remove(self) -> Box<Implementation<(), FdEvent>> {
+    pub fn remove(self) {
         self.inner.remove()
     }
 }
@@ -101,7 +99,7 @@ impl Source<TimerEvent> {
     ///
     /// You are returned the implementation you provided
     /// for this event source at creation.
-    pub fn remove(self) -> Box<Implementation<(), TimerEvent>> {
+    pub fn remove(self) {
         self.inner.remove()
     }
 }
@@ -119,7 +117,7 @@ impl Source<SignalEvent> {
     ///
     /// You are returned the implementation you provided
     /// for this event source at creation.
-    pub fn remove(self) -> Box<Implementation<(), SignalEvent>> {
+    pub fn remove(self) {
         self.inner.remove()
     }
 }
@@ -145,7 +143,7 @@ impl IdleSource {
     ///
     /// You retrieve the associated implementation. The event source
     /// is removed and if it hadn't been fired yet, it is cancelled.
-    pub fn remove(self) -> Box<Implementation<(), ()>> {
+    pub fn remove(self) {
         self.inner.remove()
     }
 }

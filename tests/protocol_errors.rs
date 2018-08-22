@@ -1,6 +1,6 @@
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use helpers::TestServer;
 
 extern crate nix;
 extern crate wayland_commons as wc;

@@ -11,7 +11,7 @@ use wayland_sys::server::wl_display;
 
 use imp::DisplayInner;
 
-use {Client, EventLoop, Global, Implementation, Interface, LoopToken, NewResource};
+use {Client, EventLoop, Global, Interface, LoopToken, NewResource};
 
 /// The wayland display
 ///
@@ -47,14 +47,14 @@ impl Display {
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instanciate this global with
     /// a lower version number.
-    pub fn create_global<I: Interface, Impl>(
+    pub fn create_global<I: Interface, F>(
         &mut self,
         token: &LoopToken,
         version: u32,
-        implementation: Impl,
+        implementation: F,
     ) -> Global<I>
     where
-        Impl: Implementation<NewResource<I>, u32> + 'static,
+        F: FnMut(NewResource<I>, u32) + 'static,
     {
         assert!(
             version <= I::VERSION,

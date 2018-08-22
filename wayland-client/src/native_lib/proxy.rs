@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use wayland_commons::utils::UserData;
 use wayland_commons::MessageGroup;
-use {Implementation, Interface, Proxy};
+use {Interface, Proxy};
 
 use super::EventQueueInner;
 
@@ -128,21 +128,6 @@ impl ProxyInner {
         })
     }
 
-    pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
-    where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
-    {
-        if !self.is_alive() {
-            return false;
-        }
-        let user_data = unsafe {
-            let ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
-                as *mut ProxyUserData<I>;
-            &*ptr
-        };
-        user_data.is_impl::<Impl>()
-    }
-
     pub(crate) fn child<I: Interface>(&self) -> NewProxyInner {
         let ptr =
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create, self.ptr, I::c_interface()) };
@@ -205,13 +190,13 @@ pub(crate) struct NewProxyInner {
 }
 
 impl NewProxyInner {
-    pub(crate) unsafe fn implement<I: Interface, Impl>(
+    pub(crate) unsafe fn implement<I: Interface, F>(
         self,
-        implementation: Impl,
+        implementation: F,
         user_data: UserData,
     ) -> ProxyInner
     where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        F: FnMut(I::Event, Proxy<I>) + 'static,
     {
         let new_user_data = Box::new(ProxyUserData::new(implementation, user_data));
         let internal = new_user_data.internal.clone();
@@ -243,28 +228,18 @@ impl NewProxyInner {
 
 struct ProxyUserData<I: Interface> {
     internal: Arc<ProxyInternal>,
-    implem: Option<Box<Implementation<Proxy<I>, I::Event>>>,
+    implem: Option<Box<FnMut(I::Event, Proxy<I>)>>,
 }
 
 impl<I: Interface> ProxyUserData<I> {
-    fn new<Impl>(implem: Impl, user_data: UserData) -> ProxyUserData<I>
+    fn new<F>(implem: F, user_data: UserData) -> ProxyUserData<I>
     where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
+        F: FnMut(I::Event, Proxy<I>) + 'static,
     {
         ProxyUserData {
             internal: Arc::new(ProxyInternal::new(user_data)),
             implem: Some(Box::new(implem)),
         }
-    }
-
-    fn is_impl<Impl>(&self) -> bool
-    where
-        Impl: Implementation<Proxy<I>, I::Event> + 'static,
-    {
-        self.implem
-            .as_ref()
-            .map(|implem| implem.is::<Impl>())
-            .unwrap_or(false)
     }
 }
 
@@ -298,7 +273,7 @@ where
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
             // call the impl
-            implem.receive(msg, proxy_obj);
+            implem(msg, proxy_obj);
         }
         if must_destroy {
             // final cleanup

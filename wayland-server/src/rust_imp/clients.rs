@@ -13,7 +13,7 @@ use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
 use sources::{FdEvent, FdInterest};
-use {Implementation, Interface};
+use Interface;
 
 use super::event_loop::SourcesPoll;
 use super::globals::GlobalManager;
@@ -332,7 +332,7 @@ impl ClientManager {
             data: Arc::new(Mutex::new(Some(cx))),
         };
 
-        let implementation = ClientImplementation {
+        let mut implementation = ClientImplementation {
             inner: client.clone(),
             map,
         };
@@ -349,14 +349,14 @@ impl ClientManager {
         let source = match self.sources_poll.insert_source(
             fd,
             Ready::readable(),
-            implementation,
+            move |evt| implementation.receive(evt),
             FdEvent::Ready {
                 fd,
                 mask: FdInterest::READ,
             },
         ) {
             Ok(source) => Some(source),
-            Err((e, _)) => {
+            Err(e) => {
                 eprintln!(
                     "[wayland-server] Failed to insert client into event loop: {:?}",
                     e
@@ -525,10 +525,8 @@ impl ClientImplementation {
             }
         }
     }
-}
 
-impl Implementation<(), FdEvent> for ClientImplementation {
-    fn receive(&mut self, event: FdEvent, (): ()) {
+    fn receive(&mut self, event: FdEvent) {
         match event {
             FdEvent::Ready { .. } => self.process_messages(),
             FdEvent::Error { .. } => {
@@ -555,7 +553,7 @@ impl super::Dispatcher for DisplayDispatcher {
             // sync
             0 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                 if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
-                    let cb = cb.implement(|r, _| match r {}, None::<fn(_, _)>, ());
+                    let cb = cb.implement(|r, _| match r {}, None::<fn(_)>, ());
                     // TODO: send a more meaningful serial ?
                     cb.send(wl_callback::Event::Done { callback_data: 0 });
                 } else {

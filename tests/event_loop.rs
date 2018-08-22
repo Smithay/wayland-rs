@@ -17,11 +17,10 @@ fn timer_wait() {
         .token()
         .add_timer_event_source({
             let timer_signal = timer_fired.clone();
-            move |_: TimerEvent, ()| {
+            move |_: TimerEvent| {
                 timer_signal.set(true);
             }
         })
-        .map_err(|(e, _)| e)
         .unwrap();
 
     timer.set_delay_ms(1000); // 1s
@@ -46,7 +45,7 @@ fn dispatch_idle() {
     let impl_dispatched = dispatched.clone();
     event_loop
         .token()
-        .add_idle_event_source(move |_, _| impl_dispatched.set(true));
+        .add_idle_event_source(move || impl_dispatched.set(true));
 
     event_loop.dispatch(Some(1)).unwrap();
 
@@ -62,9 +61,8 @@ fn event_loop_run() {
         .token()
         .add_timer_event_source(
             // stop loping when the timer fires
-            move |_: TimerEvent, ()| signal.stop(),
+            move |_: TimerEvent| signal.stop(),
         )
-        .map_err(|(e, _)| e)
         .unwrap();
 
     timer.set_delay_ms(1000);

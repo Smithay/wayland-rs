@@ -1,5 +1,5 @@
 use wayland_commons::utils::UserData;
-use wayland_commons::{Implementation, Interface, MessageGroup};
+use wayland_commons::{Interface, MessageGroup};
 
 use {Client, LoopToken};
 
@@ -111,17 +111,6 @@ impl<I: Interface> Resource<I> {
     pub fn id(&self) -> u32 {
         self.inner.id()
     }
-
-    /// Check whether this resource has been implemented with given type
-    ///
-    /// Always returns false if the resource is no longer alive
-    pub fn is_implemented_with<Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        self.inner.is_implemented_with::<I, Impl>()
-    }
 }
 
 #[cfg(feature = "native_lib")]
@@ -194,20 +183,20 @@ impl<I: Interface + 'static> NewResource<I> {
     }
 
     /// Implement this resource using given function, destructor, and user data.
-    pub fn implement<Impl, Dest, UD>(
+    pub fn implement<F, Dest, UD>(
         self,
-        implementation: Impl,
+        implementation: F,
         destructor: Option<Dest>,
         user_data: UD,
     ) -> Resource<I>
     where
-        Impl: Implementation<Resource<I>, I::Request> + Send + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + Send + 'static,
+        F: FnMut(I::Request, Resource<I>) + Send + 'static,
+        Dest: FnMut(Resource<I>) + Send + 'static,
         UD: Send + Sync + 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
-            self.inner.implement::<I, Impl, Dest>(
+            self.inner.implement::<I, F, Dest>(
                 implementation,
                 destructor,
                 UserData::new_threadsafe(user_data),
@@ -231,21 +220,21 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This function will panic if you create several wayland event loops and do not
     /// provide a token to the right one.
-    pub fn implement_nonsend<Impl, Dest, UD>(
+    pub fn implement_nonsend<F, Dest, UD>(
         self,
-        implementation: Impl,
+        implementation: F,
         destructor: Option<Dest>,
         user_data: UD,
         token: &LoopToken,
     ) -> Resource<I>
     where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        F: FnMut(I::Request, Resource<I>) + 'static,
+        Dest: FnMut(Resource<I>) + 'static,
         UD: 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
-            self.inner.implement::<I, Impl, Dest>(
+            self.inner.implement::<I, F, Dest>(
                 implementation,
                 destructor,
                 UserData::new(user_data),

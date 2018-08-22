@@ -1,10 +1,8 @@
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::Result as IoResult;
 use std::os::unix::io::RawFd;
 use std::rc::Rc;
 use std::sync::atomic;
 use std::sync::Arc;
-
-use Implementation;
 
 use imp::EventLoopInner;
 use sources::{FdEvent, FdInterest, IdleSource, SignalEvent, Source, TimerEvent};
@@ -128,14 +126,14 @@ impl LoopToken {
     /// (and can be changed afterwards using the returned object), and the
     /// associated implementation will be called whenever these capabilities are
     /// satisfied, during the dispatching of this event loop.
-    pub fn add_fd_event_source<Impl>(
+    pub fn add_fd_event_source<F>(
         &self,
         fd: RawFd,
         interest: FdInterest,
-        implementation: Impl,
-    ) -> Result<Source<FdEvent>, (IoError, Impl)>
+        implementation: F,
+    ) -> IoResult<Source<FdEvent>>
     where
-        Impl: Implementation<(), FdEvent> + 'static,
+        F: FnMut(FdEvent) + 'static,
     {
         self.inner
             .add_fd_event_source(fd, interest, implementation)
@@ -148,12 +146,9 @@ impl LoopToken {
     /// returned by this function. When the countdown reaches 0,
     /// the implementation is called in the dispatching of
     /// this event loop.
-    pub fn add_timer_event_source<Impl>(
-        &self,
-        implementation: Impl,
-    ) -> Result<Source<TimerEvent>, (IoError, Impl)>
+    pub fn add_timer_event_source<F>(&self, implementation: F) -> IoResult<Source<TimerEvent>>
     where
-        Impl: Implementation<(), TimerEvent> + 'static,
+        F: FnMut(TimerEvent) + 'static,
     {
         self.inner
             .add_timer_event_source(implementation)
@@ -166,13 +161,13 @@ impl LoopToken {
     /// a signalfd for it) and call the implementation whenever
     /// the program receives this signal. Calls are made during the
     /// dispatching of this event loop.
-    pub fn add_signal_event_source<Impl>(
+    pub fn add_signal_event_source<F>(
         &self,
         signal: ::nix::sys::signal::Signal,
-        implementation: Impl,
-    ) -> Result<Source<SignalEvent>, (IoError, Impl)>
+        implementation: F,
+    ) -> IoResult<Source<SignalEvent>>
     where
-        Impl: Implementation<(), SignalEvent> + 'static,
+        F: FnMut(SignalEvent) + 'static,
     {
         self.inner
             .add_signal_event_source(signal, implementation)
@@ -189,9 +184,9 @@ impl LoopToken {
     ///
     /// You can cancel or retrieve the implementation after it has fired using the
     /// returned `IdleEventSource`.
-    pub fn add_idle_event_source<Impl>(&self, implementation: Impl) -> IdleSource
+    pub fn add_idle_event_source<F>(&self, implementation: F) -> IdleSource
     where
-        Impl: Implementation<(), ()> + 'static,
+        F: FnMut() + 'static,
     {
         IdleSource::make(self.inner.add_idle_event_source(implementation))
     }

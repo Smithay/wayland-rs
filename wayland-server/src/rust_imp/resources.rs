@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use {Implementation, Interface, Resource};
+use {Interface, Resource};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::utils::UserData;
@@ -141,19 +141,6 @@ impl ResourceInner {
             0
         }
     }
-
-    pub(crate) fn is_implemented_with<I: Interface, Impl>(&self) -> bool
-    where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        I::Request: MessageGroup<Map = super::ResourceMap>,
-    {
-        self.object
-            .meta
-            .dispatcher
-            .lock()
-            .unwrap()
-            .is::<super::ImplDispatcher<I, Impl>>()
-    }
 }
 
 pub(crate) struct NewResourceInner {
@@ -175,16 +162,16 @@ impl NewResourceInner {
         }
     }
 
-    pub(crate) unsafe fn implement<I: Interface, Impl, Dest>(
+    pub(crate) unsafe fn implement<I: Interface, F, Dest>(
         self,
-        implementation: Impl,
+        implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
         _token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
-        Impl: Implementation<Resource<I>, I::Request> + 'static,
-        Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+        F: FnMut(I::Request, Resource<I>) + 'static,
+        Dest: FnMut(Resource<I>) + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {

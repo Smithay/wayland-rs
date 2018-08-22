@@ -19,7 +19,6 @@ use ways::Resource;
 
 fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resource<ServerBuffer>>>>> {
     use ways::protocol::{wl_compositor, wl_surface};
-    use ways::NewResource;
 
     let buffer_found = Arc::new(Mutex::new(None));
     let buffer_found2 = buffer_found.clone();
@@ -28,7 +27,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
     server.display.create_global::<wl_compositor::WlCompositor, _>(
         &loop_token,
         1,
-        move |version, compositor: NewResource<_>| {
+        move |compositor, version| {
             assert!(version == 1);
             let compositor_buffer_found = buffer_found.clone();
             compositor.implement(
@@ -46,14 +45,14 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
                                     panic!("Unexpected request on surface!");
                                 }
                             },
-                            None::<fn(_, _)>,
+                            None::<fn(_)>,
                             (),
                         );
                     } else {
                         panic!("Unexpected request on compositor!");
                     }
                 },
-                None::<fn(_, _)>,
+                None::<fn(_)>,
                 (),
             );
         },
@@ -64,7 +63,6 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
 
 fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resource<ServerBuffer>>)>>> {
     use ways::protocol::{wl_shm, wl_shm_pool};
-    use ways::NewResource;
 
     let buffer = Arc::new(Mutex::new(None));
     let buffer2 = buffer.clone();
@@ -72,7 +70,7 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
     let loop_token = server.event_loop.token();
     server
         .display
-        .create_global(&loop_token, 1, move |version, shm: NewResource<wl_shm::WlShm>| {
+        .create_global::<wl_shm::WlShm, _>(&loop_token, 1, move |shm, version| {
             assert!(version == 1);
             let shm_buffer = buffer.clone();
             shm.implement(
@@ -88,16 +86,16 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
                                 let mut buffer_guard = pool_buffer.lock().unwrap();
                                 let buf = buffer_guard.as_mut().unwrap();
                                 assert!(buf.1.is_none());
-                                buf.1 = Some(id.implement(|_, _| {}, None::<fn(_, _)>, ()));
+                                buf.1 = Some(id.implement(|_, _| {}, None::<fn(_)>, ()));
                             } else {
                                 panic!("Unexpected request on buffer!");
                             }
                         },
-                        None::<fn(_, _)>,
+                        None::<fn(_)>,
                         (),
                     );
                 },
-                None::<fn(_, _)>,
+                None::<fn(_)>,
                 (),
             );
         });

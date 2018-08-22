@@ -7,7 +7,7 @@ use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::MessageGroup;
 
-use {Implementation, Interface, NewProxy, Proxy};
+use {Interface, NewProxy, Proxy};
 
 mod connection;
 mod display;
@@ -69,26 +69,26 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface, Impl: Implementation<Proxy<I>, I::Event> + 'static> {
+pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Event, Proxy<I>) + 'static> {
     _i: ::std::marker::PhantomData<&'static I>,
-    implementation: Impl,
+    implementation: F,
 }
 
 // This unsafe impl is "technically wrong", but enforced by the fact that
 // the Impl will only ever be called from the EventQueue, which is stuck
 // on a single thread. The NewProxy::implement/implement_nonsend methods
 // take care of ensuring that any non-Send impl is on the correct thread.
-unsafe impl<I, Impl> Send for ImplDispatcher<I, Impl>
+unsafe impl<I, F> Send for ImplDispatcher<I, F>
 where
     I: Interface,
-    Impl: Implementation<Proxy<I>, I::Event> + 'static,
+    F: FnMut(I::Event, Proxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {}
 
-impl<I, Impl> Dispatcher for ImplDispatcher<I, Impl>
+impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface,
-    Impl: Implementation<Proxy<I>, I::Event> + 'static,
+    F: FnMut(I::Event, Proxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
@@ -113,19 +113,18 @@ where
                     map.remove(proxy.id);
                 }
             }
-            self.implementation
-                .receive(message, Proxy::<I>::wrap(proxy.clone()));
+            (self.implementation)(message, Proxy::<I>::wrap(proxy.clone()));
         } else {
-            self.implementation.receive(message, Proxy::<I>::wrap(proxy));
+            (self.implementation)(message, Proxy::<I>::wrap(proxy));
         }
         Ok(())
     }
 }
 
-pub(crate) unsafe fn make_dispatcher<I, Impl>(implementation: Impl) -> Arc<Mutex<Dispatcher + Send>>
+pub(crate) unsafe fn make_dispatcher<I, F>(implementation: F) -> Arc<Mutex<Dispatcher + Send>>
 where
     I: Interface,
-    Impl: Implementation<Proxy<I>, I::Event> + 'static,
+    F: FnMut(I::Event, Proxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     Arc::new(Mutex::new(ImplDispatcher {

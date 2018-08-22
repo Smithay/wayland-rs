@@ -7,19 +7,6 @@ use ways::protocol::wl_output::WlOutput as ServerOutput;
 
 use wayc::protocol::wl_compositor;
 use wayc::protocol::wl_output;
-use wayc::{Implementation, Proxy};
-
-struct CompImpl1;
-
-impl Implementation<Proxy<wl_compositor::WlCompositor>, wl_compositor::Event> for CompImpl1 {
-    fn receive(&mut self, _: wl_compositor::Event, _: Proxy<wl_compositor::WlCompositor>) {}
-}
-
-struct CompImpl2;
-
-impl Implementation<Proxy<wl_compositor::WlCompositor>, wl_compositor::Event> for CompImpl2 {
-    fn receive(&mut self, _: wl_compositor::Event, _: Proxy<wl_compositor::WlCompositor>) {}
-}
 
 #[test]
 fn proxy_equals() {
@@ -35,11 +22,11 @@ fn proxy_equals() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -63,11 +50,11 @@ fn proxy_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, 0xDEADBEEFusize))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(|_, _| {}, 0xDEADBEEFusize))
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, 0xBADC0FFEusize))
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(|_, _| {}, 0xBADC0FFEusize))
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -93,7 +80,7 @@ fn proxy_user_data_wrong_thread() {
 
     let compositor = manager
         .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| unsafe {
-            newp.implement_nonsend(CompImpl1, 0xDEADBEEFusize, &client.event_queue.get_token())
+            newp.implement_nonsend(|_, _| {}, 0xDEADBEEFusize, &client.event_queue.get_token())
         })
         .unwrap();
 
@@ -105,37 +92,6 @@ fn proxy_user_data_wrong_thread() {
         assert!(compositor.user_data::<usize>().is_none());
     }).join()
         .unwrap();
-}
-
-#[test]
-fn proxy_is_implemented() {
-    let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl1, ()))
-        .unwrap();
-
-    let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement(CompImpl2, ()))
-        .unwrap();
-
-    let compositor3 = compositor1.clone();
-
-    assert!(compositor1.is_implemented_with::<CompImpl1>());
-    assert!(!compositor1.is_implemented_with::<CompImpl2>());
-    assert!(compositor2.is_implemented_with::<CompImpl2>());
-    assert!(!compositor2.is_implemented_with::<CompImpl1>());
-    assert!(compositor3.is_implemented_with::<CompImpl1>());
-    assert!(!compositor3.is_implemented_with::<CompImpl2>());
 }
 
 #[test]

@@ -2,11 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use protocol::wl_display::{self, RequestsTrait as DisplayRequests};
 use protocol::wl_registry::{self, RequestsTrait as RegistryRequests};
-use {Implementation, Interface, NewProxy, Proxy};
+use {Interface, NewProxy, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
-    callback: Box<Implementation<Proxy<wl_registry::WlRegistry>, GlobalEvent> + Send>,
+    callback: Box<FnMut(GlobalEvent, Proxy<wl_registry::WlRegistry>) + Send>,
 }
 
 /// An utility to manage global objects
@@ -95,9 +95,9 @@ impl GlobalManager {
     ///
     /// This can be used if you want to handle specially certain globals, but want
     /// to use the default mechanism for the rest.
-    pub fn new_with_cb<Impl>(display: &Proxy<wl_display::WlDisplay>, callback: Impl) -> GlobalManager
+    pub fn new_with_cb<F>(display: &Proxy<wl_display::WlDisplay>, callback: F) -> GlobalManager
     where
-        Impl: Implementation<Proxy<wl_registry::WlRegistry>, GlobalEvent> + Send + 'static,
+        F: FnMut(GlobalEvent, Proxy<wl_registry::WlRegistry>) + Send + 'static,
     {
         let inner = Arc::new(Mutex::new(Inner {
             list: Vec::new(),
@@ -110,6 +110,7 @@ impl GlobalManager {
                 registry.implement(
                     move |msg, proxy| {
                         let mut inner = inner.lock().unwrap();
+                        let inner = &mut *inner;
                         match msg {
                             wl_registry::Event::Global {
                                 name,
@@ -117,7 +118,7 @@ impl GlobalManager {
                                 version,
                             } => {
                                 inner.list.push((name, interface.clone(), version));
-                                inner.callback.receive(
+                                (inner.callback)(
                                     GlobalEvent::New {
                                         id: name,
                                         interface: interface,
@@ -131,7 +132,7 @@ impl GlobalManager {
                                     inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
                                 {
                                     let (id, interface, _) = inner.list.swap_remove(i);
-                                    inner.callback.receive(
+                                    (inner.callback)(
                                         GlobalEvent::Removed {
                                             id: id,
                                             interface: interface,
@@ -292,15 +293,15 @@ macro_rules! global_filter {
     ($([$interface:ty, $version:expr, $callback:expr]),*) => {
         {
             use $crate::protocol::wl_registry::{self, RequestsTrait};
-            use $crate::{Proxy, GlobalEvent, NewProxy, Implementation, Interface, GlobalImplementor};
-            type Callback = Box<Implementation<Proxy<wl_registry::WlRegistry>, (u32, u32)> + Send>;
+            use $crate::{Proxy, GlobalEvent, NewProxy, Interface, GlobalImplementor};
+            type Callback = Box<FnMut(u32, u32, Proxy<wl_registry::WlRegistry>) + Send>;
             let mut callbacks: Vec<(&'static str, Callback)> = Vec::new();
             // Create the callback list
             $({
                 let mut cb = { $callback };
                 callbacks.push((
                     <$interface as Interface>::NAME,
-                    Box::new(move |(id, version), registry: Proxy<wl_registry::WlRegistry>| {
+                    Box::new(move |id, version, registry: Proxy<wl_registry::WlRegistry>| {
                         if version < $version {
                             GlobalImplementor::<$interface>::error(&mut cb, version);
                         } else {
@@ -319,7 +320,7 @@ macro_rules! global_filter {
                 if let GlobalEvent::New { id, interface, version } = event {
                     for &mut (iface, ref mut cb) in &mut callbacks {
                         if iface == interface {
-                            cb.receive((id, version), registry);
+                            cb(id, version, registry);
                             break;
                         }
                     }

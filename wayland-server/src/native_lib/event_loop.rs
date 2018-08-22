@@ -9,7 +9,6 @@ use wayland_sys::server::*;
 use super::{DisplayInner, IdleSourceInner, SourceInner};
 
 use sources::*;
-use {downcast_impl, Implementation};
 
 pub(crate) struct EventLoopInner {
     wlevl: *mut wl_event_loop,
@@ -65,16 +64,16 @@ impl EventLoopInner {
         }
     }
 
-    pub fn add_fd_event_source<Impl>(
+    pub fn add_fd_event_source<F>(
         &self,
         fd: RawFd,
         interest: FdInterest,
-        implementation: Impl,
-    ) -> Result<SourceInner<FdEvent>, (IoError, Impl)>
+        implementation: F,
+    ) -> IoResult<SourceInner<FdEvent>>
     where
-        Impl: Implementation<(), FdEvent> + 'static,
+        F: FnMut(FdEvent) + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), FdEvent>>);
+        let data = Box::new(Box::new(implementation) as Box<FnMut(FdEvent)>);
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -87,23 +86,17 @@ impl EventLoopInner {
             )
         };
         if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
+            Err(IoError::last_os_error())
         } else {
             Ok(SourceInner::make(ret, data))
         }
     }
 
-    pub fn add_timer_event_source<Impl>(
-        &self,
-        implementation: Impl,
-    ) -> Result<SourceInner<TimerEvent>, (IoError, Impl)>
+    pub fn add_timer_event_source<F>(&self, implementation: F) -> IoResult<SourceInner<TimerEvent>>
     where
-        Impl: Implementation<(), TimerEvent> + 'static,
+        F: FnMut(TimerEvent) + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), TimerEvent>>);
+        let data = Box::new(Box::new(implementation) as Box<FnMut(TimerEvent)>);
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -114,24 +107,21 @@ impl EventLoopInner {
             )
         };
         if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
+            Err(IoError::last_os_error())
         } else {
             Ok(SourceInner::make(ret, data))
         }
     }
 
-    pub fn add_signal_event_source<Impl>(
+    pub fn add_signal_event_source<F>(
         &self,
         signal: ::nix::sys::signal::Signal,
-        implementation: Impl,
-    ) -> Result<SourceInner<SignalEvent>, (IoError, Impl)>
+        implementation: F,
+    ) -> IoResult<SourceInner<SignalEvent>>
     where
-        Impl: Implementation<(), SignalEvent> + 'static,
+        F: FnMut(SignalEvent) + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<Implementation<(), SignalEvent>>);
+        let data = Box::new(Box::new(implementation) as Box<FnMut(SignalEvent)>);
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -143,23 +133,17 @@ impl EventLoopInner {
             )
         };
         if ret.is_null() {
-            Err((
-                IoError::last_os_error(),
-                *(downcast_impl(*data).map_err(|_| ()).unwrap()),
-            ))
+            Err(IoError::last_os_error())
         } else {
             Ok(SourceInner::make(ret, data))
         }
     }
 
-    pub fn add_idle_event_source<Impl>(&self, implementation: Impl) -> IdleSourceInner
+    pub fn add_idle_event_source<F>(&self, implementation: F) -> IdleSourceInner
     where
-        Impl: Implementation<(), ()> + 'static,
+        F: FnMut() + 'static,
     {
-        let data = Rc::new(RefCell::new((
-            Box::new(implementation) as Box<Implementation<(), ()>>,
-            false,
-        )));
+        let data = Rc::new(RefCell::new((Box::new(implementation) as Box<FnMut()>, false)));
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,

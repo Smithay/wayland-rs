@@ -7,7 +7,7 @@ use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::MessageGroup;
 
-use {Implementation, Interface, NewResource, Resource};
+use {Interface, NewResource, Resource};
 
 mod clients;
 mod display;
@@ -70,27 +70,27 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface, Impl: Implementation<Resource<I>, I::Request>> {
+pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Request, Resource<I>)> {
     _i: ::std::marker::PhantomData<&'static I>,
-    implementation: Option<Impl>,
-    destructor: Option<Box<FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>)>>,
+    implementation: Option<F>,
+    destructor: Option<Box<FnMut(Resource<I>)>>,
 }
 
 // This unsafe impl is "technically wrong", but enforced by the fact that
 // the Impl will only ever be called from the same EventLoop, which is stuck
 // on a single thread. The NewProxy::implement/implement_nonsend methods
 // take care of ensuring that any non-Send impl is on the correct thread.
-unsafe impl<I, Impl> Send for ImplDispatcher<I, Impl>
+unsafe impl<I, F> Send for ImplDispatcher<I, F>
 where
     I: Interface,
-    Impl: Implementation<Resource<I>, I::Request> + 'static,
+    F: FnMut(I::Request, Resource<I>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {}
 
-impl<I, Impl> Dispatcher for ImplDispatcher<I, Impl>
+impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface,
-    Impl: Implementation<Resource<I>, I::Request> + 'static,
+    F: FnMut(I::Request, Resource<I>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
     fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Result<(), ()> {
@@ -114,37 +114,30 @@ where
             if kill {
                 resource.client.kill();
             }
-            self.implementation
-                .as_mut()
-                .unwrap()
-                .receive(message, Resource::<I>::wrap(resource.clone()));
+            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource.clone()));
         } else {
-            self.implementation
-                .as_mut()
-                .unwrap()
-                .receive(message, Resource::<I>::wrap(resource));
+            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource));
         }
         Ok(())
     }
 
     fn destroy(&mut self, resource: ResourceInner) {
-        if let Some(implem) = self.implementation.take() {
-            if let Some(mut dest) = self.destructor.take() {
-                dest(Resource::<I>::wrap(resource), Box::new(implem))
-            }
+        self.implementation.take();
+        if let Some(mut dest) = self.destructor.take() {
+            dest(Resource::<I>::wrap(resource))
         }
     }
 }
 
-pub(crate) unsafe fn make_dispatcher<I, Impl, Dest>(
-    implementation: Impl,
+pub(crate) unsafe fn make_dispatcher<I, F, Dest>(
+    implementation: F,
     destructor: Option<Dest>,
 ) -> Arc<Mutex<Dispatcher + Send>>
 where
     I: Interface,
-    Impl: Implementation<Resource<I>, I::Request> + 'static,
+    F: FnMut(I::Request, Resource<I>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
-    Dest: FnMut(Resource<I>, Box<Implementation<Resource<I>, I::Request>>) + 'static,
+    Dest: FnMut(Resource<I>) + 'static,
 {
     Arc::new(Mutex::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wayland_commons::map::Object;
 use wayland_commons::wire::{Argument, Message};
 
-use {Implementation, Interface, NewResource};
+use {Interface, NewResource};
 
 use super::resources::ObjectMeta;
 use super::{ClientInner, EventLoopInner, NewResourceInner};
@@ -44,14 +44,14 @@ impl GlobalManager {
         }
     }
 
-    pub(crate) fn add_global<I: Interface, Impl>(
+    pub(crate) fn add_global<I: Interface, F>(
         &mut self,
         _event_loop: &EventLoopInner,
         version: u32,
-        implementation: Impl,
+        implementation: F,
     ) -> GlobalInner<I>
     where
-        Impl: Implementation<NewResource<I>, u32> + 'static,
+        F: FnMut(NewResource<I>, u32) + 'static,
     {
         let implem = RefCell::new(implementation);
         let data = GlobalData {
@@ -73,9 +73,9 @@ impl GlobalManager {
                     None
                 };
                 if let Some(map) = map {
-                    implem.borrow_mut().receive(
-                        version,
+                    (&mut *implem.borrow_mut())(
                         NewResource::wrap(NewResourceInner::from_id(newid, map, client.clone()).unwrap()),
+                        version,
                     )
                 }
                 Ok(())

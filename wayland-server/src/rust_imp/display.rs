@@ -11,7 +11,7 @@ use mio::Ready;
 
 use display::get_runtime_dir;
 use sources::{FdEvent, FdInterest};
-use {Implementation, Interface, NewResource};
+use {Interface, NewResource};
 
 use super::clients::ClientManager;
 use super::event_loop::SourcesPoll;
@@ -51,14 +51,14 @@ impl DisplayInner {
         (display, evl)
     }
 
-    pub(crate) fn create_global<I: Interface, Impl>(
+    pub(crate) fn create_global<I: Interface, F>(
         &mut self,
         evl: &EventLoopInner,
         version: u32,
-        implementation: Impl,
+        implementation: F,
     ) -> GlobalInner<I>
     where
-        Impl: Implementation<NewResource<I>, u32> + 'static,
+        F: FnMut(NewResource<I>, u32) + 'static,
     {
         self.global_mgr
             .borrow_mut()
@@ -74,21 +74,20 @@ impl DisplayInner {
 
         listener.set_nonblocking(true)?;
 
-        let source = self
-            .sources_poll
-            .insert_source(
+        let mut implem = ListenerImplementation {
+            listener,
+            client_mgr: self.clients_mgr.clone(),
+        };
+
+        let source = self.sources_poll.insert_source(
+            fd,
+            Ready::readable(),
+            move |evt| implem.receive(evt),
+            FdEvent::Ready {
                 fd,
-                Ready::readable(),
-                ListenerImplementation {
-                    listener,
-                    client_mgr: self.clients_mgr.clone(),
-                },
-                FdEvent::Ready {
-                    fd,
-                    mask: FdInterest::READ,
-                },
-            )
-            .map_err(|(e, _)| e)?;
+                mask: FdInterest::READ,
+            },
+        )?;
 
         self.listeners.push(source);
         Ok(())
@@ -165,10 +164,8 @@ impl ListenerImplementation {
             verb, error
         );
     }
-}
 
-impl Implementation<(), FdEvent> for ListenerImplementation {
-    fn receive(&mut self, event: FdEvent, (): ()) {
+    fn receive(&mut self, event: FdEvent) {
         match event {
             FdEvent::Ready { .. } => {
                 // one (or more) clients connected to the socket
