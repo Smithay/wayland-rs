@@ -1,9 +1,18 @@
 language: rust
 
+# only cache cargo subcommand binaries and wayland libs .so
+# the build artifacts take a lot of space and are slower to
+# cache than to actually rebuild anyway...
+# We need to cache the whole .cargo directory to keep the
+# .crates.toml file.
 cache:
-  cargo: true
   directories:
-    - install
+    - /home/travis/install
+    - /home/travis/.cargo
+
+# But don't cache the cargo registry
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 
 dist: trusty
 
