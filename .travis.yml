@@ -1,6 +1,9 @@
 language: rust
 
-cache: cargo
+cache:
+  cargo: true
+  directories:
+    - install
 
 dist: trusty
 

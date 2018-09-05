@@ -1,6 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
 # download and compile the wayland libs for given version, they will be installed in ~/install
+
+# early exit if the file is already here, we have a cache
+clientlib="$HOME/install/lib/libwayland-client.so.0.3.0"
+serverlib="$HOME/install/lib/libwayland-server.so.0.1.0"
+if [ -f "$clientlib" -a -f "$serverlib" ]; then
+    echo "Cache is present, not rebuilding the wayland libs."
+    exit 0
+fi
 
 wayland_version=$1
 
