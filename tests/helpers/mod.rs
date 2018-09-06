@@ -9,6 +9,7 @@ pub extern crate wayland_server as ways;
 use std::cell::Cell;
 use std::ffi::{OsStr, OsString};
 use std::io;
+use std::os::unix::io::RawFd;
 use std::rc::Rc;
 
 pub struct TestServer {
@@ -58,6 +59,14 @@ impl TestClient {
     pub fn new_auto() -> TestClient {
         let (display, event_queue) =
             self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
+        TestClient {
+            display: display,
+            event_queue: event_queue,
+        }
+    }
+
+    pub unsafe fn from_fd(fd: RawFd) -> TestClient {
+        let (display, event_queue) = self::wayc::Display::from_fd(fd).unwrap();
         TestClient {
             display: display,
             event_queue: event_queue,

@@ -297,3 +297,37 @@ fn wrong_global_id() {
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
+
+#[test]
+fn two_step_binding() {
+    use wayc::protocol::wl_compositor::WlCompositor;
+    use wayc::protocol::wl_output::WlOutput;
+
+    let mut server = TestServer::new();
+    let loop_token = server.event_loop.token();
+    server
+        .display
+        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // add a new global while clients already exist
+    server
+        .display
+        .create_global::<ServerOutput, _>(&loop_token, 1, |_, _| {});
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    manager
+        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
+        .unwrap();
+
+    manager
+        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
+        .unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+}

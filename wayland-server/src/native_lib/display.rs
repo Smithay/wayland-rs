@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use wayland_sys::server::*;
 
+use super::globals::GlobalData;
 use super::{ClientInner, EventLoopInner, GlobalInner};
 
 use display::get_runtime_dir;
@@ -41,6 +42,16 @@ impl DisplayInner {
                 ptr,
                 listener
             );
+            // setup the global filter
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_display_set_global_filter,
+                ptr,
+                super::globals::global_filter,
+                ::std::ptr::null_mut()
+            );
+
+            // extract the event loop
             let evq_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr);
             let evq = EventLoopInner::display_new(display.clone(), evq_ptr);
             (display, evq)
@@ -51,16 +62,18 @@ impl DisplayInner {
         self.ptr
     }
 
-    pub(crate) fn create_global<I: Interface, F>(
+    pub(crate) fn create_global<I: Interface, F1, F2>(
         &mut self,
-        _: &EventLoopInner,
+        evl: &EventLoopInner,
         version: u32,
-        implementation: F,
+        implementation: F1,
+        filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(NewResource<I>, u32) + 'static,
+        F2: FnMut(ClientInner) -> bool + 'static,
     {
-        let data = Box::new(Box::new(implementation) as Box<FnMut(NewResource<I>, u32)>);
+        let data = Box::new(GlobalData::new(implementation, filter));
 
         unsafe {
             let ptr = ffi_dispatch!(
@@ -69,7 +82,7 @@ impl DisplayInner {
                 self.ptr,
                 I::c_interface(),
                 version as i32,
-                &*data as *const Box<_> as *mut _,
+                &*data as *const GlobalData<I> as *mut _,
                 super::globals::global_bind::<I>
             );
 

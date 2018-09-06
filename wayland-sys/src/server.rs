@@ -23,6 +23,7 @@ pub type wl_event_loop_idle_func_t = unsafe extern "C" fn(*mut c_void) -> ();
 pub type wl_global_bind_func_t = unsafe extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
 pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) -> ();
 pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
+pub type wl_display_global_filter_func_t = unsafe extern "C" fn(*const wl_client, *const wl_global, *mut c_void) -> bool;
 
 #[repr(C)]
 pub struct wl_listener {
@@ -66,6 +67,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_global_create(*mut wl_display, *const wl_interface, c_int, *mut c_void, wl_global_bind_func_t) -> *mut wl_global,
         fn wl_display_init_shm(*mut wl_display) -> c_int,
         fn wl_display_add_client_created_listener(*mut wl_display, *mut wl_listener) -> (),
+        fn wl_display_set_global_filter(*mut wl_display, wl_display_global_filter_func_t, *mut c_void) -> (),
     // wl_event_loop
         fn wl_event_loop_create() -> *mut wl_event_loop,
         fn wl_event_loop_destroy(*mut wl_event_loop) -> (),
@@ -85,6 +87,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_event_source_check(*mut wl_event_source) -> (),
     // wl_global
         fn wl_global_destroy(*mut wl_global) -> (),
+        fn wl_global_get_user_data(*const wl_global) -> *mut c_void,
     // wl_resource
         fn wl_resource_post_event_array(*mut wl_resource, u32, *mut wl_argument) -> (),
         fn wl_resource_queue_event_array(*mut wl_resource, u32, *mut wl_argument) -> (),

@@ -4,21 +4,35 @@ use wayland_commons::Interface;
 
 use wayland_sys::server::*;
 
+use super::ClientInner;
 use NewResource;
 
+pub(crate) struct GlobalData<I: Interface> {
+    pub(crate) bind: Box<FnMut(NewResource<I>, u32)>,
+    pub(crate) filter: Option<Box<FnMut(ClientInner) -> bool>>,
+}
+
+impl<I: Interface> GlobalData<I> {
+    pub(crate) fn new<F1, F2>(bind: F1, filter: Option<F2>) -> GlobalData<I>
+    where
+        F1: FnMut(NewResource<I>, u32) + 'static,
+        F2: FnMut(ClientInner) -> bool + 'static,
+    {
+        GlobalData {
+            bind: Box::new(bind) as Box<_>,
+            filter: filter.map(|f| Box::new(f) as Box<_>),
+        }
+    }
+}
+
 pub(crate) struct GlobalInner<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
     ptr: *mut wl_global,
-    data: *mut Box<FnMut(NewResource<I>, u32)>,
+    data: *mut GlobalData<I>,
 }
 
 impl<I: Interface> GlobalInner<I> {
-    pub(crate) unsafe fn create(
-        ptr: *mut wl_global,
-        data: Box<Box<FnMut(NewResource<I>, u32)>>,
-    ) -> GlobalInner<I> {
+    pub(crate) unsafe fn create(ptr: *mut wl_global, data: Box<GlobalData<I>>) -> GlobalInner<I> {
         GlobalInner {
-            _i: ::std::marker::PhantomData,
             ptr: ptr,
             data: Box::into_raw(data),
         }
@@ -43,7 +57,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
 ) {
     // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
-        let implem = &mut *(data as *mut Box<FnMut(NewResource<I>, u32)>);
+        let data = &mut *(data as *mut GlobalData<I>);
         let ptr = ffi_dispatch!(
             WAYLAND_SERVER_HANDLE,
             wl_resource_create,
@@ -53,7 +67,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
             id
         );
         let resource = NewResource::from_c_ptr(ptr as *mut wl_resource);
-        implem(resource, version);
+        (data.bind)(resource, version);
     });
     match ret {
         Ok(()) => (), // all went well
@@ -63,6 +77,33 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
                 "[wayland-server error] A global handler for {} panicked, aborting.",
                 I::NAME
             );
+            ::libc::abort();
+        }
+    }
+}
+
+pub(crate) unsafe extern "C" fn global_filter(
+    client: *const wl_client,
+    global: *const wl_global,
+    data: *mut c_void,
+) -> bool {
+    // safety of this function is the same as dispatch_func
+    let ret = ::std::panic::catch_unwind(move || {
+        let global_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, global)
+            as *mut GlobalData<::AnonymousObject>;
+        let client = ClientInner::from_ptr(client as *mut _);
+        let filter = &mut (*global_data).filter;
+        if let Some(ref mut filter) = *filter {
+            filter(client)
+        } else {
+            true
+        }
+    });
+    match ret {
+        Ok(val) => val, // all went well
+        Err(_) => {
+            // a panic occured
+            eprintln!("[wayland-server error] A global filter panicked, aborting.");
             ::libc::abort();
         }
     }

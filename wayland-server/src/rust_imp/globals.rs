@@ -15,12 +15,17 @@ pub(crate) struct GlobalInner<I: Interface> {
     destroyed_marker: Rc<Cell<bool>>,
     id: u32,
     registries: Rc<RefCell<Vec<(u32, ClientInner)>>>,
+    filter: Option<Rc<RefCell<FnMut(ClientInner) -> bool>>>,
 }
 
 impl<I: Interface> GlobalInner<I> {
     pub fn destroy(self) {
         self.destroyed_marker.set(true);
-        send_destroyed_global(&self.registries.borrow(), self.id);
+        send_destroyed_global(
+            &self.registries.borrow(),
+            self.id,
+            self.filter.as_ref().map(|f| &**f),
+        );
     }
 }
 
@@ -29,6 +34,7 @@ struct GlobalData {
     interface: &'static str,
     destroyed: Rc<Cell<bool>>,
     implem: Box<Fn(u32, u32, ClientInner) -> Result<(), ()>>,
+    filter: Option<Rc<RefCell<FnMut(ClientInner) -> bool>>>,
 }
 
 pub(crate) struct GlobalManager {
@@ -44,14 +50,16 @@ impl GlobalManager {
         }
     }
 
-    pub(crate) fn add_global<I: Interface, F>(
+    pub(crate) fn add_global<I: Interface, F1, F2>(
         &mut self,
         _event_loop: &EventLoopInner,
         version: u32,
-        implementation: F,
+        implementation: F1,
+        filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(NewResource<I>, u32) + 'static,
+        F2: FnMut(ClientInner) -> bool + 'static,
     {
         let implem = RefCell::new(implementation);
         let data = GlobalData {
@@ -80,28 +88,45 @@ impl GlobalManager {
                 }
                 Ok(())
             }),
+            filter: filter.map(|f| Rc::new(RefCell::new(f)) as Rc<_>),
         };
 
         let destroyed_marker = data.destroyed.clone();
 
-        self.globals.push(data);
         let id = self.globals.len() as u32 + 1;
 
-        send_new_global(&self.registries.borrow(), id, I::NAME, version);
+        let filter = data.filter.clone();
+        {
+            send_new_global(
+                &self.registries.borrow(),
+                id,
+                I::NAME,
+                version,
+                filter.as_ref().map(|f| &**f),
+            );
+        }
+
+        self.globals.push(data);
 
         GlobalInner {
             _i: ::std::marker::PhantomData,
             destroyed_marker,
             id,
             registries: self.registries.clone(),
+            filter,
         }
     }
 
     pub(crate) fn new_registry(&mut self, id: u32, client: ClientInner) {
         let reg = (id, client);
-        for (id, global) in self.globals.iter().enumerate() {
+        for (id, global) in self.globals.iter_mut().enumerate() {
             if global.destroyed.get() {
                 continue;
+            }
+            if let Some(ref filter) = global.filter {
+                if !(&mut *filter.borrow_mut())(reg.1.clone()) {
+                    continue;
+                }
             }
             let interface = CString::new(global.interface.as_bytes().to_owned()).unwrap();
             send_global_msg(&reg, id as u32 + 1, interface, global.version);
@@ -122,7 +147,19 @@ impl GlobalManager {
         client: ClientInner,
     ) -> Result<(), ()> {
         if let Some(ref global_data) = self.globals.get((global_id - 1) as usize) {
-            if global_data.interface != interface {
+            if !global_data
+                .filter
+                .as_ref()
+                .map(|f| (&mut *f.borrow_mut())(client.clone()))
+                .unwrap_or(true)
+            {
+                // client is not allowed to see this global
+                client.post_error(
+                    registry_id,
+                    super::display::DISPLAY_ERROR_INVALID_OBJECT,
+                    format!("Invalid global {} ({})", interface, global_id),
+                );
+            } else if global_data.interface != interface {
                 client.post_error(
                     registry_id,
                     super::display::DISPLAY_ERROR_INVALID_OBJECT,
@@ -184,21 +221,57 @@ fn send_global_msg(reg: &(u32, ClientInner), global_id: u32, interface: CString,
     }
 }
 
-fn send_new_global(registries: &[(u32, ClientInner)], global_id: u32, interface: &str, version: u32) {
+fn send_new_global(
+    registries: &[(u32, ClientInner)],
+    global_id: u32,
+    interface: &str,
+    version: u32,
+    filter: Option<&RefCell<FnMut(ClientInner) -> bool>>,
+) {
     let iface = CString::new(interface.as_bytes().to_owned()).unwrap();
-    for reg in registries {
-        send_global_msg(reg, global_id, iface.clone(), version)
+    if let Some(filter) = filter {
+        let mut filter = filter.borrow_mut();
+        for reg in registries {
+            if !(&mut *filter)(reg.1.clone()) {
+                continue;
+            }
+            send_global_msg(reg, global_id, iface.clone(), version)
+        }
+    } else {
+        for reg in registries {
+            send_global_msg(reg, global_id, iface.clone(), version)
+        }
     }
 }
 
-fn send_destroyed_global(registries: &[(u32, ClientInner)], global_id: u32) {
-    for &(id, ref client) in registries {
-        if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
-            let _ = clientconn.write_message(&Message {
-                sender_id: id,
-                opcode: 1,
-                args: vec![Argument::Uint(global_id)],
-            });
+fn send_destroyed_global(
+    registries: &[(u32, ClientInner)],
+    global_id: u32,
+    filter: Option<&RefCell<FnMut(ClientInner) -> bool>>,
+) {
+    if let Some(filter) = filter {
+        let mut filter = filter.borrow_mut();
+        for &(id, ref client) in registries {
+            if !(&mut *filter)(client.clone()) {
+                continue;
+            }
+            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
+                let _ = clientconn.write_message(&Message {
+                    sender_id: id,
+                    opcode: 1,
+                    args: vec![Argument::Uint(global_id)],
+                });
+            }
+        }
+    } else {
+        for &(id, ref client) in registries {
+            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
+                let _ = clientconn.write_message(&Message {
+                    sender_id: id,
+                    opcode: 1,
+                    args: vec![Argument::Uint(global_id)],
+                });
+            }
         }
     }
 }

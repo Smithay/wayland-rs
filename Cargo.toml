@@ -70,4 +70,7 @@ name = "server_created_object"
 name = "server_clients"
 
 [[test]]
+name = "server_global_filter"
+
+[[test]]
 name = "server_resources"

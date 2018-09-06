@@ -60,14 +60,52 @@ impl Display {
             version <= I::VERSION,
             "Cannot create global {} with version {}, maximum protocol version is {}.",
             I::NAME,
-            I::VERSION,
-            version
+            version,
+            I::VERSION
         );
-        Global::create(
-            self.inner
-                .borrow_mut()
-                .create_global(&*token.inner, version, implementation),
-        )
+        Global::create(self.inner.borrow_mut().create_global(
+            &*token.inner,
+            version,
+            implementation,
+            None::<fn(_) -> bool>,
+        ))
+    }
+
+    /// Create a new global object with a filter
+    ///
+    /// This object will be advertized to all clients, and they will
+    /// be able to instanciate it from their registries.
+    ///
+    /// Your implementation will be called whenever a client instanciates
+    /// this global.
+    ///
+    /// The version specified is the **highest supported version**, you must
+    /// be able to handle clients that choose to instanciate this global with
+    /// a lower version number.
+    pub fn create_global_with_filter<I: Interface, F1, F2>(
+        &mut self,
+        token: &LoopToken,
+        version: u32,
+        implementation: F1,
+        mut filter: F2,
+    ) -> Global<I>
+    where
+        F1: FnMut(NewResource<I>, u32) + 'static,
+        F2: FnMut(Client) -> bool + 'static,
+    {
+        assert!(
+            version <= I::VERSION,
+            "Cannot create global {} with version {}, maximum protocol version is {}.",
+            I::NAME,
+            version,
+            I::VERSION
+        );
+        Global::create(self.inner.borrow_mut().create_global(
+            &*token.inner,
+            version,
+            implementation,
+            Some(move |client_inner| filter(Client::make(client_inner))),
+        ))
     }
 
     /// Flush events to the clients

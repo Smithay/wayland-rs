@@ -51,18 +51,20 @@ impl DisplayInner {
         (display, evl)
     }
 
-    pub(crate) fn create_global<I: Interface, F>(
+    pub(crate) fn create_global<I: Interface, F1, F2>(
         &mut self,
         evl: &EventLoopInner,
         version: u32,
-        implementation: F,
+        implementation: F1,
+        filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(NewResource<I>, u32) + 'static,
+        F2: FnMut(ClientInner) -> bool + 'static,
     {
         self.global_mgr
             .borrow_mut()
-            .add_global(evl, version, implementation)
+            .add_global(evl, version, implementation, filter)
     }
 
     pub(crate) fn flush_clients(&mut self) {

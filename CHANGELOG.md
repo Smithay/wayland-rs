@@ -7,6 +7,8 @@
   actual `wl_display`
 - [client] Rework user-data mechanism to introduce type-safety
 - [server] Rework `Resource` user-data mechanism to introduce type-safety
+- [server] Implement global filtering capabilities, to selectively advertize globals to clients.
+  - **Breaking**: this bumps the minimal version of the C libraries to 1.13.0
 
 # 0.21.0-alpha1 - 2018-07-18
 
