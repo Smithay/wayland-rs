@@ -20,6 +20,8 @@ nix = "0.11"
 downcast-rs = "1.0"
 bitflags = "1.0"
 libc = "0.2"
+calloop = { version = "0.3.0", optional = true }
+mio = { version = "0.6.0", optional = true }
 
 [build-dependencies]
 wayland-scanner = { version = "0.21.0-alpha1", path = "../wayland-scanner" }
@@ -33,4 +35,4 @@ native_lib = [ "wayland-sys", "wayland-commons/native_lib" ]
 dlopen = ["wayland-sys/dlopen", "native_lib"]
 egl = ["wayland-sys/egl", "native_lib"]
 cursor = ["wayland-sys/cursor", "native_lib"]
-
+eventloop = ["calloop", "mio"]

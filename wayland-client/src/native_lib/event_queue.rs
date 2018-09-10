@@ -16,6 +16,11 @@ impl EventQueueInner {
         EventQueueInner { inner, wlevq }
     }
 
+    #[cfg(feature = "eventloop")]
+    pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.inner.ptr()) }
+    }
+
     pub fn dispatch(&self) -> io::Result<u32> {
         let ret = match self.wlevq {
             Some(evq) => unsafe {

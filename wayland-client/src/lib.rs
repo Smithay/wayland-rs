@@ -98,6 +98,18 @@
 //!
 //! Both of them will also be loaded at runtime if the `dlopen` feature was provided. See their
 //! respective submodules for details about their use.
+//!
+//! ### Event Loop integration
+//!
+//! The `eventloop` cargo feature adds the necessary implementations to use an `EventQueue`
+//! as a `calloop` event source. If you want to use it, here are a few points to take into
+//! account:
+//!
+//! - The `EventQueue` will not call its associated callback, but rather manage all the
+//!   event dispatching internally. As a result, there is no point registering it to
+//!   `calloop` with anything other than a dummy callback.
+//! - You still need to call `Display::flush()` yourself between `calloop`s dispatches,
+//!   or in the `EventLoop::run()` callback of `calloop`.
 
 #![warn(missing_docs)]
 
@@ -108,6 +120,11 @@ extern crate bitflags;
 extern crate downcast_rs as downcast;
 extern crate libc;
 extern crate nix;
+
+#[cfg(feature = "eventloop")]
+extern crate calloop;
+#[cfg(feature = "eventloop")]
+extern crate mio;
 
 extern crate wayland_commons;
 #[cfg(feature = "native_lib")]
@@ -185,5 +202,81 @@ mod generated {
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use {NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
+    }
+}
+
+#[cfg(feature = "eventloop")]
+impl ::mio::event::Evented for EventQueue {
+    fn register(
+        &self,
+        poll: &::mio::Poll,
+        token: ::mio::Token,
+        interest: ::mio::Ready,
+        opts: ::mio::PollOpt,
+    ) -> ::std::io::Result<()> {
+        let fd = self.inner.get_connection_fd();
+        ::mio::unix::EventedFd(&fd).register(poll, token, interest, opts)
+    }
+
+    fn reregister(
+        &self,
+        poll: &::mio::Poll,
+        token: ::mio::Token,
+        interest: ::mio::Ready,
+        opts: ::mio::PollOpt,
+    ) -> ::std::io::Result<()> {
+        let fd = self.inner.get_connection_fd();
+        ::mio::unix::EventedFd(&fd).reregister(poll, token, interest, opts)
+    }
+
+    fn deregister(&self, poll: &::mio::Poll) -> ::std::io::Result<()> {
+        let fd = self.inner.get_connection_fd();
+        ::mio::unix::EventedFd(&fd).deregister(poll)
+    }
+}
+
+#[cfg(feature = "eventloop")]
+impl ::calloop::EventSource for EventQueue {
+    type Event = ();
+
+    fn interest(&self) -> ::mio::Ready {
+        ::mio::Ready::readable()
+    }
+
+    fn pollopts(&self) -> ::mio::PollOpt {
+        ::mio::PollOpt::edge()
+    }
+
+    fn make_dispatcher<Data: 'static, F: FnMut((), &mut Data) + 'static>(
+        &self,
+        _callback: F,
+    ) -> ::std::rc::Rc<::std::cell::RefCell<::calloop::EventDispatcher<Data>>> {
+        struct Dispatcher {
+            inner: ::std::rc::Rc<::imp::EventQueueInner>,
+        }
+
+        impl<Data> ::calloop::EventDispatcher<Data> for Dispatcher {
+            fn ready(&mut self, _ready: ::mio::Ready, _data: &mut Data) {
+                if let Err(()) = self.inner.prepare_read() {
+                    self.inner.dispatch_pending().unwrap();
+                } else {
+                    match self.inner.read_events() {
+                        Ok(_) => {
+                            self.inner.dispatch_pending().unwrap();
+                        }
+                        Err(e) => match e.kind() {
+                            ::std::io::ErrorKind::WouldBlock => {}
+                            _ => {
+                                panic!("Failed to read from wayland socket: {}", e);
+                            }
+                        },
+                    }
+                }
+            }
+        }
+
+        ::std::rc::Rc::new(::std::cell::RefCell::new(Dispatcher {
+            inner: self.inner.clone(),
+        }))
     }
 }

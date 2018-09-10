@@ -41,6 +41,11 @@ impl EventQueueInner {
         }
     }
 
+    #[cfg(feature = "eventloop")]
+    pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
+    }
+
     pub(crate) fn dispatch(&self) -> io::Result<u32> {
         // don't read events if there are some pending
         if let Err(()) = self.prepare_read() {
