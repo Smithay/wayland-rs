@@ -11,14 +11,13 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn resource_equals() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
 
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |newo, _| {
+        .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
             outputs2
                 .lock()
                 .unwrap()
@@ -53,14 +52,13 @@ fn resource_equals() {
 #[test]
 fn resource_user_data() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
 
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |newo, _| {
+        .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
             let mut guard = outputs2.lock().unwrap();
             let output = newo.implement(|_, _| {}, None::<fn(_)>, 1000 + guard.len());
             guard.push(output);
@@ -91,17 +89,17 @@ fn resource_user_data() {
 #[test]
 fn resource_user_data_wrong_thread() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    let loop_token2 = loop_token.clone();
 
     let outputs = Arc::new(Mutex::new(None));
     let outputs2 = outputs.clone();
 
+    let token = server.display.get_token();
+
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(&loop_token, 1, move |newo, _| {
+        .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
             let mut guard = outputs2.lock().unwrap();
-            let output = newo.implement_nonsend(|_, _| {}, None::<fn(_)>, 0xDEADBEEFusize, &loop_token2);
+            let output = newo.implement_nonsend(|_, _| {}, None::<fn(_)>, 0xDEADBEEFusize, &token);
             *guard = Some(output);
         });
 
@@ -132,14 +130,13 @@ fn resource_user_data_wrong_thread() {
 fn dead_resources() {
     use self::wayc::protocol::wl_output::RequestsTrait;
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
 
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(&loop_token, 3, move |newo, _| {
+        .create_global::<wl_output::WlOutput, _>(3, move |newo, _| {
             outputs2
                 .lock()
                 .unwrap()

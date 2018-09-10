@@ -6,10 +6,7 @@ use ways::protocol::wl_output::WlOutput as ServerOutput;
 
 fn main() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerOutput, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerOutput, _>(1, |_, _| {});
 
     ::std::env::set_var("WAYLAND_DISPLAY", &server.socket_name);
 

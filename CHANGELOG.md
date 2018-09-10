@@ -9,6 +9,7 @@
 - [server] Rework `Resource` user-data mechanism to introduce type-safety
 - [server] Implement global filtering capabilities, to selectively advertize globals to clients.
   - **Breaking**: this bumps the minimal version of the C libraries to 1.13.0
+- [server] **Breaking**: migrate the event loop logic to using `calloop` rather than our own
 
 # 0.21.0-alpha1 - 2018-07-18
 

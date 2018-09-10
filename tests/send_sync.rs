@@ -11,6 +11,5 @@ fn send_sync_client() {
 
 #[test]
 fn send_sync_server() {
-    ensure_both::<ways::LoopSignal>();
     ensure_both::<ways::Resource<::ways::protocol::wl_callback::WlCallback>>();
 }

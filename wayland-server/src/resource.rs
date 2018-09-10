@@ -1,7 +1,7 @@
 use wayland_commons::utils::UserData;
 use wayland_commons::{Interface, MessageGroup};
 
-use {Client, LoopToken};
+use {Client, DisplayToken};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
@@ -33,6 +33,7 @@ impl<I: Interface> PartialEq for Resource<I> {
 impl<I: Interface> Eq for Resource<I> {}
 
 impl<I: Interface> Resource<I> {
+    #[allow(dead_code)]
     pub(crate) fn wrap(inner: ResourceInner) -> Resource<I> {
         Resource {
             _i: ::std::marker::PhantomData,
@@ -200,7 +201,6 @@ impl<I: Interface + 'static> NewResource<I> {
                 implementation,
                 destructor,
                 UserData::new_threadsafe(user_data),
-                None,
             )
         };
         Resource {
@@ -218,14 +218,14 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// ** Panics **
     ///
-    /// This function will panic if you create several wayland event loops and do not
+    /// This function will panic if you create several wayland displays and do not
     /// provide a token to the right one.
     pub fn implement_nonsend<F, Dest, UD>(
         self,
         implementation: F,
         destructor: Option<Dest>,
         user_data: UD,
-        token: &LoopToken,
+        token: &DisplayToken,
     ) -> Resource<I>
     where
         F: FnMut(I::Request, Resource<I>) + 'static,
@@ -233,13 +233,15 @@ impl<I: Interface + 'static> NewResource<I> {
         UD: 'static,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
+        let display = token
+            .upgrade()
+            .expect("Attempted to implement a resource on a dead Display.");
+        if !self.inner.on_display(&*display.borrow()) {
+            panic!("Attempted to implement a resource with the wrong DisplayToken.")
+        }
         let inner = unsafe {
-            self.inner.implement::<I, F, Dest>(
-                implementation,
-                destructor,
-                UserData::new(user_data),
-                Some(&token.inner),
-            )
+            self.inner
+                .implement::<I, F, Dest>(implementation, destructor, UserData::new(user_data))
         };
         Resource {
             _i: ::std::marker::PhantomData,

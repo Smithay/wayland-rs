@@ -23,11 +23,9 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
     let buffer_found = Arc::new(Mutex::new(None));
     let buffer_found2 = buffer_found.clone();
 
-    let loop_token = server.event_loop.token();
-    server.display.create_global::<wl_compositor::WlCompositor, _>(
-        &loop_token,
-        1,
-        move |compositor, version| {
+    server
+        .display
+        .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version| {
             assert!(version == 1);
             let compositor_buffer_found = buffer_found.clone();
             compositor.implement(
@@ -55,8 +53,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
                 None::<fn(_)>,
                 (),
             );
-        },
-    );
+        });
 
     buffer_found2
 }
@@ -67,10 +64,9 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
     let buffer = Arc::new(Mutex::new(None));
     let buffer2 = buffer.clone();
 
-    let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<wl_shm::WlShm, _>(&loop_token, 1, move |shm, version| {
+        .create_global::<wl_shm::WlShm, _>(1, move |shm, version| {
             assert!(version == 1);
             let shm_buffer = buffer.clone();
             shm.implement(

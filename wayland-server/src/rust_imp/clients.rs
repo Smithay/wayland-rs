@@ -4,22 +4,20 @@ use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use mio::Ready;
-
 use nix::Result as NixResult;
+
+use calloop::generic::Generic;
+use calloop::Source;
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
-use sources::{FdEvent, FdInterest};
+use {Fd, Interface, UserDataMap};
 
-use {Interface, UserDataMap};
-
-use super::event_loop::SourcesPoll;
+use super::event_loop_glue::WSLoopHandle;
 use super::globals::GlobalManager;
 use super::resources::{NewResourceInner, ObjectMeta, ResourceInner};
-use super::SourceInner;
 
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
@@ -292,16 +290,19 @@ impl ClientInner {
 }
 
 pub(crate) struct ClientManager {
-    sources_poll: SourcesPoll,
-    clients: Vec<(RefCell<Option<SourceInner<FdEvent>>>, ClientInner)>,
+    loophandle: Box<WSLoopHandle>,
+    clients: Vec<(RefCell<Option<Source<Generic<Fd>>>>, ClientInner)>,
     zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
 impl ClientManager {
-    pub(crate) fn new(sources_poll: SourcesPoll, global_mgr: Rc<RefCell<GlobalManager>>) -> ClientManager {
+    pub(crate) fn new(
+        loophandle: Box<WSLoopHandle>,
+        global_mgr: Rc<RefCell<GlobalManager>>,
+    ) -> ClientManager {
         ClientManager {
-            sources_poll,
+            loophandle,
             clients: Vec::new(),
             zombie_clients: Arc::new(Mutex::new(Vec::new())),
             global_mgr,
@@ -330,7 +331,7 @@ impl ClientManager {
             user_data_map,
         };
 
-        let mut implementation = ClientImplementation {
+        let implementation = ClientImplementation {
             inner: client.clone(),
             map,
         };
@@ -344,15 +345,14 @@ impl ClientManager {
             return client;
         }
 
-        let source = match self.sources_poll.insert_source(
-            fd,
-            Ready::readable(),
-            move |evt| implementation.receive(evt),
-            FdEvent::Ready {
-                fd,
-                mask: FdInterest::READ,
-            },
-        ) {
+        let mut evtsrc = Generic::new(Fd(fd));
+        evtsrc.set_interest(::mio::Ready::readable());
+        evtsrc.set_pollopts(::mio::PollOpt::edge());
+
+        let source = match self
+            .loophandle
+            .add_socket(evtsrc, Box::new(move |_| implementation.process_messages()))
+        {
             Ok(source) => Some(source),
             Err(e) => {
                 eprintln!(
@@ -369,6 +369,15 @@ impl ClientManager {
         }
 
         client
+    }
+
+    pub(crate) fn has_client(&self, client: &ClientInner) -> bool {
+        for &(_, ref c) in &self.clients {
+            if c.equals(client) {
+                return true;
+            }
+        }
+        false
     }
 
     pub(crate) fn flush_all(&mut self) {
@@ -520,16 +529,6 @@ impl ClientImplementation {
                     self.inner.kill();
                     return;
                 }
-            }
-        }
-    }
-
-    fn receive(&mut self, event: FdEvent) {
-        match event {
-            FdEvent::Ready { .. } => self.process_messages(),
-            FdEvent::Error { .. } => {
-                // in case of error, kill the client
-                self.inner.kill();
             }
         }
     }

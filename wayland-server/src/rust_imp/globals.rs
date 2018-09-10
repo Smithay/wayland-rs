@@ -8,7 +8,7 @@ use wayland_commons::wire::{Argument, Message};
 use {Interface, NewResource};
 
 use super::resources::ObjectMeta;
-use super::{ClientInner, EventLoopInner, NewResourceInner};
+use super::{ClientInner, NewResourceInner};
 
 pub(crate) struct GlobalInner<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
@@ -52,7 +52,6 @@ impl GlobalManager {
 
     pub(crate) fn add_global<I: Interface, F1, F2>(
         &mut self,
-        _event_loop: &EventLoopInner,
         version: u32,
         implementation: F1,
         filter: Option<F2>,

@@ -45,13 +45,6 @@ name = "client_proxies"
 name = "destructors"
 
 [[test]]
-name = "event_loop"
-
-[[test]]
-name = "event_loop_signal"
-harness = false
-
-[[test]]
 name = "globals"
 
 [[test]]

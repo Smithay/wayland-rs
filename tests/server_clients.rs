@@ -12,28 +12,25 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn client_user_data() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
     let clients = Arc::new(Mutex::new(Vec::new()));
 
     struct HasOutput;
     struct HasCompositor;
 
+    server.display.create_global::<wl_output::WlOutput, _>(1, {
+        let clients = clients.clone();
+        move |newo, _| {
+            let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
+            let client = output.client().unwrap();
+            let ret = client.data_map().insert_if_missing(|| HasOutput);
+            // the data should not be already here
+            assert!(ret);
+            clients.lock().unwrap().push(client);
+        }
+    });
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(&loop_token, 1, {
-            let clients = clients.clone();
-            move |newo, _| {
-                let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
-                let client = output.client().unwrap();
-                let ret = client.data_map().insert_if_missing(|| HasOutput);
-                // the data should not be already here
-                assert!(ret);
-                clients.lock().unwrap().push(client);
-            }
-        });
-    server
-        .display
-        .create_global::<wl_compositor::WlCompositor, _>(&loop_token, 1, {
+        .create_global::<wl_compositor::WlCompositor, _>(1, {
             let clients = clients.clone();
             move |newo, _| {
                 let compositor = newo.implement(|_, _| {}, None::<fn(_)>, ());

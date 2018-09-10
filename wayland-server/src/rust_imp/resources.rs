@@ -7,7 +7,7 @@ use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::utils::UserData;
 use wayland_commons::MessageGroup;
 
-use super::{ClientInner, Dispatcher, EventLoopInner};
+use super::{ClientInner, Dispatcher};
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
@@ -162,12 +162,15 @@ impl NewResourceInner {
         }
     }
 
+    pub(crate) fn on_display(&self, inner: &super::DisplayInner) -> bool {
+        inner.clients_mgr.borrow().has_client(&self.client)
+    }
+
     pub(crate) unsafe fn implement<I: Interface, F, Dest>(
         self,
         implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
-        _token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         F: FnMut(I::Request, Resource<I>) + 'static,

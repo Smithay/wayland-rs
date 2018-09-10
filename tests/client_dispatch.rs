@@ -6,6 +6,7 @@ use std::cell::Cell;
 use std::ffi::OsStr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use self::wayc::protocol::wl_display::RequestsTrait;
 
@@ -17,11 +18,14 @@ fn client_sync_roundtrip() {
     let server_kill_switch = kill_switch.clone();
 
     let server_thread = ::std::thread::spawn(move || {
-        let (mut display, mut event_loop) = ways::Display::new();
+        let mut event_loop = ways::calloop::EventLoop::<()>::new().unwrap();
+        let mut display = ways::Display::new(event_loop.handle());
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            event_loop.dispatch(Some(10)).unwrap();
+            event_loop
+                .dispatch(Some(Duration::from_millis(10)), &mut ())
+                .unwrap();
             display.flush_clients();
             if *(server_kill_switch.lock().unwrap()) {
                 break;
@@ -49,11 +53,14 @@ fn client_dispatch() {
     let server_kill_switch = kill_switch.clone();
 
     let server_thread = ::std::thread::spawn(move || {
-        let (mut display, mut event_loop) = ways::Display::new();
+        let mut event_loop = ways::calloop::EventLoop::<()>::new().unwrap();
+        let mut display = ways::Display::new(event_loop.handle());
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            event_loop.dispatch(Some(10)).unwrap();
+            event_loop
+                .dispatch(Some(Duration::from_millis(10)), &mut ())
+                .unwrap();
             display.flush_clients();
             if *(server_kill_switch.lock().unwrap()) {
                 break;

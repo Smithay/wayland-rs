@@ -4,14 +4,16 @@ use std::ffi::{OsStr, OsString};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::wl_display;
 
 use imp::DisplayInner;
 
-use {Client, EventLoop, Global, Interface, LoopToken, NewResource};
+use {Client, Global, Interface, NewResource};
+
+use calloop::LoopHandle;
 
 /// The wayland display
 ///
@@ -22,18 +24,43 @@ pub struct Display {
     inner: Rc<RefCell<DisplayInner>>,
 }
 
+/// A token that is required for providing non-Send implementations to ressources
+///
+/// This is used to ensure you are indeed on the right thread.
+///
+/// See `NewResource::implement_nonsend()`.
+#[derive(Clone)]
+pub struct DisplayToken {
+    inner: Weak<RefCell<DisplayInner>>,
+}
+
+impl DisplayToken {
+    pub(crate) fn upgrade(&self) -> Option<Rc<RefCell<DisplayInner>>> {
+        Weak::upgrade(&self.inner)
+    }
+}
+
 impl Display {
     /// Create a new display
     ///
-    /// This method provides you a `Display` as well as the main `EventLoop`
-    /// which will host your clients' objects.
+    /// This method provides you a `Display` and inserts it into an existing
+    /// `calloop::EventLoop`.
     ///
     /// Note that at this point, your server is not yet ready to receive connections,
     /// your need to add listening sockets using the `add_socket*` methods.
-    pub fn new() -> (Display, EventLoop) {
-        let (display_inner, evl_inner) = DisplayInner::new();
+    pub fn new<Data: 'static>(handle: LoopHandle<Data>) -> Display {
+        Display {
+            inner: DisplayInner::new(handle),
+        }
+    }
 
-        (Display { inner: display_inner }, EventLoop::make(evl_inner))
+    /// Get a `DisplayToken` for make non-send implementations
+    ///
+    /// This is required by `NewResource::implement_nonsend`.
+    pub fn get_token(&self) -> DisplayToken {
+        DisplayToken {
+            inner: Rc::downgrade(&self.inner),
+        }
     }
 
     /// Create a new global object
@@ -47,12 +74,7 @@ impl Display {
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instanciate this global with
     /// a lower version number.
-    pub fn create_global<I: Interface, F>(
-        &mut self,
-        token: &LoopToken,
-        version: u32,
-        implementation: F,
-    ) -> Global<I>
+    pub fn create_global<I: Interface, F>(&mut self, version: u32, implementation: F) -> Global<I>
     where
         F: FnMut(NewResource<I>, u32) + 'static,
     {
@@ -63,12 +85,11 @@ impl Display {
             version,
             I::VERSION
         );
-        Global::create(self.inner.borrow_mut().create_global(
-            &*token.inner,
-            version,
-            implementation,
-            None::<fn(_) -> bool>,
-        ))
+        Global::create(
+            self.inner
+                .borrow_mut()
+                .create_global(version, implementation, None::<fn(_) -> bool>),
+        )
     }
 
     /// Create a new global object with a filter
@@ -84,7 +105,6 @@ impl Display {
     /// a lower version number.
     pub fn create_global_with_filter<I: Interface, F1, F2>(
         &mut self,
-        token: &LoopToken,
         version: u32,
         implementation: F1,
         mut filter: F2,
@@ -101,7 +121,6 @@ impl Display {
             I::VERSION
         );
         Global::create(self.inner.borrow_mut().create_global(
-            &*token.inner,
             version,
             implementation,
             Some(move |client_inner| filter(Client::make(client_inner))),

@@ -9,7 +9,7 @@ use wayland_commons::utils::UserData;
 
 use {Interface, MessageGroup, Resource};
 
-use super::{ClientInner, EventLoopInner};
+use super::ClientInner;
 
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
@@ -203,23 +203,24 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
+    pub(crate) fn on_display(&self, display: &super::DisplayInner) -> bool {
+        unsafe {
+            let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
+            let display_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_display, client_ptr);
+            display_ptr == display.ptr
+        }
+    }
+
     pub(crate) unsafe fn implement<I: Interface, F, Dest>(
         self,
         implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
-        token: Option<&EventLoopInner>,
     ) -> ResourceInner
     where
         F: FnMut(I::Request, Resource<I>) + 'static,
         Dest: FnMut(Resource<I>) + 'static,
     {
-        if let Some(token) = token {
-            assert!(
-                token.matches(self.ptr),
-                "Tried to implement a Resource with the wrong LoopToken."
-            )
-        }
         let new_user_data = Box::new(ResourceUserData::new(implementation, destructor, user_data));
         let internal = new_user_data.internal.clone();
 

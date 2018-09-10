@@ -11,10 +11,7 @@ use wayc::protocol::wl_output;
 #[test]
 fn proxy_equals() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -39,10 +36,7 @@ fn proxy_equals() {
 #[test]
 fn proxy_user_data() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -68,10 +62,7 @@ fn proxy_user_data() {
 #[test]
 fn proxy_user_data_wrong_thread() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -97,10 +88,7 @@ fn proxy_user_data_wrong_thread() {
 #[test]
 fn proxy_wrapper() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -122,10 +110,7 @@ fn dead_proxies() {
     use self::wl_output::RequestsTrait;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, |_, _| {});
+    server.display.create_global::<ServerOutput, _>(3, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);

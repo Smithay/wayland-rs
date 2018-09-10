@@ -85,7 +85,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
 pub(crate) unsafe extern "C" fn global_filter(
     client: *const wl_client,
     global: *const wl_global,
-    data: *mut c_void,
+    _data: *mut c_void,
 ) -> bool {
     // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {

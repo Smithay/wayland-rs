@@ -11,23 +11,21 @@ fn global_filter() {
     use std::os::unix::io::IntoRawFd;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
 
     // everyone see the compositor
     server
         .display
-        .create_global::<wl_compositor::WlCompositor, _>(&loop_token, 1, |_, _| {});
+        .create_global::<wl_compositor::WlCompositor, _>(1, |_, _| {});
 
     // everyone see the shm
     server
         .display
-        .create_global_with_filter::<wl_shm::WlShm, _, _>(&loop_token, 1, |_, _| {}, |_| true);
+        .create_global_with_filter::<wl_shm::WlShm, _, _>(1, |_, _| {}, |_| true);
 
     // only privilegied clients see the output
     let privilegied_output = server
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
-            &loop_token,
             1,
             |_, _| {},
             |client| client.data_map().get::<Privilegied>().is_some(),
@@ -76,13 +74,11 @@ fn global_filter_try_force() {
     use std::os::unix::io::IntoRawFd;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
 
     // only privilegied clients see the output
     server
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
-            &loop_token,
             1,
             |_, _| {},
             |client| client.data_map().get::<Privilegied>().is_some(),

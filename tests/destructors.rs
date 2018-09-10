@@ -14,10 +14,9 @@ fn resource_destructor() {
     let destructor_called_global = destructor_called.clone();
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
             newo.implement(
                 |_, _| {},
@@ -52,10 +51,9 @@ fn resource_destructor_cleanup() {
     let destructor_called_global = destructor_called.clone();
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
             newo.implement(
                 |_, _| {},
@@ -91,10 +89,9 @@ fn client_destructor_cleanup() {
     let destructor_called_global = destructor_called.clone();
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
     server
         .display
-        .create_global::<ServerOutput, _>(&loop_token, 3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
             let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
             let client = output.client().unwrap();

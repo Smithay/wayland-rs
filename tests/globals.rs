@@ -11,10 +11,7 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn simple_global() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -28,19 +25,10 @@ fn simple_global() {
 #[test]
 fn multi_versions() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 4, |_, _| {});
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 3, |_, _| {});
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 2, |_, _| {});
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(4, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(3, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(2, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -59,10 +47,7 @@ fn multi_versions() {
 #[test]
 fn dynamic_global() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -70,16 +55,12 @@ fn dynamic_global() {
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 1);
 
-    server
-        .display
-        .create_global::<ServerShell, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerShell, _>(1, |_, _| {});
 
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 2);
 
-    let output = server
-        .display
-        .create_global::<ServerOutput, _>(&loop_token, 1, |_, _| {});
+    let output = server.display.create_global::<ServerOutput, _>(1, |_, _| {});
 
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 3);
@@ -95,10 +76,7 @@ fn global_manager_cb() {
     use wayc::GlobalEvent;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let counter = Arc::new(Mutex::new(0));
     let counter2 = counter.clone();
@@ -111,15 +89,9 @@ fn global_manager_cb() {
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
-    let comp = server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    let comp = server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -142,13 +114,8 @@ fn auto_instanciate() {
     use wayc::GlobalError;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 4, |_, _| {});
-    server
-        .display
-        .create_global::<ServerShell, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(4, |_, _| {});
+    server.display.create_global::<ServerShell, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -182,10 +149,7 @@ fn auto_instanciate() {
 #[should_panic]
 fn wrong_version_create_global() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 42, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(42, |_, _| {});
 }
 
 #[test]
@@ -196,10 +160,7 @@ fn wrong_global() {
     use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
@@ -224,10 +185,7 @@ fn wrong_global_version() {
     use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
@@ -251,10 +209,7 @@ fn invalid_global_version() {
     use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
@@ -278,10 +233,7 @@ fn wrong_global_id() {
     use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
@@ -304,10 +256,7 @@ fn two_step_binding() {
     use wayc::protocol::wl_output::WlOutput;
 
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
@@ -315,9 +264,7 @@ fn two_step_binding() {
     roundtrip(&mut client, &mut server).unwrap();
 
     // add a new global while clients already exist
-    server
-        .display
-        .create_global::<ServerOutput, _>(&loop_token, 1, |_, _| {});
+    server.display.create_global::<ServerOutput, _>(1, |_, _| {});
 
     roundtrip(&mut client, &mut server).unwrap();
 

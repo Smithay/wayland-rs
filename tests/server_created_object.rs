@@ -16,13 +16,10 @@ use wayc::protocol::wl_seat::WlSeat as ClientSeat;
 #[test]
 fn data_offer() {
     let mut server = TestServer::new();
-    let loop_token = server.event_loop.token();
+    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
     server
         .display
-        .create_global::<ServerSeat, _>(&loop_token, 1, |_, _| {});
-    server
-        .display
-        .create_global::<ServerDDMgr, _>(&loop_token, 3, |new_resource, version| {
+        .create_global::<ServerDDMgr, _>(3, |new_resource, version| {
             assert!(version == 3);
             new_resource.implement(
                 |request, _| match request {

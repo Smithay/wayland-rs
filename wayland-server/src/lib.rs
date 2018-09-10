@@ -61,20 +61,16 @@
 //! process wayland messages. Once this object is created, you can configure it to listen on one
 //! or more sockets for incoming client connections (see the `Display` docs for details).
 //!
-//! The crate also provides an event loop structure. An `EventLoop` is automatically created at the
-//! same time as the `Display`, and it will handle the connections of your wayland clients. See the
-//! `EventLoop` API documentation for explanations of its use.
-//!
-//! It is also possible to both create other event loops and insert other kind of sources of events
-//! to the event loops. These functions are typically useful to integrate, as a wayland compositor,
-//! with other parts of the system (typically listening on file destrictor describing input devices).
-//! Adding sources to an event loop is done via the `LoopToken` type, that is retrieved by the
-//! `token()` method of `EventLoop`. See their documentations for more details.
+//! To properly function, this wayland implementation also needs an event loop structure,
+//! which is here provided by the `calloop` crate. It is a public dependency and is reexported
+//! as `wayland_server::calloop`.
 
 #![warn(missing_docs)]
 
 #[macro_use]
 extern crate bitflags;
+pub extern crate calloop;
+#[cfg(not(feature = "native_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
 extern crate libc;
@@ -88,14 +84,11 @@ extern crate wayland_sys;
 
 mod client;
 mod display;
-mod event_loop;
 mod globals;
 mod resource;
-pub mod sources;
 
 pub use client::Client;
-pub use display::Display;
-pub use event_loop::{EventLoop, LoopSignal, LoopToken};
+pub use display::{Display, DisplayToken};
 pub use globals::Global;
 pub use resource::{NewResource, Resource};
 
@@ -156,5 +149,37 @@ mod generated {
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use {NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
+    }
+}
+
+/*
+ * A raw Fd Evented struct
+ */
+
+pub(crate) struct Fd(pub ::std::os::unix::io::RawFd);
+
+impl ::mio::Evented for Fd {
+    fn register(
+        &self,
+        poll: &::mio::Poll,
+        token: ::mio::Token,
+        interest: ::mio::Ready,
+        opts: ::mio::PollOpt,
+    ) -> ::std::io::Result<()> {
+        ::mio::unix::EventedFd(&self.0).register(poll, token, interest, opts)
+    }
+
+    fn reregister(
+        &self,
+        poll: &::mio::Poll,
+        token: ::mio::Token,
+        interest: ::mio::Ready,
+        opts: ::mio::PollOpt,
+    ) -> ::std::io::Result<()> {
+        ::mio::unix::EventedFd(&self.0).reregister(poll, token, interest, opts)
+    }
+
+    fn deregister(&self, poll: &::mio::Poll) -> ::std::io::Result<()> {
+        ::mio::unix::EventedFd(&self.0).deregister(poll)
     }
 }
