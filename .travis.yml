@@ -35,7 +35,7 @@ matrix:
   include:
     - rust: stable
       env: BUILD_FMT=1
-    - rust: stable
+    - rust: nightly
       env: TARPAULIN=1
       sudo: true
     - rust: stable
