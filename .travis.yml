@@ -9,6 +9,7 @@ cache:
   directories:
     - /home/travis/install
     - /home/travis/.cargo
+    - /home/travis/.cache/sccache
 
 # But don't cache the cargo registry
 before_cache:
@@ -34,7 +35,7 @@ matrix:
   include:
     - rust: stable
       env: BUILD_FMT=1
-    - rust: stable
+    - rust: nightly
       env: TARPAULIN=1
       sudo: true
     - rust: stable
@@ -55,6 +56,9 @@ before_script:
         which cargo-install-update || cargo install cargo-update
         cargo install-update cargo-update
         env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
+        # install sccache for caching
+        cargo install-update -i sccache
+        export RUSTC_WRAPPER="$HOME/.cargo/bin/sccache"
         # sanity check, tarpaulin may fail to run after a rust upgrade and then needs recompilation
         cargo tarpaulin --version || env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
         # Building & running tests, we need to install the wayland lib
@@ -63,6 +67,11 @@ before_script:
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
       else
+        which cargo-install-update || cargo install cargo-update
+        cargo install-update cargo-update
+        # install sccache for caching
+        cargo install-update -i sccache
+        export RUSTC_WRAPPER="$HOME/.cargo/bin/sccache"
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.13.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
