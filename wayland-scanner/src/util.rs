@@ -27,8 +27,7 @@ pub fn snake_to_camel(input: &str) -> String {
                     c
                 }
             })
-        })
-        .collect()
+        }).collect()
 }
 
 pub fn dotted_to_relname(input: &str) -> String {

@@ -30,8 +30,7 @@ fn print_diff(diffs: &[Difference]) {
                     .collect::<Vec<usize>>()
                     .into_iter()
             }
-        })
-        .collect::<Vec<_>>();
+        }).collect::<Vec<_>>();
     print_idx.sort();
     print_idx.dedup();
     let mut last_idx = 0;
@@ -42,8 +41,7 @@ fn print_diff(diffs: &[Difference]) {
                 .filter_map(|d| match d {
                     &Difference::Same(_) | &Difference::Rem(_) => Some(1),
                     &Difference::Add(_) => None,
-                })
-                .sum();
+                }).sum();
             println!("\n=== Partial diff starting at line {} ===", location + 1);
         }
         last_idx = idx;
@@ -77,8 +75,7 @@ fn flatten_diffs(diffs: &[Difference]) -> Vec<Difference> {
                 .map(Difference::Rem)
                 .collect::<Vec<_>>()
                 .into_iter(),
-        })
-        .collect()
+        }).collect()
 }
 
 #[test]

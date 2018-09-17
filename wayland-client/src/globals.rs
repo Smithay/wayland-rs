@@ -79,8 +79,7 @@ impl GlobalManager {
                     },
                     (),
                 )
-            })
-            .expect("Attempted to create a GlobalManager from a dead display.");
+            }).expect("Attempted to create a GlobalManager from a dead display.");
 
         GlobalManager {
             inner: inner_clone,
@@ -150,8 +149,7 @@ impl GlobalManager {
                     },
                     (),
                 )
-            })
-            .expect("Attempted to create a GlobalManager from a dead display.");
+            }).expect("Attempted to create a GlobalManager from a dead display.");
 
         GlobalManager {
             inner: inner_clone,

@@ -131,8 +131,8 @@ impl ProxyInner {
             {
                 // cleanup the map as appropriate
                 let mut map = conn_lock.map.lock().unwrap();
-                let server_destroyed =
-                    map.with(self.id, |obj| {
+                let server_destroyed = map
+                    .with(self.id, |obj| {
                         obj.meta.client_destroyed = true;
                         obj.meta.server_destroyed
                     }).unwrap_or(false);

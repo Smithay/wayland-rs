@@ -104,8 +104,8 @@ where
             {
                 // cleanup the map as appropriate
                 let mut map = proxy.map.lock().unwrap();
-                let server_destroyed =
-                    map.with(proxy.id, |obj| {
+                let server_destroyed = map
+                    .with(proxy.id, |obj| {
                         obj.meta.client_destroyed = true;
                         obj.meta.server_destroyed
                     }).unwrap_or(false);

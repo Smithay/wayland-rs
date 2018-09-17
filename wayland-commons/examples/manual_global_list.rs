@@ -23,8 +23,7 @@ fn main() {
             args: vec![
                 Argument::NewId(2), // id of the created registry
             ],
-        })
-        .unwrap();
+        }).unwrap();
 
     socket.flush().unwrap();
 

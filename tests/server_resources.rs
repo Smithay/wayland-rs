@@ -123,7 +123,7 @@ fn resource_user_data_wrong_thread() {
     ::std::thread::spawn(move || {
         assert!(output.user_data::<usize>().is_none());
     }).join()
-        .unwrap();
+    .unwrap();
 }
 
 #[test]

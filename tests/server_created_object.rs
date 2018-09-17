@@ -69,8 +69,7 @@ fn data_offer() {
                 },
                 (),
             )
-        })
-        .unwrap();
+        }).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 

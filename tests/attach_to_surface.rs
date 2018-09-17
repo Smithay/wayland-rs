@@ -117,8 +117,7 @@ fn attach_null() {
     let compositor = manager
         .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
             comp.implement(|_, _| {}, ())
-        })
-        .unwrap();
+        }).unwrap();
     let surface = compositor
         .create_surface(|surface| surface.implement(|_, _| {}, ()))
         .unwrap();
@@ -162,8 +161,7 @@ fn attach_buffer() {
     let compositor = manager
         .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
             comp.implement(|_, _| {}, ())
-        })
-        .unwrap();
+        }).unwrap();
     let surface = compositor
         .create_surface(|surface| surface.implement(|_, _| {}, ()))
         .unwrap();

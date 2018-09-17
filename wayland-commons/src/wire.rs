@@ -280,8 +280,7 @@ impl Message {
                 } else {
                     Err(MessageParseError::MissingData)
                 }
-            })
-            .collect::<Result<Vec<_>, MessageParseError>>()?;
+            }).collect::<Result<Vec<_>, MessageParseError>>()?;
 
         let msg = Message {
             sender_id: sender_id,

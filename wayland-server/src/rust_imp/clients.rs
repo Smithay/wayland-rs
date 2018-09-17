@@ -162,8 +162,7 @@ impl ClientConnection {
                     } else {
                         None
                     }
-                })
-                .next()
+                }).next()
                 .unwrap();
             let child_interface = child.interface;
             if let Err(()) = map.insert_at(new_id, child) {

@@ -29,8 +29,7 @@ fn client_wrong_id() {
             args: vec![
                 Argument::NewId(3), // should be 2
             ],
-        })
-        .unwrap();
+        }).unwrap();
     socket.flush().unwrap();
 
     server.answer();
@@ -53,8 +52,7 @@ fn client_wrong_opcode() {
             sender_id: 1, // wl_display
             opcode: 42,   // inexistant
             args: vec![],
-        })
-        .unwrap();
+        }).unwrap();
     socket.flush().unwrap();
 
     server.answer();
@@ -77,8 +75,7 @@ fn client_wrong_sender() {
             sender_id: 54, // wl_display
             opcode: 0,     // inexistant
             args: vec![],
-        })
-        .unwrap();
+        }).unwrap();
     socket.flush().unwrap();
 
     server.answer();

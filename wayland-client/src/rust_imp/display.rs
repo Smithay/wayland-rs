@@ -54,8 +54,8 @@ impl DisplayInner {
                 wl_display::Event::DeleteId { id } => {
                     // cleanup the map as appropriate
                     let mut map = impl_map.lock().unwrap();
-                    let client_destroyed =
-                        map.with(id, |obj| {
+                    let client_destroyed = map
+                        .with(id, |obj| {
                             obj.meta.server_destroyed = true;
                             obj.meta.client_destroyed
                         }).unwrap_or(false);

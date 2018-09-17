@@ -72,8 +72,7 @@ fn proxy_user_data_wrong_thread() {
     let compositor = manager
         .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| unsafe {
             newp.implement_nonsend(|_, _| {}, 0xDEADBEEFusize, &client.event_queue.get_token())
-        })
-        .unwrap();
+        }).unwrap();
 
     // we can access on the right thread
     assert!(compositor.user_data::<usize>().is_some());
@@ -82,7 +81,7 @@ fn proxy_user_data_wrong_thread() {
     ::std::thread::spawn(move || {
         assert!(compositor.user_data::<usize>().is_none());
     }).join()
-        .unwrap();
+    .unwrap();
 }
 
 #[test]
