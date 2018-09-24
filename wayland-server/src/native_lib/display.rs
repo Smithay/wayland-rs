@@ -23,6 +23,7 @@ use {Interface, NewResource};
 pub(crate) struct DisplayInner {
     pub(crate) ptr: *mut wl_display,
     source: Option<Source<Generic<Fd>>>,
+    rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
 }
 
 impl Drop for DisplayInner {
@@ -48,13 +49,14 @@ impl DisplayInner {
                 ptr,
                 listener
             );
+            let rust_globals = Rc::new(RefCell::new(Vec::new()));
             // setup the global filter
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_display_set_global_filter,
                 ptr,
                 super::globals::global_filter,
-                ::std::ptr::null_mut()
+                &*rust_globals as *const RefCell<Vec<*mut wl_global>> as *mut _
             );
 
             let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr);
@@ -71,7 +73,11 @@ impl DisplayInner {
                     }).unwrap(),
             );
 
-            Rc::new(RefCell::new(DisplayInner { ptr, source }))
+            Rc::new(RefCell::new(DisplayInner {
+                ptr,
+                source,
+                rust_globals,
+            }))
         }
     }
 
@@ -102,7 +108,9 @@ impl DisplayInner {
                 super::globals::global_bind::<I>
             );
 
-            GlobalInner::create(ptr, data)
+            self.rust_globals.borrow_mut().push(ptr);
+
+            GlobalInner::create(ptr, data, self.rust_globals.clone())
         }
     }
 

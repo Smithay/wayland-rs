@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::os::raw::c_void;
+use std::rc::Rc;
 
 use wayland_commons::Interface;
 
@@ -28,13 +30,19 @@ impl<I: Interface> GlobalData<I> {
 pub(crate) struct GlobalInner<I: Interface> {
     ptr: *mut wl_global,
     data: *mut GlobalData<I>,
+    rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
 }
 
 impl<I: Interface> GlobalInner<I> {
-    pub(crate) unsafe fn create(ptr: *mut wl_global, data: Box<GlobalData<I>>) -> GlobalInner<I> {
+    pub(crate) unsafe fn create(
+        ptr: *mut wl_global,
+        data: Box<GlobalData<I>>,
+        rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
+    ) -> GlobalInner<I> {
         GlobalInner {
             ptr: ptr,
             data: Box::into_raw(data),
+            rust_globals,
         }
     }
 
@@ -42,6 +50,8 @@ impl<I: Interface> GlobalInner<I> {
         unsafe {
             // destroy the global
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
+            // remove from the list
+            self.rust_globals.borrow_mut().retain(|&g| g != self.ptr);
             // free the user data
             let data = Box::from_raw(self.data);
             drop(data);
@@ -85,10 +95,20 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
 pub(crate) unsafe extern "C" fn global_filter(
     client: *const wl_client,
     global: *const wl_global,
-    _data: *mut c_void,
+    data: *mut c_void,
 ) -> bool {
     // safety of this function is the same as dispatch_func
     let ret = ::std::panic::catch_unwind(move || {
+        // early exit with true if the global is not rust-managed
+        let rust_globals = &*(data as *const RefCell<Vec<*mut wl_global>>);
+        if rust_globals
+            .borrow()
+            .iter()
+            .all(|&g| g as *const wl_global != global)
+        {
+            return true;
+        }
+        // the global is rust-managed, continue
         let global_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, global)
             as *mut GlobalData<::AnonymousObject>;
         let client = ClientInner::from_ptr(client as *mut _);

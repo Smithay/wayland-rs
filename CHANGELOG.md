@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] When using `native_lib`, only attempt to filter globals that are managed by the rust lib.
+
 ## 0.21.0 - 2018-09-11
 
 - [protocols] Remove support for wayland-wall, which has been discontinued.

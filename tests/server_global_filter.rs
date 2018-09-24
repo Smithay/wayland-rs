@@ -1,3 +1,7 @@
+#[cfg(feature = "native_lib")]
+#[macro_use]
+extern crate wayland_sys;
+
 mod helpers;
 
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
@@ -31,7 +35,7 @@ fn global_filter() {
             |client| client.data_map().get::<Privilegied>().is_some(),
         );
 
-    // normal client only sees wo globals
+    // normal client only sees two globals
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display);
 
@@ -118,4 +122,43 @@ fn global_filter_try_force() {
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());
+}
+
+#[cfg(feature = "native_lib")]
+#[test]
+fn external_globals() {
+    use std::os::raw::c_void;
+
+    use helpers::ways::Interface;
+    use wayland_sys::server::*;
+
+    let mut server = TestServer::new();
+
+    extern "C" fn dummy_global_bind(client: *mut wl_client, data: *mut c_void, version: u32, id: u32) {}
+
+    // everyone see the compositor
+    server
+        .display
+        .create_global::<wl_compositor::WlCompositor, _>(1, |_, _| {});
+
+    // create a global via the C API, it'll not be initialized like a rust one
+    unsafe {
+        ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_global_create,
+            server.display.c_ptr(),
+            wl_shm::WlShm::c_interface(),
+            1,
+            ::std::ptr::null_mut(),
+            dummy_global_bind
+        );
+    }
+
+    // normal client only sees the two globals
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    assert_eq!(manager.list().len(), 2);
 }
