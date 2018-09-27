@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.21.2 - 2018-09-27
+
 - [client] Introduce `Proxy::send_constructor` allowing the sending of a message creating a new object
   atomically. This solves races when creating objects from two threads conccurently (#206). Also, this
   simplifies the implementation of `wayland-scanner`, removing some unsafe code from it.
