@@ -10,7 +10,7 @@ categories = ["gui", "api-bindings"]
 keywords = ["wayland"]
 
 [badges]
-travis-ci = { repository = "smithay/wayland-rs" }
+travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
 wayland-sys = { version = "0.21.2", path = "../wayland-sys", optional = true }

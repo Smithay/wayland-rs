@@ -9,7 +9,7 @@ license = "MIT"
 categories = ["external-ffi-bindings"]
 
 [badges]
-travis-ci = { repository = "smithay/wayland-rs" }
+travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
 dlib = "0.4"

@@ -11,7 +11,7 @@ build = "build.rs"
 categories = ["gui", "api-bindings"]
 
 [badges]
-travis-ci = { repository = "smithay/wayland-rs" }
+travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
 wayland-commons = { version = "0.21.2", path = "../wayland-commons" }

@@ -10,7 +10,7 @@ categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 
 [badges]
-travis-ci = { repository = "smithay/wayland-rs" }
+travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
 xml-rs = "0.7"
