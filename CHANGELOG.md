@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [protocols] Add bindings to [wlr-protocols](https://github.com/swaywm/wlr-protocols)
+
 ## 0.21.2 - 2018-09-27
 
 - [client] Introduce `Proxy::send_constructor` allowing the sending of a message creating a new object

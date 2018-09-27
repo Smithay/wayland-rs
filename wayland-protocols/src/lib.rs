@@ -36,5 +36,7 @@ mod protocol_macro;
 #[cfg(feature = "unstable_protocols")]
 pub mod unstable;
 
+pub mod wlr;
+
 mod stable;
 pub use stable::*;

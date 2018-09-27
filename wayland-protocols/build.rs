@@ -24,6 +24,14 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("xwayland-keyboard-grab", &["v1"]),
 ];
 
+static WLR_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
+    ("wlr-export-dmabuf", &["v1"]),
+    ("wlr-gamma-control", &["v1"]),
+    ("wlr-input-inhibitor", &["v1"]),
+    ("wlr-layer-shell", &["v1"]),
+    ("wlr-screencopy", &["v1"]),
+];
+
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
     if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
         generate_c_interfaces(&protocol_file, out_dir.join(&format!("{}_c_interfaces.rs", name)));
@@ -91,6 +99,18 @@ fn main() {
                 generate_protocol(
                     &format!("{name}-{version}", name = name, version = version),
                     &Path::new("./protocols/unstable").join(file),
+                    out_dir,
+                    client,
+                    server,
+                );
+            }
+        }
+        for &(name, versions) in WLR_UNSTABLE_PROTOCOLS {
+            for version in versions {
+                let file = format!("{name}-unstable-{version}.xml", name = name, version = version);
+                generate_protocol(
+                    &format!("{name}-{version}", name = name, version = version),
+                    &Path::new("./wlr-protocols/unstable").join(file),
                     out_dir,
                     client,
                     server,
