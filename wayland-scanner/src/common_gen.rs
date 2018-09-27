@@ -192,10 +192,22 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
             n -= 1;
         }
     }
-
     if n > 0 {
         // avoir "unreachable pattern" warnings =)
         writeln!(out, "                _ => false")?;
+    }
+    writeln!(out, "            }}")?;
+    writeln!(out, "        }}\n")?;
+
+    // is_destructor
+    writeln!(out, "        fn opcode(&self) -> u16 {{")?;
+    writeln!(out, "            match *self {{")?;
+    for (i, msg) in messages.iter().enumerate() {
+        write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
+        if msg.args.len() > 0 {
+            write!(out, "{{ .. }} ")?;
+        }
+        writeln!(out, "=> {},", i)?;
     }
     writeln!(out, "            }}")?;
     writeln!(out, "        }}\n")?;
@@ -720,4 +732,87 @@ pub fn print_method_prototype<'a, O: Write>(
     }
 
     Ok(newid)
+}
+
+pub(crate) fn write_client_methods<O: Write>(name: &str, messages: &[Message], out: &mut O) -> IOResult<()> {
+    writeln!(out, "    pub trait RequestsTrait {{")?;
+    for msg in messages {
+        if let Some((ref short, ref long)) = msg.description {
+            write_doc(Some(short), long, false, out, 2)?;
+        }
+        if let Some(Type::Destructor) = msg.typ {
+            writeln!(
+                out,
+                "        ///\n        /// This is a destructor, you cannot send requests to this object any longer once this method is called.",
+            )?;
+        }
+        if msg.since > 1 {
+            writeln!(
+                out,
+                "        ///\n        /// Only available since version {} of the interface",
+                msg.since
+            )?;
+        }
+        print_method_prototype(name, &msg, out)?;
+        writeln!(out, ";")?;
+    }
+    writeln!(out, "    }}\n")?;
+
+    writeln!(out, "    impl RequestsTrait for Proxy<{}> {{", name)?;
+    for msg in messages {
+        let return_type = print_method_prototype(name, &msg, out)?;
+        writeln!(out, "")?;
+        writeln!(out, "        {{")?;
+
+        write!(
+            out,
+            "            let msg = Request::{}",
+            snake_to_camel(&msg.name)
+        )?;
+        if msg.args.len() > 0 {
+            writeln!(out, " {{")?;
+            for a in &msg.args {
+                write!(out, "                ")?;
+                if a.typ == Type::NewId {
+                    if a.interface.is_some() {
+                        writeln!(out, "{}: self.child_placeholder(),", a.name,)?;
+                    } else {
+                        writeln!(
+                            out,
+                            "{}: (T::NAME.into(), version, self.child_placeholder()),",
+                            a.name
+                        )?;
+                    }
+                } else if a.typ == Type::Object {
+                    if a.allow_null {
+                        writeln!(out, "{0} : {0}.map(|o| o.clone()),", a.name)?;
+                    } else {
+                        writeln!(out, "{0}: {0}.clone(),", a.name)?;
+                    }
+                } else {
+                    writeln!(out, "{0}: {0},", a.name)?;
+                }
+            }
+            write!(out, "            }}")?;
+        }
+        writeln!(out, ";")?;
+        match return_type {
+            Some(ret_type) if ret_type.interface.is_none() => {
+                writeln!(
+                    out,
+                    "            self.send_constructor(msg, implementor, Some(version))"
+                )?;
+            }
+            Some(_) => {
+                writeln!(out, "            self.send_constructor(msg, implementor, None)")?;
+            }
+            None => {
+                writeln!(out, "            self.send(msg);")?;
+            }
+        }
+        writeln!(out, "        }}\n")?;
+    }
+    writeln!(out, "    }}")?;
+
+    Ok(())
 }

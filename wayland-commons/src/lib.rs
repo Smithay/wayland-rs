@@ -41,6 +41,8 @@ pub trait MessageGroup: Sized {
     /// The wrapper type for ObjectMap allowing the mapping of Object and
     /// NewId arguments to the object map during parsing.
     type Map;
+    /// The opcode of this message
+    fn opcode(&self) -> u16;
     /// Whether this message is a destructor
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
@@ -116,6 +118,9 @@ impl MessageGroup for NoMessage {
     const MESSAGES: &'static [wire::MessageDesc] = &[];
     type Map = ();
     fn is_destructor(&self) -> bool {
+        match *self {}
+    }
+    fn opcode(&self) -> u16 {
         match *self {}
     }
     fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {

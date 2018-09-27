@@ -108,6 +108,13 @@ pub mod wl_foo {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Request::FooIt { .. } => 0,
+                Request::CreateBar { .. } => 1,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
@@ -230,6 +237,12 @@ pub mod wl_foo {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Event::Cake { .. } => 0,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -335,6 +348,13 @@ pub mod wl_bar {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Request::BarDelivery { .. } => 0,
+                Request::Release => 1,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -412,6 +432,11 @@ pub mod wl_bar {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -474,6 +499,11 @@ pub mod wl_callback {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -525,6 +555,12 @@ pub mod wl_callback {
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
+            }
+        }
+
+        fn opcode(&self) -> u16 {
+            match *self {
+                Event::Done { .. } => 0,
             }
         }
 

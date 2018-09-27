@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Introduce `Proxy::send_constructor` allowing the sending of a message creating a new object
+  atomically. This solves races when creating objects from two threads conccurently (#206). Also, this
+  simplifies the implementation of `wayland-scanner`, removing some unsafe code from it.
 - [client] Unmanaged proxies (when using `native_lib`) are now correctly considered alive rather than dead
 
 ## 0.21.1 - 2018-09-25

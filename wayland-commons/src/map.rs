@@ -1,6 +1,6 @@
 //! Wayland objects map
 
-use {Interface, MessageGroup};
+use {Interface, MessageGroup, NoMessage};
 
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF000000;
@@ -12,6 +12,12 @@ pub trait ObjectMetadata: Clone {
     ///
     /// Mostly needed for client side, to propagate the event queues
     fn child(&self) -> Self;
+}
+
+impl ObjectMetadata for () {
+    fn child(&self) -> () {
+        ()
+    }
 }
 
 /// The representation of a protocol object
@@ -65,6 +71,19 @@ impl<Meta: ObjectMetadata> Object<Meta> {
     pub fn is_interface<I: Interface>(&self) -> bool {
         // TODO: we might want to be more robust than that
         self.interface == I::NAME
+    }
+
+    /// Create a placeholder object that will be filled-in by the message logic
+    pub fn placeholder(meta: Meta) -> Object<Meta> {
+        Object {
+            interface: "",
+            version: 0,
+            requests: &[],
+            events: &[],
+            meta: meta,
+            childs_from_events: childs_from::<NoMessage, Meta>,
+            childs_from_requests: childs_from::<NoMessage, Meta>,
+        }
     }
 }
 

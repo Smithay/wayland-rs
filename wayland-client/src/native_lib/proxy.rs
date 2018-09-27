@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use wayland_commons::utils::UserData;
+use wayland_commons::wire::ArgumentType;
 use wayland_commons::MessageGroup;
 use {Interface, Proxy};
 
@@ -99,6 +100,74 @@ impl ProxyInner {
         }
     }
 
+    pub(crate) fn send_constructor<I, J>(
+        &self,
+        msg: I::Request,
+        version: Option<u32>,
+    ) -> Result<NewProxyInner, ()>
+    where
+        I: Interface,
+        J: Interface,
+    {
+        if let Some(ref internal) = self.internal {
+            // object is managed
+            if !internal.alive.load(Ordering::Acquire) {
+                // don't send message to dead objects !
+                return Err(());
+            }
+        }
+        let destructor = msg.is_destructor();
+
+        let opcode = msg.opcode();
+
+        // sanity check
+        let mut nid_idx = I::Request::MESSAGES[opcode as usize]
+            .signature
+            .iter()
+            .position(|&t| t == ArgumentType::NewId)
+            .expect("Trying to use 'send_constructor' with a message not creating any object.");
+
+        if let Some(o) = I::Request::child(opcode, 1, &()) {
+            if !o.is_interface::<J>() {
+                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}")
+            }
+        } else {
+            // there is no target interface in the protocol, this is a generic object-creating
+            // function (likely wl_registry.bind), the newid arg will thus expand to (str, u32, obj)
+            nid_idx += 2;
+        }
+
+        let version = version.unwrap_or_else(|| self.version());
+
+        let ptr = msg.as_raw_c_in(|opcode, args| unsafe {
+            assert!(
+                args[nid_idx].o.is_null(),
+                "Trying to use 'send_constructor' with a non-placeholder object."
+            );
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_proxy_marshal_array_constructor_versioned,
+                self.ptr,
+                opcode,
+                args.as_mut_ptr(),
+                J::c_interface(),
+                version
+            )
+        });
+
+        if destructor {
+            // we need to destroy the proxy now
+            if let Some(ref internal) = self.internal {
+                internal.alive.store(false, Ordering::Release);
+            }
+            unsafe {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr);
+            }
+        }
+
+        Ok(unsafe { NewProxyInner::from_c_ptr(ptr) })
+    }
+
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
         if !self.is_alive() {
             return false;
@@ -176,9 +245,12 @@ impl ProxyInner {
         }
     }
 
-    pub(crate) unsafe fn new_null() -> Self {
+    pub(crate) fn child_placeholder(&self) -> ProxyInner {
         ProxyInner {
-            internal: None,
+            internal: Some(Arc::new(ProxyInternal {
+                alive: AtomicBool::new(false),
+                user_data: UserData::empty(),
+            })),
             ptr: ::std::ptr::null_mut(),
             is_wrapper: false,
         }

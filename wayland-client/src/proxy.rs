@@ -46,7 +46,6 @@ impl<I: Interface> PartialEq for Proxy<I> {
 impl<I: Interface> Eq for Proxy<I> {}
 
 impl<I: Interface> Proxy<I> {
-    #[allow(dead_code)]
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
@@ -56,16 +55,41 @@ impl<I: Interface> Proxy<I> {
 
     /// Send a request through this object
     ///
+    /// **Warning:** This method is mostly intented to be used by code generated
+    /// by `wayland-scanner`, and you should probably never need to use it directly,
+    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    ///
     /// This is the generic method to send requests.
     ///
-    /// Several requests require the creation of new objects using
-    /// the `child()` method, which if done wrong can cause protocol
-    /// errors (in which case the server will terminate your connexion).
-    /// Thus unless your know exactly what you are doing, you should use
-    /// the helper methods provided by the various `RequestsTrait` for
-    /// each interface, which handle this correctly for you.
+    /// If your request needs to create an object, use `send_constructor`.
     pub fn send(&self, msg: I::Request) {
         self.inner.send::<I>(msg)
+    }
+
+    /// Send a request creating an object through this object
+    ///
+    /// **Warning:** This method is mostly intented to be used by code generated
+    /// by `wayland-scanner`, and you should probably never need to use it directly,
+    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    ///
+    /// This is the generic method to send requests that create objects
+    ///
+    /// The slot in the message corresponding with the newly created object must have
+    /// been filled by a placeholder object (see `child_placeholder`).
+    pub fn send_constructor<J, F>(
+        &self,
+        msg: I::Request,
+        implementor: F,
+        version: Option<u32>,
+    ) -> Result<Proxy<J>, ()>
+    where
+        J: Interface,
+        F: FnOnce(NewProxy<J>) -> Proxy<J>,
+    {
+        self.inner
+            .send_constructor::<I, J>(msg, version)
+            .map(NewProxy::wrap)
+            .map(implementor)
     }
 
     /// Check if the object associated with this proxy is still alive
@@ -109,21 +133,11 @@ impl<I: Interface> Proxy<I> {
         self.inner.equals(&other.inner)
     }
 
-    /// Create a new child object that do not inherit the version
-    /// number of its parent
-    ///
-    /// TODO: This can't be done with the C libs, thus should not
-    /// be part of the public API...
-    #[cfg(not(feature = "native_lib"))]
-    #[doc(hidden)]
-    pub fn child_versioned<C: Interface>(&self, version: u32) -> NewProxy<C> {
-        NewProxy {
-            _i: ::std::marker::PhantomData,
-            inner: self.inner.child_versioned::<C>(version),
-        }
-    }
-
     /// Create a new child object
+    ///
+    /// **Warning:** This method is mostly intented to be used by code generated
+    /// by `wayland-scanner`, and you should probably never need to use it directly,
+    /// but rather use the appropriate `RequestsTrait` for your proxy.
     ///
     /// This creates a new wayland object, considered as a
     /// child of this object. It will notably inherit its interface
@@ -165,6 +179,15 @@ impl<I: Interface> Proxy<I> {
             _i: ::std::marker::PhantomData,
             inner,
         })
+    }
+
+    /// Create a placeholder object, to be used with `send_constructor`
+    ///
+    /// **Warning:** This method is mostly intented to be used by code generated
+    /// by `wayland-scanner`, and you should probably never need to use it directly,
+    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    pub fn child_placeholder<J: Interface>(&self) -> Proxy<J> {
+        Proxy::wrap(self.inner.child_placeholder())
     }
 }
 
@@ -209,14 +232,6 @@ impl<I: Interface> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: ProxyInner::from_c_ptr::<I>(ptr),
-        }
-    }
-
-    #[doc(hidden)]
-    pub unsafe fn new_null() -> Proxy<I> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: ProxyInner::new_null(),
         }
     }
 }

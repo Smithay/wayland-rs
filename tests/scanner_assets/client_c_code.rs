@@ -108,6 +108,13 @@ pub mod wl_foo {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Request::FooIt { .. } => 0,
+                Request::CreateBar { .. } => 1,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
@@ -194,6 +201,12 @@ pub mod wl_foo {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Event::Cake { .. } => 0,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -276,9 +289,6 @@ pub mod wl_foo {
     impl RequestsTrait for Proxy<WlFoo> {
         fn foo_it(&self, number: i32, unumber: u32, text: String, float: f64, file: ::std::os::unix::io::RawFd) ->()
         {
-            if !self.is_external() && !self.is_alive() {
-                return;
-            }
             let msg = Request::FooIt {
                 number: number,
                 unumber: unumber,
@@ -292,15 +302,10 @@ pub mod wl_foo {
         fn create_bar<F>(&self, implementor: F) ->Result<Proxy<super::wl_bar::WlBar>, ()>
             where F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>
         {
-            if !self.is_external() && !self.is_alive() {
-                return Err(());
-            }
-            let _arg_id_newproxy = implementor(self.child());
             let msg = Request::CreateBar {
-                id: _arg_id_newproxy.clone(),
+                id: self.child_placeholder(),
             };
-            self.send(msg);
-            Ok(_arg_id_newproxy)
+            self.send_constructor(msg, implementor, None)
         }
 
     }
@@ -352,6 +357,13 @@ pub mod wl_bar {
             match *self {
                 Request::Release => true,
                 _ => false
+            }
+        }
+
+        fn opcode(&self) -> u16 {
+            match *self {
+                Request::BarDelivery { .. } => 0,
+                Request::Release => 1,
             }
         }
 
@@ -419,6 +431,11 @@ pub mod wl_bar {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -479,9 +496,6 @@ pub mod wl_bar {
     impl RequestsTrait for Proxy<WlBar> {
         fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->()
         {
-            if !self.is_external() && !self.is_alive() {
-                return;
-            }
             let msg = Request::BarDelivery {
                 kind: kind,
                 target: target.clone(),
@@ -492,9 +506,6 @@ pub mod wl_bar {
 
         fn release(&self) ->()
         {
-            if !self.is_external() && !self.is_alive() {
-                return;
-            }
             let msg = Request::Release;
             self.send(msg);
         }
@@ -518,6 +529,11 @@ pub mod wl_display {
         ];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
+            match *self {
+            }
+        }
+
+        fn opcode(&self) -> u16 {
             match *self {
             }
         }
@@ -555,6 +571,11 @@ pub mod wl_display {
         ];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
+            match *self {
+            }
+        }
+
+        fn opcode(&self) -> u16 {
             match *self {
             }
         }
@@ -641,6 +662,12 @@ pub mod wl_registry {
             }
         }
 
+        fn opcode(&self) -> u16 {
+            match *self {
+                Request::Bind { .. } => 0,
+            }
+        }
+
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None
@@ -693,6 +720,11 @@ pub mod wl_registry {
         ];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
+            match *self {
+            }
+        }
+
+        fn opcode(&self) -> u16 {
             match *self {
             }
         }
@@ -751,28 +783,11 @@ pub mod wl_registry {
         fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) ->Result<Proxy<T>, ()>
             where F: FnOnce(NewProxy<T>) -> Proxy<T>
         {
-            if !self.is_external() && !self.is_alive() {
-                return Err(());
-            }
             let msg = Request::Bind {
                 name: name,
-                id: (T::NAME.into(), version, unsafe { Proxy::<AnonymousObject>::new_null() }),
+                id: (T::NAME.into(), version, self.child_placeholder()),
             };
-
-            unsafe {
-                let ret = msg.as_raw_c_in(|opcode, args| {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_marshal_array_constructor_versioned,
-                        self.c_ptr(),
-                        opcode,
-                        args.as_mut_ptr(),
-                        T::c_interface(),
-                        version
-                    )
-                });
-                Ok(implementor(NewProxy::<T>::from_c_ptr(ret)))
-            }
+            self.send_constructor(msg, implementor, Some(version))
         }
 
     }
@@ -794,6 +809,11 @@ pub mod wl_callback {
         ];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
+            match *self {
+            }
+        }
+
+        fn opcode(&self) -> u16 {
             match *self {
             }
         }
@@ -847,6 +867,12 @@ pub mod wl_callback {
         fn is_destructor(&self) -> bool {
             match *self {
                 Event::Done { .. } => true,
+            }
+        }
+
+        fn opcode(&self) -> u16 {
+            match *self {
+                Event::Done { .. } => 0,
             }
         }
 
