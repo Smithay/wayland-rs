@@ -40,7 +40,7 @@ impl ProxyInner {
         self.internal
             .as_ref()
             .map(|i| i.alive.load(Ordering::Acquire))
-            .unwrap_or(false)
+            .unwrap_or(true)
     }
 
     pub(crate) fn is_external(&self) -> bool {

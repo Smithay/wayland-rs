@@ -70,10 +70,10 @@ impl<I: Interface> Proxy<I> {
 
     /// Check if the object associated with this proxy is still alive
     ///
-    /// Will return `false` if either:
+    /// Will return `false` if the object has been destroyed.
     ///
-    /// - The object has been destroyed
-    /// - The object is not managed by this library (see the `from_c_ptr` method)
+    /// If the object is not managed by this library, this will always
+    /// returns `true`.
     pub fn is_alive(&self) -> bool {
         self.inner.is_alive()
     }
