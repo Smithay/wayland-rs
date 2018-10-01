@@ -3,7 +3,7 @@
 ## Unreleased
 
 - [client] Introduce `Proxy::send_constructor` allowing the sending of a message creating a new object
-  atomically. This solves races when creating objects from two threads conccurently (#206). Also, this
+  atomically. This solves races when creating objects from two threads concurrently (#206). Also, this
   simplifies the implementation of `wayland-scanner`, removing some unsafe code from it.
 - [client] Unmanaged proxies (when using `native_lib`) are now correctly considered alive rather than dead
 
@@ -18,7 +18,7 @@
   actual `wl_display`
 - [client] Rework user-data mechanism to introduce type-safety
 - [server] Rework `Resource` user-data mechanism to introduce type-safety
-- [server] Implement global filtering capabilities, to selectively advertize globals to clients.
+- [server] Implement global filtering capabilities, to selectively advertise globals to clients.
   - **Breaking**: this bumps the minimal version of the C libraries to 1.13.0
 - [server] **Breaking**: migrate the event loop logic to using `calloop` rather than our own
 - [client] Add the `eventloop` cargo feature which provides `calloop` integration for `EventQueue`
@@ -220,7 +220,7 @@
 
 ## 0.9.2 - 2017-04-17
 
-- [server] Fix a bug of register-related functions leading to ressources not being
+- [server] Fix a bug of register-related functions leading to resources not being
   properly recognized. Thanks @fangyuanziti.
 
 ## 0.9.1 - 2017-03-31
@@ -275,7 +275,7 @@
 
 ### Server updates
 
-- Add a destructor mechanism for ressources
+- Add a destructor mechanism for resources
 
 ## 0.7.8 - 2017-02-12
 

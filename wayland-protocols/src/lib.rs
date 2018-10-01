@@ -7,7 +7,7 @@
 //! protocol. The creation of these modules (and the dependency on the associated crate) is
 //! controlled by the two cargo features `client` and `server`.
 //!
-//! The cargo feature `unstable_protocols` adds an `unstable` module, containings bindings
+//! The cargo feature `unstable_protocols` adds an `unstable` module, containing bindings
 //! to protocols that are not yet considered stable. As such, no stability guarantee is
 //! given for these protocols.
 //!

@@ -282,7 +282,6 @@ pub mod xdg_foreign {
     //! Protocol for exporting xdg surface handles
     //!
     //! This protocol specifies a way for making it possible to reference a surface
-    //! aOaOa
     //! of a different client. With such a reference, a client can, by using the
     //! interfaces provided by this protocol, manipulate the relationship between
     //! its own surfaces and the surface of some other client. For example, stack

@@ -2,7 +2,7 @@ extern crate wayland_client;
 
 use wayland_client::{Display, GlobalManager};
 
-// A minimal example printing the list of globals advertized by the server and
+// A minimal example printing the list of globals advertised by the server and
 // then exiting
 
 fn main() {

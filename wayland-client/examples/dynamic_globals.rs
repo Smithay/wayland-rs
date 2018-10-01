@@ -13,14 +13,14 @@ fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
 
     // We create a GlobalManager with a callback, that will be
-    // advertized of any global creation or deletion
+    // advertised of any global creation or deletion
     let _globals = GlobalManager::new_with_cb(
         &display,
         // This macro generates a callback for auto-creating the globals
         // that interest us and calling our provided callbacks
         global_filter!(
-            // Here we ask that all seats be automatically instanciated
-            // with version 1 when advertized, and provide a callback that
+            // Here we ask that all seats be automatically instantiated
+            // with version 1 when advertised, and provide a callback that
             // will handle the created wl_seat to implement them
             //
             // NOTE: the type annotations are necessary because rustc's

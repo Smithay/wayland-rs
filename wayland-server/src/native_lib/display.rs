@@ -141,7 +141,7 @@ impl DisplayInner {
             )
         };
         if ret == -1 {
-            // lets try to be helpfull
+            // lets try to be helpful
             let mut socket_name = get_runtime_dir()?;
             match name {
                 Some(s) => socket_name.push(s.as_ref()),
@@ -159,7 +159,7 @@ impl DisplayInner {
     pub(crate) fn add_socket_auto(&mut self) -> IoResult<OsString> {
         let ret = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.ptr) };
         if ret.is_null() {
-            // try to be helpfull
+            // try to be helpful
             let socket_name = get_runtime_dir()?;
             Err(IoError::new(
                 ErrorKind::Other,

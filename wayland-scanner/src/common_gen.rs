@@ -193,7 +193,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
         }
     }
     if n > 0 {
-        // avoir "unreachable pattern" warnings =)
+        // TODO "unreachable pattern" warnings =)
         writeln!(out, "                _ => false")?;
     }
     writeln!(out, "            }}")?;

@@ -2,7 +2,7 @@
 //!
 //! This module contains bindings to the `libwayland-cursor.so` library.
 //!
-//! These utilities allows you to laod cursor images in order to match
+//! These utilities allows you to load cursor images in order to match
 //! your cursors to the ones of the system.
 //!
 //! First of all, the function `load_theme` will allow you to load a
@@ -10,7 +10,7 @@
 //!
 //! From this theme, you can load a specific `Cursor`, which can each
 //! contain several images if the cursor is animated. It provides you
-//! with the means of knowing which frame of the animation shoudl be
+//! with the means of knowing which frame of the animation should be
 //! displayed at which time, as well as handles to the buffers containing
 //! these frames, to attach them to a wayland surface.
 
@@ -192,7 +192,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    /// Retrive the metadate associated with given frame of the animation.
+    /// Retrieve the metadata associated with given frame of the animation.
     ///
     /// The tuple contains: `(width, height, hotspot_x, hotspot_y, delay)`
     ///
@@ -218,7 +218,7 @@ impl<'a> Cursor<'a> {
 /// You can access the `Proxy<WlBuffer>` via `Deref`.
 ///
 /// Note that this proxy will be considered as "unmanaged" by the crate, as such you should
-/// not try to act with it beyong assigning it to `wl_surface`s.
+/// not try to act on it beyond assigning it to `wl_surface`s.
 pub struct CursorImageBuffer<'a> {
     _cursor: PhantomData<&'a Cursor<'a>>,
     buffer: Proxy<WlBuffer>,

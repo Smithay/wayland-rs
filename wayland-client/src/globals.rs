@@ -20,12 +20,12 @@ pub struct GlobalManager {
     registry: Proxy<wl_registry::WlRegistry>,
 }
 
-/// An error that occured trying to bind a global
+/// An error that occurred trying to bind a global
 #[derive(Debug, PartialEq)]
 pub enum GlobalError {
     /// The requested global was missing
     Missing,
-    /// The global abvertized by the server has a lower version number
+    /// The global advertised by the server has a lower version number
     /// than the one requested
     VersionTooLow(u32),
 }
@@ -157,10 +157,10 @@ impl GlobalManager {
         }
     }
 
-    /// Instanciate a global with highest available version
+    /// Instantiate a global with highest available version
     ///
     /// This method is only appropriate for globals that are expected to
-    /// not exist with multiplicity (sur as `wl_compositor` or `wl_shm`),
+    /// not exist with multiplicity (such as `wl_compositor` or `wl_shm`),
     /// as it will only bind a single one.
     pub fn instantiate_auto<I: Interface, F>(&self, implementor: F) -> Result<Proxy<I>, GlobalError>
     where
@@ -175,7 +175,7 @@ impl GlobalManager {
         Err(GlobalError::Missing)
     }
 
-    /// Instanciate a global with a specific version
+    /// Instantiate a global with a specific version
     ///
     /// Like `instantiate_auto`, but will bind a specific version of
     /// this global an not the highest available.
@@ -206,18 +206,18 @@ impl GlobalManager {
     }
 }
 
-/// A trait for implementation of the global advertizement
+/// A trait for implementation of the global advertisement
 ///
 /// It is automatically implemented for `FnMut(NewProxy<I>) -> Proxy<I>`
 /// closures, in which case the `error` messages are ignored.
 pub trait GlobalImplementor<I: Interface> {
-    /// A new global of given interface has been instanciated and you are
+    /// A new global of given interface has been instantiated and you are
     /// supposed to provide an implementation for it.
     fn new_global(&mut self, global: NewProxy<I>) -> Proxy<I>;
-    /// A global was advertized but its version was lower than the minimal version
+    /// A global was advertised but its version was lower than the minimal version
     /// you requested.
     ///
-    /// The advertized version is provided as argument.
+    /// The advertised version is provided as argument.
     fn error(&mut self, _version: u32) {}
 }
 
@@ -234,7 +234,7 @@ where
 ///
 /// This macro aims to simplify the specific but common case of
 /// providing a callback to the `GlobalManager` that needs to
-/// auto-bind all advertized instances of some specific globals
+/// auto-bind all advertised instances of some specific globals
 /// whenever they happen. Typically, your application will likely
 /// want to keep track of all `wl_seat` and `wl_output` globals
 /// to be able to correctly react to user input and their different
@@ -270,9 +270,9 @@ where
 /// The supplied callbacks for each global kind must be an instance of a type
 /// implementing the `GlobalImplementor<I>` trait. The argument provided to your
 /// callback is a `NewProxy`  of the newly instantiated global, and you should implement
-/// it and return the implemented proxy. The error case happens if the server advertized
+/// it and return the implemented proxy. The error case happens if the server advertised
 /// a lower version of the global than the one you requested, in which case you are given
-/// the version it advertized in the error method, if you want to handle it graciously.
+/// the version it advertised in the error method, if you want to handle it graciously.
 ///
 /// As with all implementations, you can also provide closures for the various
 /// callbacks, in this case the errors will be ignored. However, due to a lack of

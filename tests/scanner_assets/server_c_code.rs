@@ -213,7 +213,7 @@ pub mod wl_foo {
     pub enum Event {
         /// a cake is possible
         ///
-        /// The server advertizes that a kind of cake is available
+        /// The server advertises that a kind of cake is available
         ///
         /// Only available since version 2 of the interface
         Cake {kind: CakeKind, amount: u32, },

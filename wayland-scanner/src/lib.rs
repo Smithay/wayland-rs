@@ -67,12 +67,12 @@
 //! // The `generated` module below is just some boilerplate to properly isolate stuff
 //! // and avoid exposing internal details.
 //! //
-//! // You can use all the types from my_procol as if they went from `wayland_client::protocol`.
+//! // You can use all the types from my_protocol as if they went from `wayland_client::protocol`.
 //! pub use generated::client as my_protocol;
 //!
 //! mod generated {
 //!     // The generated code tends to trigger a lot of warnings
-//!     // so we isole it into a very permissive module
+//!     // so we isolate it into a very permissive module
 //!     #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
 //!     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
 //!
@@ -193,7 +193,7 @@ pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, s
 /// Args:
 ///
 /// - `protocol`: an object `Read`-able containing the XML protocol file
-/// - `target`: a `Write`-able object to which the generated code will be outputed to
+/// - `target`: a `Write`-able object to which the generated code will be outputted to
 pub fn generate_c_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
     c_interface_gen::generate_interfaces(protocol, target).unwrap();
@@ -206,7 +206,7 @@ pub fn generate_c_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: 
 /// Args:
 ///
 /// - `protocol`: an object `Read`-able containing the XML protocol file
-/// - `target`: a `Write`-able object to which the generated code will be outputed to
+/// - `target`: a `Write`-able object to which the generated code will be outputted to
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_rust_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);
@@ -223,7 +223,7 @@ pub fn generate_rust_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mu
 /// Args:
 ///
 /// - `protocol`: an object `Read`-able containing the XML protocol file
-/// - `target`: a `Write`-able object to which the generated code will be outputed to
+/// - `target`: a `Write`-able object to which the generated code will be outputted to
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_c_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);

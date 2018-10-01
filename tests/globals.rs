@@ -107,7 +107,7 @@ fn global_manager_cb() {
 }
 
 #[test]
-fn auto_instanciate() {
+fn auto_instantiate() {
     use wayc::protocol::wl_compositor::WlCompositor;
     use wayc::protocol::wl_output::WlOutput;
     use wayc::protocol::wl_shell::WlShell;
@@ -168,8 +168,8 @@ fn wrong_global() {
         .get_registry(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
-    // instanciate a wrong global, this should kill the client
-    // But currently does not fail on native_lib
+    // instantiate a wrong global, this should kill the client
+    // but currently does not fail on native_lib
 
     registry
         .bind::<WlOutput, _>(1, 1, |newp| newp.implement(|_, _| {}, ()))
@@ -193,7 +193,7 @@ fn wrong_global_version() {
         .get_registry(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
-    // instanciate a global with wrong version, this shoudl kill the client
+    // instantiate a global with wrong version, this should kill the client
 
     registry
         .bind::<WlCompositor, _>(2, 1, |newp| newp.implement(|_, _| {}, ()))
@@ -217,7 +217,7 @@ fn invalid_global_version() {
         .get_registry(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
-    // instanciate a global with version 0, which is invalid this shoudl kill the client
+    // instantiate a global with version 0, which is invalid this should kill the client
 
     registry
         .bind::<WlCompositor, _>(0, 1, |newp| newp.implement(|_, _| {}, ()))
@@ -241,7 +241,7 @@ fn wrong_global_id() {
         .get_registry(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();
 
-    // instanciate a global with wrong id, this should kill the client
+    // instantiate a global with wrong id, this should kill the client
 
     registry
         .bind::<WlCompositor, _>(1, 3, |newp| newp.implement(|_, _| {}, ()))

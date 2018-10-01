@@ -47,7 +47,7 @@ fn client_user_data() {
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    // instanciate the globals
+    // Instantiate the globals
     manager
         .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
         .unwrap();

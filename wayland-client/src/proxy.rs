@@ -13,7 +13,7 @@ use ProxyMap;
 
 /// An handle to a wayland proxy
 ///
-/// This represents a wayland object instanciated in your client
+/// This represents a wayland object instantiated in your client
 /// session. Several handles to the same object can exist at a given
 /// time, and cloning them won't create a new protocol object, only
 /// clone the handle. The lifetime of the protocol object is **not**
@@ -55,7 +55,7 @@ impl<I: Interface> Proxy<I> {
 
     /// Send a request through this object
     ///
-    /// **Warning:** This method is mostly intented to be used by code generated
+    /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate `RequestsTrait` for your proxy.
     ///
@@ -68,7 +68,7 @@ impl<I: Interface> Proxy<I> {
 
     /// Send a request creating an object through this object
     ///
-    /// **Warning:** This method is mostly intented to be used by code generated
+    /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate `RequestsTrait` for your proxy.
     ///
@@ -135,7 +135,7 @@ impl<I: Interface> Proxy<I> {
 
     /// Create a new child object
     ///
-    /// **Warning:** This method is mostly intented to be used by code generated
+    /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate `RequestsTrait` for your proxy.
     ///
@@ -143,7 +143,7 @@ impl<I: Interface> Proxy<I> {
     /// child of this object. It will notably inherit its interface
     /// version.
     ///
-    /// The created object should immediatly be implemented and sent
+    /// The created object should immediately be implemented and sent
     /// in a request to the server, to keep the object list properly
     /// synchronized. Failure to do so will likely cause a protocol
     /// error.
@@ -165,7 +165,7 @@ impl<I: Interface> Proxy<I> {
     /// Create a wrapper for this object for queue management
     ///
     /// As assigning a proxy to an event queue can be a racy operation
-    /// in contextes involving multiple thread, this provides a facility
+    /// in contexts involving multiple thread, this provides a facility
     /// to do this safely.
     ///
     /// The wrapper object created behaves like a regular `Proxy`, except that
@@ -183,7 +183,7 @@ impl<I: Interface> Proxy<I> {
 
     /// Create a placeholder object, to be used with `send_constructor`
     ///
-    /// **Warning:** This method is mostly intented to be used by code generated
+    /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate `RequestsTrait` for your proxy.
     pub fn child_placeholder<J: Interface>(&self) -> Proxy<J> {

@@ -48,7 +48,7 @@
 
     <event name="cake" since="2">
       <description summary="a cake is possible">
-        The server advertizes that a kind of cake is available
+        The server advertises that a kind of cake is available
       </description>
       <arg name="kind" type="uint" enum="cake_kind" summary="name of this kind of cake" />
       <arg name="amount" type="uint" summary="amount available" />

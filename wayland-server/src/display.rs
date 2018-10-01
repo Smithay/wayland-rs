@@ -24,7 +24,7 @@ pub struct Display {
     inner: Rc<RefCell<DisplayInner>>,
 }
 
-/// A token that is required for providing non-Send implementations to ressources
+/// A token that is required for providing non-Send implementations to resources
 ///
 /// This is used to ensure you are indeed on the right thread.
 ///
@@ -65,14 +65,14 @@ impl Display {
 
     /// Create a new global object
     ///
-    /// This object will be advertized to all clients, and they will
-    /// be able to instanciate it from their registries.
+    /// This object will be advertised to all clients, and they will
+    /// be able to instantiate it from their registries.
     ///
-    /// Your implementation will be called whenever a client instanciates
+    /// Your implementation will be called whenever a client instantiates
     /// this global.
     ///
     /// The version specified is the **highest supported version**, you must
-    /// be able to handle clients that choose to instanciate this global with
+    /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
     pub fn create_global<I: Interface, F>(&mut self, version: u32, implementation: F) -> Global<I>
     where
@@ -94,14 +94,14 @@ impl Display {
 
     /// Create a new global object with a filter
     ///
-    /// This object will be advertized to all clients, and they will
-    /// be able to instanciate it from their registries.
+    /// This object will be advertised to all clients, and they will
+    /// be able to instantiate it from their registries.
     ///
-    /// Your implementation will be called whenever a client instanciates
+    /// Your implementation will be called whenever a client instantiates
     /// this global.
     ///
     /// The version specified is the **highest supported version**, you must
-    /// be able to handle clients that choose to instanciate this global with
+    /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
     pub fn create_global_with_filter<I: Interface, F1, F2>(
         &mut self,

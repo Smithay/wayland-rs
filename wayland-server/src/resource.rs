@@ -10,7 +10,7 @@ use imp::{NewResourceInner, ResourceInner};
 
 /// An handle to a wayland resource
 ///
-/// This represents a wayland object instanciated in a client
+/// This represents a wayland object instantiated in a client
 /// session. Several handles to the same object can exist at a given
 /// time, and cloning them won't create a new protocol object, only
 /// clone the handle. The lifetime of the protocol object is **not**
