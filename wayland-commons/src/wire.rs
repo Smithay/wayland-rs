@@ -60,7 +60,7 @@ pub enum Argument {
 }
 
 impl Argument {
-    /// Retrieve the type of a given argument isntance
+    /// Retrieve the type of a given argument instance
     pub fn get_type(&self) -> ArgumentType {
         match *self {
             Argument::Int(_) => ArgumentType::Int,
@@ -100,7 +100,7 @@ pub enum MessageWriteError {
 pub enum MessageParseError {
     /// The message references a FD but the buffer FD is empty
     MissingFD,
-    /// More data is nedded to deserialize the message
+    /// More data is needed to deserialize the message
     MissingData,
     /// The message is malformed and cannot be parsed
     Malformed,
@@ -109,7 +109,7 @@ pub enum MessageParseError {
 impl Message {
     /// Serialize the contents of this message into provided buffers
     ///
-    /// Returns the number of elements writtent in each buffer
+    /// Returns the number of elements written in each buffer
     ///
     /// Any serialized Fd will be `dup()`-ed in the process
     pub fn write_to_buffers<'a, 'b>(

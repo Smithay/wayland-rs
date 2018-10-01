@@ -8,7 +8,7 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::{wl_compositor, wl_output, wl_shm};
 
-struct Privilegied;
+struct Privileged;
 
 #[test]
 fn global_filter() {
@@ -26,13 +26,13 @@ fn global_filter() {
         .display
         .create_global_with_filter::<wl_shm::WlShm, _, _>(1, |_, _| {}, |_| true);
 
-    // only privilegied clients see the output
-    let privilegied_output = server
+    // only privileged clients see the output
+    let privileged_output = server
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
             1,
             |_, _| {},
-            |client| client.data_map().get::<Privilegied>().is_some(),
+            |client| client.data_map().get::<Privileged>().is_some(),
         );
 
     // normal client only sees two globals
@@ -46,7 +46,7 @@ fn global_filter() {
     let (server_cx, client_cx) = ::std::os::unix::net::UnixStream::pair().unwrap();
 
     let priv_client = unsafe { server.display.create_client(server_cx.into_raw_fd()) };
-    priv_client.data_map().insert_if_missing(|| Privilegied);
+    priv_client.data_map().insert_if_missing(|| Privileged);
 
     let mut client2 = unsafe { TestClient::from_fd(client_cx.into_raw_fd()) };
     let manager2 = wayc::GlobalManager::new(&client2.display);
@@ -55,12 +55,12 @@ fn global_filter() {
 
     assert_eq!(manager2.list().len(), 3);
 
-    // now destroy the privilegied globa
-    // only privilegied clients will receive the destroy event
+    // now destroy the privileged global
+    // only privileged clients will receive the destroy event
     // if a regular client received it, it would panic as the server destroyed an
     // unknown global
 
-    privilegied_output.destroy();
+    privileged_output.destroy();
 
     roundtrip(&mut client, &mut server).unwrap();
     roundtrip(&mut client2, &mut server).unwrap();
@@ -79,27 +79,27 @@ fn global_filter_try_force() {
 
     let mut server = TestServer::new();
 
-    // only privilegied clients see the output
+    // only privileged clients see the output
     server
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
             1,
             |_, _| {},
-            |client| client.data_map().get::<Privilegied>().is_some(),
+            |client| client.data_map().get::<Privileged>().is_some(),
         );
 
-    // normal client that cannot bind the privilegied global
+    // normal client that cannot bind the privileged global
     let mut client = TestClient::new(&server.socket_name);
 
-    // privilegied client that can
+    // privileged client that can
     let (server_cx, client_cx) = ::std::os::unix::net::UnixStream::pair().unwrap();
 
     let priv_client = unsafe { server.display.create_client(server_cx.into_raw_fd()) };
-    priv_client.data_map().insert_if_missing(|| Privilegied);
+    priv_client.data_map().insert_if_missing(|| Privileged);
 
     let mut client2 = unsafe { TestClient::from_fd(client_cx.into_raw_fd()) };
 
-    // privilegied client can bind it
+    // privileged client can bind it
 
     let registry2 = client2
         .display
@@ -111,7 +111,7 @@ fn global_filter_try_force() {
 
     roundtrip(&mut client2, &mut server).unwrap();
 
-    // unprivilegied client cannot
+    // unprivileged client cannot
 
     let registry = client
         .display

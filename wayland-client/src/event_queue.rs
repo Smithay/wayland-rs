@@ -6,7 +6,7 @@ use imp::EventQueueInner;
 /// An event queue for protocol messages
 ///
 /// Event dispatching in wayland is made on a queue basis, allowing you
-/// to organise your objects into different queues that can be dispatched
+/// to organize your objects into different queues that can be dispatched
 /// independently, for example from different threads.
 ///
 /// And `EventQueue` is not `Send`, and thus must stay on the thread on which
@@ -14,7 +14,7 @@ use imp::EventQueueInner;
 /// you to create the queues directly in the threads that host them.
 ///
 /// When a queue is dispatched (via the `dispatch()` or `dispatch_pending()` methods)
-/// all the incoming messages from the server destinated to objects associated with
+/// all the incoming messages from the server designated to objects associated with
 /// the queue are processed sequentially, and the appropriate implementation for each
 /// is invoked. When all messages have been processed these methods return.
 ///
@@ -27,7 +27,7 @@ use imp::EventQueueInner;
 /// #     let (display, mut event_queue) = Display::connect_to_env().unwrap();
 /// loop {
 ///     display.flush().unwrap();
-///     event_queue.dispatch().expect("An error occured during event dispatching!");
+///     event_queue.dispatch().expect("An error occurred during event dispatching!");
 /// }
 /// # }
 /// ```
@@ -58,7 +58,7 @@ impl EventQueue {
     }
     /// Dispatches events from the internal buffer.
     ///
-    /// Dispatches all events to their appropriaters.
+    /// Dispatches all events to their appropriators.
     /// If no events were in the internal buffer, will block until
     /// some events are read and dispatch them.
     /// This process can insert events in the internal buffers of
@@ -72,7 +72,7 @@ impl EventQueue {
 
     /// Dispatches pending events from the internal buffer.
     ///
-    /// Dispatches all events to their appropriaters.
+    /// Dispatches all events to their appropriators.
     /// Never blocks, if no events were pending, simply returns
     /// `Ok(0)`.
     ///
@@ -84,7 +84,7 @@ impl EventQueue {
 
     /// Synchronous roundtrip
     ///
-    /// This call will cause a synchonous roundtrip with the wayland server. It will block until all
+    /// This call will cause a synchronous roundtrip with the wayland server. It will block until all
     /// pending requests of this queue are sent to the server and it has processed all of them and
     /// send the appropriate events.
     ///
@@ -104,7 +104,7 @@ impl EventQueue {
         }
     }
 
-    /// Prepare an conccurent read
+    /// Prepare an concurrent read
     ///
     /// Will declare your intention to read events from the server socket.
     ///
@@ -156,7 +156,7 @@ impl ReadEventsGuard {
     ///
     /// Will cancel the read intention associated with this guard. Never blocks.
     ///
-    /// Has the same effet as letting the guard go out of scope.
+    /// Has the same effect as letting the guard go out of scope.
     pub fn cancel(mut self) {
         // just run the destructor
         self.done = true;

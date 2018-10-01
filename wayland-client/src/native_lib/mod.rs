@@ -11,7 +11,7 @@ use {Interface, NewProxy, Proxy};
 /// This type only exists for type-level compatibility
 /// with the rust implementation.
 ///
-/// It is an empty enum that cannot be instanciated
+/// It is an empty enum that cannot be instantiated
 pub enum ProxyMap {}
 
 impl ProxyMap {

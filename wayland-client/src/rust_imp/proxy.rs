@@ -107,8 +107,8 @@ impl ProxyInner {
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
         // grab the connection lock before anything else
-        // this avoids the risk of marking ourselve dead while an other
-        // thread is sending a message an accidentaly sending that message
+        // this avoids the risk of marking ourselves dead while an other
+        // thread is sending a message an accidentally sending that message
         // after ours if ours is a destructor
         let mut conn_lock = self.connection.lock().unwrap();
         if !self.is_alive() {
@@ -275,7 +275,7 @@ impl NewProxyInner {
         }
     }
 
-    /// Racy method, if called, must be called before any event ot this object
+    /// Racy method, if called, must be called before any event to this object
     /// is read from the socket, or it'll end up in the wrong queue...
     pub(crate) unsafe fn assign_queue(&self, queue: &EventQueueInner) {
         let _ = self.map.lock().unwrap().with(self.id, |obj| {
@@ -302,7 +302,7 @@ impl NewProxyInner {
         let object = match object {
             Ok(obj) => obj,
             Err(()) => {
-                // We are tyring to implement a non-existent object
+                // We are trying to implement a non-existent object
                 // This is either a bug in the lib (a NewProxy was created while it should not
                 // have been possible) or an object was created and the server destroyed it
                 // before it could be implemented.

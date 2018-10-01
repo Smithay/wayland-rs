@@ -186,7 +186,7 @@ impl NewResourceInner {
         let object = match object {
             Ok(obj) => obj,
             Err(()) => {
-                // We are tyring to implement a non-existent object
+                // We are trying to implement a non-existent object
                 // This is either a bug in the lib (a NewResource was created while it should not
                 // have been possible) or an object was created and the client destroyed it
                 // before it could be implemented.

@@ -128,7 +128,7 @@ impl BufferedSocket {
         &mut self.socket
     }
 
-    /// Retreive ownership of the underlying Socket
+    /// Retrieve ownership of the underlying Socket
     ///
     /// Any leftover content in the internal buffers will be lost
     pub fn into_socket(self) -> Socket {
@@ -228,10 +228,10 @@ impl BufferedSocket {
     ///
     /// There are 3 possibilities of return value:
     ///
-    /// - `Ok(Ok(msg))`: no error occured, this is the message
+    /// - `Ok(Ok(msg))`: no error occurred, this is the message
     /// - `Ok(Err(e))`: either a malformed message was encountered or we need more data,
     ///    in the latter case you need to try calling `fill_incoming_buffers()`.
-    /// - `Err(e)`: an I/O error occured reading from the socked, details are in `e`
+    /// - `Err(e)`: an I/O error occurred reading from the socked, details are in `e`
     ///   (this can be a "wouldblock" error, which just means that no message is available
     ///   to read)
     pub fn read_one_message<F>(&mut self, mut signature: F) -> Result<Message, MessageParseError>
@@ -251,7 +251,7 @@ impl BufferedSocket {
                     Ok((msg, rest_data, rest_fds)) => {
                         (msg, data.len() - rest_data.len(), fds.len() - rest_fds.len())
                     }
-                    // TODO: gracefully handle wayland messages split accross unix messages ?
+                    // TODO: gracefully handle wayland messages split across unix messages ?
                     Err(e) => return Err(e),
                 }
             } else {
@@ -279,16 +279,16 @@ impl BufferedSocket {
     /// - The second closure is charged to process the parsed message. If it
     ///   returns `false`, the iteration will be prematurely stopped.
     ///
-    /// In both cases of early stopping, the remaining unsued data will be left
+    /// In both cases of early stopping, the remaining unused data will be left
     /// in the buffers, and will start to be processed at the next call of this
     /// method.
     ///
     /// There are 3 possibilities of return value:
     ///
-    /// - `Ok(Ok(n))`: no error occured, `n` messages where processed
+    /// - `Ok(Ok(n))`: no error occurred, `n` messages where processed
     /// - `Ok(Err(MessageParseError::Malformed))`: a malformed message was encountered
     ///   (this is a protocol error and is supposed to be fatal to the connection).
-    /// - `Err(e)`: an I/O error occured reading from the socked, details are in `e`
+    /// - `Err(e)`: an I/O error occurred reading from the socked, details are in `e`
     ///   (this can be a "wouldblock" error, which just means that no message is available
     ///   to read)
     pub fn read_messages<F1, F2>(

@@ -30,7 +30,7 @@
 //! you can think of `Resource<I>` as an `Rc`-like handle to a wayland object. Multiple instances
 //! of it can exist referring to the same protocol object.
 //!
-//! Similarly, the lifetimes of the protocol objects and the `Resource<I>` are not tighly tied.
+//! Similarly, the lifetimes of the protocol objects and the `Resource<I>` are not tightly tied.
 //! As protocol objects are created and destroyed by protocol messages, it can happen that an object
 //! gets destroyed while one or more `Resource<I>` still refers to it. In such case, these resources
 //! will be disabled and their `alive()` method will start to return `false`. Events that are
@@ -51,7 +51,7 @@
 //! An implementation is just an `FnMut(I::Request, Resource<I>)` where `I` is the interface
 //! of the considered object.
 //!
-//! The `Resource<I>` passed to your implementation is garanteed to be alive (as it just received
+//! The `Resource<I>` passed to your implementation is guaranteed to be alive (as it just received
 //! a request), unless the exact message received is a destructor (which is indicated in the API
 //! documentations).
 //!

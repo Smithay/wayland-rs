@@ -33,7 +33,7 @@ fn main() {
     let buf_x: u32 = 320;
     let buf_y: u32 = 240;
 
-    // create a tempfile to write the conents of the window on
+    // create a tempfile to write the contents of the window on
     let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {

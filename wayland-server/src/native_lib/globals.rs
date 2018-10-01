@@ -82,7 +82,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
     match ret {
         Ok(()) => (), // all went well
         Err(_) => {
-            // a panic occured
+            // a panic occurred
             eprintln!(
                 "[wayland-server error] A global handler for {} panicked, aborting.",
                 I::NAME
@@ -122,7 +122,7 @@ pub(crate) unsafe extern "C" fn global_filter(
     match ret {
         Ok(val) => val, // all went well
         Err(_) => {
-            // a panic occured
+            // a panic occurred
             eprintln!("[wayland-server error] A global filter panicked, aborting.");
             ::libc::abort();
         }

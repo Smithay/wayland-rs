@@ -39,7 +39,7 @@
 //! protocol object.
 //!
 //! Similarly, the lifetimes of the protocol objects and the `Proxy<I>` are
-//! not tighly tied. As protocol objects are created and destroyed by protocol
+//! not tightly tied. As protocol objects are created and destroyed by protocol
 //! messages, it can happen that an object gets destroyed while one or more
 //! `Proxy<I>` still refers to it. In such case, these proxies will be disabled
 //! and their `alive()` method will start to return `false`. Trying to send messages
@@ -62,7 +62,7 @@
 //!
 //! ## Event Queues
 //!
-//! The wayland client machinnery provides the possibility to have one or more event queues
+//! The wayland client machinery provides the possibility to have one or more event queues
 //! handling the processing of received messages. All wayland objects are associated to an
 //! event queue, which controls when its events are dispatched.
 //!

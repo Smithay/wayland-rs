@@ -123,7 +123,7 @@ impl Display {
     /// flushes the internal buffer to the server socket.
     ///
     /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
-    /// requests coul be written, will return an io error `WouldBlock`.
+    /// requests could be written, will return an io error `WouldBlock`.
     ///
     /// On success returns the number of written requests.
     pub fn flush(&self) -> io::Result<()> {
