@@ -67,6 +67,7 @@
       <arg name="kind" type="uint" enum="wl_foo.delivery_kind" summary="method of delivery allowed" />
       <arg name="target" type="object" interface="wl_foo" summary="bar to deliver" />
       <arg name="metadata" type="array" summary="delivery metadata" />
+      <arg name="metametadata" type="array" allow-null="true" summary="even more delivery metadata" />
     </request>
 
     <request name="release" type="destructor">

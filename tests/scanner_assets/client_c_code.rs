@@ -325,7 +325,7 @@ pub mod wl_bar {
         /// Proceed to a bar delivery of given foo.
         ///
         /// Only available since version 2 of the interface
-        BarDelivery {kind: super::wl_foo::DeliveryKind, target: Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>, },
+        BarDelivery {kind: super::wl_foo::DeliveryKind, target: Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>, metametadata: Option<Vec<u8>>, },
         /// release this bar
         ///
         /// Notify the compositor that you have finished using this bar.
@@ -342,6 +342,7 @@ pub mod wl_bar {
                 signature: &[
                     super::ArgumentType::Uint,
                     super::ArgumentType::Object,
+                    super::ArgumentType::Array,
                     super::ArgumentType::Array,
                 ]
             },
@@ -379,13 +380,14 @@ pub mod wl_bar {
 
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
-                Request::BarDelivery { kind, target, metadata, } => Message {
+                Request::BarDelivery { kind, target, metadata, metametadata, } => Message {
                     sender_id: sender_id,
                     opcode: 0,
                     args: vec![
                         Argument::Uint(kind.to_raw()),
                         Argument::Object(target.id()),
                         Argument::Array(metadata),
+                        Argument::Array(metametadata.unwrap_or_else(Vec::new)),
                     ]
                 },
                 Request::Release => Message {
@@ -403,12 +405,14 @@ pub mod wl_bar {
 
         fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
             match self {
-                Request::BarDelivery { kind, target, metadata, } => {
-                    let mut _args_array: [wl_argument; 3] = unsafe { ::std::mem::zeroed() };
+                Request::BarDelivery { kind, target, metadata, metametadata, } => {
+                    let mut _args_array: [wl_argument; 4] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = kind.to_raw();
                     _args_array[1].o = target.c_ptr() as *mut _;
                     let _arg_2 = wl_array { size: metadata.len(), alloc: metadata.capacity(), data: metadata.as_ptr() as *mut _ };
                     _args_array[2].a = &_arg_2;
+                    let _arg_3 = metametadata.as_ref().map(|vec| wl_array { size: vec.len(), alloc: vec.capacity(), data: vec.as_ptr() as *mut _ });
+                    _args_array[3].a = _arg_3.as_ref().map(|a| a as *const wl_array).unwrap_or(::std::ptr::null());
                     f(0, &mut _args_array)
                 },
                 Request::Release => {
@@ -484,7 +488,7 @@ pub mod wl_bar {
         /// Proceed to a bar delivery of given foo.
         ///
         /// Only available since version 2 of the interface
-        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->();
+        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>, metametadata: Option<Vec<u8>>) ->();
         /// release this bar
         ///
         /// Notify the compositor that you have finished using this bar.
@@ -494,12 +498,13 @@ pub mod wl_bar {
     }
 
     impl RequestsTrait for Proxy<WlBar> {
-        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>) ->()
+        fn bar_delivery(&self, kind: super::wl_foo::DeliveryKind, target: &Proxy<super::wl_foo::WlFoo>, metadata: Vec<u8>, metametadata: Option<Vec<u8>>) ->()
         {
             let msg = Request::BarDelivery {
                 kind: kind,
                 target: target.clone(),
                 metadata: metadata,
+                metametadata: metametadata,
             };
             self.send(msg);
         }
