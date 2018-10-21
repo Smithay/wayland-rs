@@ -436,7 +436,7 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                     Type::Array => if a.allow_null {
                         writeln!(
                             out,
-                            "                        Argument::Array({}.unwrap_or_else(Vec::new),",
+                            "                        Argument::Array({}.unwrap_or_else(Vec::new)),",
                             a.name
                         )?;
                     } else {
