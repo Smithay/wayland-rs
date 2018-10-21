@@ -45,13 +45,14 @@ pub static mut wl_foo_interface: wl_interface = wl_interface {
 
 // wl_bar
 
-static mut wl_bar_requests_bar_delivery_types: [*const wl_interface; 3] = [
+static mut wl_bar_requests_bar_delivery_types: [*const wl_interface; 4] = [
     NULLPTR as *const wl_interface,
     unsafe { &wl_foo_interface as *const wl_interface },
     NULLPTR as *const wl_interface,
+    NULLPTR as *const wl_interface,
 ];
 pub static mut wl_bar_requests: [wl_message; 2] = [
-    wl_message { name: b"bar_delivery\0" as *const u8 as *const c_char, signature: b"2uoa\0" as *const u8 as *const c_char, types: unsafe { &wl_bar_requests_bar_delivery_types as *const _ } },
+    wl_message { name: b"bar_delivery\0" as *const u8 as *const c_char, signature: b"2uoa?a\0" as *const u8 as *const c_char, types: unsafe { &wl_bar_requests_bar_delivery_types as *const _ } },
     wl_message { name: b"release\0" as *const u8 as *const c_char, signature: b"\0" as *const u8 as *const c_char, types: unsafe { &types_null as *const _ } },
 ];
 

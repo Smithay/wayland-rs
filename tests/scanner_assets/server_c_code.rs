@@ -313,7 +313,7 @@ pub mod wl_bar {
         /// Proceed to a bar delivery of given foo.
         ///
         /// Only available since version 2 of the interface
-        BarDelivery {kind: super::wl_foo::DeliveryKind, target: Resource<super::wl_foo::WlFoo>, metadata: Vec<u8>, },
+        BarDelivery {kind: super::wl_foo::DeliveryKind, target: Resource<super::wl_foo::WlFoo>, metadata: Vec<u8>, metametadata: Option<Vec<u8>>, },
         /// release this bar
         ///
         /// Notify the compositor that you have finished using this bar.
@@ -330,6 +330,7 @@ pub mod wl_bar {
                 signature: &[
                     super::ArgumentType::Uint,
                     super::ArgumentType::Object,
+                    super::ArgumentType::Array,
                     super::ArgumentType::Array,
                 ]
             },
@@ -387,6 +388,13 @@ pub mod wl_bar {
                                 return Err(())
                             }
                         },
+                        metametadata: {
+                            if let Some(Argument::Array(val)) = args.next() {
+                                if val.len() == 0 { None } else { Some(val) }
+                            } else {
+                                return Err(())
+                            }
+                        },
                     })
                 },
                 1 => {
@@ -403,11 +411,12 @@ pub mod wl_bar {
         unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<Request,()> {
             match opcode {
                 0 => {
-                    let _args = ::std::slice::from_raw_parts(args, 3);
+                    let _args = ::std::slice::from_raw_parts(args, 4);
                     Ok(Request::BarDelivery {
                         kind: super::wl_foo::DeliveryKind::from_raw(_args[0].u).ok_or(())?,
                         target: Resource::<super::wl_foo::WlFoo>::from_c_ptr(_args[1].o as *mut _),
                         metadata: { let array = &*_args[2].a; ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned() },
+                        metametadata: if _args[3].a.is_null() { None } else { Some({ let array = &*_args[3].a; ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned() }) },
                 }) },
                 1 => {
                     Ok(Request::Release) },
