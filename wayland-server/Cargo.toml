@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.21.2"
+version = "0.21.3"
 documentation = "https://smithay.github.io/wayland-rs/wayland_server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,8 +14,8 @@ build = "build.rs"
 travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
-wayland-commons = { version = "0.21.2", path = "../wayland-commons" }
-wayland-sys = { version = "0.21.2", features = ["server"], path = "../wayland-sys", optional = true }
+wayland-commons = { version = "0.21.3", path = "../wayland-commons" }
+wayland-sys = { version = "0.21.3", features = ["server"], path = "../wayland-sys", optional = true }
 bitflags = "1.0"
 downcast-rs = "1.0"
 libc = "0.2"
@@ -24,7 +24,7 @@ mio = "0.6"
 calloop = ">=0.3.1, <0.5"
 
 [build-dependencies]
-wayland-scanner = { version = "0.21.2", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.21.3", path = "../wayland-scanner" }
 
 [features]
 native_lib = [ "wayland-sys", "wayland-commons/native_lib" ]
