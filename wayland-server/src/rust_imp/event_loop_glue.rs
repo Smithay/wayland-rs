@@ -28,6 +28,7 @@ impl<Data: 'static> WSLoopHandle for LoopHandle<Data> {
         mut cb: Box<FnMut(UnixStream)>,
     ) -> io::Result<Source<WaylandListener>> {
         self.insert_source(source, move |evt, _| cb(evt))
+            .map_err(Into::<io::Error>::into)
     }
 
     fn add_socket(
@@ -36,6 +37,7 @@ impl<Data: 'static> WSLoopHandle for LoopHandle<Data> {
         mut cb: Box<FnMut(Event<Fd>)>,
     ) -> io::Result<Source<Generic<Fd>>> {
         self.insert_source(source, move |evt, _| cb(evt))
+            .map_err(Into::<io::Error>::into)
     }
 }
 

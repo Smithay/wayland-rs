@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [protocols] Add bindings to [wlr-protocols](https://github.com/swaywm/wlr-protocols)
+- [client & server] Support calloop 0.4 as well as 0.3
 
 ## 0.21.2 - 2018-09-27
 
