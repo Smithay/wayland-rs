@@ -69,7 +69,9 @@ before_script:
       fi
   - |
       if [ "$TRAVIS_RUST_VERSION" == "1.21.0" ]; then
-        # blacklist lazy_static>=1.2 which does not compile on rust<1.24
+        # create a Cargo.lock, and then fix dependencies that cannot build on
+        # rust 1.21.0
+        cargo update
         cargo update -p lazy_static --precise 1.1.0
         cargo update -p tempfile --precise 2.2.0
       fi
