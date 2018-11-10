@@ -70,7 +70,8 @@ before_script:
   - |
       if [ "$TRAVIS_RUST_VERSION" == "1.21.0" ]; then
         # blacklist lazy_static>=1.2 which does not compile on rust<1.24
-        sed -i.bak 's/lazy_static = { version = "1"/lazy_static = { version = ">=1.0, <1.2"/' wayland-sys/Cargo.toml
+        cargo update -p lazy_static --precise 1.1.0
+        cargo update -p tempfile --precise 2.2.0
       fi
 
 os:
