@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.21.4 -- 2018-11-10
+
+- Dependencies updates
+
 ## 0.21.3 -- 2018-11-02
 
 - [protocols] Add bindings to [wlr-protocols](https://github.com/swaywm/wlr-protocols)
