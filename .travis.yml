@@ -52,6 +52,7 @@ before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
   - mkdir $(pwd)/socket
   - export XDG_RUNTIME_DIR="$(pwd)/socket"
+  - cargo fetch
   - |
       if [ -n "$BUILD_FMT" ]; then
         rustup component add rustfmt-preview
