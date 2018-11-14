@@ -39,6 +39,10 @@ matrix:
       sudo: true
     - rust: stable
       env: BUILD_DOC=1
+    - rust: stable
+      env: TARGET=x86_64-unknown-freebsd
+      sudo: true
+      services: docker
 
 branches:
   only:
@@ -62,6 +66,10 @@ before_script:
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
+      elif [ -n "$TARGET" ]; then
+        which cargo-install-update || cargo install cargo-update
+        cargo install-update cargo-update
+        cargo install-update -i cross
       else
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.13.0"
@@ -90,6 +98,9 @@ script:
         bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
+      elif [ -n "$TARGET" ]; then
+        cross build --all --target "$TARGET"
+        cross build --all --target "$TARGET" --features "native_lib"
       else
         cargo test --all --features "$FEATURES"
       fi
