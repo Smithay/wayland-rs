@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-## 0.21.5 -- 2018.11.27
+## 0.21.6 -- 2018-11-27
+
+- [sys] Introduce `wl_display_destroy_clients` in server-side bindings
+- [server] Properly cleanup clients when dropping `WlDisplay` when using `native_lib`.
+
+## 0.21.5 -- 2018-11-27 (yanked)
 
 - [server] Properly cleanup clients when dropping `WlDisplay` when using `native_lib`.
 

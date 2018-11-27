@@ -31,7 +31,7 @@ impl Drop for DisplayInner {
         {
             self.source.take().map(|s| s.remove());
             unsafe {
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_displya_destroy_clients, self.ptr);
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy_clients, self.ptr);
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.ptr);
             }
         }
