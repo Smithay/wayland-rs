@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Properly cleanup clients when dropping `WlDisplay` when using `native_lib`.
+
 ## 0.21.4 -- 2018-11-10
 
 - Dependencies updates
