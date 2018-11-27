@@ -63,7 +63,7 @@ before_script:
         # sanity check, tarpaulin may fail to run after a rust upgrade and then needs recompilation
         cargo tarpaulin --version || env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
         # Building & running tests, we need to install the wayland lib
-        ./travis_install_wayland.sh "1.13.0"
+        ./travis_install_wayland.sh "1.15.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
@@ -73,7 +73,7 @@ before_script:
         cargo install-update -i cross
       else
         # Building & running tests, we need to install the wayland lib
-        ./travis_install_wayland.sh "1.13.0"
+        ./travis_install_wayland.sh "1.15.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       fi
   - |
