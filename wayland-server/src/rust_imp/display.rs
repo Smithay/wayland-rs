@@ -134,5 +134,6 @@ impl Drop for DisplayInner {
         for l in self.listeners.drain(..) {
             l.remove();
         }
+        self.clients_mgr.borrow_mut().kill_all();
     }
 }

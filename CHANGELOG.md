@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Fix some leaks when dropping the display when using the rust implementation
+
 ## 0.21.7 -- 2018-11-28
 
 - [protocols] Only depend on `wayland-sys` if `native_lib` is set

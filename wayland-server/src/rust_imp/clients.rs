@@ -197,7 +197,6 @@ impl ClientConnection {
             let resource = ResourceInner {
                 id,
                 object: obj.clone(),
-                map: self.map.clone(),
                 client: dummy_client.clone(),
             };
             obj.meta.alive.store(false, Ordering::Release);
@@ -400,6 +399,14 @@ impl ClientManager {
         for zombie in guard.drain(..) {
             zombie.cleanup();
         }
+    }
+
+    // kill & cleanup all clients
+    pub(crate) fn kill_all(&mut self) {
+        for &(_, ref client) in &self.clients {
+            client.kill();
+        }
+        self.flush_all();
     }
 }
 

@@ -53,7 +53,6 @@ pub(crate) struct ResourceInner {
     pub(crate) id: u32,
     pub(crate) object: Object<ObjectMeta>,
     pub(crate) client: ClientInner,
-    pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
 }
 
 impl ResourceInner {
@@ -64,7 +63,6 @@ impl ResourceInner {
     ) -> Option<ResourceInner> {
         let me = map.lock().unwrap().find(id);
         me.map(|obj| ResourceInner {
-            map,
             id,
             object: obj,
             client,
@@ -196,7 +194,6 @@ impl NewResourceInner {
         };
 
         ResourceInner {
-            map: self.map,
             client: self.client,
             id: self.id,
             object,
