@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [protocols] Only depend on `wayland-sys` if `native_lib` is set
+- [server] Resources are now properly marked as dead during client cleanup
 
 ## 0.21.6 -- 2018-11-27
 

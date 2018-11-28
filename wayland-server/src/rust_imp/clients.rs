@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::ffi::CString;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use nix::Result as NixResult;
@@ -199,6 +200,7 @@ impl ClientConnection {
                 map: self.map.clone(),
                 client: dummy_client.clone(),
             };
+            obj.meta.alive.store(false, Ordering::Release);
             obj.meta.dispatcher.lock().unwrap().destroy(resource);
         });
         let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
