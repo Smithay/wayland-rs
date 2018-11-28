@@ -15,7 +15,7 @@ travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
 wayland-commons = { version = "0.21.6", path = "../wayland-commons" }
-wayland-sys = { version = "0.21.6", path = "../wayland-sys" }
+wayland-sys = { version = "0.21.6", path = "../wayland-sys", optional = true }
 wayland-client = { version = "0.21.6", path = "../wayland-client", optional = true }
 wayland-server = { version = "0.21.6", path = "../wayland-server", optional = true }
 bitflags = "1.0"
@@ -26,7 +26,7 @@ wayland-scanner = { version = "0.21.6", path = "../wayland-scanner" }
 [features]
 client = ["wayland-client"]
 server = ["wayland-server"]
-native_lib = []
+native_lib = ["wayland-sys"]
 native_client = ["client", "native_lib", "wayland-client/native_lib"]
 native_server = ["server", "native_lib", "wayland-server/native_lib"]
 unstable_protocols = []

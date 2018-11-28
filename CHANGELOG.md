@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [protocols] Only depend on `wayland-sys` if `native_lib` is set
+
 ## 0.21.6 -- 2018-11-27
 
 - [sys] Introduce `wl_display_destroy_clients` in server-side bindings
