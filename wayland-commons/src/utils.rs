@@ -193,9 +193,11 @@ mod list {
                     .compare_exchange_weak(ptr::null_mut(), p, Ordering::AcqRel, Ordering::Acquire)
                 {
                     Ok(_) => return,
-                    Err(head) => if !head.is_null() {
-                        return (*head).next.append_ptr(p);
-                    },
+                    Err(head) => {
+                        if !head.is_null() {
+                            return (*head).next.append_ptr(p);
+                        }
+                    }
                 }
             }
         }

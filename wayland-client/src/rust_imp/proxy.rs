@@ -136,7 +136,8 @@ impl ProxyInner {
                     .with(self.id, |obj| {
                         obj.meta.client_destroyed = true;
                         obj.meta.server_destroyed
-                    }).unwrap_or(false);
+                    })
+                    .unwrap_or(false);
                 if server_destroyed {
                     map.remove(self.id);
                 }
@@ -212,7 +213,8 @@ impl ProxyInner {
                     .with(self.id, |obj| {
                         obj.meta.client_destroyed = true;
                         obj.meta.server_destroyed
-                    }).unwrap_or(false);
+                    })
+                    .unwrap_or(false);
                 if server_destroyed {
                     map.remove(self.id);
                 }

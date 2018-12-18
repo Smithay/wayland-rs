@@ -71,7 +71,8 @@ impl DisplayInner {
                 handle
                     .insert_source(evtsrc, move |_, _| {
                         ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0);
-                    }).map_err(Into::<::std::io::Error>::into)
+                    })
+                    .map_err(Into::<::std::io::Error>::into)
                     .unwrap(),
             );
 

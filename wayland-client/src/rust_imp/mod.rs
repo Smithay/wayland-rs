@@ -45,14 +45,13 @@ impl ProxyMap {
 
     /// Create a new proxy for given id
     pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewProxy<I>> {
-        debug_assert!(
-            self.map
-                .lock()
-                .unwrap()
-                .find(id)
-                .map(|obj| obj.is_interface::<I>())
-                .unwrap_or(true)
-        );
+        debug_assert!(self
+            .map
+            .lock()
+            .unwrap()
+            .find(id)
+            .map(|obj| obj.is_interface::<I>())
+            .unwrap_or(true));
         NewProxyInner::from_id(id, self.map.clone(), self.connection.clone())
             .map(|object| NewProxy::wrap(object))
     }
@@ -83,7 +82,8 @@ where
     I: Interface,
     F: FnMut(I::Event, Proxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
-{}
+{
+}
 
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
@@ -108,7 +108,8 @@ where
                     .with(proxy.id, |obj| {
                         obj.meta.client_destroyed = true;
                         obj.meta.server_destroyed
-                    }).unwrap_or(false);
+                    })
+                    .unwrap_or(false);
                 if server_destroyed {
                     map.remove(proxy.id);
                 }

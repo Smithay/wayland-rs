@@ -68,7 +68,8 @@ fn main() {
             tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
             (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
             |pool| pool.implement(|_, _| {}, ()),
-        ).unwrap();
+        )
+        .unwrap();
     let buffer = pool
         .create_buffer(
             0,                        // Start of the buffer in the pool
@@ -77,7 +78,8 @@ fn main() {
             (buf_x * 4) as i32,       // number of bytes between the beginning of two consecutive lines
             wl_shm::Format::Argb8888, // chosen encoding for the data
             |buffer| buffer.implement(|_, _| {}, ()),
-        ).unwrap();
+        )
+        .unwrap();
 
     // The shell allows us to define our surface as a "toplevel", meaning the
     // server will treat it as a window
@@ -100,7 +102,8 @@ fn main() {
                 },
                 (),
             )
-        }).unwrap();
+        })
+        .unwrap();
 
     // Set our surface as toplevel and define its contents
     shell_surface.set_toplevel();

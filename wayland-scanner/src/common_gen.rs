@@ -403,24 +403,28 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
             writeln!(out, "                    args: vec![")?;
             for a in &msg.args {
                 match a.typ {
-                    Type::Int => if a.enum_.is_some() {
-                        writeln!(
-                            out,
-                            "                        Argument::Int({}.to_raw() as i32),",
-                            a.name
-                        )?;
-                    } else {
-                        writeln!(out, "                        Argument::Int({}),", a.name)?;
-                    },
-                    Type::Uint => if a.enum_.is_some() {
-                        writeln!(
-                            out,
-                            "                        Argument::Uint({}.to_raw()),",
-                            a.name
-                        )?;
-                    } else {
-                        writeln!(out, "                        Argument::Uint({}),", a.name)?;
-                    },
+                    Type::Int => {
+                        if a.enum_.is_some() {
+                            writeln!(
+                                out,
+                                "                        Argument::Int({}.to_raw() as i32),",
+                                a.name
+                            )?;
+                        } else {
+                            writeln!(out, "                        Argument::Int({}),", a.name)?;
+                        }
+                    }
+                    Type::Uint => {
+                        if a.enum_.is_some() {
+                            writeln!(
+                                out,
+                                "                        Argument::Uint({}.to_raw()),",
+                                a.name
+                            )?;
+                        } else {
+                            writeln!(out, "                        Argument::Uint({}),", a.name)?;
+                        }
+                    }
                     Type::Fixed => {
                         writeln!(
                             out,
@@ -428,39 +432,47 @@ pub(crate) fn write_messagegroup<O: Write, F: FnOnce(&mut O) -> IOResult<()>>(
                             a.name
                         )?;
                     }
-                    Type::String => if a.allow_null {
-                        writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.map(Into::into).unwrap_or_else(Vec::new)) }}),", a.name)?;
-                    } else {
-                        writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.into()) }}),", a.name)?;
-                    },
-                    Type::Array => if a.allow_null {
-                        writeln!(
-                            out,
-                            "                        Argument::Array({}.unwrap_or_else(Vec::new)),",
-                            a.name
-                        )?;
-                    } else {
-                        writeln!(out, "                        Argument::Array({}),", a.name)?;
-                    },
+                    Type::String => {
+                        if a.allow_null {
+                            writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.map(Into::into).unwrap_or_else(Vec::new)) }}),", a.name)?;
+                        } else {
+                            writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.into()) }}),", a.name)?;
+                        }
+                    }
+                    Type::Array => {
+                        if a.allow_null {
+                            writeln!(
+                                out,
+                                "                        Argument::Array({}.unwrap_or_else(Vec::new)),",
+                                a.name
+                            )?;
+                        } else {
+                            writeln!(out, "                        Argument::Array({}),", a.name)?;
+                        }
+                    }
                     Type::Fd => {
                         writeln!(out, "                        Argument::Fd({}),", a.name)?;
                     }
-                    Type::NewId => if a.interface.is_some() {
-                        writeln!(out, "                        Argument::NewId({}.id()),", a.name)?;
-                    } else {
-                        writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.0.into()) }}),", a.name)?;
-                        writeln!(out, "                        Argument::Uint({}.1),", a.name)?;
-                        writeln!(out, "                        Argument::NewId({}.2.id()),", a.name)?;
-                    },
-                    Type::Object => if a.allow_null {
-                        writeln!(
-                            out,
-                            "                        Argument::Object({}.map(|o| o.id()).unwrap_or(0)),",
-                            a.name
-                        )?;
-                    } else {
-                        writeln!(out, "                        Argument::Object({}.id()),", a.name)?;
-                    },
+                    Type::NewId => {
+                        if a.interface.is_some() {
+                            writeln!(out, "                        Argument::NewId({}.id()),", a.name)?;
+                        } else {
+                            writeln!(out, "                        Argument::Str(unsafe {{ ::std::ffi::CString::from_vec_unchecked({}.0.into()) }}),", a.name)?;
+                            writeln!(out, "                        Argument::Uint({}.1),", a.name)?;
+                            writeln!(out, "                        Argument::NewId({}.2.id()),", a.name)?;
+                        }
+                    }
+                    Type::Object => {
+                        if a.allow_null {
+                            writeln!(
+                                out,
+                                "                        Argument::Object({}.map(|o| o.id()).unwrap_or(0)),",
+                                a.name
+                            )?;
+                        } else {
+                            writeln!(out, "                        Argument::Object({}.id()),", a.name)?;
+                        }
+                    }
                     Type::Destructor => {
                         panic!("An argument cannot have type Destructor");
                     }
@@ -639,32 +651,36 @@ pub fn print_method_prototype<'a, O: Write>(
     let mut newid = None;
     for arg in &msg.args {
         match arg.typ {
-            Type::NewId => if newid.is_some() {
-                panic!("Request {}.{} returns more than one new_id", iname, msg.name);
-            } else {
-                newid = Some(arg);
-            },
+            Type::NewId => {
+                if newid.is_some() {
+                    panic!("Request {}.{} returns more than one new_id", iname, msg.name);
+                } else {
+                    newid = Some(arg);
+                }
+            }
             _ => (),
         }
     }
 
     // method start
     match newid {
-        Some(arg) => if arg.interface.is_none() {
-            write!(
-                out,
-                "        fn {}{}<T: Interface, F>(&self, version: u32",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name,
-            )?;
-        } else {
-            write!(
-                out,
-                "        fn {}{}<F>(&self",
-                if is_keyword(&msg.name) { "_" } else { "" },
-                msg.name
-            )?;
-        },
+        Some(arg) => {
+            if arg.interface.is_none() {
+                write!(
+                    out,
+                    "        fn {}{}<T: Interface, F>(&self, version: u32",
+                    if is_keyword(&msg.name) { "_" } else { "" },
+                    msg.name,
+                )?;
+            } else {
+                write!(
+                    out,
+                    "        fn {}{}<F>(&self",
+                    if is_keyword(&msg.name) { "_" } else { "" },
+                    msg.name
+                )?;
+            }
+        }
         _ => {
             write!(
                 out,

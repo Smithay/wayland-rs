@@ -63,7 +63,8 @@ impl Socket {
             match cmsg {
                 socket::ControlMessage::ScmRights(s) => s,
                 _ => &[],
-            }.iter()
+            }
+            .iter()
         });
         for (fd, place) in received_fds.zip(fds.iter_mut()) {
             fd_count += 1;
@@ -501,7 +502,8 @@ mod tests {
                     assert_eq_msgs(&message, &msg);
                     true
                 },
-            ).unwrap()
+            )
+            .unwrap()
             .unwrap();
 
         assert_eq!(ret, 1);
@@ -540,7 +542,8 @@ mod tests {
                     assert_eq_msgs(&message, &msg);
                     true
                 },
-            ).unwrap()
+            )
+            .unwrap()
             .unwrap();
 
         assert_eq!(ret, 1);
@@ -604,7 +607,8 @@ mod tests {
                     recv_msgs.push(message);
                     true
                 },
-            ).unwrap()
+            )
+            .unwrap()
             .unwrap();
 
         assert_eq!(ret, 3);
@@ -649,7 +653,8 @@ mod tests {
                     assert_eq_msgs(&message, &msg);
                     true
                 },
-            ).unwrap()
+            )
+            .unwrap()
             .unwrap();
 
         assert_eq!(ret, 1);

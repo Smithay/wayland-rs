@@ -58,7 +58,8 @@ impl DisplayInner {
                         .with(id, |obj| {
                             obj.meta.server_destroyed = true;
                             obj.meta.client_destroyed
-                        }).unwrap_or(false);
+                        })
+                        .unwrap_or(false);
                     if client_destroyed {
                         map.remove(id);
                     }
