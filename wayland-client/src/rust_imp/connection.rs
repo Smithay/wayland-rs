@@ -124,11 +124,13 @@ impl Connection {
             },
         );
         match ret {
-            Ok(Ok(n)) => if let Some(ref e) = *last_error {
-                Err(e.clone())
-            } else {
-                Ok(n)
-            },
+            Ok(Ok(n)) => {
+                if let Some(ref e) = *last_error {
+                    Err(e.clone())
+                } else {
+                    Ok(n)
+                }
+            }
             Ok(Err(e)) => {
                 *last_error = Some(Error::Parse(e.clone()));
                 Err(Error::Parse(e))

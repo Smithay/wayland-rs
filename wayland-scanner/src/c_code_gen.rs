@@ -156,26 +156,30 @@ pub fn messagegroup_c_addon<O: Write>(
                 for a in &msg.args {
                     write!(out, "                        {}: ", a.name)?;
                     match a.typ {
-                        Type::Uint => if let Some(ref enu) = a.enum_ {
-                            write!(
-                                out,
-                                "{}::from_raw(_args[{}].u).ok_or(())?",
-                                dotted_to_relname(enu),
-                                j
-                            )?;
-                        } else {
-                            write!(out, "_args[{}].u", j)?;
-                        },
-                        Type::Int => if let Some(ref enu) = a.enum_ {
-                            write!(
-                                out,
-                                "{}::from_raw(_args[{}].i as u32).ok_or(())?",
-                                dotted_to_relname(enu),
-                                j
-                            )?;
-                        } else {
-                            write!(out, "_args[{}].i", j)?;
-                        },
+                        Type::Uint => {
+                            if let Some(ref enu) = a.enum_ {
+                                write!(
+                                    out,
+                                    "{}::from_raw(_args[{}].u).ok_or(())?",
+                                    dotted_to_relname(enu),
+                                    j
+                                )?;
+                            } else {
+                                write!(out, "_args[{}].u", j)?;
+                            }
+                        }
+                        Type::Int => {
+                            if let Some(ref enu) = a.enum_ {
+                                write!(
+                                    out,
+                                    "{}::from_raw(_args[{}].i as u32).ok_or(())?",
+                                    dotted_to_relname(enu),
+                                    j
+                                )?;
+                            } else {
+                                write!(out, "_args[{}].i", j)?;
+                            }
+                        }
                         Type::Fixed => write!(out, "(_args[{}].f as f64)/256.", j)?,
                         Type::String => {
                             if a.allow_null {
@@ -306,16 +310,20 @@ pub fn messagegroup_c_addon<O: Write>(
             for a in &msg.args {
                 write!(out, "                    ")?;
                 match a.typ {
-                    Type::Uint => if a.enum_.is_some() {
-                        writeln!(out, "_args_array[{}].u = {}.to_raw();", j, a.name)?;
-                    } else {
-                        writeln!(out, "_args_array[{}].u = {};", j, a.name)?;
-                    },
-                    Type::Int => if a.enum_.is_some() {
-                        writeln!(out, "_args_array[{}].i = {}.to_raw() as i32;", j, a.name)?;
-                    } else {
-                        writeln!(out, "_args_array[{}].i = {};", j, a.name)?;
-                    },
+                    Type::Uint => {
+                        if a.enum_.is_some() {
+                            writeln!(out, "_args_array[{}].u = {}.to_raw();", j, a.name)?;
+                        } else {
+                            writeln!(out, "_args_array[{}].u = {};", j, a.name)?;
+                        }
+                    }
+                    Type::Int => {
+                        if a.enum_.is_some() {
+                            writeln!(out, "_args_array[{}].i = {}.to_raw() as i32;", j, a.name)?;
+                        } else {
+                            writeln!(out, "_args_array[{}].i = {};", j, a.name)?;
+                        }
+                    }
                     Type::Fixed => writeln!(out, "_args_array[{}].f = ({} * 256.) as i32;", j, a.name)?,
                     Type::String => {
                         if a.allow_null {

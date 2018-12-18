@@ -122,7 +122,8 @@ fn resource_user_data_wrong_thread() {
     // but not in a new one
     ::std::thread::spawn(move || {
         assert!(output.user_data::<usize>().is_none());
-    }).join()
+    })
+    .join()
     .unwrap();
 }
 

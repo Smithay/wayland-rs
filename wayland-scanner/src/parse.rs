@@ -174,9 +174,11 @@ fn parse_enum<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) 
         match &attr.name.local_name[..] {
             "name" => enu.name = attr.value,
             "since" => enu.since = attr.value.parse().unwrap(),
-            "bitfield" => if &attr.value[..] == "true" {
-                enu.bitfield = true
-            },
+            "bitfield" => {
+                if &attr.value[..] == "true" {
+                    enu.bitfield = true
+                }
+            }
             _ => {}
         }
     }
@@ -229,9 +231,11 @@ fn parse_arg<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) -
             "type" => arg.typ = parse_type(&attr.value),
             "summary" => arg.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
             "interface" => arg.interface = Some(attr.value),
-            "allow-null" => if attr.value == "true" {
-                arg.allow_null = true
-            },
+            "allow-null" => {
+                if attr.value == "true" {
+                    arg.allow_null = true
+                }
+            }
             "enum" => arg.enum_ = Some(attr.value),
             _ => {}
         }

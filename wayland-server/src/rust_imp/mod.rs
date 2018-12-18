@@ -44,14 +44,13 @@ impl ResourceMap {
 
     /// Create a new resource for a given id
     pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewResource<I>> {
-        debug_assert!(
-            self.map
-                .lock()
-                .unwrap()
-                .find(id)
-                .map(|obj| obj.is_interface::<I>())
-                .unwrap_or(true)
-        );
+        debug_assert!(self
+            .map
+            .lock()
+            .unwrap()
+            .find(id)
+            .map(|obj| obj.is_interface::<I>())
+            .unwrap_or(true));
         NewResourceInner::from_id(id, self.map.clone(), self.client.clone())
             .map(|object| NewResource::wrap(object))
     }
@@ -84,7 +83,8 @@ where
     I: Interface,
     F: FnMut(I::Request, Resource<I>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
-{}
+{
+}
 
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where

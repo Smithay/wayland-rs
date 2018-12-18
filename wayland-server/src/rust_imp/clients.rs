@@ -163,7 +163,8 @@ impl ClientConnection {
                     } else {
                         None
                     }
-                }).next()
+                })
+                .next()
                 .unwrap();
             let child_interface = child.interface;
             if let Err(()) = map.insert_at(new_id, child) {
@@ -556,32 +557,36 @@ impl super::Dispatcher for DisplayDispatcher {
         use protocol::wl_callback;
         match msg.opcode {
             // sync
-            0 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
-                if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
-                    let cb = cb.implement(|r, _| match r {}, None::<fn(_)>, ());
-                    // TODO: send a more meaningful serial ?
-                    cb.send(wl_callback::Event::Done { callback_data: 0 });
+            0 => {
+                if let Some(&Argument::NewId(new_id)) = msg.args.first() {
+                    if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
+                        let cb = cb.implement(|r, _| match r {}, None::<fn(_)>, ());
+                        // TODO: send a more meaningful serial ?
+                        cb.send(wl_callback::Event::Done { callback_data: 0 });
+                    } else {
+                        return Err(());
+                    }
                 } else {
                     return Err(());
                 }
-            } else {
-                return Err(());
-            },
+            }
             // get_registry
-            1 => if let Some(&Argument::NewId(new_id)) = msg.args.first() {
-                // we don't have a regular object for the registry, rather we insert the
-                // dispatcher by hand
-                map.map.lock().unwrap().with(new_id, |obj| {
-                    obj.meta.dispatcher = Arc::new(Mutex::new(RegistryDispatcher {
-                        global_mgr: self.global_mgr.clone(),
-                    }));
-                })?;
-                self.global_mgr
-                    .borrow_mut()
-                    .new_registry(new_id, map.client.clone());
-            } else {
-                return Err(());
-            },
+            1 => {
+                if let Some(&Argument::NewId(new_id)) = msg.args.first() {
+                    // we don't have a regular object for the registry, rather we insert the
+                    // dispatcher by hand
+                    map.map.lock().unwrap().with(new_id, |obj| {
+                        obj.meta.dispatcher = Arc::new(Mutex::new(RegistryDispatcher {
+                            global_mgr: self.global_mgr.clone(),
+                        }));
+                    })?;
+                    self.global_mgr
+                        .borrow_mut()
+                        .new_registry(new_id, map.client.clone());
+                } else {
+                    return Err(());
+                }
+            }
             _ => return Err(()),
         }
         Ok(())
