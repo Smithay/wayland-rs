@@ -10,10 +10,10 @@ use wayland_scanner::Side;
 const PROTOCOL: &'static str = include_str!("./scanner_assets/protocol.xml");
 
 const C_INTERFACES_TARGET: &'static str = include_str!("./scanner_assets/c_interfaces.rs");
-
 const CLIENT_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/client_c_code.rs");
-
 const SERVER_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/server_c_code.rs");
+const CLIENT_RUST_CODE_TARGET: &'static str = include_str!("./scanner_assets/client_rust_code.rs");
+const SERVER_RUST_CODE_TARGET: &'static str = include_str!("./scanner_assets/server_rust_code.rs");
 
 fn print_diff(diffs: &[Difference]) {
     println!("Partial diffs found:");
@@ -123,6 +123,42 @@ fn server_c_code_generation() {
     wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Server);
     let changeset = Changeset::new(
         SERVER_C_CODE_TARGET,
+        from_utf8(&out).expect("Output of scanner was not UTF8."),
+        "\n",
+    );
+    if changeset.distance != 0 {
+        print_diff(&changeset.diffs);
+        panic!(
+            "Scanner output does not match expected output: d = {}",
+            changeset.distance
+        );
+    }
+}
+
+#[test]
+fn client_rust_code_generation() {
+    let mut out = Vec::new();
+    wayland_scanner::generate_rust_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Client);
+    let changeset = Changeset::new(
+        CLIENT_RUST_CODE_TARGET,
+        from_utf8(&out).expect("Output of scanner was not UTF8."),
+        "\n",
+    );
+    if changeset.distance != 0 {
+        print_diff(&changeset.diffs);
+        panic!(
+            "Scanner output does not match expected output: d = {}",
+            changeset.distance
+        );
+    }
+}
+
+#[test]
+fn server_rust_code_generation() {
+    let mut out = Vec::new();
+    wayland_scanner::generate_rust_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Server);
+    let changeset = Changeset::new(
+        SERVER_RUST_CODE_TARGET,
         from_utf8(&out).expect("Output of scanner was not UTF8."),
         "\n",
     );
