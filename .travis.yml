@@ -81,6 +81,7 @@ before_script:
         # create a Cargo.lock, and then fix dependencies that cannot build on
         # rust 1.21.0
         cargo update
+        cargo update -p cc --precise 1.0.26
         cargo update -p lazy_static --precise 1.1.0
         cargo update -p tempfile --precise 2.2.0
       fi
