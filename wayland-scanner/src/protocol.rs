@@ -9,7 +9,7 @@ pub struct Protocol {
 impl Protocol {
     pub fn new(name: String) -> Protocol {
         Protocol {
-            name: name,
+            name,
             copyright: None,
             description: None,
             interfaces: Vec::new(),

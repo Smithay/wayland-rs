@@ -134,7 +134,7 @@ fn external_globals() {
 
     let mut server = TestServer::new();
 
-    extern "C" fn dummy_global_bind(client: *mut wl_client, data: *mut c_void, version: u32, id: u32) {}
+    extern "C" fn dummy_global_bind(_client: *mut wl_client, _data: *mut c_void, _version: u32, _id: u32) {}
 
     // everyone see the compositor
     server

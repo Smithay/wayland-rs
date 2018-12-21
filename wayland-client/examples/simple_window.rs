@@ -9,7 +9,6 @@ use std::os::unix::io::AsRawFd;
 use byteorder::{NativeEndian, WriteBytesExt};
 
 use wayland_client::protocol::wl_compositor::RequestsTrait as CompositorRequests;
-use wayland_client::protocol::wl_display::RequestsTrait as DisplayRequests;
 use wayland_client::protocol::wl_shell::RequestsTrait as ShellRequests;
 use wayland_client::protocol::wl_shell_surface::RequestsTrait as ShellSurfaceRequests;
 use wayland_client::protocol::wl_shm::RequestsTrait as ShmRequests;
