@@ -240,8 +240,8 @@ impl BufferedSocket {
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {
         let (msg, read_data, read_fd) = {
-            let mut data = self.in_data.get_contents();
-            let mut fds = self.in_fds.get_contents();
+            let data = self.in_data.get_contents();
+            let fds = self.in_fds.get_contents();
             if data.len() < 2 {
                 return Err(MessageParseError::MissingData);
             }

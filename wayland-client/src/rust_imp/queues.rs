@@ -30,7 +30,7 @@ pub(crate) struct EventQueueInner {
 impl EventQueueInner {
     pub(crate) fn new(connection: Arc<Mutex<Connection>>, buffer: Option<QueueBuffer>) -> EventQueueInner {
         let (map, display_buffer) = {
-            let mut cx = connection.lock().unwrap();
+            let cx = connection.lock().unwrap();
             (cx.map.clone(), cx.display_buffer.clone())
         };
         EventQueueInner {

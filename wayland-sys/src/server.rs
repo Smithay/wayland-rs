@@ -248,7 +248,8 @@ pub mod signal {
                 }
             }
         );
-        return ptr::null_mut();
+
+        ptr::null_mut()
     }
 
     pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
@@ -276,16 +277,17 @@ pub mod signal {
                     prev: ptr::null_mut(),
                     next: ptr::null_mut()
                 },
-                notify: notify
+                notify
             },
             user_data: ptr::null_mut()
         }));
-        return unsafe { &mut (*data).listener as *mut wl_listener }
+
+        unsafe { &mut (*data).listener as *mut wl_listener }
     }
 
     pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
         let data = container_of!(listener, ListenerWithUserData, listener);
-        return (*data).user_data
+        (*data).user_data
     }
 
     pub unsafe fn rust_listener_set_user_data(listener: *mut wl_listener, user_data: *mut c_void) {
