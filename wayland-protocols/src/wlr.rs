@@ -1,5 +1,5 @@
 //! wlr-procotols extension family
-//! 
+//!
 //! This module regroup bindings to the protocol extensions from
 //! [wlr-protocols](https://github.com/swaywm/wlr-protocols).
 
@@ -20,10 +20,10 @@ pub mod unstable {
     //! the 'z' prefix and the version number in the protocol and
     //! interface names are removed and the interface version number is
     //! reset.
-    
+
     pub mod export_dmabuf {
         //! A protocol for low overhead screen content capturing
-        //! 
+        //!
         //! An interface to capture surfaces in an efficient way by exporting DMA-BUFs.
 
         wayland_protocol_versioned!(
@@ -36,9 +36,26 @@ pub mod unstable {
         );
     }
 
+    pub mod foreign_toplevel {
+        //! List and control opened apps
+        //!
+        //! Use for creating taskbars and docks.
+
+        wayland_protocol_versioned!(
+            "wlr-foreign-toplevel-management",
+            [v1],
+            [
+                (wl_seat, wl_seat_interface),
+                (wl_surface, wl_surface_interface),
+                (wl_output, wl_output_interface)
+            ],
+            []
+        );
+    }
+
     pub mod gamma_control {
         //! Manage gamma tables of outputs.
-        //! 
+        //!
         //! This protocol allows a privileged client to set the gamma tables for outputs.
 
         wayland_protocol_versioned!(
@@ -80,7 +97,7 @@ pub mod unstable {
 
     pub mod screencopy {
         //! Screen content capturing on client buffers
-        //! 
+        //!
         //! This protocol allows clients to ask the compositor to copy part of the
         //! screen content to a client buffer.
 

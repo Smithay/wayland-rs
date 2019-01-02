@@ -55,6 +55,21 @@ pub mod input_method {
     );
 }
 
+pub mod input_timestamps {
+    //! Input timestamps protocol
+
+    wayland_protocol_versioned!(
+        "input-timestamps",
+        [v1],
+        [
+            (wl_keyboard, wl_keyboard_interface),
+            (wl_pointer, wl_pointer_interface),
+            (wl_touch, wl_touch_interface)
+        ],
+        []
+    );
+}
+
 pub mod keyboard_shortcuts_inhibit {
     //! Protocol for inhibiting the compositor keyboard shortcuts
     //!
@@ -80,6 +95,19 @@ pub mod linux_dmabuf {
         "linux-dmabuf",
         [v1],
         [(wl_buffer, wl_buffer_interface)],
+        []
+    );
+}
+
+pub mod linux_explicit_synchronization {
+    //! Linux explicit synchronization protocol
+
+    wayland_protocol_versioned!(
+        "linux-explicit-synchronization",
+        [v1],
+        [
+            (wl_surface, wl_surface_interface)
+        ],
         []
     );
 }
@@ -118,6 +146,19 @@ pub mod pointer_gestures {
         [
             (wl_surface, wl_surface_interface),
             (wl_pointer, wl_pointer_interface)
+        ],
+        []
+    );
+}
+
+pub mod primary_selection {
+    //! Primary selection protocol
+
+    wayland_protocol_versioned!(
+        "primary-selection",
+        [v1],
+        [
+            (wl_seat, wl_seat_interface)
         ],
         []
     );
@@ -244,7 +285,7 @@ pub mod text_input {
 
     wayland_protocol_versioned!(
         "text-input",
-        [v1],
+        [v1, v3],
         [
             (wl_seat, wl_seat_interface),
             (wl_surface, wl_surface_interface)
