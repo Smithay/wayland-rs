@@ -12,7 +12,7 @@ categories = ["external-ffi-bindings"]
 travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
-dlib = { version = "0.4", optional = true }
+dlib = { version = "0.4" }
 libc = { version = "0.2", optional = true }
 lazy_static = { version = "1", optional = true }
 
