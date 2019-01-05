@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.21.9 -- 2019-01-05
+
+- [sys] Fix dependencies specification
+
 ## 0.21.8 -- 2019-01-05
 
 - Update `mio` dependency
