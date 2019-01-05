@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.21.8 -- 2019-01-05
+
 - Update `mio` dependency
 - [server] Fix some leaks when dropping the display when using the rust implementation
 - [protocols] Update wayland-protocols and wlroots-protocols.
