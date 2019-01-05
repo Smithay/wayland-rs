@@ -41,9 +41,9 @@ impl fmt::Display for ConnectError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use self::ConnectError::*;
         f.write_str(match self {
-            NoWaylandLib => "the `libwayland-client.so` library can not be found",
+            NoWaylandLib => "the `libwayland-client.so` library could not be found",
             XdgRuntimeDirNotSet => "the `XDG_RUNTIME_DIR` variable is not set while it should be",
-            NoCompositorListening => "the compositor is not listening",
+            NoCompositorListening => "could not find a wayland compositor listening",
             InvalidName => "the socket name is invalid",
             InvalidFd => "the file descriptor provided in in `WAYLAND_SOCKET` is invalid",
         })

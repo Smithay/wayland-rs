@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use protocol::wl_display::{self, RequestsTrait as DisplayRequests};
@@ -29,6 +31,20 @@ pub enum GlobalError {
     /// than the one requested
     VersionTooLow(u32),
 }
+
+impl fmt::Display for GlobalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use self::GlobalError::*;
+        match self {
+            Missing => f.write_str("the requested global was missing"),
+            VersionTooLow(version) => {
+                write!(f, "the advertised global version number {} is too low", version)
+            }
+        }
+    }
+}
+
+impl Error for GlobalError {}
 
 /// Event provided to the user callback of GlobalManager
 pub enum GlobalEvent {

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Implement `std::error::Error` for `wayland_client::ConnectError`
+    and `wayland_client::GlobalError`.
+
 ## 0.21.9 -- 2019-01-05
 
 - [sys] Fix dependencies specification
