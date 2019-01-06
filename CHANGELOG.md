@@ -2,11 +2,15 @@
 
 ## Unreleased
 
-## 0.21.9 -- 2019-01-05
+## 0.21.10 -- 2019-01-06
+
+- [client] Undo protocol update which was a breakind change
+
+## 0.21.9 -- 2019-01-05 (yanked)
 
 - [sys] Fix dependencies specification
 
-## 0.21.8 -- 2019-01-05
+## 0.21.8 -- 2019-01-05 (yanked)
 
 - Update `mio` dependency
 - [server] Fix some leaks when dropping the display when using the rust implementation
