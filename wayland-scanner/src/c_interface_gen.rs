@@ -1,28 +1,12 @@
-use protocol::*;
 use std::cmp;
-use std::io::Result as IOResult;
-use std::io::Write;
+use std::iter::repeat;
 
-pub(crate) fn generate_interfaces<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
-    writeln!(
-        out,
-        "//\n// This file was auto-generated, do not edit directly\n//\n"
-    )?;
+use proc_macro2::{Ident, Literal, Span, TokenStream};
 
-    if let Some(text) = protocol.copyright {
-        writeln!(out, "/*\n{}\n*/\n", text)?;
-    }
+use protocol::*;
+use util::null_terminated_byte_string_literal;
 
-    writeln!(
-        out,
-        r#"
-use std::os::raw::{{c_char, c_void}};
-use wayland_sys::common::*;"#
-    )?;
-
-    // null types array
-    //
-
+pub(crate) fn generate_interfaces(protocol: Protocol) -> TokenStream {
     let longest_nulls = protocol.interfaces.iter().fold(0, |max, interface| {
         let request_longest_null = interface.requests.iter().fold(0, |max, request| {
             if request.all_null() {
@@ -41,115 +25,152 @@ use wayland_sys::common::*;"#
         cmp::max(max, cmp::max(request_longest_null, events_longest_null))
     });
 
-    writeln!(out, "const NULLPTR: *const c_void = 0 as *const c_void;\n")?;
+    let types_null_len = Literal::usize_unsuffixed(longest_nulls);
 
-    writeln!(
-        out,
-        "static mut types_null: [*const wl_interface; {}] = [",
-        longest_nulls
-    )?;
-    for _ in 0..longest_nulls {
-        writeln!(out, "    NULLPTR as *const wl_interface,")?;
-    }
-    writeln!(out, "];\n")?;
+    let nulls = repeat(quote!(NULLPTR as *const wl_interface)).take(longest_nulls);
 
-    // emit interfaces
-    //
+    let interfaces = protocol.interfaces.iter().map(|interface| {
+        let requests = gen_messages(interface, &interface.requests, "requests");
+        let events = gen_messages(interface, &interface.events, "events");
 
-    macro_rules! emit_messages(
-        ($interface: expr, $which: ident) => (
-        if $interface.$which.len() != 0 {
-            // first, emit types arrays for the messages
-            for msg in &$interface.$which {
-                if msg.all_null() { continue; }
-                writeln!(out, "static mut {}_{}_{}_types: [*const wl_interface; {}] = [",
-                    $interface.name, stringify!($which), msg.name, msg.args.len())?;
-                for arg in &msg.args {
-                    match (arg.typ, &arg.interface) {
-                        (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
-                           writeln!(out, "    unsafe {{ &{}_interface as *const wl_interface }},", inter)?
-                        }
-                        _ => writeln!(out, "    NULLPTR as *const wl_interface,")?
-                    }
-                }
-                writeln!(out, "];")?;
-            }
-
-            // then, the message array
-            writeln!(out, "pub static mut {}_{}: [wl_message; {}] = [",
-                $interface.name, stringify!($which), $interface.$which.len())?;
-            for msg in &$interface.$which {
-                write!(out, "    wl_message {{ name: b\"{}\\0\" as *const u8 as *const c_char, signature: b\"",
-                    msg.name)?;
-                if msg.since > 1 { write!(out, "{}", msg.since)?; }
-                for arg in &msg.args {
-                    if arg.typ.nullable() && arg.allow_null { write!(out, "?")?; }
-                    match arg.typ {
-                        Type::NewId => {
-                            if arg.interface.is_none() { write!(out, "su")?; }
-                            write!(out, "n")?;
-                        },
-                        Type::Uint => write!(out, "u")?,
-                        Type::Fixed => write!(out, "f")?,
-                        Type::String => write!(out, "s")?,
-                        Type::Object => write!(out, "o")?,
-                        Type::Array => write!(out, "a")?,
-                        Type::Fd => write!(out, "h")?,
-                        Type::Int => write!(out, "i")?,
-                        _ => {}
-                    }
-                }
-                write!(out, "\\0\" as *const u8 as *const c_char, types: ")?;
-                if msg.all_null() {
-                    write!(out, "unsafe {{ &types_null as *const _ }}")?;
-                } else {
-                    write!(out, "unsafe {{ &{}_{}_{}_types as *const _ }}",
-                        $interface.name, stringify!($which), msg.name)?;
-                }
-                writeln!(out, " }},")?;
-            }
-            writeln!(out, "];")?;
-        });
-    );
-
-    for interface in &protocol.interfaces {
-        writeln!(out, "// {}\n", interface.name)?;
-
-        emit_messages!(interface, requests);
-        emit_messages!(interface, events);
-
-        writeln!(
-            out,
-            "\npub static mut {}_interface: wl_interface = wl_interface {{",
-            interface.name
-        )?;
-        writeln!(
-            out,
-            "    name: b\"{}\\0\" as *const u8 as *const c_char,",
-            interface.name
-        )?;
-        writeln!(out, "    version: {},", interface.version)?;
-        writeln!(out, "    request_count: {},", interface.requests.len())?;
-        if interface.requests.len() > 0 {
-            writeln!(
-                out,
-                "    requests: unsafe {{ &{}_requests as *const _ }},",
-                interface.name
-            )?;
+        let interface_ident = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
+        let name_value = null_terminated_byte_string_literal(&interface.name);
+        let version_value = Literal::i32_unsuffixed(interface.version as i32);
+        let request_count_value = Literal::i32_unsuffixed(interface.requests.len() as i32);
+        let requests_value = if interface.requests.is_empty() {
+            quote!(NULLPTR as *const wl_message)
         } else {
-            writeln!(out, "    requests: NULLPTR as *const wl_message,")?;
-        }
-        writeln!(out, "    event_count: {},", interface.events.len())?;
-        if interface.events.len() > 0 {
-            writeln!(
-                out,
-                "    events: unsafe {{ &{}_events as *const _ }},",
-                interface.name
-            )?;
+            let requests_ident = Ident::new(&format!("{}_requests", interface.name), Span::call_site());
+            quote!(unsafe { &#requests_ident as *const _ })
+        };
+        let event_count_value = Literal::i32_unsuffixed(interface.events.len() as i32);
+        let events_value = if interface.events.is_empty() {
+            quote!(NULLPTR as *const wl_message)
         } else {
-            writeln!(out, "    events: NULLPTR as *const wl_message,")?;
-        }
-        writeln!(out, "}};\n")?;
+            let events_ident = Ident::new(&format!("{}_events", interface.name), Span::call_site());
+            quote!(unsafe { &#events_ident as *const _ })
+        };
+
+        quote!(
+            #requests
+            #events
+
+            pub static mut #interface_ident: wl_interface = wl_interface {
+                name: #name_value as *const u8 as *const c_char,
+                version: #version_value,
+                request_count: #request_count_value,
+                requests: #requests_value,
+                event_count: #event_count_value,
+                events: #events_value,
+            };
+        )
+    });
+
+    quote! {
+        use std::os::raw::{c_char, c_void};
+        use wayland_sys::common::*;
+
+        const NULLPTR: *const c_void = 0 as *const c_void;
+        static mut types_null: [*const wl_interface; #types_null_len] = [
+            #(#nulls,)*
+        ];
+
+        #(#interfaces)*
     }
-    Ok(())
+}
+
+fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> TokenStream {
+    if messages.is_empty() {
+        return TokenStream::new();
+    }
+
+    let types_arrays = messages.iter().filter_map(|msg| {
+        if msg.all_null() {
+            None
+        } else {
+            let array_ident = Ident::new(
+                &format!("{}_{}_{}_types", interface.name, which, msg.name),
+                Span::call_site(),
+            );
+            let array_len = Literal::usize_unsuffixed(msg.args.len());
+            let array_values = msg.args.iter().map(|arg| match (arg.typ, &arg.interface) {
+                (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
+                    let interface_ident = Ident::new(&format!("{}_interface", inter), Span::call_site());
+                    quote!(unsafe { &#interface_ident as *const wl_interface })
+                }
+                _ => quote!(NULLPTR as *const wl_interface),
+            });
+
+            Some(quote! {
+                static mut #array_ident: [*const wl_interface; #array_len] = [
+                    #(#array_values,)*
+                ];
+            })
+        }
+    });
+
+    let message_array_ident = Ident::new(&format!("{}_{}", interface.name, which), Span::call_site());
+    let message_array_len = Literal::usize_unsuffixed(messages.len());
+    let message_array_values = messages.iter().map(|msg| {
+        let name_value = null_terminated_byte_string_literal(&msg.name);
+        let signature_value = Literal::byte_string(&message_signature(msg));
+
+        let types_ident = if msg.all_null() {
+            Ident::new("types_null", Span::call_site())
+        } else {
+            Ident::new(
+                &format!("{}_{}_{}_types", interface.name, which, msg.name),
+                Span::call_site(),
+            )
+        };
+
+        quote! {
+            wl_message {
+                name: #name_value as *const u8 as *const c_char,
+                signature: #signature_value as *const u8 as *const c_char,
+                types: unsafe { &#types_ident as *const _ },
+            }
+        }
+    });
+
+    quote! {
+        #(#types_arrays)*
+
+        pub static mut #message_array_ident: [wl_message; #message_array_len] = [
+            #(#message_array_values,)*
+        ];
+    }
+}
+
+fn message_signature(msg: &Message) -> Vec<u8> {
+    let mut res = Vec::new();
+
+    if msg.since > 1 {
+        res.extend_from_slice(msg.since.to_string().as_bytes());
+    }
+
+    for arg in &msg.args {
+        if arg.typ.nullable() && arg.allow_null {
+            res.push(b'?');
+        }
+        match arg.typ {
+            Type::NewId => {
+                if arg.interface.is_none() {
+                    res.extend_from_slice(b"su");
+                }
+                res.push(b'n');
+            }
+            Type::Uint => res.push(b'u'),
+            Type::Fixed => res.push(b'f'),
+            Type::String => res.push(b's'),
+            Type::Object => res.push(b'o'),
+            Type::Array => res.push(b'a'),
+            Type::Fd => res.push(b'h'),
+            Type::Int => res.push(b'i'),
+            _ => {}
+        }
+    }
+
+    res.push(0);
+    res
 }

@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use proc_macro2::TokenStream;
+
+#[derive(Clone, Debug)]
 pub struct Protocol {
     pub name: String,
     pub copyright: Option<String>,
@@ -17,7 +19,7 @@ impl Protocol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Interface {
     pub name: String,
     pub version: u32,
@@ -40,7 +42,7 @@ impl Interface {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Message {
     pub name: String,
     pub typ: Option<Type>,
@@ -69,7 +71,7 @@ impl Message {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Arg {
     pub name: String,
     pub typ: Type,
@@ -94,7 +96,7 @@ impl Arg {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Enum {
     pub name: String,
     pub since: u16,
@@ -115,10 +117,10 @@ impl Enum {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Entry {
     pub name: String,
-    pub value: String,
+    pub value: u32,
     pub since: u16,
     pub description: Option<(String, String)>,
     pub summary: Option<String>,
@@ -128,7 +130,7 @@ impl Entry {
     pub fn new() -> Entry {
         Entry {
             name: String::new(),
-            value: "0".to_owned(),
+            value: 0,
             since: 1,
             description: None,
             summary: None,
@@ -157,29 +159,29 @@ impl Type {
         }
     }
 
-    pub fn rust_type(&self) -> &'static str {
+    pub fn rust_type(&self) -> TokenStream {
         match *self {
-            Type::Int => "i32",
-            Type::Uint => "u32",
-            Type::Fixed => "f64",
-            Type::Array => "Vec<u8>",
-            Type::Fd => "::std::os::unix::io::RawFd",
-            Type::String => "String",
-            Type::Object => "ProxyId",
-            _ => "()",
+            Type::Int => quote!(i32),
+            Type::Uint => quote!(u32),
+            Type::Fixed => quote!(f64),
+            Type::Array => quote!(Vec<u8>),
+            Type::Fd => quote!(::std::os::unix::io::RawFd),
+            Type::String => quote!(String),
+            Type::Object => quote!(ProxyId),
+            _ => quote!(()),
         }
     }
 
-    pub fn common_type(&self) -> &'static str {
+    pub fn common_type(&self) -> TokenStream {
         match *self {
-            Type::Int => "Int",
-            Type::Uint => "Uint",
-            Type::Fixed => "Fixed",
-            Type::Array => "Array",
-            Type::Fd => "Fd",
-            Type::String => "Str",
-            Type::Object => "Object",
-            Type::NewId => "NewId",
+            Type::Int => quote!(Int),
+            Type::Uint => quote!(Uint),
+            Type::Fixed => quote!(Fixed),
+            Type::Array => quote!(Array),
+            Type::Fd => quote!(Fd),
+            Type::String => quote!(Str),
+            Type::Object => quote!(Object),
+            Type::NewId => quote!(NewId),
             Type::Destructor => panic!("Destructor is not a valid argument type."),
         }
     }

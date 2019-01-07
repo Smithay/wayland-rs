@@ -1,412 +1,504 @@
-use std::io::Result as IOResult;
-use std::io::Write;
+use std::iter;
+
+use proc_macro2::{Ident, Literal, Span, TokenStream};
 
 use common_gen::*;
 use protocol::*;
 use util::*;
 use Side;
 
-pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
-    write_prefix(&protocol, out)?;
+pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
+    let modules = protocol.interfaces.iter().map(|iface| {
+        let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
+        let mod_name = Ident::new(&iface.name, Span::call_site());
+        let iface_name = Ident::new(&snake_to_camel(&iface.name), Span::call_site());
 
-    for iface in &protocol.interfaces {
-        writeln!(out, "pub mod {} {{", iface.name)?;
+        let enums = &iface.enums;
 
-        if let Some((ref short, ref long)) = iface.description {
-            write_doc(Some(short), long, true, out, 1)?;
-        }
-
-        writeln!(
-            out,
-            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
-        )?;
-        writeln!(
-            out,
-            "    use super::sys::common::{{wl_argument, wl_interface, wl_array}};"
-        )?;
-        writeln!(out, "    use super::sys::client::*;")?;
-
-        let iface_name = snake_to_camel(&iface.name);
-
-        write_enums(&iface.enums, out)?;
-        write_messagegroup(
-            "Request",
+        let ident = Ident::new("Request", Span::call_site());
+        let requests = gen_messagegroup(
+            &ident,
             Side::Client,
             false,
             &iface.requests,
-            out,
-            Some(|out: &mut _| messagegroup_c_addon("Request", Side::Client, false, &iface.requests, out)),
-        )?;
-        write_messagegroup(
-            "Event",
+            Some(messagegroup_c_addon(&ident, Side::Client, false, &iface.requests)),
+        );
+
+        let ident = Ident::new("Event", Span::call_site());
+        let events = gen_messagegroup(
+            &ident,
             Side::Client,
             true,
             &iface.events,
-            out,
-            Some(|out: &mut _| messagegroup_c_addon("Event", Side::Client, true, &iface.events, out)),
-        )?;
-        write_interface(
+            Some(messagegroup_c_addon(&ident, Side::Client, true, &iface.events)),
+        );
+
+        let interface = gen_interface(
             &iface_name,
             &iface.name,
             iface.version,
-            out,
-            Some(|out: &mut _| interface_c_addon(&iface.name, out)),
-        )?;
-        write_client_methods(&iface_name, &iface.requests, out)?;
+            Some(interface_c_addon(&iface.name)),
+        );
 
-        writeln!(out, "}}\n")?;
+        let client_methods = gen_client_methods(&iface_name, &iface.requests);
+
+        quote! {
+            #doc_attr
+            pub mod #mod_name {
+                use super::{
+                    Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
+                    Object, Message, Argument, ObjectMetadata
+                };
+                use super::sys::common::{wl_argument, wl_interface, wl_array};
+                use super::sys::client::*;
+
+                #(#enums)*
+                #requests
+                #events
+                #interface
+                #client_methods
+            }
+        }
+    });
+
+    quote! {
+        #(#modules)*
     }
-
-    Ok(())
 }
 
-pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
-    write_prefix(&protocol, out)?;
-
-    for iface in &protocol.interfaces {
+pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
+    let modules = protocol
+        .interfaces
+        .iter()
         // display and registry are handled specially
-        if iface.name == "wl_display" || iface.name == "wl_registry" {
-            continue;
-        }
+        .filter(|iface| iface.name != "wl_display" && iface.name != "wl_registry")
+        .map(|iface| {
+            let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
+            let mod_name = Ident::new(&iface.name, Span::call_site());
 
-        writeln!(out, "pub mod {} {{", iface.name)?;
+            let enums = &iface.enums;
 
-        if let Some((ref short, ref long)) = iface.description {
-            write_doc(Some(short), long, true, out, 1)?;
-        }
+            let ident = Ident::new("Request", Span::call_site());
+            let requests = gen_messagegroup(
+                &ident,
+                Side::Server,
+                true,
+                &iface.requests,
+                Some(messagegroup_c_addon(&ident, Side::Server, true, &iface.requests)),
+            );
 
-        writeln!(
-            out,
-            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
-        )?;
-        writeln!(
-            out,
-            "    use super::sys::common::{{wl_argument, wl_interface, wl_array}};"
-        )?;
-        writeln!(out, "    use super::sys::server::*;")?;
+            let ident = Ident::new("Event", Span::call_site());
+            let events = gen_messagegroup(
+                &ident,
+                Side::Server,
+                false,
+                &iface.events,
+                Some(messagegroup_c_addon(&ident, Side::Server, false, &iface.events)),
+            );
 
-        let iface_name = snake_to_camel(&iface.name);
+            let interface = gen_interface(
+                &Ident::new(&snake_to_camel(&iface.name), Span::call_site()),
+                &iface.name,
+                iface.version,
+                Some(interface_c_addon(&iface.name)),
+            );
 
-        write_enums(&iface.enums, out)?;
-        write_messagegroup(
-            "Request",
-            Side::Server,
-            true,
-            &iface.requests,
-            out,
-            Some(|out: &mut _| messagegroup_c_addon("Request", Side::Server, true, &iface.requests, out)),
-        )?;
-        write_messagegroup(
-            "Event",
-            Side::Server,
-            false,
-            &iface.events,
-            out,
-            Some(|out: &mut _| messagegroup_c_addon("Event", Side::Server, false, &iface.events, out)),
-        )?;
-        write_interface(
-            &iface_name,
-            &iface.name,
-            iface.version,
-            out,
-            Some(|out: &mut _| interface_c_addon(&iface.name, out)),
-        )?;
+            quote! {
+                #doc_attr
+                pub mod #mod_name {
+                    use super::{
+                        Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc,
+                        ArgumentType, Object, Message, Argument, ObjectMetadata
+                    };
+                    use super::sys::common::{wl_argument, wl_interface, wl_array};
+                    use super::sys::server::*;
 
-        writeln!(out, "}}\n")?;
+                    #(#enums)*
+                    #requests
+                    #events
+                    #interface
+                }
+            }
+        });
+
+    quote! {
+        #(#modules)*
     }
-
-    Ok(())
 }
 
-pub fn messagegroup_c_addon<O: Write>(
-    name: &str,
-    side: Side,
-    receiver: bool,
-    messages: &[Message],
-    out: &mut O,
-) -> IOResult<()> {
-    // from_raw_c
-    writeln!(out, "        unsafe fn from_raw_c(obj: *mut ::std::os::raw::c_void, opcode: u32, args: *const wl_argument) -> Result<{},()> {{", name)?;
-    if !receiver {
-        writeln!(
-            out,
-            "            panic!(\"{}::from_raw_c can not be used {:?}-side.\")",
-            name, side
-        )?;
-    } else {
-        writeln!(out, "            match opcode {{")?;
-        for (i, msg) in messages.iter().enumerate() {
-            writeln!(out, "                {} => {{", i)?;
-            if msg.args.len() > 0 {
-                writeln!(
-                    out,
-                    "                    let _args = ::std::slice::from_raw_parts(args, {});",
-                    msg.args.len()
-                )?;
-            }
-            write!(
-                out,
-                "                    Ok({}::{}",
-                name,
-                snake_to_camel(&msg.name)
-            )?;
-            if msg.args.len() > 0 {
-                writeln!(out, " {{")?;
-                let mut j = 0;
-                for a in &msg.args {
-                    write!(out, "                        {}: ", a.name)?;
-                    match a.typ {
-                        Type::Uint => {
-                            if let Some(ref enu) = a.enum_ {
-                                write!(
-                                    out,
-                                    "{}::from_raw(_args[{}].u).ok_or(())?",
-                                    dotted_to_relname(enu),
-                                    j
-                                )?;
-                            } else {
-                                write!(out, "_args[{}].u", j)?;
-                            }
-                        }
-                        Type::Int => {
-                            if let Some(ref enu) = a.enum_ {
-                                write!(
-                                    out,
-                                    "{}::from_raw(_args[{}].i as u32).ok_or(())?",
-                                    dotted_to_relname(enu),
-                                    j
-                                )?;
-                            } else {
-                                write!(out, "_args[{}].i", j)?;
-                            }
-                        }
-                        Type::Fixed => write!(out, "(_args[{}].f as f64)/256.", j)?,
-                        Type::String => {
-                            if a.allow_null {
-                                write!(out, "if _args[{}].s.is_null() {{ None }} else {{ Some(", j)?;
-                            }
-                            write!(
-                                out,
-                                "::std::ffi::CStr::from_ptr(_args[{}].s).to_string_lossy().into_owned()",
-                                j
-                            )?;
-                            if a.allow_null {
-                                write!(out, ") }}")?;
-                            }
-                        }
-                        Type::Array => {
-                            if a.allow_null {
-                                write!(out, "if _args[{}].a.is_null() {{ None }} else {{ Some(", j)?;
-                            }
-                            write!(out, "{{ let array = &*_args[{}].a; ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned() }}", j)?;
-                            if a.allow_null {
-                                write!(out, ") }}")?;
-                            }
-                        }
-                        Type::Fd => write!(out, "_args[{}].h", j)?,
-                        Type::Object => {
-                            if a.allow_null {
-                                write!(out, "if _args[{}].o.is_null() {{ None }} else {{ Some(", j)?;
-                            }
-                            if let Some(ref iface) = a.interface {
-                                write!(
-                                    out,
-                                    "{}::<super::{}::{}>::from_c_ptr(_args[{}].o as *mut _)",
-                                    side.object_name(),
-                                    iface,
-                                    snake_to_camel(iface),
-                                    j
-                                )?;
-                            } else {
-                                write!(
-                                    out,
-                                    "{}::<AnonymousObject>::from_c_ptr(_args[{}].o as *mut _)",
-                                    side.object_name(),
-                                    j
-                                )?;
-                            }
-                            if a.allow_null {
-                                write!(out, ") }}")?;
-                            }
-                        }
-                        Type::NewId => {
-                            if a.allow_null {
-                                write!(out, "if _args[{}].o.is_null() {{ None }} else {{ Some(", j)?;
-                            }
-                            if let Some(ref iface) = a.interface {
-                                match side {
-                                    Side::Client => write!(
-                                        out,
-                                        "NewProxy::<super::{}::{}>::from_c_ptr(_args[{}].o as *mut _)",
-                                        iface,
-                                        snake_to_camel(iface),
-                                        j
-                                    )?,
-                                    Side::Server => {
-                                        write!(out, "{{ let client = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, obj as *mut _); ")?;
-                                        write!(out, "let version = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, obj as *mut _); ")?;
-                                        write!(out, "let new_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_create, client, super::{}::{}::c_interface(), version, _args[{}].n);", iface, snake_to_camel(iface), j)?;
-                                        write!(
-                                            out,
-                                            "NewResource::<super::{}::{}>::from_c_ptr(new_ptr) }}",
-                                            iface,
-                                            snake_to_camel(iface)
-                                        )?;
-                                    }
-                                }
-                            } else {
-                                // bind-like function
-                                write!(out, "panic!(\"Cannot unserialize anonymous new id.\")")?;
-                            }
-                            if a.allow_null {
-                                write!(out, ") }}")?;
-                            }
-                        }
-                        Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
-                    }
-                    j += 1;
-                    writeln!(out, ",")?;
-                }
-                write!(out, "                }}")?;
-            }
-            writeln!(out, ") }},")?;
-        }
-        writeln!(out, "                _ => return Err(())")?;
-        writeln!(out, "            }}")?;
-    }
-    writeln!(out, "        }}\n")?;
+fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Message]) -> TokenStream {
+    let from_raw_c_body = if receiver {
+        let match_arms = messages
+            .iter()
+            .enumerate()
+            .map(|(i, msg)| {
+                let pattern = Literal::u16_unsuffixed(i as u16);
+                let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
+                let msg_name_qualified = quote!(#name::#msg_name);
+                let (args_binding, result) = if msg.args.is_empty() {
+                    (None, msg_name_qualified)
+                } else {
+                    let len = Literal::usize_unsuffixed(msg.args.len());
 
-    // as_raw_c_in
-    writeln!(
-        out,
-        "        fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {{"
-    )?;
-    if receiver {
-        writeln!(
-            out,
-            "            panic!(\"{}::as_raw_c_in can not be used {:?}-side.\")",
-            name, side
-        )?;
+                    let fields = msg.args.iter().enumerate().map(|(j, arg)| {
+                        let field_name = Ident::new(&arg.name, Span::call_site());
+
+                        let idx = Literal::usize_unsuffixed(j);
+                        let field_value = match arg.typ {
+                            Type::Uint => {
+                                if let Some(ref enu) = arg.enum_ {
+                                    let enum_type = dotted_to_relname(enu);
+                                    quote!(#enum_type::from_raw(_args[#idx].u).ok_or(())?)
+                                } else {
+                                    quote!(_args[#idx].u)
+                                }
+                            }
+                            Type::Int => {
+                                if let Some(ref enu) = arg.enum_ {
+                                    let enum_type = dotted_to_relname(enu);
+                                    quote!(#enum_type::from_raw(_args[#idx].i as u32).ok_or(())?)
+                                } else {
+                                    quote!(_args[#idx].i)
+                                }
+                            }
+                            Type::Fixed => quote!((_args[#idx].f as f64) / 256.),
+                            Type::String => {
+                                let string_conversion = quote! {
+                                    ::std::ffi::CStr::from_ptr(_args[#idx].s).to_string_lossy().into_owned()
+                                };
+
+                                if arg.allow_null {
+                                    quote! {
+                                        if _args[#idx].s.is_null() { None } else { Some(#string_conversion) }
+                                    }
+                                } else {
+                                    string_conversion
+                                }
+                            }
+                            Type::Array => {
+                                let array_conversion = quote! {
+                                    {
+                                        let array = &*_args[#idx].a;
+                                        ::std::slice::from_raw_parts(array.data as *const u8, array.size)
+                                            .to_owned()
+                                    }
+                                };
+
+                                if arg.allow_null {
+                                    quote! {
+                                        if _args[#idx].a.is_null() { None } else { Some(#array_conversion) }
+                                    }
+                                } else {
+                                    array_conversion
+                                }
+                            }
+                            Type::Fd => quote!(_args[#idx].h),
+                            Type::Object => {
+                                let object_name = side.object_name();
+                                let object_conversion = if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+
+                                    quote! {
+                                        #object_name::<super::#iface_mod::#iface_type>::from_c_ptr(
+                                            _args[#idx].o as *mut _,
+                                        )
+                                    }
+                                } else {
+                                    quote! {
+                                        #object_name::<AnonymousObject>::from_c_ptr(_args[#idx].o as *mut _)
+                                    }
+                                };
+
+                                if arg.allow_null {
+                                    quote! {
+                                        if _args[#idx].o.is_null() { None } else { Some(#object_conversion) }
+                                    }
+                                } else {
+                                    object_conversion
+                                }
+                            }
+                            Type::NewId => {
+                                let new_id_conversion = if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+
+                                    match side {
+                                        Side::Client => {
+                                            quote! {
+                                                NewProxy::<super::#iface_mod::#iface_type>::from_c_ptr(
+                                                    _args[#idx].o as *mut _
+                                                )
+                                            }
+                                        }
+                                        Side::Server => {
+                                            quote! {
+                                                {
+                                                    let client = ffi_dispatch!(
+                                                        WAYLAND_SERVER_HANDLE,
+                                                        wl_resource_get_client,
+                                                        obj as *mut _
+                                                    );
+                                                    let version = ffi_dispatch!(
+                                                        WAYLAND_SERVER_HANDLE,
+                                                        wl_resource_get_version,
+                                                        obj as *mut _
+                                                    );
+                                                    let new_ptr = ffi_dispatch!(
+                                                        WAYLAND_SERVER_HANDLE,
+                                                        wl_resource_create,
+                                                        client,
+                                                        super::#iface_mod::#iface_type::c_interface(),
+                                                        version,
+                                                        _args[#idx].n
+                                                    );
+
+                                                    NewResource::<super::#iface_mod::#iface_type>::from_c_ptr(
+                                                        new_ptr
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // bind-like function
+                                    quote!(panic!("Cannot unserialize anonymous new id."))
+                                };
+
+                                if arg.allow_null {
+                                    quote! {
+                                        if _args[#idx].o.is_null() { None } else { Some(#new_id_conversion) }
+                                    }
+                                } else {
+                                    new_id_conversion
+                                }
+                            }
+                            Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+                        };
+
+                        quote!(#field_name: #field_value)
+                    });
+
+                    let result = quote! {
+                        #msg_name_qualified {
+                            #(#fields,)*
+                        }
+                    };
+
+                    let args_binding = quote! {
+                        let _args = ::std::slice::from_raw_parts(args, #len);
+                    };
+
+                    (Some(args_binding), result)
+                };
+
+                quote! {
+                    #pattern => {
+                        #args_binding
+                        Ok(#result)
+                    }
+                }
+            })
+            .chain(iter::once(quote!(_ => return Err(()))));
+
+        quote! {
+            match opcode {
+                #(#match_arms,)*
+            }
+        }
     } else {
-        writeln!(out, "            match self {{")?;
-        for (i, msg) in messages.iter().enumerate() {
-            write!(out, "                {}::{} ", name, snake_to_camel(&msg.name))?;
-            if msg.args.len() > 0 {
-                write!(out, "{{ ")?;
-                for a in &msg.args {
-                    write!(out, "{}, ", a.name)?;
-                }
-                write!(out, "}} ")?;
-            }
-            writeln!(out, "=> {{")?;
-            let mut buffer_len = msg.args.len();
-            for a in &msg.args {
-                if a.typ == Type::NewId && a.interface.is_none() {
-                    buffer_len += 2
-                }
-            }
-            writeln!(out, "                    let mut _args_array: [wl_argument; {}] = unsafe {{ ::std::mem::zeroed() }};", buffer_len)?;
+        let panic_message = format!("{}::from_raw_c can not be used {:?}-side.", name, side);
+        quote!(panic!(#panic_message))
+    };
+
+    let as_raw_c_in_body = if receiver {
+        let panic_message = format!("{}::as_raw_c_in can not be used {:?}-side.", name, side);
+        quote!(panic!(#panic_message))
+    } else {
+        let match_arms = messages.iter().enumerate().map(|(i, msg)| {
+            let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
+            let pattern = if msg.args.is_empty() {
+                quote!(#name::#msg_name)
+            } else {
+                let fields = msg
+                    .args
+                    .iter()
+                    .map(|arg| Ident::new(&arg.name, Span::call_site()));
+
+                quote!(#name::#msg_name { #(#fields),* })
+            };
+
+            let buffer_len = Literal::usize_unsuffixed(
+                msg.args.len()
+                    + 2 * msg
+                        .args
+                        .iter()
+                        .filter(|arg| arg.typ == Type::NewId && arg.interface.is_none())
+                        .count(),
+            );
+
             let mut j = 0;
-            for a in &msg.args {
-                write!(out, "                    ")?;
-                match a.typ {
+            let args_array_init_stmts = msg.args.iter().map(|arg| {
+                let idx = Literal::usize_unsuffixed(j);
+                let arg_name = Ident::new(&arg.name, Span::call_site());
+
+                let res = match arg.typ {
                     Type::Uint => {
-                        if a.enum_.is_some() {
-                            writeln!(out, "_args_array[{}].u = {}.to_raw();", j, a.name)?;
+                        if arg.enum_.is_some() {
+                            quote! {
+                                _args_array[#idx].u = #arg_name.to_raw();
+                            }
                         } else {
-                            writeln!(out, "_args_array[{}].u = {};", j, a.name)?;
+                            quote! {
+                                _args_array[#idx].u = #arg_name;
+                            }
                         }
                     }
                     Type::Int => {
-                        if a.enum_.is_some() {
-                            writeln!(out, "_args_array[{}].i = {}.to_raw() as i32;", j, a.name)?;
+                        if arg.enum_.is_some() {
+                            quote! {
+                                _args_array[#idx].i = #arg_name.to_raw() as i32;
+                            }
                         } else {
-                            writeln!(out, "_args_array[{}].i = {};", j, a.name)?;
+                            quote! {
+                                _args_array[#idx].i = #arg_name;
+                            }
                         }
                     }
-                    Type::Fixed => writeln!(out, "_args_array[{}].f = ({} * 256.) as i32;", j, a.name)?,
+                    Type::Fixed => quote! {
+                        _args_array[#idx].f = (#arg_name * 256.) as i32;
+                    },
                     Type::String => {
-                        if a.allow_null {
-                            writeln!(
-                                out,
-                                "let _arg_{} = {}.map(|s| ::std::ffi::CString::new(s).unwrap());",
-                                j, a.name
-                            )?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].s = _arg_{}.map(|s| s.as_ptr()).unwrap_or(::std::ptr::null());", j, j)?;
+                        let arg_variable = Ident::new(&format!("_arg_{}", j), Span::call_site());
+                        if arg.allow_null {
+                            quote! {
+                                let #arg_variable = #arg_name.map(|s| ::std::ffi::CString::new(s).unwrap());
+                                _args_array[#idx].s =
+                                    #arg_variable.map(|s| s.as_ptr()).unwrap_or(::std::ptr::null());
+                            }
                         } else {
-                            writeln!(
-                                out,
-                                "let _arg_{} = ::std::ffi::CString::new({}).unwrap();",
-                                j, a.name
-                            )?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].s = _arg_{}.as_ptr();", j, j)?;
+                            quote! {
+                                let #arg_variable = ::std::ffi::CString::new(#arg_name).unwrap();
+                                _args_array[#idx].s = #arg_variable.as_ptr();
+                            }
                         }
                     }
                     Type::Array => {
-                        if a.allow_null {
-                            writeln!(out, "let _arg_{} = {}.as_ref().map(|vec| wl_array {{ size: vec.len(), alloc: vec.capacity(), data: vec.as_ptr() as *mut _ }});", j, a.name)?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].a = _arg_{}.as_ref().map(|a| a as *const wl_array).unwrap_or(::std::ptr::null());", j, j)?;
+                        let arg_variable = Ident::new(&format!("_arg_{}", j), Span::call_site());
+                        if arg.allow_null {
+                            quote! {
+                                let #arg_variable = #arg_name.as_ref().map(|vec| wl_array {
+                                    size: vec.len(),
+                                    alloc: vec.capacity(),
+                                    data: vec.as_ptr() as *mut _,
+                                });
+                                _args_array[#idx].a = #arg_variable
+                                    .as_ref()
+                                    .map(|a| a as *const wl_array)
+                                    .unwrap_or(::std::ptr::null());
+                            }
                         } else {
-                            writeln!(out, "let _arg_{} = wl_array {{ size: {a}.len(), alloc: {a}.capacity(), data: {a}.as_ptr() as *mut _ }};", j, a=a.name)?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].a = &_arg_{};", j, j)?;
+                            quote! {
+                                let #arg_variable = wl_array {
+                                    size: #arg_name.len(),
+                                    alloc: #arg_name.capacity(),
+                                    data: #arg_name.as_ptr() as *mut _,
+                                };
+                                _args_array[#idx].a = &#arg_variable;
+                            }
                         }
                     }
-                    Type::Fd => writeln!(out, "_args_array[{}].h = {};", j, a.name)?,
+                    Type::Fd => quote! {
+                        _args_array[#idx].h = #arg_name;
+                    },
                     Type::Object => {
-                        if a.allow_null {
-                            writeln!(out, "_args_array[{}].o = {}.map(|o| o.c_ptr() as *mut _).unwrap_or(::std::ptr::null_mut());", j, a.name)?;
+                        if arg.allow_null {
+                            quote! {
+                                _args_array[#idx].o = #arg_name
+                                    .map(|o| o.c_ptr() as *mut _)
+                                    .unwrap_or(::std::ptr::null_mut());
+                            }
                         } else {
-                            writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
+                            quote! {
+                                _args_array[#idx].o = #arg_name.c_ptr() as *mut _;
+                            }
                         }
                     }
                     Type::NewId => {
-                        if a.interface.is_some() {
-                            writeln!(out, "_args_array[{}].o = {}.c_ptr() as *mut _;", j, a.name)?;
-                        } else {
-                            if side == Side::Server {
-                                panic!("Cannot serialize anonymous NewID from server.");
+                        if arg.interface.is_some() {
+                            quote! {
+                                _args_array[#idx].o = #arg_name.c_ptr() as *mut _;
                             }
+                        } else {
+                            assert!(
+                                side != Side::Server,
+                                "Cannot serialize anonymous NewID from server."
+                            );
+
                             // The arg is actually (string, uint, NULL)
-                            writeln!(
-                                out,
-                                "let _arg_{}_s = ::std::ffi::CString::new({}.0).unwrap();",
-                                j, a.name
-                            )?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].s = _arg_{}_s.as_ptr();", j, j)?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].u = {}.1;", j + 1, a.name)?;
-                            write!(out, "                    ")?;
-                            writeln!(out, "_args_array[{}].o = ::std::ptr::null_mut();", j + 2)?;
+                            let arg_variable = Ident::new(&format!("_arg_{}_s", j), Span::call_site());
+                            let idx1 = Literal::usize_unsuffixed(j + 1);
+                            let idx2 = Literal::usize_unsuffixed(j + 2);
+
+                            let res = quote! {
+                                let #arg_variable = ::std::ffi::CString::new(#arg_name.0).unwrap();
+                                _args_array[#idx].s = #arg_variable.as_ptr();
+                                _args_array[#idx1].u = #arg_name.1;
+                                _args_array[#idx2].o = ::std::ptr::null_mut();
+                            };
+
                             j += 2;
+
+                            res
                         }
                     }
                     Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
-                }
-                j += 1;
-            }
-            writeln!(out, "                    f({}, &mut _args_array)", i)?;
-            writeln!(out, "                }},")?;
-        }
-        writeln!(out, "            }}")?;
-    }
-    writeln!(out, "        }}")?;
+                };
 
-    Ok(())
+                j += 1;
+
+                res
+            });
+
+            let idx = Literal::u32_unsuffixed(i as u32);
+
+            quote! {
+                #pattern => {
+                    let mut _args_array: [wl_argument; #buffer_len] = unsafe { ::std::mem::zeroed() };
+                    #(#args_array_init_stmts)*
+
+                    f(#idx, &mut _args_array)
+                }
+            }
+        });
+
+        quote! {
+            match self {
+                #(#match_arms,)*
+            }
+        }
+    };
+
+    quote! {
+        unsafe fn from_raw_c(
+            obj: *mut ::std::os::raw::c_void,
+            opcode: u32,
+            args: *const wl_argument,
+        ) -> Result<#name, ()> {
+            #from_raw_c_body
+        }
+
+        fn as_raw_c_in<F, T>(self, f: F) -> T where F: FnOnce(u32, &mut [wl_argument]) -> T {
+            #as_raw_c_in_body
+        }
+    }
 }
 
-fn interface_c_addon<O: Write>(low_name: &str, out: &mut O) -> IOResult<()> {
-    writeln!(
-        out,
-        r#"
-        fn c_interface() -> *const wl_interface {{
-            unsafe {{ &super::super::c_interfaces::{low_name}_interface }}
-        }}
-"#,
-        low_name = low_name
-    )
+fn interface_c_addon(low_name: &str) -> TokenStream {
+    let mod_name = Ident::new(&format!("{}_interface", low_name), Span::call_site());
+    quote! {
+        fn c_interface() -> *const wl_interface {
+            unsafe { &super::super::c_interfaces::#mod_name }
+        }
+    }
 }

@@ -1,3 +1,5 @@
+use proc_macro2::{Ident, Span};
+
 use self::Side::{Client, Server};
 
 /// Side to generate
@@ -13,10 +15,13 @@ pub enum Side {
 }
 
 impl Side {
-    pub(crate) fn object_name(&self) -> &'static str {
-        match *self {
-            Client => "Proxy",
-            Server => "Resource",
-        }
+    pub(crate) fn object_name(&self) -> Ident {
+        Ident::new(
+            match *self {
+                Client => "Proxy",
+                Server => "Resource",
+            },
+            Span::call_site(),
+        )
     }
 }

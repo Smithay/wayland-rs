@@ -91,13 +91,18 @@
 //! }
 //! ```
 
+#![recursion_limit = "128"]
 #![warn(missing_docs)]
 
+extern crate proc_macro2;
+#[macro_use]
+extern crate quote;
 extern crate xml;
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
+use std::process::Command;
 
 mod c_code_gen;
 mod c_interface_gen;
@@ -120,7 +125,7 @@ fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
 
 /// Generate the interfaces for a protocol
 ///
-/// See this crate toplevel documentation for details.
+/// See this crate's toplevel documentation for details.
 ///
 /// Args:
 ///
@@ -129,13 +134,18 @@ fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
 /// - `target`: the path of the file to store this interfaces in.
 pub fn generate_c_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, target: P2) {
     let protocol = load_xml(protocol);
-    let mut out = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(target)
-        .unwrap();
-    c_interface_gen::generate_interfaces(protocol, &mut out).unwrap()
+
+    {
+        let mut out = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&target)
+            .unwrap();
+        write!(&mut out, "{}", c_interface_gen::generate_interfaces(protocol)).unwrap();
+    }
+
+    let _ = Command::new("rustfmt").arg(target.as_ref()).status();
 }
 
 /// Generate the code for a protocol using the Rust implementation
@@ -150,16 +160,23 @@ pub fn generate_c_interfaces<P1: AsRef<Path>, P2: AsRef<Path>>(protocol: P1, tar
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_rust_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, side: Side) {
     let protocol = load_xml(prot);
-    let mut out = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(target)
-        .unwrap();
-    match side {
-        Side::Client => rust_code_gen::write_protocol_client(protocol, &mut out).unwrap(),
-        Side::Server => rust_code_gen::write_protocol_server(protocol, &mut out).unwrap(),
+
+    {
+        let mut out = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&target)
+            .unwrap();
+        let output = match side {
+            Side::Client => rust_code_gen::generate_protocol_client(protocol),
+            Side::Server => rust_code_gen::generate_protocol_server(protocol),
+        };
+
+        write!(&mut out, "{}", output).unwrap();
     }
+
+    let _ = Command::new("rustfmt").arg(target.as_ref()).status();
 }
 
 /// Generate the code for a protocol using the C system libs
@@ -174,16 +191,24 @@ pub fn generate_rust_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, side: Side) {
     let protocol = load_xml(prot);
-    let mut out = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(target)
-        .unwrap();
-    match side {
-        Side::Client => c_code_gen::write_protocol_client(protocol, &mut out).unwrap(),
-        Side::Server => c_code_gen::write_protocol_server(protocol, &mut out).unwrap(),
+
+    {
+        let mut out = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&target)
+            .unwrap();
+
+        let output = match side {
+            Side::Client => c_code_gen::generate_protocol_client(protocol),
+            Side::Server => c_code_gen::generate_protocol_server(protocol),
+        };
+
+        write!(&mut out, "{}", output).unwrap();
     }
+
+    let _ = Command::new("rustfmt").arg(target.as_ref()).status();
 }
 
 /// Generate the interfaces for a protocol from/to IO streams
@@ -196,7 +221,7 @@ pub fn generate_c_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, s
 /// - `target`: a `Write`-able object to which the generated code will be outputted to
 pub fn generate_c_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2) {
     let protocol = parse::parse_stream(protocol);
-    c_interface_gen::generate_interfaces(protocol, target).unwrap();
+    write!(target, "{}", c_interface_gen::generate_interfaces(protocol)).unwrap();
 }
 
 /// Generate the code for a protocol from/to IO streams using the rust implementation
@@ -210,10 +235,12 @@ pub fn generate_c_interfaces_streams<P1: Read, P2: Write>(protocol: P1, target: 
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_rust_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);
-    match side {
-        Side::Client => rust_code_gen::write_protocol_client(protocol, target).unwrap(),
-        Side::Server => rust_code_gen::write_protocol_server(protocol, target).unwrap(),
-    }
+    let output = match side {
+        Side::Client => rust_code_gen::generate_protocol_client(protocol),
+        Side::Server => rust_code_gen::generate_protocol_server(protocol),
+    };
+
+    write!(target, "{}", output).unwrap();
 }
 
 /// Generate the code for a protocol from/to IO streams using the C system libs
@@ -227,8 +254,10 @@ pub fn generate_rust_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mu
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_c_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
     let protocol = parse::parse_stream(protocol);
-    match side {
-        Side::Client => c_code_gen::write_protocol_client(protocol, target).unwrap(),
-        Side::Server => c_code_gen::write_protocol_server(protocol, target).unwrap(),
-    }
+    let output = match side {
+        Side::Client => c_code_gen::generate_protocol_client(protocol),
+        Side::Server => c_code_gen::generate_protocol_server(protocol),
+    };
+
+    write!(target, "{}", output.clone()).unwrap();
 }
