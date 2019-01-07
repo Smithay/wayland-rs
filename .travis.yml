@@ -91,6 +91,7 @@ script:
   - |
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --check
+        rustfmt --check tests/scanner_assets/*.rs
       elif [ -n "$TARPAULIN" ]; then
         cargo tarpaulin --all --features "" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF rust_impl
