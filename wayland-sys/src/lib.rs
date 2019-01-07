@@ -30,11 +30,18 @@
 //! `is_lib_available()` which returns a boolean depending on whether the lib could be loaded.
 //! They always return true if the feature `dlopen` is absent, as the lib is then directly linked.
 
-#![allow(dead_code, non_camel_case_types)]
+#![allow(non_camel_case_types)]
 
+// If compiling with neither the `client` or `server` feature (non-sensical but
+// it's what happens when running `cargo test --all` from the workspace root),
+// dlib isn't actually used. This is not an issue, so don't warn about it.
+#[allow(unused_imports)]
 #[macro_use]
 extern crate dlib;
 
+// Same as with dlib, only that it's a little harder to accidentally trigger
+// (dlopen feature enabled, client and server features disabled)
+#[allow(unused_imports)]
 #[cfg(feature = "dlopen")]
 #[macro_use]
 extern crate lazy_static;
