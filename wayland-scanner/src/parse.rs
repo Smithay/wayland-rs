@@ -275,7 +275,13 @@ fn parse_entry<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>)
     for attr in attrs {
         match &attr.name.local_name[..] {
             "name" => entry.name = attr.value,
-            "value" => entry.value = attr.value,
+            "value" => {
+                entry.value = if attr.value.starts_with("0x") {
+                    u32::from_str_radix(&attr.value[2..], 16).unwrap()
+                } else {
+                    attr.value.parse().unwrap()
+                };
+            }
             "since" => entry.since = attr.value.parse().unwrap(),
             "summary" => entry.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
             _ => {}

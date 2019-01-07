@@ -1,10 +1,14 @@
 extern crate difference;
+extern crate tempfile;
 extern crate wayland_scanner;
 
-use difference::{Changeset, Difference};
 use std::cmp::{max, min};
-use std::io::Cursor;
-use std::str::from_utf8;
+use std::fs::File;
+use std::io::{Cursor, Read};
+use std::path::Path;
+use std::process::Command;
+
+use difference::{Changeset, Difference};
 use wayland_scanner::Side;
 
 const PROTOCOL: &'static str = include_str!("./scanner_assets/protocol.xml");
@@ -81,92 +85,72 @@ fn flatten_diffs(diffs: &[Difference]) -> Vec<Difference> {
         .collect()
 }
 
+fn run_codegen_test(generated_file_path: &Path, expected_output: &str) {
+    match Command::new("rustfmt")
+        .arg("--config-path")
+        .arg(env!("CARGO_MANIFEST_DIR"))
+        .arg(generated_file_path)
+        .status()
+    {
+        Ok(status) if status.success() => {
+            let mut file = File::open(generated_file_path).unwrap();
+            let mut actual_output = String::new();
+            file.read_to_string(&mut actual_output).unwrap();
+
+            let changeset = Changeset::new(&actual_output, expected_output, "\n");
+            if changeset.distance != 0 {
+                print_diff(&changeset.diffs);
+                panic!(
+                    "Scanner output does not match expected output: d = {}",
+                    changeset.distance
+                );
+            }
+        }
+        _ => {
+            println!("Skipped test because rustfmt is not available!");
+        }
+    }
+}
+
 #[test]
 fn c_interfaces_generation() {
-    let mut out = Vec::new();
-    wayland_scanner::generate_c_interfaces_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out);
-    let changeset = Changeset::new(
-        C_INTERFACES_TARGET,
-        from_utf8(&out).expect("Output of scanner was not UTF8."),
-        "\n",
-    );
-    if changeset.distance != 0 {
-        print_diff(&changeset.diffs);
-        panic!(
-            "Scanner output does not match expected output: d = {}",
-            changeset.distance
-        );
-    }
+    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
+    wayland_scanner::generate_c_interfaces_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile);
+    run_codegen_test(tempfile.path(), C_INTERFACES_TARGET);
 }
 
 #[test]
 fn client_c_code_generation() {
-    let mut out = Vec::new();
-    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Client);
-    let changeset = Changeset::new(
-        CLIENT_C_CODE_TARGET,
-        from_utf8(&out).expect("Output of scanner was not UTF8."),
-        "\n",
-    );
-    if changeset.distance != 0 {
-        print_diff(&changeset.diffs);
-        panic!(
-            "Scanner output does not match expected output: d = {}",
-            changeset.distance
-        );
-    }
+    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
+    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Client);
+    run_codegen_test(tempfile.path(), CLIENT_C_CODE_TARGET);
 }
 
 #[test]
 fn server_c_code_generation() {
-    let mut out = Vec::new();
-    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Server);
-    let changeset = Changeset::new(
-        SERVER_C_CODE_TARGET,
-        from_utf8(&out).expect("Output of scanner was not UTF8."),
-        "\n",
-    );
-    if changeset.distance != 0 {
-        print_diff(&changeset.diffs);
-        panic!(
-            "Scanner output does not match expected output: d = {}",
-            changeset.distance
-        );
-    }
+    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
+    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Server);
+    run_codegen_test(tempfile.path(), SERVER_C_CODE_TARGET);
 }
 
 #[test]
 fn client_rust_code_generation() {
-    let mut out = Vec::new();
-    wayland_scanner::generate_rust_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Client);
-    let changeset = Changeset::new(
-        CLIENT_RUST_CODE_TARGET,
-        from_utf8(&out).expect("Output of scanner was not UTF8."),
-        "\n",
+    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
+    wayland_scanner::generate_rust_code_streams(
+        Cursor::new(PROTOCOL.as_bytes()),
+        &mut tempfile,
+        Side::Client,
     );
-    if changeset.distance != 0 {
-        print_diff(&changeset.diffs);
-        panic!(
-            "Scanner output does not match expected output: d = {}",
-            changeset.distance
-        );
-    }
+    run_codegen_test(tempfile.path(), CLIENT_RUST_CODE_TARGET);
 }
 
 #[test]
 fn server_rust_code_generation() {
-    let mut out = Vec::new();
-    wayland_scanner::generate_rust_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut out, Side::Server);
-    let changeset = Changeset::new(
-        SERVER_RUST_CODE_TARGET,
-        from_utf8(&out).expect("Output of scanner was not UTF8."),
-        "\n",
+    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
+    wayland_scanner::generate_rust_code_streams(
+        Cursor::new(PROTOCOL.as_bytes()),
+        &mut tempfile,
+        Side::Server,
     );
-    if changeset.distance != 0 {
-        print_diff(&changeset.diffs);
-        panic!(
-            "Scanner output does not match expected output: d = {}",
-            changeset.distance
-        );
-    }
+    run_codegen_test(tempfile.path(), SERVER_RUST_CODE_TARGET);
 }

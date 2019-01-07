@@ -106,7 +106,7 @@
 
     <event name="done">
       <description summary="done event">
-        This event is actually a destructor, but the protocol XML has no wait of specifying it.
+        This event is actually a destructor, but the protocol XML has no way of specifying it.
         As such, the scanner should consider wl_callback.done as a special case.
       </description>
       <arg name="callback_data" type="uint" summary="request-specific data for the callback"/>

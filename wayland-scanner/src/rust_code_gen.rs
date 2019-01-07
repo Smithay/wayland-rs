@@ -1,107 +1,110 @@
-use std::io::Result as IOResult;
-use std::io::Write;
+use proc_macro2::{Ident, Span, TokenStream};
 
 use common_gen::*;
 use protocol::*;
 use util::*;
 use Side;
 
-pub(crate) fn write_protocol_client<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
-    write_prefix(&protocol, out)?;
+pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
+    let modules = protocol.interfaces.iter().map(|iface| {
+        let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
+        let mod_name = Ident::new(&iface.name, Span::call_site());
+        let iface_name = Ident::new(&snake_to_camel(&iface.name), Span::call_site());
 
-    for iface in &protocol.interfaces {
-        writeln!(out, "pub mod {} {{", iface.name)?;
-
-        if let Some((ref short, ref long)) = iface.description {
-            write_doc(Some(short), long, true, out, 1)?;
-        }
-
-        writeln!(
-            out,
-            "    use super::{{Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
-        )?;
-        let iface_name = snake_to_camel(&iface.name);
-
-        write_enums(&iface.enums, out)?;
-        write_messagegroup(
-            "Request",
+        let enums = &iface.enums;
+        let requests = gen_messagegroup(
+            &Ident::new("Request", Span::call_site()),
             Side::Client,
             false,
             &iface.requests,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-        write_messagegroup(
-            "Event",
+            None,
+        );
+        let events = gen_messagegroup(
+            &Ident::new("Event", Span::call_site()),
             Side::Client,
             true,
             &iface.events,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-        write_interface(
+            None,
+        );
+        let interface = gen_interface(
             &iface_name,
             &iface.name,
             iface.version,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-        write_client_methods(&iface_name, &iface.requests, out)?;
+            None,
+        );
+        let client_methods = gen_client_methods(&iface_name, &iface.requests);
 
-        writeln!(out, "}}\n")?;
+        quote! {
+            #doc_attr
+            pub mod #mod_name {
+                use super::{
+                    Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object,
+                    Message, Argument, ObjectMetadata,
+                };
+
+                #(#enums)*
+                #requests
+                #events
+                #interface
+                #client_methods
+            }
+        }
+    });
+
+    quote! {
+        #(#modules)*
     }
-
-    Ok(())
 }
 
-pub(crate) fn write_protocol_server<O: Write>(protocol: Protocol, out: &mut O) -> IOResult<()> {
-    write_prefix(&protocol, out)?;
-
-    for iface in &protocol.interfaces {
+pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
+    let modules = protocol
+        .interfaces
+        .iter()
         // display and registry are handled specially
-        if iface.name == "wl_display" || iface.name == "wl_registry" {
-            continue;
-        }
+        .filter(|iface| iface.name != "wl_display" && iface.name != "wl_registry")
+        .map(|iface| {
+            let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
+            let mod_name = Ident::new(&iface.name, Span::call_site());
 
-        writeln!(out, "pub mod {} {{", iface.name)?;
+            let enums = &iface.enums;
+            let requests = gen_messagegroup(
+                &Ident::new("Request", Span::call_site()),
+                Side::Server,
+                true,
+                &iface.requests,
+                None,
+            );
+            let events = gen_messagegroup(
+                &Ident::new("Event", Span::call_site()),
+                Side::Server,
+                false,
+                &iface.events,
+                None,
+            );
+            let interface = gen_interface(
+                &Ident::new(&snake_to_camel(&iface.name), Span::call_site()),
+                &iface.name,
+                iface.version,
+                None,
+            );
 
-        if let Some((ref short, ref long)) = iface.description {
-            write_doc(Some(short), long, true, out, 1)?;
-        }
+            quote! {
+                #doc_attr
+                pub mod #mod_name {
+                    use super::{
+                        Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc,
+                        ArgumentType, Object, Message, Argument, ObjectMetadata
+                    };
 
-        writeln!(
-            out,
-            "    use super::{{Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object, Message, Argument, ObjectMetadata}};\n"
-        )?;
-        let iface_name = snake_to_camel(&iface.name);
+                    #(#enums)*
+                    #requests
+                    #events
+                    #interface
+                }
+            }
+        });
 
-        write_enums(&iface.enums, out)?;
-        write_messagegroup(
-            "Request",
-            Side::Server,
-            true,
-            &iface.requests,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-        write_messagegroup(
-            "Event",
-            Side::Server,
-            false,
-            &iface.events,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-        write_interface(
-            &iface_name,
-            &iface.name,
-            iface.version,
-            out,
-            None::<fn(_: &mut _) -> _>,
-        )?;
-
-        writeln!(out, "}}\n")?;
+    quote! {
+        #(#modules)*
     }
-
-    Ok(())
 }

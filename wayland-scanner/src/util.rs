@@ -2,6 +2,9 @@
 #[allow(deprecated)]
 use std::ascii::AsciiExt;
 
+use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::ToTokens;
+
 pub fn is_keyword(txt: &str) -> bool {
     match txt {
         "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue" | "crate"
@@ -31,11 +34,23 @@ pub fn snake_to_camel(input: &str) -> String {
         .collect()
 }
 
-pub fn dotted_to_relname(input: &str) -> String {
+pub fn dotted_to_relname(input: &str) -> TokenStream {
     let mut it = input.split('.');
     match (it.next(), it.next()) {
-        (Some(module), Some(name)) => format!("super::{}::{}", module, snake_to_camel(name)),
-        (Some(name), None) => snake_to_camel(name),
+        (Some(module), Some(name)) => {
+            let module = Ident::new(module, Span::call_site());
+            let ident = Ident::new(&snake_to_camel(name), Span::call_site());
+            quote!(super::#module::#ident)
+        }
+        (Some(name), None) => Ident::new(&snake_to_camel(name), Span::call_site()).into_token_stream(),
         _ => unreachable!(),
     }
+}
+
+pub fn null_terminated_byte_string_literal(string: &str) -> Literal {
+    let mut val = Vec::with_capacity(string.len() + 1);
+    val.extend_from_slice(string.as_bytes());
+    val.push(0);
+
+    Literal::byte_string(&val)
 }
