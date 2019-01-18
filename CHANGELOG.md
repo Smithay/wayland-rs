@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [commons] Fix incorrect number of server-side ids when using the rust implementation
+- [protocols] Update wlroots-protocols.
 
 ## 0.21.10 -- 2019-01-06
 

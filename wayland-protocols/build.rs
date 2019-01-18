@@ -28,6 +28,7 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
 ];
 
 static WLR_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
+    ("wlr-data-control", &["v1"]),
     ("wlr-export-dmabuf", &["v1"]),
     ("wlr-foreign-toplevel-management", &["v1"]),
     ("wlr-gamma-control", &["v1"]),

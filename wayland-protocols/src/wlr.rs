@@ -21,6 +21,22 @@ pub mod unstable {
     //! interface names are removed and the interface version number is
     //! reset.
 
+    pub mod data_control {
+        //! Control data devices, particularly the clipboard.
+        //!
+        //! An interface to control data devices, particularly to manage the current selection and
+        //! take the role of a clipboard manager.
+
+        wayland_protocol_versioned!(
+            "wlr-data-control",
+            [v1],
+            [
+                (wl_seat, wl_seat_interface)
+            ],
+            []
+        );
+    }
+
     pub mod export_dmabuf {
         //! A protocol for low overhead screen content capturing
         //!
