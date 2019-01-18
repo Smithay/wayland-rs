@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [commons] Fix incorrect number of server-side ids when using the rust implementation
+
 ## 0.21.10 -- 2019-01-06
 
 - [client] Undo protocol update which was a breakind change

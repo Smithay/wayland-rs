@@ -32,6 +32,8 @@ fn data_offer() {
                             .create_resource::<ServerDO>(ddevice.version())
                             .unwrap()
                             .implement(|_, _| {}, None::<fn(_)>, ());
+                        // this must be the first server-side ID
+                        assert_eq!(offer.id(), 0xFF000000);
                         ddevice.send(SDDEvt::DataOffer { id: offer })
                     }
                     _ => unimplemented!(),
@@ -63,6 +65,8 @@ fn data_offer() {
                     CDDEvt::DataOffer { id } => {
                         let doffer = id.implement(|_, _| {}, ());
                         assert!(doffer.version() == 3);
+                        // this must be the first server-side ID
+                        assert_eq!(doffer.id(), 0xFF000000);
                         *received2.lock().unwrap() = true;
                     }
                     _ => unimplemented!(),
