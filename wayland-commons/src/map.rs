@@ -117,7 +117,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     pub fn find(&self, id: u32) -> Option<Object<Meta>> {
         if id >= SERVER_ID_LIMIT {
             self.server_objects
-                .get((id - SERVER_ID_LIMIT - 1) as usize)
+                .get((id - SERVER_ID_LIMIT) as usize)
                 .and_then(|x| x.clone())
         } else {
             self.client_objects.get((id - 1) as usize).and_then(|x| x.clone())
@@ -129,7 +129,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     /// Does nothing if the object didn't previously exists
     pub fn remove(&mut self, id: u32) {
         if id >= SERVER_ID_LIMIT {
-            if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize) {
+            if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize) {
                 *place = None;
             }
         } else {
@@ -147,13 +147,13 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         if id >= SERVER_ID_LIMIT {
             insert_in_at(&mut self.server_objects, (id - SERVER_ID_LIMIT) as usize, object)
         } else {
-            insert_in_at(&mut self.client_objects, id as usize, object)
+            insert_in_at(&mut self.client_objects, (id - 1) as usize, object)
         }
     }
 
     /// Allocate a new id for an object in the client namespace
     pub fn client_insert_new(&mut self, object: Object<Meta>) -> u32 {
-        insert_in(&mut self.client_objects, object)
+        insert_in(&mut self.client_objects, object) + 1
     }
 
     /// Allocate a new id for an object in the server namespace
@@ -164,8 +164,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     /// Mutably access an object of the map
     pub fn with<T, F: FnOnce(&mut Object<Meta>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
         if id >= SERVER_ID_LIMIT {
-            if let Some(&mut Some(ref mut obj)) =
-                self.server_objects.get_mut((id - SERVER_ID_LIMIT - 1) as usize)
+            if let Some(&mut Some(ref mut obj)) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize)
             {
                 Ok(f(obj))
             } else {
@@ -189,7 +188,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         }
         for (id, place) in self.server_objects.iter_mut().enumerate() {
             if let Some(ref mut obj) = *place {
-                f(id as u32 + 1 + SERVER_ID_LIMIT, obj);
+                f(id as u32 + SERVER_ID_LIMIT, obj);
             }
         }
     }
@@ -200,11 +199,11 @@ fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Option<Object<Meta>>>, object
     match store.iter().position(|o| o.is_none()) {
         Some(id) => {
             store[id] = Some(object);
-            id as u32 + 1
+            id as u32
         }
         None => {
             store.push(Some(object));
-            store.len() as u32
+            (store.len() - 1) as u32
         }
     }
 }
@@ -215,7 +214,6 @@ fn insert_in_at<Meta: ObjectMetadata>(
     id: usize,
     object: Object<Meta>,
 ) -> Result<(), ()> {
-    let id = id - 1;
     if id > store.len() {
         Err(())
     } else if id == store.len() {
