@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.21.11 -- 2019-01-19
+
 - [commons] Fix incorrect number of server-side ids when using the rust implementation
 - [protocols] Update wlroots-protocols.
 - Implement `std::error::Error` for public error types in all crates
