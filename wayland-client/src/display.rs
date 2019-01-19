@@ -35,6 +35,24 @@ pub enum ConnectError {
     InvalidFd,
 }
 
+impl ::std::error::Error for ConnectError {
+    fn description(&self) -> &str {
+        match *self {
+            ConnectError::NoWaylandLib => "Could not find libwayland-client.so.",
+            ConnectError::XdgRuntimeDirNotSet => "XDG_RUNTIME_DIR is not set.",
+            ConnectError::NoCompositorListening => "Could not find a listening wayland compositor.",
+            ConnectError::InvalidName => "The wayland socket name is invalid.",
+            ConnectError::InvalidFd => "The FD provided in WAYLAND_SOCKET is invalid.",
+        }
+    }
+}
+
+impl ::std::fmt::Display for ConnectError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        f.write_str(::std::error::Error::description(self))
+    }
+}
+
 /// A connection to a wayland server
 ///
 /// This object both represent the connection to the server, and as such

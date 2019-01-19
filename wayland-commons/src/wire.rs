@@ -95,6 +95,23 @@ pub enum MessageWriteError {
     DupFdFailed(::nix::Error),
 }
 
+impl ::std::error::Error for MessageWriteError {
+    fn description(&self) -> &str {
+        match *self {
+            MessageWriteError::BufferTooSmall => "The provided buffer is too small to hold message content.",
+            MessageWriteError::DupFdFailed(_) => {
+                "The message contains a file descriptor that could not be dup()-ed."
+            }
+        }
+    }
+}
+
+impl ::std::fmt::Display for MessageWriteError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        f.write_str(::std::error::Error::description(self))
+    }
+}
+
 /// Error generated when trying to deserialize a message from buffers
 #[derive(Debug, Clone)]
 pub enum MessageParseError {
@@ -104,6 +121,22 @@ pub enum MessageParseError {
     MissingData,
     /// The message is malformed and cannot be parsed
     Malformed,
+}
+
+impl ::std::error::Error for MessageParseError {
+    fn description(&self) -> &str {
+        match *self {
+            MessageParseError::MissingFD => "The message references a FD but the buffer FD is empty.",
+            MessageParseError::MissingData => "More data is needed to deserialize the message",
+            MessageParseError::Malformed => "The message is malformed and cannot be parsed",
+        }
+    }
+}
+
+impl ::std::fmt::Display for MessageParseError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        f.write_str(::std::error::Error::description(self))
+    }
 }
 
 impl Message {
