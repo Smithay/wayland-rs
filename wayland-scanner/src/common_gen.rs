@@ -1,3 +1,6 @@
+#[allow(unused_imports)]
+#[allow(deprecated)]
+use std::ascii::AsciiExt;
 use std::iter;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
@@ -146,6 +149,36 @@ impl ToTokens for Enum {
 
         enum_decl.to_tokens(tokens);
         enum_impl.to_tokens(tokens);
+    }
+}
+
+pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> TokenStream {
+    let req_constants = requests.iter().map(|msg| {
+        let cstname = Ident::new(
+            &format!("REQ_{}_SINCE", msg.name.to_ascii_uppercase()),
+            Span::call_site(),
+        );
+        let since = msg.since;
+        quote! {
+            /// The minimal object version supporting this request
+            pub const #cstname: u16 = #since;
+        }
+    });
+    let evt_constants = events.iter().map(|msg| {
+        let cstname = Ident::new(
+            &format!("EVT_{}_SINCE", msg.name.to_ascii_uppercase()),
+            Span::call_site(),
+        );
+        let since = msg.since;
+        quote! {
+            /// The minimal object version supporting this event
+            pub const #cstname: u16 = #since;
+        }
+    });
+
+    quote! {
+        #(#req_constants)*
+        #(#evt_constants)*
     }
 }
 

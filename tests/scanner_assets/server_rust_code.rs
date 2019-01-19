@@ -198,6 +198,12 @@ pub mod wl_foo {
         const NAME: &'static str = "wl_foo";
         const VERSION: u32 = 3;
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_FOO_IT_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_CREATE_BAR_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_CAKE_SINCE: u16 = 2u16;
 }
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
@@ -328,6 +334,10 @@ pub mod wl_bar {
         const NAME: &'static str = "wl_bar";
         const VERSION: u32 = 1;
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_RELEASE_SINCE: u16 = 1u16;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
@@ -405,4 +415,6 @@ pub mod wl_callback {
         const NAME: &'static str = "wl_callback";
         const VERSION: u32 = 1;
     }
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_DONE_SINCE: u16 = 1u16;
 }

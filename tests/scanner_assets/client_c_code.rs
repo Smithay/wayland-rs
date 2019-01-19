@@ -285,6 +285,12 @@ pub mod wl_foo {
             self.send_constructor(msg, implementor, None)
         }
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_FOO_IT_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_CREATE_BAR_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_CAKE_SINCE: u16 = 2u16;
 }
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
@@ -495,6 +501,10 @@ pub mod wl_bar {
             self.send(msg);
         }
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_RELEASE_SINCE: u16 = 1u16;
 }
 #[doc = "core global object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_display {
@@ -736,6 +746,8 @@ pub mod wl_registry {
             self.send_constructor(msg, implementor, Some(version))
         }
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_BIND_SINCE: u16 = 1u16;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
@@ -860,4 +872,6 @@ pub mod wl_callback {
     }
     pub trait RequestsTrait {}
     impl RequestsTrait for Proxy<WlCallback> {}
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_DONE_SINCE: u16 = 1u16;
 }

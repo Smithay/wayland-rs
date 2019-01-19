@@ -270,6 +270,12 @@ pub mod wl_foo {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_FOO_IT_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_CREATE_BAR_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_CAKE_SINCE: u16 = 2u16;
 }
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
@@ -453,6 +459,10 @@ pub mod wl_bar {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
     }
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_RELEASE_SINCE: u16 = 1u16;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
@@ -569,4 +579,6 @@ pub mod wl_callback {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
         }
     }
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_DONE_SINCE: u16 = 1u16;
 }

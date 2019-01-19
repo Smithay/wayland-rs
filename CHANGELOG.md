@@ -5,6 +5,8 @@
 - [commons] Fix incorrect number of server-side ids when using the rust implementation
 - [protocols] Update wlroots-protocols.
 - Implement `std::error::Error` for public error types in all crates
+- [scanner] Generate constants in each interface module to expose the minimum version of
+  each request and event.
 
 ## 0.21.10 -- 2019-01-06
 
