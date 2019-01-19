@@ -33,6 +33,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             None,
         );
         let client_methods = gen_client_methods(&iface_name, &iface.requests);
+        let sinces = gen_since_constants(&iface.requests, &iface.events);
 
         quote! {
             #doc_attr
@@ -47,6 +48,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #events
                 #interface
                 #client_methods
+                #sinces
             }
         }
     });
@@ -87,6 +89,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 iface.version,
                 None,
             );
+            let sinces = gen_since_constants(&iface.requests, &iface.events);
 
             quote! {
                 #doc_attr
@@ -100,6 +103,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                     #requests
                     #events
                     #interface
+                    #sinces
                 }
             }
         });
