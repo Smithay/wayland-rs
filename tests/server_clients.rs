@@ -20,7 +20,7 @@ fn client_user_data() {
     server.display.create_global::<wl_output::WlOutput, _>(1, {
         let clients = clients.clone();
         move |newo, _| {
-            let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
+            let output = newo.implement_dummy();
             let client = output.client().unwrap();
             let ret = client.data_map().insert_if_missing(|| HasOutput);
             // the data should not be already here
@@ -33,7 +33,7 @@ fn client_user_data() {
         .create_global::<wl_compositor::WlCompositor, _>(1, {
             let clients = clients.clone();
             move |newo, _| {
-                let compositor = newo.implement(|_, _| {}, None::<fn(_)>, ());
+                let compositor = newo.implement_dummy();
                 let client = compositor.client().unwrap();
                 let ret = client.data_map().insert_if_missing(|| HasCompositor);
                 // the data should not be already here

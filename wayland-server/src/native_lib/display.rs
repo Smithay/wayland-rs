@@ -131,7 +131,7 @@ impl DisplayInner {
                 return Err(IoError::new(
                     ErrorKind::InvalidInput,
                     "nulls are not allowed in socket name",
-                ))
+                ));
             }
             None => None,
         };

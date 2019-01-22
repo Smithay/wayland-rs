@@ -18,10 +18,7 @@ fn resource_equals() {
     server
         .display
         .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
-            outputs2
-                .lock()
-                .unwrap()
-                .push(newo.implement(|_, _| {}, None::<fn(_)>, ()));
+            outputs2.lock().unwrap().push(newo.implement_dummy());
         });
 
     let mut client = TestClient::new(&server.socket_name);
@@ -60,7 +57,7 @@ fn resource_user_data() {
         .display
         .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
             let mut guard = outputs2.lock().unwrap();
-            let output = newo.implement(|_, _| {}, None::<fn(_)>, 1000 + guard.len());
+            let output = newo.implement_closure(|_, _| {}, None::<fn(_)>, 1000 + guard.len());
             guard.push(output);
         });
 
@@ -138,10 +135,7 @@ fn dead_resources() {
     server
         .display
         .create_global::<wl_output::WlOutput, _>(3, move |newo, _| {
-            outputs2
-                .lock()
-                .unwrap()
-                .push(newo.implement(|_, _| {}, None::<fn(_)>, ()));
+            outputs2.lock().unwrap().push(newo.implement_dummy());
         });
 
     let mut client = TestClient::new(&server.socket_name);

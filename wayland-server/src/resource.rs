@@ -183,8 +183,31 @@ impl<I: Interface + 'static> NewResource<I> {
         }
     }
 
+    /// Implement this resource using a handler, destructor and user data.
+    ///
+    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
+    /// interface.
+    pub fn implement<T, Dest, UD>(
+        self,
+        mut handler: T,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> Resource<I>
+    where
+        T: Send + 'static,
+        Dest: FnMut(Resource<I>) + Send + 'static,
+        UD: Send + Sync + 'static,
+        I: HandledBy<T>,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        let implementation =
+            move |request, resource: Resource<I>| I::handle(&mut handler, request, resource.clone());
+
+        self.implement_closure(implementation, destructor, user_data)
+    }
+
     /// Implement this resource using given function, destructor, and user data.
-    pub fn implement<F, Dest, UD>(
+    pub fn implement_closure<F, Dest, UD>(
         self,
         implementation: F,
         destructor: Option<Dest>,
@@ -207,6 +230,14 @@ impl<I: Interface + 'static> NewResource<I> {
             _i: ::std::marker::PhantomData,
             inner,
         }
+    }
+
+    /// Implement this resource using a dummy handler which does nothing.
+    pub fn implement_dummy(self) -> Resource<I>
+    where
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        self.implement_closure(|_, _| (), None::<fn(_)>, ())
     }
 
     /// Implement this resource using given function and implementation data.

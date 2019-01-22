@@ -18,7 +18,7 @@ fn resource_destructor() {
         .display
         .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.implement(
+            newo.implement_closure(
                 |_, _| {},
                 Some(move |_| {
                     *destructor_called_resource.lock().unwrap() = true;
@@ -55,7 +55,7 @@ fn resource_destructor_cleanup() {
         .display
         .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.implement(
+            newo.implement_closure(
                 |_, _| {},
                 Some(move |_| {
                     *destructor_called_resource.lock().unwrap() = true;
@@ -93,7 +93,7 @@ fn client_destructor_cleanup() {
         .display
         .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            let output = newo.implement(|_, _| {}, None::<fn(_)>, ());
+            let output = newo.implement_dummy();
             let client = output.client().unwrap();
             client.add_destructor(move |_| {
                 *destructor_called_resource.lock().unwrap() = true;

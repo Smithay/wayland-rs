@@ -48,7 +48,9 @@
 //! Failure to do so (by dropping the `NewResource<I>` for example) can cause future fatal
 //! protocol errors if the client tries to send a request to this object.
 //!
-//! An implementation is just an `FnMut(I::Request, Resource<I>)` where `I` is the interface
+//! An implementation is a struct implementing the `RequestHandler` trait for the interface
+//! of the considered object. Alternatively, an `FnMut(I::Request, Resource<I>)` closure can be
+//! used with the `implement_closure()` method, where `I` is the interface
 //! of the considered object.
 //!
 //! The `Resource<I>` passed to your implementation is guaranteed to be alive (as it just received

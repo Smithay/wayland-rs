@@ -21,17 +21,17 @@ fn data_offer() {
         .display
         .create_global::<ServerDDMgr, _>(3, |new_resource, version| {
             assert!(version == 3);
-            new_resource.implement(
+            new_resource.implement_closure(
                 |request, _| match request {
                     SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement(|_, _| {}, None::<fn(_)>, ());
+                        let ddevice = id.implement_dummy();
                         // create a data offer and send it
                         let offer = ddevice
                             .client()
                             .unwrap()
                             .create_resource::<ServerDO>(ddevice.version())
                             .unwrap()
-                            .implement(|_, _| {}, None::<fn(_)>, ());
+                            .implement_dummy();
                         // this must be the first server-side ID
                         assert_eq!(offer.id(), 0xFF000000);
                         ddevice.send(SDDEvt::DataOffer { id: offer })

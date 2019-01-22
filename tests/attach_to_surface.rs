@@ -28,11 +28,11 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
         .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version| {
             assert!(version == 1);
             let compositor_buffer_found = buffer_found.clone();
-            compositor.implement(
+            compositor.implement_closure(
                 move |event, _| {
                     if let wl_compositor::Request::CreateSurface { id: surface } = event {
                         let my_buffer_found = compositor_buffer_found.clone();
-                        surface.implement(
+                        surface.implement_closure(
                             move |event, _| {
                                 if let wl_surface::Request::Attach { buffer, x, y } = event {
                                     assert!(x == 0);
@@ -69,20 +69,20 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resour
         .create_global::<wl_shm::WlShm, _>(1, move |shm, version| {
             assert!(version == 1);
             let shm_buffer = buffer.clone();
-            shm.implement(
+            shm.implement_closure(
                 move |req, _| {
                     let wl_shm::Request::CreatePool { id, fd, size } = req;
                     assert!(size == 42);
                     assert!(shm_buffer.lock().unwrap().is_none());
                     *shm_buffer.lock().unwrap() = Some((fd, None));
                     let pool_buffer = shm_buffer.clone();
-                    id.implement(
+                    id.implement_closure(
                         move |req, _| {
                             if let wl_shm_pool::Request::CreateBuffer { id, .. } = req {
                                 let mut buffer_guard = pool_buffer.lock().unwrap();
                                 let buf = buffer_guard.as_mut().unwrap();
                                 assert!(buf.1.is_none());
-                                buf.1 = Some(id.implement(|_, _| {}, None::<fn(_)>, ()));
+                                buf.1 = Some(id.implement_dummy());
                             } else {
                                 panic!("Unexpected request on buffer!");
                             }
