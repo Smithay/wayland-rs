@@ -825,3 +825,138 @@ pub(crate) fn gen_client_methods(name: &Ident, messages: &[Message]) -> TokenStr
         }
     }
 }
+
+fn event_method_prototype(name: &Ident, msg: &Message) -> TokenStream {
+    let method_name = Ident::new(
+        &format!("{}{}", if is_keyword(&msg.name) { "_" } else { "" }, msg.name),
+        Span::call_site(),
+    );
+
+    let method_args = msg.args.iter().map(|arg| {
+        let arg_name = Ident::new(
+            &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+            Span::call_site(),
+        );
+
+        let arg_type_inner = if let Some(ref enu) = arg.enum_ {
+            dotted_to_relname(enu)
+        } else {
+            match arg.typ {
+                Type::Uint => quote!(u32),
+                Type::Int => quote!(i32),
+                Type::Fixed => quote!(f64),
+                Type::String => quote!(String),
+                Type::Array => quote!(Vec<u8>),
+                Type::Fd => quote!(::std::os::unix::io::RawFd),
+                Type::Object => {
+                    let object_name = Side::Client.object_name();
+                    if let Some(ref iface) = arg.interface {
+                        let iface_mod = Ident::new(&iface, Span::call_site());
+                        let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+                        quote!(#object_name<super::#iface_mod::#iface_type>)
+                    } else {
+                        quote!(#object_name<AnonymousObject>)
+                    }
+                }
+                Type::NewId => {
+                    let object_name =
+                        Ident::new(&format!("New{}", Side::Client.object_name()), Span::call_site());
+                    if let Some(ref iface) = arg.interface {
+                        let iface_mod = Ident::new(&iface, Span::call_site());
+                        let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+                        quote!(#object_name<super::#iface_mod::#iface_type>)
+                    } else {
+                        // bind-like function
+                        quote!((String, u32, #object_name<AnonymousObject>))
+                    }
+                }
+                Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+            }
+        };
+
+        let field_type = if arg.allow_null {
+            quote!(Option<#arg_type_inner>)
+        } else {
+            arg_type_inner.into_token_stream()
+        };
+
+        quote! {
+            #arg_name: #field_type
+        }
+    });
+
+    quote! {
+        fn #method_name(&mut self, proxy: Proxy<#name>, #(#method_args),*) {}
+    }
+}
+
+pub(crate) fn gen_event_handler_trait(name: &Ident, messages: &[Message]) -> TokenStream {
+    let methods = messages.iter().map(|msg| {
+        let mut docs = String::new();
+        if let Some((ref short, ref long)) = msg.description {
+            docs += &format!("{}\n\n{}\n", short, long);
+        }
+        if let Some(Type::Destructor) = msg.typ {
+            docs += "\nThis is a destructor, you cannot send requests to this object any longer once this method is called.";
+        }
+        if msg.since > 1 {
+            docs += &format!("\nOnly available since version {} of the interface.", msg.since);
+        }
+
+        let doc_attr = to_doc_attr(&docs);
+        let proto = event_method_prototype(name, &msg);
+
+        quote! {
+            #doc_attr
+            #proto
+        }
+    });
+
+    let method_patterns = messages.iter().map(|msg| {
+        let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
+
+        let method_name = Ident::new(
+            &format!("{}{}", if is_keyword(&msg.name) { "_" } else { "" }, msg.name),
+            Span::call_site(),
+        );
+
+        let arg_names = msg
+            .args
+            .iter()
+            .map(|arg| {
+                let arg_name = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
+
+                quote! {
+                    #arg_name
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let arg_names_2 = arg_names.clone();
+
+        quote! {
+            Event::#msg_name { #(#arg_names),* } => {
+                handler.#method_name(proxy, #(#arg_names_2),*)
+            }
+        }
+    });
+
+    quote! {
+        /// An interface for handling events.
+        pub trait EventHandler {
+            #(#methods)*
+        }
+
+        impl<T: EventHandler> HandledBy<T> for #name {
+            #[inline]
+            fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+                match event {
+                    #(#method_patterns)*
+                }
+            }
+        }
+    }
+}

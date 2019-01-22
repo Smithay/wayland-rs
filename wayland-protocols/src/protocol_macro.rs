@@ -19,7 +19,7 @@ macro_rules! wayland_protocol(
             #[cfg(feature = "client")]
             pub mod client {
                 //! Client-side API of this protocol
-                pub(crate) use wayland_client::{NewProxy, Proxy, ProxyMap};
+                pub(crate) use wayland_client::{NewProxy, Proxy, ProxyMap, HandledBy};
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
@@ -68,7 +68,7 @@ macro_rules! wayland_protocol(
             #[cfg(feature = "client")]
             pub mod client {
                 //! Client-side API of this protocol
-                pub(crate) use wayland_client::{NewProxy, Proxy, ProxyMap};
+                pub(crate) use wayland_client::{NewProxy, Proxy, ProxyMap, HandledBy};
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};

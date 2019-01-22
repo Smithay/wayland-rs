@@ -192,7 +192,7 @@ mod generated {
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {NewProxy, Proxy, ProxyMap};
+        pub(crate) use {HandledBy, NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
     #[cfg(not(feature = "native_lib"))]
@@ -200,7 +200,7 @@ mod generated {
         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
         pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
-        pub(crate) use {NewProxy, Proxy, ProxyMap};
+        pub(crate) use {HandledBy, NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
     }
 }

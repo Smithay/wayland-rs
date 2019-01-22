@@ -33,6 +33,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             None,
         );
         let client_methods = gen_client_methods(&iface_name, &iface.requests);
+        let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
 
         quote! {
@@ -40,7 +41,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             pub mod #mod_name {
                 use super::{
                     Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType, Object,
-                    Message, Argument, ObjectMetadata,
+                    Message, Argument, ObjectMetadata, HandledBy
                 };
 
                 #(#enums)*
@@ -48,6 +49,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #events
                 #interface
                 #client_methods
+                #event_handler_trait
                 #sinces
             }
         }

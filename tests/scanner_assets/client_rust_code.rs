@@ -1,8 +1,8 @@
 #[doc = "Interface for fooing\n\nThis is the dedicated interface for doing foos over any\nkind of other foos."]
 pub mod wl_foo {
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewProxy,
-        Object, ObjectMetadata, Proxy,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewProxy, Object, ObjectMetadata, Proxy,
     };
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
     #[repr(u32)]
@@ -223,6 +223,19 @@ pub mod wl_foo {
             self.send_constructor(msg, implementor, None)
         }
     }
+    #[doc = r" An interface for handling events."]
+    pub trait EventHandler {
+        #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface."]
+        fn cake(&mut self, proxy: Proxy<WlFoo>, kind: CakeKind, amount: u32) {}
+    }
+    impl<T: EventHandler> HandledBy<T> for WlFoo {
+        #[inline]
+        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+            match event {
+                Event::Cake { kind, amount } => handler.cake(proxy, kind, amount),
+            }
+        }
+    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_FOO_IT_SINCE: u16 = 1u16;
     #[doc = r" The minimal object version supporting this request"]
@@ -233,8 +246,8 @@ pub mod wl_foo {
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewProxy,
-        Object, ObjectMetadata, Proxy,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewProxy, Object, ObjectMetadata, Proxy,
     };
     pub enum Request {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
@@ -375,6 +388,14 @@ pub mod wl_bar {
             self.send(msg);
         }
     }
+    #[doc = r" An interface for handling events."]
+    pub trait EventHandler {}
+    impl<T: EventHandler> HandledBy<T> for WlBar {
+        #[inline]
+        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+            match event {}
+        }
+    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
     #[doc = r" The minimal object version supporting this request"]
@@ -383,8 +404,8 @@ pub mod wl_bar {
 #[doc = "core global object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_display {
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewProxy,
-        Object, ObjectMetadata, Proxy,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewProxy, Object, ObjectMetadata, Proxy,
     };
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -441,12 +462,20 @@ pub mod wl_display {
     }
     pub trait RequestsTrait {}
     impl RequestsTrait for Proxy<WlDisplay> {}
+    #[doc = r" An interface for handling events."]
+    pub trait EventHandler {}
+    impl<T: EventHandler> HandledBy<T> for WlDisplay {
+        #[inline]
+        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+            match event {}
+        }
+    }
 }
 #[doc = "global registry object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_registry {
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewProxy,
-        Object, ObjectMetadata, Proxy,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewProxy, Object, ObjectMetadata, Proxy,
     };
     pub enum Request {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
@@ -544,14 +573,22 @@ pub mod wl_registry {
             self.send_constructor(msg, implementor, Some(version))
         }
     }
+    #[doc = r" An interface for handling events."]
+    pub trait EventHandler {}
+    impl<T: EventHandler> HandledBy<T> for WlRegistry {
+        #[inline]
+        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+            match event {}
+        }
+    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u16 = 1u16;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewProxy,
-        Object, ObjectMetadata, Proxy,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewProxy, Object, ObjectMetadata, Proxy,
     };
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -631,6 +668,19 @@ pub mod wl_callback {
     }
     pub trait RequestsTrait {}
     impl RequestsTrait for Proxy<WlCallback> {}
+    #[doc = r" An interface for handling events."]
+    pub trait EventHandler {
+        #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
+        fn done(&mut self, proxy: Proxy<WlCallback>, callback_data: u32) {}
+    }
+    impl<T: EventHandler> HandledBy<T> for WlCallback {
+        #[inline]
+        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+            match event {
+                Event::Done { callback_data } => handler.done(proxy, callback_data),
+            }
+        }
+    }
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u16 = 1u16;
 }
