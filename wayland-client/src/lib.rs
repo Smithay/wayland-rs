@@ -57,8 +57,10 @@
 //! Failure to do so (by dropping the `NewProxy<I>` for example) can cause future fatal
 //! errors if the server tries to send an event to this object.
 //!
-//! An implementation is just an `FnMut(I::Event, Proxy<I>), where `I` is the interface of
-//! the considered object.
+//! An implementation is a struct implementing the `EventHandler` trait for the interface
+//! of the considered object. Alternatively, an `FnMut(I::Event, Proxy<I>)` closure can be
+//! used with the `implement_closure()` method, where `I` is the interface
+//! of the considered object.
 //!
 //! ## Event Queues
 //!

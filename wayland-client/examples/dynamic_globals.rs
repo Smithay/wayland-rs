@@ -1,13 +1,68 @@
 #[macro_use]
 extern crate wayland_client;
 
-use wayland_client::{Display, GlobalManager};
+use wayland_client::{Display, GlobalManager, Proxy};
 
+use wayland_client::protocol::wl_output::{Mode, Subpixel, Transform, WlOutput};
 use wayland_client::protocol::{wl_output, wl_seat};
 
 // An example showcasing the capability of GlobalManager to handle
 // dynamically created globals like wl_seat or wl_output, which can
 // exist with multiplicity and created at any time
+
+/// An event handler for wl_output.
+///
+/// We will use it to implement the wl_output globals.
+struct OutputHandler {
+    name: String,
+    modes: Vec<(Mode, i32, i32, i32)>,
+    scale: i32,
+}
+
+impl wl_output::EventHandler for OutputHandler {
+    fn geometry(
+        &mut self,
+        _proxy: Proxy<WlOutput>,
+        x: i32,
+        y: i32,
+        physical_width: i32,
+        physical_height: i32,
+        subpixel: Subpixel,
+        make: String,
+        model: String,
+        transform: Transform,
+    ) {
+        println!("New output: \"{} ({})\"", make, model);
+        println!(" -> physical dimensions {}x{}", physical_width, physical_height);
+        println!(" -> location in the compositor space: ({}, {})", x, y);
+        println!(" -> transform: {:?}", transform);
+        println!(" -> subpixel orientation: {:?}", subpixel);
+        self.name = format!("{} ({})", make, model);
+    }
+
+    fn mode(&mut self, _proxy: Proxy<WlOutput>, flags: Mode, width: i32, height: i32, refresh: i32) {
+        self.modes.push((flags, width, height, refresh));
+    }
+
+    fn scale(&mut self, _proxy: Proxy<WlOutput>, factor: i32) {
+        self.scale = factor;
+    }
+
+    fn done(&mut self, _proxy: Proxy<WlOutput>) {
+        println!("Modesetting information for output \"{}\"", self.name);
+        println!(" -> scaling factor: {}", self.scale);
+        println!(" -> mode list:");
+        for &(f, w, h, r) in &self.modes {
+            println!(
+                "   -> {}x{} @{}Hz (flags: [ {:?} ])",
+                w,
+                h,
+                (r as f32) / 1000.0,
+                f
+            );
+        }
+    }
+}
 
 fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
@@ -28,7 +83,7 @@ fn main() {
             [wl_seat::WlSeat, 1, |seat: NewProxy<_>| {
                 let mut seat_name = None;
                 let mut caps = None;
-                seat.implement(
+                seat.implement_closure(
                     move |event, _| {
                         use wayland_client::protocol::wl_seat::Event;
                         match event {
@@ -45,61 +100,14 @@ fn main() {
                 )
             }],
             // Same thing with wl_output, but we require version 2
-            [wl_output::WlOutput, 2, |output: NewProxy<_>| {
-                let mut name = "<unknown>".to_owned();
-                let mut modes = Vec::new();
-                let mut scale = 1;
-                output.implement(
-                    move |event, _| {
-                        use wayland_client::protocol::wl_output::Event;
-                        match event {
-                            Event::Geometry {
-                                x,
-                                y,
-                                physical_width,
-                                physical_height,
-                                subpixel,
-                                make,
-                                model,
-                                transform,
-                            } => {
-                                println!("New output: \"{} ({})\"", make, model);
-                                println!(" -> physical dimensions {}x{}", physical_width, physical_height);
-                                println!(" -> location in the compositor space: ({}, {})", x, y);
-                                println!(" -> transform: {:?}", transform);
-                                println!(" -> subpixel orientation: {:?}", subpixel);
-                                name = format!("{} ({})", make, model);
-                            }
-                            Event::Mode {
-                                flags,
-                                width,
-                                height,
-                                refresh,
-                            } => {
-                                modes.push((flags, width, height, refresh));
-                            }
-                            Event::Scale { factor } => {
-                                scale = factor;
-                            }
-                            Event::Done => {
-                                println!("Modesetting information for output \"{}\"", name);
-                                println!(" -> scaling factor: {}", scale);
-                                println!(" -> mode list:");
-                                for &(f, w, h, r) in &modes {
-                                    println!(
-                                        "   -> {}x{} @{}Hz (flags: [ {:?} ])",
-                                        w,
-                                        h,
-                                        (r as f32) / 1000.0,
-                                        f
-                                    );
-                                }
-                            }
-                        }
-                    },
-                    (),
-                )
-            }]
+            [wl_output::WlOutput, 2, |output: NewProxy<_>| output.implement(
+                OutputHandler {
+                    name: "<unknown>".to_owned(),
+                    modes: vec![],
+                    scale: 1,
+                },
+                ()
+            )]
         ),
     );
 

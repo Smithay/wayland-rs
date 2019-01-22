@@ -49,7 +49,7 @@ fn client_user_data() {
 
     // Instantiate the globals
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -63,7 +63,7 @@ fn client_user_data() {
     }
 
     manager
-        .instantiate_auto::<ClientCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<ClientCompositor, _>(|newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

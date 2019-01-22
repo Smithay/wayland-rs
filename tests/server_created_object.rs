@@ -49,10 +49,10 @@ fn data_offer() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement(|_, _| {}, ()))
+        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement(|_, _| {}, ()))
+        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let received = Arc::new(Mutex::new(false));
@@ -60,10 +60,10 @@ fn data_offer() {
 
     ddmgr
         .get_data_device(&seat, move |newdd| {
-            newdd.implement(
+            newdd.implement_closure(
                 move |evt, _| match evt {
                     CDDEvt::DataOffer { id } => {
-                        let doffer = id.implement(|_, _| {}, ());
+                        let doffer = id.implement_dummy();
                         assert!(doffer.version() == 3);
                         // this must be the first server-side ID
                         assert_eq!(doffer.id(), 0xFF000000);

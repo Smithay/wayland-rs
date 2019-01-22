@@ -76,7 +76,7 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement(
+                registry.implement_closure(
                     move |msg, _proxy| {
                         let mut inner = inner.lock().unwrap();
                         match msg {
@@ -122,7 +122,7 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement(
+                registry.implement_closure(
                     move |msg, proxy| {
                         let mut inner = inner.lock().unwrap();
                         let inner = &mut *inner;
@@ -140,26 +140,26 @@ impl GlobalManager {
                                         version: version,
                                     },
                                     proxy,
-                                );
+                                    );
                             }
                             wl_registry::Event::GlobalRemove { name } => {
                                 if let Some((i, _)) =
                                     inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
-                                {
-                                    let (id, interface, _) = inner.list.swap_remove(i);
-                                    (inner.callback)(
-                                        GlobalEvent::Removed {
-                                            id: id,
-                                            interface: interface,
-                                        },
-                                        proxy,
-                                    );
-                                } else {
-                                    panic!(
-                                    "Wayland protocol error: the server removed non-existing global \"{}\".",
-                                    name
-                                );
-                                }
+                                    {
+                                        let (id, interface, _) = inner.list.swap_remove(i);
+                                        (inner.callback)(
+                                            GlobalEvent::Removed {
+                                                id: id,
+                                                interface: interface,
+                                            },
+                                            proxy,
+                                            );
+                                    } else {
+                                        panic!(
+                                            "Wayland protocol error: the server removed non-existing global \"{}\".",
+                                            name
+                                        );
+                                    }
                             }
                         }
                     },

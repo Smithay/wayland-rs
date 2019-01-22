@@ -103,10 +103,10 @@ fn global_filter_try_force() {
 
     let registry2 = client2
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
     registry2
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client2, &mut server).unwrap();
@@ -115,10 +115,10 @@ fn global_filter_try_force() {
 
     let registry = client
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
     registry
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());

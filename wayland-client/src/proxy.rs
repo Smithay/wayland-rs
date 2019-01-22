@@ -273,8 +273,23 @@ impl<I: Interface + 'static> NewProxy<I> {
         }
     }
 
-    /// Implement this proxy using given function and implementation data.
-    pub fn implement<F, UD>(self, implementation: F, user_data: UD) -> Proxy<I>
+    /// Implement this proxy using the given handler and implementation data.
+    ///
+    /// The handler must be a struct implementing the `EventHandler` trait of the `I` interface.
+    pub fn implement<T, UD>(self, mut handler: T, user_data: UD) -> Proxy<I>
+    where
+        T: Send + 'static,
+        UD: Send + Sync + 'static,
+        I: HandledBy<T>,
+        I::Event: MessageGroup<Map = ProxyMap>,
+    {
+        let implementation = move |event, proxy: Proxy<I>| I::handle(&mut handler, event, proxy.clone());
+
+        self.implement_closure(implementation, user_data)
+    }
+
+    /// Implement this proxy using the given implementation closure and implementation data.
+    pub fn implement_closure<F, UD>(self, implementation: F, user_data: UD) -> Proxy<I>
     where
         F: FnMut(I::Event, Proxy<I>) + Send + 'static,
         UD: Send + Sync + 'static,
@@ -288,6 +303,14 @@ impl<I: Interface + 'static> NewProxy<I> {
             _i: ::std::marker::PhantomData,
             inner: inner,
         }
+    }
+
+    /// Implement this proxy using a dummy handler which does nothing.
+    pub fn implement_dummy(self) -> Proxy<I>
+    where
+        I::Event: MessageGroup<Map = ProxyMap>,
+    {
+        self.implement_closure(|_, _| (), ())
     }
 
     /// Implement this proxy using given function and implementation data.

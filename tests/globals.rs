@@ -123,25 +123,24 @@ fn auto_instantiate() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
         .unwrap();
     assert!(compositor.version() == 4);
     let shell = manager
-        .instantiate_auto::<WlShell, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<WlShell, _>(|newp| newp.implement_dummy())
         .unwrap();
     assert!(shell.version() == 1);
 
     assert!(
-        manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement(|_, _| {}, ()))
+        manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement_dummy())
             == Err(GlobalError::VersionTooLow(4))
     );
     assert!(
-        manager.instantiate_exact::<WlOutput, _>(5, |newp| newp.implement(|_, _| {}, ()))
+        manager.instantiate_exact::<WlOutput, _>(5, |newp| newp.implement_dummy())
             == Err(GlobalError::Missing)
     );
     assert!(
-        manager.instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
-            == Err(GlobalError::Missing)
+        manager.instantiate_auto::<WlOutput, _>(|newp| newp.implement_dummy()) == Err(GlobalError::Missing)
     );
 }
 
@@ -165,14 +164,14 @@ fn wrong_global() {
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
 
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
     registry
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());
@@ -190,13 +189,13 @@ fn wrong_global_version() {
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
 
     // instantiate a global with wrong version, this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(2, 1, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlCompositor, _>(2, 1, |newp| newp.implement_dummy())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());
@@ -214,13 +213,13 @@ fn invalid_global_version() {
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(0, 1, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlCompositor, _>(0, 1, |newp| newp.implement_dummy())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());
@@ -238,13 +237,13 @@ fn wrong_global_id() {
     let mut client = TestClient::new(&server.socket_name);
     let registry = client
         .display
-        .get_registry(|newp| newp.implement(|_, _| {}, ()))
+        .get_registry(|newp| newp.implement_dummy())
         .unwrap();
 
     // instantiate a global with wrong id, this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(1, 3, |newp| newp.implement(|_, _| {}, ()))
+        .bind::<WlCompositor, _>(1, 3, |newp| newp.implement_dummy())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server).is_err());
@@ -269,11 +268,11 @@ fn two_step_binding() {
     roundtrip(&mut client, &mut server).unwrap();
 
     manager
-        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
         .unwrap();
 
     manager
-        .instantiate_auto::<WlOutput, _>(|newp| newp.implement(|_, _| {}, ()))
+        .instantiate_auto::<WlOutput, _>(|newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

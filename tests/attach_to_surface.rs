@@ -115,12 +115,10 @@ fn attach_null() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
-            comp.implement(|_, _| {}, ())
-        })
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| comp.implement_dummy())
         .unwrap();
     let surface = compositor
-        .create_surface(|surface| surface.implement(|_, _| {}, ()))
+        .create_surface(|surface| surface.implement_dummy())
         .unwrap();
     surface.attach(None, 0, 0);
 
@@ -146,26 +144,24 @@ fn attach_buffer() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let shm = manager
-        .instantiate_exact::<wayc::protocol::wl_shm::WlShm, _>(1, |shm| shm.implement(|_, _| {}, ()))
+        .instantiate_exact::<wayc::protocol::wl_shm::WlShm, _>(1, |shm| shm.implement_dummy())
         .unwrap();
 
     let mut file = tempfile::tempfile().unwrap();
     write!(file, "I like trains!").unwrap();
     file.flush().unwrap();
     let pool = shm
-        .create_pool(file.as_raw_fd(), 42, |newp| newp.implement(|_, _| {}, ()))
+        .create_pool(file.as_raw_fd(), 42, |newp| newp.implement_dummy())
         .unwrap();
     let buffer = pool
-        .create_buffer(0, 0, 0, 0, Format::Argb8888, |newb| newb.implement(|_, _| {}, ()))
+        .create_buffer(0, 0, 0, 0, Format::Argb8888, |newb| newb.implement_dummy())
         .unwrap();
 
     let compositor = manager
-        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| {
-            comp.implement(|_, _| {}, ())
-        })
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| comp.implement_dummy())
         .unwrap();
     let surface = compositor
-        .create_surface(|surface| surface.implement(|_, _| {}, ()))
+        .create_surface(|surface| surface.implement_dummy())
         .unwrap();
     surface.attach(Some(&buffer), 0, 0);
 
