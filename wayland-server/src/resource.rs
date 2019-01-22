@@ -286,3 +286,11 @@ impl<I: Interface> Clone for Resource<I> {
         }
     }
 }
+
+/// Provides a callback function to handle requests of the implementing interface via `T`.
+///
+/// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
+pub trait HandledBy<T>: Interface + Sized {
+    /// Handles an event.
+    fn handle(handler: &mut T, request: Self::Request, resource: Resource<Self>);
+}

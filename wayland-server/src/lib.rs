@@ -90,7 +90,7 @@ mod resource;
 pub use client::Client;
 pub use display::{Display, DisplayToken};
 pub use globals::Global;
-pub use resource::{NewResource, Resource};
+pub use resource::{HandledBy, NewResource, Resource};
 
 pub use wayland_commons::utils::UserDataMap;
 pub use wayland_commons::{AnonymousObject, Interface, MessageGroup, NoMessage};
