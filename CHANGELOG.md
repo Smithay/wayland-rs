@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- [scanner] Generate `EventHandler` and `RequestHandler` traits for trait-based event
+  and request handling (as opposed to manually matching on enums).
+- [client & server] **Breaking**: Change `NewProxy/NewRequest::implement()` to accept
+  a handler struct which implements the corresponding `EventHandler/RequestHandler` trait.
+- [client & server] Introduce `NewProxy/NewRequest::implement_closure()` which behaves
+  like the previous `NewProxy/NewRequest::implement()` and
+  `NewProxy/NewRequest::implement_dummy()` which adds an empty implementation.
+
 ## 0.21.11 -- 2019-01-19
 
 - [commons] Fix incorrect number of server-side ids when using the rust implementation
