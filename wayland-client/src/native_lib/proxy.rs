@@ -1,6 +1,7 @@
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread::{self, ThreadId};
 
 use wayland_commons::utils::UserData;
 use wayland_commons::wire::ArgumentType;
@@ -15,13 +16,15 @@ use wayland_sys::common::*;
 pub struct ProxyInternal {
     alive: AtomicBool,
     user_data: UserData,
+    queue_thread: ThreadId,
 }
 
 impl ProxyInternal {
-    pub fn new(user_data: UserData) -> ProxyInternal {
+    pub fn new(user_data: UserData, thread_id: ThreadId) -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
             user_data,
+            queue_thread: thread_id,
         }
     }
 }
@@ -30,7 +33,7 @@ impl ProxyInternal {
 pub(crate) struct ProxyInner {
     internal: Option<Arc<ProxyInternal>>,
     ptr: *mut wl_proxy,
-    is_wrapper: bool,
+    wrapping: Option<ThreadId>,
 }
 
 unsafe impl Send for ProxyInner {}
@@ -165,7 +168,12 @@ impl ProxyInner {
             }
         }
 
-        Ok(unsafe { NewProxyInner::from_c_ptr(ptr) })
+        let mut newp = unsafe { NewProxyInner::from_c_ptr(ptr) };
+        newp.queue_thread = self
+            .wrapping
+            .or_else(|| self.internal.as_ref().map(|int| int.queue_thread))
+            .unwrap_or(thread::current().id());
+        Ok(newp)
     }
 
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
@@ -193,14 +201,21 @@ impl ProxyInner {
         Ok(ProxyInner {
             internal: self.internal.clone(),
             ptr: wrapper_ptr,
-            is_wrapper: true,
+            wrapping: Some(thread::current().id()), // EventQueueInner is not Send, so we are necessarily on the right thread
         })
     }
 
     pub(crate) fn child<I: Interface>(&self) -> NewProxyInner {
         let ptr =
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create, self.ptr, I::c_interface()) };
-        NewProxyInner { ptr: ptr }
+        let queue_thread = self
+            .wrapping
+            .or_else(|| self.internal.as_ref().map(|internal| internal.queue_thread))
+            .unwrap_or_else(|| thread::current().id());
+        NewProxyInner {
+            ptr: ptr,
+            queue_thread: queue_thread,
+        }
     }
 
     pub(crate) fn c_ptr(&self) -> *mut wl_proxy {
@@ -213,9 +228,10 @@ impl ProxyInner {
                 internal: Some(Arc::new(ProxyInternal {
                     alive: AtomicBool::new(false),
                     user_data: UserData::empty(),
+                    queue_thread: thread::current().id(),
                 })),
                 ptr: ptr,
-                is_wrapper: false,
+                wrapping: None,
             };
         }
 
@@ -233,7 +249,7 @@ impl ProxyInner {
         ProxyInner {
             internal: internal,
             ptr: ptr,
-            is_wrapper: false,
+            wrapping: None,
         }
     }
 
@@ -241,7 +257,7 @@ impl ProxyInner {
         ProxyInner {
             internal: None,
             ptr: d,
-            is_wrapper: true,
+            wrapping: Some(thread::current().id()),
         }
     }
 
@@ -250,18 +266,28 @@ impl ProxyInner {
             internal: Some(Arc::new(ProxyInternal {
                 alive: AtomicBool::new(false),
                 user_data: UserData::empty(),
+                queue_thread: self
+                    .internal
+                    .as_ref()
+                    .map(|int| int.queue_thread)
+                    .unwrap_or_else(|| thread::current().id()),
             })),
             ptr: ::std::ptr::null_mut(),
-            is_wrapper: false,
+            wrapping: None,
         }
     }
 }
 
 pub(crate) struct NewProxyInner {
     ptr: *mut wl_proxy,
+    queue_thread: ThreadId,
 }
 
 impl NewProxyInner {
+    pub(crate) fn is_queue_on_current_thread(&self) -> bool {
+        self.queue_thread == thread::current().id()
+    }
+
     pub(crate) unsafe fn implement<I: Interface, F>(
         self,
         implementation: F,
@@ -270,7 +296,7 @@ impl NewProxyInner {
     where
         F: FnMut(I::Event, Proxy<I>) + 'static,
     {
-        let new_user_data = Box::new(ProxyUserData::new(implementation, user_data));
+        let new_user_data = Box::new(ProxyUserData::new(implementation, user_data, self.queue_thread));
         let internal = new_user_data.internal.clone();
 
         ffi_dispatch!(
@@ -285,7 +311,7 @@ impl NewProxyInner {
         ProxyInner {
             internal: Some(internal),
             ptr: self.ptr,
-            is_wrapper: false,
+            wrapping: None,
         }
     }
 
@@ -294,7 +320,10 @@ impl NewProxyInner {
     }
 
     pub(crate) unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> NewProxyInner {
-        NewProxyInner { ptr: ptr }
+        NewProxyInner {
+            ptr: ptr,
+            queue_thread: thread::current().id(),
+        }
     }
 }
 
@@ -304,12 +333,12 @@ struct ProxyUserData<I: Interface> {
 }
 
 impl<I: Interface> ProxyUserData<I> {
-    fn new<F>(implem: F, user_data: UserData) -> ProxyUserData<I>
+    fn new<F>(implem: F, user_data: UserData, thread_id: ThreadId) -> ProxyUserData<I>
     where
         F: FnMut(I::Event, Proxy<I>) + 'static,
     {
         ProxyUserData {
-            internal: Arc::new(ProxyInternal::new(user_data)),
+            internal: Arc::new(ProxyInternal::new(user_data, thread_id)),
             implem: Some(Box::new(implem)),
         }
     }

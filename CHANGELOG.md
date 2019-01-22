@@ -9,6 +9,13 @@
 - [client & server] Introduce `NewProxy/NewRequest::implement_closure()` which behaves
   like the previous `NewProxy/NewRequest::implement()` and
   `NewProxy/NewRequest::implement_dummy()` which adds an empty implementation.
+- **Breaking** [client/server] `implement()` method will now runtime-track which thread it
+  can be called on, making it safe to use non-`Send` implementation. `implement_nonsend()`
+  is removed as being non-`Send` is now the default. `implement_threadsafe()` is added
+  for when a threadsafe impl is needed.
+- **Breaking** [server] When the `native_lib` cargo feature is active, none of the types
+  of the server crate are threadsafe, as the underlying C lib actually never supported it.
+  The rust implementation remains threadsafe.
 
 ## 0.21.11 -- 2019-01-19
 

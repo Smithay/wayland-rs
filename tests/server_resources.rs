@@ -6,6 +6,7 @@ use ways::protocol::wl_output;
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
 
+use std::os::unix::io::IntoRawFd;
 use std::sync::{Arc, Mutex};
 
 #[test]
@@ -83,6 +84,7 @@ fn resource_user_data() {
     assert!(cloned.user_data::<usize>() == Some(&1000));
 }
 
+#[cfg(not(feature = "native_lib"))]
 #[test]
 fn resource_user_data_wrong_thread() {
     let mut server = TestServer::new();
@@ -90,13 +92,11 @@ fn resource_user_data_wrong_thread() {
     let outputs = Arc::new(Mutex::new(None));
     let outputs2 = outputs.clone();
 
-    let token = server.display.get_token();
-
     server
         .display
         .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
             let mut guard = outputs2.lock().unwrap();
-            let output = newo.implement_nonsend(|_, _| {}, None::<fn(_)>, 0xDEADBEEFusize, &token);
+            let output = newo.implement_closure(|_, _| {}, None::<fn(_)>, 0xDEADBEEFusize);
             *guard = Some(output);
         });
 
@@ -122,6 +122,24 @@ fn resource_user_data_wrong_thread() {
     })
     .join()
     .unwrap();
+}
+
+#[cfg(not(feature = "native_lib"))]
+#[test]
+fn resource_implement_wrong_thread() {
+    let mut server = TestServer::new();
+
+    let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
+    let my_client = unsafe { server.display.create_client(s1.into_raw_fd()) };
+
+    let ret = ::std::thread::spawn(move || {
+        let newp = my_client.create_resource::<wl_output::WlOutput>(1).unwrap();
+        newp.implement_closure(|_, _| {}, None::<fn(_)>, ()); // should panic
+    })
+    .join();
+
+    // child thread should have panicked
+    assert!(ret.is_err());
 }
 
 #[test]

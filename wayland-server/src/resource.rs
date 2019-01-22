@@ -1,7 +1,7 @@
 use wayland_commons::utils::UserData;
 use wayland_commons::{Interface, MessageGroup};
 
-use {Client, DisplayToken};
+use Client;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
@@ -187,7 +187,76 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
     /// interface.
+    ///
+    /// This must be called from the thread hosting the wayland event loop, otherwise
+    /// it will panic.
     pub fn implement<T, Dest, UD>(
+        self,
+        mut handler: T,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> Resource<I>
+    where
+        T: 'static,
+        Dest: FnMut(Resource<I>) + 'static,
+        UD: 'static,
+        I: HandledBy<T>,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        let implementation =
+            move |request, resource: Resource<I>| I::handle(&mut handler, request, resource.clone());
+
+        self.implement_closure(implementation, destructor, user_data)
+    }
+
+    /// Implement this resource using given function, destructor, and user data.
+    ///
+    /// This must be called from the thread hosting the wayland event loop, otherwise
+    /// it will panic.
+    pub fn implement_closure<F, Dest, UD>(
+        self,
+        implementation: F,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> Resource<I>
+    where
+        F: FnMut(I::Request, Resource<I>) + 'static,
+        Dest: FnMut(Resource<I>) + 'static,
+        UD: 'static,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            if !self.inner.is_loop_on_current_thread() {
+                panic!("Attempted to implement a resource from an other thread than the one hosting the event loop.");
+            }
+        }
+        let inner = unsafe {
+            self.inner
+                .implement::<I, F, Dest>(implementation, destructor, UserData::new(user_data))
+        };
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
+    }
+
+    /// Implement this resource using a dummy handler which does nothing.
+    pub fn implement_dummy(self) -> Resource<I>
+    where
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        self.implement_closure(|_, _| (), None::<fn(_)>, ())
+    }
+
+    /// Implement this resource using a handler, destructor and user data.
+    ///
+    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
+    /// interface.
+    ///
+    /// This method allows you to implement from any thread with the constraint
+    /// that the implementation and user-data must be threadsafe.
+    pub fn implement_threadsafe<T, Dest, UD>(
         self,
         mut handler: T,
         destructor: Option<Dest>,
@@ -203,11 +272,14 @@ impl<I: Interface + 'static> NewResource<I> {
         let implementation =
             move |request, resource: Resource<I>| I::handle(&mut handler, request, resource.clone());
 
-        self.implement_closure(implementation, destructor, user_data)
+        self.implement_closure_threadsafe(implementation, destructor, user_data)
     }
 
     /// Implement this resource using given function, destructor, and user data.
-    pub fn implement_closure<F, Dest, UD>(
+    ///
+    /// This method allows you to implement from any thread with the constraint
+    /// that the implementation and user-data must be threadsafe.
+    pub fn implement_closure_threadsafe<F, Dest, UD>(
         self,
         implementation: F,
         destructor: Option<Dest>,
@@ -225,54 +297,6 @@ impl<I: Interface + 'static> NewResource<I> {
                 destructor,
                 UserData::new_threadsafe(user_data),
             )
-        };
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-    }
-
-    /// Implement this resource using a dummy handler which does nothing.
-    pub fn implement_dummy(self) -> Resource<I>
-    where
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        self.implement_closure(|_, _| (), None::<fn(_)>, ())
-    }
-
-    /// Implement this resource using given function and implementation data.
-    ///
-    /// This method allows the implementation data to not be `Send`, but requires for
-    /// safety that you provide a token to the event loop owning the proxy. As the token
-    /// is not `Send`, this ensures you are implementing the resource from the same thread
-    /// as the event loop runs on.
-    ///
-    /// ** Panics **
-    ///
-    /// This function will panic if you create several wayland displays and do not
-    /// provide a token to the right one.
-    pub fn implement_nonsend<F, Dest, UD>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UD,
-        token: &DisplayToken,
-    ) -> Resource<I>
-    where
-        F: FnMut(I::Request, Resource<I>) + 'static,
-        Dest: FnMut(Resource<I>) + 'static,
-        UD: 'static,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        let display = token
-            .upgrade()
-            .expect("Attempted to implement a resource on a dead Display.");
-        if !self.inner.on_display(&*display.borrow()) {
-            panic!("Attempted to implement a resource with the wrong DisplayToken.")
-        }
-        let inner = unsafe {
-            self.inner
-                .implement::<I, F, Dest>(implementation, destructor, UserData::new(user_data))
         };
         Resource {
             _i: ::std::marker::PhantomData,

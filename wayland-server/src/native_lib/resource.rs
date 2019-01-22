@@ -32,9 +32,6 @@ pub(crate) struct ResourceInner {
     _hack: (bool, bool),
 }
 
-unsafe impl Send for ResourceInner {}
-unsafe impl Sync for ResourceInner {}
-
 impl ResourceInner {
     pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
         if let Some(ref internal) = self.internal {
@@ -203,14 +200,6 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
-    pub(crate) fn on_display(&self, display: &super::DisplayInner) -> bool {
-        unsafe {
-            let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
-            let display_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_display, client_ptr);
-            display_ptr == display.ptr
-        }
-    }
-
     pub(crate) unsafe fn implement<I: Interface, F, Dest>(
         self,
         implementation: F,

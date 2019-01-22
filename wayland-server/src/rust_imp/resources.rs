@@ -160,8 +160,8 @@ impl NewResourceInner {
         }
     }
 
-    pub(crate) fn on_display(&self, inner: &super::DisplayInner) -> bool {
-        inner.clients_mgr.borrow().has_client(&self.client)
+    pub(crate) fn is_loop_on_current_thread(&self) -> bool {
+        self.client.loop_thread == ::std::thread::current().id()
     }
 
     pub(crate) unsafe fn implement<I: Interface, F, Dest>(

@@ -76,10 +76,9 @@ fn client_dispatch() {
     // do a manual roundtrip
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
-    let token = client.event_queue.get_token();
     client
         .display
-        .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), (), &token) })
+        .sync(move |newcb| newcb.implement_closure(move |_, _| done2.set(true), ()))
         .unwrap();
     while !done.get() {
         client.event_queue.dispatch().unwrap();

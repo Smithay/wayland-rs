@@ -76,7 +76,7 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement_closure(
+                registry.implement_closure_threadsafe(
                     move |msg, _proxy| {
                         let mut inner = inner.lock().unwrap();
                         match msg {
@@ -122,7 +122,7 @@ impl GlobalManager {
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement_closure(
+                registry.implement_closure_threadsafe(
                     move |msg, proxy| {
                         let mut inner = inner.lock().unwrap();
                         let inner = &mut *inner;

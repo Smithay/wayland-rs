@@ -4,7 +4,7 @@ use std::ffi::{OsStr, OsString};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::wl_display;
@@ -24,22 +24,6 @@ pub struct Display {
     inner: Rc<RefCell<DisplayInner>>,
 }
 
-/// A token that is required for providing non-Send implementations to resources
-///
-/// This is used to ensure you are indeed on the right thread.
-///
-/// See `NewResource::implement_nonsend()`.
-#[derive(Clone)]
-pub struct DisplayToken {
-    inner: Weak<RefCell<DisplayInner>>,
-}
-
-impl DisplayToken {
-    pub(crate) fn upgrade(&self) -> Option<Rc<RefCell<DisplayInner>>> {
-        Weak::upgrade(&self.inner)
-    }
-}
-
 impl Display {
     /// Create a new display
     ///
@@ -51,15 +35,6 @@ impl Display {
     pub fn new<Data: 'static>(handle: LoopHandle<Data>) -> Display {
         Display {
             inner: DisplayInner::new(handle),
-        }
-    }
-
-    /// Get a `DisplayToken` for make non-send implementations
-    ///
-    /// This is required by `NewResource::implement_nonsend`.
-    pub fn get_token(&self) -> DisplayToken {
-        DisplayToken {
-            inner: Rc::downgrade(&self.inner),
         }
     }
 
