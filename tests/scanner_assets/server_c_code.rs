@@ -3,8 +3,8 @@ pub mod wl_foo {
     use super::sys::common::{wl_argument, wl_array, wl_interface};
     use super::sys::server::*;
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewResource,
-        Object, ObjectMetadata, Resource,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewResource, Object, ObjectMetadata, Resource,
     };
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
     #[repr(u32)]
@@ -270,6 +270,37 @@ pub mod wl_foo {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
     }
+    #[doc = r" An interface for handling requests."]
+    pub trait RequestHandler {
+        #[doc = "do some foo\n\nThis will do some foo with its args."]
+        fn foo_it(
+            &mut self,
+            request: Resource<WlFoo>,
+            number: i32,
+            unumber: u32,
+            text: String,
+            float: f64,
+            file: ::std::os::unix::io::RawFd,
+        ) {
+        }
+        #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
+        fn create_bar(&mut self, request: Resource<WlFoo>, id: NewResource<super::wl_bar::WlBar>) {}
+    }
+    impl<T: RequestHandler> HandledBy<T> for WlFoo {
+        #[inline]
+        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+            match request {
+                Request::FooIt {
+                    number,
+                    unumber,
+                    text,
+                    float,
+                    file,
+                } => handler.foo_it(resource, number, unumber, text, float, file),
+                Request::CreateBar { id } => handler.create_bar(resource, id),
+            }
+        }
+    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_FOO_IT_SINCE: u16 = 1u16;
     #[doc = r" The minimal object version supporting this request"]
@@ -282,8 +313,8 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_array, wl_interface};
     use super::sys::server::*;
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewResource,
-        Object, ObjectMetadata, Resource,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewResource, Object, ObjectMetadata, Resource,
     };
     pub enum Request {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
@@ -459,6 +490,35 @@ pub mod wl_bar {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
     }
+    #[doc = r" An interface for handling requests."]
+    pub trait RequestHandler {
+        #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface."]
+        fn bar_delivery(
+            &mut self,
+            request: Resource<WlBar>,
+            kind: super::wl_foo::DeliveryKind,
+            target: Resource<super::wl_foo::WlFoo>,
+            metadata: Vec<u8>,
+            metametadata: Option<Vec<u8>>,
+        ) {
+        }
+        #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
+        fn release(&mut self, request: Resource<WlBar>) {}
+    }
+    impl<T: RequestHandler> HandledBy<T> for WlBar {
+        #[inline]
+        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+            match request {
+                Request::BarDelivery {
+                    kind,
+                    target,
+                    metadata,
+                    metametadata,
+                } => handler.bar_delivery(resource, kind, target, metadata, metametadata),
+                Request::Release {} => handler.release(resource),
+            }
+        }
+    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
     #[doc = r" The minimal object version supporting this request"]
@@ -469,8 +529,8 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_array, wl_interface};
     use super::sys::server::*;
     use super::{
-        AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup, NewResource,
-        Object, ObjectMetadata, Resource,
+        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
+        NewResource, Object, ObjectMetadata, Resource,
     };
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -577,6 +637,14 @@ pub mod wl_callback {
         const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
+        }
+    }
+    #[doc = r" An interface for handling requests."]
+    pub trait RequestHandler {}
+    impl<T: RequestHandler> HandledBy<T> for WlCallback {
+        #[inline]
+        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+            match request {}
         }
     }
     #[doc = r" The minimal object version supporting this event"]

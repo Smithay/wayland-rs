@@ -33,7 +33,7 @@ macro_rules! wayland_protocol(
             #[cfg(feature = "server")]
             pub mod server {
                 //! Server-side API of this protocol
-                pub(crate) use wayland_server::{NewResource, Resource, ResourceMap};
+                pub(crate) use wayland_server::{NewResource, Resource, ResourceMap, HandledBy};
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
@@ -83,7 +83,7 @@ macro_rules! wayland_protocol(
             #[cfg(feature = "server")]
             pub mod server {
                 //! Server-side API of this protocol
-                pub(crate) use wayland_server::{NewResource, Resource, ResourceMap};
+                pub(crate) use wayland_server::{NewResource, Resource, ResourceMap, HandledBy};
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};

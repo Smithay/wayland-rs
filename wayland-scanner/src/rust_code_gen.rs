@@ -33,7 +33,8 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             None,
         );
         let client_methods = gen_client_methods(&iface_name, &iface.requests);
-        let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events);
+        let event_handler_trait = gen_event_handler_trait(
+            &iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
 
         quote! {
@@ -69,6 +70,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
         .map(|iface| {
             let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
             let mod_name = Ident::new(&iface.name, Span::call_site());
+            let iface_name = Ident::new(&snake_to_camel(&iface.name), Span::call_site());
 
             let enums = &iface.enums;
             let requests = gen_messagegroup(
@@ -91,6 +93,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 iface.version,
                 None,
             );
+            let request_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
 
             quote! {
@@ -98,13 +101,14 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 pub mod #mod_name {
                     use super::{
                         Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc,
-                        ArgumentType, Object, Message, Argument, ObjectMetadata
+                        ArgumentType, Object, Message, Argument, ObjectMetadata, HandledBy
                     };
 
                     #(#enums)*
                     #requests
                     #events
                     #interface
+                    #request_handler_trait
                     #sinces
                 }
             }

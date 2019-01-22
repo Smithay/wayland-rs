@@ -826,7 +826,7 @@ pub(crate) fn gen_client_methods(name: &Ident, messages: &[Message]) -> TokenStr
     }
 }
 
-fn event_method_prototype(name: &Ident, msg: &Message) -> TokenStream {
+fn event_method_prototype(name: &Ident, msg: &Message, side: Side) -> TokenStream {
     let method_name = Ident::new(
         &format!("{}{}", if is_keyword(&msg.name) { "_" } else { "" }, msg.name),
         Span::call_site(),
@@ -849,7 +849,7 @@ fn event_method_prototype(name: &Ident, msg: &Message) -> TokenStream {
                 Type::Array => quote!(Vec<u8>),
                 Type::Fd => quote!(::std::os::unix::io::RawFd),
                 Type::Object => {
-                    let object_name = Side::Client.object_name();
+                    let object_name = side.object_name();
                     if let Some(ref iface) = arg.interface {
                         let iface_mod = Ident::new(&iface, Span::call_site());
                         let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
@@ -859,8 +859,7 @@ fn event_method_prototype(name: &Ident, msg: &Message) -> TokenStream {
                     }
                 }
                 Type::NewId => {
-                    let object_name =
-                        Ident::new(&format!("New{}", Side::Client.object_name()), Span::call_site());
+                    let object_name = Ident::new(&format!("New{}", side.object_name()), Span::call_site());
                     if let Some(ref iface) = arg.interface {
                         let iface_mod = Ident::new(&iface, Span::call_site());
                         let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
@@ -885,12 +884,21 @@ fn event_method_prototype(name: &Ident, msg: &Message) -> TokenStream {
         }
     });
 
+    let object_type = side.object_name();
+    let object_name = Ident::new(
+        match side {
+            Side::Client => "proxy",
+            Side::Server => "request",
+        },
+        Span::call_site(),
+    );
+
     quote! {
-        fn #method_name(&mut self, proxy: Proxy<#name>, #(#method_args),*) {}
+        fn #method_name(&mut self, #object_name: #object_type<#name>, #(#method_args),*) {}
     }
 }
 
-pub(crate) fn gen_event_handler_trait(name: &Ident, messages: &[Message]) -> TokenStream {
+pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side: Side) -> TokenStream {
     let methods = messages.iter().map(|msg| {
         let mut docs = String::new();
         if let Some((ref short, ref long)) = msg.description {
@@ -904,7 +912,7 @@ pub(crate) fn gen_event_handler_trait(name: &Ident, messages: &[Message]) -> Tok
         }
 
         let doc_attr = to_doc_attr(&docs);
-        let proto = event_method_prototype(name, &msg);
+        let proto = event_method_prototype(iname, &msg, side);
 
         quote! {
             #doc_attr
@@ -937,26 +945,50 @@ pub(crate) fn gen_event_handler_trait(name: &Ident, messages: &[Message]) -> Tok
 
         let arg_names_2 = arg_names.clone();
 
-        quote! {
-            Event::#msg_name { #(#arg_names),* } => {
-                handler.#method_name(proxy, #(#arg_names_2),*)
-            }
+        match side {
+            Side::Client => quote! {
+                Event::#msg_name { #(#arg_names),* } => {
+                    handler.#method_name(proxy, #(#arg_names_2),*)
+                }
+            },
+            Side::Server => quote! {
+                Request::#msg_name { #(#arg_names),* } => {
+                    handler.#method_name(resource, #(#arg_names_2),*)
+                }
+            },
         }
     });
 
-    quote! {
-        /// An interface for handling events.
-        pub trait EventHandler {
-            #(#methods)*
-        }
+    match side {
+        Side::Client => quote! {
+            /// An interface for handling events.
+            pub trait EventHandler {
+                #(#methods)*
+            }
 
-        impl<T: EventHandler> HandledBy<T> for #name {
-            #[inline]
-            fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
-                match event {
-                    #(#method_patterns)*
+            impl<T: EventHandler> HandledBy<T> for #iname {
+                #[inline]
+                fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+                    match event {
+                        #(#method_patterns)*
+                    }
                 }
             }
-        }
+        },
+        Side::Server => quote! {
+            /// An interface for handling requests.
+            pub trait RequestHandler {
+                #(#methods)*
+            }
+
+            impl<T: RequestHandler> HandledBy<T> for #iname {
+                #[inline]
+                fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+                    match request {
+                        #(#method_patterns)*
+                    }
+                }
+            }
+        },
     }
 }
