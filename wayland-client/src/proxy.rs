@@ -359,3 +359,11 @@ impl<I: Interface + 'static> NewProxy<I> {
         }
     }
 }
+
+/// Provides a callback function to handle events of the implementing interface via `T`.
+///
+/// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
+pub trait HandledBy<T>: Interface + Sized {
+    /// Handles an event.
+    fn handle(handler: &mut T, event: Self::Event, proxy: Proxy<Self>);
+}

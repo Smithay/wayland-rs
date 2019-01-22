@@ -140,7 +140,7 @@ pub use display::{ConnectError, Display};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
 pub use imp::ProxyMap;
-pub use proxy::{NewProxy, Proxy};
+pub use proxy::{HandledBy, NewProxy, Proxy};
 
 #[cfg(feature = "cursor")]
 pub mod cursor;
