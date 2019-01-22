@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::{self, ThreadId};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::utils::UserData;
@@ -19,6 +20,7 @@ pub(crate) struct ObjectMeta {
     pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
     pub(crate) server_destroyed: bool,
     pub(crate) client_destroyed: bool,
+    queue_thread: ThreadId,
 }
 
 impl ObjectMetadata for ObjectMeta {
@@ -30,6 +32,7 @@ impl ObjectMetadata for ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
+            queue_thread: self.queue_thread,
         }
     }
 }
@@ -43,6 +46,7 @@ impl ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
+            queue_thread: thread::current().id(),
         }
     }
 
@@ -54,6 +58,7 @@ impl ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: true,
             client_destroyed: true,
+            queue_thread: thread::current().id(),
         }
     }
 }
@@ -231,6 +236,8 @@ impl ProxyInner {
     pub(crate) fn make_wrapper(&self, queue: &EventQueueInner) -> Result<ProxyInner, ()> {
         let mut wrapper = self.clone();
         wrapper.object.meta.buffer = queue.buffer.clone();
+        // EventQueueInner is not Send so we must be in the right thread
+        wrapper.object.meta.queue_thread = thread::current().id();
         Ok(wrapper)
     }
 
@@ -277,12 +284,13 @@ impl NewProxyInner {
         }
     }
 
-    /// Racy method, if called, must be called before any event to this object
-    /// is read from the socket, or it'll end up in the wrong queue...
-    pub(crate) unsafe fn assign_queue(&self, queue: &EventQueueInner) {
-        let _ = self.map.lock().unwrap().with(self.id, |obj| {
-            obj.meta.buffer = queue.buffer.clone();
-        });
+    pub(crate) fn is_queue_on_current_thread(&self) -> bool {
+        self.map
+            .lock()
+            .unwrap()
+            .find(self.id)
+            .map(|obj| obj.meta.queue_thread == thread::current().id())
+            .unwrap_or(false)
     }
 
     // Invariants: Impl is either `Send` or we are on the same thread as the target event loop

@@ -4,6 +4,7 @@ use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
+use std::thread::{self, ThreadId};
 
 use nix::Result as NixResult;
 
@@ -193,6 +194,7 @@ impl ClientConnection {
         let dummy_client = ClientInner {
             data: Arc::new(Mutex::new(None)),
             user_data_map: self.user_data_map.clone(),
+            loop_thread: thread::current().id(),
         };
         self.map.lock().unwrap().with_all(|id, obj| {
             let resource = ResourceInner {
@@ -214,6 +216,7 @@ impl ClientConnection {
 pub(crate) struct ClientInner {
     pub(crate) data: Arc<Mutex<Option<ClientConnection>>>,
     user_data_map: Arc<UserDataMap>,
+    pub(crate) loop_thread: ThreadId,
 }
 
 impl ClientInner {
@@ -330,6 +333,7 @@ impl ClientManager {
         let client = ClientInner {
             data: Arc::new(Mutex::new(Some(cx))),
             user_data_map,
+            loop_thread: thread::current().id(), // init_client is only called by the display, which does not change threads
         };
 
         let implementation = ClientImplementation {
@@ -370,15 +374,6 @@ impl ClientManager {
         }
 
         client
-    }
-
-    pub(crate) fn has_client(&self, client: &ClientInner) -> bool {
-        for &(_, ref c) in &self.clients {
-            if c.equals(client) {
-                return true;
-            }
-        }
-        false
     }
 
     pub(crate) fn flush_all(&mut self) {

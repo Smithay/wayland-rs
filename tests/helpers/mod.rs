@@ -11,6 +11,7 @@ use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::unix::io::RawFd;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 
 pub struct TestServer {
@@ -48,7 +49,7 @@ impl TestServer {
 }
 
 pub struct TestClient {
-    pub display: self::wayc::Display,
+    pub display: Arc<self::wayc::Display>,
     pub event_queue: self::wayc::EventQueue,
 }
 
@@ -57,7 +58,7 @@ impl TestClient {
         let (display, event_queue) =
             self::wayc::Display::connect_to_name(socket_name).expect("Failed to connect to server.");
         TestClient {
-            display: display,
+            display: Arc::new(display),
             event_queue: event_queue,
         }
     }
@@ -66,7 +67,7 @@ impl TestClient {
         let (display, event_queue) =
             self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
         TestClient {
-            display: display,
+            display: Arc::new(display),
             event_queue: event_queue,
         }
     }
@@ -74,7 +75,7 @@ impl TestClient {
     pub unsafe fn from_fd(fd: RawFd) -> TestClient {
         let (display, event_queue) = self::wayc::Display::from_fd(fd).unwrap();
         TestClient {
-            display: display,
+            display: Arc::new(display),
             event_queue: event_queue,
         }
     }
@@ -85,10 +86,9 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
     // send to the server
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
-    let token = client.event_queue.get_token();
     client
         .display
-        .sync(move |newcb| unsafe { newcb.implement_nonsend(move |_, _| done2.set(true), (), &token) })
+        .sync(move |newcb| newcb.implement_closure(move |_, _| done2.set(true), ()))
         .unwrap();
     while !done.get() {
         client.display.flush()?;

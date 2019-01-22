@@ -5,7 +5,7 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 
-use wayc::protocol::wl_compositor;
+use wayc::protocol::wl_compositor::{self, RequestsTrait};
 use wayc::protocol::wl_output;
 
 #[test]
@@ -74,9 +74,7 @@ fn proxy_user_data_wrong_thread() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| unsafe {
-            newp.implement_nonsend(|_, _| {}, 0xDEADBEEFusize, &client.event_queue.get_token())
-        })
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_closure(|_, _| {}, 0xDEADBEEFusize))
         .unwrap();
 
     // we can access on the right thread
@@ -108,6 +106,84 @@ fn proxy_wrapper() {
     event_queue_2.dispatch_pending().unwrap();
 
     assert!(manager.list().len() == 1);
+}
+
+#[test]
+fn proxy_implement_wrong_thread() {
+    let mut server = TestServer::new();
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let compositor = manager
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .unwrap();
+
+    let ret = ::std::thread::spawn(move || {
+        compositor
+            .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should panic
+            .unwrap();
+    })
+    .join();
+
+    // the child thread should have panicked
+    assert!(ret.is_err())
+}
+
+#[test]
+fn proxy_implement_wrapper_threaded() {
+    let mut server = TestServer::new();
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let compositor = manager
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .unwrap();
+
+    let display2 = client.display.clone();
+
+    ::std::thread::spawn(move || {
+        let evq2 = display2.create_event_queue();
+        let compositor_wrapper = compositor.make_wrapper(&evq2.get_token()).unwrap();
+        compositor_wrapper
+            .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should not panic
+            .unwrap();
+    })
+    .join()
+    .unwrap();
+}
+
+#[test]
+fn proxy_implement_threadsafe_wrong_thread() {
+    let mut server = TestServer::new();
+    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+
+    let mut client = TestClient::new(&server.socket_name);
+
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let compositor = manager
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .unwrap();
+
+    ::std::thread::spawn(move || {
+        compositor
+            .create_surface(|newp| newp.implement_closure_threadsafe(|_,_| {}, ())) // should not panic
+            .unwrap();
+    })
+    .join()
+    .unwrap();
 }
 
 #[test]

@@ -9,6 +9,7 @@ fn send_sync_client() {
     ensure_both::<wayc::Proxy<::wayc::protocol::wl_callback::WlCallback>>();
 }
 
+#[cfg(not(feature = "native_lib"))]
 #[test]
 fn send_sync_server() {
     ensure_both::<ways::Resource<::ways::protocol::wl_callback::WlCallback>>();

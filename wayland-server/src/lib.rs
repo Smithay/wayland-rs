@@ -90,7 +90,7 @@ mod globals;
 mod resource;
 
 pub use client::Client;
-pub use display::{Display, DisplayToken};
+pub use display::Display;
 pub use globals::Global;
 pub use resource::{HandledBy, NewResource, Resource};
 
