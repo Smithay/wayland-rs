@@ -93,25 +93,8 @@ pub trait Interface: 'static {
     fn c_interface() -> *const ::syscom::wl_interface;
 }
 
-/// Anonymous interface
-///
-/// A special Interface implementation representing an
-/// handle to an object for which the interface is not known.
-pub struct AnonymousObject;
-
 /// An empty enum representing a MessageGroup with no messages
 pub enum NoMessage {}
-
-impl Interface for AnonymousObject {
-    type Request = NoMessage;
-    type Event = NoMessage;
-    const NAME: &'static str = "<anonymous>";
-    const VERSION: u32 = 0;
-    #[cfg(feature = "native_lib")]
-    fn c_interface() -> *const ::syscom::wl_interface {
-        ::std::ptr::null()
-    }
-}
 
 #[cfg_attr(tarpaulin, skip)]
 impl MessageGroup for NoMessage {

@@ -150,7 +150,8 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-pub use wayland_commons::{AnonymousObject, Interface, MessageGroup, NoMessage};
+pub use anonymous_object::AnonymousObject;
+pub use wayland_commons::{Interface, MessageGroup, NoMessage};
 
 // rust implementation
 #[cfg(not(feature = "native_lib"))]
@@ -192,18 +193,59 @@ mod generated {
     pub mod c_api {
         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
-        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+        pub(crate) use wayland_commons::{Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {HandledBy, NewProxy, Proxy, ProxyMap};
+        pub(crate) use {AnonymousObject, HandledBy, NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
     #[cfg(not(feature = "native_lib"))]
     pub mod rust_api {
         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
-        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
-        pub(crate) use {HandledBy, NewProxy, Proxy, ProxyMap};
+        pub(crate) use wayland_commons::{Interface, MessageGroup};
+        pub(crate) use {AnonymousObject, HandledBy, NewProxy, Proxy, ProxyMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
+    }
+}
+
+mod anonymous_object {
+    use super::{Interface, NoMessage, Proxy};
+
+    /// Anonymous interface
+    ///
+    /// A special Interface implementation representing an
+    /// handle to an object for which the interface is not known.
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct AnonymousObject(Proxy<AnonymousObject>);
+
+    impl Interface for AnonymousObject {
+        type Request = NoMessage;
+        type Event = NoMessage;
+        const NAME: &'static str = "<anonymous>";
+        const VERSION: u32 = 0;
+        #[cfg(feature = "native_lib")]
+        fn c_interface() -> *const ::sys::common::wl_interface {
+            ::std::ptr::null()
+        }
+    }
+
+    impl AsRef<Proxy<AnonymousObject>> for AnonymousObject {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<AnonymousObject>> for AnonymousObject {
+        #[inline]
+        fn from(proxy: Proxy<Self>) -> Self {
+            AnonymousObject(proxy)
+        }
+    }
+    impl From<AnonymousObject> for Proxy<AnonymousObject> {
+        #[inline]
+        fn from(value: AnonymousObject) -> Self {
+            value.0
+        }
     }
 }
 

@@ -94,8 +94,9 @@ pub use display::Display;
 pub use globals::Global;
 pub use resource::{HandledBy, NewResource, Resource};
 
+pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::utils::UserDataMap;
-pub use wayland_commons::{AnonymousObject, Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{Interface, MessageGroup, NoMessage};
 
 #[cfg(feature = "native_lib")]
 /// C-associated types
@@ -139,18 +140,59 @@ mod generated {
     pub mod c_api {
         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
-        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
+        pub(crate) use wayland_commons::{Interface, MessageGroup};
         pub(crate) use wayland_sys as sys;
-        pub(crate) use {HandledBy, NewResource, Resource, ResourceMap};
+        pub(crate) use {AnonymousObject, HandledBy, NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_c_api.rs"));
     }
     #[cfg(not(feature = "native_lib"))]
     pub mod rust_api {
         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
         pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
-        pub(crate) use wayland_commons::{AnonymousObject, Interface, MessageGroup};
-        pub(crate) use {HandledBy, NewResource, Resource, ResourceMap};
+        pub(crate) use wayland_commons::{Interface, MessageGroup};
+        pub(crate) use {AnonymousObject, HandledBy, NewResource, Resource, ResourceMap};
         include!(concat!(env!("OUT_DIR"), "/wayland_rust_api.rs"));
+    }
+}
+
+mod anonymous_object {
+    use super::{Interface, NoMessage, Resource};
+
+    /// Anonymous interface
+    ///
+    /// A special Interface implementation representing an
+    /// handle to an object for which the interface is not known.
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct AnonymousObject(Resource<AnonymousObject>);
+
+    impl Interface for AnonymousObject {
+        type Request = NoMessage;
+        type Event = NoMessage;
+        const NAME: &'static str = "<anonymous>";
+        const VERSION: u32 = 0;
+        #[cfg(feature = "native_lib")]
+        fn c_interface() -> *const ::sys::common::wl_interface {
+            ::std::ptr::null()
+        }
+    }
+
+    impl AsRef<Resource<AnonymousObject>> for AnonymousObject {
+        #[inline]
+        fn as_ref(&self) -> &Resource<Self> {
+            &self.0
+        }
+    }
+    impl From<Resource<AnonymousObject>> for AnonymousObject {
+        #[inline]
+        fn from(resource: Resource<Self>) -> Self {
+            AnonymousObject(resource)
+        }
+    }
+    impl From<AnonymousObject> for Resource<AnonymousObject> {
+        #[inline]
+        fn from(value: AnonymousObject) -> Self {
+            value.0
+        }
     }
 }
 
