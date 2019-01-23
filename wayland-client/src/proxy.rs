@@ -1,5 +1,6 @@
+use super::AnonymousObject;
 use wayland_commons::utils::UserData;
-use wayland_commons::{AnonymousObject, Interface};
+use wayland_commons::Interface;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::*;
@@ -81,15 +82,16 @@ impl<I: Interface> Proxy<I> {
         msg: I::Request,
         implementor: F,
         version: Option<u32>,
-    ) -> Result<Proxy<J>, ()>
+    ) -> Result<J, ()>
     where
-        J: Interface,
-        F: FnOnce(NewProxy<J>) -> Proxy<J>,
+        J: Interface + From<Proxy<J>>,
+        F: FnOnce(NewProxy<J>) -> J,
     {
         self.inner
             .send_constructor::<I, J>(msg, version)
             .map(NewProxy::wrap)
             .map(implementor)
+            .map(Into::into)
     }
 
     /// Check if the object associated with this proxy is still alive
@@ -172,13 +174,17 @@ impl<I: Interface> Proxy<I> {
     /// all objects created as the result of its requests will be assigned to
     /// the queue associated to the provided token, rather than the queue of
     /// their parent. This does not change the queue of the proxy itself.
-    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<Proxy<I>, ()> {
+    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<I, ()>
+    where
+        I: From<Proxy<I>>,
+    {
         let inner = self.inner.make_wrapper(&queue.inner)?;
 
         Ok(Proxy {
             _i: ::std::marker::PhantomData,
             inner,
-        })
+        }
+        .into())
     }
 
     /// Create a placeholder object, to be used with `send_constructor`
@@ -186,8 +192,8 @@ impl<I: Interface> Proxy<I> {
     /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate `RequestsTrait` for your proxy.
-    pub fn child_placeholder<J: Interface>(&self) -> Proxy<J> {
-        Proxy::wrap(self.inner.child_placeholder())
+    pub fn child_placeholder<J: Interface + From<Proxy<J>>>(&self) -> J {
+        Proxy::wrap(self.inner.child_placeholder()).into()
     }
 }
 
@@ -228,7 +234,10 @@ impl<I: Interface> Proxy<I> {
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Proxy<I> {
+    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Proxy<I>
+    where
+        I: From<Proxy<I>>,
+    {
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: ProxyInner::from_c_ptr::<I>(ptr),
@@ -282,14 +291,14 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// the event queue of its parent object.
     ///
     /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`
-    pub fn implement<T, UD>(self, mut handler: T, user_data: UD) -> Proxy<I>
+    pub fn implement<T, UD>(self, mut handler: T, user_data: UD) -> I
     where
         T: 'static,
         UD: 'static,
-        I: HandledBy<T>,
+        I: HandledBy<T> + From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
-        let implementation = move |event, proxy: Proxy<I>| I::handle(&mut handler, event, proxy.clone());
+        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
 
         self.implement_closure(implementation, user_data)
     }
@@ -301,10 +310,11 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// the event queue of its parent object.
     ///
     /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`
-    pub fn implement_closure<F, UD>(self, implementation: F, user_data: UD) -> Proxy<I>
+    pub fn implement_closure<F, UD>(self, implementation: F, user_data: UD) -> I
     where
-        F: FnMut(I::Event, Proxy<I>) + 'static,
+        F: FnMut(I::Event, I) + 'static,
         UD: 'static,
+        I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
         if !self.inner.is_queue_on_current_thread() {
@@ -318,11 +328,13 @@ impl<I: Interface + 'static> NewProxy<I> {
             _i: ::std::marker::PhantomData,
             inner: inner,
         }
+        .into()
     }
 
     /// Implement this proxy using a dummy handler which does nothing.
-    pub fn implement_dummy(self) -> Proxy<I>
+    pub fn implement_dummy(self) -> I
     where
+        I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
         self.implement_closure(|_, _| (), ())
@@ -334,14 +346,14 @@ impl<I: Interface + 'static> NewProxy<I> {
     ///
     /// This function allows you to implement a proxy from an other thread than the one where its
     /// event queue is attach, but the implementation thus must be `Send`.
-    pub fn implement_threadsafe<T, UD>(self, mut handler: T, user_data: UD) -> Proxy<I>
+    pub fn implement_threadsafe<T, UD>(self, mut handler: T, user_data: UD) -> I
     where
         T: Send + 'static,
         UD: Send + Sync + 'static,
-        I: HandledBy<T>,
+        I: HandledBy<T> + From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
-        let implementation = move |event, proxy: Proxy<I>| I::handle(&mut handler, event, proxy.clone());
+        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
 
         self.implement_closure_threadsafe(implementation, user_data)
     }
@@ -350,10 +362,11 @@ impl<I: Interface + 'static> NewProxy<I> {
     ///
     /// This function allows you to implement a proxy from an other thread than the one where its
     /// event queue is attach, but the implementation thus must be `Send`.
-    pub fn implement_closure_threadsafe<F, UD>(self, implementation: F, user_data: UD) -> Proxy<I>
+    pub fn implement_closure_threadsafe<F, UD>(self, implementation: F, user_data: UD) -> I
     where
-        F: FnMut(I::Event, Proxy<I>) + Send + 'static,
+        F: FnMut(I::Event, I) + Send + 'static,
         UD: Send + Sync + 'static,
+        I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
         let inner = unsafe {
@@ -364,6 +377,7 @@ impl<I: Interface + 'static> NewProxy<I> {
             _i: ::std::marker::PhantomData,
             inner: inner,
         }
+        .into()
     }
 }
 
@@ -400,5 +414,5 @@ impl<I: Interface + 'static> NewProxy<I> {
 /// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
 pub trait HandledBy<T>: Interface + Sized {
     /// Handles an event.
-    fn handle(handler: &mut T, event: Self::Event, proxy: Proxy<Self>);
+    fn handle(handler: &mut T, event: Self::Event, proxy: Self);
 }

@@ -154,15 +154,16 @@ impl EventQueueInner {
 
     pub(crate) fn sync_roundtrip(&self) -> io::Result<u32> {
         use protocol::wl_callback::{Event as CbEvent, WlCallback};
-        use protocol::wl_display::{RequestsTrait as DisplayRequests, WlDisplay};
+        use protocol::wl_display::WlDisplay;
         use Proxy;
         // first retrieve the display and make a wrapper for it in this event queue
-        let display: Proxy<WlDisplay> = Proxy::wrap(
+        let display: WlDisplay = Proxy::wrap(
             ProxyInner::from_id(1, self.map.clone(), self.connection.clone())
                 .unwrap()
                 .make_wrapper(self)
                 .unwrap(),
-        );
+        )
+        .into();
 
         let done = Rc::new(Cell::new(false));
         let ret = display.sync(|np| {
@@ -175,6 +176,7 @@ impl EventQueueInner {
                     UserData::empty(),
                 )
             })
+            .into()
         });
 
         if let Err(()) = ret {

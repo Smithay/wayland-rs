@@ -222,7 +222,7 @@ impl ProxyInner {
         self.ptr
     }
 
-    pub(crate) unsafe fn from_c_ptr<I: Interface>(ptr: *mut wl_proxy) -> Self {
+    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Proxy<I>>>(ptr: *mut wl_proxy) -> Self {
         if ptr.is_null() {
             return ProxyInner {
                 internal: Some(Arc::new(ProxyInternal {
@@ -294,7 +294,8 @@ impl NewProxyInner {
         user_data: UserData,
     ) -> ProxyInner
     where
-        F: FnMut(I::Event, Proxy<I>) + 'static,
+        I: From<Proxy<I>>,
+        F: FnMut(I::Event, I) + 'static,
     {
         let new_user_data = Box::new(ProxyUserData::new(implementation, user_data, self.queue_thread));
         let internal = new_user_data.internal.clone();
@@ -327,15 +328,15 @@ impl NewProxyInner {
     }
 }
 
-struct ProxyUserData<I: Interface> {
+struct ProxyUserData<I: Interface + From<Proxy<I>>> {
     internal: Arc<ProxyInternal>,
-    implem: Option<Box<FnMut(I::Event, Proxy<I>)>>,
+    implem: Option<Box<FnMut(I::Event, I)>>,
 }
 
-impl<I: Interface> ProxyUserData<I> {
+impl<I: Interface + From<Proxy<I>>> ProxyUserData<I> {
     fn new<F>(implem: F, user_data: UserData, thread_id: ThreadId) -> ProxyUserData<I>
     where
-        F: FnMut(I::Event, Proxy<I>) + 'static,
+        F: FnMut(I::Event, I) + 'static,
     {
         ProxyUserData {
             internal: Arc::new(ProxyInternal::new(user_data, thread_id)),
@@ -352,7 +353,7 @@ unsafe extern "C" fn proxy_dispatcher<I: Interface>(
     args: *const wl_argument,
 ) -> c_int
 where
-    I: Interface,
+    I: Interface + From<Proxy<I>>,
 {
     let proxy = proxy as *mut wl_proxy;
 
@@ -363,7 +364,7 @@ where
         let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
         let must_destroy = msg.is_destructor();
         // create the proxy object
-        let proxy_obj = ::Proxy::<I>::from_c_ptr(proxy);
+        let proxy_obj = ::Proxy::<I>::from_c_ptr(proxy).into();
         // retrieve the impl
         let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
         {

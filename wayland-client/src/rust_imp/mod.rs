@@ -68,7 +68,7 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Event, Proxy<I>) + 'static> {
+pub(crate) struct ImplDispatcher<I: Interface + From<Proxy<I>>, F: FnMut(I::Event, I) + 'static> {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
 }
@@ -80,7 +80,8 @@ pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Event, Proxy<I>) + 's
 unsafe impl<I, F> Send for ImplDispatcher<I, F>
 where
     I: Interface,
-    F: FnMut(I::Event, Proxy<I>) + 'static,
+    F: FnMut(I::Event, I) + 'static,
+    I: From<Proxy<I>>,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
 }
@@ -88,7 +89,8 @@ where
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface,
-    F: FnMut(I::Event, Proxy<I>) + 'static,
+    F: FnMut(I::Event, I) + 'static,
+    I: From<Proxy<I>>,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
@@ -114,9 +116,9 @@ where
                     map.remove(proxy.id);
                 }
             }
-            (self.implementation)(message, Proxy::<I>::wrap(proxy.clone()));
+            (self.implementation)(message, Proxy::<I>::wrap(proxy.clone()).into());
         } else {
-            (self.implementation)(message, Proxy::<I>::wrap(proxy));
+            (self.implementation)(message, Proxy::<I>::wrap(proxy).into());
         }
         Ok(())
     }
@@ -125,7 +127,8 @@ where
 pub(crate) unsafe fn make_dispatcher<I, F>(implementation: F) -> Arc<Mutex<Dispatcher + Send>>
 where
     I: Interface,
-    F: FnMut(I::Event, Proxy<I>) + 'static,
+    F: FnMut(I::Event, I) + 'static,
+    I: From<Proxy<I>>,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     Arc::new(Mutex::new(ImplDispatcher {

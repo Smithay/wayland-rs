@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use nix::fcntl;
 
-use {EventQueue, Proxy};
+use EventQueue;
 
 use imp::DisplayInner;
 
@@ -186,8 +186,8 @@ impl Display {
 }
 
 impl Deref for Display {
-    type Target = Proxy<::protocol::wl_display::WlDisplay>;
-    fn deref(&self) -> &Proxy<::protocol::wl_display::WlDisplay> {
+    type Target = ::protocol::wl_display::WlDisplay;
+    fn deref(&self) -> &::protocol::wl_display::WlDisplay {
         self.inner.get_proxy()
     }
 }

@@ -15,7 +15,7 @@ use super::EventQueueInner;
 
 pub(crate) struct DisplayInner {
     connection: Arc<Mutex<Connection>>,
-    proxy: Proxy<WlDisplay>,
+    proxy: WlDisplay,
 }
 
 impl DisplayInner {
@@ -45,8 +45,8 @@ impl DisplayInner {
                     eprintln!(
                         "[wayland-client] Protocol error {} on object {}@{}: {}",
                         code,
-                        object_id.inner.object.interface,
-                        object_id.id(),
+                        object_id.as_ref().inner.object.interface,
+                        object_id.as_ref().id(),
                         message
                     );
                     *impl_last_error.lock().unwrap() = Some(super::connection::Error::Protocol);
@@ -71,7 +71,7 @@ impl DisplayInner {
         let default_event_queue = EventQueueInner::new(connection.clone(), None);
 
         let display = DisplayInner {
-            proxy: Proxy::wrap(display_proxy.make_wrapper(&default_event_queue).unwrap()),
+            proxy: Proxy::wrap(display_proxy.make_wrapper(&default_event_queue).unwrap()).into(),
             connection,
         };
 
@@ -90,7 +90,7 @@ impl DisplayInner {
         EventQueueInner::new(me.connection.clone(), None)
     }
 
-    pub(crate) fn get_proxy(&self) -> &Proxy<WlDisplay> {
+    pub(crate) fn get_proxy(&self) -> &WlDisplay {
         &self.proxy
     }
 }

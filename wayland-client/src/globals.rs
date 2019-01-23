@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use protocol::wl_display::{self, RequestsTrait as DisplayRequests};
-use protocol::wl_registry::{self, RequestsTrait as RegistryRequests};
+use protocol::wl_display;
+use protocol::wl_registry;
 use {Interface, NewProxy, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
-    callback: Box<FnMut(GlobalEvent, Proxy<wl_registry::WlRegistry>) + Send>,
+    callback: Box<FnMut(GlobalEvent, wl_registry::WlRegistry) + Send>,
 }
 
 /// An utility to manage global objects
@@ -17,7 +17,7 @@ struct Inner {
 #[derive(Clone)]
 pub struct GlobalManager {
     inner: Arc<Mutex<Inner>>,
-    registry: Proxy<wl_registry::WlRegistry>,
+    registry: wl_registry::WlRegistry,
 }
 
 /// An error that occurred trying to bind a global
@@ -67,7 +67,7 @@ pub enum GlobalEvent {
 
 impl GlobalManager {
     /// Create a global manager handling a registry
-    pub fn new(display: &Proxy<wl_display::WlDisplay>) -> GlobalManager {
+    pub fn new(display: &wl_display::WlDisplay) -> GlobalManager {
         let inner = Arc::new(Mutex::new(Inner {
             list: Vec::new(),
             callback: Box::new(|_, _| {}),
@@ -110,9 +110,9 @@ impl GlobalManager {
     ///
     /// This can be used if you want to handle specially certain globals, but want
     /// to use the default mechanism for the rest.
-    pub fn new_with_cb<F>(display: &Proxy<wl_display::WlDisplay>, callback: F) -> GlobalManager
+    pub fn new_with_cb<F>(display: &wl_display::WlDisplay, callback: F) -> GlobalManager
     where
-        F: FnMut(GlobalEvent, Proxy<wl_registry::WlRegistry>) + Send + 'static,
+        F: FnMut(GlobalEvent, wl_registry::WlRegistry) + Send + 'static,
     {
         let inner = Arc::new(Mutex::new(Inner {
             list: Vec::new(),
@@ -179,9 +179,9 @@ impl GlobalManager {
     /// This method is only appropriate for globals that are expected to
     /// not exist with multiplicity (such as `wl_compositor` or `wl_shm`),
     /// as it will only bind a single one.
-    pub fn instantiate_auto<I: Interface, F>(&self, implementor: F) -> Result<Proxy<I>, GlobalError>
+    pub fn instantiate_auto<I: Interface + From<Proxy<I>>, F>(&self, implementor: F) -> Result<I, GlobalError>
     where
-        F: FnOnce(NewProxy<I>) -> Proxy<I>,
+        F: FnOnce(NewProxy<I>) -> I,
     {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, version) in &inner.list {
@@ -196,13 +196,13 @@ impl GlobalManager {
     ///
     /// Like `instantiate_auto`, but will bind a specific version of
     /// this global an not the highest available.
-    pub fn instantiate_exact<I: Interface, F>(
+    pub fn instantiate_exact<I: Interface + From<Proxy<I>>, F>(
         &self,
         version: u32,
         implementor: F,
-    ) -> Result<Proxy<I>, GlobalError>
+    ) -> Result<I, GlobalError>
     where
-        F: FnOnce(NewProxy<I>) -> Proxy<I>,
+        F: FnOnce(NewProxy<I>) -> I,
     {
         let inner = self.inner.lock().unwrap();
         for &(id, ref interface, server_version) in &inner.list {
@@ -230,7 +230,7 @@ impl GlobalManager {
 pub trait GlobalImplementor<I: Interface> {
     /// A new global of given interface has been instantiated and you are
     /// supposed to provide an implementation for it.
-    fn new_global(&mut self, global: NewProxy<I>) -> Proxy<I>;
+    fn new_global(&mut self, global: NewProxy<I>) -> I;
     /// A global was advertised but its version was lower than the minimal version
     /// you requested.
     ///
@@ -240,9 +240,9 @@ pub trait GlobalImplementor<I: Interface> {
 
 impl<F, I: Interface> GlobalImplementor<I> for F
 where
-    F: FnMut(NewProxy<I>) -> Proxy<I>,
+    F: FnMut(NewProxy<I>) -> I,
 {
-    fn new_global(&mut self, global: NewProxy<I>) -> Proxy<I> {
+    fn new_global(&mut self, global: NewProxy<I>) -> I {
         (*self)(global)
     }
 }
@@ -265,13 +265,13 @@ where
 /// ```no_run
 /// # #[macro_use] extern crate wayland_client;
 /// use wayland_client::GlobalManager;
-/// # use wayland_client::{Display, NewProxy, Proxy};
+/// # use wayland_client::{Display, NewProxy};
 /// use wayland_client::protocol::{wl_output, wl_seat};
 ///
 /// # fn main() {
 /// # let (display, mut event_queue) = Display::connect_to_env().unwrap();
-/// # let seat_implementor: fn(NewProxy<_>) -> Proxy<_> = unimplemented!();
-/// # let output_implementor: fn(NewProxy<_>) -> Proxy<_> = unimplemented!();
+/// # let seat_implementor: fn(NewProxy<_>) -> _ = unimplemented!();
+/// # let output_implementor: fn(NewProxy<_>) -> _ = unimplemented!();
 /// let globals = GlobalManager::new_with_cb(
 ///     &display,
 ///     global_filter!(
@@ -307,16 +307,16 @@ where
 macro_rules! global_filter {
     ($([$interface:ty, $version:expr, $callback:expr]),*) => {
         {
-            use $crate::protocol::wl_registry::{self, RequestsTrait};
-            use $crate::{Proxy, GlobalEvent, NewProxy, Interface, GlobalImplementor};
-            type Callback = Box<FnMut(u32, u32, Proxy<wl_registry::WlRegistry>) + Send>;
+            use $crate::protocol::wl_registry;
+            use $crate::{GlobalEvent, NewProxy, Interface, GlobalImplementor};
+            type Callback = Box<FnMut(u32, u32, wl_registry::WlRegistry) + Send>;
             let mut callbacks: Vec<(&'static str, Callback)> = Vec::new();
             // Create the callback list
             $({
                 let mut cb = { $callback };
                 callbacks.push((
                     <$interface as Interface>::NAME,
-                    Box::new(move |id, version, registry: Proxy<wl_registry::WlRegistry>| {
+                    Box::new(move |id, version, registry: wl_registry::WlRegistry| {
                         if version < $version {
                             GlobalImplementor::<$interface>::error(&mut cb, version);
                         } else {
@@ -331,7 +331,7 @@ macro_rules! global_filter {
             })*
 
             // return the global closure
-            move |event: GlobalEvent, registry: Proxy<wl_registry::WlRegistry>| {
+            move |event: GlobalEvent, registry: wl_registry::WlRegistry| {
                 if let GlobalEvent::New { id, interface, version } = event {
                     for &mut (iface, ref mut cb) in &mut callbacks {
                         if iface == interface {

@@ -300,7 +300,8 @@ impl NewProxyInner {
         user_data: UserData,
     ) -> ProxyInner
     where
-        F: FnMut(I::Event, Proxy<I>) + 'static,
+        F: FnMut(I::Event, I) + 'static,
+        I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {

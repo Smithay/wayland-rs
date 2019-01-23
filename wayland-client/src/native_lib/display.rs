@@ -10,7 +10,7 @@ use {ConnectError, Proxy};
 use super::EventQueueInner;
 
 pub(crate) struct DisplayInner {
-    proxy: Proxy<WlDisplay>,
+    proxy: WlDisplay,
     display: *mut wl_display,
 }
 
@@ -23,7 +23,7 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<(Arc<DisplayInner>, Event
     }
 
     let display = Arc::new(DisplayInner {
-        proxy: Proxy::from_c_ptr(ptr as *mut _),
+        proxy: Proxy::from_c_ptr(ptr as *mut _).into(),
         display: ptr,
     });
 
@@ -63,7 +63,7 @@ impl DisplayInner {
         }
     }
 
-    pub(crate) fn get_proxy(&self) -> &Proxy<WlDisplay> {
+    pub(crate) fn get_proxy(&self) -> &WlDisplay {
         &self.proxy
     }
 
@@ -78,7 +78,7 @@ impl DisplayInner {
         ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapper_ptr, evq_ptr);
 
         let display = Arc::new(DisplayInner {
-            proxy: Proxy::from_c_display_wrapper(wrapper_ptr),
+            proxy: Proxy::from_c_display_wrapper(wrapper_ptr).into(),
             display: display_ptr,
         });
 
@@ -89,13 +89,13 @@ impl DisplayInner {
 
 impl Drop for DisplayInner {
     fn drop(&mut self) {
-        if self.proxy.c_ptr() == (self.display as *mut _) {
+        if self.proxy.as_ref().c_ptr() == (self.display as *mut _) {
             // disconnect only if we are owning this display
             unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
                     wl_display_disconnect,
-                    self.proxy.c_ptr() as *mut wl_display
+                    self.proxy.as_ref().c_ptr() as *mut wl_display
                 );
             }
         }
