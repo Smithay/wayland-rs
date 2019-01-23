@@ -47,7 +47,7 @@ pub mod wl_foo {
             file: ::std::os::unix::io::RawFd,
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        CreateBar { id: Proxy<super::wl_bar::WlBar> },
+        CreateBar { id: super::wl_bar::WlBar },
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -114,7 +114,7 @@ pub mod wl_foo {
                 Request::CreateBar { id } => Message {
                     sender_id: sender_id,
                     opcode: 1,
-                    args: vec![Argument::NewId(id.id())],
+                    args: vec![Argument::NewId(id.as_ref().id())],
                 },
             }
         }
@@ -173,30 +173,35 @@ pub mod wl_foo {
             panic!("Event::into_raw can not be used Client-side.")
         }
     }
-    pub struct WlFoo;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlFoo(Proxy<WlFoo>);
+    impl AsRef<Proxy<WlFoo>> for WlFoo {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<WlFoo>> for WlFoo {
+        #[inline]
+        fn from(value: Proxy<Self>) -> Self {
+            WlFoo(value)
+        }
+    }
+    impl From<WlFoo> for Proxy<WlFoo> {
+        #[inline]
+        fn from(value: WlFoo) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlFoo {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_foo";
         const VERSION: u32 = 3;
     }
-    pub trait RequestsTrait {
+    impl WlFoo {
         #[doc = "do some foo\n\nThis will do some foo with its args."]
-        fn foo_it(
-            &self,
-            number: i32,
-            unumber: u32,
-            text: String,
-            float: f64,
-            file: ::std::os::unix::io::RawFd,
-        ) -> ();
-        #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        fn create_bar<F>(&self, implementor: F) -> Result<Proxy<super::wl_bar::WlBar>, ()>
-        where
-            F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>;
-    }
-    impl RequestsTrait for Proxy<WlFoo> {
-        fn foo_it(
+        pub fn foo_it(
             &self,
             number: i32,
             unumber: u32,
@@ -211,28 +216,29 @@ pub mod wl_foo {
                 float: float,
                 file: file,
             };
-            self.send(msg);
+            self.0.send(msg);
         }
-        fn create_bar<F>(&self, implementor: F) -> Result<Proxy<super::wl_bar::WlBar>, ()>
+        #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
+        pub fn create_bar<F>(&self, implementor: F) -> Result<super::wl_bar::WlBar, ()>
         where
-            F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> Proxy<super::wl_bar::WlBar>,
+            F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> super::wl_bar::WlBar,
         {
             let msg = Request::CreateBar {
-                id: self.child_placeholder(),
+                id: self.0.child_placeholder(),
             };
-            self.send_constructor(msg, implementor, None)
+            self.0.send_constructor(msg, implementor, None)
         }
     }
     #[doc = r" An interface for handling events."]
     pub trait EventHandler {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface."]
-        fn cake(&mut self, proxy: Proxy<WlFoo>, kind: CakeKind, amount: u32) {}
+        fn cake(&mut self, object: WlFoo, kind: CakeKind, amount: u32) {}
     }
     impl<T: EventHandler> HandledBy<T> for WlFoo {
         #[inline]
-        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+        fn handle(handler: &mut T, event: Event, object: Self) {
             match event {
-                Event::Cake { kind, amount } => handler.cake(proxy, kind, amount),
+                Event::Cake { kind, amount } => handler.cake(object, kind, amount),
             }
         }
     }
@@ -253,7 +259,7 @@ pub mod wl_bar {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
         BarDelivery {
             kind: super::wl_foo::DeliveryKind,
-            target: Proxy<super::wl_foo::WlFoo>,
+            target: super::wl_foo::WlFoo,
             metadata: Vec<u8>,
             metametadata: Option<Vec<u8>>,
         },
@@ -311,7 +317,7 @@ pub mod wl_bar {
                     opcode: 0,
                     args: vec![
                         Argument::Uint(kind.to_raw()),
-                        Argument::Object(target.id()),
+                        Argument::Object(target.as_ref().id()),
                         Argument::Array(metadata),
                         Argument::Array(metametadata.unwrap_or_else(Vec::new)),
                     ],
@@ -348,30 +354,38 @@ pub mod wl_bar {
             panic!("Event::into_raw can not be used Client-side.")
         }
     }
-    pub struct WlBar;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlBar(Proxy<WlBar>);
+    impl AsRef<Proxy<WlBar>> for WlBar {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<WlBar>> for WlBar {
+        #[inline]
+        fn from(value: Proxy<Self>) -> Self {
+            WlBar(value)
+        }
+    }
+    impl From<WlBar> for Proxy<WlBar> {
+        #[inline]
+        fn from(value: WlBar) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlBar {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_bar";
         const VERSION: u32 = 1;
     }
-    pub trait RequestsTrait {
+    impl WlBar {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface."]
-        fn bar_delivery(
+        pub fn bar_delivery(
             &self,
             kind: super::wl_foo::DeliveryKind,
-            target: &Proxy<super::wl_foo::WlFoo>,
-            metadata: Vec<u8>,
-            metametadata: Option<Vec<u8>>,
-        ) -> ();
-        #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
-        fn release(&self) -> ();
-    }
-    impl RequestsTrait for Proxy<WlBar> {
-        fn bar_delivery(
-            &self,
-            kind: super::wl_foo::DeliveryKind,
-            target: &Proxy<super::wl_foo::WlFoo>,
+            target: &super::wl_foo::WlFoo,
             metadata: Vec<u8>,
             metametadata: Option<Vec<u8>>,
         ) -> () {
@@ -381,18 +395,19 @@ pub mod wl_bar {
                 metadata: metadata,
                 metametadata: metametadata,
             };
-            self.send(msg);
+            self.0.send(msg);
         }
-        fn release(&self) -> () {
+        #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
+        pub fn release(&self) -> () {
             let msg = Request::Release;
-            self.send(msg);
+            self.0.send(msg);
         }
     }
     #[doc = r" An interface for handling events."]
     pub trait EventHandler {}
     impl<T: EventHandler> HandledBy<T> for WlBar {
         #[inline]
-        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+        fn handle(handler: &mut T, event: Event, object: Self) {
             match event {}
         }
     }
@@ -453,20 +468,38 @@ pub mod wl_display {
             panic!("Event::into_raw can not be used Client-side.")
         }
     }
-    pub struct WlDisplay;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlDisplay(Proxy<WlDisplay>);
+    impl AsRef<Proxy<WlDisplay>> for WlDisplay {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<WlDisplay>> for WlDisplay {
+        #[inline]
+        fn from(value: Proxy<Self>) -> Self {
+            WlDisplay(value)
+        }
+    }
+    impl From<WlDisplay> for Proxy<WlDisplay> {
+        #[inline]
+        fn from(value: WlDisplay) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlDisplay {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_display";
         const VERSION: u32 = 1;
     }
-    pub trait RequestsTrait {}
-    impl RequestsTrait for Proxy<WlDisplay> {}
+    impl WlDisplay {}
     #[doc = r" An interface for handling events."]
     pub trait EventHandler {}
     impl<T: EventHandler> HandledBy<T> for WlDisplay {
         #[inline]
-        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+        fn handle(handler: &mut T, event: Event, object: Self) {
             match event {}
         }
     }
@@ -481,7 +514,7 @@ pub mod wl_registry {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
         Bind {
             name: u32,
-            id: (String, u32, Proxy<AnonymousObject>),
+            id: (String, u32, AnonymousObject),
         },
     }
     impl super::MessageGroup for Request {
@@ -518,7 +551,7 @@ pub mod wl_registry {
                         Argument::Uint(name),
                         Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(id.0.into()) }),
                         Argument::Uint(id.1),
-                        Argument::NewId(id.2.id()),
+                        Argument::NewId(id.2.as_ref().id()),
                     ],
                 },
             }
@@ -548,36 +581,55 @@ pub mod wl_registry {
             panic!("Event::into_raw can not be used Client-side.")
         }
     }
-    pub struct WlRegistry;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlRegistry(Proxy<WlRegistry>);
+    impl AsRef<Proxy<WlRegistry>> for WlRegistry {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<WlRegistry>> for WlRegistry {
+        #[inline]
+        fn from(value: Proxy<Self>) -> Self {
+            WlRegistry(value)
+        }
+    }
+    impl From<WlRegistry> for Proxy<WlRegistry> {
+        #[inline]
+        fn from(value: WlRegistry) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlRegistry {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_registry";
         const VERSION: u32 = 1;
     }
-    pub trait RequestsTrait {
+    impl WlRegistry {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
-        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) -> Result<Proxy<T>, ()>
+        pub fn bind<T: Interface + From<Proxy<T>>, F>(
+            &self,
+            version: u32,
+            name: u32,
+            implementor: F,
+        ) -> Result<T, ()>
         where
-            F: FnOnce(NewProxy<T>) -> Proxy<T>;
-    }
-    impl RequestsTrait for Proxy<WlRegistry> {
-        fn bind<T: Interface, F>(&self, version: u32, name: u32, implementor: F) -> Result<Proxy<T>, ()>
-        where
-            F: FnOnce(NewProxy<T>) -> Proxy<T>,
+            F: FnOnce(NewProxy<T>) -> T,
         {
             let msg = Request::Bind {
                 name: name,
-                id: (T::NAME.into(), version, self.child_placeholder()),
+                id: (T::NAME.into(), version, self.0.child_placeholder()),
             };
-            self.send_constructor(msg, implementor, Some(version))
+            self.0.send_constructor(msg, implementor, Some(version))
         }
     }
     #[doc = r" An interface for handling events."]
     pub trait EventHandler {}
     impl<T: EventHandler> HandledBy<T> for WlRegistry {
         #[inline]
-        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+        fn handle(handler: &mut T, event: Event, object: Self) {
             match event {}
         }
     }
@@ -659,25 +711,43 @@ pub mod wl_callback {
             panic!("Event::into_raw can not be used Client-side.")
         }
     }
-    pub struct WlCallback;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlCallback(Proxy<WlCallback>);
+    impl AsRef<Proxy<WlCallback>> for WlCallback {
+        #[inline]
+        fn as_ref(&self) -> &Proxy<Self> {
+            &self.0
+        }
+    }
+    impl From<Proxy<WlCallback>> for WlCallback {
+        #[inline]
+        fn from(value: Proxy<Self>) -> Self {
+            WlCallback(value)
+        }
+    }
+    impl From<WlCallback> for Proxy<WlCallback> {
+        #[inline]
+        fn from(value: WlCallback) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlCallback {
         type Request = Request;
         type Event = Event;
         const NAME: &'static str = "wl_callback";
         const VERSION: u32 = 1;
     }
-    pub trait RequestsTrait {}
-    impl RequestsTrait for Proxy<WlCallback> {}
+    impl WlCallback {}
     #[doc = r" An interface for handling events."]
     pub trait EventHandler {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
-        fn done(&mut self, proxy: Proxy<WlCallback>, callback_data: u32) {}
+        fn done(&mut self, object: WlCallback, callback_data: u32) {}
     }
     impl<T: EventHandler> HandledBy<T> for WlCallback {
         #[inline]
-        fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+        fn handle(handler: &mut T, event: Event, object: Self) {
             match event {
-                Event::Done { callback_data } => handler.done(proxy, callback_data),
+                Event::Done { callback_data } => handler.done(object, callback_data),
             }
         }
     }

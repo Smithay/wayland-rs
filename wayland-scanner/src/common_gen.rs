@@ -222,26 +222,38 @@ pub(crate) fn gen_messagegroup(
                         Type::Array => quote!(Vec<u8>),
                         Type::Fd => quote!(::std::os::unix::io::RawFd),
                         Type::Object => {
-                            let object_name = side.object_name();
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());
                                 let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
-                                quote!(#object_name<super::#iface_mod::#iface_type>)
+                                quote!(super::#iface_mod::#iface_type)
                             } else {
-                                quote!(#object_name<AnonymousObject>)
+                                quote!(AnonymousObject)
                             }
                         }
                         Type::NewId => {
-                            let prefix = if receiver { "New" } else { "" };
-                            let object_name =
-                                Ident::new(&format!("{}{}", prefix, side.object_name()), Span::call_site());
+                            let object_name = if receiver {
+                                Some(Ident::new(
+                                    &format!("New{}", side.object_name()),
+                                    Span::call_site(),
+                                ))
+                            } else {
+                                None
+                            };
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());
                                 let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
-                                quote!(#object_name<super::#iface_mod::#iface_type>)
+                                if let Some(object_name) = object_name {
+                                    quote!(#object_name<super::#iface_mod::#iface_type>)
+                                } else {
+                                    quote!(super::#iface_mod::#iface_type)
+                                }
                             } else {
                                 // bind-like function
-                                quote!((String, u32, #object_name<AnonymousObject>))
+                                if let Some(object_name) = object_name {
+                                    quote!((String, u32, #object_name<AnonymousObject>))
+                                } else {
+                                    quote!((String, u32, AnonymousObject))
+                                }
                             }
                         }
                         Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
@@ -420,7 +432,7 @@ pub(crate) fn gen_messagegroup(
                             }
                             Type::Fd => quote!(val),
                             Type::Object => {
-                                let map_lookup = quote!(map.get(val).ok_or(())?);
+                                let map_lookup = quote!(map.get(val).ok_or(())?.into());
                                 if arg.allow_null {
                                     quote!(if val == 0 { None } else { Some(#map_lookup) })
                                 } else {
@@ -540,22 +552,22 @@ pub(crate) fn gen_messagegroup(
                     Type::Fd => quote!(Argument::Fd(#arg_ident)),
                     Type::NewId => {
                         if arg.interface.is_some() {
-                            quote!(Argument::NewId(#arg_ident.id()))
+                            quote!(Argument::NewId(#arg_ident.as_ref().id()))
                         } else {
                             quote! {
                                 Argument::Str(unsafe {
                                     ::std::ffi::CString::from_vec_unchecked(#arg_ident.0.into())
                                 }),
                                 Argument::Uint(#arg_ident.1),
-                                Argument::NewId(#arg_ident.2.id())
+                                Argument::NewId(#arg_ident.2.as_ref().id())
                             }
                         }
                     }
                     Type::Object => {
                         if arg.allow_null {
-                            quote!(Argument::Object(#arg_ident.map(|o| o.id()).unwrap_or(0)))
+                            quote!(Argument::Object(#arg_ident.map(|o| o.as_ref().id()).unwrap_or(0)))
                         } else {
-                            quote!(Argument::Object(#arg_ident.id()))
+                            quote!(Argument::Object(#arg_ident.as_ref().id()))
                         }
                     }
                     Type::Destructor => panic!("An argument cannot have type Destructor"),
@@ -667,15 +679,20 @@ pub(crate) fn gen_interface(
     }
 }
 
-pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message) -> (TokenStream, Option<&'a Arg>) {
+pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (TokenStream, Option<&'a Arg>) {
     let mut it = msg.args.iter().filter(|arg| arg.typ == Type::NewId);
-    let newid = it.next();
+    let mut newid = it.next();
     assert!(
         newid.is_none() || it.next().is_none(),
         "Request {}.{} returns more than one new_id",
         iname,
         msg.name
     );
+
+    // Serverside we don't deal with NewId arguments and treat them as objects.
+    if side == Side::Server {
+        newid = None;
+    }
 
     let fn_name = Ident::new(
         &format!("{}{}", if is_keyword(&msg.name) { "_" } else { "" }, msg.name),
@@ -687,7 +704,7 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message) -> (TokenStream, Op
     let generics = if let Some(arg) = newid {
         if arg.interface.is_none() {
             args.push(quote!(version: u32));
-            Some(quote!(T: Interface, F))
+            Some(quote!(T: Interface + From<Proxy<T>>, F))
         } else {
             Some(quote!(F))
         }
@@ -699,16 +716,20 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message) -> (TokenStream, Op
         let arg_type_inner = if let Some(ref name) = arg.enum_ {
             dotted_to_relname(name)
         } else {
-            match arg.typ {
+            let mut typ = arg.typ;
+            if typ == Type::NewId && side == Side::Server {
+                typ = Type::Object;
+            }
+            match typ {
                 Type::Object => arg
                     .interface
                     .as_ref()
                     .map(|iface| {
                         let iface_mod = Ident::new(iface, Span::call_site());
                         let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
-                        quote!(&Proxy<super::#iface_mod::#iface_type>)
+                        quote!(&super::#iface_mod::#iface_type)
                     })
-                    .unwrap_or(quote!(&Proxy<super::AnonymousObject>)),
+                    .unwrap_or(quote!(&super::AnonymousObject)),
                 Type::NewId => {
                     // client-side, the return-type handles that
                     return None;
@@ -742,17 +763,17 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message) -> (TokenStream, Op
                 let iface_type = Ident::new(&snake_to_camel(&iface), Span::call_site());
 
                 (
-                    quote!(Result<Proxy<super::#iface_mod::#iface_type>, ()>),
+                    quote!(Result<super::#iface_mod::#iface_type, ()>),
                     Some(quote! {
                         where F: FnOnce(
                             NewProxy<super::#iface_mod::#iface_type>,
-                        ) -> Proxy<super::#iface_mod::#iface_type>
+                        ) -> super::#iface_mod::#iface_type
                     }),
                 )
             }
             None => (
-                quote!(Result<Proxy<T>, ()>),
-                Some(quote!(where F: FnOnce(NewProxy<T>) -> Proxy<T>)),
+                quote!(Result<T, ()>),
+                Some(quote!(where F: FnOnce(NewProxy<T>) -> T)),
             ),
         }
     } else {
@@ -760,14 +781,22 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message) -> (TokenStream, Op
     };
 
     let prototype = quote! {
-        fn #fn_name#(<#generics>)*(&self, #(#args),*) -> #return_type #where_bounds
+        pub fn #fn_name#(<#generics>)*(&self, #(#args),*) -> #return_type #where_bounds
     };
 
     (prototype, newid)
 }
 
-pub(crate) fn gen_client_methods(name: &Ident, messages: &[Message]) -> TokenStream {
-    let methods = messages.iter().map(|msg| {
+pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side) -> TokenStream {
+    let outgoing_message_type = Ident::new(
+        match side {
+            Side::Client => "Request",
+            Side::Server => "Event",
+        },
+        Span::call_site(),
+    );
+
+    let method_impls = messages.iter().map(|msg| {
         let mut docs = String::new();
         if let Some((ref short, ref long)) = msg.description {
             docs += &format!("{}\n\n{}\n", short, long);
@@ -780,29 +809,25 @@ pub(crate) fn gen_client_methods(name: &Ident, messages: &[Message]) -> TokenStr
         }
 
         let doc_attr = to_doc_attr(&docs);
-        let (proto, _) = method_prototype(name, &msg);
 
-        quote! {
-            #doc_attr
-            #proto;
-        }
-    });
-
-    let method_impls = messages.iter().map(|msg| {
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
-        let (proto, return_type) = method_prototype(name, &msg);
+        let (proto, return_type) = method_prototype(name, &msg, side);
 
         let msg_init = if msg.args.is_empty() {
             TokenStream::new()
         } else {
             let args = msg.args.iter().map(|arg| {
                 let arg_name = Ident::new(&arg.name, Span::call_site());
-                let arg_value = match arg.typ {
+                let mut typ = arg.typ;
+                if typ == Type::NewId && side == Side::Server {
+                    typ = Type::Object;
+                }
+                let arg_value = match typ {
                     Type::NewId => {
                         if arg.interface.is_some() {
-                            quote!(self.child_placeholder())
+                            quote!(self.0.child_placeholder())
                         } else {
-                            quote!((T::NAME.into(), version, self.child_placeholder()))
+                            quote!((T::NAME.into(), version, self.0.child_placeholder()))
                         }
                     }
                     Type::Object => {
@@ -823,28 +848,25 @@ pub(crate) fn gen_client_methods(name: &Ident, messages: &[Message]) -> TokenStr
 
         let send_stmt = match return_type {
             Some(ret_type) if ret_type.interface.is_none() => {
-                quote!(self.send_constructor(msg, implementor, Some(version)))
+                quote!(self.0.send_constructor(msg, implementor, Some(version)))
             }
-            Some(_) => quote!(self.send_constructor(msg, implementor, None)),
+            Some(_) => quote!(self.0.send_constructor(msg, implementor, None)),
             None => quote! {
-                self.send(msg);
+                self.0.send(msg);
             },
         };
 
         quote! {
+            #doc_attr
             #proto {
-                let msg = Request::#msg_name #msg_init;
+                let msg = #outgoing_message_type::#msg_name #msg_init;
                 #send_stmt
             }
         }
     });
 
     quote! {
-        pub trait RequestsTrait {
-            #(#methods)*
-        }
-
-        impl RequestsTrait for Proxy<#name> {
+        impl #name {
             #(#method_impls)*
         }
     }
@@ -873,17 +895,17 @@ fn event_method_prototype(name: &Ident, msg: &Message, side: Side) -> TokenStrea
                 Type::Array => quote!(Vec<u8>),
                 Type::Fd => quote!(::std::os::unix::io::RawFd),
                 Type::Object => {
-                    let object_name = side.object_name();
                     if let Some(ref iface) = arg.interface {
                         let iface_mod = Ident::new(&iface, Span::call_site());
                         let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
-                        quote!(#object_name<super::#iface_mod::#iface_type>)
+                        quote!(super::#iface_mod::#iface_type)
                     } else {
-                        quote!(#object_name<AnonymousObject>)
+                        quote!(AnonymousObject)
                     }
                 }
                 Type::NewId => {
                     let object_name = Ident::new(&format!("New{}", side.object_name()), Span::call_site());
+
                     if let Some(ref iface) = arg.interface {
                         let iface_mod = Ident::new(&iface, Span::call_site());
                         let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
@@ -908,17 +930,8 @@ fn event_method_prototype(name: &Ident, msg: &Message, side: Side) -> TokenStrea
         }
     });
 
-    let object_type = side.object_name();
-    let object_name = Ident::new(
-        match side {
-            Side::Client => "proxy",
-            Side::Server => "request",
-        },
-        Span::call_site(),
-    );
-
     quote! {
-        fn #method_name(&mut self, #object_name: #object_type<#name>, #(#method_args),*) {}
+        fn #method_name(&mut self, object: #name, #(#method_args),*) {}
     }
 }
 
@@ -972,12 +985,12 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
         match side {
             Side::Client => quote! {
                 Event::#msg_name { #(#arg_names),* } => {
-                    handler.#method_name(proxy, #(#arg_names_2),*)
+                    handler.#method_name(object, #(#arg_names_2),*)
                 }
             },
             Side::Server => quote! {
                 Request::#msg_name { #(#arg_names),* } => {
-                    handler.#method_name(resource, #(#arg_names_2),*)
+                    handler.#method_name(object, #(#arg_names_2),*)
                 }
             },
         }
@@ -992,7 +1005,7 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
 
             impl<T: EventHandler> HandledBy<T> for #iname {
                 #[inline]
-                fn handle(handler: &mut T, event: Event, proxy: Proxy<Self>) {
+                fn handle(handler: &mut T, event: Event, object: Self) {
                     match event {
                         #(#method_patterns)*
                     }
@@ -1007,7 +1020,7 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
 
             impl<T: RequestHandler> HandledBy<T> for #iname {
                 #[inline]
-                fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+                fn handle(handler: &mut T, request: Request, object: Self) {
                     match request {
                         #(#method_patterns)*
                     }

@@ -41,7 +41,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
         );
 
-        let client_methods = gen_client_methods(&iface_name, &iface.requests);
+        let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
         let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
 
@@ -59,7 +59,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #requests
                 #events
                 #interface
-                #client_methods
+                #object_methods
                 #event_handler_trait
                 #sinces
             }
@@ -109,6 +109,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Some(interface_c_addon(&iface.name)),
                 Side::Server,
             );
+            let object_methods = gen_object_methods(&iface_name, &iface.events, Side::Server);
             let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
 
@@ -126,6 +127,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                     #requests
                     #events
                     #interface
+                    #object_methods
                     #event_handler_trait
                     #sinces
                 }
@@ -213,11 +215,11 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
                                     quote! {
                                         #object_name::<super::#iface_mod::#iface_type>::from_c_ptr(
                                             _args[#idx].o as *mut _,
-                                        )
+                                        ).into()
                                     }
                                 } else {
                                     quote! {
-                                        #object_name::<AnonymousObject>::from_c_ptr(_args[#idx].o as *mut _)
+                                        #object_name::<AnonymousObject>::from_c_ptr(_args[#idx].o as *mut _).into()
                                     }
                                 };
 
@@ -426,20 +428,19 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
                         if arg.allow_null {
                             quote! {
                                 _args_array[#idx].o = #arg_name
-                                    .map(|o| o.c_ptr() as *mut _)
+                                    .map(|o| o.as_ref().c_ptr() as *mut _)
                                     .unwrap_or(::std::ptr::null_mut());
                             }
                         } else {
                             quote! {
-                                _args_array[#idx].o = #arg_name.c_ptr() as *mut _;
+                                _args_array[#idx].o = #arg_name.as_ref().c_ptr() as *mut _;
                             }
                         }
                     }
                     Type::NewId => {
                         if arg.interface.is_some() {
                             quote! {
-                                _args_array[#idx].o = #arg_name.c_ptr() as *mut _;
-                            }
+                            _args_array[#idx].o = #arg_name.as_ref().c_ptr() as *mut _; }
                         } else {
                             assert!(
                                 side != Side::Server,

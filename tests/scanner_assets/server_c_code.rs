@@ -260,7 +260,26 @@ pub mod wl_foo {
             }
         }
     }
-    pub struct WlFoo;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlFoo(Resource<WlFoo>);
+    impl AsRef<Resource<WlFoo>> for WlFoo {
+        #[inline]
+        fn as_ref(&self) -> &Resource<Self> {
+            &self.0
+        }
+    }
+    impl From<Resource<WlFoo>> for WlFoo {
+        #[inline]
+        fn from(value: Resource<Self>) -> Self {
+            WlFoo(value)
+        }
+    }
+    impl From<WlFoo> for Resource<WlFoo> {
+        #[inline]
+        fn from(value: WlFoo) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlFoo {
         type Request = Request;
         type Event = Event;
@@ -270,12 +289,22 @@ pub mod wl_foo {
             unsafe { &super::super::c_interfaces::wl_foo_interface }
         }
     }
+    impl WlFoo {
+        #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface."]
+        pub fn cake(&self, kind: CakeKind, amount: u32) -> () {
+            let msg = Event::Cake {
+                kind: kind,
+                amount: amount,
+            };
+            self.0.send(msg);
+        }
+    }
     #[doc = r" An interface for handling requests."]
     pub trait RequestHandler {
         #[doc = "do some foo\n\nThis will do some foo with its args."]
         fn foo_it(
             &mut self,
-            request: Resource<WlFoo>,
+            object: WlFoo,
             number: i32,
             unumber: u32,
             text: String,
@@ -284,11 +313,11 @@ pub mod wl_foo {
         ) {
         }
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        fn create_bar(&mut self, request: Resource<WlFoo>, id: NewResource<super::wl_bar::WlBar>) {}
+        fn create_bar(&mut self, object: WlFoo, id: NewResource<super::wl_bar::WlBar>) {}
     }
     impl<T: RequestHandler> HandledBy<T> for WlFoo {
         #[inline]
-        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+        fn handle(handler: &mut T, request: Request, object: Self) {
             match request {
                 Request::FooIt {
                     number,
@@ -296,8 +325,8 @@ pub mod wl_foo {
                     text,
                     float,
                     file,
-                } => handler.foo_it(resource, number, unumber, text, float, file),
-                Request::CreateBar { id } => handler.create_bar(resource, id),
+                } => handler.foo_it(object, number, unumber, text, float, file),
+                Request::CreateBar { id } => handler.create_bar(object, id),
             }
         }
     }
@@ -320,7 +349,7 @@ pub mod wl_bar {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
         BarDelivery {
             kind: super::wl_foo::DeliveryKind,
-            target: Resource<super::wl_foo::WlFoo>,
+            target: super::wl_foo::WlFoo,
             metadata: Vec<u8>,
             metametadata: Option<Vec<u8>>,
         },
@@ -377,7 +406,7 @@ pub mod wl_bar {
                         },
                         target: {
                             if let Some(Argument::Object(val)) = args.next() {
-                                map.get(val).ok_or(())?
+                                map.get(val).ok_or(())?.into()
                             } else {
                                 return Err(());
                             }
@@ -419,7 +448,7 @@ pub mod wl_bar {
                     let _args = ::std::slice::from_raw_parts(args, 4);
                     Ok(Request::BarDelivery {
                         kind: super::wl_foo::DeliveryKind::from_raw(_args[0].u).ok_or(())?,
-                        target: Resource::<super::wl_foo::WlFoo>::from_c_ptr(_args[1].o as *mut _),
+                        target: Resource::<super::wl_foo::WlFoo>::from_c_ptr(_args[1].o as *mut _).into(),
                         metadata: {
                             let array = &*_args[2].a;
                             ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned()
@@ -480,7 +509,26 @@ pub mod wl_bar {
             match self {}
         }
     }
-    pub struct WlBar;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlBar(Resource<WlBar>);
+    impl AsRef<Resource<WlBar>> for WlBar {
+        #[inline]
+        fn as_ref(&self) -> &Resource<Self> {
+            &self.0
+        }
+    }
+    impl From<Resource<WlBar>> for WlBar {
+        #[inline]
+        fn from(value: Resource<Self>) -> Self {
+            WlBar(value)
+        }
+    }
+    impl From<WlBar> for Resource<WlBar> {
+        #[inline]
+        fn from(value: WlBar) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlBar {
         type Request = Request;
         type Event = Event;
@@ -490,32 +538,33 @@ pub mod wl_bar {
             unsafe { &super::super::c_interfaces::wl_bar_interface }
         }
     }
+    impl WlBar {}
     #[doc = r" An interface for handling requests."]
     pub trait RequestHandler {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface."]
         fn bar_delivery(
             &mut self,
-            request: Resource<WlBar>,
+            object: WlBar,
             kind: super::wl_foo::DeliveryKind,
-            target: Resource<super::wl_foo::WlFoo>,
+            target: super::wl_foo::WlFoo,
             metadata: Vec<u8>,
             metametadata: Option<Vec<u8>>,
         ) {
         }
         #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
-        fn release(&mut self, request: Resource<WlBar>) {}
+        fn release(&mut self, object: WlBar) {}
     }
     impl<T: RequestHandler> HandledBy<T> for WlBar {
         #[inline]
-        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+        fn handle(handler: &mut T, request: Request, object: Self) {
             match request {
                 Request::BarDelivery {
                     kind,
                     target,
                     metadata,
                     metametadata,
-                } => handler.bar_delivery(resource, kind, target, metadata, metametadata),
-                Request::Release {} => handler.release(resource),
+                } => handler.bar_delivery(object, kind, target, metadata, metametadata),
+                Request::Release {} => handler.release(object),
             }
         }
     }
@@ -629,7 +678,26 @@ pub mod wl_callback {
             }
         }
     }
-    pub struct WlCallback;
+    #[derive(Clone, Eq, PartialEq)]
+    pub struct WlCallback(Resource<WlCallback>);
+    impl AsRef<Resource<WlCallback>> for WlCallback {
+        #[inline]
+        fn as_ref(&self) -> &Resource<Self> {
+            &self.0
+        }
+    }
+    impl From<Resource<WlCallback>> for WlCallback {
+        #[inline]
+        fn from(value: Resource<Self>) -> Self {
+            WlCallback(value)
+        }
+    }
+    impl From<WlCallback> for Resource<WlCallback> {
+        #[inline]
+        fn from(value: WlCallback) -> Self {
+            value.0
+        }
+    }
     impl Interface for WlCallback {
         type Request = Request;
         type Event = Event;
@@ -639,11 +707,20 @@ pub mod wl_callback {
             unsafe { &super::super::c_interfaces::wl_callback_interface }
         }
     }
+    impl WlCallback {
+        #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
+        pub fn done(&self, callback_data: u32) -> () {
+            let msg = Event::Done {
+                callback_data: callback_data,
+            };
+            self.0.send(msg);
+        }
+    }
     #[doc = r" An interface for handling requests."]
     pub trait RequestHandler {}
     impl<T: RequestHandler> HandledBy<T> for WlCallback {
         #[inline]
-        fn handle(handler: &mut T, request: Request, resource: Resource<Self>) {
+        fn handle(handler: &mut T, request: Request, object: Self) {
             match request {}
         }
     }

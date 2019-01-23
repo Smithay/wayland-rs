@@ -33,7 +33,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             None,
             Side::Client,
         );
-        let client_methods = gen_client_methods(&iface_name, &iface.requests);
+        let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
         let event_handler_trait = gen_event_handler_trait(
             &iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
@@ -50,7 +50,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #requests
                 #events
                 #interface
-                #client_methods
+                #object_methods
                 #event_handler_trait
                 #sinces
             }
@@ -95,6 +95,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 None,
                 Side::Server,
             );
+            let object_methods = gen_object_methods(&iface_name, &iface.events, Side::Server);
             let request_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
 
@@ -110,6 +111,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                     #requests
                     #events
                     #interface
+                    #object_methods
                     #request_handler_trait
                     #sinces
                 }
