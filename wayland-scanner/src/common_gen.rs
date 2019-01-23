@@ -626,11 +626,35 @@ pub(crate) fn gen_interface(
     low_name: &str,
     version: u32,
     addon: Option<TokenStream>,
+    side: Side,
 ) -> TokenStream {
+    let object_type = side.object_name();
     let version_lit = Literal::u32_unsuffixed(version);
 
     quote! {
-        pub struct #name;
+        #[derive(Clone, Eq, PartialEq)]
+        pub struct #name(#object_type<#name>);
+
+        impl AsRef<#object_type<#name>> for #name {
+            #[inline]
+            fn as_ref(&self) -> &#object_type<Self> {
+                &self.0
+            }
+        }
+
+        impl From<#object_type<#name>> for #name {
+            #[inline]
+            fn from(value: #object_type<Self>) -> Self {
+                #name(value)
+            }
+        }
+
+        impl From<#name> for #object_type<#name> {
+            #[inline]
+            fn from(value: #name) -> Self {
+                value.0
+            }
+        }
 
         impl Interface for #name {
             type Request = Request;

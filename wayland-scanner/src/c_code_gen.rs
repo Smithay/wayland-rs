@@ -38,6 +38,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             &iface.name,
             iface.version,
             Some(interface_c_addon(&iface.name)),
+            Side::Client,
         );
 
         let client_methods = gen_client_methods(&iface_name, &iface.requests);
@@ -106,6 +107,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 &iface.name,
                 iface.version,
                 Some(interface_c_addon(&iface.name)),
+                Side::Server,
             );
             let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
