@@ -82,7 +82,6 @@ impl TestClient {
 }
 
 pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result<()> {
-    use self::wayc::protocol::wl_display::RequestsTrait;
     // send to the server
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();

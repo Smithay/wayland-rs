@@ -4,7 +4,7 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 
-use wayc::protocol::wl_output::{RequestsTrait, WlOutput};
+use wayc::protocol::wl_output::WlOutput;
 
 use std::sync::{Arc, Mutex};
 

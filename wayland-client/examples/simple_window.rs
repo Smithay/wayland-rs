@@ -8,14 +8,8 @@ use std::os::unix::io::AsRawFd;
 
 use byteorder::{NativeEndian, WriteBytesExt};
 
-use wayland_client::protocol::wl_compositor::RequestsTrait as CompositorRequests;
-use wayland_client::protocol::wl_shell::RequestsTrait as ShellRequests;
-use wayland_client::protocol::wl_shell_surface::RequestsTrait as ShellSurfaceRequests;
-use wayland_client::protocol::wl_shm::RequestsTrait as ShmRequests;
-use wayland_client::protocol::wl_shm_pool::RequestsTrait as PoolRequests;
-use wayland_client::protocol::wl_surface::RequestsTrait as SurfaceRequests;
-use wayland_client::protocol::{wl_compositor, wl_seat, wl_shell, wl_shell_surface, wl_shm};
-use wayland_client::{Display, GlobalManager, Proxy};
+use wayland_client::protocol::{wl_compositor, wl_seat, wl_shell, wl_shm};
+use wayland_client::{Display, GlobalManager};
 
 fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
@@ -91,8 +85,8 @@ fn main() {
     let shell_surface = shell
         .get_shell_surface(&surface, |shellsurface| {
             shellsurface.implement_closure(
-                |event, shell_surface: Proxy<wl_shell_surface::WlShellSurface>| {
-                    use wayland_client::protocol::wl_shell_surface::{Event, RequestsTrait};
+                |event, shell_surface| {
+                    use wayland_client::protocol::wl_shell_surface::Event;
                     // This ping/pong mechanism is used by the wayland server to detect
                     // unresponsive applications
                     if let Event::Ping { serial } = event {
@@ -117,14 +111,12 @@ fn main() {
     let mut pointer_created = false;
     globals.instantiate_auto::<wl_seat::WlSeat, _>(|seat| {
         seat.implement_closure(
-            move |event, seat: Proxy<wl_seat::WlSeat>| {
+            move |event, seat| {
                 // The capabilities of a seat are known at runtime and we retrieve
                 // them via an events. 3 capabilities exists: pointer, keyboard, and touch
                 // we are only interested in pointer here
                 use wayland_client::protocol::wl_pointer::Event as PointerEvent;
-                use wayland_client::protocol::wl_seat::{
-                    Capability, Event as SeatEvent, RequestsTrait as SeatRequests,
-                };
+                use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent};
 
                 if let SeatEvent::Capabilities { capabilities } = event {
                     if !pointer_created && capabilities.contains(Capability::Pointer) {

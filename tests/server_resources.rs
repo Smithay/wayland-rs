@@ -127,9 +127,9 @@ fn resource_user_data_wrong_thread() {
 #[cfg(not(feature = "native_lib"))]
 #[test]
 fn resource_implement_wrong_thread() {
-    let mut server = TestServer::new();
+    let server = TestServer::new();
 
-    let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
+    let (s1, _) = ::std::os::unix::net::UnixStream::pair().unwrap();
     let my_client = unsafe { server.display.create_client(s1.into_raw_fd()) };
 
     let ret = ::std::thread::spawn(move || {
@@ -144,7 +144,6 @@ fn resource_implement_wrong_thread() {
 
 #[test]
 fn dead_resources() {
-    use self::wayc::protocol::wl_output::RequestsTrait;
     let mut server = TestServer::new();
 
     let outputs = Arc::new(Mutex::new(Vec::new()));

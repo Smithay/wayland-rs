@@ -9,10 +9,7 @@ mod helpers;
 
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
-use wayc::protocol::wl_compositor::RequestsTrait as CompositorRequests;
-use wayc::protocol::wl_shm::{Format, RequestsTrait as ShmRequests};
-use wayc::protocol::wl_shm_pool::RequestsTrait as PoolRequests;
-use wayc::protocol::wl_surface::RequestsTrait as SurfaceRequests;
+use wayc::protocol::wl_shm::Format;
 
 use ways::protocol::wl_buffer::WlBuffer as ServerBuffer;
 use ways::Resource;

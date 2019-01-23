@@ -71,9 +71,7 @@ fn global_filter() {
 
 #[test]
 fn global_filter_try_force() {
-    use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
     use wayc::protocol::wl_output::WlOutput;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     use std::os::unix::io::IntoRawFd;
 

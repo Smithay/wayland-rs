@@ -125,11 +125,11 @@ fn auto_instantiate() {
     let compositor = manager
         .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
         .unwrap();
-    assert!(compositor.version() == 4);
+    assert!(compositor.as_proxy().version() == 4);
     let shell = manager
         .instantiate_auto::<WlShell, _>(|newp| newp.implement_dummy())
         .unwrap();
-    assert!(shell.version() == 1);
+    assert!(shell.as_proxy().version() == 1);
 
     assert!(
         manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement_dummy())
@@ -154,9 +154,7 @@ fn wrong_version_create_global() {
 #[test]
 #[cfg_attr(feature = "native_lib", ignore)]
 fn wrong_global() {
-    use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
     use wayc::protocol::wl_output::WlOutput;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
@@ -180,8 +178,6 @@ fn wrong_global() {
 #[test]
 fn wrong_global_version() {
     use wayc::protocol::wl_compositor::WlCompositor;
-    use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
@@ -204,8 +200,6 @@ fn wrong_global_version() {
 #[test]
 fn invalid_global_version() {
     use wayc::protocol::wl_compositor::WlCompositor;
-    use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
@@ -228,8 +222,6 @@ fn invalid_global_version() {
 #[test]
 fn wrong_global_id() {
     use wayc::protocol::wl_compositor::WlCompositor;
-    use wayc::protocol::wl_display::RequestsTrait as DisplayRequests;
-    use wayc::protocol::wl_registry::RequestsTrait as RegistryRequests;
 
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});

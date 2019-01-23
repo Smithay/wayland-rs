@@ -5,8 +5,9 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 
-use wayc::protocol::wl_compositor::{self, RequestsTrait};
+use wayc::protocol::wl_compositor;
 use wayc::protocol::wl_output;
+use wayc::Proxy;
 
 #[test]
 fn proxy_equals() {
@@ -48,12 +49,14 @@ fn proxy_user_data() {
             newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
         })
         .unwrap();
+    let compositor1 = compositor1.as_proxy();
 
     let compositor2 = manager
         .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
             newp.implement_closure(|_, _| {}, 0xBADC0FFEusize)
         })
         .unwrap();
+    let compositor2 = compositor2.as_proxy();
 
     let compositor3 = compositor1.clone();
 
@@ -73,9 +76,12 @@ fn proxy_user_data_wrong_thread() {
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let compositor = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_closure(|_, _| {}, 0xDEADBEEFusize))
-        .unwrap();
+    let compositor: Proxy<_> = manager
+        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
+            newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
+        })
+        .unwrap()
+        .into();
 
     // we can access on the right thread
     assert!(compositor.user_data::<usize>().is_some());
@@ -96,7 +102,13 @@ fn proxy_wrapper() {
     let mut client = TestClient::new(&server.socket_name);
 
     let mut event_queue_2 = client.display.create_event_queue();
-    let manager = wayc::GlobalManager::new(&client.display.make_wrapper(&event_queue_2.get_token()).unwrap());
+    let manager = wayc::GlobalManager::new(
+        &client
+            .display
+            .as_proxy()
+            .make_wrapper(&event_queue_2.get_token())
+            .unwrap(),
+    );
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -153,7 +165,7 @@ fn proxy_implement_wrapper_threaded() {
 
     ::std::thread::spawn(move || {
         let evq2 = display2.create_event_queue();
-        let compositor_wrapper = compositor.make_wrapper(&evq2.get_token()).unwrap();
+        let compositor_wrapper = compositor.as_proxy().make_wrapper(&evq2.get_token()).unwrap();
         compositor_wrapper
             .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should not panic
             .unwrap();
@@ -179,7 +191,7 @@ fn proxy_implement_threadsafe_wrong_thread() {
 
     ::std::thread::spawn(move || {
         compositor
-            .create_surface(|newp| newp.implement_closure_threadsafe(|_,_| {}, ())) // should not panic
+            .create_surface(|newp| newp.implement_closure_threadsafe(|_, _| {}, ())) // should not panic
             .unwrap();
     })
     .join()
@@ -188,8 +200,6 @@ fn proxy_implement_threadsafe_wrong_thread() {
 
 #[test]
 fn dead_proxies() {
-    use self::wl_output::RequestsTrait;
-
     let mut server = TestServer::new();
     server.display.create_global::<ServerOutput, _>(3, |_, _| {});
 
@@ -207,14 +217,14 @@ fn dead_proxies() {
     let output2 = output.clone();
 
     assert!(output == output2);
-    assert!(output.is_alive());
-    assert!(output2.is_alive());
+    assert!(output.as_proxy().is_alive());
+    assert!(output2.as_proxy().is_alive());
 
     // kill the output
     output.release();
 
     // dead proxies are never equal
     assert!(output != output2);
-    assert!(!output.is_alive());
-    assert!(!output2.is_alive());
+    assert!(!output.as_proxy().is_alive());
+    assert!(!output2.as_proxy().is_alive());
 }

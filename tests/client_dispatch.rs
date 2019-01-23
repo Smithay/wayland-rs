@@ -1,14 +1,12 @@
 mod helpers;
 
-use helpers::{wayc, ways, TestClient};
+use helpers::{ways, TestClient};
 
 use std::cell::Cell;
 use std::ffi::OsStr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-use self::wayc::protocol::wl_display::RequestsTrait;
 
 #[test]
 fn client_sync_roundtrip() {

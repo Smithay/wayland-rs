@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate wayland_client;
 
-use wayland_client::{Display, GlobalManager, Proxy};
+use wayland_client::{Display, GlobalManager};
 
 use wayland_client::protocol::wl_output::{Mode, Subpixel, Transform, WlOutput};
 use wayland_client::protocol::{wl_output, wl_seat};
@@ -22,7 +22,7 @@ struct OutputHandler {
 impl wl_output::EventHandler for OutputHandler {
     fn geometry(
         &mut self,
-        _proxy: Proxy<WlOutput>,
+        _output: WlOutput,
         x: i32,
         y: i32,
         physical_width: i32,
@@ -40,15 +40,15 @@ impl wl_output::EventHandler for OutputHandler {
         self.name = format!("{} ({})", make, model);
     }
 
-    fn mode(&mut self, _proxy: Proxy<WlOutput>, flags: Mode, width: i32, height: i32, refresh: i32) {
+    fn mode(&mut self, _output: WlOutput, flags: Mode, width: i32, height: i32, refresh: i32) {
         self.modes.push((flags, width, height, refresh));
     }
 
-    fn scale(&mut self, _proxy: Proxy<WlOutput>, factor: i32) {
+    fn scale(&mut self, _output: WlOutput, factor: i32) {
         self.scale = factor;
     }
 
-    fn done(&mut self, _proxy: Proxy<WlOutput>) {
+    fn done(&mut self, _output: WlOutput) {
         println!("Modesetting information for output \"{}\"", self.name);
         println!(" -> scaling factor: {}", self.scale);
         println!(" -> mode list:");

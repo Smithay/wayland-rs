@@ -16,11 +16,11 @@ use ways::{NewResource, Resource};
 use wayc::protocol::wl_data_device::{
     Event as CDDEvt, EventHandler as ClientDDHandler, WlDataDevice as ClientDD,
 };
-use wayc::protocol::wl_data_device_manager::{RequestsTrait, WlDataDeviceManager as ClientDDMgr};
+use wayc::protocol::wl_data_device_manager::WlDataDeviceManager as ClientDDMgr;
 use wayc::protocol::wl_data_offer::WlDataOffer as ClientDO;
 use wayc::protocol::wl_seat::WlSeat as ClientSeat;
 use wayc::protocol::wl_surface::WlSurface as ClientSurface;
-use wayc::{NewProxy, Proxy};
+use wayc::NewProxy;
 
 #[test]
 fn data_offer() {
@@ -73,6 +73,7 @@ fn data_offer() {
                 move |evt, _| match evt {
                     CDDEvt::DataOffer { id } => {
                         let doffer = id.implement_dummy();
+                        let doffer = doffer.as_proxy();
                         assert!(doffer.version() == 3);
                         // this must be the first server-side ID
                         assert_eq!(doffer.id(), 0xFF000000);
@@ -148,8 +149,9 @@ fn data_offer_trait_impls() {
     }
 
     impl ClientDDHandler for ClientHandler {
-        fn data_offer(&mut self, _proxy: Proxy<ClientDD>, id: NewProxy<ClientDO>) {
+        fn data_offer(&mut self, _dd: ClientDD, id: NewProxy<ClientDO>) {
             let doffer = id.implement_dummy();
+            let doffer = doffer.as_proxy();
             assert!(doffer.version() == 3);
             // this must be the first server-side ID
             assert_eq!(doffer.id(), 0xFF000000);
@@ -158,29 +160,29 @@ fn data_offer_trait_impls() {
 
         fn enter(
             &mut self,
-            _proxy: Proxy<ClientDD>,
+            _dd: ClientDD,
             _serial: u32,
-            _surface: Proxy<ClientSurface>,
+            _surface: ClientSurface,
             _x: f64,
             _y: f64,
-            _id: Option<Proxy<ClientDO>>,
+            _id: Option<ClientDO>,
         ) {
             unimplemented!()
         }
 
-        fn leave(&mut self, _proxy: Proxy<ClientDD>) {
+        fn leave(&mut self, _dd: ClientDD) {
             unimplemented!()
         }
 
-        fn motion(&mut self, _proxy: Proxy<ClientDD>, _time: u32, _x: f64, _y: f64) {
+        fn motion(&mut self, _dd: ClientDD, _time: u32, _x: f64, _y: f64) {
             unimplemented!()
         }
 
-        fn drop(&mut self, _proxy: Proxy<ClientDD>) {
+        fn drop(&mut self, _dd: ClientDD) {
             unimplemented!()
         }
 
-        fn selection(&mut self, _proxy: Proxy<ClientDD>, _id: Option<Proxy<ClientDO>>) {
+        fn selection(&mut self, _dd: ClientDD, _id: Option<ClientDO>) {
             unimplemented!()
         }
     }
