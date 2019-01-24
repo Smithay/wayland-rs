@@ -557,7 +557,7 @@ impl super::Dispatcher for DisplayDispatcher {
                     if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
                         let cb = cb.implement_dummy();
                         // TODO: send a more meaningful serial ?
-                        cb.send(wl_callback::Event::Done { callback_data: 0 });
+                        cb.as_ref().send(wl_callback::Event::Done { callback_data: 0 });
                     } else {
                         return Err(());
                     }

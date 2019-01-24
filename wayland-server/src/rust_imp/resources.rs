@@ -164,15 +164,16 @@ impl NewResourceInner {
         self.client.loop_thread == ::std::thread::current().id()
     }
 
-    pub(crate) unsafe fn implement<I: Interface, F, Dest>(
+    pub(crate) unsafe fn implement<I: Interface + From<Resource<I>>, F, Dest>(
         self,
         implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
     ) -> ResourceInner
     where
-        F: FnMut(I::Request, Resource<I>) + 'static,
-        Dest: FnMut(Resource<I>) + 'static,
+        F: FnMut(I::Request, I) + 'static,
+        Dest: FnMut(I) + 'static,
+        I: From<Resource<I>>,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         let object = self.map.lock().unwrap().with(self.id, |obj| {

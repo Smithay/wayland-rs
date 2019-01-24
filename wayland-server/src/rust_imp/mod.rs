@@ -68,10 +68,10 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Request, Resource<I>)> {
+pub(crate) struct ImplDispatcher<I: Interface + From<Resource<I>>, F: FnMut(I::Request, I)> {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: Option<F>,
-    destructor: Option<Box<FnMut(Resource<I>)>>,
+    destructor: Option<Box<FnMut(I)>>,
 }
 
 // This unsafe impl is "technically wrong", but enforced by the fact that
@@ -80,16 +80,16 @@ pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Request, Resource<I>)
 // take care of ensuring that any non-Send impl is on the correct thread.
 unsafe impl<I, F> Send for ImplDispatcher<I, F>
 where
-    I: Interface,
-    F: FnMut(I::Request, Resource<I>) + 'static,
+    I: Interface + From<Resource<I>>,
+    F: FnMut(I::Request, I) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
 }
 
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
-    I: Interface,
-    F: FnMut(I::Request, Resource<I>) + 'static,
+    I: Interface + From<Resource<I>>,
+    F: FnMut(I::Request, I) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
     fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Result<(), ()> {
@@ -113,9 +113,9 @@ where
             if kill {
                 resource.client.kill();
             }
-            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource.clone()));
+            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource.clone()).into());
         } else {
-            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource));
+            self.implementation.as_mut().unwrap()(message, Resource::<I>::wrap(resource).into());
         }
         Ok(())
     }
@@ -123,7 +123,7 @@ where
     fn destroy(&mut self, resource: ResourceInner) {
         self.implementation.take();
         if let Some(mut dest) = self.destructor.take() {
-            dest(Resource::<I>::wrap(resource))
+            dest(Resource::<I>::wrap(resource).into())
         }
     }
 }
@@ -133,10 +133,10 @@ pub(crate) unsafe fn make_dispatcher<I, F, Dest>(
     destructor: Option<Dest>,
 ) -> Arc<Mutex<Dispatcher + Send>>
 where
-    I: Interface,
-    F: FnMut(I::Request, Resource<I>) + 'static,
+    I: Interface + From<Resource<I>>,
+    F: FnMut(I::Request, I) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
-    Dest: FnMut(Resource<I>) + 'static,
+    Dest: FnMut(I) + 'static,
 {
     Arc::new(Mutex::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,

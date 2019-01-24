@@ -151,7 +151,10 @@ impl<I: Interface> Resource<I> {
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
+    pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self
+    where
+        I: From<Resource<I>>,
+    {
         Resource {
             _i: ::std::marker::PhantomData,
             inner: ResourceInner::from_c_ptr::<I>(ptr),
@@ -190,21 +193,15 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This must be called from the thread hosting the wayland event loop, otherwise
     /// it will panic.
-    pub fn implement<T, Dest, UD>(
-        self,
-        mut handler: T,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> Resource<I>
+    pub fn implement<T, Dest, UD>(self, mut handler: T, destructor: Option<Dest>, user_data: UD) -> I
     where
         T: 'static,
-        Dest: FnMut(Resource<I>) + 'static,
+        Dest: FnMut(I) + 'static,
         UD: 'static,
-        I: HandledBy<T>,
+        I: HandledBy<T> + From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
-        let implementation =
-            move |request, resource: Resource<I>| I::handle(&mut handler, request, resource.clone());
+        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
 
         self.implement_closure(implementation, destructor, user_data)
     }
@@ -218,11 +215,12 @@ impl<I: Interface + 'static> NewResource<I> {
         implementation: F,
         destructor: Option<Dest>,
         user_data: UD,
-    ) -> Resource<I>
+    ) -> I
     where
-        F: FnMut(I::Request, Resource<I>) + 'static,
-        Dest: FnMut(Resource<I>) + 'static,
+        F: FnMut(I::Request, I) + 'static,
+        Dest: FnMut(I) + 'static,
         UD: 'static,
+        I: From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         #[cfg(not(feature = "native_lib"))]
@@ -239,11 +237,13 @@ impl<I: Interface + 'static> NewResource<I> {
             _i: ::std::marker::PhantomData,
             inner,
         }
+        .into()
     }
 
     /// Implement this resource using a dummy handler which does nothing.
-    pub fn implement_dummy(self) -> Resource<I>
+    pub fn implement_dummy(self) -> I
     where
+        I: From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         self.implement_closure(|_, _| (), None::<fn(_)>, ())
@@ -261,16 +261,15 @@ impl<I: Interface + 'static> NewResource<I> {
         mut handler: T,
         destructor: Option<Dest>,
         user_data: UD,
-    ) -> Resource<I>
+    ) -> I
     where
         T: Send + 'static,
-        Dest: FnMut(Resource<I>) + Send + 'static,
+        Dest: FnMut(I) + Send + 'static,
         UD: Send + Sync + 'static,
-        I: HandledBy<T>,
+        I: HandledBy<T> + From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
-        let implementation =
-            move |request, resource: Resource<I>| I::handle(&mut handler, request, resource.clone());
+        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
 
         self.implement_closure_threadsafe(implementation, destructor, user_data)
     }
@@ -284,11 +283,12 @@ impl<I: Interface + 'static> NewResource<I> {
         implementation: F,
         destructor: Option<Dest>,
         user_data: UD,
-    ) -> Resource<I>
+    ) -> I
     where
-        F: FnMut(I::Request, Resource<I>) + Send + 'static,
-        Dest: FnMut(Resource<I>) + Send + 'static,
+        F: FnMut(I::Request, I) + Send + 'static,
+        Dest: FnMut(I) + Send + 'static,
         UD: Send + Sync + 'static,
+        I: From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
         let inner = unsafe {
@@ -302,6 +302,7 @@ impl<I: Interface + 'static> NewResource<I> {
             _i: ::std::marker::PhantomData,
             inner,
         }
+        .into()
     }
 }
 
@@ -347,5 +348,5 @@ impl<I: Interface> Clone for Resource<I> {
 /// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
 pub trait HandledBy<T>: Interface + Sized {
     /// Handles an event.
-    fn handle(handler: &mut T, request: Self::Request, resource: Resource<Self>);
+    fn handle(handler: &mut T, request: Self::Request, object: Self);
 }

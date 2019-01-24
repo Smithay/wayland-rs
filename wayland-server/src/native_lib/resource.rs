@@ -151,7 +151,7 @@ impl ResourceInner {
         self.ptr
     }
 
-    pub(crate) unsafe fn from_c_ptr<I: Interface>(ptr: *mut wl_resource) -> Self {
+    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
         if ptr.is_null() {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
@@ -200,15 +200,15 @@ pub(crate) struct NewResourceInner {
 }
 
 impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface, F, Dest>(
+    pub(crate) unsafe fn implement<I: Interface + From<Resource<I>>, F, Dest>(
         self,
         implementation: F,
         destructor: Option<Dest>,
         user_data: UserData,
     ) -> ResourceInner
     where
-        F: FnMut(I::Request, Resource<I>) + 'static,
-        Dest: FnMut(Resource<I>) + 'static,
+        F: FnMut(I::Request, I) + 'static,
+        Dest: FnMut(I) + 'static,
     {
         let new_user_data = Box::new(ResourceUserData::new(implementation, destructor, user_data));
         let internal = new_user_data.internal.clone();
@@ -239,24 +239,21 @@ impl NewResourceInner {
     }
 }
 
-pub(crate) struct ResourceUserData<I: Interface> {
+pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>>> {
     _i: ::std::marker::PhantomData<*const I>,
     pub(crate) internal: Arc<ResourceInternal>,
-    implem: Option<(
-        Box<FnMut(I::Request, Resource<I>)>,
-        Option<Box<FnMut(Resource<I>)>>,
-    )>,
+    implem: Option<(Box<FnMut(I::Request, I)>, Option<Box<FnMut(I)>>)>,
 }
 
-impl<I: Interface> ResourceUserData<I> {
+impl<I: Interface + From<Resource<I>>> ResourceUserData<I> {
     pub(crate) fn new<F, Dest>(
         implem: F,
         destructor: Option<Dest>,
         user_data: UserData,
     ) -> ResourceUserData<I>
     where
-        F: FnMut(I::Request, Resource<I>) + 'static,
-        Dest: FnMut(Resource<I>) + 'static,
+        F: FnMut(I::Request, I) + 'static,
+        Dest: FnMut(I) + 'static,
     {
         ResourceUserData {
             _i: ::std::marker::PhantomData,
@@ -274,7 +271,7 @@ pub(crate) unsafe extern "C" fn resource_dispatcher<I: Interface>(
     args: *const wl_argument,
 ) -> c_int
 where
-    I: Interface,
+    I: Interface + From<Resource<I>>,
 {
     let resource = resource as *mut wl_resource;
 
@@ -296,7 +293,7 @@ where
                 user_data.internal.alive.store(false, Ordering::Release);
             }
             // call the impl
-            implem_func(msg, resource_obj);
+            implem_func(msg, resource_obj.into());
         }
         if must_destroy {
             // final cleanup
@@ -322,7 +319,9 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn resource_destroy<I: Interface>(resource: *mut wl_resource) {
+pub(crate) unsafe extern "C" fn resource_destroy<I: Interface + From<Resource<I>>>(
+    resource: *mut wl_resource,
+) {
     let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
 
     // We don't need to worry about panic-safeness, because if there is a panic,
@@ -334,7 +333,7 @@ pub(crate) unsafe extern "C" fn resource_destroy<I: Interface>(resource: *mut wl
         let &mut (_, ref mut destructor) = implem;
         if let Some(mut dest_func) = destructor.take() {
             let resource_obj = Resource::<I>::from_c_ptr(resource);
-            dest_func(resource_obj);
+            dest_func(resource_obj.into());
         }
     });
 
