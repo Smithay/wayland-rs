@@ -154,7 +154,10 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
                     let len = Literal::usize_unsuffixed(msg.args.len());
 
                     let fields = msg.args.iter().enumerate().map(|(j, arg)| {
-                        let field_name = Ident::new(&arg.name, Span::call_site());
+                let field_name = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
 
                         let idx = Literal::usize_unsuffixed(j);
                         let field_value = match arg.typ {
@@ -333,10 +336,12 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
             let pattern = if msg.args.is_empty() {
                 quote!(#name::#msg_name)
             } else {
-                let fields = msg
-                    .args
-                    .iter()
-                    .map(|arg| Ident::new(&arg.name, Span::call_site()));
+                let fields = msg.args.iter().map(|arg| {
+                    Ident::new(
+                        &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                        Span::call_site(),
+                    )
+                });
 
                 quote!(#name::#msg_name { #(#fields),* })
             };
@@ -353,7 +358,10 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
             let mut j = 0;
             let args_array_init_stmts = msg.args.iter().map(|arg| {
                 let idx = Literal::usize_unsuffixed(j);
-                let arg_name = Ident::new(&arg.name, Span::call_site());
+                let arg_name = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
 
                 let res = match arg.typ {
                     Type::Uint => {

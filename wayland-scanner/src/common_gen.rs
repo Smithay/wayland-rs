@@ -210,7 +210,10 @@ pub(crate) fn gen_messagegroup(
             msg_name.into_token_stream()
         } else {
             let fields = msg.args.iter().map(|arg| {
-                let field_name = Ident::new(&arg.name, Span::call_site());
+                let field_name = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
                 let field_type_inner = if let Some(ref enu) = arg.enum_ {
                     dotted_to_relname(enu)
                 } else {
@@ -386,7 +389,10 @@ pub(crate) fn gen_messagegroup(
                     quote!(Ok(#msg_type_qualified))
                 } else {
                     let fields = msg.args.iter().map(|arg| {
-                        let field_name = Ident::new(&arg.name, Span::call_site());
+                        let field_name = Ident::new(
+                            &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                            Span::call_site(),
+                        );
                         let some_code_path = match arg.typ {
                             Type::Int => {
                                 if let Some(ref enu) = arg.enum_ {
@@ -499,16 +505,21 @@ pub(crate) fn gen_messagegroup(
             let pattern = if msg.args.is_empty() {
                 msg_type_qualified
             } else {
-                let fields = msg
-                    .args
-                    .iter()
-                    .map(|arg| Ident::new(&arg.name, Span::call_site()));
+                let fields = msg.args.iter().map(|arg| {
+                    Ident::new(
+                        &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                        Span::call_site(),
+                    )
+                });
                 quote!(#msg_type_qualified { #(#fields),* })
             };
 
             let opcode_value = Literal::u16_unsuffixed(opcode as u16);
             let args_values = msg.args.iter().map(|arg| {
-                let arg_ident = Ident::new(&arg.name, Span::call_site());
+                let arg_ident = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
                 match arg.typ {
                     Type::Int => {
                         if arg.enum_.is_some() {
@@ -817,7 +828,10 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
             TokenStream::new()
         } else {
             let args = msg.args.iter().map(|arg| {
-                let arg_name = Ident::new(&arg.name, Span::call_site());
+                let arg_name = Ident::new(
+                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                    Span::call_site(),
+                );
                 let mut typ = arg.typ;
                 if typ == Type::NewId && side == Side::Server {
                     typ = Type::Object;
@@ -880,7 +894,15 @@ fn event_method_prototype(name: &Ident, msg: &Message, side: Side) -> TokenStrea
 
     let method_args = msg.args.iter().map(|arg| {
         let arg_name = Ident::new(
-            &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+            &format!(
+                "{}{}",
+                if is_keyword(&arg.name) || arg.name == "object" {
+                    "_"
+                } else {
+                    ""
+                },
+                arg.name
+            ),
             Span::call_site(),
         );
 
@@ -985,12 +1007,12 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
         match side {
             Side::Client => quote! {
                 Event::#msg_name { #(#arg_names),* } => {
-                    handler.#method_name(object, #(#arg_names_2),*)
+                    __handler.#method_name(__object, #(#arg_names_2),*)
                 }
             },
             Side::Server => quote! {
                 Request::#msg_name { #(#arg_names),* } => {
-                    handler.#method_name(object, #(#arg_names_2),*)
+                    __handler.#method_name(__object, #(#arg_names_2),*)
                 }
             },
         }
@@ -1005,7 +1027,7 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
 
             impl<T: EventHandler> HandledBy<T> for #iname {
                 #[inline]
-                fn handle(handler: &mut T, event: Event, object: Self) {
+                fn handle(__handler: &mut T, event: Event, __object: Self) {
                     match event {
                         #(#method_patterns)*
                     }
@@ -1020,7 +1042,7 @@ pub(crate) fn gen_event_handler_trait(iname: &Ident, messages: &[Message], side:
 
             impl<T: RequestHandler> HandledBy<T> for #iname {
                 #[inline]
-                fn handle(handler: &mut T, request: Request, object: Self) {
+                fn handle(__handler: &mut T, request: Request, __object: Self) {
                     match request {
                         #(#method_patterns)*
                     }

@@ -245,7 +245,7 @@ pub mod wl_foo {
     }
     impl<T: RequestHandler> HandledBy<T> for WlFoo {
         #[inline]
-        fn handle(handler: &mut T, request: Request, object: Self) {
+        fn handle(__handler: &mut T, request: Request, __object: Self) {
             match request {
                 Request::FooIt {
                     number,
@@ -253,8 +253,8 @@ pub mod wl_foo {
                     text,
                     float,
                     file,
-                } => handler.foo_it(object, number, unumber, text, float, file),
-                Request::CreateBar { id } => handler.create_bar(object, id),
+                } => __handler.foo_it(__object, number, unumber, text, float, file),
+                Request::CreateBar { id } => __handler.create_bar(__object, id),
             }
         }
     }
@@ -281,6 +281,17 @@ pub mod wl_bar {
         },
         #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, once received this object cannot be used any longer."]
         Release,
+        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis request tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface"]
+        _Self {
+            _self: u32,
+            _mut: u32,
+            object: u32,
+            ___object: u32,
+            handler: u32,
+            ___handler: u32,
+            request: u32,
+            event: u32,
+        },
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -299,6 +310,20 @@ pub mod wl_bar {
                 since: 1,
                 signature: &[],
             },
+            super::MessageDesc {
+                name: "self",
+                since: 2,
+                signature: &[
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                    super::ArgumentType::Uint,
+                ],
+            },
         ];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
@@ -311,6 +336,7 @@ pub mod wl_bar {
             match *self {
                 Request::BarDelivery { .. } => 0,
                 Request::Release => 1,
+                Request::_Self { .. } => 2,
             }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
@@ -358,6 +384,67 @@ pub mod wl_bar {
                     })
                 }
                 1 => Ok(Request::Release),
+                2 => {
+                    let mut args = msg.args.into_iter();
+                    Ok(Request::_Self {
+                        _self: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        _mut: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        object: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        ___object: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        handler: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        ___handler: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        request: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                        event: {
+                            if let Some(Argument::Uint(val)) = args.next() {
+                                val
+                            } else {
+                                return Err(());
+                            }
+                        },
+                    })
+                }
                 _ => Err(()),
             }
         }
@@ -365,15 +452,44 @@ pub mod wl_bar {
             panic!("Request::into_raw can not be used Server-side.")
         }
     }
-    pub enum Event {}
+    pub enum Event {
+        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis event tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface"]
+        _Self {
+            _self: u32,
+            _mut: u32,
+            object: u32,
+            ___object: u32,
+            handler: u32,
+            ___handler: u32,
+            request: u32,
+            event: u32,
+        },
+    }
     impl super::MessageGroup for Event {
-        const MESSAGES: &'static [super::MessageDesc] = &[];
+        const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
+            name: "self",
+            since: 2,
+            signature: &[
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+                super::ArgumentType::Uint,
+            ],
+        }];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                _ => false,
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::_Self { .. } => 0,
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -384,7 +500,31 @@ pub mod wl_bar {
             panic!("Event::from_raw can not be used Server-side.")
         }
         fn into_raw(self, sender_id: u32) -> Message {
-            match self {}
+            match self {
+                Event::_Self {
+                    _self,
+                    _mut,
+                    object,
+                    ___object,
+                    handler,
+                    ___handler,
+                    request,
+                    event,
+                } => Message {
+                    sender_id: sender_id,
+                    opcode: 0,
+                    args: vec![
+                        Argument::Uint(_self),
+                        Argument::Uint(_mut),
+                        Argument::Uint(object),
+                        Argument::Uint(___object),
+                        Argument::Uint(handler),
+                        Argument::Uint(___handler),
+                        Argument::Uint(request),
+                        Argument::Uint(event),
+                    ],
+                },
+            }
         }
     }
     #[derive(Clone, Eq, PartialEq)]
@@ -413,7 +553,32 @@ pub mod wl_bar {
         const NAME: &'static str = "wl_bar";
         const VERSION: u32 = 1;
     }
-    impl WlBar {}
+    impl WlBar {
+        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis event tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface."]
+        pub fn _self(
+            &self,
+            _self: u32,
+            _mut: u32,
+            object: u32,
+            ___object: u32,
+            handler: u32,
+            ___handler: u32,
+            request: u32,
+            event: u32,
+        ) -> () {
+            let msg = Event::_Self {
+                _self: _self,
+                _mut: _mut,
+                object: object,
+                ___object: ___object,
+                handler: handler,
+                ___handler: ___handler,
+                request: request,
+                event: event,
+            };
+            self.0.send(msg);
+        }
+    }
     #[doc = r" An interface for handling requests."]
     pub trait RequestHandler {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface."]
@@ -428,18 +593,44 @@ pub mod wl_bar {
         }
         #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
         fn release(&mut self, object: WlBar) {}
+        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis request tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface."]
+        fn _self(
+            &mut self,
+            object: WlBar,
+            _self: u32,
+            _mut: u32,
+            _object: u32,
+            ___object: u32,
+            handler: u32,
+            ___handler: u32,
+            request: u32,
+            event: u32,
+        ) {
+        }
     }
     impl<T: RequestHandler> HandledBy<T> for WlBar {
         #[inline]
-        fn handle(handler: &mut T, request: Request, object: Self) {
+        fn handle(__handler: &mut T, request: Request, __object: Self) {
             match request {
                 Request::BarDelivery {
                     kind,
                     target,
                     metadata,
                     metametadata,
-                } => handler.bar_delivery(object, kind, target, metadata, metametadata),
-                Request::Release {} => handler.release(object),
+                } => __handler.bar_delivery(__object, kind, target, metadata, metametadata),
+                Request::Release {} => __handler.release(__object),
+                Request::_Self {
+                    _self,
+                    _mut,
+                    object,
+                    ___object,
+                    handler,
+                    ___handler,
+                    request,
+                    event,
+                } => __handler._self(
+                    __object, _self, _mut, object, ___object, handler, ___handler, request, event,
+                ),
             }
         }
     }
@@ -447,6 +638,10 @@ pub mod wl_bar {
     pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_RELEASE_SINCE: u16 = 1u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_SELF_SINCE: u16 = 2u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_SELF_SINCE: u16 = 2u16;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
@@ -556,7 +751,7 @@ pub mod wl_callback {
     pub trait RequestHandler {}
     impl<T: RequestHandler> HandledBy<T> for WlCallback {
         #[inline]
-        fn handle(handler: &mut T, request: Request, object: Self) {
+        fn handle(__handler: &mut T, request: Request, __object: Self) {
             match request {}
         }
     }

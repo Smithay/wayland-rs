@@ -75,6 +75,34 @@
         Notify the compositor that you have finished using this bar.
       </description>
     </request>
+
+    <event name="self" since="2">
+      <description summary="ask for erronous bindings from wayland-scanner">
+        This event tests argument names which can break wayland-scanner.
+      </description>
+      <arg name="self" type="uint" summary="" />
+      <arg name="mut" type="uint" summary="" />
+      <arg name="object" type="uint" summary="" />
+      <arg name="__object" type="uint" summary="" />
+      <arg name="handler" type="uint" summary="" />
+      <arg name="__handler" type="uint" summary="" />
+      <arg name="request" type="uint" summary="" />
+      <arg name="event" type="uint" summary="" />
+    </event>
+
+    <request name="self" since="2">
+      <description summary="ask for erronous bindings from wayland-scanner">
+        This request tests argument names which can break wayland-scanner.
+      </description>
+      <arg name="self" type="uint" summary="" />
+      <arg name="mut" type="uint" summary="" />
+      <arg name="object" type="uint" summary="" />
+      <arg name="__object" type="uint" summary="" />
+      <arg name="handler" type="uint" summary="" />
+      <arg name="__handler" type="uint" summary="" />
+      <arg name="request" type="uint" summary="" />
+      <arg name="event" type="uint" summary="" />
+    </request>
   </interface>
 
   <!-- mimicking a few interfaces from the wayland protocol to trigger edge cases -->

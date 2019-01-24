@@ -12,13 +12,20 @@ pub fn is_keyword(txt: &str) -> bool {
         | "let" | "loop" | "macro" | "match" | "mod" | "move" | "mut" | "offsetof" | "override" | "priv"
         | "proc" | "pub" | "pure" | "ref" | "return" | "Self" | "self" | "sizeof" | "static" | "struct"
         | "super" | "trait" | "true" | "type" | "typeof" | "unsafe" | "unsized" | "use" | "virtual"
-        | "where" | "while" | "yield" => true,
+        | "where" | "while" | "yield" | "__handler" | "__object" => true,
+        _ => false,
+    }
+}
+
+pub fn is_camel_keyword(txt: &str) -> bool {
+    match txt {
+        "Self" => true,
         _ => false,
     }
 }
 
 pub fn snake_to_camel(input: &str) -> String {
-    input
+    let result = input
         .split('_')
         .flat_map(|s| {
             let mut first = true;
@@ -31,7 +38,13 @@ pub fn snake_to_camel(input: &str) -> String {
                 }
             })
         })
-        .collect()
+        .collect::<String>();
+
+    if is_camel_keyword(&result) {
+        format!("_{}", &result)
+    } else {
+        result
+    }
 }
 
 pub fn dotted_to_relname(input: &str) -> TokenStream {
