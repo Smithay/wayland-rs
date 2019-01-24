@@ -1,5 +1,6 @@
 extern crate byteorder;
 extern crate tempfile;
+#[macro_use(event_enum)]
 extern crate wayland_client;
 
 use std::cmp::min;
@@ -8,8 +9,16 @@ use std::os::unix::io::AsRawFd;
 
 use byteorder::{NativeEndian, WriteBytesExt};
 
-use wayland_client::protocol::{wl_compositor, wl_seat, wl_shell, wl_shm};
+use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm};
+use wayland_client::sinks::blocking_message_iterator;
 use wayland_client::{Display, GlobalManager};
+
+// declare an event enum containing the events we want to receive in the iterator
+event_enum!(
+    Events |
+    Pointer => wl_pointer::WlPointer,
+    Keyboard => wl_keyboard::WlKeyboard
+);
 
 fn main() {
     let (display, mut event_queue) = Display::connect_to_env().unwrap();
@@ -103,12 +112,16 @@ fn main() {
     surface.attach(Some(&buffer), 0, 0);
     surface.commit();
 
-    // initialize a seat to retrieve pointer events
+    // initialize a seat to retrieve pointer & keyboard events
+    //
+    // we will dump them into a message iterator for easier handling
+    let (sink, msg_iter) = blocking_message_iterator(event_queue.get_token());
     // to be handled properly this should be more dynamic, as more
     // than one seat can exist (and they can be created and destroyed
     // dynamically), however most "traditional" setups have a single
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
+    let mut keyboard_created = false;
     globals.instantiate_auto::<wl_seat::WlSeat, _>(|seat| {
         seat.implement_closure(
             move |event, seat| {
@@ -122,30 +135,14 @@ fn main() {
                     if !pointer_created && capabilities.contains(Capability::Pointer) {
                         // create the pointer only once
                         pointer_created = true;
-                        seat.get_pointer(|pointer| {
-                            pointer.implement_closure(
-                                |event, _| match event {
-                                    PointerEvent::Enter {
-                                        surface_x, surface_y, ..
-                                    } => {
-                                        println!("Pointer entered at ({}, {}).", surface_x, surface_y);
-                                    }
-                                    PointerEvent::Leave { .. } => {
-                                        println!("Pointer left.");
-                                    }
-                                    PointerEvent::Motion {
-                                        surface_x, surface_y, ..
-                                    } => {
-                                        println!("Pointer moved to ({}, {}).", surface_x, surface_y);
-                                    }
-                                    PointerEvent::Button { button, state, .. } => {
-                                        println!("Button {} was {:?}.", button, state);
-                                    }
-                                    _ => {}
-                                },
-                                (),
-                            )
-                        });
+                        seat.get_pointer(|pointer| pointer.implement(sink.clone(), ()))
+                            .unwrap();
+                    }
+                    if !keyboard_created && capabilities.contains(Capability::Keyboard) {
+                        // create the keyboard only once
+                        keyboard_created = false;
+                        seat.get_keyboard(|keyboard| keyboard.implement(sink.clone(), ()))
+                            .unwrap();
                     }
                 }
             },
@@ -153,8 +150,42 @@ fn main() {
         )
     });
 
-    loop {
-        display.flush().unwrap();
-        event_queue.dispatch().unwrap();
+    // the main loop of our program
+    //
+    // the message iterator will block waiting for new events
+    for msg in msg_iter {
+        match msg {
+            Events::Pointer { event, .. } => match event {
+                wl_pointer::Event::Enter {
+                    surface_x, surface_y, ..
+                } => {
+                    println!("Pointer entered at ({}, {}).", surface_x, surface_y);
+                }
+                wl_pointer::Event::Leave { .. } => {
+                    println!("Pointer left.");
+                }
+                wl_pointer::Event::Motion {
+                    surface_x, surface_y, ..
+                } => {
+                    println!("Pointer moved to ({}, {}).", surface_x, surface_y);
+                }
+                wl_pointer::Event::Button { button, state, .. } => {
+                    println!("Button {} was {:?}.", button, state);
+                }
+                _ => {}
+            },
+            Events::Keyboard { event, .. } => match event {
+                wl_keyboard::Event::Enter { .. } => {
+                    println!("Gained keyboard focus.");
+                }
+                wl_keyboard::Event::Leave { .. } => {
+                    println!("Lost keyboard focus.");
+                }
+                wl_keyboard::Event::Key { key, state, .. } => {
+                    println!("Key with id {} was {:?}.", key, state);
+                }
+                _ => (),
+            },
+        }
     }
 }

@@ -24,6 +24,7 @@ use std::os::raw::c_void;
 use wayland_sys::common as syscom;
 
 pub mod map;
+pub mod sinks;
 pub mod socket;
 pub mod utils;
 pub mod wire;
