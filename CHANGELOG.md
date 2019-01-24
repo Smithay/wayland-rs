@@ -4,9 +4,9 @@
 
 - [scanner] Generate `EventHandler` and `RequestHandler` traits for trait-based event
   and request handling (as opposed to manually matching on enums).
-- [client & server] **Breaking**: Change `NewProxy/NewRequest::implement()` to accept
+- **Breaking** [client/server] Change `NewProxy/NewRequest::implement()` to accept
   a handler struct which implements the corresponding `EventHandler/RequestHandler` trait.
-- [client & server] Introduce `NewProxy/NewRequest::implement_closure()` which behaves
+- [client/server] Introduce `NewProxy/NewRequest::implement_closure()` which behaves
   like the previous `NewProxy/NewRequest::implement()` and
   `NewProxy/NewRequest::implement_dummy()` which adds an empty implementation.
 - **Breaking** [client/server] `implement()` method will now runtime-track which thread it
@@ -16,6 +16,19 @@
 - **Breaking** [server] When the `native_lib` cargo feature is active, none of the types
   of the server crate are threadsafe, as the underlying C lib actually never supported it.
   The rust implementation remains threadsafe.
+- **Breaking** [client/server] `Proxy<I>` and `Resource<I>` are now wrapped in their
+  corresponding `I` objects. All `RequestsTrait` traits were removed and methods for
+  sending requests and events are now part of the `I` objects themselves. This means that
+  it is no longer needed to import all necessary `RequestsTrait` traits into scope and
+  deal with their name clashes. This also means that a lot of `Proxy<I>` and `Resource<I>`
+  types were replaced with just `I`. To convert between `Proxy/Resource<I>` and `I`,
+  `From` implementations are provided (use `.into()`), as well as an
+  `AsRef<Proxy/Resource<I>>` implementation for `I`.
+- **Breaking** [client/server/commons] `AnonymousObject` was moved out of
+  `wayland-commons` into `wayland-client` and `wayland-server`. This is to accommodate the
+  design change above.
+- [scanner] Fixed a number of cases where invalid Rust code would be generated if variable
+  or method names in the protocol were Rust keywords.
 
 ## 0.21.11 -- 2019-01-19
 

@@ -18,7 +18,9 @@ use imp::{NewResourceInner, ResourceInner};
 /// receiving destroying messages.
 ///
 /// These handles are notably used to send events to the associated client,
-/// via the `send` method.
+/// via the `send` method, although you're encouraged to use methods on the
+/// corresponding Rust objects instead. To convert a `Resource<I>` into the
+/// `I` Rust object, use the `.into()` method.
 pub struct Resource<I: Interface> {
     _i: ::std::marker::PhantomData<&'static I>,
     inner: ResourceInner,
@@ -168,7 +170,7 @@ impl<I: Interface> Resource<I> {
 /// receive it as a `NewResource`. You then have to provide an
 /// implementation for it, in order to process the incoming
 /// events it may receive. Once this done you will be able
-/// to use it as a regular `Resource`.
+/// to use it as a regular Rust object.
 ///
 /// Implementations are structs implementing the appropriate
 /// variant of the `Implementation` trait. They can also be

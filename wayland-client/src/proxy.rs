@@ -21,9 +21,9 @@ use ProxyMap;
 /// tied to the lifetime of these handles, but rather to sending or
 /// receiving destroying messages.
 ///
-/// These handles are notably used to send requests to the server. To do
-/// you need to import the associated `RequestsTrait` trait from the module
-/// of this interface.
+/// These handles are notably used to send requests to the server. To do this
+/// you need to convert them to the corresponding Rust object (using `.into()`)
+/// and use methods on the Rust object.
 pub struct Proxy<I: Interface> {
     _i: ::std::marker::PhantomData<&'static I>,
     pub(crate) inner: ProxyInner,
@@ -58,7 +58,7 @@ impl<I: Interface> Proxy<I> {
     ///
     /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    /// but rather use the appropriate methods on the Rust object.
     ///
     /// This is the generic method to send requests.
     ///
@@ -71,7 +71,7 @@ impl<I: Interface> Proxy<I> {
     ///
     /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    /// but rather use the appropriate methods on the Rust object.
     ///
     /// This is the generic method to send requests that create objects
     ///
@@ -139,7 +139,7 @@ impl<I: Interface> Proxy<I> {
     ///
     /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    /// but rather use the appropriate methods on the Rust object.
     ///
     /// This creates a new wayland object, considered as a
     /// child of this object. It will notably inherit its interface
@@ -191,7 +191,7 @@ impl<I: Interface> Proxy<I> {
     ///
     /// **Warning:** This method is mostly intended to be used by code generated
     /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate `RequestsTrait` for your proxy.
+    /// but rather use the appropriate methods on the Rust object.
     pub fn child_placeholder<J: Interface + From<Proxy<J>>>(&self) -> J {
         Proxy::wrap(self.inner.child_placeholder()).into()
     }
@@ -263,7 +263,7 @@ impl Proxy<::protocol::wl_display::WlDisplay> {
 /// receive it as a `NewProxy`. You then have to provide an
 /// implementation for it, in order to process the incoming
 /// events it may receive. Once this done you will be able
-/// to use it as a regular `Proxy`.
+/// to use it as a regular Rust object.
 ///
 /// Implementations are structs implementing the appropriate
 /// variant of the `Implementation` trait. They can also be
