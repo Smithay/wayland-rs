@@ -148,6 +148,8 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
+pub mod sinks;
+
 pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::{Interface, MessageGroup, NoMessage};
 

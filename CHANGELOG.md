@@ -31,6 +31,8 @@
   or method names in the protocol were Rust keywords.
 - [commons] Properly close FDs we dup-ed after sending them to the server, to avoid leaking
   open FDs.
+- [commons/client] Introduce message iterators and message sinks, allowing to opt-in into an
+  iterator-based handling of messages.
 
 ## 0.21.11 -- 2019-01-19
 
