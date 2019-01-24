@@ -12,9 +12,8 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 use wayc::protocol::wl_shm::Format;
 
 use ways::protocol::wl_buffer::WlBuffer as ServerBuffer;
-use ways::Resource;
 
-fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resource<ServerBuffer>>>>> {
+fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerBuffer>>>> {
     use ways::protocol::{wl_compositor, wl_surface};
 
     let buffer_found = Arc::new(Mutex::new(None));
@@ -55,7 +54,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<Resourc
     buffer_found2
 }
 
-fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Resource<ServerBuffer>>)>>> {
+fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ServerBuffer>)>>> {
     use ways::protocol::{wl_shm, wl_shm_pool};
 
     let buffer = Arc::new(Mutex::new(None));

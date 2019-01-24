@@ -44,7 +44,7 @@ fn resource_equals() {
     let cloned = outputs_lock[0].clone();
     assert!(outputs_lock[0] == cloned);
 
-    assert!(outputs_lock[0].same_client_as(&outputs_lock[1]));
+    assert!(outputs_lock[0].as_ref().same_client_as(outputs_lock[1].as_ref()));
 }
 
 #[test]
@@ -78,10 +78,10 @@ fn resource_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let outputs_lock = outputs.lock().unwrap();
-    assert!(outputs_lock[0].user_data::<usize>() == Some(&1000));
-    assert!(outputs_lock[1].user_data::<usize>() == Some(&1001));
+    assert!(outputs_lock[0].as_ref().user_data::<usize>() == Some(&1000));
+    assert!(outputs_lock[1].as_ref().user_data::<usize>() == Some(&1001));
     let cloned = outputs_lock[0].clone();
-    assert!(cloned.user_data::<usize>() == Some(&1000));
+    assert!(cloned.as_ref().user_data::<usize>() == Some(&1000));
 }
 
 #[cfg(not(feature = "native_lib"))]
@@ -114,11 +114,11 @@ fn resource_user_data_wrong_thread() {
     let output = outputs.lock().unwrap().take().unwrap();
 
     // we can access on the right thread
-    assert!(output.user_data::<usize>().is_some());
+    assert!(output.as_ref().user_data::<usize>().is_some());
 
     // but not in a new one
     ::std::thread::spawn(move || {
-        assert!(output.user_data::<usize>().is_none());
+        assert!(output.as_ref().user_data::<usize>().is_none());
     })
     .join()
     .unwrap();
@@ -171,9 +171,9 @@ fn dead_resources() {
 
     let cloned = {
         let outputs_lock = outputs.lock().unwrap();
-        assert!(outputs_lock[0].is_alive());
-        assert!(outputs_lock[1].is_alive());
-        outputs_lock[0].clone()
+        assert!(outputs_lock[0].as_ref().is_alive());
+        assert!(outputs_lock[1].as_ref().is_alive());
+        outputs_lock[0].as_ref().clone()
     };
 
     client_output1.release();
@@ -182,8 +182,8 @@ fn dead_resources() {
 
     {
         let outputs_lock = outputs.lock().unwrap();
-        assert!(!outputs_lock[0].is_alive());
-        assert!(outputs_lock[1].is_alive());
+        assert!(!outputs_lock[0].as_ref().is_alive());
+        assert!(outputs_lock[1].as_ref().is_alive());
         assert!(!cloned.is_alive());
     }
 }

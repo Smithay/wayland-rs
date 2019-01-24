@@ -4,14 +4,14 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 use std::sync::{Arc, Mutex};
 
-use ways::protocol::wl_data_device::{Event as SDDEvt, WlDataDevice as ServerDD};
+use ways::protocol::wl_data_device::WlDataDevice as ServerDD;
 use ways::protocol::wl_data_device_manager::{
     Request as SDDMReq, RequestHandler as ServerDDMHandler, WlDataDeviceManager as ServerDDMgr,
 };
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
 use ways::protocol::wl_data_source::WlDataSource as ServerDS;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;
-use ways::{NewResource, Resource};
+use ways::NewResource;
 
 use wayc::protocol::wl_data_device::{
     Event as CDDEvt, EventHandler as ClientDDHandler, WlDataDevice as ClientDD,
@@ -36,14 +36,15 @@ fn data_offer() {
                         let ddevice = id.implement_dummy();
                         // create a data offer and send it
                         let offer = ddevice
+                            .as_ref()
                             .client()
                             .unwrap()
-                            .create_resource::<ServerDO>(ddevice.version())
+                            .create_resource::<ServerDO>(ddevice.as_ref().version())
                             .unwrap()
                             .implement_dummy();
                         // this must be the first server-side ID
-                        assert_eq!(offer.id(), 0xFF000000);
-                        ddevice.send(SDDEvt::DataOffer { id: offer })
+                        assert_eq!(offer.as_ref().id(), 0xFF000000);
+                        ddevice.data_offer(&offer)
                     }
                     _ => unimplemented!(),
                 },
@@ -73,7 +74,7 @@ fn data_offer() {
                 move |evt, _| match evt {
                     CDDEvt::DataOffer { id } => {
                         let doffer = id.implement_dummy();
-                        let doffer = doffer.as_proxy();
+                        let doffer = doffer.as_ref();
                         assert!(doffer.version() == 3);
                         // this must be the first server-side ID
                         assert_eq!(doffer.id(), 0xFF000000);
@@ -98,26 +99,22 @@ fn data_offer_trait_impls() {
 
     struct ServerHandler;
     impl ServerDDMHandler for ServerHandler {
-        fn get_data_device(
-            &mut self,
-            _resource: Resource<ServerDDMgr>,
-            id: NewResource<ServerDD>,
-            _seat: Resource<ServerSeat>,
-        ) {
+        fn get_data_device(&mut self, _ddmgr: ServerDDMgr, id: NewResource<ServerDD>, _seat: ServerSeat) {
             let ddevice = id.implement_dummy();
             // create a data offer and send it
             let offer = ddevice
+                .as_ref()
                 .client()
                 .unwrap()
-                .create_resource::<ServerDO>(ddevice.version())
+                .create_resource::<ServerDO>(ddevice.as_ref().version())
                 .unwrap()
                 .implement_dummy();
             // this must be the first server-side ID
-            assert_eq!(offer.id(), 0xFF000000);
-            ddevice.send(SDDEvt::DataOffer { id: offer })
+            assert_eq!(offer.as_ref().id(), 0xFF000000);
+            ddevice.data_offer(&offer)
         }
 
-        fn create_data_source(&mut self, _resource: Resource<ServerDDMgr>, _id: NewResource<ServerDS>) {
+        fn create_data_source(&mut self, _ddmgr: ServerDDMgr, _id: NewResource<ServerDS>) {
             unimplemented!()
         }
     }
@@ -151,7 +148,7 @@ fn data_offer_trait_impls() {
     impl ClientDDHandler for ClientHandler {
         fn data_offer(&mut self, _dd: ClientDD, id: NewProxy<ClientDO>) {
             let doffer = id.implement_dummy();
-            let doffer = doffer.as_proxy();
+            let doffer = doffer.as_ref();
             assert!(doffer.version() == 3);
             // this must be the first server-side ID
             assert_eq!(doffer.id(), 0xFF000000);

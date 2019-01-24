@@ -125,11 +125,11 @@ fn auto_instantiate() {
     let compositor = manager
         .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
         .unwrap();
-    assert!(compositor.as_proxy().version() == 4);
+    assert!(compositor.as_ref().version() == 4);
     let shell = manager
         .instantiate_auto::<WlShell, _>(|newp| newp.implement_dummy())
         .unwrap();
-    assert!(shell.as_proxy().version() == 1);
+    assert!(shell.as_ref().version() == 1);
 
     assert!(
         manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement_dummy())

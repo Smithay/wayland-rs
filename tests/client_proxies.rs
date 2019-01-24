@@ -49,14 +49,14 @@ fn proxy_user_data() {
             newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
         })
         .unwrap();
-    let compositor1 = compositor1.as_proxy();
+    let compositor1 = compositor1.as_ref();
 
     let compositor2 = manager
         .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
             newp.implement_closure(|_, _| {}, 0xBADC0FFEusize)
         })
         .unwrap();
-    let compositor2 = compositor2.as_proxy();
+    let compositor2 = compositor2.as_ref();
 
     let compositor3 = compositor1.clone();
 
@@ -103,9 +103,8 @@ fn proxy_wrapper() {
 
     let mut event_queue_2 = client.display.create_event_queue();
     let manager = wayc::GlobalManager::new(
-        &client
-            .display
-            .as_proxy()
+        &(*client.display)
+            .as_ref()
             .make_wrapper(&event_queue_2.get_token())
             .unwrap(),
     );
@@ -165,7 +164,7 @@ fn proxy_implement_wrapper_threaded() {
 
     ::std::thread::spawn(move || {
         let evq2 = display2.create_event_queue();
-        let compositor_wrapper = compositor.as_proxy().make_wrapper(&evq2.get_token()).unwrap();
+        let compositor_wrapper = compositor.as_ref().make_wrapper(&evq2.get_token()).unwrap();
         compositor_wrapper
             .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should not panic
             .unwrap();
@@ -217,14 +216,14 @@ fn dead_proxies() {
     let output2 = output.clone();
 
     assert!(output == output2);
-    assert!(output.as_proxy().is_alive());
-    assert!(output2.as_proxy().is_alive());
+    assert!(output.as_ref().is_alive());
+    assert!(output2.as_ref().is_alive());
 
     // kill the output
     output.release();
 
     // dead proxies are never equal
     assert!(output != output2);
-    assert!(!output.as_proxy().is_alive());
-    assert!(!output2.as_proxy().is_alive());
+    assert!(!output.as_ref().is_alive());
+    assert!(!output2.as_ref().is_alive());
 }
