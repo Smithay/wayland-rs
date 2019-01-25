@@ -143,6 +143,10 @@ impl BufferedSocket {
             let bytes = unsafe { ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4) };
             let fds = self.out_fds.get_contents();
             self.socket.send_msg(bytes, fds)?;
+            for &fd in fds {
+                // once the fds are sent, we can close them
+                let _ = ::nix::unistd::close(fd);
+            }
         }
         self.out_data.clear();
         self.out_fds.clear();

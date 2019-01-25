@@ -29,6 +29,8 @@
   design change above.
 - [scanner] Fixed a number of cases where invalid Rust code would be generated if variable
   or method names in the protocol were Rust keywords.
+- [commons] Properly close FDs we dup-ed after sending them to the server, to avoid leaking
+  open FDs.
 
 ## 0.21.11 -- 2019-01-19
 
