@@ -32,7 +32,7 @@ impl Socket {
     /// end may lose some data.
     pub fn send_msg(&self, bytes: &[u8], fds: &[RawFd]) -> NixResult<()> {
         let iov = [uio::IoVec::from_slice(bytes)];
-        if fds.len() > 0 {
+        if !fds.is_empty() {
             let cmsgs = [socket::ControlMessage::ScmRights(fds)];
             socket::sendmsg(self.fd, &iov, &cmsgs, socket::MsgFlags::MSG_DONTWAIT, None)?;
         } else {
@@ -116,7 +116,7 @@ impl BufferedSocket {
     /// Wrap a Socket into a Buffered Socket
     pub fn new(socket: Socket) -> BufferedSocket {
         BufferedSocket {
-            socket: socket,
+            socket,
             in_data: Buffer::new(2 * MAX_BYTES_OUT / 4), // Incoming buffers are twice as big in order to be
             in_fds: Buffer::new(2 * MAX_FDS_OUT),        // able to store leftover data if needed
             out_data: Buffer::new(MAX_BYTES_OUT / 4),
@@ -250,7 +250,7 @@ impl BufferedSocket {
                 return Err(MessageParseError::MissingData);
             }
             let object_id = data[0];
-            let opcode = (data[1] & 0x0000FFFF) as u16;
+            let opcode = (data[1] & 0x0000_FFFF) as u16;
             if let Some(sig) = signature(object_id, opcode) {
                 match Message::from_raw(data, sig, fds) {
                     Ok((msg, rest_data, rest_fds)) => {
