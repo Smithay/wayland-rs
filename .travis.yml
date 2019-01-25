@@ -109,6 +109,11 @@ script:
           -A renamed_and_removed_lints \
           -A clippy::deprecated_cfg_attr \
           -A clippy::for_loop_over_option
+        cargo clippy --all --features "native_lib" -- -D warnings \
+          -A renamed_and_removed_lints \
+          -A clippy::deprecated_cfg_attr \
+          -A clippy::for_loop_over_option
+
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       elif [ -n "$TARGET" ]; then

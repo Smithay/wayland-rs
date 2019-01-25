@@ -52,8 +52,7 @@ impl ProxyMap {
             .find(id)
             .map(|obj| obj.is_interface::<I>())
             .unwrap_or(true));
-        NewProxyInner::from_id(id, self.map.clone(), self.connection.clone())
-            .map(|object| NewProxy::wrap(object))
+        NewProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(NewProxy::wrap)
     }
 }
 

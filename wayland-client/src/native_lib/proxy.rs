@@ -132,7 +132,7 @@ impl ProxyInner {
 
         if let Some(o) = I::Request::child(opcode, 1, &()) {
             if !o.is_interface::<J>() {
-                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}")
+                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
             }
         } else {
             // there is no target interface in the protocol, this is a generic object-creating
@@ -172,7 +172,7 @@ impl ProxyInner {
         newp.queue_thread = self
             .wrapping
             .or_else(|| self.internal.as_ref().map(|int| int.queue_thread))
-            .unwrap_or(thread::current().id());
+            .unwrap_or_else(|| thread::current().id());
         Ok(newp)
     }
 
@@ -212,10 +212,7 @@ impl ProxyInner {
             .wrapping
             .or_else(|| self.internal.as_ref().map(|internal| internal.queue_thread))
             .unwrap_or_else(|| thread::current().id());
-        NewProxyInner {
-            ptr: ptr,
-            queue_thread: queue_thread,
-        }
+        NewProxyInner { ptr, queue_thread }
     }
 
     pub(crate) fn c_ptr(&self) -> *mut wl_proxy {
@@ -230,7 +227,7 @@ impl ProxyInner {
                     user_data: UserData::empty(),
                     queue_thread: thread::current().id(),
                 })),
-                ptr: ptr,
+                ptr,
                 wrapping: None,
             };
         }
@@ -247,8 +244,8 @@ impl ProxyInner {
             None
         };
         ProxyInner {
-            internal: internal,
-            ptr: ptr,
+            internal,
+            ptr,
             wrapping: None,
         }
     }
@@ -322,15 +319,17 @@ impl NewProxyInner {
 
     pub(crate) unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> NewProxyInner {
         NewProxyInner {
-            ptr: ptr,
+            ptr,
             queue_thread: thread::current().id(),
         }
     }
 }
 
+type BoxedCallback<I> = Box<FnMut(<I as Interface>::Event, I)>;
+
 struct ProxyUserData<I: Interface + From<Proxy<I>>> {
     internal: Arc<ProxyInternal>,
-    implem: Option<Box<FnMut(I::Event, I)>>,
+    implem: Option<BoxedCallback<I>>,
 }
 
 impl<I: Interface + From<Proxy<I>>> ProxyUserData<I> {
@@ -385,7 +384,7 @@ where
     });
     // check the return status
     match ret {
-        Ok(Ok(())) => return 0,
+        Ok(Ok(())) => 0,
         Ok(Err(())) => {
             eprintln!(
                 "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",

@@ -131,7 +131,7 @@ impl ProxyInner {
             );
         }
         // TODO: figure our if this can fail and still be recoverable ?
-        let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
+        conn_lock.write_message(&msg).expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
             {
@@ -188,7 +188,7 @@ impl ProxyInner {
 
         if let Some(o) = I::Request::child(opcode, 1, &()) {
             if !o.is_interface::<J>() {
-                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}")
+                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
             }
         } else {
             // there is no target interface in the protocol, this is a generic object-creating
@@ -196,8 +196,8 @@ impl ProxyInner {
             nid_idx += 2;
         }
         // insert the newly created object in the message
-        let newproxy = match &mut msg.args[nid_idx] {
-            &mut Argument::NewId(ref mut newid) => {
+        let newproxy = match msg.args[nid_idx] {
+            Argument::NewId(ref mut newid) => {
                 let newp = match version {
                     Some(v) => self.child_versioned::<J>(v),
                     None => self.child::<J>(),
@@ -208,7 +208,7 @@ impl ProxyInner {
             _ => unreachable!(),
         };
 
-        let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
+        conn_lock.write_message(&msg).expect("Sending a message failed.");
         if destructor {
             self.object.meta.alive.store(false, Ordering::Release);
             {
