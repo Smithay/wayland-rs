@@ -51,8 +51,7 @@ impl ResourceMap {
             .find(id)
             .map(|obj| obj.is_interface::<I>())
             .unwrap_or(true));
-        NewResourceInner::from_id(id, self.map.clone(), self.client.clone())
-            .map(|object| NewResource::wrap(object))
+        NewResourceInner::from_id(id, self.map.clone(), self.client.clone()).map(NewResource::wrap)
     }
 }
 

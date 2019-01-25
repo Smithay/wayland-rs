@@ -8,10 +8,12 @@ use wayland_sys::server::*;
 use super::resource::NewResourceInner;
 use {Interface, UserDataMap};
 
+type BoxedDest = Box<FnMut(&UserDataMap) + Send + 'static>;
+
 pub(crate) struct ClientInternal {
     alive: AtomicBool,
     user_data_map: UserDataMap,
-    destructors: Mutex<Vec<Box<FnMut(&UserDataMap) + Send + 'static>>>,
+    destructors: Mutex<Vec<BoxedDest>>,
 }
 
 impl ClientInternal {

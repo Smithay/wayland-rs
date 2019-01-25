@@ -29,6 +29,8 @@ pub(crate) struct ResourceInner {
     internal: Option<Arc<ResourceInternal>>,
     ptr: *mut wl_resource,
     // this field is only a workaround for https://github.com/rust-lang/rust/issues/50153
+    // this bug is fixed since 1.28.0, the hack can be removed once this becomes
+    // the least supported version
     _hack: (bool, bool),
 }
 
@@ -158,7 +160,7 @@ impl ResourceInner {
                     alive: AtomicBool::new(false),
                     user_data: Arc::new(UserData::empty()),
                 })),
-                ptr: ptr,
+                ptr,
                 _hack: (false, false),
             };
         }
@@ -180,8 +182,8 @@ impl ResourceInner {
             None
         };
         ResourceInner {
-            internal: internal,
-            ptr: ptr,
+            internal,
+            ptr,
             _hack: (false, false),
         }
     }
@@ -235,14 +237,17 @@ impl NewResourceInner {
     }
 
     pub(crate) unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
-        NewResourceInner { ptr: ptr }
+        NewResourceInner { ptr }
     }
 }
+
+type BoxedHandler<I> = Box<FnMut(<I as Interface>::Request, I)>;
+type BoxedDest<I> = Box<FnMut(I)>;
 
 pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>>> {
     _i: ::std::marker::PhantomData<*const I>,
     pub(crate) internal: Arc<ResourceInternal>,
-    implem: Option<(Box<FnMut(I::Request, I)>, Option<Box<FnMut(I)>>)>,
+    implem: Option<(BoxedHandler<I>, Option<BoxedDest<I>>)>,
 }
 
 impl<I: Interface + From<Resource<I>>> ResourceUserData<I> {
@@ -303,7 +308,7 @@ where
     });
     // check the return status
     match ret {
-        Ok(Ok(())) => return 0,
+        Ok(Ok(())) => 0,
         Ok(Err(())) => {
             eprintln!(
                 "[wayland-client error] Attempted to dispatch unknown opcode {} for {}, aborting.",
@@ -337,7 +342,7 @@ pub(crate) unsafe extern "C" fn resource_destroy<I: Interface + From<Resource<I>
         }
     });
 
-    if let Err(_) = ret {
+    if ret.is_err() {
         eprintln!("[wayland-client error] A destructor for {} panicked.", I::NAME);
         ::libc::abort()
     }

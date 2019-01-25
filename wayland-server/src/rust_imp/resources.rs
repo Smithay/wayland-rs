@@ -90,7 +90,7 @@ impl ResourceInner {
                 );
             }
             // TODO: figure our if this can fail and still be recoverable ?
-            let _ = conn_lock.write_message(&msg).expect("Sending a message failed.");
+            conn_lock.write_message(&msg).expect("Sending a message failed.");
             if destructor {
                 self.object.meta.alive.store(false, Ordering::Release);
                 // schedule a destructor
