@@ -14,7 +14,7 @@ macro_rules! wayland_protocol(
         mod generated {
             #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
             #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
-            #![allow(missing_docs)]
+            #![allow(missing_docs, clippy)]
 
             #[cfg(feature = "client")]
             pub mod client {
@@ -49,7 +49,7 @@ macro_rules! wayland_protocol(
         mod generated {
             #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
             #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
-            #![allow(missing_docs)]
+            #![allow(missing_docs, clippy)]
 
             pub mod c_interfaces {
                 //! C interfaces for this protocol
