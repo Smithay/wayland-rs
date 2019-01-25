@@ -102,7 +102,9 @@ script:
         cargo tarpaulin --all --features "native_lib" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$CLIPPY" ]; then
-        cargo clippy --all -- -D warnings
+        # - renamed_and_removed and deprecared_cfg_attr are necessary because rust 1.21.0 cannot parse
+        #   stuff like #[allow(clippy::all)] or #[rustfmt::skip]
+        cargo clippy --all -- -D warnings -A renamed_and_removed_lints -A deprecated_cfg_attr
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       elif [ -n "$TARGET" ]; then
