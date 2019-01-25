@@ -124,9 +124,8 @@ fn parse_interface<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribu
 fn parse_description<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) -> (String, String) {
     let mut summary = String::new();
     for attr in attrs {
-        match &attr.name.local_name[..] {
-            "summary" => summary = attr.value.split_whitespace().collect::<Vec<_>>().join(" "),
-            _ => {}
+        if &attr.name.local_name[..] == "summary" {
+            summary = attr.value.split_whitespace().collect::<Vec<_>>().join(" ");
         }
     }
 

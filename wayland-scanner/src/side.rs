@@ -15,9 +15,9 @@ pub enum Side {
 }
 
 impl Side {
-    pub(crate) fn object_name(&self) -> Ident {
+    pub(crate) fn object_name(self) -> Ident {
         Ident::new(
-            match *self {
+            match self {
                 Client => "Proxy",
                 Server => "Resource",
             },
