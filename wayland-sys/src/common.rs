@@ -37,7 +37,7 @@ pub struct wl_array {
 pub type wl_fixed_t = i32;
 
 pub fn wl_fixed_to_double(f: wl_fixed_t) -> f64 {
-    f as f64 / 256.
+    f64::from(f) / 256.
 }
 
 pub fn wl_fixed_from_double(d: f64) -> wl_fixed_t {

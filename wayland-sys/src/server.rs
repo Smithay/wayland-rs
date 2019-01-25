@@ -179,6 +179,7 @@ pub fn is_lib_available() -> bool {
 }
 
 pub mod signal {
+    #![allow(cast_ptr_alignment)]
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};
@@ -191,7 +192,7 @@ pub mod signal {
     // TODO: Is this really not UB ?
     macro_rules! offset_of(
         ($ty:ty, $field:ident) => {
-            &(*(0 as *const $ty)).$field as *const _ as usize
+            &(*(ptr::null() as *const $ty)).$field as *const _ as usize
         }
     );
 
