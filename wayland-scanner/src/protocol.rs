@@ -152,15 +152,15 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn nullable(&self) -> bool {
-        match *self {
+    pub fn nullable(self) -> bool {
+        match self {
             Type::String | Type::Object | Type::NewId | Type::Array => true,
             _ => false,
         }
     }
 
-    pub fn rust_type(&self) -> TokenStream {
-        match *self {
+    pub fn rust_type(self) -> TokenStream {
+        match self {
             Type::Int => quote!(i32),
             Type::Uint => quote!(u32),
             Type::Fixed => quote!(f64),
@@ -172,8 +172,8 @@ impl Type {
         }
     }
 
-    pub fn common_type(&self) -> TokenStream {
-        match *self {
+    pub fn common_type(self) -> TokenStream {
+        match self {
             Type::Int => quote!(Int),
             Type::Uint => quote!(Uint),
             Type::Fixed => quote!(Fixed),
