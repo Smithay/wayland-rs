@@ -99,7 +99,7 @@ impl GlobalManager {
 
         GlobalManager {
             inner: inner_clone,
-            registry: registry,
+            registry,
         }
     }
 
@@ -136,8 +136,8 @@ impl GlobalManager {
                                 (inner.callback)(
                                     GlobalEvent::New {
                                         id: name,
-                                        interface: interface,
-                                        version: version,
+                                        interface,
+                                        version,
                                     },
                                     proxy,
                                     );
@@ -149,8 +149,8 @@ impl GlobalManager {
                                         let (id, interface, _) = inner.list.swap_remove(i);
                                         (inner.callback)(
                                             GlobalEvent::Removed {
-                                                id: id,
-                                                interface: interface,
+                                                id,
+                                                interface,
                                             },
                                             proxy,
                                             );
@@ -170,7 +170,7 @@ impl GlobalManager {
 
         GlobalManager {
             inner: inner_clone,
-            registry: registry,
+            registry,
         }
     }
 

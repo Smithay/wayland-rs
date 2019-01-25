@@ -186,7 +186,7 @@ impl<'a> Cursor<'a> {
 
                 Some(CursorImageBuffer {
                     _cursor: PhantomData,
-                    buffer: buffer,
+                    buffer,
                 })
             }
         }

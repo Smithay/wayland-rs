@@ -181,7 +181,7 @@ pub mod protocol {
 mod generated {
     #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
     #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
-    #![allow(missing_docs)]
+    #![allow(missing_docs, clippy)]
 
     #[cfg(feature = "native_lib")]
     pub mod c_interfaces {

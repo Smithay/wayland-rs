@@ -92,7 +92,7 @@ impl Connection {
                         .args
                         .iter()
                         .flat_map(|a| {
-                            if let &Argument::NewId(nid) = a {
+                            if let Argument::NewId(nid) = *a {
                                 Some(nid)
                             } else {
                                 None
@@ -114,7 +114,7 @@ impl Connection {
                 } else {
                     // debug assert: if this opcode does not define a child, then there should be no
                     // NewId argument
-                    debug_assert!(msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId) == false);
+                    debug_assert!(!msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId));
                 }
 
                 // send the message to the appropriate pending queue

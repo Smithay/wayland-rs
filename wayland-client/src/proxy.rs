@@ -326,7 +326,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         };
         Proxy {
             _i: ::std::marker::PhantomData,
-            inner: inner,
+            inner,
         }
         .into()
     }
@@ -375,7 +375,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         };
         Proxy {
             _i: ::std::marker::PhantomData,
-            inner: inner,
+            inner,
         }
         .into()
     }
