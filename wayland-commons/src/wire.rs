@@ -153,7 +153,7 @@ impl Message {
         let orig_payload_len = payload.len();
         let orig_fds_len = fds.len();
         // Helper function to write a u32 or a RawFd to its buffer
-        fn write_buf<'a, T>(u: T, payload: &'a mut [T]) -> Result<&'a mut [T], MessageWriteError> {
+        fn write_buf<T>(u: T, payload: &mut [T]) -> Result<&mut [T], MessageWriteError> {
             if let Some((head, tail)) = payload.split_first_mut() {
                 *head = u;
                 Ok(tail)
@@ -225,7 +225,7 @@ impl Message {
 
         let wrote_size = (free_size - payload.len()) * 4;
         header[0] = self.sender_id;
-        header[1] = ((wrote_size as u32) << 16) | self.opcode as u32;
+        header[1] = ((wrote_size as u32) << 16) | u32::from(self.opcode);
         Ok((orig_payload_len - payload.len(), orig_fds_len - fds.len()))
     }
 
@@ -262,7 +262,7 @@ impl Message {
 
         let sender_id = raw[0];
         let word_2 = raw[1];
-        let opcode = (word_2 & 0x0000FFFF) as u16;
+        let opcode = (word_2 & 0x0000_FFFF) as u16;
         let len = (word_2 >> 16) as usize / 4;
 
         if len < 2 || len > raw.len() {
@@ -317,8 +317,8 @@ impl Message {
             .collect::<Result<Vec<_>, MessageParseError>>()?;
 
         let msg = Message {
-            sender_id: sender_id,
-            opcode: opcode,
+            sender_id,
+            opcode,
             args: arguments,
         };
         Ok((msg, rest, fds))
@@ -342,12 +342,12 @@ pub fn dup_fd_cloexec(fd: RawFd) -> NixResult<RawFd> {
             match result {
                 Ok(_) => {
                     // setting the O_CLOEXEC worked
-                    return Ok(newfd);
+                    Ok(newfd)
                 }
                 Err(e) => {
                     // something went wrong in F_GETFD or F_SETFD
                     let _ = ::nix::unistd::close(newfd);
-                    return Err(e);
+                    Err(e)
                 }
             }
         }

@@ -3,7 +3,7 @@
 use {Interface, MessageGroup, NoMessage};
 
 /// Limit separating server-created from client-created objects IDs in the namespace
-pub const SERVER_ID_LIMIT: u32 = 0xFF000000;
+pub const SERVER_ID_LIMIT: u32 = 0xFF00_0000;
 
 /// A trait representing the metadata a wayland implementation
 /// may attach to an object.
@@ -15,9 +15,7 @@ pub trait ObjectMetadata: Clone {
 }
 
 impl ObjectMetadata for () {
-    fn child(&self) -> () {
-        ()
-    }
+    fn child(&self) {}
 }
 
 /// The representation of a protocol object
@@ -46,10 +44,10 @@ impl<Meta: ObjectMetadata> Object<Meta> {
     pub fn from_interface<I: Interface>(version: u32, meta: Meta) -> Object<Meta> {
         Object {
             interface: I::NAME,
-            version: version,
+            version,
             requests: I::Request::MESSAGES,
             events: I::Event::MESSAGES,
-            meta: meta,
+            meta,
             childs_from_events: childs_from::<I::Event, Meta>,
             childs_from_requests: childs_from::<I::Request, Meta>,
         }
@@ -80,7 +78,7 @@ impl<Meta: ObjectMetadata> Object<Meta> {
             version: 0,
             requests: &[],
             events: &[],
-            meta: meta,
+            meta,
             childs_from_events: childs_from::<NoMessage, Meta>,
             childs_from_requests: childs_from::<NoMessage, Meta>,
         }
@@ -99,6 +97,7 @@ fn childs_from<M: MessageGroup, Meta: ObjectMetadata>(
 ///
 /// Keeps track of which object id is associated to which
 /// interface object, and which is currently unused.
+#[derive(Default)]
 pub struct ObjectMap<Meta: ObjectMetadata> {
     client_objects: Vec<Option<Object<Meta>>>,
     server_objects: Vec<Option<Object<Meta>>>,
@@ -132,10 +131,8 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
             if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize) {
                 *place = None;
             }
-        } else {
-            if let Some(place) = self.client_objects.get_mut((id - 1) as usize) {
-                *place = None;
-            }
+        } else if let Some(place) = self.client_objects.get_mut((id - 1) as usize) {
+            *place = None;
         }
     }
 
@@ -170,12 +167,10 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
             } else {
                 Err(())
             }
+        } else if let Some(&mut Some(ref mut obj)) = self.client_objects.get_mut((id - 1) as usize) {
+            Ok(f(obj))
         } else {
-            if let Some(&mut Some(ref mut obj)) = self.client_objects.get_mut((id - 1) as usize) {
-                Ok(f(obj))
-            } else {
-                Err(())
-            }
+            Err(())
         }
     }
 

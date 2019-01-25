@@ -133,6 +133,12 @@ impl UserDataMap {
     }
 }
 
+impl Default for UserDataMap {
+    fn default() -> UserDataMap {
+        UserDataMap::new()
+    }
+}
+
 mod list {
     /*
      * This is a lock-free append-only list, it is used as an implementation
@@ -157,14 +163,14 @@ mod list {
     pub struct AppendList<T>(AtomicPtr<Node<T>>);
 
     impl<T> AppendList<T> {
-        fn into_raw(ptr: NodePtr<T>) -> *mut Node<T> {
+        fn node_into_raw(ptr: NodePtr<T>) -> *mut Node<T> {
             match ptr {
                 Some(b) => Box::into_raw(b),
                 None => ptr::null_mut(),
             }
         }
-        unsafe fn from_raw(ptr: *mut Node<T>) -> NodePtr<T> {
-            if ptr == ptr::null_mut() {
+        unsafe fn node_from_raw(ptr: *mut Node<T>) -> NodePtr<T> {
+            if ptr.is_null() {
                 None
             } else {
                 Some(Box::from_raw(ptr))
@@ -172,7 +178,7 @@ mod list {
         }
 
         fn new_internal(ptr: NodePtr<T>) -> Self {
-            AppendList(AtomicPtr::new(Self::into_raw(ptr)))
+            AppendList(AtomicPtr::new(Self::node_into_raw(ptr)))
         }
 
         pub fn new() -> Self {
@@ -181,7 +187,7 @@ mod list {
 
         pub fn append(&self, value: T) {
             self.append_list(AppendList::new_internal(Some(Box::new(Node {
-                value: value,
+                value,
                 next: AppendList::new(),
             }))));
         }
@@ -224,7 +230,7 @@ mod list {
 
     impl<T> Drop for AppendList<T> {
         fn drop(&mut self) {
-            unsafe { Self::from_raw(mem::replace(self.0.get_mut(), ptr::null_mut())) };
+            unsafe { Self::node_from_raw(mem::replace(self.0.get_mut(), ptr::null_mut())) };
         }
     }
 
