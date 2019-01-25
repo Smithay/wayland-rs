@@ -40,6 +40,8 @@ matrix:
     - rust: stable
       env: BUILD_DOC=1
     - rust: stable
+      env: CLIPPY=1
+    - rust: stable
       env: TARGET=x86_64-unknown-freebsd
       sudo: true
       services: docker
@@ -64,6 +66,8 @@ before_script:
         # Building & running tests, we need to install the wayland lib
         ./travis_install_wayland.sh "1.15.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
+      elif [ -n "$CLIPPY" ]; then
+        rustup component add clippy
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
       elif [ -n "$TARGET" ]; then
@@ -97,6 +101,8 @@ script:
         bash <(curl -s https://codecov.io/bash) -cF rust_impl
         cargo tarpaulin --all --features "native_lib" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF native_lib
+      elif [ -n "$CLIPPY" ]; then
+        cargo clippy --all -- -D warnings
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       elif [ -n "$TARGET" ]; then
