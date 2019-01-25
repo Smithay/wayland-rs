@@ -10,12 +10,14 @@ use {Interface, NewResource};
 use super::resources::ObjectMeta;
 use super::{ClientInner, NewResourceInner};
 
+type GlobalFilter = Rc<RefCell<FnMut(ClientInner) -> bool>>;
+
 pub(crate) struct GlobalInner<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
     destroyed_marker: Rc<Cell<bool>>,
     id: u32,
     registries: Rc<RefCell<Vec<(u32, ClientInner)>>>,
-    filter: Option<Rc<RefCell<FnMut(ClientInner) -> bool>>>,
+    filter: Option<GlobalFilter>,
 }
 
 impl<I: Interface> GlobalInner<I> {
@@ -34,7 +36,7 @@ struct GlobalData {
     interface: &'static str,
     destroyed: Rc<Cell<bool>>,
     implem: Box<Fn(u32, u32, ClientInner) -> Result<(), ()>>,
-    filter: Option<Rc<RefCell<FnMut(ClientInner) -> bool>>>,
+    filter: Option<GlobalFilter>,
 }
 
 pub(crate) struct GlobalManager {

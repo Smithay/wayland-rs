@@ -40,7 +40,7 @@ impl<I: Interface> GlobalInner<I> {
         rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
     ) -> GlobalInner<I> {
         GlobalInner {
-            ptr: ptr,
+            ptr,
             data: Box::into_raw(data),
             rust_globals,
         }

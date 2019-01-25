@@ -33,17 +33,17 @@ impl DisplayInner {
     pub(crate) fn new<Data: 'static>(handle: LoopHandle<Data>) -> Rc<RefCell<DisplayInner>> {
         let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
 
-        let display = Rc::new(RefCell::new(DisplayInner {
+        let clients_mgr = Rc::new(RefCell::new(ClientManager::new(
+            Box::new(handle.clone()),
+            global_mgr.clone(),
+        )));
+
+        Rc::new(RefCell::new(DisplayInner {
             loophandle: Box::new(handle.clone()),
-            clients_mgr: Rc::new(RefCell::new(ClientManager::new(
-                Box::new(handle.clone()),
-                global_mgr.clone(),
-            ))),
+            clients_mgr,
             global_mgr,
             listeners: Vec::new(),
-        }));
-
-        display
+        }))
     }
 
     pub(crate) fn create_global<I: Interface, F1, F2>(

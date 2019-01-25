@@ -21,6 +21,8 @@ use super::event_loop_glue::WSLoopHandle;
 use super::globals::GlobalManager;
 use super::resources::{NewResourceInner, ObjectMeta, ResourceInner};
 
+type ClientSource = Source<Generic<Fd>>;
+
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
     Protocol,
@@ -159,7 +161,7 @@ impl ClientConnection {
                 .args
                 .iter()
                 .flat_map(|a| {
-                    if let &Argument::NewId(nid) = a {
+                    if let Argument::NewId(nid) = *a {
                         Some(nid)
                     } else {
                         None
@@ -183,7 +185,7 @@ impl ClientConnection {
             // NewId argument, unless we are the registry
             debug_assert!(
                 object.interface == "wl_registry"
-                    || msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId) == false
+                    || !msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId)
             );
         }
 
@@ -295,7 +297,7 @@ impl ClientInner {
 
 pub(crate) struct ClientManager {
     loophandle: Box<WSLoopHandle>,
-    clients: Vec<(RefCell<Option<Source<Generic<Fd>>>>, ClientInner)>,
+    clients: Vec<(RefCell<Option<ClientSource>>, ClientInner)>,
     zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
@@ -406,7 +408,7 @@ impl ClientManager {
     }
 }
 
-const DISPLAY_REQUESTS: &'static [MessageDesc] = &[
+const DISPLAY_REQUESTS: &[MessageDesc] = &[
     MessageDesc {
         name: "sync",
         since: 1,
@@ -419,7 +421,7 @@ const DISPLAY_REQUESTS: &'static [MessageDesc] = &[
     },
 ];
 
-const DISPLAY_EVENTS: &'static [MessageDesc] = &[
+const DISPLAY_EVENTS: &[MessageDesc] = &[
     MessageDesc {
         name: "error",
         since: 1,
@@ -432,7 +434,7 @@ const DISPLAY_EVENTS: &'static [MessageDesc] = &[
     },
 ];
 
-const REGISTRY_REQUESTS: &'static [MessageDesc] = &[MessageDesc {
+const REGISTRY_REQUESTS: &[MessageDesc] = &[MessageDesc {
     name: "bind",
     since: 1,
     signature: &[
@@ -443,7 +445,7 @@ const REGISTRY_REQUESTS: &'static [MessageDesc] = &[MessageDesc {
     ],
 }];
 
-const REGISTRY_EVENTS: &'static [MessageDesc] = &[
+const REGISTRY_EVENTS: &[MessageDesc] = &[
     MessageDesc {
         name: "global",
         since: 1,
