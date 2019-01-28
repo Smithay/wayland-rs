@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use nix::Result as NixResult;
 
-use wayland_commons::map::{Object, ObjectMap};
+use wayland_commons::map::{Object, ObjectMap, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 
@@ -70,24 +70,10 @@ impl Connection {
             },
             |msg| {
                 let mut map = map.borrow_mut();
-                let object = match map.find(msg.sender_id) {
-                    Some(obj) => obj,
-                    None => {
-                        // this is a message sent to a destroyed object
-                        // to avoid dying because of races, we just consume it into void
-                        // closing any associated FDs
-                        for a in msg.args {
-                            if let Argument::Fd(fd) = a {
-                                let _ = ::nix::unistd::close(fd);
-                            }
-                        }
-                        // continue parsing to the next message
-                        return true;
-                    }
-                };
+                let object = map.find(msg.sender_id);
 
                 // create a new object if applicable
-                if let Some(child) = object.event_child(msg.opcode) {
+                if let Some((mut child, dead_parent)) = object.as_ref().and_then(|o| o.event_child(msg.opcode).map(|c| (c, o.meta.client_destroyed))) {
                     let new_id = msg
                         .args
                         .iter()
@@ -101,6 +87,15 @@ impl Connection {
                         .next()
                         .unwrap();
                     let child_interface = child.interface;
+                    // if this ID belonged to a now destroyed server object, we can replace it
+                    if new_id >= SERVER_ID_LIMIT && map.with(new_id, |obj| obj.meta.client_destroyed).unwrap_or(false) {
+                        map.remove(new_id)
+                    }
+                    // if the parent object is already destroyed, the user will never see this
+                    // object, so we set it as client_destroyed to ignore all future messages to it
+                    if dead_parent {
+                        child.meta.client_destroyed = true;
+                    }
                     if let Err(()) = map.insert_at(new_id, child) {
                         eprintln!(
                             "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
@@ -118,7 +113,22 @@ impl Connection {
                 }
 
                 // send the message to the appropriate pending queue
-                object.meta.buffer.lock().unwrap().push_back(msg);
+                match object {
+                    Some(Object { meta: ObjectMeta { client_destroyed: true, .. }, .. }) | None => {
+                        // this is a message sent to a destroyed object
+                        // to avoid dying because of races, we just consume it into void
+                        // closing any associated FDs
+                        for a in msg.args {
+                            if let Argument::Fd(fd) = a {
+                                let _ = ::nix::unistd::close(fd);
+                            }
+                        }
+                    },
+                    Some(obj) => {
+                        obj.meta.buffer.lock().unwrap().push_back(msg);
+                    }
+                };
+
                 // continue parsing
                 true
             },
