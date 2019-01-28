@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-#[cfg(not(features = "nothread"))]
+#[cfg(not(feature = "nothread"))]
 #[test]
 fn client_sync_roundtrip() {
     let socket_name = "wayland-client-sync-roundtrip";
@@ -44,7 +44,7 @@ fn client_sync_roundtrip() {
     server_thread.join().unwrap();
 }
 
-#[cfg(not(features = "nothread"))]
+#[cfg(not(feature = "nothread"))]
 #[test]
 fn client_dispatch() {
     let socket_name = "wayland-client-dispatch";
