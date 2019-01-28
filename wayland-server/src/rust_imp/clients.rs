@@ -11,7 +11,7 @@ use nix::Result as NixResult;
 use calloop::generic::Generic;
 use calloop::Source;
 
-use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
+use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
@@ -90,11 +90,15 @@ impl ClientConnection {
     pub(crate) fn delete_id(&mut self, id: u32) -> NixResult<()> {
         self.map.lock().unwrap().remove(id);
 
-        self.write_message(&Message {
-            sender_id: 1,
-            opcode: 1,
-            args: vec![Argument::Uint(id)],
-        })
+        if id < SERVER_ID_LIMIT {
+            self.write_message(&Message {
+                sender_id: 1,
+                opcode: 1,
+                args: vec![Argument::Uint(id)],
+            })
+        } else {
+            Ok(())
+        }
     }
 
     pub(crate) fn read_request(&mut self) -> Result<Option<Message>, Error> {

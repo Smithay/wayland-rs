@@ -33,6 +33,8 @@
   open FDs.
 - [commons/client] Introduce message iterators and message sinks, allowing to opt-in into an
   iterator-based handling of messages.
+- [client/server] Fix handling of messages & ID receycling in races around object destruction,
+  which could cause `wayland-client` to unexpectedly panic.
 
 ## 0.21.11 -- 2019-01-19
 
