@@ -66,6 +66,7 @@ fn proxy_user_data() {
     assert!(compositor1.user_data::<u32>() == None);
 }
 
+#[cfg(not(features = "nothread"))]
 #[test]
 fn proxy_user_data_wrong_thread() {
     let mut server = TestServer::new();
@@ -119,6 +120,7 @@ fn proxy_wrapper() {
     assert!(manager.list().len() == 1);
 }
 
+#[cfg(not(features = "nothread"))]
 #[test]
 fn proxy_implement_wrong_thread() {
     let mut server = TestServer::new();
@@ -145,6 +147,7 @@ fn proxy_implement_wrong_thread() {
     assert!(ret.is_err())
 }
 
+#[cfg(not(features = "nothread"))]
 #[test]
 fn proxy_implement_wrapper_threaded() {
     let mut server = TestServer::new();
@@ -173,6 +176,7 @@ fn proxy_implement_wrapper_threaded() {
     .unwrap();
 }
 
+#[cfg(not(features = "nothread"))]
 #[test]
 fn proxy_implement_threadsafe_wrong_thread() {
     let mut server = TestServer::new();

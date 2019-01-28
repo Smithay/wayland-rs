@@ -97,9 +97,9 @@ script:
         cargo fmt --all -- --check
         rustfmt --check tests/scanner_assets/*.rs
       elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --all --features "" --ignore-tests --out Xml
+        cargo tarpaulin --all --features "nothread" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF rust_impl
-        cargo tarpaulin --all --features "native_lib" --ignore-tests --out Xml
+        cargo tarpaulin --all --features "nothread native_lib" --ignore-tests --out Xml
         bash <(curl -s https://codecov.io/bash) -cF native_lib
       elif [ -n "$CLIPPY" ]; then
         # - renamed_and_removed and deprecared_cfg_attr are necessary because rust 1.21.0 cannot parse
