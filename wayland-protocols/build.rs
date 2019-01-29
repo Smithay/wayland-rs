@@ -4,9 +4,9 @@ use std::env::var;
 use std::path::Path;
 use wayland_scanner::*;
 
-static STABLE_PROTOCOLS: &'static [&'static str] = &["presentation-time", "viewporter", "xdg-shell"];
+static STABLE_PROTOCOLS: &[&str] = &["presentation-time", "viewporter", "xdg-shell"];
 
-static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
+static UNSTABLE_PROTOCOLS: &[(&str, &[&str])] = &[
     ("fullscreen-shell", &["v1"]),
     ("idle-inhibit", &["v1"]),
     ("input-method", &["v1"]),
@@ -27,7 +27,7 @@ static UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = 
     ("xwayland-keyboard-grab", &["v1"]),
 ];
 
-static WLR_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])] = &[
+static WLR_UNSTABLE_PROTOCOLS: &[(&str, &[&str])] = &[
     ("wlr-data-control", &["v1"]),
     ("wlr-export-dmabuf", &["v1"]),
     ("wlr-foreign-toplevel-management", &["v1"]),
@@ -36,6 +36,8 @@ static WLR_UNSTABLE_PROTOCOLS: &'static [(&'static str, &'static [&'static str])
     ("wlr-layer-shell", &["v1"]),
     ("wlr-screencopy", &["v1"]),
 ];
+
+static MISC_PROTOCOLS: &[&str] = &["gtk-primary-selection"];
 
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
     if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
@@ -91,6 +93,11 @@ fn main() {
             client,
             server,
         );
+    }
+
+    for name in MISC_PROTOCOLS {
+        let file = format!("{name}.xml", name = name);
+        generate_protocol(name, &Path::new("./misc").join(&file), out_dir, client, server);
     }
 
     if var("CARGO_FEATURE_UNSTABLE_PROTOCOLS").ok().is_some() {
