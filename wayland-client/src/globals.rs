@@ -6,7 +6,6 @@ use {Interface, NewProxy, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
-    callback: Box<FnMut(GlobalEvent, wl_registry::WlRegistry) + Send>,
 }
 
 /// An utility to manage global objects
@@ -67,16 +66,17 @@ pub enum GlobalEvent {
 
 impl GlobalManager {
     /// Create a global manager handling a registry
+    ///
+    /// In order to use `GlobalManager` from a different thread than the one `display` was created
+    /// on, wrap the `display` to an `EventQueue` on the appropriate thread using
+    /// `Proxy::make_wrapper()` before calling this function.
     pub fn new(display: &wl_display::WlDisplay) -> GlobalManager {
-        let inner = Arc::new(Mutex::new(Inner {
-            list: Vec::new(),
-            callback: Box::new(|_, _| {}),
-        }));
+        let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement_closure_threadsafe(
+                registry.implement_closure(
                     move |msg, _proxy| {
                         let mut inner = inner.lock().unwrap();
                         match msg {
@@ -110,19 +110,20 @@ impl GlobalManager {
     ///
     /// This can be used if you want to handle specially certain globals, but want
     /// to use the default mechanism for the rest.
-    pub fn new_with_cb<F>(display: &wl_display::WlDisplay, callback: F) -> GlobalManager
+    ///
+    /// In order to use `GlobalManager` from a different thread than the one `display` was created
+    /// on, wrap the `display` to an `EventQueue` on the appropriate thread using
+    /// `Proxy::make_wrapper()` before calling this function.
+    pub fn new_with_cb<F>(display: &wl_display::WlDisplay, mut callback: F) -> GlobalManager
     where
-        F: FnMut(GlobalEvent, wl_registry::WlRegistry) + Send + 'static,
+        F: FnMut(GlobalEvent, wl_registry::WlRegistry) + 'static,
     {
-        let inner = Arc::new(Mutex::new(Inner {
-            list: Vec::new(),
-            callback: Box::new(callback),
-        }));
+        let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
 
         let registry = display
             .get_registry(|registry| {
-                registry.implement_closure_threadsafe(
+                registry.implement_closure(
                     move |msg, proxy| {
                         let mut inner = inner.lock().unwrap();
                         let inner = &mut *inner;
@@ -133,7 +134,7 @@ impl GlobalManager {
                                 version,
                             } => {
                                 inner.list.push((name, interface.clone(), version));
-                                (inner.callback)(
+                                callback(
                                     GlobalEvent::New {
                                         id: name,
                                         interface,
@@ -147,7 +148,7 @@ impl GlobalManager {
                                     inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
                                     {
                                         let (id, interface, _) = inner.list.swap_remove(i);
-                                        (inner.callback)(
+                                        callback(
                                             GlobalEvent::Removed {
                                                 id,
                                                 interface,
@@ -309,7 +310,7 @@ macro_rules! global_filter {
         {
             use $crate::protocol::wl_registry;
             use $crate::{GlobalEvent, NewProxy, Interface, GlobalImplementor};
-            type Callback = Box<FnMut(u32, u32, wl_registry::WlRegistry) + Send>;
+            type Callback = Box<FnMut(u32, u32, wl_registry::WlRegistry)>;
             let mut callbacks: Vec<(&'static str, Callback)> = Vec::new();
             // Create the callback list
             $({

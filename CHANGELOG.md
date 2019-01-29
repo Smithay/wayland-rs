@@ -37,6 +37,9 @@
   which could cause `wayland-client` to unexpectedly panic.
 - **Breaking** [client/server] Update the core protocol to 1.16
 - [protocols] Introduce misc/gtk-primary-selection
+- **Breaking** [client] Lifted the thread-safety bound on `GlobalManager`. This
+  means that the closure given to `GlobalManager::new_with_cb()` no longer
+  needs to be `Send`.
 
 ## 0.21.11 -- 2019-01-19
 
