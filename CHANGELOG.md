@@ -40,6 +40,8 @@
 - **Breaking** [client] Lifted the thread-safety bound on `GlobalManager`. This
   means that the closure given to `GlobalManager::new_with_cb()` no longer
   needs to be `Send`.
+- [client] Added an explicit `.expect()` to binding in the `global_filter!()`
+  macro. This gets rid of the warning when using `global_filter!()`.
 
 ## 0.21.11 -- 2019-01-19
 
