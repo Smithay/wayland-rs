@@ -11,7 +11,6 @@ use protocol::wl_surface::WlSurface;
 use std::os::raw::c_void;
 use wayland_sys::client::wl_proxy;
 use wayland_sys::egl::*;
-use Proxy;
 
 /// Checks if the wayland-egl lib is available and can be used
 ///
@@ -37,8 +36,8 @@ pub struct WlEglSurface {
 
 impl WlEglSurface {
     /// Create an EGL surface from a wayland surface
-    pub fn new(surface: &Proxy<WlSurface>, width: i32, height: i32) -> WlEglSurface {
-        unsafe { WlEglSurface::new_from_raw(surface.c_ptr(), width, height) }
+    pub fn new(surface: &WlSurface, width: i32, height: i32) -> WlEglSurface {
+        unsafe { WlEglSurface::new_from_raw(surface.as_ref().c_ptr(), width, height) }
     }
 
     /// Create an EGL surface from a raw pointer to a wayland surface

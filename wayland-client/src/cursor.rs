@@ -53,7 +53,7 @@ unsafe impl Send for CursorTheme {}
 ///   in this module.
 /// - In case of memory allocation failure.
 /// - If the theme name provided as argument contains an interior null
-pub fn load_theme(name: Option<&str>, size: u32, shm: &Proxy<WlShm>) -> CursorTheme {
+pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
     let ptr = if let Some(theme) = name {
         let cstr = CString::new(theme).expect("Theme name contained an interior null.");
         unsafe {
@@ -62,7 +62,7 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &Proxy<WlShm>) -> CursorTh
                 wl_cursor_theme_load,
                 cstr.as_ptr(),
                 size as c_int,
-                shm.c_ptr()
+                shm.as_ref().c_ptr()
             )
         }
     } else {
@@ -72,7 +72,7 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &Proxy<WlShm>) -> CursorTh
                 wl_cursor_theme_load,
                 ptr::null(),
                 size as c_int,
-                shm.c_ptr()
+                shm.as_ref().c_ptr()
             )
         }
     };
@@ -182,7 +182,7 @@ impl<'a> Cursor<'a> {
             unsafe {
                 let image = *(*self.cursor).images.offset(frame as isize);
                 let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
-                let buffer = Proxy::from_c_ptr(ptr);
+                let buffer = Proxy::from_c_ptr(ptr).into();
 
                 Some(CursorImageBuffer {
                     _cursor: PhantomData,
@@ -215,20 +215,20 @@ impl<'a> Cursor<'a> {
 
 /// A buffer containing a cursor image.
 ///
-/// You can access the `Proxy<WlBuffer>` via `Deref`.
+/// You can access the `WlBuffer` via `Deref`.
 ///
 /// Note that this proxy will be considered as "unmanaged" by the crate, as such you should
 /// not try to act on it beyond assigning it to `wl_surface`s.
 pub struct CursorImageBuffer<'a> {
     _cursor: PhantomData<&'a Cursor<'a>>,
-    buffer: Proxy<WlBuffer>,
+    buffer: WlBuffer,
 }
 
 unsafe impl<'a> Send for CursorImageBuffer<'a> {}
 
 impl<'a> Deref for CursorImageBuffer<'a> {
-    type Target = Proxy<WlBuffer>;
-    fn deref(&self) -> &Proxy<WlBuffer> {
+    type Target = WlBuffer;
+    fn deref(&self) -> &WlBuffer {
         &self.buffer
     }
 }
