@@ -325,7 +325,8 @@ macro_rules! global_filter {
                                 version,
                                 id,
                                 |newp| GlobalImplementor::<$interface>::new_global(&mut cb, newp)
-                            );
+                            )
+                            .expect("wl_registry died unexpectedly");
                         }
                     }) as Box<_>
                 ));
