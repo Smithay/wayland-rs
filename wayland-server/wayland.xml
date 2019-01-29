@@ -57,6 +57,12 @@
 	This request creates a registry object that allows the client
 	to list and bind the global objects available from the
 	compositor.
+
+	It should be noted that the server side resources consumed in
+	response to a get_registry request can only be released when the
+	client disconnects, not when the client side proxy is destroyed.
+	Therefore, clients should invoke get_registry as infrequently as
+	possible to avoid wasting memory.
       </description>
       <arg name="registry" type="new_id" interface="wl_registry"
 	   summary="global registry object"/>
@@ -104,8 +110,8 @@
 
   <interface name="wl_registry" version="1">
     <description summary="global registry object">
-      The global registry object.  The server has a number of global
-      objects that are available to all clients.  These objects
+      The singleton global registry object.  The server has a number of
+      global objects that are available to all clients.  These objects
       typically represent an actual object in the server (for example,
       an input device) or they are singleton objects that provide
       extension functionality.
@@ -129,7 +135,7 @@
     <request name="bind">
       <description summary="bind an object to the display">
 	Binds a new, client-created object to the server using the
-        specified name as the identifier.
+	specified name as the identifier.
       </description>
       <arg name="name" type="uint" summary="unique numeric name of the object"/>
       <arg name="id" type="new_id" summary="bounded object"/>
@@ -139,9 +145,9 @@
       <description summary="announce global object">
 	Notify the client of global objects.
 
-        The event notifies the client that a global object with
-        the given name is now available, and it implements the
-        given version of the given interface.
+	The event notifies the client that a global object with
+	the given name is now available, and it implements the
+	given version of the given interface.
       </description>
       <arg name="name" type="uint" summary="numeric name of the global object"/>
       <arg name="interface" type="string" summary="interface implemented by the object"/>
@@ -152,10 +158,10 @@
       <description summary="announce removal of global object">
 	Notify the client of removed global objects.
 
-        This event notifies the client that the global identified
-        by name is no longer available.  If the client bound to
-        the global using the bind request, the client should now
-        destroy that object.
+	This event notifies the client that the global identified
+	by name is no longer available.  If the client bound to
+	the global using the bind request, the client should now
+	destroy that object.
 
 	The object remains valid and requests to the object will be
 	ignored until the client destroys it, to avoid races between
@@ -226,7 +232,6 @@
 	so it is valid to destroy the pool immediately after creating
 	a buffer from it.
       </description>
-
       <arg name="id" type="new_id" interface="wl_buffer" summary="buffer to create"/>
       <arg name="offset" type="int" summary="buffer byte offset within the pool"/>
       <arg name="width" type="int" summary="buffer width, in pixels"/>
@@ -252,14 +257,13 @@
 	created, but using the new size.  This request can only be
 	used to make the pool bigger.
       </description>
-
       <arg name="size" type="int" summary="new size of the pool, in bytes"/>
     </request>
   </interface>
 
   <interface name="wl_shm" version="1">
     <description summary="shared memory support">
-      A global singleton object that provides support for shared
+      A singleton global object that provides support for shared
       memory.
 
       Clients can create wl_shm_pool objects using the create_pool
@@ -287,7 +291,7 @@
 	formats are optional and may not be supported by the particular
 	renderer in use.
 
-	The drm format codes match the #defines in drm_fourcc.h.
+	The drm format codes match the macros defined in drm_fourcc.h.
 	The formats actually supported by the compositor will be
 	reported by the format event.
       </description>
@@ -357,9 +361,8 @@
 
 	The pool can be used to create shared memory based buffer
 	objects.  The server will mmap size bytes of the passed file
-        descriptor, to use as backing memory for the pool.
+	descriptor, to use as backing memory for the pool.
       </description>
-
       <arg name="id" type="new_id" interface="wl_shm_pool" summary="pool to create"/>
       <arg name="fd" type="fd" summary="file descriptor for the pool"/>
       <arg name="size" type="int" summary="pool size, in bytes"/>
@@ -449,7 +452,6 @@
 	wl_data_source.cancelled. Clients may still use this event in
 	conjunction with wl_data_source.action for feedback.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the accept request"/>
       <arg name="mime_type" type="string" allow-null="true" summary="mime type accepted by the client"/>
     </request>
@@ -487,7 +489,6 @@
 	Sent immediately after creating the wl_data_offer object.  One
 	event per offered mime type.
       </description>
-
       <arg name="mime_type" type="string" summary="offered mime type"/>
     </event>
 
@@ -635,7 +636,6 @@
 
 	Used for feedback during drag-and-drop.
       </description>
-
       <arg name="mime_type" type="string" allow-null="true" summary="mime type accepted by the target"/>
     </event>
 
@@ -645,7 +645,6 @@
 	specified mime type over the passed file descriptor, then
 	close it.
       </description>
-
       <arg name="mime_type" type="string" summary="mime type for the data"/>
       <arg name="fd" type="fd" summary="file descriptor for the data"/>
     </event>
@@ -823,7 +822,6 @@
 	object will send out data_offer.offer events to describe the
 	mime types it offers.
       </description>
-
       <arg name="id" type="new_id" interface="wl_data_offer" summary="the new data_offer object"/>
     </event>
 
@@ -834,7 +832,6 @@
 	enter time is provided by the x and y arguments, in surface-local
 	coordinates.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the enter event"/>
       <arg name="surface" type="object" interface="wl_surface" summary="client surface entered"/>
       <arg name="x" type="fixed" summary="surface-local x coordinate"/>
@@ -924,14 +921,14 @@
 
     <request name="create_data_source">
       <description summary="create a new data source">
-        Create a new data source.
+	Create a new data source.
       </description>
       <arg name="id" type="new_id" interface="wl_data_source" summary="data source to create"/>
     </request>
 
     <request name="get_data_device">
       <description summary="create a new data device">
-        Create a new data device for a given seat.
+	Create a new data device for a given seat.
       </description>
       <arg name="id" type="new_id" interface="wl_data_device" summary="data device to create"/>
       <arg name="seat" type="object" interface="wl_seat" summary="seat associated with the data device"/>
@@ -979,6 +976,9 @@
 
       It allows clients to associate a wl_shell_surface with
       a basic surface.
+
+      Note! This protocol is deprecated and not intended for production use.
+      For desktop-style user interfaces, use xdg_shell.
     </description>
 
     <enum name="error">
@@ -1090,7 +1090,6 @@
 
 	The flags argument controls details of the transient behaviour.
       </description>
-
       <arg name="parent" type="object" interface="wl_surface" summary="parent surface"/>
       <arg name="x" type="int" summary="surface-local x coordinate"/>
       <arg name="y" type="int" summary="surface-local y coordinate"/>
@@ -1173,7 +1172,6 @@
 	corner of the surface relative to the upper left corner of the
 	parent surface, in surface-local coordinates.
       </description>
-
       <arg name="seat" type="object" interface="wl_seat" summary="seat whose pointer is used"/>
       <arg name="serial" type="uint" summary="serial number of the implicit grab on the pointer"/>
       <arg name="parent" type="object" interface="wl_surface" summary="parent surface"/>
@@ -1260,7 +1258,6 @@
 	The width and height arguments specify the size of the window
 	in surface-local coordinates.
       </description>
-
       <arg name="edges" type="uint" enum="resize" summary="how the surface was resized"/>
       <arg name="width" type="int" summary="new width of the surface"/>
       <arg name="height" type="int" summary="new height of the surface"/>
@@ -1320,7 +1317,7 @@
 
     <enum name="error">
       <description summary="wl_surface error values">
-        These errors can be emitted in response to wl_surface requests.
+	These errors can be emitted in response to wl_surface requests.
       </description>
       <entry name="invalid_scale" value="0" summary="buffer scale value is invalid"/>
       <entry name="invalid_transform" value="1" summary="buffer transform value is invalid"/>
@@ -1374,7 +1371,6 @@
 	If wl_surface.attach is sent with a NULL wl_buffer, the
 	following wl_surface.commit will remove the surface content.
       </description>
-
       <arg name="buffer" type="object" interface="wl_buffer" allow-null="true"
 	   summary="buffer of surface contents"/>
       <arg name="x" type="int" summary="surface-local x coordinate"/>
@@ -1405,7 +1401,6 @@
 	which uses buffer coordinates instead of surface coordinates,
 	and is probably the preferred and intuitive way of doing this.
       </description>
-
       <arg name="x" type="int" summary="surface-local x coordinate"/>
       <arg name="y" type="int" summary="surface-local y coordinate"/>
       <arg name="width" type="int" summary="width of damage rectangle"/>
@@ -1447,7 +1442,6 @@
 	The callback_data passed in the callback is the current time, in
 	milliseconds, with an undefined base.
       </description>
-
       <arg name="callback" type="new_id" interface="wl_callback" summary="callback object for the frame request"/>
     </request>
 
@@ -1478,7 +1472,6 @@
 	destroyed immediately. A NULL wl_region causes the pending opaque
 	region to be set to empty.
       </description>
-
       <arg name="region" type="object" interface="wl_region" allow-null="true"
 	   summary="opaque region of the surface"/>
     </request>
@@ -1508,7 +1501,6 @@
 	immediately. A NULL wl_region causes the input region to be set
 	to infinite.
       </description>
-
       <arg name="region" type="object" interface="wl_region" allow-null="true"
 	   summary="input region of the surface"/>
     </request>
@@ -1661,7 +1653,6 @@
 	two requests separately and only transform from one to the other
 	after receiving the wl_surface.commit.
       </description>
-
       <arg name="x" type="int" summary="buffer-local x coordinate"/>
       <arg name="y" type="int" summary="buffer-local y coordinate"/>
       <arg name="width" type="int" summary="width of damage rectangle"/>
@@ -1669,7 +1660,7 @@
     </request>
    </interface>
 
-  <interface name="wl_seat" version="5">
+  <interface name="wl_seat" version="6">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -1679,8 +1670,8 @@
 
     <enum name="capability" bitfield="true">
       <description summary="seat capability bitmask">
-        This is a bitmask of capabilities this seat has; if a member is
-        set, then it is present on the seat.
+	This is a bitmask of capabilities this seat has; if a member is
+	set, then it is present on the seat.
       </description>
       <entry name="pointer" value="1" summary="the seat has pointer devices"/>
       <entry name="keyboard" value="2" summary="the seat has one or more keyboards"/>
@@ -1778,7 +1769,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="5">
+  <interface name="wl_pointer" version="6">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -1828,7 +1819,6 @@
 	cursor ends, the current and pending input regions become
 	undefined, and the wl_surface is unmapped.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the enter event"/>
       <arg name="surface" type="object" interface="wl_surface" allow-null="true"
 	   summary="pointer surface"/>
@@ -1845,7 +1835,6 @@
 	is undefined and a client should respond to this event by setting
 	an appropriate pointer image with the set_cursor request.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the enter event"/>
       <arg name="surface" type="object" interface="wl_surface" summary="surface entered by the pointer"/>
       <arg name="surface_x" type="fixed" summary="surface-local x coordinate"/>
@@ -1870,7 +1859,6 @@
 	surface_x and surface_y are the location relative to the
 	focused surface.
       </description>
-
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="surface_x" type="fixed" summary="surface-local x coordinate"/>
       <arg name="surface_y" type="fixed" summary="surface-local y coordinate"/>
@@ -1878,7 +1866,7 @@
 
     <enum name="button_state">
       <description summary="physical button state">
-        Describes the physical state of a button that produced the button
+	Describes the physical state of a button that produced the button
 	event.
       </description>
       <entry name="released" value="0" summary="the button is not pressed"/>
@@ -1891,10 +1879,17 @@
 
 	The location of the click is given by the last motion or
 	enter event.
-        The time argument is a timestamp with millisecond
-        granularity, with an undefined base.
-      </description>
+	The time argument is a timestamp with millisecond
+	granularity, with an undefined base.
 
+	The button is a button code as defined in the Linux kernel's
+	linux/input-event-codes.h header file, e.g. BTN_LEFT.
+
+	Any 16-bit button code value is reserved for future additions to the
+	kernel's event code list. All other button codes above 0xFFFF are
+	currently undefined but may be used in future versions of this
+	protocol.
+      </description>
       <arg name="serial" type="uint" summary="serial number of the button event"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="button" type="uint" summary="button that produced the event"/>
@@ -1928,7 +1923,6 @@
 	When applicable, a client can transform its content relative to the
 	scroll distance.
       </description>
-
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="axis" type="uint" enum="axis" summary="axis type"/>
       <arg name="value" type="fixed" summary="length of vector in surface-local coordinate space"/>
@@ -2001,10 +1995,15 @@
 	finger. One example for this source is button-based scrolling where
 	the vertical motion of a device is converted to scroll events while
 	a button is held down.
+
+	The "wheel tilt" axis source indicates that the actual device is a
+	wheel but the scroll event is not caused by a rotation but a
+	(usually sideways) tilt of the wheel.
       </description>
-      <entry name="wheel" value="0" summary="a physical wheel" />
+      <entry name="wheel" value="0" summary="a physical wheel rotation" />
       <entry name="finger" value="1" summary="finger on a touch surface" />
       <entry name="continuous" value="2" summary="continuous coordinate space"/>
+      <entry name="wheel_tilt" value="3" summary="a physical wheel tilt" since="6"/>
     </enum>
 
     <event name="axis_source" since="5">
@@ -2019,7 +2018,8 @@
 	wl_pointer.axis_source.finger, a wl_pointer.axis_stop event will be
 	sent when the user lifts the finger off the device.
 
-	If the source is wl_pointer axis_source.wheel or
+	If the source is wl_pointer.axis_source.wheel,
+	wl_pointer.axis_source.wheel_tilt or
 	wl_pointer.axis_source.continuous, a wl_pointer.axis_stop event may
 	or may not be sent. Whether a compositor sends an axis_stop event
 	for these sources is hardware-specific and implementation-dependent;
@@ -2092,7 +2092,7 @@
     </event>
   </interface>
 
-  <interface name="wl_keyboard" version="5">
+  <interface name="wl_keyboard" version="6">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2106,7 +2106,7 @@
       <entry name="no_keymap" value="0"
 	     summary="no keymap; client must understand how to interpret the raw keycode"/>
       <entry name="xkb_v1" value="1"
-             summary="libxkbcommon compatible; to determine the xkb keycode, clients must add 8 to the key event keycode"/>
+	     summary="libxkbcommon compatible; to determine the xkb keycode, clients must add 8 to the key event keycode"/>
     </enum>
 
     <event name="keymap">
@@ -2152,10 +2152,9 @@
     <event name="key">
       <description summary="key event">
 	A key was pressed or released.
-        The time argument is a timestamp with millisecond
-        granularity, with an undefined base.
+	The time argument is a timestamp with millisecond
+	granularity, with an undefined base.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the key event"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
       <arg name="key" type="uint" summary="key that produced the event"/>
@@ -2167,7 +2166,6 @@
 	Notifies clients that the modifier and/or group state has
 	changed, and it should update its local state.
       </description>
-
       <arg name="serial" type="uint" summary="serial number of the modifiers event"/>
       <arg name="mods_depressed" type="uint" summary="depressed modifiers"/>
       <arg name="mods_latched" type="uint" summary="latched modifiers"/>
@@ -2185,28 +2183,27 @@
 
     <event name="repeat_info" since="4">
       <description summary="repeat rate and delay">
-        Informs the client about the keyboard's repeat rate and delay.
+	Informs the client about the keyboard's repeat rate and delay.
 
-        This event is sent as soon as the wl_keyboard object has been created,
-        and is guaranteed to be received by the client before any key press
-        event.
+	This event is sent as soon as the wl_keyboard object has been created,
+	and is guaranteed to be received by the client before any key press
+	event.
 
-        Negative values for either rate or delay are illegal. A rate of zero
-        will disable any repeating (regardless of the value of delay).
+	Negative values for either rate or delay are illegal. A rate of zero
+	will disable any repeating (regardless of the value of delay).
 
-        This event can be sent later on as well with a new value if necessary,
-        so clients should continue listening for the event past the creation
-        of wl_keyboard.
+	This event can be sent later on as well with a new value if necessary,
+	so clients should continue listening for the event past the creation
+	of wl_keyboard.
       </description>
-
       <arg name="rate" type="int"
-           summary="the rate of repeating keys in characters per second"/>
+	   summary="the rate of repeating keys in characters per second"/>
       <arg name="delay" type="int"
-           summary="delay in milliseconds since key down until repeating starts"/>
+	   summary="delay in milliseconds since key down until repeating starts"/>
     </event>
   </interface>
 
-  <interface name="wl_touch" version="5">
+  <interface name="wl_touch" version="6">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
@@ -2256,7 +2253,14 @@
 
     <event name="frame">
       <description summary="end of touch frame event">
-	Indicates the end of a contact point list.
+	Indicates the end of a set of events that logically belong together.
+	A client is expected to accumulate the data in all events within the
+	frame before proceeding.
+
+	A wl_touch.frame terminates at least one event but otherwise no
+	guarantee is provided about the set of events within a frame. A client
+	must assume that any state not updated in a frame is unchanged from the
+	previously known state.
       </description>
     </event>
 
@@ -2276,6 +2280,71 @@
     <request name="release" type="destructor" since="3">
       <description summary="release the touch object"/>
     </request>
+
+    <!-- Version 6 additions -->
+
+    <event name="shape" since="6">
+      <description summary="update shape of touch point">
+	Sent when a touchpoint has changed its shape.
+
+	This event does not occur on its own. It is sent before a
+	wl_touch.frame event and carries the new shape information for
+	any previously reported, or new touch points of that frame.
+
+	Other events describing the touch point such as wl_touch.down,
+	wl_touch.motion or wl_touch.orientation may be sent within the
+	same wl_touch.frame. A client should treat these events as a single
+	logical touch point update. The order of wl_touch.shape,
+	wl_touch.orientation and wl_touch.motion is not guaranteed.
+	A wl_touch.down event is guaranteed to occur before the first
+	wl_touch.shape event for this touch ID but both events may occur within
+	the same wl_touch.frame.
+
+	A touchpoint shape is approximated by an ellipse through the major and
+	minor axis length. The major axis length describes the longer diameter
+	of the ellipse, while the minor axis length describes the shorter
+	diameter. Major and minor are orthogonal and both are specified in
+	surface-local coordinates. The center of the ellipse is always at the
+	touchpoint location as reported by wl_touch.down or wl_touch.move.
+
+	This event is only sent by the compositor if the touch device supports
+	shape reports. The client has to make reasonable assumptions about the
+	shape if it did not receive this event.
+      </description>
+      <arg name="id" type="int" summary="the unique ID of this touch point"/>
+      <arg name="major" type="fixed" summary="length of the major axis in surface-local coordinates"/>
+      <arg name="minor" type="fixed" summary="length of the minor axis in surface-local coordinates"/>
+    </event>
+
+    <event name="orientation" since="6">
+      <description summary="update orientation of touch point">
+	Sent when a touchpoint has changed its orientation.
+
+	This event does not occur on its own. It is sent before a
+	wl_touch.frame event and carries the new shape information for
+	any previously reported, or new touch points of that frame.
+
+	Other events describing the touch point such as wl_touch.down,
+	wl_touch.motion or wl_touch.shape may be sent within the
+	same wl_touch.frame. A client should treat these events as a single
+	logical touch point update. The order of wl_touch.shape,
+	wl_touch.orientation and wl_touch.motion is not guaranteed.
+	A wl_touch.down event is guaranteed to occur before the first
+	wl_touch.orientation event for this touch ID but both events may occur
+	within the same wl_touch.frame.
+
+	The orientation describes the clockwise angle of a touchpoint's major
+	axis to the positive surface y-axis and is normalized to the -180 to
+	+180 degree range. The granularity of orientation depends on the touch
+	device, some devices only support binary rotation values between 0 and
+	90 degrees.
+
+	This event is only sent by the compositor if the touch device supports
+	orientation reports.
+      </description>
+      <arg name="id" type="int" summary="the unique ID of this touch point"/>
+      <arg name="orientation" type="fixed" summary="angle between major axis and positive surface y-axis in degrees"/>
+    </event>
   </interface>
 
   <interface name="wl_output" version="3">
@@ -2315,7 +2384,6 @@
 	compositor will still be able to scan out directly from client
 	surfaces.
       </description>
-
       <entry name="normal" value="0" summary="no transform"/>
       <entry name="90" value="1" summary="90 degrees counter-clockwise"/>
       <entry name="180" value="2" summary="180 degrees counter-clockwise"/>
@@ -2331,6 +2399,9 @@
 	The geometry event describes geometric properties of the output.
 	The event is sent when binding to the output object and whenever
 	any of the properties change.
+
+	The physical size can be set to zero if it doesn't make sense for this
+	output (e.g. for projectors or virtual outputs).
       </description>
       <arg name="x" type="int"
 	   summary="x position within the global compositor space"/>
@@ -2372,10 +2443,10 @@
 	mode that was received with the current flag set.
 
 	The size of a mode is given in physical hardware units of
-        the output device. This is not necessarily the same as
-        the output size in the global compositor space. For instance,
-        the output may be scaled, as described in wl_output.scale,
-        or transformed, as described in wl_output.transform.
+	the output device. This is not necessarily the same as
+	the output size in the global compositor space. For instance,
+	the output may be scaled, as described in wl_output.scale,
+	or transformed, as described in wl_output.transform.
       </description>
       <arg name="flags" type="uint" enum="mode" summary="bitfield of mode flags"/>
       <arg name="width" type="int" summary="width of the mode in hardware units"/>
@@ -2387,20 +2458,20 @@
 
     <event name="done" since="2">
       <description summary="sent all information about output">
-        This event is sent after all other properties have been
-        sent after binding to the output object and after any
-        other property changes done after that. This allows
-        changes to the output properties to be seen as
-        atomic, even if they happen via multiple events.
+	This event is sent after all other properties have been
+	sent after binding to the output object and after any
+	other property changes done after that. This allows
+	changes to the output properties to be seen as
+	atomic, even if they happen via multiple events.
       </description>
     </event>
 
     <event name="scale" since="2">
       <description summary="output scaling properties">
 	This event contains scaling geometry information
-        that is not in the geometry event. It may be sent after
-        binding the output object or if the output scale changes
-        later. If it is not sent, the client should assume a
+	that is not in the geometry event. It may be sent after
+	binding the output object or if the output scale changes
+	later. If it is not sent, the client should assume a
 	scale of 1.
 
 	A scale larger than 1 means that the compositor will
@@ -2447,7 +2518,6 @@
       <description summary="add rectangle to region">
 	Add the specified rectangle to the region.
       </description>
-
       <arg name="x" type="int" summary="region-local x coordinate"/>
       <arg name="y" type="int" summary="region-local y coordinate"/>
       <arg name="width" type="int" summary="rectangle width"/>
@@ -2458,7 +2528,6 @@
       <description summary="subtract rectangle from region">
 	Subtract the specified rectangle from the region.
       </description>
-
       <arg name="x" type="int" summary="region-local x coordinate"/>
       <arg name="y" type="int" summary="region-local y coordinate"/>
       <arg name="width" type="int" summary="rectangle width"/>
@@ -2499,7 +2568,7 @@
 
     <enum name="error">
       <entry name="bad_surface" value="0"
-             summary="the to-be sub-surface is invalid"/>
+	     summary="the to-be sub-surface is invalid"/>
     </enum>
 
     <request name="get_subsurface">
@@ -2511,14 +2580,21 @@
 	The to-be sub-surface must not already have another role, and it
 	must not have an existing wl_subsurface object. Otherwise a protocol
 	error is raised.
-      </description>
 
+	Adding sub-surfaces to a parent is a double-buffered operation on the
+	parent (see wl_surface.commit). The effect of adding a sub-surface
+	becomes visible on the next time the state of the parent surface is
+	applied.
+
+	This request modifies the behaviour of wl_surface.commit request on
+	the sub-surface, see the documentation on wl_subsurface interface.
+      </description>
       <arg name="id" type="new_id" interface="wl_subsurface"
-           summary="the new sub-surface object ID"/>
+	   summary="the new sub-surface object ID"/>
       <arg name="surface" type="object" interface="wl_surface"
-           summary="the surface to be turned into a sub-surface"/>
+	   summary="the surface to be turned into a sub-surface"/>
       <arg name="parent" type="object" interface="wl_surface"
-           summary="the parent surface"/>
+	   summary="the parent surface"/>
     </request>
   </interface>
 
@@ -2581,13 +2657,13 @@
 	that was turned into a sub-surface with a
 	wl_subcompositor.get_subsurface request. The wl_surface's association
 	to the parent is deleted, and the wl_surface loses its role as
-	a sub-surface. The wl_surface is unmapped.
+	a sub-surface. The wl_surface is unmapped immediately.
       </description>
     </request>
 
     <enum name="error">
       <entry name="bad_surface" value="0"
-             summary="wl_surface is not a sibling or the parent"/>
+	     summary="wl_surface is not a sibling or the parent"/>
     </enum>
 
     <request name="set_position">
@@ -2609,7 +2685,6 @@
 
 	The initial position is 0, 0.
       </description>
-
       <arg name="x" type="int" summary="x coordinate in the parent surface"/>
       <arg name="y" type="int" summary="y coordinate in the parent surface"/>
     </request>
@@ -2632,9 +2707,8 @@
 	A new sub-surface is initially added as the top-most in the stack
 	of its siblings and parent.
       </description>
-
       <arg name="sibling" type="object" interface="wl_surface"
-           summary="the reference surface"/>
+	   summary="the reference surface"/>
     </request>
 
     <request name="place_below">
@@ -2642,9 +2716,8 @@
 	The sub-surface is placed just below the reference surface.
 	See wl_subsurface.place_above.
       </description>
-
       <arg name="sibling" type="object" interface="wl_surface"
-           summary="the reference surface"/>
+	   summary="the reference surface"/>
     </request>
 
     <request name="set_sync">

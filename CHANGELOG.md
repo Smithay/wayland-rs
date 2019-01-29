@@ -35,6 +35,7 @@
   iterator-based handling of messages.
 - [client/server] Fix handling of messages & ID receycling in races around object destruction,
   which could cause `wayland-client` to unexpectedly panic.
+- **Breaking** [client/server] Update the core protocol to 1.16
 
 ## 0.21.11 -- 2019-01-19
 
