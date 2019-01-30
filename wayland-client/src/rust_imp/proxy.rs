@@ -122,7 +122,7 @@ impl ProxyInner {
         let destructor = msg.is_destructor();
         let msg = msg.into_raw(self.id);
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            println!(
+            eprintln!(
                 " -> {}@{}: {} {:?}",
                 I::NAME,
                 self.id,
@@ -168,7 +168,7 @@ impl ProxyInner {
         let destructor = msg.is_destructor();
         let mut msg = msg.into_raw(self.id);
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            println!(
+            eprintln!(
                 " -> {}@{}: {} {:?}",
                 I::NAME,
                 self.id,

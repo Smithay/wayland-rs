@@ -556,6 +556,14 @@ impl super::Dispatcher for DisplayDispatcher {
         map: &mut super::ResourceMap,
     ) -> Result<(), ()> {
         use protocol::wl_callback;
+
+        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
+            eprintln!(
+                " <- wl_display@1: {} {:?}",
+                DISPLAY_REQUESTS[msg.opcode as usize].name, msg.args
+            );
+        }
+
         match msg.opcode {
             // sync
             0 => {
@@ -607,6 +615,15 @@ impl super::Dispatcher for RegistryDispatcher {
         resource: ResourceInner,
         map: &mut super::ResourceMap,
     ) -> Result<(), ()> {
+        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
+            eprintln!(
+                " <- wl_registry@{}: {} {:?}",
+                resource.id,
+                REGISTRY_REQUESTS[msg.opcode as usize].name,
+                msg.args
+            );
+        }
+
         let mut iter = msg.args.into_iter();
         let global_id = match iter.next() {
             Some(Argument::Uint(u)) => u,

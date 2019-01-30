@@ -93,7 +93,7 @@ where
 {
     fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Result<(), ()> {
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            println!(
+            eprintln!(
                 " <- {}@{}: {} {:?}",
                 resource.object.interface,
                 resource.id,

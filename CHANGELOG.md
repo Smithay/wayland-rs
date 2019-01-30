@@ -42,6 +42,8 @@
   needs to be `Send`.
 - [client] Added an explicit `.expect()` to binding in the `global_filter!()`
   macro. This gets rid of the warning when using `global_filter!()`.
+- [client/server] `WAYLAND_DEBUG` output will now be directed to stderr (as it should have been from the
+  start).
 
 ## 0.21.11 -- 2019-01-19
 

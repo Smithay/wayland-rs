@@ -94,7 +94,7 @@ where
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            println!(
+            eprintln!(
                 " <- {}@{}: {} {:?}",
                 proxy.object.interface, proxy.id, proxy.object.events[msg.opcode as usize].name, msg.args
             );
