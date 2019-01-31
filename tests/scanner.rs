@@ -97,7 +97,7 @@ fn run_codegen_test(generated_file_path: &Path, expected_output: &str) {
             let mut actual_output = String::new();
             file.read_to_string(&mut actual_output).unwrap();
 
-            let changeset = Changeset::new(&actual_output, expected_output, "\n");
+            let changeset = Changeset::new(expected_output, &actual_output, "\n");
             if changeset.distance != 0 {
                 print_diff(&changeset.diffs);
                 panic!(
