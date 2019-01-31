@@ -212,7 +212,7 @@ fn dead_proxies() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let output = manager
-        .instantiate_exact::<wl_output::WlOutput, _>(1, |newp| newp.implement_dummy())
+        .instantiate_exact::<wl_output::WlOutput, _>(3, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

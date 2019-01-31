@@ -163,7 +163,7 @@ pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> T
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this request
-            pub const #cstname: u16 = #since;
+            pub const #cstname: u32 = #since;
         }
     });
     let evt_constants = events.iter().map(|msg| {
@@ -174,7 +174,7 @@ pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> T
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this event
-            pub const #cstname: u16 = #since;
+            pub const #cstname: u32 = #since;
         }
     });
 
@@ -291,7 +291,7 @@ pub(crate) fn gen_messagegroup(
 
     let message_array_values = messages.iter().map(|msg| {
         let name_value = &msg.name;
-        let since_value = Literal::u16_unsuffixed(msg.since);
+        let since_value = Literal::u32_unsuffixed(msg.since);
         let signature_values = msg.args.iter().map(|arg| {
             let common_type = arg.typ.common_type();
             quote!(super::ArgumentType::#common_type)
@@ -339,9 +339,17 @@ pub(crate) fn gen_messagegroup(
         is_destructor_match_arms.push(quote!(_ => false));
     }
 
-    let opcode_match_arms = message_match_patterns.enumerate().map(|(opcode, pattern)| {
-        let value = Literal::u16_unsuffixed(opcode as u16);
-        quote!(#pattern => #value)
+    let opcode_match_arms = message_match_patterns
+        .clone()
+        .enumerate()
+        .map(|(opcode, pattern)| {
+            let value = Literal::u16_unsuffixed(opcode as u16);
+            quote!(#pattern => #value)
+        });
+
+    let since_match_arms = messages.iter().zip(message_match_patterns).map(|(msg, pattern)| {
+        let since = Literal::u32_unsuffixed(msg.since as u32);
+        quote!(#pattern => #since)
     });
 
     let child_match_arms = messages
@@ -628,6 +636,13 @@ pub(crate) fn gen_messagegroup(
                 match *self {
                     #name::__nonexhaustive => unreachable!(),
                     #(#opcode_match_arms,)*
+                }
+            }
+
+            fn since(&self) -> u32 {
+                match *self {
+                    #name::__nonexhaustive => unreachable!(),
+                    #(#since_match_arms,)*
                 }
             }
 

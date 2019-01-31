@@ -48,6 +48,17 @@ impl<I: Interface> Resource<I> {
     /// The event will be send to the client associated to this
     /// object.
     pub fn send(&self, msg: I::Event) {
+        if msg.since() > self.version() {
+            let opcode = msg.opcode() as usize;
+            panic!(
+                "Cannot send event {} which requires version >= {} on resource {}@{} which is version {}.",
+                I::Event::MESSAGES[opcode].name,
+                msg.since(),
+                I::NAME,
+                self.id(),
+                self.version()
+            );
+        }
         self.inner.send::<I>(msg)
     }
 

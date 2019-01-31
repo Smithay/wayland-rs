@@ -93,13 +93,25 @@ where
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
+        let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
                 " <- {}@{}: {} {:?}",
-                proxy.object.interface, proxy.id, proxy.object.events[msg.opcode as usize].name, msg.args
+                proxy.object.interface, proxy.id, proxy.object.events[opcode].name, msg.args
             );
         }
         let message = I::Event::from_raw(msg, map)?;
+        if message.since() > proxy.version() {
+            eprintln!(
+                "Received an event {} requiring version >= {} while proxy {}@{} is version {}.",
+                proxy.object.events[opcode].name,
+                message.since(),
+                proxy.object.interface,
+                proxy.id,
+                proxy.version()
+            );
+            return Err(());
+        }
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);
             {

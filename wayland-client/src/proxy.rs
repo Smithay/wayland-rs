@@ -64,6 +64,17 @@ impl<I: Interface> Proxy<I> {
     ///
     /// If your request needs to create an object, use `send_constructor`.
     pub fn send(&self, msg: I::Request) {
+        if msg.since() > self.version() {
+            let opcode = msg.opcode() as usize;
+            panic!(
+                "Cannot send request {} which requires version >= {} on proxy {}@{} which is version {}.",
+                I::Request::MESSAGES[opcode].name,
+                msg.since(),
+                I::NAME,
+                self.id(),
+                self.version()
+            );
+        }
         self.inner.send::<I>(msg)
     }
 
@@ -87,6 +98,17 @@ impl<I: Interface> Proxy<I> {
         J: Interface + From<Proxy<J>>,
         F: FnOnce(NewProxy<J>) -> J,
     {
+        if msg.since() > self.version() {
+            let opcode = msg.opcode() as usize;
+            panic!(
+                "Cannot send request {} which requires version >= {} on proxy {}@{} which is version {}.",
+                I::Request::MESSAGES[opcode].name,
+                msg.since(),
+                I::NAME,
+                self.id(),
+                self.version()
+            );
+        }
         self.inner
             .send_constructor::<I, J>(msg, version)
             .map(NewProxy::wrap)

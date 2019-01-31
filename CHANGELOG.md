@@ -46,6 +46,7 @@
   start).
 - [scanner] Generate `__nonexaustive` variants to protocol enums to match semver guarantees of protocols
 - [client] replace `GlobalManager::instantiate_auto` with `GlobalManager::instanciate_range`
+- [client/server] Check that versions of messages are correctly respected on objects
 
 ## 0.21.11 -- 2019-01-19
 
