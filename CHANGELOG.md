@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.22.0 -- 2019-01-31
+
 - [scanner] Generate `EventHandler` and `RequestHandler` traits for trait-based event
   and request handling (as opposed to manually matching on enums).
 - **Breaking** [client/server] Change `NewProxy/NewRequest::implement()` to accept
