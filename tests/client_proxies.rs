@@ -20,11 +20,11 @@ fn proxy_equals() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -45,14 +45,14 @@ fn proxy_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
             newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
         })
         .unwrap();
     let compositor1 = compositor1.as_ref();
 
     let compositor2 = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
             newp.implement_closure(|_, _| {}, 0xBADC0FFEusize)
         })
         .unwrap();
@@ -78,7 +78,7 @@ fn proxy_user_data_wrong_thread() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor: Proxy<_> = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| {
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
             newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
         })
         .unwrap()
@@ -133,7 +133,7 @@ fn proxy_implement_wrong_thread() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     let ret = ::std::thread::spawn(move || {
@@ -160,7 +160,7 @@ fn proxy_implement_wrapper_threaded() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     let display2 = client.display.clone();
@@ -189,7 +189,7 @@ fn proxy_implement_threadsafe_wrong_thread() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<wl_compositor::WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     ::std::thread::spawn(move || {
@@ -212,7 +212,7 @@ fn dead_proxies() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let output = manager
-        .instantiate_auto::<wl_output::WlOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<wl_output::WlOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

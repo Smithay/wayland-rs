@@ -64,6 +64,7 @@ impl DisplayInner {
                         map.remove(id);
                     }
                 }
+                _ => {}
             },
             UserData::empty(),
         );

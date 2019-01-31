@@ -618,9 +618,7 @@ impl super::Dispatcher for RegistryDispatcher {
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
                 " <- wl_registry@{}: {} {:?}",
-                resource.id,
-                REGISTRY_REQUESTS[msg.opcode as usize].name,
-                msg.args
+                resource.id, REGISTRY_REQUESTS[msg.opcode as usize].name, msg.args
             );
         }
 

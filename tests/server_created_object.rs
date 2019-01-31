@@ -61,10 +61,10 @@ fn data_offer() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let received = Arc::new(Mutex::new(false));
@@ -134,10 +134,10 @@ fn data_offer_trait_impls() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let received = Arc::new(Mutex::new(false));
@@ -225,10 +225,10 @@ fn server_id_reuse() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let offer = Rc::new(RefCell::new(None));
@@ -336,10 +336,10 @@ fn server_created_race() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let offer = Rc::new(RefCell::new(None));
@@ -420,10 +420,10 @@ fn creation_destruction_race() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let seat = manager
-        .instantiate_auto::<ClientSeat, _>(|newseat| newseat.implement_dummy())
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
         .unwrap();
     let ddmgr = manager
-        .instantiate_auto::<ClientDDMgr, _>(|newddmgr| newddmgr.implement_dummy())
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
         .unwrap();
 
     let client_dd: Vec<_> = (0..2)

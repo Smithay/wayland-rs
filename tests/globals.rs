@@ -107,7 +107,7 @@ fn global_manager_cb() {
 }
 
 #[test]
-fn auto_instantiate() {
+fn range_instantiate() {
     use wayc::protocol::wl_compositor::WlCompositor;
     use wayc::protocol::wl_output::WlOutput;
     use wayc::protocol::wl_shell::WlShell;
@@ -123,11 +123,11 @@ fn auto_instantiate() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_range::<WlCompositor, _>(1, 4, |newp| newp.implement_dummy())
         .unwrap();
     assert!(compositor.as_ref().version() == 4);
     let shell = manager
-        .instantiate_auto::<WlShell, _>(|newp| newp.implement_dummy())
+        .instantiate_range::<WlShell, _>(1, 3, |newp| newp.implement_dummy())
         .unwrap();
     assert!(shell.as_ref().version() == 1);
 
@@ -140,7 +140,8 @@ fn auto_instantiate() {
             == Err(GlobalError::Missing)
     );
     assert!(
-        manager.instantiate_auto::<WlOutput, _>(|newp| newp.implement_dummy()) == Err(GlobalError::Missing)
+        manager.instantiate_range::<WlOutput, _>(1, 3, |newp| newp.implement_dummy())
+            == Err(GlobalError::Missing)
     );
 }
 
@@ -260,11 +261,11 @@ fn two_step_binding() {
     roundtrip(&mut client, &mut server).unwrap();
 
     manager
-        .instantiate_auto::<WlCompositor, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<WlCompositor, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     manager
-        .instantiate_auto::<WlOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<WlOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();

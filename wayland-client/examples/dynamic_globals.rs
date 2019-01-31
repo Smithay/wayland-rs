@@ -94,6 +94,7 @@ fn main() {
                                 // We *should* have received the "name" event first
                                 caps = Some(capabilities);
                             }
+                            _ => {}
                         }
                     },
                     (),

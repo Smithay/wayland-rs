@@ -14,6 +14,8 @@ pub mod wl_foo {
         Spicy = 1,
         #[doc = "fruity cake to get vitamins"]
         Fruity = 2,
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl CakeKind {
         pub fn from_raw(n: u32) -> Option<CakeKind> {
@@ -48,6 +50,8 @@ pub mod wl_foo {
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
         CreateBar { id: super::wl_bar::WlBar },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -71,11 +75,13 @@ pub mod wl_foo {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::FooIt { .. } => 0,
                 Request::CreateBar { .. } => 1,
             }
@@ -94,6 +100,7 @@ pub mod wl_foo {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::FooIt {
                     number,
                     unumber,
@@ -122,6 +129,8 @@ pub mod wl_foo {
     pub enum Event {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface"]
         Cake { kind: CakeKind, amount: u32 },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -132,11 +141,13 @@ pub mod wl_foo {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Cake { .. } => 0,
             }
         }
@@ -239,6 +250,7 @@ pub mod wl_foo {
         fn handle(__handler: &mut T, event: Event, __object: Self) {
             match event {
                 Event::Cake { kind, amount } => __handler.cake(__object, kind, amount),
+                Event::__nonexhaustive => unreachable!(),
             }
         }
     }
@@ -276,6 +288,8 @@ pub mod wl_bar {
             request: u32,
             event: u32,
         },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -312,12 +326,14 @@ pub mod wl_bar {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::Release => true,
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::BarDelivery { .. } => 0,
                 Request::Release => 1,
                 Request::_Self { .. } => 2,
@@ -333,6 +349,7 @@ pub mod wl_bar {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::BarDelivery {
                     kind,
                     target,
@@ -391,6 +408,8 @@ pub mod wl_bar {
             request: u32,
             event: u32,
         },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -410,11 +429,13 @@ pub mod wl_bar {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::_Self { .. } => 0,
             }
         }
@@ -599,6 +620,7 @@ pub mod wl_bar {
                 } => __handler._self(
                     __object, _self, _mut, object, ___object, handler, ___handler, request, event,
                 ),
+                Event::__nonexhaustive => unreachable!(),
             }
         }
     }
@@ -617,15 +639,22 @@ pub mod wl_display {
         AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
         NewProxy, Object, ObjectMetadata, Proxy,
     };
-    pub enum Request {}
+    pub enum Request {
+        #[doc(hidden)]
+        __nonexhaustive,
+    }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -636,18 +665,27 @@ pub mod wl_display {
             panic!("Request::from_raw can not be used Client-side.")
         }
         fn into_raw(self, sender_id: u32) -> Message {
-            match self {}
+            match self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
     }
-    pub enum Event {}
+    pub enum Event {
+        #[doc(hidden)]
+        __nonexhaustive,
+    }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -695,7 +733,9 @@ pub mod wl_display {
     impl<T: EventHandler> HandledBy<T> for WlDisplay {
         #[inline]
         fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {}
+            match event {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
     }
 }
@@ -711,6 +751,8 @@ pub mod wl_registry {
             name: u32,
             id: (String, u32, AnonymousObject),
         },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -721,11 +763,13 @@ pub mod wl_registry {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::Bind { .. } => 0,
             }
         }
@@ -739,6 +783,7 @@ pub mod wl_registry {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::Bind { name, id } => Message {
                     sender_id: sender_id,
                     opcode: 0,
@@ -752,15 +797,22 @@ pub mod wl_registry {
             }
         }
     }
-    pub enum Event {}
+    pub enum Event {
+        #[doc(hidden)]
+        __nonexhaustive,
+    }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -825,7 +877,9 @@ pub mod wl_registry {
     impl<T: EventHandler> HandledBy<T> for WlRegistry {
         #[inline]
         fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {}
+            match event {
+                Event::__nonexhaustive => unreachable!(),
+            }
         }
     }
     #[doc = r" The minimal object version supporting this request"]
@@ -837,15 +891,22 @@ pub mod wl_callback {
         AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
         NewProxy, Object, ObjectMetadata, Proxy,
     };
-    pub enum Request {}
+    pub enum Request {
+        #[doc(hidden)]
+        __nonexhaustive,
+    }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -856,12 +917,16 @@ pub mod wl_callback {
             panic!("Request::from_raw can not be used Client-side.")
         }
         fn into_raw(self, sender_id: u32) -> Message {
-            match self {}
+            match self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
     }
     pub enum Event {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, once received this object cannot be used any longer."]
         Done { callback_data: u32 },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -872,11 +937,13 @@ pub mod wl_callback {
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { .. } => true,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { .. } => 0,
             }
         }
@@ -943,6 +1010,7 @@ pub mod wl_callback {
         fn handle(__handler: &mut T, event: Event, __object: Self) {
             match event {
                 Event::Done { callback_data } => __handler.done(__object, callback_data),
+                Event::__nonexhaustive => unreachable!(),
             }
         }
     }

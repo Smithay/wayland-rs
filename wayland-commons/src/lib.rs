@@ -88,6 +88,14 @@ pub trait Interface: 'static {
     /// Name of this interface
     const NAME: &'static str;
     /// Maximum supported version of this interface
+    ///
+    /// This is the maximum version supported by the protocol specification currently
+    /// used by this library, and should not be used as-is in your code, as a version
+    /// change can subtly change the behavior of some objects.
+    ///
+    /// Server are supposed to be able to handle all versions from 1 to the one they
+    /// advertise through the registry, and clients can choose any version among the
+    /// ones the server supports.
     const VERSION: u32;
     #[cfg(feature = "native_lib")]
     /// Pointer to the C representation of this interface
