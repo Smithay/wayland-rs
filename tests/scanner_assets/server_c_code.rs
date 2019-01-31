@@ -16,6 +16,8 @@ pub mod wl_foo {
         Spicy = 1,
         #[doc = "fruity cake to get vitamins"]
         Fruity = 2,
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl CakeKind {
         pub fn from_raw(n: u32) -> Option<CakeKind> {
@@ -50,6 +52,8 @@ pub mod wl_foo {
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
         CreateBar { id: NewResource<super::wl_bar::WlBar> },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -73,11 +77,13 @@ pub mod wl_foo {
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::FooIt { .. } => 0,
                 Request::CreateBar { .. } => 1,
             }
@@ -204,6 +210,8 @@ pub mod wl_foo {
     pub enum Event {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface"]
         Cake { kind: CakeKind, amount: u32 },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -214,11 +222,13 @@ pub mod wl_foo {
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Cake { .. } => 0,
             }
         }
@@ -232,6 +242,7 @@ pub mod wl_foo {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Cake { kind, amount } => Message {
                     sender_id: sender_id,
                     opcode: 0,
@@ -251,6 +262,7 @@ pub mod wl_foo {
             F: FnOnce(u32, &mut [wl_argument]) -> T,
         {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Cake { kind, amount } => {
                     let mut _args_array: [wl_argument; 2] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = kind.to_raw();
@@ -327,6 +339,7 @@ pub mod wl_foo {
                     file,
                 } => __handler.foo_it(__object, number, unumber, text, float, file),
                 Request::CreateBar { id } => __handler.create_bar(__object, id),
+                Request::__nonexhaustive => unreachable!(),
             }
         }
     }
@@ -366,6 +379,8 @@ pub mod wl_bar {
             request: u32,
             event: u32,
         },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[
@@ -402,12 +417,14 @@ pub mod wl_bar {
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::Release => true,
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Request::__nonexhaustive => unreachable!(),
                 Request::BarDelivery { .. } => 0,
                 Request::Release => 1,
                 Request::_Self { .. } => 2,
@@ -586,6 +603,8 @@ pub mod wl_bar {
             request: u32,
             event: u32,
         },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -605,11 +624,13 @@ pub mod wl_bar {
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 _ => false,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::_Self { .. } => 0,
             }
         }
@@ -623,6 +644,7 @@ pub mod wl_bar {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::_Self {
                     _self,
                     _mut,
@@ -660,6 +682,7 @@ pub mod wl_bar {
             F: FnOnce(u32, &mut [wl_argument]) -> T,
         {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::_Self {
                     _self,
                     _mut,
@@ -791,6 +814,7 @@ pub mod wl_bar {
                 } => __handler._self(
                     __object, _self, _mut, object, ___object, handler, ___handler, request, event,
                 ),
+                Request::__nonexhaustive => unreachable!(),
             }
         }
     }
@@ -811,15 +835,22 @@ pub mod wl_callback {
         AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
         NewResource, Object, ObjectMetadata, Resource,
     };
-    pub enum Request {}
+    pub enum Request {
+        #[doc(hidden)]
+        __nonexhaustive,
+    }
     impl super::MessageGroup for Request {
         const MESSAGES: &'static [super::MessageDesc] = &[];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
@@ -853,6 +884,8 @@ pub mod wl_callback {
     pub enum Event {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, once sent this object cannot be used any longer."]
         Done { callback_data: u32 },
+        #[doc(hidden)]
+        __nonexhaustive,
     }
     impl super::MessageGroup for Event {
         const MESSAGES: &'static [super::MessageDesc] = &[super::MessageDesc {
@@ -863,11 +896,13 @@ pub mod wl_callback {
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { .. } => true,
             }
         }
         fn opcode(&self) -> u16 {
             match *self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { .. } => 0,
             }
         }
@@ -881,6 +916,7 @@ pub mod wl_callback {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { callback_data } => Message {
                     sender_id: sender_id,
                     opcode: 0,
@@ -900,6 +936,7 @@ pub mod wl_callback {
             F: FnOnce(u32, &mut [wl_argument]) -> T,
         {
             match self {
+                Event::__nonexhaustive => unreachable!(),
                 Event::Done { callback_data } => {
                     let mut _args_array: [wl_argument; 1] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = callback_data;
@@ -951,7 +988,9 @@ pub mod wl_callback {
     impl<T: RequestHandler> HandledBy<T> for WlCallback {
         #[inline]
         fn handle(__handler: &mut T, request: Request, __object: Self) {
-            match request {}
+            match request {
+                Request::__nonexhaustive => unreachable!(),
+            }
         }
     }
     #[doc = r" The minimal object version supporting this event"]

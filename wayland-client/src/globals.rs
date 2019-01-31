@@ -90,6 +90,7 @@ impl GlobalManager {
                             wl_registry::Event::GlobalRemove { name } => {
                                 inner.list.retain(|&(n, _, _)| n != name);
                             }
+                            _ => {}
                         }
                     },
                     (),
@@ -161,7 +162,8 @@ impl GlobalManager {
                                             name
                                         );
                                     }
-                            }
+                            },
+                            _ => {}
                         }
                     },
                     (),
@@ -175,34 +177,20 @@ impl GlobalManager {
         }
     }
 
-    /// Instantiate a global with highest available version
+    /// Instantiate a global with a specific version
+    ///
+    /// Meaning of requests and events can change depending on the object version you use,
+    /// as such unless you specifically want to support several versions of a protocol, it is
+    /// recommended to use this method with an hardcoded value for the version (the one you'll
+    /// use a as reference for your implementation). Notably you should *not* use `I::VERSION`
+    /// as a version, as this value can change when the protocol files are updated.
     ///
     /// This method is only appropriate for globals that are expected to
     /// not exist with multiplicity (such as `wl_compositor` or `wl_shm`),
-    /// as it will only bind a single one.
-    pub fn instantiate_auto<I: Interface + From<Proxy<I>>, F>(&self, implementor: F) -> Result<I, GlobalError>
+    /// as it will always bind the first one that was advertized.
+    pub fn instantiate_exact<I, F>(&self, version: u32, implementor: F) -> Result<I, GlobalError>
     where
-        F: FnOnce(NewProxy<I>) -> I,
-    {
-        let inner = self.inner.lock().unwrap();
-        for &(id, ref interface, version) in &inner.list {
-            if interface == I::NAME {
-                return Ok(self.registry.bind(version, id, implementor).unwrap());
-            }
-        }
-        Err(GlobalError::Missing)
-    }
-
-    /// Instantiate a global with a specific version
-    ///
-    /// Like `instantiate_auto`, but will bind a specific version of
-    /// this global an not the highest available.
-    pub fn instantiate_exact<I: Interface + From<Proxy<I>>, F>(
-        &self,
-        version: u32,
-        implementor: F,
-    ) -> Result<I, GlobalError>
-    where
+        I: Interface + From<Proxy<I>>,
         F: FnOnce(NewProxy<I>) -> I,
     {
         let inner = self.inner.lock().unwrap();
@@ -212,6 +200,45 @@ impl GlobalManager {
                     return Err(GlobalError::VersionTooLow(server_version));
                 } else {
                     return Ok(self.registry.bind(version, id, implementor).unwrap());
+                }
+            }
+        }
+        Err(GlobalError::Missing)
+    }
+
+    /// Instantiate a global from a version range
+    ///
+    /// If you want to support several versions of a particular global, this method allows you to
+    /// specify a range of versions that you accept. It'll bind the highest possible version that
+    /// is between `min_version` and `max_version` inclusive, and return an error if the highest
+    /// version supported by the compositor is lower than `min_version`. As for
+    /// `instantiate_exact`, you should not use `I::VERSION` here: the versions your code support
+    /// do not change when the protocol files are updated.
+    ///
+    /// When trying to support several versions of a protocol, you can check which version has
+    /// actually been used on any object using the `Proxy::version()` method.
+    ///
+    /// As `instantiate_exact`, it should only be used for singleton globals, for the same reasons.
+    pub fn instantiate_range<I, F>(
+        &self,
+        min_version: u32,
+        max_version: u32,
+        implementor: F,
+    ) -> Result<I, GlobalError>
+    where
+        I: Interface + From<Proxy<I>>,
+        F: FnOnce(NewProxy<I>) -> I,
+    {
+        let inner = self.inner.lock().unwrap();
+        for &(id, ref interface, version) in &inner.list {
+            if interface == I::NAME {
+                if version >= min_version {
+                    return Ok(self
+                        .registry
+                        .bind(::std::cmp::min(version, max_version), id, implementor)
+                        .unwrap());
+                } else {
+                    return Err(GlobalError::VersionTooLow(version));
                 }
             }
         }

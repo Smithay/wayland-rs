@@ -494,6 +494,7 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
 
         quote! {
             match self {
+                #name::__nonexhaustive => unreachable!(),
                 #(#match_arms,)*
             }
         }

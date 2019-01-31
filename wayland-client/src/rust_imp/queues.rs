@@ -170,8 +170,10 @@ impl EventQueueInner {
             Proxy::wrap(unsafe {
                 let done2 = done.clone();
                 np.inner.implement::<WlCallback, _>(
-                    move |CbEvent::Done { .. }, _| {
-                        done2.set(true);
+                    move |evt, _| {
+                        if let CbEvent::Done { .. } = evt {
+                            done2.set(true);
+                        }
                     },
                     UserData::empty(),
                 )

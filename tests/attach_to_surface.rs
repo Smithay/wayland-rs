@@ -67,25 +67,26 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Server
             let shm_buffer = buffer.clone();
             shm.implement_closure(
                 move |req, _| {
-                    let wl_shm::Request::CreatePool { id, fd, size } = req;
-                    assert!(size == 42);
-                    assert!(shm_buffer.lock().unwrap().is_none());
-                    *shm_buffer.lock().unwrap() = Some((fd, None));
-                    let pool_buffer = shm_buffer.clone();
-                    id.implement_closure(
-                        move |req, _| {
-                            if let wl_shm_pool::Request::CreateBuffer { id, .. } = req {
-                                let mut buffer_guard = pool_buffer.lock().unwrap();
-                                let buf = buffer_guard.as_mut().unwrap();
-                                assert!(buf.1.is_none());
-                                buf.1 = Some(id.implement_dummy());
-                            } else {
-                                panic!("Unexpected request on buffer!");
-                            }
-                        },
-                        None::<fn(_)>,
-                        (),
-                    );
+                    if let wl_shm::Request::CreatePool { id, fd, size } = req {
+                        assert!(size == 42);
+                        assert!(shm_buffer.lock().unwrap().is_none());
+                        *shm_buffer.lock().unwrap() = Some((fd, None));
+                        let pool_buffer = shm_buffer.clone();
+                        id.implement_closure(
+                            move |req, _| {
+                                if let wl_shm_pool::Request::CreateBuffer { id, .. } = req {
+                                    let mut buffer_guard = pool_buffer.lock().unwrap();
+                                    let buf = buffer_guard.as_mut().unwrap();
+                                    assert!(buf.1.is_none());
+                                    buf.1 = Some(id.implement_dummy());
+                                } else {
+                                    panic!("Unexpected request on buffer!");
+                                }
+                            },
+                            None::<fn(_)>,
+                            (),
+                        );
+                    }
                 },
                 None::<fn(_)>,
                 (),

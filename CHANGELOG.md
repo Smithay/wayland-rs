@@ -44,6 +44,8 @@
   macro. This gets rid of the warning when using `global_filter!()`.
 - [client/server] `WAYLAND_DEBUG` output will now be directed to stderr (as it should have been from the
   start).
+- [scanner] Generate `__nonexaustive` variants to protocol enums to match semver guarantees of protocols
+- [client] replace `GlobalManager::instantiate_auto` with `GlobalManager::instanciate_range`
 
 ## 0.21.11 -- 2019-01-19
 

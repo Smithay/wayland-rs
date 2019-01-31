@@ -29,10 +29,10 @@ fn resource_equals() {
 
     // create two outputs
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -69,10 +69,10 @@ fn resource_user_data() {
 
     // create two outputs
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -107,7 +107,7 @@ fn resource_user_data_wrong_thread() {
     roundtrip(&mut client, &mut server).unwrap();
 
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -163,10 +163,10 @@ fn dead_resources() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let client_output1 = manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(3, |newp| newp.implement_dummy())
         .unwrap();
     manager
-        .instantiate_auto::<ClientOutput, _>(|newp| newp.implement_dummy())
+        .instantiate_exact::<ClientOutput, _>(3, |newp| newp.implement_dummy())
         .unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
