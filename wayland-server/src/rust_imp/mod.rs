@@ -92,16 +92,25 @@ where
     I::Request: MessageGroup<Map = ResourceMap>,
 {
     fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Result<(), ()> {
+        let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
                 " <- {}@{}: {} {:?}",
-                resource.object.interface,
-                resource.id,
-                resource.object.requests[msg.opcode as usize].name,
-                msg.args
+                resource.object.interface, resource.id, resource.object.requests[opcode].name, msg.args
             );
         }
         let message = I::Request::from_raw(msg, map)?;
+        if message.since() > resource.version() {
+            eprintln!(
+                "Received an request {} requiring version >= {} while resource {}@{} is version {}.",
+                resource.object.requests[opcode].name,
+                message.since(),
+                resource.object.interface,
+                resource.id,
+                resource.version()
+            );
+            return Err(());
+        }
         if message.is_destructor() {
             resource.object.meta.alive.store(false, Ordering::Release);
             let mut kill = false;

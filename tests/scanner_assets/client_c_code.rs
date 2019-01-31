@@ -88,6 +88,13 @@ pub mod wl_foo {
                 Request::CreateBar { .. } => 1,
             }
         }
+        fn since(&self) -> u32 {
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+                Request::FooIt { .. } => 1,
+                Request::CreateBar { .. } => 1,
+            }
+        }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 1 => Some(Object::from_interface::<super::wl_bar::WlBar>(
@@ -187,6 +194,12 @@ pub mod wl_foo {
             match *self {
                 Event::__nonexhaustive => unreachable!(),
                 Event::Cake { .. } => 0,
+            }
+        }
+        fn since(&self) -> u32 {
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+                Event::Cake { .. } => 2,
             }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
@@ -318,11 +331,11 @@ pub mod wl_foo {
         }
     }
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_FOO_IT_SINCE: u16 = 1u16;
+    pub const REQ_FOO_IT_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_CREATE_BAR_SINCE: u16 = 1u16;
+    pub const REQ_CREATE_BAR_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
-    pub const EVT_CAKE_SINCE: u16 = 2u16;
+    pub const EVT_CAKE_SINCE: u32 = 2u32;
 }
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
@@ -400,6 +413,14 @@ pub mod wl_bar {
             match *self {
                 Request::__nonexhaustive => unreachable!(),
                 Request::BarDelivery { .. } => 0,
+                Request::Release => 1,
+                Request::_Self { .. } => 2,
+            }
+        }
+        fn since(&self) -> u32 {
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+                Request::BarDelivery { .. } => 2,
                 Request::Release => 1,
                 Request::_Self { .. } => 2,
             }
@@ -568,6 +589,12 @@ pub mod wl_bar {
             match *self {
                 Event::__nonexhaustive => unreachable!(),
                 Event::_Self { .. } => 0,
+            }
+        }
+        fn since(&self) -> u32 {
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+                Event::_Self { .. } => 2,
             }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
@@ -787,13 +814,13 @@ pub mod wl_bar {
         }
     }
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_BAR_DELIVERY_SINCE: u16 = 2u16;
+    pub const REQ_BAR_DELIVERY_SINCE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_RELEASE_SINCE: u16 = 1u16;
+    pub const REQ_RELEASE_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_SELF_SINCE: u16 = 2u16;
+    pub const REQ_SELF_SINCE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this event"]
-    pub const EVT_SELF_SINCE: u16 = 2u16;
+    pub const EVT_SELF_SINCE: u32 = 2u32;
 }
 #[doc = "core global object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_display {
@@ -816,6 +843,11 @@ pub mod wl_display {
             }
         }
         fn opcode(&self) -> u16 {
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
+        }
+        fn since(&self) -> u32 {
             match *self {
                 Request::__nonexhaustive => unreachable!(),
             }
@@ -862,6 +894,11 @@ pub mod wl_display {
             }
         }
         fn opcode(&self) -> u16 {
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
+        }
+        fn since(&self) -> u32 {
             match *self {
                 Event::__nonexhaustive => unreachable!(),
             }
@@ -972,6 +1009,12 @@ pub mod wl_registry {
                 Request::Bind { .. } => 0,
             }
         }
+        fn since(&self) -> u32 {
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+                Request::Bind { .. } => 1,
+            }
+        }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
@@ -1033,6 +1076,11 @@ pub mod wl_registry {
             }
         }
         fn opcode(&self) -> u16 {
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+            }
+        }
+        fn since(&self) -> u32 {
             match *self {
                 Event::__nonexhaustive => unreachable!(),
             }
@@ -1124,7 +1172,7 @@ pub mod wl_registry {
         }
     }
     #[doc = r" The minimal object version supporting this request"]
-    pub const REQ_BIND_SINCE: u16 = 1u16;
+    pub const REQ_BIND_SINCE: u32 = 1u32;
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
@@ -1147,6 +1195,11 @@ pub mod wl_callback {
             }
         }
         fn opcode(&self) -> u16 {
+            match *self {
+                Request::__nonexhaustive => unreachable!(),
+            }
+        }
+        fn since(&self) -> u32 {
             match *self {
                 Request::__nonexhaustive => unreachable!(),
             }
@@ -1203,6 +1256,12 @@ pub mod wl_callback {
             match *self {
                 Event::__nonexhaustive => unreachable!(),
                 Event::Done { .. } => 0,
+            }
+        }
+        fn since(&self) -> u32 {
+            match *self {
+                Event::__nonexhaustive => unreachable!(),
+                Event::Done { .. } => 1,
             }
         }
         fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
@@ -1297,5 +1356,5 @@ pub mod wl_callback {
         }
     }
     #[doc = r" The minimal object version supporting this event"]
-    pub const EVT_DONE_SINCE: u16 = 1u16;
+    pub const EVT_DONE_SINCE: u32 = 1u32;
 }

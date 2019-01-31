@@ -46,7 +46,7 @@ impl Interface {
 pub struct Message {
     pub name: String,
     pub typ: Option<Type>,
-    pub since: u16,
+    pub since: u32,
     pub description: Option<(String, String)>,
     pub args: Vec<Arg>,
     pub type_index: usize,

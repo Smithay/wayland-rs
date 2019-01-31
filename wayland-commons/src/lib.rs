@@ -48,6 +48,8 @@ pub trait MessageGroup: Sized {
     ///
     /// If it is, once send or receive the associated object cannot be used any more.
     fn is_destructor(&self) -> bool;
+    /// The minimal object version for which this message exists
+    fn since(&self) -> u32;
     /// Retrieve the child `Object` associated with this message if any
     fn child<Meta: self::map::ObjectMetadata>(
         opcode: u16,
@@ -113,6 +115,9 @@ impl MessageGroup for NoMessage {
         match *self {}
     }
     fn opcode(&self) -> u16 {
+        match *self {}
+    }
+    fn since(&self) -> u32 {
         match *self {}
     }
     fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
