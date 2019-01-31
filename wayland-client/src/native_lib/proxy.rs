@@ -55,7 +55,13 @@ impl ProxyInner {
         if !self.is_alive() {
             return 0;
         }
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 }
+        let version = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 };
+        if version == 0 {
+            // For backcompat reasons the C libs return 0 as a version for the wl_display
+            // So override it
+            return 1;
+        }
+        version
     }
 
     pub(crate) fn id(&self) -> u32 {
