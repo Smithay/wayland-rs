@@ -9,7 +9,7 @@ use nix::poll::{poll, EventFlags, PollFd};
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::utils::UserData;
-use wayland_commons::wire::Message;
+use wayland_commons::wire::{Argument, Message};
 
 use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
@@ -117,6 +117,29 @@ impl EventQueueInner {
             let id = msg.sender_id;
             if let Some(proxy) = ProxyInner::from_id(id, self.map.clone(), self.connection.clone()) {
                 let object = proxy.object.clone();
+                if object.meta.client_destroyed {
+                    // This is a potential race, if we reach here it means that the proxy was
+                    // destroyed by the user between this message was queued and now. To handle it
+                    // correctly, we must close any FDs it contains, mark any child object as
+                    // destroyed (but the server will never know about it, so the ids will be
+                    // leaked) and discard the event.
+                    for arg in msg.args {
+                        match arg {
+                            Argument::Fd(fd) => {
+                                let _ = ::nix::unistd::close(fd);
+                            }
+                            Argument::NewId(id) => {
+                                let mut map = self.map.lock().unwrap();
+                                map.with(id, |obj| {
+                                    obj.meta.client_destroyed = true;
+                                })
+                                .unwrap();
+                            }
+                            _ => {}
+                        }
+                    }
+                    continue;
+                }
                 let mut dispatcher = object.meta.dispatcher.lock().unwrap();
                 if let Err(()) = dispatcher.dispatch(msg, proxy, &mut proxymap) {
                     return Err(io::Error::new(

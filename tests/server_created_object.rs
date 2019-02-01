@@ -480,3 +480,90 @@ fn creation_destruction_race() {
 
     roundtrip(&mut client, &mut server).unwrap();
 }
+
+#[test]
+fn creation_destruction_queue_dispatch_race() {
+    let mut server = TestServer::new();
+    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+
+    let server_dd = Rc::new(RefCell::new(Vec::new()));
+    let server_dd_2 = server_dd.clone();
+    server
+        .display
+        .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
+            let server_dd_3 = server_dd_2.clone();
+            new_resource.implement_closure(
+                move |request, _| match request {
+                    SDDMReq::GetDataDevice { id, .. } => {
+                        let ddevice = id.implement_dummy();
+                        server_dd_3.borrow_mut().push(ddevice);
+                    }
+                    _ => unimplemented!(),
+                },
+                None::<fn(_)>,
+                (),
+            );
+        });
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let seat = manager
+        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
+        .unwrap();
+    let ddmgr = manager
+        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
+        .unwrap();
+
+    // this test is more subtle than the previous
+    // here, the client destroys the data device while a data_offer
+    // has been queued in the event queue but not yet dispatched to the handler.
+    // the associated event should thus be dropped.
+
+    let called_count = Rc::new(RefCell::new(0u32));
+
+    ddmgr
+        .get_data_device(&seat, |newdd| {
+            let called_count = called_count.clone();
+            newdd.implement_closure(
+                move |evt, dd| match evt {
+                    CDDEvt::DataOffer { id } => {
+                        id.implement_dummy();
+                        // destroy the data device after receiving the first offer
+                        dd.release();
+                        *called_count.borrow_mut() += 1;
+                    }
+                    _ => unimplemented!(),
+                },
+                (),
+            )
+        })
+        .unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // server sends two newid new sources
+    let offer1 = server_dd.borrow()[0]
+        .as_ref()
+        .client()
+        .unwrap()
+        .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
+        .unwrap()
+        .implement_dummy();
+    server_dd.borrow()[0].data_offer(&offer1);
+    let offer2 = server_dd.borrow()[0]
+        .as_ref()
+        .client()
+        .unwrap()
+        .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
+        .unwrap()
+        .implement_dummy();
+    server_dd.borrow()[0].data_offer(&offer2);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // now, the handler should only have been executed once
+    assert_eq!(1, *called_count.borrow());
+}
