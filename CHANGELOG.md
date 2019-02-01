@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Fix a potential race when the client destroys an object after pending events
+  for it have already been queued in the event queue
+
 ## 0.22.0 -- 2019-01-31
 
 - [scanner] Generate `EventHandler` and `RequestHandler` traits for trait-based event
