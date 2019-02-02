@@ -90,15 +90,24 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
         .sync(move |newcb| newcb.implement_closure(move |_, _| done2.set(true), ()))
         .unwrap();
     while !done.get() {
-        client.display.flush()?;
+        match client.display.flush() {
+            Ok(_) => {}
+            Err(e) => {
+                if e.kind() != ::std::io::ErrorKind::BrokenPipe {
+                    return Err(e);
+                }
+            }
+        }
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // make it answer messages
         server.answer();
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
         client.event_queue.dispatch_pending()?;
-        client.event_queue.prepare_read().unwrap().read_events()?;
+        let e = client.event_queue.prepare_read().unwrap().read_events();
+        // even if read_events returns an error, some messages may need dispatching
         client.event_queue.dispatch_pending()?;
+        e?;
     }
     Ok(())
 }

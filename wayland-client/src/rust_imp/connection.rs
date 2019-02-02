@@ -11,9 +11,11 @@ use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 use super::proxy::ObjectMeta;
 use super::queues::QueueBuffer;
 
+use ProtocolError;
+
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
-    Protocol,
+    Protocol(ProtocolError),
     Parse(MessageParseError),
     Nix(::nix::Error),
 }
@@ -103,7 +105,12 @@ impl Connection {
                             new_id
                         );
                         // abort parsing, this is an unrecoverable error
-                        *last_error = Some(Error::Protocol);
+                        *last_error = Some(Error::Protocol(::ProtocolError {
+                            code: 0,
+                            object_id: 0,
+                            object_interface: "",
+                            message: format!("Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".", child_interface, new_id)
+                        }));
                         return false;
                     }
                 } else {

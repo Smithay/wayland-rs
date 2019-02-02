@@ -96,7 +96,13 @@ impl EventQueueInner {
             Err(_) => unreachable!(),
         }
 
-        match self.read_events() {
+        let read_ret = self.read_events();
+
+        // even if read_events returned an error, it may have queued messages the need dispatching
+        // so we dispatch them
+        let dispatch_ret = self.dispatch_pending();
+
+        match read_ret {
             Ok(_) => (),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // we waited for read readiness be then received a WouldBlock error
@@ -107,7 +113,7 @@ impl EventQueueInner {
             Err(e) => return Err(e),
         }
 
-        self.dispatch_pending()
+        dispatch_ret
     }
 
     fn dispatch_buffer(&self, buffer: &mut VecDeque<Message>) -> io::Result<u32> {
@@ -231,7 +237,7 @@ impl EventQueueInner {
         // TODO: integrate more properly with prepare read with a fence
         match self.connection.lock().unwrap().read_events() {
             Ok(n) => Ok(n as i32),
-            Err(CError::Protocol) => Err(::nix::errno::Errno::EPROTO.into()),
+            Err(CError::Protocol(_)) => Err(::nix::errno::Errno::EPROTO.into()),
             Err(CError::Parse(_)) => Err(::nix::errno::Errno::EPROTO.into()),
             Err(CError::Nix(::nix::Error::Sys(errno))) => Err(errno.into()),
             Err(CError::Nix(_)) => unreachable!(),

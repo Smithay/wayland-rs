@@ -4,6 +4,8 @@
 
 - [client] Fix a potential race when the client destroys an object after pending events
   for it have already been queued in the event queue
+- [client] Expose `Display::protocol_error()` to get the details of a protocol error
+  that occured.
 
 ## 0.22.0 -- 2019-01-31
 

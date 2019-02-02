@@ -64,8 +64,8 @@ impl EventQueue {
     /// This process can insert events in the internal buffers of
     /// other event queues.
     ///
-    /// If an error is returned, your connection with the wayland
-    /// compositor is probably lost.
+    /// If an error is returned, your connection with the wayland compositor is probably lost.
+    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn dispatch(&mut self) -> io::Result<u32> {
         self.inner.dispatch()
     }
@@ -76,8 +76,8 @@ impl EventQueue {
     /// Never blocks, if no events were pending, simply returns
     /// `Ok(0)`.
     ///
-    /// If an error is returned, your connection with the wayland
-    /// compositor is probably lost.
+    /// If an error is returned, your connection with the wayland compositor is probably lost.
+    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn dispatch_pending(&mut self) -> io::Result<u32> {
         self.inner.dispatch_pending()
     }
@@ -91,6 +91,8 @@ impl EventQueue {
     /// Handlers are called as a consequence.
     ///
     /// On success returns the number of dispatched events.
+    /// If an error is returned, your connection with the wayland compositor is probably lost.
+    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn sync_roundtrip(&mut self) -> io::Result<u32> {
         self.inner.sync_roundtrip()
     }

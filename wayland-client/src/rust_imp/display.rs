@@ -7,9 +7,9 @@ use wayland_commons::utils::UserData;
 
 use protocol::wl_display::{self, WlDisplay};
 
-use {ConnectError, Proxy};
+use {ConnectError, ProtocolError, Proxy};
 
-use super::connection::Connection;
+use super::connection::{Connection, Error as CxError};
 use super::proxy::{NewProxyInner, ObjectMeta};
 use super::EventQueueInner;
 
@@ -49,7 +49,12 @@ impl DisplayInner {
                         object_id.as_ref().id(),
                         message
                     );
-                    *impl_last_error.lock().unwrap() = Some(super::connection::Error::Protocol);
+                    *impl_last_error.lock().unwrap() = Some(CxError::Protocol(ProtocolError {
+                        code,
+                        object_id: object_id.as_ref().id(),
+                        object_interface: object_id.as_ref().inner.object.interface,
+                        message,
+                    }));
                 }
                 wl_display::Event::DeleteId { id } => {
                     // cleanup the map as appropriate
@@ -93,5 +98,15 @@ impl DisplayInner {
 
     pub(crate) fn get_proxy(&self) -> &WlDisplay {
         &self.proxy
+    }
+
+    pub(crate) fn protocol_error(&self) -> Option<ProtocolError> {
+        let cx = self.connection.lock().unwrap();
+        let last_error = cx.last_error.lock().unwrap();
+        if let Some(CxError::Protocol(ref e)) = *last_error {
+            Some(e.clone())
+        } else {
+            None
+        }
     }
 }
