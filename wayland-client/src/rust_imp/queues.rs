@@ -41,7 +41,6 @@ impl EventQueueInner {
         }
     }
 
-    #[cfg(feature = "eventloop")]
     pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
         self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
     }
