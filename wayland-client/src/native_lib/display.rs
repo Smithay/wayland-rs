@@ -67,6 +67,32 @@ impl DisplayInner {
         &self.proxy
     }
 
+    pub(crate) fn protocol_error(&self) -> Option<::ProtocolError> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_error, self.ptr()) };
+        if ret == ::nix::errno::Errno::EPROTO as i32 {
+            let mut interface = ::std::ptr::null_mut();
+            let mut id = 0;
+            let code = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_get_protocol_error,
+                    self.ptr(),
+                    &mut interface,
+                    &mut id
+                )
+            };
+            let interface_name = unsafe { ::std::ffi::CStr::from_ptr((*interface).name) };
+            Some(::ProtocolError {
+                code,
+                object_id: id,
+                object_interface: interface_name.to_str().unwrap_or("<unknown>"),
+                message: String::new(),
+            })
+        } else {
+            None
+        }
+    }
+
     pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> (Arc<DisplayInner>, EventQueueInner) {
         let evq_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display_ptr);
 
