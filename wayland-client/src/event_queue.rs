@@ -18,7 +18,11 @@ use imp::EventQueueInner;
 /// the queue are processed sequentially, and the appropriate implementation for each
 /// is invoked. When all messages have been processed these methods return.
 ///
-/// Thus, a typical single-queue event loop for a simple wayland app can be:
+/// There are two main ways to driving an event queue forward. The first way is the
+/// simplest and generally sufficient for single-threaded apps that only process events
+/// from wayland. It consists of using the `EventQueue::dispatch()` method, which will
+/// take care of sending pending requests to the server, block until some events are
+/// available, read them, and call the associated handlers:
 ///
 /// ```no_run
 /// # extern crate wayland_client;
@@ -26,15 +30,71 @@ use imp::EventQueueInner;
 /// # fn main() {
 /// #     let (display, mut event_queue) = Display::connect_to_env().unwrap();
 /// loop {
-///     display.flush().unwrap();
+///     // The dispatch() method returns once it has received some events to dispatch
+///     // and have emptied the wayland socket from its pending messages, so it needs
+///     // to be called in a loop. If this method returns an error, your connection to
+///     // the wayland server is very likely dead. See its documentation for more details.
 ///     event_queue.dispatch().expect("An error occurred during event dispatching!");
 /// }
 /// # }
 /// ```
 ///
-/// See `EventQueue::prepare_read()` if you need more control about when the connection
-/// socket is read. This will typically the case if you need to integrate other sources
-/// of event into the event loop of your application.
+/// The second way is more appropriate for apps that are either multithreaded (and need to process
+/// wayland events from different threads conccurently) or need to react to events from different
+/// sources and can't affort to just block on the wayland socket. It centers around three methods:
+/// `Display::flush()`, `EventQueue::read_events()` and `EventQueue::dispatch_pending()`:
+///
+/// ```no_run
+/// # extern crate wayland_client;
+/// # use wayland_client::Display;
+/// # fn main() {
+/// # let (display, mut event_queue) = Display::connect_to_env().unwrap();
+/// loop {
+///     // The first method, called on the Display, is flush(). It writes all pending
+///     // requests to the socket. Calling it ensures that the server will indeed
+///     // receive your requests (so it can react to them).
+///     if let Err(e) = display.flush() {
+///         if e.kind() != ::std::io::ErrorKind::WouldBlock {
+///             // if you are sending a realy large number of request, it might fill
+///             // the internal buffers of the socket, in which case you should just
+///             // retry flushing later. Other errors are a problem though.
+///             eprintln!("Error while trying to flush the wayland socket: {:?}", e);
+///         }
+///     }
+///
+///     // The second method will try to read events from the socket. It is done in two
+///     // steps, first the read is prepared, and then it is actually executed. This allows
+///     // lower contention when different threads are trying to trigger a read of events
+///     // concurently
+///     if let Some(guard) = event_queue.prepare_read() {
+///         // prepare_read() returns None if there are already events pending in this
+///         // event queue, in which case there is no need to try to read from the socket
+///         if let Err(e) = guard.read_events() {
+///             if e.kind() != ::std::io::ErrorKind::WouldBlock {
+///                 // if read_events() returns Err(WouldBlock), this just means that no new
+///                 // messages are available to be read
+///                 eprintln!("Error while trying to read from the wayland socket: {:?}", e);
+///             }
+///         }
+///     }
+///
+///     // Then, once events have been read from the socket and stored in the internal
+///     // queues, they need to be dispatched to their handler. Note that while flush()
+///     // and read_events() are global and will affect the whole connection, this last
+///     // method will only affect the event queue it is being called on. This method
+///     // cannot error unless there is a bug in the server or a previous read of events
+///     // already errored.
+///     event_queue.dispatch_pending().expect("Failed to dispatch all messages.");
+///
+///     // Note that none of these methods are blocking, as such they should not be used
+///     // as a loop as-is if there are no other sources of events your program is waiting on.
+///
+///     // The wayland socket can also be integrated in a poll-like mechanism, using
+///     // either the integration with calloop provided by the "eventloop" cargo feature,
+///     // or the get_connection_fd() method.
+/// }
+/// # }
+/// ```
 pub struct EventQueue {
     // EventQueue is *not* Send
     pub(crate) inner: Rc<EventQueueInner>,
@@ -131,6 +191,14 @@ impl EventQueue {
             }),
             Err(()) => None,
         }
+    }
+
+    /// Retrieve the file descriptor associated with the wayland socket
+    ///
+    /// This FD should only be used to integrate into a polling mechanism, and should
+    /// never be directly read from or written to.
+    pub fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        self.inner.get_connection_fd()
     }
 }
 
