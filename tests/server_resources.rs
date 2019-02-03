@@ -84,7 +84,6 @@ fn resource_user_data() {
     assert!(cloned.as_ref().user_data::<usize>() == Some(&1000));
 }
 
-#[cfg(not(feature = "nothread"))]
 #[cfg(not(feature = "native_lib"))]
 #[test]
 fn resource_user_data_wrong_thread() {
@@ -125,7 +124,6 @@ fn resource_user_data_wrong_thread() {
     .unwrap();
 }
 
-#[cfg(not(feature = "nothread"))]
 #[cfg(not(feature = "native_lib"))]
 #[test]
 fn resource_implement_wrong_thread() {
