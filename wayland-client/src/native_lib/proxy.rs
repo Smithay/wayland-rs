@@ -80,13 +80,6 @@ impl ProxyInner {
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
-        if let Some(ref internal) = self.internal {
-            // object is managed
-            if !internal.alive.load(Ordering::Acquire) {
-                // don't send message to dead objects !
-                return;
-            }
-        }
         let destructor = msg.is_destructor();
         msg.as_raw_c_in(|opcode, args| unsafe {
             ffi_dispatch!(
@@ -118,13 +111,6 @@ impl ProxyInner {
         I: Interface,
         J: Interface,
     {
-        if let Some(ref internal) = self.internal {
-            // object is managed
-            if !internal.alive.load(Ordering::Acquire) {
-                // don't send message to dead objects !
-                return Err(());
-            }
-        }
         let destructor = msg.is_destructor();
 
         let opcode = msg.opcode();

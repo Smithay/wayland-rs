@@ -116,9 +116,6 @@ impl ProxyInner {
         // thread is sending a message an accidentally sending that message
         // after ours if ours is a destructor
         let mut conn_lock = self.connection.lock().unwrap();
-        if !self.is_alive() {
-            return;
-        }
         let destructor = msg.is_destructor();
         let msg = msg.into_raw(self.id);
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
@@ -162,9 +159,6 @@ impl ProxyInner {
         // grab the connection lock before anything else
         // this avoids the risk or races during object creation
         let mut conn_lock = self.connection.lock().unwrap();
-        if !self.is_alive() {
-            return Err(());
-        }
         let destructor = msg.is_destructor();
         let mut msg = msg.into_raw(self.id);
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {

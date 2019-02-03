@@ -64,6 +64,9 @@ impl<I: Interface> Proxy<I> {
     ///
     /// If your request needs to create an object, use `send_constructor`.
     pub fn send(&self, msg: I::Request) {
+        if !self.is_alive() {
+            return;
+        }
         if msg.since() > self.version() {
             let opcode = msg.opcode() as usize;
             panic!(
@@ -98,6 +101,9 @@ impl<I: Interface> Proxy<I> {
         J: Interface + From<Proxy<J>>,
         F: FnOnce(NewProxy<J>) -> J,
     {
+        if !self.is_alive() {
+            return Err(());
+        }
         if msg.since() > self.version() {
             let opcode = msg.opcode() as usize;
             panic!(

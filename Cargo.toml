@@ -38,6 +38,9 @@ name = "client_connect_to_socket"
 harness = false
 
 [[test]]
+name = "client_bad_requests"
+
+[[test]]
 name = "client_dispatch"
 
 [[test]]
