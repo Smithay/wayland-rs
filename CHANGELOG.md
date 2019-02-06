@@ -6,6 +6,8 @@
   for it have already been queued in the event queue
 - [client] Expose `Display::protocol_error()` to get the details of a protocol error
   that occured.
+- [client] Don't try to connect to `wayland-0` if `WAYLAND_DISPLAY` is not set, this is a
+  bad legacy practice which can cause clients to spawn in the wrong environment.
 
 ## 0.22.0 -- 2019-01-31
 

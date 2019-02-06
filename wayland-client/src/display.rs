@@ -108,8 +108,8 @@ impl Display {
     /// First of all, if the `WAYLAND_SOCKET` environment variable is set, it'll try to interpret
     /// it as a FD number to use
     ///
-    /// If the `WAYLAND_DISPLAY` variable is set, it will try to connect to the socket it points
-    /// to. Otherwise, it will default to `wayland-0`.
+    /// Otherwise, it will try to connect to the socket name defined in the `WAYLAND_DISPLAY`
+    /// environment variable, and error if it is not set.
     ///
     /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
     /// the `WlDisplay` wayland object.
@@ -139,7 +139,7 @@ impl Display {
             let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
                 .map(Into::<PathBuf>::into)
                 .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
-            socket_path.push(env::var_os("WAYLAND_DISPLAY").unwrap_or_else(|| "wayland-0".into()));
+            socket_path.push(env::var_os("WAYLAND_DISPLAY").ok_or(ConnectError::NoCompositorListening)?);
 
             let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
             unsafe { Display::from_fd(socket.into_raw_fd()) }
