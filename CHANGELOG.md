@@ -8,6 +8,7 @@
   that occured.
 - [client] Don't try to connect to `wayland-0` if `WAYLAND_DISPLAY` is not set, this is a
   bad legacy practice which can cause clients to spawn in the wrong environment.
+- [client] `Display` can now be cloned and sent accross threads as nothing prevents it
 
 ## 0.22.0 -- 2019-01-31
 
