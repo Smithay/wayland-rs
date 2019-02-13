@@ -8,6 +8,8 @@ fn main() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerOutput, _>(1, |_, _| {});
 
+    ::std::env::remove_var("WAYLAND_DISPLAY");
+
     assert!(wayc::Display::connect_to_env().is_err());
 
     ::std::env::set_var("WAYLAND_DISPLAY", &server.socket_name);

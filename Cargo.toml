@@ -45,6 +45,9 @@ name = "client_bad_requests"
 name = "client_dispatch"
 
 [[test]]
+name = "client_multithread"
+
+[[test]]
 name = "client_proxies"
 
 [[test]]
