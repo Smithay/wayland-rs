@@ -98,6 +98,7 @@ impl ::std::fmt::Display for ProtocolError {
 /// primary `WlDisplay` wayland object, from which you can create all
 /// your need objects. The inner `Proxy<WlDisplay>` can be accessed via
 /// `Deref`.
+#[derive(Clone)]
 pub struct Display {
     pub(crate) inner: Arc<DisplayInner>,
 }
