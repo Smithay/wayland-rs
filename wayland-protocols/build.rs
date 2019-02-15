@@ -40,40 +40,19 @@ static WLR_UNSTABLE_PROTOCOLS: &[(&str, &[&str])] = &[
 static MISC_PROTOCOLS: &[&str] = &["gtk-primary-selection"];
 
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
-    if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
-        generate_c_interfaces(&protocol_file, out_dir.join(&format!("{}_c_interfaces.rs", name)));
-
-        if client {
-            generate_c_code(
-                &protocol_file,
-                out_dir.join(&format!("{}_c_client_api.rs", name)),
-                Side::Client,
-            );
-        }
-
-        if server {
-            generate_c_code(
-                &protocol_file,
-                out_dir.join(&format!("{}_c_server_api.rs", name)),
-                Side::Server,
-            );
-        }
-    } else {
-        if client {
-            generate_rust_code(
-                &protocol_file,
-                out_dir.join(&format!("{}_rust_client_api.rs", name)),
-                Side::Client,
-            );
-        }
-
-        if server {
-            generate_rust_code(
-                &protocol_file,
-                out_dir.join(&format!("{}_rust_server_api.rs", name)),
-                Side::Server,
-            );
-        }
+    if client {
+        generate_code(
+            &protocol_file,
+            out_dir.join(&format!("{}_client_api.rs", name)),
+            Side::Client,
+        );
+    }
+    if server {
+        generate_code(
+            &protocol_file,
+            out_dir.join(&format!("{}_server_api.rs", name)),
+            Side::Server,
+        );
     }
 }
 

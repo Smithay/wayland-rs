@@ -1,11 +1,24 @@
+use std::os::raw::{c_char, c_void};
+const NULLPTR: *const c_void = 0 as *const c_void;
+static mut types_null: [*const sys::common::wl_interface; 8] = [
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+    NULLPTR as *const sys::common::wl_interface,
+];
 #[doc = "Interface for fooing\n\nThis is the dedicated interface for doing foos over any\nkind of other foos."]
 pub mod wl_foo {
     use super::sys::client::*;
-    use super::sys::common::{wl_argument, wl_array, wl_interface};
+    use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
-        NewProxy, Object, ObjectMetadata, Proxy,
+        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
+        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
     };
+    use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
     #[repr(u32)]
     #[derive(Copy, Clone, Debug, PartialEq)]
@@ -283,7 +296,7 @@ pub mod wl_foo {
         const NAME: &'static str = "wl_foo";
         const VERSION: u32 = 3;
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::wl_foo_interface }
+            unsafe { &wl_foo_interface }
         }
     }
     impl WlFoo {
@@ -336,15 +349,46 @@ pub mod wl_foo {
     pub const REQ_CREATE_BAR_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_CAKE_SINCE: u32 = 2u32;
+    static mut wl_foo_requests_create_bar_types: [*const wl_interface; 1] =
+        [unsafe { &super::wl_bar::wl_bar_interface as *const wl_interface }];
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_foo_requests: [wl_message; 2] = [
+        wl_message {
+            name: b"foo_it\0" as *const u8 as *const c_char,
+            signature: b"iusfh\0" as *const u8 as *const c_char,
+            types: unsafe { &types_null as *const _ },
+        },
+        wl_message {
+            name: b"create_bar\0" as *const u8 as *const c_char,
+            signature: b"n\0" as *const u8 as *const c_char,
+            types: unsafe { &wl_foo_requests_create_bar_types as *const _ },
+        },
+    ];
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_foo_events: [wl_message; 1] = [wl_message {
+        name: b"cake\0" as *const u8 as *const c_char,
+        signature: b"2uu\0" as *const u8 as *const c_char,
+        types: unsafe { &types_null as *const _ },
+    }];
+    #[doc = r" C representation of this interface, for interop"]
+    pub static mut wl_foo_interface: wl_interface = wl_interface {
+        name: b"wl_foo\0" as *const u8 as *const c_char,
+        version: 3,
+        request_count: 2,
+        requests: unsafe { &wl_foo_requests as *const _ },
+        event_count: 1,
+        events: unsafe { &wl_foo_events as *const _ },
+    };
 }
 #[doc = "Interface for bars\n\nThis interface allows you to bar your foos."]
 pub mod wl_bar {
     use super::sys::client::*;
-    use super::sys::common::{wl_argument, wl_array, wl_interface};
+    use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
-        NewProxy, Object, ObjectMetadata, Proxy,
+        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
+        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
     };
+    use std::os::raw::c_char;
     pub enum Request {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
         BarDelivery {
@@ -726,7 +770,7 @@ pub mod wl_bar {
         const NAME: &'static str = "wl_bar";
         const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::wl_bar_interface }
+            unsafe { &wl_bar_interface }
         }
     }
     impl WlBar {
@@ -821,15 +865,55 @@ pub mod wl_bar {
     pub const REQ_SELF_SINCE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_SELF_SINCE: u32 = 2u32;
+    static mut wl_bar_requests_bar_delivery_types: [*const wl_interface; 4] = [
+        NULLPTR as *const wl_interface,
+        unsafe { &super::wl_foo::wl_foo_interface as *const wl_interface },
+        NULLPTR as *const wl_interface,
+        NULLPTR as *const wl_interface,
+    ];
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_bar_requests: [wl_message; 3] = [
+        wl_message {
+            name: b"bar_delivery\0" as *const u8 as *const c_char,
+            signature: b"2uoa?a\0" as *const u8 as *const c_char,
+            types: unsafe { &wl_bar_requests_bar_delivery_types as *const _ },
+        },
+        wl_message {
+            name: b"release\0" as *const u8 as *const c_char,
+            signature: b"\0" as *const u8 as *const c_char,
+            types: unsafe { &types_null as *const _ },
+        },
+        wl_message {
+            name: b"self\0" as *const u8 as *const c_char,
+            signature: b"2uuuuuuuu\0" as *const u8 as *const c_char,
+            types: unsafe { &types_null as *const _ },
+        },
+    ];
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_bar_events: [wl_message; 1] = [wl_message {
+        name: b"self\0" as *const u8 as *const c_char,
+        signature: b"2uuuuuuuu\0" as *const u8 as *const c_char,
+        types: unsafe { &types_null as *const _ },
+    }];
+    #[doc = r" C representation of this interface, for interop"]
+    pub static mut wl_bar_interface: wl_interface = wl_interface {
+        name: b"wl_bar\0" as *const u8 as *const c_char,
+        version: 1,
+        request_count: 3,
+        requests: unsafe { &wl_bar_requests as *const _ },
+        event_count: 1,
+        events: unsafe { &wl_bar_events as *const _ },
+    };
 }
 #[doc = "core global object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_display {
     use super::sys::client::*;
-    use super::sys::common::{wl_argument, wl_array, wl_interface};
+    use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
-        NewProxy, Object, ObjectMetadata, Proxy,
+        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
+        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
     };
+    use std::os::raw::c_char;
     pub enum Request {
         #[doc(hidden)]
         __nonexhaustive,
@@ -958,7 +1042,7 @@ pub mod wl_display {
         const NAME: &'static str = "wl_display";
         const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::wl_display_interface }
+            unsafe { &wl_display_interface }
         }
     }
     impl WlDisplay {}
@@ -972,15 +1056,25 @@ pub mod wl_display {
             }
         }
     }
+    #[doc = r" C representation of this interface, for interop"]
+    pub static mut wl_display_interface: wl_interface = wl_interface {
+        name: b"wl_display\0" as *const u8 as *const c_char,
+        version: 1,
+        request_count: 0,
+        requests: NULLPTR as *const wl_message,
+        event_count: 0,
+        events: NULLPTR as *const wl_message,
+    };
 }
 #[doc = "global registry object\n\nThis global is special and should only generate code client-side, not server-side."]
 pub mod wl_registry {
     use super::sys::client::*;
-    use super::sys::common::{wl_argument, wl_array, wl_interface};
+    use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
-        NewProxy, Object, ObjectMetadata, Proxy,
+        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
+        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
     };
+    use std::os::raw::c_char;
     pub enum Request {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
         Bind {
@@ -1140,7 +1234,7 @@ pub mod wl_registry {
         const NAME: &'static str = "wl_registry";
         const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::wl_registry_interface }
+            unsafe { &wl_registry_interface }
         }
     }
     impl WlRegistry {
@@ -1173,15 +1267,31 @@ pub mod wl_registry {
     }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_registry_requests: [wl_message; 1] = [wl_message {
+        name: b"bind\0" as *const u8 as *const c_char,
+        signature: b"usun\0" as *const u8 as *const c_char,
+        types: unsafe { &types_null as *const _ },
+    }];
+    #[doc = r" C representation of this interface, for interop"]
+    pub static mut wl_registry_interface: wl_interface = wl_interface {
+        name: b"wl_registry\0" as *const u8 as *const c_char,
+        version: 1,
+        request_count: 1,
+        requests: unsafe { &wl_registry_requests as *const _ },
+        event_count: 0,
+        events: NULLPTR as *const wl_message,
+    };
 }
 #[doc = "callback object\n\nThis object has a special behavior regarding its destructor."]
 pub mod wl_callback {
     use super::sys::client::*;
-    use super::sys::common::{wl_argument, wl_array, wl_interface};
+    use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc, MessageGroup,
-        NewProxy, Object, ObjectMetadata, Proxy,
+        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
+        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
     };
+    use std::os::raw::c_char;
     pub enum Request {
         #[doc(hidden)]
         __nonexhaustive,
@@ -1337,7 +1447,7 @@ pub mod wl_callback {
         const NAME: &'static str = "wl_callback";
         const VERSION: u32 = 1;
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::wl_callback_interface }
+            unsafe { &wl_callback_interface }
         }
     }
     impl WlCallback {}
@@ -1357,4 +1467,19 @@ pub mod wl_callback {
     }
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
+    #[doc = r" C-representation of the messages of this interface, for interop"]
+    pub static mut wl_callback_events: [wl_message; 1] = [wl_message {
+        name: b"done\0" as *const u8 as *const c_char,
+        signature: b"u\0" as *const u8 as *const c_char,
+        types: unsafe { &types_null as *const _ },
+    }];
+    #[doc = r" C representation of this interface, for interop"]
+    pub static mut wl_callback_interface: wl_interface = wl_interface {
+        name: b"wl_callback\0" as *const u8 as *const c_char,
+        version: 1,
+        request_count: 0,
+        requests: NULLPTR as *const wl_message,
+        event_count: 1,
+        events: unsafe { &wl_callback_events as *const _ },
+    };
 }

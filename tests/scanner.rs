@@ -13,11 +13,8 @@ use wayland_scanner::Side;
 
 const PROTOCOL: &'static str = include_str!("./scanner_assets/protocol.xml");
 
-const C_INTERFACES_TARGET: &'static str = include_str!("./scanner_assets/c_interfaces.rs");
-const CLIENT_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/client_c_code.rs");
-const SERVER_C_CODE_TARGET: &'static str = include_str!("./scanner_assets/server_c_code.rs");
-const CLIENT_RUST_CODE_TARGET: &'static str = include_str!("./scanner_assets/client_rust_code.rs");
-const SERVER_RUST_CODE_TARGET: &'static str = include_str!("./scanner_assets/server_rust_code.rs");
+const CLIENT_CODE_TARGET: &'static str = include_str!("./scanner_assets/client_code.rs");
+const SERVER_CODE_TARGET: &'static str = include_str!("./scanner_assets/server_code.rs");
 
 fn print_diff(diffs: &[Difference]) {
     println!("Partial diffs found:");
@@ -113,44 +110,15 @@ fn run_codegen_test(generated_file_path: &Path, expected_output: &str) {
 }
 
 #[test]
-fn c_interfaces_generation() {
+fn client_code_generation() {
     let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_c_interfaces_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile);
-    run_codegen_test(tempfile.path(), C_INTERFACES_TARGET);
+    wayland_scanner::generate_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Client);
+    run_codegen_test(tempfile.path(), CLIENT_CODE_TARGET);
 }
 
 #[test]
-fn client_c_code_generation() {
+fn server_code_generation() {
     let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Client);
-    run_codegen_test(tempfile.path(), CLIENT_C_CODE_TARGET);
-}
-
-#[test]
-fn server_c_code_generation() {
-    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_c_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Server);
-    run_codegen_test(tempfile.path(), SERVER_C_CODE_TARGET);
-}
-
-#[test]
-fn client_rust_code_generation() {
-    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_rust_code_streams(
-        Cursor::new(PROTOCOL.as_bytes()),
-        &mut tempfile,
-        Side::Client,
-    );
-    run_codegen_test(tempfile.path(), CLIENT_RUST_CODE_TARGET);
-}
-
-#[test]
-fn server_rust_code_generation() {
-    let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_rust_code_streams(
-        Cursor::new(PROTOCOL.as_bytes()),
-        &mut tempfile,
-        Side::Server,
-    );
-    run_codegen_test(tempfile.path(), SERVER_RUST_CODE_TARGET);
+    wayland_scanner::generate_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Server);
+    run_codegen_test(tempfile.path(), SERVER_CODE_TARGET);
 }

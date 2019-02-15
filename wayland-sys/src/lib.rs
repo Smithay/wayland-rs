@@ -36,6 +36,7 @@
 // it's what happens when running `cargo test --all` from the workspace root),
 // dlib isn't actually used. This is not an issue, so don't warn about it.
 #[allow(unused_imports)]
+#[cfg(any(feature = "client", feature = "server"))]
 #[macro_use]
 extern crate dlib;
 
@@ -60,10 +61,8 @@ pub static RUST_MANAGED: u8 = 42;
 
 pub mod common;
 
-#[cfg(feature = "client")]
 pub mod client;
 
-#[cfg(feature = "server")]
 pub mod server;
 
 #[cfg(all(feature = "egl", feature = "client"))]

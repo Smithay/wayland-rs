@@ -6,7 +6,7 @@ use proc_macro2::{Ident, Literal, Span, TokenStream};
 use protocol::*;
 use util::null_terminated_byte_string_literal;
 
-pub(crate) fn generate_interfaces(protocol: Protocol) -> TokenStream {
+pub(crate) fn generate_interfaces_prefix(protocol: &Protocol) -> TokenStream {
     let longest_nulls = protocol.interfaces.iter().fold(0, |max, interface| {
         let request_longest_null = interface.requests.iter().fold(0, |max, request| {
             if request.all_null() {
@@ -27,56 +27,54 @@ pub(crate) fn generate_interfaces(protocol: Protocol) -> TokenStream {
 
     let types_null_len = Literal::usize_unsuffixed(longest_nulls);
 
-    let nulls = repeat(quote!(NULLPTR as *const wl_interface)).take(longest_nulls);
-
-    let interfaces = protocol.interfaces.iter().map(|interface| {
-        let requests = gen_messages(interface, &interface.requests, "requests");
-        let events = gen_messages(interface, &interface.events, "events");
-
-        let interface_ident = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
-        let name_value = null_terminated_byte_string_literal(&interface.name);
-        let version_value = Literal::i32_unsuffixed(interface.version as i32);
-        let request_count_value = Literal::i32_unsuffixed(interface.requests.len() as i32);
-        let requests_value = if interface.requests.is_empty() {
-            quote!(NULLPTR as *const wl_message)
-        } else {
-            let requests_ident = Ident::new(&format!("{}_requests", interface.name), Span::call_site());
-            quote!(unsafe { &#requests_ident as *const _ })
-        };
-        let event_count_value = Literal::i32_unsuffixed(interface.events.len() as i32);
-        let events_value = if interface.events.is_empty() {
-            quote!(NULLPTR as *const wl_message)
-        } else {
-            let events_ident = Ident::new(&format!("{}_events", interface.name), Span::call_site());
-            quote!(unsafe { &#events_ident as *const _ })
-        };
-
-        quote!(
-            #requests
-            #events
-
-            pub static mut #interface_ident: wl_interface = wl_interface {
-                name: #name_value as *const u8 as *const c_char,
-                version: #version_value,
-                request_count: #request_count_value,
-                requests: #requests_value,
-                event_count: #event_count_value,
-                events: #events_value,
-            };
-        )
-    });
+    let nulls = repeat(quote!(NULLPTR as *const sys::common::wl_interface)).take(longest_nulls);
 
     quote! {
         use std::os::raw::{c_char, c_void};
-        use wayland_sys::common::*;
 
         const NULLPTR: *const c_void = 0 as *const c_void;
-        static mut types_null: [*const wl_interface; #types_null_len] = [
+        static mut types_null: [*const sys::common::wl_interface; #types_null_len] = [
             #(#nulls,)*
         ];
-
-        #(#interfaces)*
     }
+}
+
+pub(crate) fn generate_interface(interface: &Interface) -> TokenStream {
+    let requests = gen_messages(interface, &interface.requests, "requests");
+    let events = gen_messages(interface, &interface.events, "events");
+
+    let interface_ident = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
+    let name_value = null_terminated_byte_string_literal(&interface.name);
+    let version_value = Literal::i32_unsuffixed(interface.version as i32);
+    let request_count_value = Literal::i32_unsuffixed(interface.requests.len() as i32);
+    let requests_value = if interface.requests.is_empty() {
+        quote!(NULLPTR as *const wl_message)
+    } else {
+        let requests_ident = Ident::new(&format!("{}_requests", interface.name), Span::call_site());
+        quote!(unsafe { &#requests_ident as *const _ })
+    };
+    let event_count_value = Literal::i32_unsuffixed(interface.events.len() as i32);
+    let events_value = if interface.events.is_empty() {
+        quote!(NULLPTR as *const wl_message)
+    } else {
+        let events_ident = Ident::new(&format!("{}_events", interface.name), Span::call_site());
+        quote!(unsafe { &#events_ident as *const _ })
+    };
+
+    quote!(
+        #requests
+        #events
+
+        /// C representation of this interface, for interop
+        pub static mut #interface_ident: wl_interface = wl_interface {
+            name: #name_value as *const u8 as *const c_char,
+            version: #version_value,
+            request_count: #request_count_value,
+            requests: #requests_value,
+            event_count: #event_count_value,
+            events: #events_value,
+        };
+    )
 }
 
 fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> TokenStream {
@@ -95,8 +93,9 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
             let array_len = Literal::usize_unsuffixed(msg.args.len());
             let array_values = msg.args.iter().map(|arg| match (arg.typ, &arg.interface) {
                 (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
+                    let module = Ident::new(inter, Span::call_site());
                     let interface_ident = Ident::new(&format!("{}_interface", inter), Span::call_site());
-                    quote!(unsafe { &#interface_ident as *const wl_interface })
+                    quote!(unsafe { &super::#module::#interface_ident as *const wl_interface })
                 }
                 _ => quote!(NULLPTR as *const wl_interface),
             });
@@ -136,6 +135,7 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
     quote! {
         #(#types_arrays)*
 
+        /// C-representation of the messages of this interface, for interop
         pub static mut #message_array_ident: [wl_message; #message_array_len] = [
             #(#message_array_values,)*
         ];

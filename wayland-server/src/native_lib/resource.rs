@@ -188,6 +188,23 @@ impl ResourceInner {
         }
     }
 
+    pub unsafe fn make_child_for<J: Interface>(&self, id: u32) -> Option<NewResourceInner> {
+        let version = self.version();
+        let client_ptr = match self.client() {
+            Some(c) => c.ptr(),
+            None => return None,
+        };
+        let new_ptr = ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_create,
+            client_ptr,
+            J::c_interface(),
+            version as i32,
+            id
+        );
+        Some(NewResourceInner { ptr: new_ptr })
+    }
+
     pub(crate) fn clone(&self) -> ResourceInner {
         ResourceInner {
             internal: self.internal.clone(),
