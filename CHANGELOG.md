@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [protocols] Update `wlr-protocols` (`data-control` version 2).
+
 ## 0.22.1 -- 2019-02-13
 
 - [client] Fix a potential race when the client destroys an object after pending events
