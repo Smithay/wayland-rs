@@ -119,6 +119,9 @@ fn client_receive_error() {
         .as_ref()
         .post_error(42, "I don't like you!".into());
 
+    // the error has not yet reached the client
+    assert!(client.display.protocol_error().is_none());
+
     assert!(roundtrip(&mut client, &mut server).is_err());
     let error = client.display.protocol_error().unwrap();
     assert_eq!(error.code, 42);
