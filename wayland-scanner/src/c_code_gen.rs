@@ -21,7 +21,13 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
             false,
             &iface.requests,
-            Some(messagegroup_c_addon(&ident, Side::Client, false, &iface.requests)),
+            Some(messagegroup_c_addon(
+                &ident,
+                &iface_name,
+                Side::Client,
+                false,
+                &iface.requests,
+            )),
         );
 
         let ident = Ident::new("Event", Span::call_site());
@@ -30,7 +36,13 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
             true,
             &iface.events,
-            Some(messagegroup_c_addon(&ident, Side::Client, true, &iface.events)),
+            Some(messagegroup_c_addon(
+                &ident,
+                &iface_name,
+                Side::Client,
+                true,
+                &iface.events,
+            )),
         );
 
         let interface = gen_interface(
@@ -44,15 +56,17 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
         let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
         let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
+        let c_interface = super::c_interface_gen::generate_interface(&iface);
 
         quote! {
             #doc_attr
             pub mod #mod_name {
+                use std::os::raw::c_char;
                 use super::{
                     Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
-                    Object, Message, Argument, ObjectMetadata, HandledBy
+                    Object, Message, Argument, ObjectMetadata, HandledBy, types_null, NULLPTR
                 };
-                use super::sys::common::{wl_argument, wl_interface, wl_array};
+                use super::sys::common::{wl_interface, wl_array, wl_argument, wl_message};
                 use super::sys::client::*;
 
                 #(#enums)*
@@ -62,11 +76,16 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #object_methods
                 #event_handler_trait
                 #sinces
+                #c_interface
             }
         }
     });
 
+    let c_prefix = super::c_interface_gen::generate_interfaces_prefix(&protocol);
+
     quote! {
+        #c_prefix
+
         #(#modules)*
     }
 }
@@ -90,7 +109,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Side::Server,
                 true,
                 &iface.requests,
-                Some(messagegroup_c_addon(&ident, Side::Server, true, &iface.requests)),
+                Some(messagegroup_c_addon(&ident, &iface_name, Side::Server, true, &iface.requests)),
             );
 
             let ident = Ident::new("Event", Span::call_site());
@@ -99,7 +118,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Side::Server,
                 false,
                 &iface.events,
-                Some(messagegroup_c_addon(&ident, Side::Server, false, &iface.events)),
+                Some(messagegroup_c_addon(&ident, &iface_name, Side::Server, false, &iface.events)),
             );
 
             let interface = gen_interface(
@@ -112,15 +131,17 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
             let object_methods = gen_object_methods(&iface_name, &iface.events, Side::Server);
             let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
+            let c_interface = super::c_interface_gen::generate_interface(&iface);
 
             quote! {
                 #doc_attr
                 pub mod #mod_name {
+                    use std::os::raw::c_char;
                     use super::{
                         Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc,
-                        ArgumentType, Object, Message, Argument, ObjectMetadata, HandledBy
+                        ArgumentType, Object, Message, Argument, ObjectMetadata, HandledBy, types_null, NULLPTR
                     };
-                    use super::sys::common::{wl_argument, wl_interface, wl_array};
+                    use super::sys::common::{wl_argument, wl_interface, wl_array, wl_message};
                     use super::sys::server::*;
 
                     #(#enums)*
@@ -130,16 +151,26 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                     #object_methods
                     #event_handler_trait
                     #sinces
+                    #c_interface
                 }
             }
         });
 
+    let c_prefix = super::c_interface_gen::generate_interfaces_prefix(&protocol);
+
     quote! {
+        #c_prefix
         #(#modules)*
     }
 }
 
-fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Message]) -> TokenStream {
+fn messagegroup_c_addon(
+    name: &Ident,
+    parent_iface: &Ident,
+    side: Side,
+    receiver: bool,
+    messages: &[Message],
+) -> TokenStream {
     let from_raw_c_body = if receiver {
         let match_arms = messages
             .iter()
@@ -250,28 +281,8 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
                                         Side::Server => {
                                             quote! {
                                                 {
-                                                    let client = ffi_dispatch!(
-                                                        WAYLAND_SERVER_HANDLE,
-                                                        wl_resource_get_client,
-                                                        obj as *mut _
-                                                    );
-                                                    let version = ffi_dispatch!(
-                                                        WAYLAND_SERVER_HANDLE,
-                                                        wl_resource_get_version,
-                                                        obj as *mut _
-                                                    );
-                                                    let new_ptr = ffi_dispatch!(
-                                                        WAYLAND_SERVER_HANDLE,
-                                                        wl_resource_create,
-                                                        client,
-                                                        super::#iface_mod::#iface_type::c_interface(),
-                                                        version,
-                                                        _args[#idx].n
-                                                    );
-
-                                                    NewResource::<super::#iface_mod::#iface_type>::from_c_ptr(
-                                                        new_ptr
-                                                    )
+                                                    let me = Resource::<#parent_iface>::from_c_ptr(obj as *mut _);
+                                                    me.make_child_for::<super::#iface_mod::#iface_type>(_args[#idx].n).unwrap()
                                                 }
                                             }
                                         }
@@ -516,10 +527,10 @@ fn messagegroup_c_addon(name: &Ident, side: Side, receiver: bool, messages: &[Me
 }
 
 fn interface_c_addon(low_name: &str) -> TokenStream {
-    let mod_name = Ident::new(&format!("{}_interface", low_name), Span::call_site());
+    let iface_name = Ident::new(&format!("{}_interface", low_name), Span::call_site());
     quote! {
         fn c_interface() -> *const wl_interface {
-            unsafe { &super::super::c_interfaces::#mod_name }
+            unsafe { &#iface_name }
         }
     }
 }

@@ -24,10 +24,6 @@ extern crate wayland_server;
 
 extern crate wayland_commons;
 
-#[cfg(feature = "native_lib")]
-#[macro_use]
-extern crate wayland_sys;
-
 #[macro_use]
 extern crate bitflags;
 

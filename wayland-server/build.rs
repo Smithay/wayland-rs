@@ -10,11 +10,5 @@ fn main() {
     let out_dir_str = var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_str);
 
-    if var("CARGO_FEATURE_NATIVE_LIB").ok().is_some() {
-        // Generate the C code
-        generate_c_code(protocol_file, out_dir.join("wayland_c_api.rs"), Side::Server);
-        generate_c_interfaces(protocol_file, out_dir.join("wayland_c_interfaces.rs"));
-    } else {
-        generate_rust_code(protocol_file, out_dir.join("wayland_rust_api.rs"), Side::Server);
-    }
+    generate_code(protocol_file, out_dir.join("wayland_api.rs"), Side::Server);
 }

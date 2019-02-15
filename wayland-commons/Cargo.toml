@@ -13,8 +13,6 @@ keywords = ["wayland"]
 travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
-wayland-sys = { version = "0.22.2", path = "../wayland-sys", optional = true }
+wayland-sys = { version = "0.22.2", path = "../wayland-sys" }
 nix = "0.12"
 
-[features]
-native_lib = [ "wayland-sys" ]

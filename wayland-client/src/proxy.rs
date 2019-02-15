@@ -2,7 +2,6 @@ use super::AnonymousObject;
 use wayland_commons::utils::UserData;
 use wayland_commons::Interface;
 
-#[cfg(feature = "native_lib")]
 use wayland_sys::client::*;
 
 use event_queue::QueueToken;
@@ -225,13 +224,22 @@ impl<I: Interface> Proxy<I> {
     }
 }
 
-#[cfg(feature = "native_lib")]
 impl<I: Interface> Proxy<I> {
     /// Check whether this proxy is managed by the library or not
     ///
     /// See `from_c_ptr` for details.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
     pub fn is_external(&self) -> bool {
-        self.inner.is_external()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.is_external()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
+        }
     }
 
     /// Get a raw pointer to the underlying wayland object
@@ -239,8 +247,18 @@ impl<I: Interface> Proxy<I> {
     /// Retrieve a pointer to the object from the `libwayland-client.so` library.
     /// You will mostly need it to interface with C libraries needing access
     /// to wayland objects (to initialize an opengl context for example).
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
     pub fn c_ptr(&self) -> *mut wl_proxy {
-        self.inner.c_ptr()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.c_ptr()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
+        }
     }
 
     /// Create a `Proxy` instance from a C pointer
@@ -262,13 +280,23 @@ impl<I: Interface> Proxy<I> {
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Proxy<I>
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Proxy<I>
     where
         I: From<Proxy<I>>,
     {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: ProxyInner::from_c_ptr::<I>(ptr),
+        #[cfg(feature = "native_lib")]
+        {
+            Proxy {
+                _i: ::std::marker::PhantomData,
+                inner: ProxyInner::from_c_ptr::<I>(_ptr),
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
         }
     }
 }
@@ -409,7 +437,6 @@ impl<I: Interface + 'static> NewProxy<I> {
     }
 }
 
-#[cfg(feature = "native_lib")]
 impl<I: Interface + 'static> NewProxy<I> {
     /// Get a raw pointer to the underlying wayland object
     ///
@@ -419,8 +446,18 @@ impl<I: Interface + 'static> NewProxy<I> {
     ///
     /// Use this if you need to pass an unimplemented object to the C library
     /// you are interfacing with.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
     pub fn c_ptr(&self) -> *mut wl_proxy {
-        self.inner.c_ptr()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.c_ptr()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
+        }
     }
 
     /// Create a `NewProxy` instance from a C pointer.
@@ -429,10 +466,20 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// can be safely implemented. As implementing it will overwrite any previously
     /// associated data or implementation, this can cause weird errors akin to
     /// memory corruption if it was not the case.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> Self {
-        NewProxy {
-            _i: ::std::marker::PhantomData,
-            inner: NewProxyInner::from_c_ptr(ptr),
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Self {
+        #[cfg(feature = "native_lib")]
+        {
+            NewProxy {
+                _i: ::std::marker::PhantomData,
+                inner: NewProxyInner::from_c_ptr(_ptr),
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
         }
     }
 }

@@ -16,11 +16,8 @@
 #![warn(missing_docs)]
 
 extern crate nix;
-#[cfg(feature = "native_lib")]
 extern crate wayland_sys;
-#[cfg(feature = "native_lib")]
 use std::os::raw::c_void;
-#[cfg(feature = "native_lib")]
 use wayland_sys::common as syscom;
 
 pub mod map;
@@ -60,11 +57,9 @@ pub trait MessageGroup: Sized {
     fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
     /// Turn this message into its raw representation
     fn into_raw(self, send_id: u32) -> wire::Message;
-    #[cfg(feature = "native_lib")]
     /// Construct a message of this group from its C representation
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
         -> Result<Self, ()>;
-    #[cfg(feature = "native_lib")]
     /// Build a C representation of this message
     ///
     /// It can only be accessed from the provided closure, and this consumes
@@ -99,7 +94,6 @@ pub trait Interface: 'static {
     /// advertise through the registry, and clients can choose any version among the
     /// ones the server supports.
     const VERSION: u32;
-    #[cfg(feature = "native_lib")]
     /// Pointer to the C representation of this interface
     fn c_interface() -> *const ::syscom::wl_interface;
 }
@@ -129,7 +123,6 @@ impl MessageGroup for NoMessage {
     fn into_raw(self, _: u32) -> wire::Message {
         match self {}
     }
-    #[cfg(feature = "native_lib")]
     unsafe fn from_raw_c(
         _obj: *mut c_void,
         _opcode: u32,
@@ -137,7 +130,6 @@ impl MessageGroup for NoMessage {
     ) -> Result<Self, ()> {
         Err(())
     }
-    #[cfg(feature = "native_lib")]
     fn as_raw_c_in<F, T>(self, _f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,

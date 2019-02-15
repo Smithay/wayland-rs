@@ -3,7 +3,6 @@ use wayland_commons::{Interface, MessageGroup};
 
 use Client;
 
-#[cfg(feature = "native_lib")]
 use wayland_sys::server::*;
 
 use imp::{NewResourceInner, ResourceInner};
@@ -127,13 +126,24 @@ impl<I: Interface> Resource<I> {
     }
 }
 
-#[cfg(feature = "native_lib")]
 impl<I: Interface> Resource<I> {
     /// Check whether this resource is managed by the library or not
     ///
     /// See `from_c_ptr` for details.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
     pub fn is_external(&self) -> bool {
-        self.inner.is_external()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.is_external()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
     }
 
     /// Get a raw pointer to the underlying wayland object
@@ -141,8 +151,20 @@ impl<I: Interface> Resource<I> {
     /// Retrieve a pointer to the object from the `libwayland-server.so` library.
     /// You will mostly need it to interface with C libraries needing access
     /// to wayland objects (to initialize an opengl context for example).
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
     pub fn c_ptr(&self) -> *mut wl_resource {
-        self.inner.c_ptr()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.c_ptr()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
     }
 
     /// Create a `Resource` instance from a C pointer
@@ -164,13 +186,40 @@ impl<I: Interface> Resource<I> {
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_resource) -> Self
     where
         I: From<Resource<I>>,
     {
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner: ResourceInner::from_c_ptr::<I>(ptr),
+        #[cfg(feature = "native_lib")]
+        {
+            Resource {
+                _i: ::std::marker::PhantomData,
+                inner: ResourceInner::from_c_ptr::<I>(_ptr),
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
+    }
+
+    #[doc(hidden)]
+    // This method is for scanner-generated use only
+    pub unsafe fn make_child_for<J: Interface>(&self, _id: u32) -> Option<NewResource<J>> {
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.make_child_for::<J>(_id).map(NewResource::wrap)
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
         }
     }
 }
@@ -319,7 +368,6 @@ impl<I: Interface + 'static> NewResource<I> {
     }
 }
 
-#[cfg(feature = "native_lib")]
 impl<I: Interface> NewResource<I> {
     /// Get a raw pointer to the underlying wayland object
     ///
@@ -329,8 +377,20 @@ impl<I: Interface> NewResource<I> {
     ///
     /// Use this if you need to pass an unimplemented object to the C library
     /// you are interfacing with.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
     pub fn c_ptr(&self) -> *mut wl_resource {
-        self.inner.c_ptr()
+        #[cfg(feature = "native_lib")]
+        {
+            self.inner.c_ptr()
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
     }
 
     /// Create a `NewResource` instance from a C pointer.
@@ -339,10 +399,22 @@ impl<I: Interface> NewResource<I> {
     /// can be safely implemented. As implementing it will overwrite any previously
     /// associated data or implementation, this can cause weird errors akin to
     /// memory corruption if it was not the case.
-    pub unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
-        NewResource {
-            _i: ::std::marker::PhantomData,
-            inner: NewResourceInner::from_c_ptr(ptr),
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_resource) -> Self {
+        #[cfg(feature = "native_lib")]
+        {
+            NewResource {
+                _i: ::std::marker::PhantomData,
+                inner: NewResourceInner::from_c_ptr(_ptr),
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
         }
     }
 }

@@ -5,8 +5,11 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 use super::common::*;
+#[cfg(feature = "server")]
 use libc::{gid_t, pid_t, uid_t};
-use std::os::raw::{c_char, c_int, c_void};
+#[cfg(feature = "server")]
+use std::os::raw::c_char;
+use std::os::raw::{c_int, c_void};
 
 pub enum wl_client {}
 pub enum wl_display {}
@@ -36,6 +39,7 @@ pub struct wl_signal {
     pub listener_list: wl_list,
 }
 
+#[cfg(feature = "server")]
 external_library!(WaylandServer, "wayland-server",
     functions:
     // wl_client
@@ -138,7 +142,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_resource_post_error(*mut wl_resource, u32, *const c_char) -> (),
 );
 
-#[cfg(feature = "dlopen")]
+#[cfg(all(feature = "server", feature = "dlopen"))]
 lazy_static!(
     pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
@@ -169,17 +173,18 @@ lazy_static!(
     };
 );
 
-#[cfg(not(feature = "dlopen"))]
+#[cfg(all(feature = "server", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(feature = "dlopen")]
+#[cfg(all(feature = "server", feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
     WAYLAND_SERVER_OPTION.is_some()
 }
 
+#[cfg(feature = "server")]
 pub mod signal {
-    #![allow(cast_ptr_alignment)]
+    #![cfg_attr(feature = "cargo-clippy", allow(cast_ptr_alignment))]
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};

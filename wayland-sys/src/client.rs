@@ -4,13 +4,16 @@
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
+#[cfg(feature = "client")]
 use super::common::*;
+#[cfg(feature = "client")]
 use std::os::raw::{c_char, c_int, c_void};
 
 pub enum wl_proxy {}
 pub enum wl_display {}
 pub enum wl_event_queue {}
 
+#[cfg(feature = "client")]
 external_library!(WaylandClient, "wayland-client",
     functions:
     // display creation and destruction
@@ -80,7 +83,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_marshal(*mut wl_proxy, u32) -> (),
 );
 
-#[cfg(feature = "dlopen")]
+#[cfg(all(feature = "client", feature = "dlopen"))]
 lazy_static!(
     pub static ref WAYLAND_CLIENT_OPTION: Option<WaylandClient> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
@@ -111,11 +114,11 @@ lazy_static!(
     };
 );
 
-#[cfg(not(feature = "dlopen"))]
+#[cfg(all(feature = "client", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(feature = "dlopen")]
+#[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
     WAYLAND_CLIENT_OPTION.is_some()
 }

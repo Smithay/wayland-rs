@@ -7,10 +7,6 @@ macro_rules! wayland_protocol(
         #[cfg(feature = "server")]
         pub use self::generated::server;
 
-        #[cfg(all(feature = "native_lib", any(feature = "client", feature = "server")))]
-        pub use self::generated::c_interfaces;
-
-        #[cfg(all(not(feature = "native_lib"), any(feature = "client", feature = "server")))]
         mod generated {
             #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
             #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
@@ -25,10 +21,11 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
                 pub(crate) use wayland_client::protocol::{$($import),*};
+                pub(crate) use wayland_client::sys;
                 $(
                     pub(crate) use ::$prot_name::client::$prot_import;
                 )*
-                include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_client_api.rs"));
+                include!(concat!(env!("OUT_DIR"), "/", $name, "_client_api.rs"));
             }
 
             #[cfg(feature = "server")]
@@ -39,62 +36,11 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::{Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
                 pub(crate) use wayland_server::protocol::{$($import),*};
+                pub(crate) use wayland_server::sys;
                 $(
                     pub(crate) use ::$prot_name::server::$prot_import;
                 )*
-                include!(concat!(env!("OUT_DIR"), "/", $name, "_rust_server_api.rs"));
-            }
-        }
-
-        #[cfg(all(feature = "native_lib", any(feature = "client", feature = "server")))]
-        mod generated {
-            #![allow(dead_code,non_camel_case_types,unused_unsafe,unused_variables)]
-            #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
-            #![allow(missing_docs)]
-            #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
-
-            pub mod c_interfaces {
-                //! C interfaces for this protocol
-
-                // import client or server, both are the same anyway
-                #[cfg(feature = "client")]
-                pub use wayland_client::sys::protocol_interfaces::{$($interface),*};
-                #[cfg(all(not(feature = "client"), feature = "server"))]
-                pub use wayland_server::sys::protocol_interfaces::{$($interface),*};
-                $(
-                    pub(crate) use ::$prot_name::c_interfaces::$prot_iface;
-                )*
-                include!(concat!(env!("OUT_DIR"), "/", $name, "_c_interfaces.rs"));
-            }
-
-            #[cfg(feature = "client")]
-            pub mod client {
-                //! Client-side API of this protocol
-                pub(crate) use wayland_client::{NewProxy, Proxy, ProxyMap, HandledBy, AnonymousObject};
-                pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
-                pub(crate) use wayland_commons::{Interface, MessageGroup};
-                pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
-                pub(crate) use wayland_sys as sys;
-                pub(crate) use wayland_client::protocol::{$($import),*};
-                $(
-                    pub(crate) use ::$prot_name::client::$prot_import;
-                )*
-                include!(concat!(env!("OUT_DIR"), "/", $name, "_c_client_api.rs"));
-            }
-
-            #[cfg(feature = "server")]
-            pub mod server {
-                //! Server-side API of this protocol
-                pub(crate) use wayland_server::{AnonymousObject, NewResource, Resource, ResourceMap, HandledBy};
-                pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
-                pub(crate) use wayland_commons::{Interface, MessageGroup};
-                pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
-                pub(crate) use wayland_sys as sys;
-                pub(crate) use wayland_server::protocol::{$($import),*};
-                $(
-                    pub(crate) use ::$prot_name::server::$prot_import;
-                )*
-                include!(concat!(env!("OUT_DIR"), "/", $name, "_c_server_api.rs"));
+                include!(concat!(env!("OUT_DIR"), "/", $name, "_server_api.rs"));
             }
         }
     }
