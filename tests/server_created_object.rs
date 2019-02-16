@@ -389,7 +389,7 @@ fn server_created_race() {
 
 // this test currently crashes when using native_lib, this is a bug from the C lib
 // see https://gitlab.freedesktop.org/wayland/wayland/issues/74
-#[cfg(not(feature = "native_lib"))]
+#[cfg(not(feature = "client_native"))]
 #[test]
 fn creation_destruction_race() {
     let mut server = TestServer::new();
@@ -470,7 +470,7 @@ fn creation_destruction_race() {
         .as_ref()
         .client()
         .unwrap()
-        .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
+        .create_resource::<ServerDO>(server_dd.borrow()[1].as_ref().version())
         .unwrap()
         .implement_dummy();
     server_dd.borrow()[1].data_offer(&offer2);

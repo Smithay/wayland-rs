@@ -22,15 +22,14 @@ rust:
   - 1.21.0
   - stable
   - beta
-  - nightly
 
 env:
-  - FEATURES="native_lib"
   - FEATURES=""
+  - FEATURES="client_native"
+  - FEATURES="server_native"
+  - FEATURES="client_native server_native"
 
 matrix:
-  allow_failures:
-    - rust: nightly
   include:
     - rust: stable
       env: BUILD_FMT=1
@@ -98,9 +97,13 @@ script:
         rustfmt --check tests/scanner_assets/*.rs
       elif [ -n "$TARPAULIN" ]; then
         cargo tarpaulin --all --features "" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF rust_impl
-        cargo tarpaulin --all --features "native_lib" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF native_lib
+        bash <(curl -s https://codecov.io/bash) -cF full_rust
+        cargo tarpaulin --all --features "client_native" --ignore-tests --out Xml
+        bash <(curl -s https://codecov.io/bash) -cF client_native
+        cargo tarpaulin --all --features "server_native" --ignore-tests --out Xml
+        bash <(curl -s https://codecov.io/bash) -cF server_native
+        cargo tarpaulin --all --features "client_native server_native" --ignore-tests --out Xml
+        bash <(curl -s https://codecov.io/bash) -cF both_native
       elif [ -n "$CLIPPY" ]; then
         # - renamed_and_removed and deprecared_cfg_attr are necessary because rust 1.21.0 cannot parse
         #   stuff like #[allow(clippy::all)] or #[rustfmt::skip]
@@ -109,16 +112,15 @@ script:
           -A renamed_and_removed_lints \
           -A clippy::deprecated_cfg_attr \
           -A clippy::for_loop_over_option
-        cargo clippy --all --features "native_lib" -- -D warnings \
+        cargo clippy --all --features "client_native server_native" -- -D warnings \
           -A renamed_and_removed_lints \
           -A clippy::deprecated_cfg_attr \
           -A clippy::for_loop_over_option
-
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
       elif [ -n "$TARGET" ]; then
         cross build --all --target "$TARGET"
-        cross build --all --target "$TARGET" --features "native_lib"
+        cross build --all --target "$TARGET" --features "client_native server_native"
       else
         cargo test --all --features "$FEATURES"
       fi
