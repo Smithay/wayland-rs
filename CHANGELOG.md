@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+# 0.22.2 -- 2019-02-16
+
 - [protocols] Update `wlr-protocols` (`data-control` version 2).
 
 ## 0.22.1 -- 2019-02-13
