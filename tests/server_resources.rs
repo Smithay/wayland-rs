@@ -84,7 +84,7 @@ fn resource_user_data() {
     assert!(cloned.as_ref().user_data::<usize>() == Some(&1000));
 }
 
-#[cfg(not(feature = "native_lib"))]
+#[cfg(not(feature = "server_native"))]
 #[test]
 fn resource_user_data_wrong_thread() {
     let mut server = TestServer::new();
@@ -124,7 +124,7 @@ fn resource_user_data_wrong_thread() {
     .unwrap();
 }
 
-#[cfg(not(feature = "native_lib"))]
+#[cfg(not(feature = "server_native"))]
 #[test]
 fn resource_implement_wrong_thread() {
     let server = TestServer::new();

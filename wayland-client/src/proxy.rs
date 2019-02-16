@@ -63,8 +63,17 @@ impl<I: Interface> Proxy<I> {
     ///
     /// If your request needs to create an object, use `send_constructor`.
     pub fn send(&self, msg: I::Request) {
-        if !self.is_alive() {
-            return;
+        #[cfg(feature = "native_lib")]
+        {
+            if !self.is_external() && !self.is_alive() {
+                return;
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            if !self.is_alive() {
+                return;
+            }
         }
         if msg.since() > self.version() {
             let opcode = msg.opcode() as usize;

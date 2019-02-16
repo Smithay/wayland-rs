@@ -47,6 +47,18 @@ impl<I: Interface> Resource<I> {
     /// The event will be send to the client associated to this
     /// object.
     pub fn send(&self, msg: I::Event) {
+        #[cfg(feature = "native_lib")]
+        {
+            if !self.is_external() && !self.is_alive() {
+                return;
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            if !self.is_alive() {
+                return;
+            }
+        }
         if msg.since() > self.version() {
             let opcode = msg.opcode() as usize;
             panic!(

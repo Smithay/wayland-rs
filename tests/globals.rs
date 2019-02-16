@@ -153,7 +153,7 @@ fn wrong_version_create_global() {
 }
 
 #[test]
-#[cfg_attr(feature = "native_lib", ignore)]
+#[cfg_attr(feature = "server_native", ignore)]
 fn wrong_global() {
     use wayc::protocol::wl_output::WlOutput;
 

@@ -128,7 +128,7 @@ fn client_receive_error() {
     assert_eq!(error.object_id, 3);
     assert_eq!(error.object_interface, "wl_output");
     // native lib can't give us the message
-    #[cfg(not(feature = "native_lib"))]
+    #[cfg(not(feature = "client_native"))]
     {
         assert_eq!(error.message, "I don't like you!");
     }

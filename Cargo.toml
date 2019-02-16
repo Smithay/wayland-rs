@@ -10,7 +10,7 @@ wayland-scanner = { path = "./wayland-scanner" }
 wayland-client = { path = "./wayland-client", default-features = false, features = ["eventloop"] }
 wayland-server = { path = "./wayland-server", default-features = false }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server"] }
-wayland-sys = { path = "./wayland-sys", optional = true }
+wayland-sys = { path = "./wayland-sys" }
 lazycell = "=1.0.0"
 
 [dev-dependencies]
@@ -23,7 +23,8 @@ calloop = "0.4.2"
 members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]
 
 [features]
-native_lib = [ "wayland-client/dlopen", "wayland-server/dlopen", "wayland-sys" ]
+client_native = [ "wayland-client/dlopen" ]
+server_native = [ "wayland-server/dlopen" ]
 
 # Manual list of the tests, required because some need `harness = false`
 
