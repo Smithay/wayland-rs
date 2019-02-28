@@ -34,8 +34,18 @@ matrix:
     - rust: stable
       env: BUILD_FMT=1
     - rust: stable
-      env: TARPAULIN=1
+      env: KCOV=1
       sudo: true
+      addons:
+        apt:
+          packages:
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - cmake
+            - gcc
+            - binutils-dev
+            - libiberty-dev
     - rust: stable
       env: BUILD_DOC=1
     - rust: stable
@@ -56,16 +66,7 @@ before_script:
   - cargo fetch
   - |
       rustup component add rustfmt-preview
-      if [ -n "$TARPAULIN" ]; then
-        which cargo-install-update || cargo install cargo-update
-        cargo install-update cargo-update
-        env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install-update -i cargo-tarpaulin
-        # sanity check, tarpaulin may fail to run after a rust upgrade and then needs recompilation
-        cargo tarpaulin --version || env RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
-        # Building & running tests, we need to install the wayland lib
-        ./travis_install_wayland.sh "1.15.0"
-        export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
-      elif [ -n "$CLIPPY" ]; then
+      if [ -n "$CLIPPY" ]; then
         rustup component add clippy
       elif [ -n "$BUILD_DOC" ]; then
         echo "Building doc, nothing to install..."
@@ -95,15 +96,8 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --check
         rustfmt --check tests/scanner_assets/*.rs
-      elif [ -n "$TARPAULIN" ]; then
-        cargo tarpaulin --all --features "" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF full_rust
-        cargo tarpaulin --all --features "client_native" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF client_native
-        cargo tarpaulin --all --features "server_native" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF server_native
-        cargo tarpaulin --all --features "client_native server_native" --ignore-tests --out Xml
-        bash <(curl -s https://codecov.io/bash) -cF both_native
+      elif [ -n "$KCOV" ]; then
+        ./run_kcov.sh
       elif [ -n "$CLIPPY" ]; then
         # - renamed_and_removed and deprecared_cfg_attr are necessary because rust 1.21.0 cannot parse
         #   stuff like #[allow(clippy::all)] or #[rustfmt::skip]
