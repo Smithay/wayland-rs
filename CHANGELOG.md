@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.23.1 -- 2019-03-24
+
+#### Dependencies updates
+
+- `nix` to 0.13
+
 ## 0.23.0 -- 2019-02-17
 
 #### Breaking Changes
