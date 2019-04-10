@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [server] Unmanaged resources (when using `native_lib`) are now correctly considered alive rather than dead
+
 ## 0.23.1 -- 2019-03-24
 
 #### Dependencies updates
