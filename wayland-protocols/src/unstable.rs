@@ -1,9 +1,11 @@
 //! Unstable protocols from wayland-protocols
 //!
 //! The protocols described in this module are experimental and
-//! backward incompatible changes may be made. Backward compatible
-//! changes may be added together with the corresponding interface
-//! version bump.
+//! provide no guarantee of forward support. They may be abandonned
+//! or never widely implemented.
+//!
+//! Backward compatible changes may be added together with the
+//! corresponding interface version bump.
 //!
 //! Backward incompatible changes are done by bumping the version
 //! number in the protocol and interface names and resetting the
