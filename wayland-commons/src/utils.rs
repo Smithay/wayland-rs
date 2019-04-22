@@ -70,6 +70,28 @@ impl UserData {
             UserDataInner::Empty => None,
         }
     }
+
+    /// Attempt to mutably access the wrapped user data
+    ///
+    /// Will return `None` if either:
+    ///
+    /// - The requested type `T` does not match the type used for construction
+    /// - This `UserData` has been created using the non-threadsafe variant and access
+    ///   is attempted from an other thread than the one it was created on
+    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        match self.inner {
+            UserDataInner::ThreadSafe(ref mut val) => Any::downcast_mut::<T>(&mut **val),
+            UserDataInner::NonThreadSafe(ref mut val, threadid) => {
+                // only give access if we are on the right thread
+                if threadid == thread::current().id() {
+                    Any::downcast_mut::<T>(&mut **val)
+                } else {
+                    None
+                }
+            }
+            UserDataInner::Empty => None,
+        }
+    }
 }
 
 /// A storage able to store several values of `UserData`
@@ -93,6 +115,19 @@ impl UserDataMap {
     pub fn get<T: 'static>(&self) -> Option<&T> {
         for user_data in &self.list {
             if let Some(val) = user_data.get::<T>() {
+                return Some(val);
+            }
+        }
+        None
+    }
+
+    /// Attempt to mutably access the wrapped user data of a given type
+    ///
+    /// Will return `None` if no value of type `T` is stored in this `UserDataMap`
+    /// and accessible from this thread
+    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        for user_data in &mut self.list {
+            if let Some(val) = user_data.get_mut::<T>() {
                 return Some(val);
             }
         }
@@ -217,6 +252,10 @@ mod list {
         pub fn iter(&self) -> AppendListIterator<T> {
             AppendListIterator(&self.0)
         }
+
+        pub fn iter_mut(&mut self) -> AppendListMutIterator<T> {
+            AppendListMutIterator(&mut self.0)
+        }
     }
 
     impl<'a, T> IntoIterator for &'a AppendList<T> {
@@ -225,6 +264,15 @@ mod list {
 
         fn into_iter(self) -> AppendListIterator<'a, T> {
             self.iter()
+        }
+    }
+
+    impl<'a, T> IntoIterator for &'a mut AppendList<T> {
+        type Item = &'a mut T;
+        type IntoIter = AppendListMutIterator<'a, T>;
+
+        fn into_iter(self) -> AppendListMutIterator<'a, T> {
+            self.iter_mut()
         }
     }
 
@@ -252,6 +300,26 @@ mod list {
             }
         }
     }
+
+    #[derive(Debug)]
+    pub struct AppendListMutIterator<'a, T: 'a>(&'a mut AtomicPtr<Node<T>>);
+
+    impl<'a, T: 'a> Iterator for AppendListMutIterator<'a, T> {
+        type Item = &'a mut T;
+
+        fn next(&mut self) -> Option<&'a mut T> {
+            let p = self.0.load(Ordering::Acquire);
+            if p.is_null() {
+                None
+            } else {
+                unsafe {
+                    self.0 = &mut (*p).next.0;
+                    Some(&mut (*p).value)
+                }
+            }
+        }
+    }
+
 }
 
 #[cfg(test)]
