@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.3 -- 2019-04-26
+
 #### Additions
 
 - [commons] Added `UserData::get_mut` and `UserDataMap::get_mut`
