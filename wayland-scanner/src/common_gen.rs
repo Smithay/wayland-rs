@@ -2,6 +2,7 @@
 #[allow(deprecated)]
 use std::ascii::AsciiExt;
 use std::iter;
+use std::str;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::ToTokens;
@@ -11,11 +12,7 @@ use util::*;
 use Side;
 
 pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
-    let text = text
-        .lines()
-        .map(|line| line.trim())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let text = text.lines().map(str::trim).collect::<Vec<_>>().join("\n");
     let text = text.trim();
 
     quote!(#[doc = #text])

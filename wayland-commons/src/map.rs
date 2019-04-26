@@ -117,9 +117,9 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         if id >= SERVER_ID_LIMIT {
             self.server_objects
                 .get((id - SERVER_ID_LIMIT) as usize)
-                .and_then(|x| x.clone())
+                .and_then(Clone::clone)
         } else {
-            self.client_objects.get((id - 1) as usize).and_then(|x| x.clone())
+            self.client_objects.get((id - 1) as usize).and_then(Clone::clone)
         }
     }
 
@@ -191,7 +191,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
 
 // insert a new object in a store at the first free place
 fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Option<Object<Meta>>>, object: Object<Meta>) -> u32 {
-    match store.iter().position(|o| o.is_none()) {
+    match store.iter().position(Option::is_none) {
         Some(id) => {
             store[id] = Some(object);
             id as u32
