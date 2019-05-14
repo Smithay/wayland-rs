@@ -3,7 +3,7 @@
 pub mod presentation_time {
     //! Presentation time protocol
     //!
-    //! Allows precise feedback on presentation timing for example for smooth video playback.
+    //! Allows precise feedback on presentation timing, for example for smooth video playback.
 
     wayland_protocol!(
         "presentation-time",
@@ -18,7 +18,7 @@ pub mod presentation_time {
 pub mod xdg_shell {
     //! XDG Shell protocol
     //!
-    //! Exposes the `xdg_wm_base` global, which deprecates and replace `wl_shell`.
+    //! Exposes the `xdg_wm_base` global, which deprecates and replaces `wl_shell`.
 
     wayland_protocol!(
         "xdg-shell",
@@ -34,14 +34,8 @@ pub mod xdg_shell {
 pub mod viewporter {
     //! Viewporter protocol
     //!
-    //! Gives the capability to scale and crop surfaces, decorrelating the surface dimensions from
-    //! the size of the buffer.
+    //! Provides the capability of scaling and cropping surfaces, decorrelating the surface
+    //! dimensions from the size of the buffer.
 
-    wayland_protocol!(
-        "viewporter",
-        [
-            (wl_surface, wl_surface_interface)
-        ],
-        []
-    );
+    wayland_protocol!("viewporter", [(wl_surface, wl_surface_interface)], []);
 }
