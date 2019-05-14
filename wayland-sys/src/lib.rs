@@ -1,14 +1,13 @@
 //! FFI bindings to the wayland system libraries.
 //!
-//! The names exported by this crate should *not* be used directly, but though
-//! the `ffi_dispatch` macro like this:
+//! The names exported by this crate should *not* be used directly, but through
+//! the `ffi_dispatch` macro, like this:
 //!
 //! ```ignore
 //! ffi_dispatch!(HANDLE_NAME, func_name, arg1, arg2, arg3);
 //! ```
 //!
-//! Where `HANDLE_NAME` is the name of the handle generated if the cargo feature
-//! `dlopen` is on.
+//! Where `HANDLE_NAME` is the name of the handle generated if the cargo feature `dlopen` is on.
 //!
 //! For this to work, you must ensure every needed symbol is in scope (aka the static handle
 //! if `dlopen` is on, the extern function if not). The easiest way to do this is to glob import
@@ -27,9 +26,8 @@
 //! ```
 //!
 //! Each module except `common` corresponds to a system library. They all define a function named
-//! `is_lib_available()` which returns a boolean depending on whether the lib could be loaded.
-//! They always return true if the feature `dlopen` is absent, as the lib is then directly linked.
-
+//! `is_lib_available()` which returns whether the library could be loaded. They always return true
+//! if the feature `dlopen` is absent, as we link against the library directly in that case.
 #![allow(non_camel_case_types)]
 
 // If compiling with neither the `client` or `server` feature (non-sensical but
@@ -50,13 +48,12 @@ extern crate lazy_static;
 #[cfg(feature = "server")]
 extern crate libc;
 
-/// Magic pointer for wayland objects managed by wayland-client or wayland-server
+/// Magic static for wayland objects managed by wayland-client or wayland-server
 ///
-/// This static serves no purpose other than existing, and thus providing a stable pointer
-/// to something we know what it is.
+/// This static serves no purpose other than existing at a stable address.
 ///
 /// It is used internally by wayland-client, wayland-server and wayland-scanner to ensure safety
-/// regarding to wayland objects that are created by some other library.
+/// regarding wayland objects that are created by other libraries.
 pub static RUST_MANAGED: u8 = 42;
 
 pub mod common;

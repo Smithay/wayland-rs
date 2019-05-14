@@ -62,10 +62,10 @@ impl ::std::fmt::Display for ConnectError {
 /// check `Display::protocol_error()` to see if a protocol error was generated.
 #[derive(Clone, Debug)]
 pub struct ProtocolError {
-    /// The error code associated to the error
+    /// The error code associated with the error
     ///
     /// It should be interpreted as an instance of the `Error` enum of the
-    /// associated interface
+    /// associated interface.
     pub code: u32,
     /// The id of the object that caused the error
     pub object_id: u32,
@@ -93,11 +93,10 @@ impl ::std::fmt::Display for ProtocolError {
 
 /// A connection to a wayland server
 ///
-/// This object both represent the connection to the server, and as such
-/// must be kept alive as long as you are connected, and contains the
-/// primary `WlDisplay` wayland object, from which you can create all
-/// your need objects. The inner `Proxy<WlDisplay>` can be accessed via
-/// `Deref`.
+/// This object both represent the connection to the server and contains the
+/// primary `WlDisplay` wayland object. As such, it must be kept alive as long
+/// as you are connected. You can access the contained `WlDisplay` via `Deref`
+/// to create all the objects you need.
 #[derive(Clone)]
 pub struct Display {
     pub(crate) inner: Arc<DisplayInner>,

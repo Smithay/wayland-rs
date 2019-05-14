@@ -19,7 +19,7 @@ impl<I: Interface> Global<I> {
         Global { inner }
     }
 
-    /// Destroy the associated global object.
+    /// Destroys the associated global object.
     pub fn destroy(self) {
         self.inner.destroy()
     }

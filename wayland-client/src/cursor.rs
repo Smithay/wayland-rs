@@ -2,17 +2,17 @@
 //!
 //! This module contains bindings to the `libwayland-cursor.so` library.
 //!
-//! These utilities allows you to load cursor images in order to match
+//! These utilities allow you to load cursor images in order to match
 //! your cursors to the ones of the system.
 //!
 //! First of all, the function `load_theme` will allow you to load a
 //! `CursorTheme`, which represents the full cursor theme.
 //!
-//! From this theme, you can load a specific `Cursor`, which can each
-//! contain several images if the cursor is animated. It provides you
-//! with the means of knowing which frame of the animation should be
-//! displayed at which time, as well as handles to the buffers containing
-//! these frames, to attach them to a wayland surface.
+//! From this theme, you can load a specific `Cursor`, which can contain
+//! several images if the cursor is animated. It also provides you with the
+//! means of querying which frame of the animation should be displayed at
+//! what time, as well as handles to the buffers containing these frames, to
+//! attach them to a wayland surface.
 
 use protocol::wl_buffer::WlBuffer;
 use protocol::wl_shm::WlShm;
@@ -24,9 +24,9 @@ use std::ptr;
 use wayland_sys::cursor::*;
 use Proxy;
 
-/// Checks if the wayland-cursor lib is available and can be used
+/// Checks if the wayland-cursor library is available and can be used
 ///
-/// Trying to call any function of this module if the lib cannot
+/// Trying to call any function of this module if the library cannot
 /// be used will result in a panic.
 pub fn is_available() -> bool {
     is_lib_available()
@@ -39,20 +39,20 @@ pub struct CursorTheme {
 
 unsafe impl Send for CursorTheme {}
 
-/// Attempts to load a cursor theme from given name.
+/// Attempts to load a cursor theme.
 ///
-/// If no name is given or the requested theme is not found, will
-/// load the default theme.
+/// If no name is given or the requested theme is not found, the default theme
+/// will be loaded.
 ///
 /// Other arguments are the requested size for the cursor images (ex: 16)
 /// and a handle to the global `WlShm` object.
 ///
-/// Panics:
+/// # Panics
 ///
-/// - If the `wayland-cursor` lib is not available (see `is_available()` function)
-///   in this module.
-/// - In case of memory allocation failure.
-/// - If the theme name provided as argument contains an interior null
+/// - Panics if the `wayland-cursor` lib is not available
+///   (see `is_available()` function) in this module.
+/// - Panics in case of memory allocation failure.
+/// - Panics if `name` contains an interior null.
 pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
     let ptr = if let Some(theme) = name {
         let cstr = CString::new(theme).expect("Theme name contained an interior null.");
@@ -83,9 +83,11 @@ pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
 }
 
 impl CursorTheme {
-    /// Retrieve a cursor from the theme.
+    /// Retrieves a cursor from the theme.
     ///
     /// Returns `None` if this cursor is not provided by the theme.
+    ///
+    /// # Panics
     ///
     /// Panics if the name contains an interior null.
     pub fn get_cursor(&self, name: &str) -> Option<Cursor> {
@@ -126,33 +128,30 @@ pub struct Cursor<'a> {
 unsafe impl<'a> Send for Cursor<'a> {}
 
 impl<'a> Cursor<'a> {
-    /// Retrieve the name of this cursor.
+    /// Returns the name of this cursor.
     pub fn name(&self) -> String {
         let name = unsafe { CStr::from_ptr((*self.cursor).name) };
         name.to_string_lossy().into_owned()
     }
 
-    /// Retrieve the number of images contained in this
-    /// animated cursor
+    /// Returns the number of images contained in this animated cursor
     pub fn image_count(&self) -> usize {
         let count = unsafe { (*self.cursor).image_count };
         count as usize
     }
 
-    /// Retrieve the image number of cursor animation.
+    /// Returns which frame of an animated cursor should be displayed at a given time.
     ///
-    /// Returns the image number of the animation that should be displayed
-    /// after a given amount of time since the beginning of the animation,
-    /// in milliseconds.
+    /// The time is given in milliseconds after the beginning of the animation.
     pub fn frame(&self, duration: u32) -> usize {
         let frame = unsafe { ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame, self.cursor, duration) };
         frame as usize
     }
 
-    /// Retrieve the image number and its duration.
+    /// Returns the frame number and its remaining duration.
     ///
-    /// Same as `frame()`, but also returns the number of milliseconds this
-    /// frame should still be displayed.
+    /// Same as `frame()`, but also returns the amount of milliseconds this
+    /// frame should continue to be displayed.
     pub fn frame_and_duration(&self, duration: u32) -> (usize, u32) {
         let mut out_duration = 0u32;
         let frame = unsafe {
@@ -167,9 +166,9 @@ impl<'a> Cursor<'a> {
         (frame, out_duration)
     }
 
-    /// Retrieve a `CursorImageBuffer` containing the given image of an animation.
+    /// Returns a `CursorImageBuffer` containing the given image of an animation.
     ///
-    /// It can be used to be attached to a surface as a classic `WlBuffer`.
+    /// It can be attached to a surface as a classic `WlBuffer`.
     ///
     /// Returns `None` if the frame is out of bounds.
     ///
@@ -192,7 +191,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    /// Retrieve the metadata associated with given frame of the animation.
+    /// Returns the metadata associated with a given frame of the animation.
     ///
     /// The tuple contains: `(width, height, hotspot_x, hotspot_y, delay)`
     ///
