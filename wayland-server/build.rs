@@ -10,5 +10,6 @@ fn main() {
     let out_dir_str = var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_str);
 
+    println!("cargo:rerun-if-changed={}", protocol_file);
     generate_code(protocol_file, out_dir.join("wayland_api.rs"), Side::Server);
 }
