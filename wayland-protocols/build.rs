@@ -40,6 +40,8 @@ static WLR_UNSTABLE_PROTOCOLS: &[(&str, &[&str])] = &[
 static MISC_PROTOCOLS: &[&str] = &["gtk-primary-selection"];
 
 fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: bool, server: bool) {
+    println!("cargo:rerun-if-changed={}", protocol_file.display());
+
     if client {
         generate_code(
             &protocol_file,
@@ -57,6 +59,10 @@ fn generate_protocol(name: &str, protocol_file: &Path, out_dir: &Path, client: b
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed-env=CARGO_FEATURE_CLIENT");
+    println!("cargo:rerun-if-changed-env=CARGO_FEATURE_SERVER");
+    println!("cargo:rerun-if-changed-env=CARGO_FEATURE_UNSTABLE_PROTOCOLS");
+
     let out_dir_str = var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir_str);
 
