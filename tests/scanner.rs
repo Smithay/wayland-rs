@@ -112,13 +112,23 @@ fn run_codegen_test(generated_file_path: &Path, expected_output: &str) {
 #[test]
 fn client_code_generation() {
     let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Client);
+    wayland_scanner::generate_code_streams_with_destructor_events(
+        Cursor::new(PROTOCOL.as_bytes()),
+        &mut tempfile,
+        Side::Client,
+        &[("wl_callback", "done")],
+    );
     run_codegen_test(tempfile.path(), CLIENT_CODE_TARGET);
 }
 
 #[test]
 fn server_code_generation() {
     let mut tempfile = tempfile::NamedTempFile::new().unwrap();
-    wayland_scanner::generate_code_streams(Cursor::new(PROTOCOL.as_bytes()), &mut tempfile, Side::Server);
+    wayland_scanner::generate_code_streams_with_destructor_events(
+        Cursor::new(PROTOCOL.as_bytes()),
+        &mut tempfile,
+        Side::Server,
+        &[("wl_callback", "done")],
+    );
     run_codegen_test(tempfile.path(), SERVER_CODE_TARGET);
 }

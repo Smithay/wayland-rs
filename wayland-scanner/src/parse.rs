@@ -25,23 +25,7 @@ macro_rules! extract_end_tag(
 pub fn parse_stream<S: Read>(stream: S) -> Protocol {
     let mut reader = EventReader::new_with_config(stream, ParserConfig::new().trim_whitespace(true));
     reader.next().expect("Could not read from event reader");
-    let mut protocol = parse_protocol(reader);
-
-    // yay, hardcoding things
-    if protocol.name == "wayland" {
-        // wl_callback has actually a destructor *event*, but the wayland specification
-        // format does not handle this.
-        // Luckily, wayland-scanner does, so we inject it
-        for interface in &mut protocol.interfaces {
-            if interface.name == "wl_callback" {
-                let done_event = &mut interface.events[0];
-                assert!(done_event.name == "done");
-                done_event.typ = Some(Type::Destructor);
-            }
-        }
-    }
-
-    protocol
+    parse_protocol(reader)
 }
 
 fn parse_protocol<R: Read>(mut reader: EventReader<R>) -> Protocol {

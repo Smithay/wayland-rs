@@ -118,7 +118,29 @@ fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
 /// - `target`: the path of the file to store the code in.
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, side: Side) {
-    let protocol = load_xml(prot);
+    generate_code_with_destructor_events(prot, target, side, &[]);
+}
+
+/// Generate the code for a protocol with aditionnal destructor events
+///
+/// Same as `generate_code`, but allows you to additionnaly specify some events
+/// (in the format `("interface_name", "event_name")`) as being destructor, as this
+/// information is not encoded in the protocol files.
+pub fn generate_code_with_destructor_events<P1: AsRef<Path>, P2: AsRef<Path>>(
+    prot: P1,
+    target: P2,
+    side: Side,
+    events: &[(&str, &str)],
+) {
+    let mut protocol = load_xml(prot);
+
+    for interface in &mut protocol.interfaces {
+        for event in &mut interface.events {
+            if events.contains(&(&interface.name, &event.name)) {
+                event.typ = Some(::protocol::Type::Destructor);
+            }
+        }
+    }
 
     {
         let mut out = OpenOptions::new()
@@ -139,7 +161,7 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
     let _ = Command::new("rustfmt").arg(target.as_ref()).status();
 }
 
-/// Generate the code for a protocol from/to IO streams using the C system libs
+/// Generate the code for a protocol from/to IO streams
 ///
 /// Like `generate_code`, but takes IO Streams directly rather than filenames
 ///
@@ -149,7 +171,30 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
 /// - `target`: a `Write`-able object to which the generated code will be outputted to
 /// - `side`: the side (client or server) to generate code for.
 pub fn generate_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2, side: Side) {
-    let protocol = parse::parse_stream(protocol);
+    generate_code_streams_with_destructor_events(protocol, target, side, &[])
+}
+
+/// Generate the code for a protocol from/to IO streams with aditionnal destructor events
+///
+/// Same as `generate_code_streams`, but allows you to additionnaly specify some events
+/// (in the format `("interface_name", "event_name")`) as being destructor, as this
+/// information is not encoded in the protocol files.
+pub fn generate_code_streams_with_destructor_events<P1: Read, P2: Write>(
+    protocol: P1,
+    target: &mut P2,
+    side: Side,
+    events: &[(&str, &str)],
+) {
+    let mut protocol = parse::parse_stream(protocol);
+
+    for interface in &mut protocol.interfaces {
+        for event in &mut interface.events {
+            if events.contains(&(&interface.name, &event.name)) {
+                event.typ = Some(::protocol::Type::Destructor);
+            }
+        }
+    }
+
     let output = match side {
         Side::Client => c_code_gen::generate_protocol_client(protocol),
         Side::Server => c_code_gen::generate_protocol_server(protocol),
