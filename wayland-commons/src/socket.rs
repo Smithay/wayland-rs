@@ -53,7 +53,7 @@ impl Socket {
     /// slice `MAX_FDS_OUT` long, otherwise some data of the received message may
     /// be lost.
     pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut [RawFd]) -> NixResult<(usize, usize)> {
-        let mut cmsg = nix::cmsg_space!([RawFd; MAX_FDS_OUT]);
+        let mut cmsg = cmsg_space!([RawFd; MAX_FDS_OUT]);
         let iov = [uio::IoVec::from_mut_slice(buffer)];
 
         let msg = socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
