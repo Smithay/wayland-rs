@@ -61,14 +61,13 @@ impl Socket {
         let mut fd_count = 0;
         let received_fds = msg.cmsgs().flat_map(|cmsg| {
             match cmsg {
-                socket::ControlMessage::ScmRights(s) => s,
-                _ => &[],
+                socket::ControlMessageOwned::ScmRights(s) => s,
+                _ => Vec::new(),
             }
-            .iter()
         });
         for (fd, place) in received_fds.zip(fds.iter_mut()) {
             fd_count += 1;
-            *place = *fd;
+            *place = fd;
         }
         Ok((msg.bytes, fd_count))
     }

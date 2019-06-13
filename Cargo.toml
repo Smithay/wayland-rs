@@ -16,7 +16,7 @@ lazycell = "=1.0.0"
 [dev-dependencies]
 difference = "2.0"
 tempfile = ">=2.0, <4.0"
-nix = "0.13"
+nix = "0.14.1"
 calloop = "0.4.2"
 
 [workspace]
