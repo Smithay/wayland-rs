@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.4 -- 2019-06-13
+
 #### Additions
 
 - [scanner] Added `generate_code_with_destructor_events` allowing to patch the protocol file by specifying
