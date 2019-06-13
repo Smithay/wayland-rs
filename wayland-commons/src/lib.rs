@@ -15,6 +15,7 @@
 
 #![warn(missing_docs)]
 
+#[macro_use]
 extern crate nix;
 extern crate wayland_sys;
 use std::os::raw::c_void;
