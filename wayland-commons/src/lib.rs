@@ -15,6 +15,7 @@
 
 #![warn(missing_docs)]
 
+#[macro_use]
 extern crate nix;
 #[cfg(feature = "native_lib")]
 extern crate wayland_sys;

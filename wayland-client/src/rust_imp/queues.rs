@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use nix::poll::{poll, EventFlags, PollFd};
+use nix::poll::{poll, PollFlags, PollFd};
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::utils::UserData;
@@ -63,7 +63,7 @@ impl EventQueueInner {
                     Ok(_) => break,
                     Err(::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
                         // EAGAIN, we need to wait before writing, so we poll the socket
-                        let poll_ret = poll(&mut [PollFd::new(socket_fd, EventFlags::POLLOUT)], -1);
+                        let poll_ret = poll(&mut [PollFd::new(socket_fd, PollFlags::POLLOUT)], -1);
                         match poll_ret {
                             Ok(_) => continue,
                             Err(::nix::Error::Sys(e)) => {
@@ -87,7 +87,7 @@ impl EventQueueInner {
         }
 
         // wait for incoming messages to arrive
-        match poll(&mut [PollFd::new(socket_fd, EventFlags::POLLIN)], -1) {
+        match poll(&mut [PollFd::new(socket_fd, PollFlags::POLLIN)], -1) {
             Ok(_) => (),
             Err(::nix::Error::Sys(e)) => {
                 self.cancel_read();
