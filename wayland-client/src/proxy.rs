@@ -402,7 +402,7 @@ impl<I: Interface + 'static> NewProxy<I> {
         I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
-        self.implement_closure(|_, _| (), ())
+        self.implement_closure_threadsafe(|_, _| (), ())
     }
 
     /// Implement this proxy using the given handler and implementation data.
