@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.23.6 -- 2019-06-16
+
+- [client/server] Make `NewProxy/NewResource::implement_dummy()` threadsafe.
+
 ## 0.23.5 -- 2019-06-13
 
 - Update `nix` dependency to 0.14

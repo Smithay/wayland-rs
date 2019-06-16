@@ -320,7 +320,7 @@ impl<I: Interface + 'static> NewResource<I> {
         I: From<Resource<I>>,
         I::Request: MessageGroup<Map = ::imp::ResourceMap>,
     {
-        self.implement_closure(|_, _| (), None::<fn(_)>, ())
+        self.implement_closure_threadsafe(|_, _| (), None::<fn(_)>, ())
     }
 
     /// Implement this resource using a handler, destructor and user data.
