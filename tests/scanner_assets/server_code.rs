@@ -261,7 +261,7 @@ pub mod wl_foo {
                 Event::Cake { kind, amount } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: smallvec![Argument::Uint(kind.to_raw()), Argument::Uint(amount)],
+                    args: smallvec![Argument::Uint(kind.to_raw()), Argument::Uint(amount),],
                 },
             }
         }
@@ -1031,7 +1031,7 @@ pub mod wl_callback {
                 Event::Done { callback_data } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: smallvec![Argument::Uint(callback_data)],
+                    args: smallvec![Argument::Uint(callback_data),],
                 },
             }
         }

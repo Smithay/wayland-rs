@@ -143,7 +143,7 @@ pub mod wl_foo {
                 Request::CreateBar { id } => Message {
                     sender_id: sender_id,
                     opcode: 1,
-                    args: smallvec![Argument::NewId(id.as_ref().id())],
+                    args: smallvec![Argument::NewId(id.as_ref().id()),],
                 },
             }
         }
