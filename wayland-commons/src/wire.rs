@@ -87,7 +87,7 @@ pub struct Message {
     /// Opcode of the message
     pub opcode: u16,
     /// Arguments of the message
-    pub args: SmallVec::<[Argument; STACK_ARGS]>,
+    pub args: SmallVec<[Argument; STACK_ARGS]>,
 }
 
 /// Error generated when trying to serialize a message into buffers
