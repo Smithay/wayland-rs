@@ -18,8 +18,7 @@
 #[macro_use]
 extern crate nix;
 extern crate wayland_sys;
-#[macro_use]
-extern crate smallvec;
+#[cfg_attr(test, macro_use)] extern crate smallvec;
 use std::os::raw::c_void;
 use wayland_sys::common as syscom;
 
