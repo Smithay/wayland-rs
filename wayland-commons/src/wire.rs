@@ -8,6 +8,9 @@ use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
 use smallvec::SmallVec;
 
+/// How many message arguments to store on stack
+pub const STACK_ARGS: usize = 4;
+
 /// Wire metadata of a given message
 pub struct MessageDesc {
     /// Name of this message
@@ -84,7 +87,7 @@ pub struct Message {
     /// Opcode of the message
     pub opcode: u16,
     /// Arguments of the message
-    pub args: SmallVec::<[Argument; 4]>,
+    pub args: SmallVec::<[Argument; STACK_ARGS]>,
 }
 
 /// Error generated when trying to serialize a message into buffers
