@@ -19,7 +19,7 @@ dist: trusty
 sudo: false
 
 rust:
-  - 1.21.0
+  - 1.24.0
   - stable
   - beta
 
@@ -80,7 +80,7 @@ before_script:
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       fi
   - |
-      if [ "$TRAVIS_RUST_VERSION" == "1.21.0" ]; then
+      if [ "$TRAVIS_RUST_VERSION" == "1.24.0" ]; then
         # create a Cargo.lock, and then fix dependencies that cannot build on
         # rust 1.21.0
         cargo update

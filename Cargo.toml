@@ -11,7 +11,7 @@ wayland-client = { path = "./wayland-client", default-features = false, features
 wayland-server = { path = "./wayland-server", default-features = false }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server"] }
 wayland-sys = { path = "./wayland-sys" }
-lazycell = "=1.0.0"
+lazycell = "1.0.0"
 smallvec = "0.6"
 
 [dev-dependencies]
