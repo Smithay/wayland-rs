@@ -26,6 +26,8 @@ extern crate wayland_commons;
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate smallvec;
 
 #[macro_use]
 mod protocol_macro;
