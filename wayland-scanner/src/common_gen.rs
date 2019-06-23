@@ -595,7 +595,7 @@ pub(crate) fn gen_messagegroup(
             quote!(#pattern => Message {
                 sender_id: sender_id,
                 opcode: #opcode_value,
-                args: vec![
+                args: smallvec![
                     #(#args_values,)*
                 ],
             })

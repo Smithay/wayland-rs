@@ -79,6 +79,8 @@ pub extern crate calloop;
 #[cfg(not(feature = "native_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
+#[macro_use]
+extern crate smallvec;
 extern crate libc;
 extern crate mio;
 extern crate nix;

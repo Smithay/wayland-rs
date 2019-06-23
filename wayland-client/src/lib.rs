@@ -120,6 +120,8 @@ extern crate bitflags;
 extern crate downcast_rs as downcast;
 extern crate libc;
 extern crate nix;
+#[macro_use]
+extern crate smallvec;
 
 #[cfg(feature = "eventloop")]
 extern crate calloop;

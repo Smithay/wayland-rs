@@ -464,7 +464,7 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
                 Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
@@ -517,7 +517,7 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Fd(1), // stdin
                 Argument::Fd(0), // stdout
             ],
@@ -558,7 +558,7 @@ mod tests {
             Message {
                 sender_id: 42,
                 opcode: 0,
-                args: vec![
+                args: smallvec![
                     Argument::Int(42),
                     Argument::Str(CString::new(&b"I like trains"[..]).unwrap()),
                 ],
@@ -566,7 +566,7 @@ mod tests {
             Message {
                 sender_id: 42,
                 opcode: 1,
-                args: vec![
+                args: smallvec![
                     Argument::Fd(1), // stdin
                     Argument::Fd(0), // stdout
                 ],
@@ -574,7 +574,7 @@ mod tests {
             Message {
                 sender_id: 42,
                 opcode: 2,
-                args: vec![
+                args: smallvec![
                     Argument::Uint(3),
                     Argument::Fd(2), // stderr
                 ],
@@ -626,7 +626,7 @@ mod tests {
         let msg = Message {
             sender_id: 2,
             opcode: 0,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(18),
                 Argument::Str(CString::new(&b"wl_shell"[..]).unwrap()),
                 Argument::Uint(1),

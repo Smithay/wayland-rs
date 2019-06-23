@@ -94,7 +94,7 @@ impl ClientConnection {
             self.write_message(&Message {
                 sender_id: 1,
                 opcode: 1,
-                args: vec![Argument::Uint(id)],
+                args: smallvec![Argument::Uint(id)],
             })
         } else {
             Ok(())
@@ -271,7 +271,7 @@ impl ClientInner {
             let _ = data.write_message(&Message {
                 sender_id: 1,
                 opcode: 0,
-                args: vec![
+                args: smallvec![
                     Argument::Object(object),
                     Argument::Uint(error_code),
                     Argument::Str(CString::new(msg).unwrap()),

@@ -6,6 +6,7 @@ use std::ptr;
 
 use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
+use smallvec::SmallVec;
 
 /// Wire metadata of a given message
 pub struct MessageDesc {
@@ -83,7 +84,7 @@ pub struct Message {
     /// Opcode of the message
     pub opcode: u16,
     /// Arguments of the message
-    pub args: Vec<Argument>,
+    pub args: SmallVec::<[Argument; 4]>,
 }
 
 /// Error generated when trying to serialize a message into buffers
@@ -314,7 +315,7 @@ impl Message {
                     Err(MessageParseError::MissingData)
                 }
             })
-            .collect::<Result<Vec<_>, MessageParseError>>()?;
+            .collect::<Result<SmallVec<_>, MessageParseError>>()?;
 
         let msg = Message {
             sender_id,
@@ -397,7 +398,7 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
                 Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
