@@ -4,7 +4,7 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
 extern crate nix;
 extern crate wayland_commons as wc;
-extern crate smallvec;
+#[macro_use] extern crate smallvec;
 
 use wc::socket::{BufferedSocket, Socket};
 use wc::wire::{Argument, Message};
