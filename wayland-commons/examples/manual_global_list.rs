@@ -1,4 +1,5 @@
 extern crate wayland_commons as wc;
+#[macro_use] extern crate smallvec;
 
 use std::env;
 use std::os::unix::io::{FromRawFd, IntoRawFd};
@@ -20,7 +21,7 @@ fn main() {
         .write_message(&Message {
             sender_id: 1, // wl_display
             opcode: 1,    // get registry
-            args: vec![
+            args: smallvec![
                 Argument::NewId(2), // id of the created registry
             ],
         })
