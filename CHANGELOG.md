@@ -3,6 +3,8 @@
 ## Unreleased
 
 - [client/server] Make `NewProxy/NewResource::implement_dummy()` threadsafe.
+- [client/server] Add new `NewProxy/NewResource::implement*_user_data_threadsafe()` functions
+  to mix thread unsafe implementations with threadsafe user data.
 
 ## 0.23.5 -- 2019-06-13
 

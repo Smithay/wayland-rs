@@ -267,6 +267,9 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This must be called from the thread hosting the wayland event loop, otherwise
     /// it will panic.
+    ///
+    /// If you want the user data to be accessed from other threads,
+    /// see `implement_user_data_threadsafe`.
     pub fn implement<T, Dest, UD>(self, mut handler: T, destructor: Option<Dest>, user_data: UD) -> I
     where
         T: 'static,
@@ -284,6 +287,9 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This must be called from the thread hosting the wayland event loop, otherwise
     /// it will panic.
+    ///
+    /// If you want the user data to be accessed from other threads,
+    /// see `implement_closure_user_data_threadsafe`.
     pub fn implement_closure<F, Dest, UD>(
         self,
         implementation: F,
@@ -371,6 +377,60 @@ impl<I: Interface + 'static> NewResource<I> {
                 destructor,
                 UserData::new_threadsafe(user_data),
             )
+        };
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
+        .into()
+    }
+
+    /// Implement this resource using a handler, destructor and user data.
+    ///
+    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
+    /// interface.
+    ///
+    /// This must be called from the thread hosting the wayland event loop, otherwise
+    /// it will panic. However the user data can be accessed from other threads.
+    pub fn implement_user_data_threadsafe<T, Dest, UD>(self, mut handler: T, destructor: Option<Dest>, user_data: UD) -> I
+    where
+        T: 'static,
+        Dest: FnMut(I) + 'static,
+        UD: Send + Sync + 'static,
+        I: HandledBy<T> + From<Resource<I>>,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
+
+        self.implement_closure_user_data_threadsafe(implementation, destructor, user_data)
+    }
+
+    /// Implement this resource using given function, destructor, and user data.
+    ///
+    /// This must be called from the thread hosting the wayland event loop, otherwise
+    /// it will panic. However the user data can be accessed from other threads.
+    pub fn implement_closure_user_data_threadsafe<F, Dest, UD>(
+        self,
+        implementation: F,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> I
+    where
+        F: FnMut(I::Request, I) + 'static,
+        Dest: FnMut(I) + 'static,
+        UD: Send + Sync + 'static,
+        I: From<Resource<I>>,
+        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
+    {
+        #[cfg(not(feature = "native_lib"))]
+        {
+            if !self.inner.is_loop_on_current_thread() {
+                panic!("Attempted to implement a resource from an other thread than the one hosting the event loop.");
+            }
+        }
+        let inner = unsafe {
+            self.inner
+                .implement::<I, F, Dest>(implementation, destructor, UserData::new_threadsafe(user_data))
         };
         Resource {
             _i: ::std::marker::PhantomData,
