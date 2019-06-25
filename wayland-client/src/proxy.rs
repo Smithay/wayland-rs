@@ -355,7 +355,10 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// new proxy is attached to and will panic otherwise. A proxy by default inherits
     /// the event queue of its parent object.
     ///
-    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`
+    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`.
+    ///
+    /// If you want the user data to be accessed from other threads,
+    /// see `implement_user_data_threadsafe`.
     pub fn implement<T, UD>(self, mut handler: T, user_data: UD) -> I
     where
         T: 'static,
@@ -374,7 +377,10 @@ impl<I: Interface + 'static> NewProxy<I> {
     /// new proxy is attached to and will panic otherwise. A proxy by default inherits
     /// the event queue of its parent object.
     ///
-    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`
+    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`.
+    ///
+    /// If you want the user data to be accessed from other threads,
+    /// see `implement_closure_user_data_threadsafe`.
     pub fn implement_closure<F, UD>(self, implementation: F, user_data: UD) -> I
     where
         F: FnMut(I::Event, I) + 'static,
@@ -434,6 +440,49 @@ impl<I: Interface + 'static> NewProxy<I> {
         I: From<Proxy<I>>,
         I::Event: MessageGroup<Map = ProxyMap>,
     {
+        let inner = unsafe {
+            self.inner
+                .implement::<I, _>(implementation, UserData::new_threadsafe(user_data))
+        };
+        Proxy {
+            _i: ::std::marker::PhantomData,
+            inner,
+        }
+        .into()
+    }
+
+    /// Implement this proxy using the given handler and implementation data.
+    ///
+    /// This must be called from the same thread as the one owning the event queue this
+    /// new proxy is attached to and will panic otherwise. However the user data
+    /// may be accessed from other threads.
+    pub fn implement_user_data_threadsafe<T, UD>(self, mut handler: T, user_data: UD) -> I
+    where
+        T: 'static,
+        UD: Send + Sync + 'static,
+        I: HandledBy<T> + From<Proxy<I>>,
+        I::Event: MessageGroup<Map = ProxyMap>,
+    {
+        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
+
+        self.implement_closure_user_data_threadsafe(implementation, user_data)
+    }
+
+    /// Implement this proxy using the given closure and implementation data.
+    ///
+    /// This must be called from the same thread as the one owning the event queue this
+    /// new proxy is attached to and will panic otherwise. However the user data
+    /// may be accessed from other threads.
+    pub fn implement_closure_user_data_threadsafe<F, UD>(self, implementation: F, user_data: UD) -> I
+    where
+        F: FnMut(I::Event, I) + 'static,
+        UD: Send + Sync + 'static,
+        I: From<Proxy<I>>,
+        I::Event: MessageGroup<Map = ProxyMap>,
+    {
+        if !self.inner.is_queue_on_current_thread() {
+            panic!("Trying to implement a proxy with a non-Send implementation from an other thread than the one of its event queue.");
+        }
         let inner = unsafe {
             self.inner
                 .implement::<I, _>(implementation, UserData::new_threadsafe(user_data))
