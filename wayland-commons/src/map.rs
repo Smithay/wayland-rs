@@ -1,6 +1,6 @@
 //! Wayland objects map
 
-use {Interface, MessageGroup, NoMessage};
+use crate::{Interface, MessageGroup, NoMessage};
 
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF00_0000;
@@ -26,9 +26,9 @@ pub struct Object<Meta: ObjectMetadata> {
     /// Version of this object
     pub version: u32,
     /// Description of the requests of this object
-    pub requests: &'static [::wire::MessageDesc],
+    pub requests: &'static [crate::wire::MessageDesc],
     /// Description of the events of this object
-    pub events: &'static [::wire::MessageDesc],
+    pub events: &'static [crate::wire::MessageDesc],
     /// Metadata associated to this object (ex: its event queue client side)
     pub meta: Meta,
     /// A function which, from an opcode, a version, and the Meta, creates a child
