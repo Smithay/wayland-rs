@@ -17,7 +17,7 @@
 
 #[macro_use]
 extern crate nix;
-extern crate wayland_sys;
+
 use std::os::raw::c_void;
 use wayland_sys::common as syscom;
 
@@ -53,7 +53,7 @@ pub trait MessageGroup: Sized {
         opcode: u16,
         version: u32,
         meta: &Meta,
-    ) -> Option<::map::Object<Meta>>;
+    ) -> Option<crate::map::Object<Meta>>;
     /// Construct a message from its raw representation
     fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
     /// Turn this message into its raw representation
@@ -96,7 +96,7 @@ pub trait Interface: 'static {
     /// ones the server supports.
     const VERSION: u32;
     /// Pointer to the C representation of this interface
-    fn c_interface() -> *const ::syscom::wl_interface;
+    fn c_interface() -> *const syscom::wl_interface;
 }
 
 /// An empty enum representing a MessageGroup with no messages
@@ -115,7 +115,7 @@ impl MessageGroup for NoMessage {
     fn since(&self) -> u32 {
         match *self {}
     }
-    fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<::map::Object<M>> {
+    fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<crate::map::Object<M>> {
         None
     }
     fn from_raw(_: wire::Message, _: &mut ()) -> Result<Self, ()> {

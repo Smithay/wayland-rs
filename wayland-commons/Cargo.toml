@@ -6,6 +6,7 @@ repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://smithay.github.io/wayland-rs/wayland_commons/"
 description = "Common types and structures used by wayland-client and wayland-server."
 license = "MIT"
+edition = "2018"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland"]
 
@@ -15,4 +16,4 @@ travis-ci = { repository = "Smithay/wayland-rs" }
 [dependencies]
 wayland-sys = { version = "0.23.6", path = "../wayland-sys" }
 nix = "0.14.1"
-
+spin = "0.5"

@@ -1,5 +1,7 @@
 //! Various utilities used for other implementations
 
+use spin::Once;
+
 use std::any::Any;
 use std::thread::{self, ThreadId};
 
@@ -8,13 +10,12 @@ use self::list::AppendList;
 /// A wrapper for user data, able to store any type, and correctly
 /// handling access from a wrong thread
 pub struct UserData {
-    inner: UserDataInner,
+    inner: Once<UserDataInner>,
 }
 
 enum UserDataInner {
-    ThreadSafe(Box<Any + Send + Sync + 'static>),
-    NonThreadSafe(Box<Any + 'static>, ThreadId),
-    Empty,
+    ThreadSafe(Box<dyn Any + Send + Sync + 'static>),
+    NonThreadSafe(Box<dyn Any + 'static>, ThreadId),
 }
 
 // UserData itself is always threadsafe, as it only gives access to its
@@ -23,30 +24,26 @@ unsafe impl Send for UserData {}
 unsafe impl Sync for UserData {}
 
 impl UserData {
-    /// Create a new `UserData` using a threadsafe type
-    ///
-    /// Its contents can be accessed from any thread.
-    pub fn new_threadsafe<T: Send + Sync + 'static>(value: T) -> UserData {
-        UserData {
-            inner: UserDataInner::ThreadSafe(Box::new(value)),
-        }
+    /// Create a new UserData instance
+    pub fn new() -> UserData {
+        UserData { inner: Once::new() }
     }
 
-    /// Create a new `UserData` using a non-threadsafe type
+    /// Sets the UserData to a given value
     ///
-    /// Its contents can only be accessed from the same thread as the one you
-    /// are creating it.
-    pub fn new<T: 'static>(value: T) -> UserData {
-        UserData {
-            inner: UserDataInner::NonThreadSafe(Box::new(value), thread::current().id()),
-        }
+    /// The provided closure is called to init the UserData,
+    /// does nothing is the UserData had already been set.
+    pub fn set<T: Any + 'static, F: FnOnce() -> T>(&self, f: F) {
+        self.inner
+            .call_once(|| UserDataInner::NonThreadSafe(Box::new(f()), thread::current().id()));
     }
 
-    /// Create a new `UserData` containing nothing
-    pub fn empty() -> UserData {
-        UserData {
-            inner: UserDataInner::Empty,
-        }
+    /// Sets the UserData to a given threadsafe value
+    ///
+    /// The provided closure is called to init the UserData,
+    /// does nothing is the UserData had already been set.
+    pub fn set_threadsafe<T: Any + Send + Sync + 'static, F: FnOnce() -> T>(&self, f: F) {
+        self.inner.call_once(|| UserDataInner::ThreadSafe(Box::new(f())));
     }
 
     /// Attempt to access the wrapped user data
@@ -57,9 +54,9 @@ impl UserData {
     /// - This `UserData` has been created using the non-threadsafe variant and access
     ///   is attempted from an other thread than the one it was created on
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        match self.inner {
-            UserDataInner::ThreadSafe(ref val) => Any::downcast_ref::<T>(&**val),
-            UserDataInner::NonThreadSafe(ref val, threadid) => {
+        match self.inner.wait() {
+            Some(&UserDataInner::ThreadSafe(ref val)) => Any::downcast_ref::<T>(&**val),
+            Some(&UserDataInner::NonThreadSafe(ref val, threadid)) => {
                 // only give access if we are on the right thread
                 if threadid == thread::current().id() {
                     Any::downcast_ref::<T>(&**val)
@@ -67,29 +64,7 @@ impl UserData {
                     None
                 }
             }
-            UserDataInner::Empty => None,
-        }
-    }
-
-    /// Attempt to mutably access the wrapped user data
-    ///
-    /// Will return `None` if either:
-    ///
-    /// - The requested type `T` does not match the type used for construction
-    /// - This `UserData` has been created using the non-threadsafe variant and access
-    ///   is attempted from an other thread than the one it was created on
-    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        match self.inner {
-            UserDataInner::ThreadSafe(ref mut val) => Any::downcast_mut::<T>(&mut **val),
-            UserDataInner::NonThreadSafe(ref mut val, threadid) => {
-                // only give access if we are on the right thread
-                if threadid == thread::current().id() {
-                    Any::downcast_mut::<T>(&mut **val)
-                } else {
-                    None
-                }
-            }
-            UserDataInner::Empty => None,
+            None => None,
         }
     }
 }
@@ -121,19 +96,6 @@ impl UserDataMap {
         None
     }
 
-    /// Attempt to mutably access the wrapped user data of a given type
-    ///
-    /// Will return `None` if no value of type `T` is stored in this `UserDataMap`
-    /// and accessible from this thread
-    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        for user_data in &mut self.list {
-            if let Some(val) = user_data.get_mut::<T>() {
-                return Some(val);
-            }
-        }
-        None
-    }
-
     /// Insert a value in the map if it is not already there
     ///
     /// This is the non-threadsafe variant, the type you insert don't have to be
@@ -147,7 +109,9 @@ impl UserDataMap {
         if self.get::<T>().is_some() {
             return false;
         }
-        self.list.append(UserData::new(init()));
+        let data = UserData::new();
+        data.set(init);
+        self.list.append(data);
         true
     }
 
@@ -163,7 +127,9 @@ impl UserDataMap {
         if self.get::<T>().is_some() {
             return false;
         }
-        self.list.append(UserData::new_threadsafe(init()));
+        let data = UserData::new();
+        data.set_threadsafe(init);
+        self.list.append(data);
         true
     }
 }

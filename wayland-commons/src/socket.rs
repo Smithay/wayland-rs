@@ -2,11 +2,12 @@
 
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 
-use nix::sys::socket;
-use nix::sys::uio;
-use nix::Result as NixResult;
+use nix::{
+    sys::{socket, uio},
+    Result as NixResult,
+};
 
-use wire::{ArgumentType, Message, MessageParseError, MessageWriteError};
+use crate::wire::{ArgumentType, Message, MessageParseError, MessageWriteError};
 
 /// Maximum number of FD that can be sent in a single socket message
 pub const MAX_FDS_OUT: usize = 28;
@@ -59,11 +60,9 @@ impl Socket {
         let msg = socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
 
         let mut fd_count = 0;
-        let received_fds = msg.cmsgs().flat_map(|cmsg| {
-            match cmsg {
-                socket::ControlMessageOwned::ScmRights(s) => s,
-                _ => Vec::new(),
-            }
+        let received_fds = msg.cmsgs().flat_map(|cmsg| match cmsg {
+            socket::ControlMessageOwned::ScmRights(s) => s,
+            _ => Vec::new(),
         });
         for (fd, place) in received_fds.zip(fds.iter_mut()) {
             fd_count += 1;
