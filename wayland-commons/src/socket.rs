@@ -431,7 +431,7 @@ impl<T: Copy + Default> Buffer<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wire::{Argument, ArgumentType, Message};
+    use crate::wire::{Argument, ArgumentType, Message};
 
     use std::ffi::CString;
 

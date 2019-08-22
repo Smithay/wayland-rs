@@ -21,10 +21,11 @@ extern crate nix;
 use std::os::raw::c_void;
 use wayland_sys::common as syscom;
 
+pub mod filter;
 pub mod map;
 pub mod sinks;
 pub mod socket;
-pub mod utils;
+pub mod user_data;
 pub mod wire;
 
 /// A group of messages
