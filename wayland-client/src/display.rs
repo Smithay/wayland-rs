@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use nix::fcntl;
 
-use EventQueue;
+use crate::EventQueue;
 
-use imp::DisplayInner;
+use crate::imp::DisplayInner;
 
 #[cfg(feature = "native_lib")]
 use wayland_sys::client::wl_display;
@@ -238,8 +238,8 @@ impl Display {
 }
 
 impl Deref for Display {
-    type Target = ::protocol::wl_display::WlDisplay;
-    fn deref(&self) -> &::protocol::wl_display::WlDisplay {
+    type Target = crate::protocol::wl_display::WlDisplay;
+    fn deref(&self) -> &crate::protocol::wl_display::WlDisplay {
         self.inner.get_proxy()
     }
 }

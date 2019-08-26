@@ -392,7 +392,12 @@ impl<I: Interface + 'static> NewResource<I> {
     ///
     /// This must be called from the thread hosting the wayland event loop, otherwise
     /// it will panic. However the user data can be accessed from other threads.
-    pub fn implement_user_data_threadsafe<T, Dest, UD>(self, mut handler: T, destructor: Option<Dest>, user_data: UD) -> I
+    pub fn implement_user_data_threadsafe<T, Dest, UD>(
+        self,
+        mut handler: T,
+        destructor: Option<Dest>,
+        user_data: UD,
+    ) -> I
     where
         T: 'static,
         Dest: FnMut(I) + 'static,
@@ -429,8 +434,11 @@ impl<I: Interface + 'static> NewResource<I> {
             }
         }
         let inner = unsafe {
-            self.inner
-                .implement::<I, F, Dest>(implementation, destructor, UserData::new_threadsafe(user_data))
+            self.inner.implement::<I, F, Dest>(
+                implementation,
+                destructor,
+                UserData::new_threadsafe(user_data),
+            )
         };
         Resource {
             _i: ::std::marker::PhantomData,

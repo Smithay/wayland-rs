@@ -132,14 +132,14 @@ extern crate wayland_sys;
 
 mod display;
 mod event_queue;
-mod globals;
+//mod globals;
 mod proxy;
 
 pub use display::{ConnectError, Display, ProtocolError};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
-pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
+//pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
 pub use imp::ProxyMap;
-pub use proxy::{HandledBy, NewProxy, Proxy};
+pub use proxy::{AttachedProxy, MainProxy, Proxy};
 
 #[cfg(feature = "cursor")]
 pub mod cursor;
@@ -147,10 +147,10 @@ pub mod cursor;
 #[cfg(feature = "egl")]
 pub mod egl;
 
-pub mod sinks;
+//pub mod sinks;
 
 pub use anonymous_object::AnonymousObject;
-pub use wayland_commons::{Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{filter::Filter, user_data::UserData, Interface, MessageGroup, NoMessage};
 
 // rust implementation
 #[cfg(not(feature = "native_lib"))]
@@ -175,11 +175,11 @@ pub mod protocol {
     #![allow(missing_docs)]
     #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
+    pub(crate) use crate::{AnonymousObject, AttachedProxy, MainProxy, Proxy, ProxyMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
     pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
     pub(crate) use wayland_commons::{Interface, MessageGroup};
     pub(crate) use wayland_sys as sys;
-    pub(crate) use {AnonymousObject, HandledBy, NewProxy, Proxy, ProxyMap};
     include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
 }
 
@@ -198,7 +198,7 @@ mod anonymous_object {
         type Event = NoMessage;
         const NAME: &'static str = "<anonymous>";
         const VERSION: u32 = 0;
-        fn c_interface() -> *const ::sys::common::wl_interface {
+        fn c_interface() -> *const crate::sys::common::wl_interface {
             ::std::ptr::null()
         }
     }
@@ -220,81 +220,5 @@ mod anonymous_object {
         fn from(value: AnonymousObject) -> Self {
             value.0
         }
-    }
-}
-
-#[cfg(feature = "eventloop")]
-impl ::mio::event::Evented for EventQueue {
-    fn register(
-        &self,
-        poll: &::mio::Poll,
-        token: ::mio::Token,
-        interest: ::mio::Ready,
-        opts: ::mio::PollOpt,
-    ) -> ::std::io::Result<()> {
-        let fd = self.inner.get_connection_fd();
-        ::mio::unix::EventedFd(&fd).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &::mio::Poll,
-        token: ::mio::Token,
-        interest: ::mio::Ready,
-        opts: ::mio::PollOpt,
-    ) -> ::std::io::Result<()> {
-        let fd = self.inner.get_connection_fd();
-        ::mio::unix::EventedFd(&fd).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &::mio::Poll) -> ::std::io::Result<()> {
-        let fd = self.inner.get_connection_fd();
-        ::mio::unix::EventedFd(&fd).deregister(poll)
-    }
-}
-
-#[cfg(feature = "eventloop")]
-impl ::calloop::EventSource for EventQueue {
-    type Event = ();
-
-    fn interest(&self) -> ::mio::Ready {
-        ::mio::Ready::readable()
-    }
-
-    fn pollopts(&self) -> ::mio::PollOpt {
-        ::mio::PollOpt::edge()
-    }
-
-    fn make_dispatcher<Data: 'static, F: FnMut((), &mut Data) + 'static>(
-        &self,
-        _callback: F,
-    ) -> ::std::rc::Rc<::std::cell::RefCell<::calloop::EventDispatcher<Data>>> {
-        struct Dispatcher {
-            inner: ::std::rc::Rc<::imp::EventQueueInner>,
-        }
-
-        impl<Data> ::calloop::EventDispatcher<Data> for Dispatcher {
-            fn ready(&mut self, _ready: ::mio::Ready, _data: &mut Data) {
-                if let Err(()) = self.inner.prepare_read() {
-                    self.inner.dispatch_pending().unwrap();
-                } else {
-                    match self.inner.read_events() {
-                        Ok(_) => {
-                            self.inner.dispatch_pending().unwrap();
-                        }
-                        Err(e) => match e.kind() {
-                            ::std::io::ErrorKind::WouldBlock => {}
-                            _ => {
-                                panic!("Failed to read from wayland socket: {}", e);
-                            }
-                        },
-                    }
-                }
-            }
-        }
-
-        ::std::rc::Rc::new(::std::cell::RefCell::new(Dispatcher {
-            inner: self.inner.clone(),
-        }))
     }
 }

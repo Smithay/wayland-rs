@@ -5,10 +5,10 @@ use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use nix::poll::{poll, PollFlags, PollFd};
+use nix::poll::{poll, PollFd, PollFlags};
 
 use wayland_commons::map::ObjectMap;
-use wayland_commons::utils::UserData;
+use wayland_commons::user_data::UserData;
 use wayland_commons::wire::{Argument, Message};
 
 use super::connection::{Connection, Error as CError};
@@ -181,9 +181,9 @@ impl EventQueueInner {
     }
 
     pub(crate) fn sync_roundtrip(&self) -> io::Result<u32> {
-        use protocol::wl_callback::{Event as CbEvent, WlCallback};
-        use protocol::wl_display::WlDisplay;
-        use Proxy;
+        use crate::protocol::wl_callback::{Event as CbEvent, WlCallback};
+        use crate::protocol::wl_display::WlDisplay;
+        use crate::Proxy;
         // first retrieve the display and make a wrapper for it in this event queue
         let display: WlDisplay = Proxy::wrap(
             ProxyInner::from_id(1, self.map.clone(), self.connection.clone())
@@ -203,7 +203,7 @@ impl EventQueueInner {
                             done2.set(true);
                         }
                     },
-                    UserData::empty(),
+                    UserData::new(),
                 )
             })
             .into()

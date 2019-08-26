@@ -1,7 +1,7 @@
 use std::io;
 use std::rc::Rc;
 
-use imp::EventQueueInner;
+use crate::imp::EventQueueInner;
 
 /// An event queue for protocol messages
 ///

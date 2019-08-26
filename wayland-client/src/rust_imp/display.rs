@@ -2,15 +2,16 @@ use std::io;
 use std::os::unix::io::RawFd;
 use std::sync::{Arc, Mutex};
 
+use wayland_commons::filter::Filter;
 use wayland_commons::map::Object;
-use wayland_commons::utils::UserData;
+use wayland_commons::user_data::UserData;
 
-use protocol::wl_display::{self, WlDisplay};
+use crate::protocol::wl_display::{self, WlDisplay};
 
-use {ConnectError, ProtocolError, Proxy};
+use crate::{ConnectError, ProtocolError, Proxy};
 
 use super::connection::{Connection, Error as CxError};
-use super::proxy::{NewProxyInner, ObjectMeta};
+use super::proxy::{ObjectMeta, ProxyInner};
 use super::EventQueueInner;
 
 pub(crate) struct DisplayInner {
@@ -29,55 +30,52 @@ impl DisplayInner {
             (Arc::new(Mutex::new(c)), m)
         };
 
-        let display_newproxy = NewProxyInner::from_id(1, map.clone(), connection.clone()).unwrap();
+        let display_proxy = ProxyInner::from_id(1, map.clone(), connection.clone()).unwrap();
 
         // give access to the map to the display impl
         let impl_map = map;
         let impl_last_error = connection.lock().unwrap().last_error.clone();
         // our implementation is Send, we are safe
-        let display_proxy = display_newproxy.implement::<WlDisplay, _>(
-            move |event, _| match event {
-                wl_display::Event::Error {
-                    object_id,
+        display_proxy.assign::<WlDisplay, _>(Filter::new(move |(_, event)| match event {
+            wl_display::Event::Error {
+                object_id,
+                code,
+                message,
+            } => {
+                eprintln!(
+                    "[wayland-client] Protocol error {} on object {}@{}: {}",
                     code,
+                    object_id.as_ref().inner.object.interface,
+                    object_id.as_ref().id(),
+                    message
+                );
+                *impl_last_error.lock().unwrap() = Some(CxError::Protocol(ProtocolError {
+                    code,
+                    object_id: object_id.as_ref().id(),
+                    object_interface: object_id.as_ref().inner.object.interface,
                     message,
-                } => {
-                    eprintln!(
-                        "[wayland-client] Protocol error {} on object {}@{}: {}",
-                        code,
-                        object_id.as_ref().inner.object.interface,
-                        object_id.as_ref().id(),
-                        message
-                    );
-                    *impl_last_error.lock().unwrap() = Some(CxError::Protocol(ProtocolError {
-                        code,
-                        object_id: object_id.as_ref().id(),
-                        object_interface: object_id.as_ref().inner.object.interface,
-                        message,
-                    }));
+                }));
+            }
+            wl_display::Event::DeleteId { id } => {
+                // cleanup the map as appropriate
+                let mut map = impl_map.lock().unwrap();
+                let client_destroyed = map
+                    .with(id, |obj| {
+                        obj.meta.server_destroyed = true;
+                        obj.meta.client_destroyed
+                    })
+                    .unwrap_or(false);
+                if client_destroyed {
+                    map.remove(id);
                 }
-                wl_display::Event::DeleteId { id } => {
-                    // cleanup the map as appropriate
-                    let mut map = impl_map.lock().unwrap();
-                    let client_destroyed = map
-                        .with(id, |obj| {
-                            obj.meta.server_destroyed = true;
-                            obj.meta.client_destroyed
-                        })
-                        .unwrap_or(false);
-                    if client_destroyed {
-                        map.remove(id);
-                    }
-                }
-                _ => {}
-            },
-            UserData::empty(),
-        );
+            }
+            _ => {}
+        }));
 
         let default_event_queue = EventQueueInner::new(connection.clone(), None);
 
         let display = DisplayInner {
-            proxy: Proxy::wrap(display_proxy.make_wrapper(&default_event_queue).unwrap()).into(),
+            proxy: Proxy::wrap(display_proxy).into(),
             connection,
         };
 
