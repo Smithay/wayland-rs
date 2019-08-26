@@ -751,7 +751,7 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (Tok
         }
     } else {
         None
-    };
+    }.into_iter();
 
     args.extend(msg.args.iter().filter_map(|arg| {
         let arg_type_inner = if let Some(ref name) = arg.enum_ {

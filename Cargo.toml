@@ -7,7 +7,7 @@ autotests = false
 [dependencies]
 wayland-commons = { path = "./wayland-commons" }
 wayland-scanner = { path = "./wayland-scanner" }
-wayland-client = { path = "./wayland-client", default-features = false, features = ["eventloop"] }
+wayland-client = { path = "./wayland-client", default-features = false }
 wayland-server = { path = "./wayland-server", default-features = false }
 wayland-protocols = { path = "./wayland-protocols", features = ["client", "server"] }
 wayland-sys = { path = "./wayland-sys" }
@@ -16,7 +16,7 @@ lazycell = "=1.0.0"
 [dev-dependencies]
 difference = "2.0"
 tempfile = ">=2.0, <4.0"
-nix = "0.14.1"
+nix = "0.15"
 calloop = "0.4.2"
 
 [workspace]
