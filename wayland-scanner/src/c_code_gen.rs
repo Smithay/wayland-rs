@@ -53,7 +53,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
         );
 
-        //let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
+        let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
         //let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
         let c_interface = super::c_interface_gen::generate_interface(&iface);
@@ -64,7 +64,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 use std::os::raw::c_char;
                 use super::{
                     Proxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
-                    Object, Message, Argument, ObjectMetadata, types_null, NULLPTR, MainProxy,
+                    Object, Message, Argument, ObjectMetadata, types_null, NULLPTR, Main,
                 };
                 use super::sys::common::{wl_interface, wl_array, wl_argument, wl_message};
                 use super::sys::client::*;
@@ -73,7 +73,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #requests
                 #events
                 #interface
-                //#object_methods
+                #object_methods
                 //#event_handler_trait
                 #sinces
                 #c_interface
@@ -273,7 +273,7 @@ fn messagegroup_c_addon(
                                     match side {
                                         Side::Client => {
                                             quote! {
-                                                MainProxy::<super::#iface_mod::#iface_type>::from_c_ptr(
+                                                Main::<super::#iface_mod::#iface_type>::from_c_ptr(
                                                     _args[#idx].o as *mut _
                                                 )
                                             }
@@ -347,11 +347,16 @@ fn messagegroup_c_addon(
             let pattern = if msg.args.is_empty() {
                 quote!(#name::#msg_name)
             } else {
-                let fields = msg.args.iter().map(|arg| {
-                    Ident::new(
-                        &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                        Span::call_site(),
-                    )
+                let fields = msg.args.iter().flat_map(|arg| {
+                    // Client-side newid request do not contain a placeholder
+                    if side == Side::Client && arg.typ == Type::NewId && arg.interface.is_some() {
+                        None
+                    } else {
+                        Some(Ident::new(
+                            &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                            Span::call_site(),
+                        ))
+                    }
                 });
 
                 quote!(#name::#msg_name { #(#fields),* })
@@ -458,8 +463,15 @@ fn messagegroup_c_addon(
                     }
                     Type::NewId => {
                         if arg.interface.is_some() {
-                            quote! {
-                            _args_array[#idx].o = #arg_name.as_ref().c_ptr() as *mut _; }
+                            if side == Side::Client {
+                                quote! {
+                                    _args_array[#idx].o = ::std::ptr::null_mut() as *mut _;
+                                }
+                            } else {
+                                quote! {
+                                    _args_array[#idx].o = #arg_name.as_ref().c_ptr() as *mut _;
+                                }
+                            }
                         } else {
                             assert!(
                                 side != Side::Server,

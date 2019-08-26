@@ -208,7 +208,7 @@ pub(crate) fn gen_messagegroup(
         let msg_variant_decl = if msg.args.is_empty() {
             msg_name.into_token_stream()
         } else {
-            let fields = msg.args.iter().map(|arg| {
+            let fields = msg.args.iter().flat_map(|arg| {
                 let field_name = Ident::new(
                     &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
                     Span::call_site(),
@@ -232,31 +232,28 @@ pub(crate) fn gen_messagegroup(
                                 quote!(AnonymousObject)
                             }
                         }
-                        Type::NewId => {
-                            let object_name = if receiver {
-                                if side == Side::Client {
-                                    Some(Ident::new("MainProxy", Span::call_site()))
-                                } else {
-                                    Some(Ident::new("Resource", Span::call_site()))
-                                }
+                        Type::NewId if !receiver && side == Side::Client => {
+                            // Client-side sending does not have a pre-existing object
+                            // so skip serializing it
+                            if arg.interface.is_some() {
+                                return None;
                             } else {
-                                None
+                                quote!((String, u32))
+                            }
+                        }
+                        Type::NewId => {
+                            let object_name = if side == Side::Client {
+                                Ident::new("Main", Span::call_site())
+                            } else {
+                                Ident::new("Resource", Span::call_site())
                             };
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());
                                 let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
-                                if let Some(object_name) = object_name {
-                                    quote!(#object_name<super::#iface_mod::#iface_type>)
-                                } else {
-                                    quote!(super::#iface_mod::#iface_type)
-                                }
+                                quote!(#object_name<super::#iface_mod::#iface_type>)
                             } else {
                                 // bind-like function
-                                if let Some(object_name) = object_name {
-                                    quote!((String, u32, #object_name<AnonymousObject>))
-                                } else {
-                                    quote!((String, u32, AnonymousObject))
-                                }
+                                quote!((String, u32, AnonymousObject))
                             }
                         }
                         Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
@@ -268,10 +265,9 @@ pub(crate) fn gen_messagegroup(
                 } else {
                     field_type_inner.into_token_stream()
                 };
-
-                quote! {
+                Some(quote! {
                     #field_name: #field_type
-                }
+                })
             });
 
             quote! {
@@ -513,11 +509,16 @@ pub(crate) fn gen_messagegroup(
             let pattern = if msg.args.is_empty() {
                 msg_type_qualified
             } else {
-                let fields = msg.args.iter().map(|arg| {
-                    Ident::new(
-                        &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                        Span::call_site(),
-                    )
+                let fields = msg.args.iter().flat_map(|arg| {
+                    // Client-side newid request do not contain a placeholder
+                    if side == Side::Client && arg.typ == Type::NewId && arg.interface.is_some() {
+                        None
+                    } else {
+                        Some(Ident::new(
+                            &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                            Span::call_site(),
+                        ))
+                    }
                 });
                 quote!(#msg_type_qualified { #(#fields),* })
             };
@@ -571,14 +572,24 @@ pub(crate) fn gen_messagegroup(
                     Type::Fd => quote!(Argument::Fd(#arg_ident)),
                     Type::NewId => {
                         if arg.interface.is_some() {
-                            quote!(Argument::NewId(#arg_ident.as_ref().id()))
+                            let id = if side == Side::Client {
+                                quote!(0)
+                            } else {
+                                quote!(#arg_ident.as_ref().id())
+                            };
+                            quote!(Argument::NewId(#id))
                         } else {
+                            let id = if side == Side::Client {
+                                quote!(0)
+                            } else {
+                                quote!(#arg_ident.2.as_ref().id())
+                            };
                             quote! {
                                 Argument::Str(unsafe {
                                     ::std::ffi::CString::from_vec_unchecked(#arg_ident.0.into())
                                 }),
                                 Argument::Uint(#arg_ident.1),
-                                Argument::NewId(#arg_ident.2.as_ref().id())
+                                Argument::NewId(#id)
                             }
                         }
                     }
@@ -734,9 +745,9 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (Tok
     let generics = if let Some(arg) = newid {
         if arg.interface.is_none() {
             args.push(quote!(version: u32));
-            Some(quote!(T: Interface + From<Proxy<T>>, F))
+            Some(quote!(T: Interface + From<Proxy<T>> + AsRef<Proxy<T>>))
         } else {
-            Some(quote!(F))
+            None
         }
     } else {
         None
@@ -782,36 +793,22 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (Tok
         Some(quote!(#arg_name: #arg_type))
     }));
 
-    if newid.is_some() {
-        args.push(quote!(implementor: F));
-    }
-
-    let (return_type, where_bounds) = if let Some(arg) = newid {
+    let return_type = if let Some(arg) = newid {
         match arg.interface {
             Some(ref iface) => {
                 let iface_mod = Ident::new(&iface, Span::call_site());
                 let iface_type = Ident::new(&snake_to_camel(&iface), Span::call_site());
 
-                (
-                    quote!(Result<super::#iface_mod::#iface_type, ()>),
-                    Some(quote! {
-                        where F: FnOnce(
-                            NewProxy<super::#iface_mod::#iface_type>,
-                        ) -> super::#iface_mod::#iface_type
-                    }),
-                )
+                quote!(Main<super::#iface_mod::#iface_type>)
             }
-            None => (
-                quote!(Result<T, ()>),
-                Some(quote!(where F: FnOnce(NewProxy<T>) -> T)),
-            ),
+            None => quote!(Main<T>),
         }
     } else {
-        (quote!(()), None)
+        quote!(())
     };
 
     let prototype = quote! {
-        pub fn #fn_name#(<#generics>)*(&self, #(#args),*) -> #return_type #where_bounds
+        pub fn #fn_name#(<#generics>)*(&self, #(#args),*) -> #return_type
     };
 
     (prototype, newid)
@@ -846,7 +843,7 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
         let msg_init = if msg.args.is_empty() {
             TokenStream::new()
         } else {
-            let args = msg.args.iter().map(|arg| {
+            let args = msg.args.iter().flat_map(|arg| {
                 let arg_name = Ident::new(
                     &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
                     Span::call_site(),
@@ -858,9 +855,9 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
                 let arg_value = match typ {
                     Type::NewId => {
                         if arg.interface.is_some() {
-                            quote!(self.0.child_placeholder())
+                            return None;
                         } else {
-                            quote!((T::NAME.into(), version, self.0.child_placeholder()))
+                            quote!((T::NAME.into(), version))
                         }
                     }
                     Type::Object => {
@@ -873,7 +870,7 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
                     _ => quote!(#arg_name),
                 };
 
-                quote!(#arg_name: #arg_value)
+                Some(quote!(#arg_name: #arg_value))
             });
 
             quote!({ #(#args),* })
@@ -881,12 +878,14 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
 
         let send_stmt = match return_type {
             Some(ret_type) if ret_type.interface.is_none() => {
-                quote!(self.0.send_constructor(msg, implementor, Some(version)))
+                quote!(self.0.send(msg, Some(version)).unwrap())
             }
-            Some(_) => quote!(self.0.send_constructor(msg, implementor, None)),
-            None => quote! {
-                self.0.send(msg);
-            },
+            Some(_) => quote!(self.0.send(msg, None).unwrap()),
+            None => if side == Side::Client {
+                quote! { self.0.send::<AnonymousObject>(msg, None); }
+            } else {
+                quote! { self.0.send(msg); }
+            }
         };
 
         quote! {

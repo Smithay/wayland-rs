@@ -2,6 +2,8 @@ use std::io;
 use std::rc::Rc;
 
 use crate::imp::EventQueueInner;
+use crate::{AnonymousObject, Main};
+use wayland_commons::wire::Message;
 
 /// An event queue for protocol messages
 ///
@@ -126,8 +128,11 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch(&mut self) -> io::Result<u32> {
-        self.inner.dispatch()
+    pub fn dispatch<F>(&mut self, fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
+        self.inner.dispatch(fallback)
     }
 
     /// Dispatches pending events from the internal buffer.
@@ -138,8 +143,11 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch_pending(&mut self) -> io::Result<u32> {
-        self.inner.dispatch_pending()
+    pub fn dispatch_pending<F>(&mut self, fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
+        self.inner.dispatch_pending(fallback)
     }
 
     /// Synchronous roundtrip
@@ -153,8 +161,11 @@ impl EventQueue {
     /// On success returns the number of dispatched events.
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn sync_roundtrip(&mut self) -> io::Result<u32> {
-        self.inner.sync_roundtrip()
+    pub fn sync_roundtrip<F>(&mut self, fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
+        self.inner.sync_roundtrip(fallback)
     }
 
     /// Create a new token associated with this event queue

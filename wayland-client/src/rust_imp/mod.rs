@@ -8,7 +8,7 @@ use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::MessageGroup;
 
-use crate::{Interface, MainProxy, Proxy};
+use crate::{Interface, Main, Proxy};
 
 mod connection;
 mod display;
@@ -37,7 +37,7 @@ impl ProxyMap {
     }
 
     /// Returns the Proxy corresponding to a given id
-    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Proxy<I>> {
+    pub fn get<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, id: u32) -> Option<Proxy<I>> {
         ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(|object| {
             debug_assert!(I::NAME == "<anonymous>" || object.is_interface::<I>());
             Proxy::wrap(object)
@@ -45,7 +45,7 @@ impl ProxyMap {
     }
 
     /// Creates a new proxy for given id
-    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<MainProxy<I>> {
+    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, id: u32) -> Option<Main<I>> {
         debug_assert!(self
             .map
             .lock()
@@ -53,7 +53,7 @@ impl ProxyMap {
             .find(id)
             .map(|obj| obj.is_interface::<I>())
             .unwrap_or(true));
-        ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(MainProxy::wrap)
+        ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(Main::wrap)
     }
 }
 
@@ -79,14 +79,6 @@ impl<T> ThreadGuard<T> {
         );
         &self.val
     }
-
-    pub fn get_mut(&mut self) -> &mut T {
-        assert!(
-            self.thread == std::thread::current().id(),
-            "Attempted to access a ThreadGuard contents from the wrong thread."
-        );
-        &mut self.val
-    }
 }
 
 unsafe impl<T> Send for ThreadGuard<T> {}
@@ -95,9 +87,9 @@ unsafe impl<T> Sync for ThreadGuard<T> {}
 /*
  * Dispatching logic
  */
-enum Dispatched {
+pub(crate) enum Dispatched {
     Yes,
-    NoDispatch,
+    NoDispatch(Message, ProxyInner),
     BadMsg,
 }
 
@@ -112,27 +104,18 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Event, MainProxy<I>) + 'static> {
+pub(crate) struct ImplDispatcher<
+    I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>,
+    F: FnMut(I::Event, Main<I>) + 'static,
+> {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
 }
 
-// This unsafe impl is "technically wrong", but enforced by the fact that
-// the Impl will only ever be called from the EventQueue, which is stuck
-// on a single thread. The NewProxy::implement/implement_nonsend methods
-// take care of ensuring that any non-Send impl is on the correct thread.
-unsafe impl<I, F> Send for ImplDispatcher<I, F>
-where
-    I: Interface,
-    F: FnMut(I::Event, MainProxy<I>) + 'static,
-    I::Event: MessageGroup<Map = ProxyMap>,
-{
-}
-
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
-    I: Interface,
-    F: FnMut(I::Event, MainProxy<I>) + 'static,
+    I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
+    F: FnMut(I::Event, Main<I>) + 'static + Send,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched {
@@ -173,31 +156,32 @@ where
                     map.remove(proxy.id);
                 }
             }
-            (self.implementation)(message, MainProxy::<I>::wrap(proxy));
+            (self.implementation)(message, Main::<I>::wrap(proxy));
         } else {
-            (self.implementation)(message, MainProxy::<I>::wrap(proxy));
+            (self.implementation)(message, Main::<I>::wrap(proxy));
         }
         Dispatched::Yes
     }
 }
 
-pub(crate) unsafe fn make_dispatcher<I, E>(filter: Filter<E>) -> Arc<Mutex<dyn Dispatcher + Send>>
+pub(crate) fn make_dispatcher<I, E>(filter: Filter<E>) -> Arc<Mutex<dyn Dispatcher + Send>>
 where
-    I: Interface,
-    E: From<(MainProxy<I>, I::Event)> + 'static,
+    I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
+    E: From<(Main<I>, I::Event)> + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
+    let guard = ThreadGuard::new(filter);
     Arc::new(Mutex::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,
-        implementation: move |evt, proxy| filter.send((proxy, evt).into()),
+        implementation: move |evt, proxy| guard.get().send((proxy, evt).into()),
     }))
 }
 
 pub(crate) fn default_dispatcher() -> Arc<Mutex<dyn Dispatcher + Send>> {
     struct DefaultDisp;
     impl Dispatcher for DefaultDisp {
-        fn dispatch(&mut self, _msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Dispatched {
-            Dispatched::NoDispatch
+        fn dispatch(&mut self, msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Dispatched {
+            Dispatched::NoDispatch(msg, proxy)
         }
     }
 

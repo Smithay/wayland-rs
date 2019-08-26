@@ -65,10 +65,7 @@ impl Connection {
         // read messages
         let ret = self.socket.read_messages(
             |id, opcode| {
-                map.borrow()
-                    .find(id)
-                    .and_then(|o| o.events.get(opcode as usize))
-                    .map(|desc| desc.signature)
+                map.borrow().find(id).and_then(|o| o.events.get(opcode as usize)).map(|desc| desc.signature)
             },
             |msg| {
                 let mut map = map.borrow_mut();

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use nix::fcntl;
 
-use crate::EventQueue;
+use crate::{EventQueue, Proxy};
 
 use crate::imp::DisplayInner;
 
@@ -115,7 +115,7 @@ impl Display {
     /// the `WlDisplay` wayland object.
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
-    pub fn connect_to_env() -> Result<(Display, EventQueue), ConnectError> {
+    pub fn connect_to_env() -> Result<Display, ConnectError> {
         if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
@@ -152,7 +152,7 @@ impl Display {
     /// the `WlDisplay` wayland object.
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
-    pub fn connect_to_name<S: Into<OsString>>(name: S) -> Result<(Display, EventQueue), ConnectError> {
+    pub fn connect_to_name<S: Into<OsString>>(name: S) -> Result<Display, ConnectError> {
         let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
             .map(Into::<PathBuf>::into)
             .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
@@ -168,9 +168,10 @@ impl Display {
     /// the `WlDisplay` wayland object.
     ///
     /// Will take ownership of the FD.
-    pub unsafe fn from_fd(fd: RawFd) -> Result<(Display, EventQueue), ConnectError> {
-        let (d_inner, evq_inner) = DisplayInner::from_fd(fd)?;
-        Ok((Display { inner: d_inner }, EventQueue::new(evq_inner)))
+    pub unsafe fn from_fd(fd: RawFd) -> Result<Display, ConnectError> {
+        Ok(Display {
+            inner: DisplayInner::from_fd(fd)?,
+        })
     }
 
     /// Non-blocking write to the server
@@ -238,8 +239,8 @@ impl Display {
 }
 
 impl Deref for Display {
-    type Target = crate::protocol::wl_display::WlDisplay;
-    fn deref(&self) -> &crate::protocol::wl_display::WlDisplay {
+    type Target = Proxy<crate::protocol::wl_display::WlDisplay>;
+    fn deref(&self) -> &Proxy<crate::protocol::wl_display::WlDisplay> {
         self.inner.get_proxy()
     }
 }

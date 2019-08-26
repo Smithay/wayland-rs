@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread::{self, ThreadId};
 
 use wayland_commons::filter::Filter;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
@@ -11,17 +10,16 @@ use wayland_commons::MessageGroup;
 use super::connection::Connection;
 use super::queues::QueueBuffer;
 use super::{Dispatcher, EventQueueInner};
-use crate::{Interface, MainProxy, Proxy, QueueToken};
+use crate::{Interface, Main, Proxy};
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
     pub(crate) buffer: QueueBuffer,
     pub(crate) alive: Arc<AtomicBool>,
     user_data: Arc<UserData>,
-    pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
+    pub(crate) dispatcher: Arc<Mutex<dyn Dispatcher>>,
     pub(crate) server_destroyed: bool,
     pub(crate) client_destroyed: bool,
-    queue_thread: ThreadId,
 }
 
 impl ObjectMetadata for ObjectMeta {
@@ -33,7 +31,6 @@ impl ObjectMetadata for ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
-            queue_thread: self.queue_thread,
         }
     }
 }
@@ -47,7 +44,6 @@ impl ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: false,
             client_destroyed: false,
-            queue_thread: thread::current().id(),
         }
     }
 
@@ -59,7 +55,6 @@ impl ObjectMeta {
             dispatcher: super::default_dispatcher(),
             server_destroyed: true,
             client_destroyed: true,
-            queue_thread: thread::current().id(),
         }
     }
 }
@@ -121,85 +116,32 @@ impl ProxyInner {
         self.queue = Some(queue.buffer.clone())
     }
 
-    pub(crate) fn send<I, J>(&self, msg: I::Request, version: Option<u32>) -> Result<Option<ProxyInner>, ()>
+    pub(crate) fn send<I, J>(&self, msg: I::Request, version: Option<u32>) -> Option<ProxyInner>
     where
         I: Interface,
         J: Interface,
     {
-        unimplemented!()
-    }
+        // grab the connection lock before anything else
+        // this avoids the risk or races during object creation
+        let mut conn_lock = self.connection.lock().unwrap();
+        let destructor = msg.is_destructor();
+        let mut msg = msg.into_raw(self.id);
 
-    /*
-        pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
-            // grab the connection lock before anything else
-            // this avoids the risk of marking ourselves dead while an other
-            // thread is sending a message an accidentally sending that message
-            // after ours if ours is a destructor
-            let mut conn_lock = self.connection.lock().unwrap();
-            let destructor = msg.is_destructor();
-            let msg = msg.into_raw(self.id);
-            if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-                eprintln!(
-                    " -> {}@{}: {} {:?}",
-                    I::NAME,
-                    self.id,
-                    self.object.requests[msg.opcode as usize].name,
-                    msg.args
-                );
-            }
-            // TODO: figure our if this can fail and still be recoverable ?
-            conn_lock.write_message(&msg).expect("Sending a message failed.");
-            if destructor {
-                self.object.meta.alive.store(false, Ordering::Release);
-                {
-                    // cleanup the map as appropriate
-                    let mut map = conn_lock.map.lock().unwrap();
-                    let server_destroyed = map
-                        .with(self.id, |obj| {
-                            obj.meta.client_destroyed = true;
-                            obj.meta.server_destroyed
-                        })
-                        .unwrap_or(false);
-                    if server_destroyed {
-                        map.remove(self.id);
-                    }
-                }
-            }
-        }
+        let opcode = msg.opcode;
 
-        pub(crate) fn send_constructor<I, J>(
-            &self,
-            msg: I::Request,
-            version: Option<u32>,
-        ) -> Result<NewProxyInner, ()>
-        where
-            I: Interface,
-            J: Interface,
-        {
-            // grab the connection lock before anything else
-            // this avoids the risk or races during object creation
-            let mut conn_lock = self.connection.lock().unwrap();
-            let destructor = msg.is_destructor();
-            let mut msg = msg.into_raw(self.id);
-            if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-                eprintln!(
-                    " -> {}@{}: {} {:?}",
-                    I::NAME,
-                    self.id,
-                    self.object.requests[msg.opcode as usize].name,
-                    msg.args
-                );
-            }
+        // figure out if the call creates an object
+        let nid_idx = I::Request::MESSAGES[opcode as usize]
+            .signature
+            .iter()
+            .position(|&t| t == ArgumentType::NewId);
 
-            let opcode = msg.opcode;
+        let alive = self.is_alive();
 
-            // sanity check
-            let mut nid_idx = I::Request::MESSAGES[opcode as usize]
-                .signature
-                .iter()
-                .position(|&t| t == ArgumentType::NewId)
-                .expect("Trying to use 'send_constructor' with a message not creating any object.");
-
+        let ret = if let Some(mut nid_idx) = nid_idx {
+            let target_queue = self
+                .queue
+                .clone()
+                .expect("Attemping to create an object from a non-attached proxy.");
             if let Some(o) = I::Request::child(opcode, 1, &()) {
                 if !o.is_interface::<J>() {
                     panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
@@ -210,19 +152,45 @@ impl ProxyInner {
                 nid_idx += 2;
             }
             // insert the newly created object in the message
-            let newproxy = match msg.args[nid_idx] {
-                Argument::NewId(ref mut newid) => {
-                    let newp = match version {
-                        Some(v) => self.child_versioned::<J>(v),
-                        None => self.child::<J>(),
-                    };
-                    *newid = newp.id;
-                    newp
-                }
-                _ => unreachable!(),
-            };
+            let new_object = Object::from_interface::<J>(
+                version.unwrap_or(self.object.version),
+                if alive {
+                    ObjectMeta::new(target_queue.clone())
+                } else {
+                    ObjectMeta::dead()
+                },
+            );
+            let mut new_id = 0;
+            if alive {
+                new_id = self.map.lock().unwrap().client_insert_new(new_object.clone());
+                msg.args[nid_idx] = Argument::NewId(new_id);
+            }
+            Some(ProxyInner {
+                map: self.map.clone(),
+                connection: self.connection.clone(),
+                id: new_id,
+                object: new_object,
+                queue: Some(target_queue),
+            })
+        } else {
+            None
+        };
 
+        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
+            eprintln!(
+                " -> {}@{}{}: {} {:?}",
+                I::NAME,
+                self.id,
+                if alive { "" } else { "[ZOMBIE]" },
+                self.object.requests[msg.opcode as usize].name,
+                msg.args
+            );
+        }
+
+        // only actually send the message (& process destructor) if the object is alive
+        if alive {
             conn_lock.write_message(&msg).expect("Sending a message failed.");
+
             if destructor {
                 self.object.meta.alive.store(false, Ordering::Release);
                 {
@@ -239,36 +207,25 @@ impl ProxyInner {
                     }
                 }
             }
-
-            Ok(newproxy)
         }
-    */
+
+        ret
+    }
 
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
         self.is_alive() && Arc::ptr_eq(&self.object.meta.alive, &other.object.meta.alive)
     }
 
-    pub(crate) fn make_wrapper(&self, queue: &EventQueueInner) -> Result<ProxyInner, ()> {
-        let mut wrapper = self.clone();
-        wrapper.object.meta.buffer = queue.buffer.clone();
-        // EventQueueInner is not Send so we must be in the right thread
-        wrapper.object.meta.queue_thread = thread::current().id();
-        Ok(wrapper)
-    }
-
-    pub fn assign<I, E>(&mut self, filter: Filter<E>)
+    pub fn assign<I, E>(&self, filter: Filter<E>)
     where
-        I: Interface,
-        E: From<(MainProxy<I>, I::Event)> + 'static,
+        I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
+        E: From<(Main<I>, I::Event)> + 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
-        let object = self.map.lock().unwrap().with(self.id, |obj| {
+        // ignore failure if target object is dead
+        let _ = self.map.lock().unwrap().with(self.id, |obj| {
             obj.meta.dispatcher = super::make_dispatcher(filter);
             obj.clone()
         });
-
-        if let Ok(object) = object {
-            self.object = object;
-        }
     }
 }
