@@ -9,10 +9,8 @@ use std::os::unix::io::AsRawFd;
 
 use byteorder::{NativeEndian, WriteBytesExt};
 
-use wayland_client::protocol::{
-    wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shell_surface, wl_shm,
-};
-use wayland_client::{Display, Filter, GlobalManager, Main};
+use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm};
+use wayland_client::{Display, Filter, GlobalManager};
 
 // declare an event enum containing the events we want to receive in the iterator
 event_enum!(
@@ -87,17 +85,15 @@ fn main() {
     let shell = globals
         .instantiate_exact::<wl_shell::WlShell>(1)
         .expect("Compositor does not support wl_shell");
-    let mut shell_surface = shell.get_shell_surface(&surface);
-    shell_surface.assign(Filter::new(
-        |(shell_surface, event): (Main<wl_shell_surface::WlShellSurface>, _)| {
-            use wayland_client::protocol::wl_shell_surface::Event;
-            // This ping/pong mechanism is used by the wayland server to detect
-            // unresponsive applications
-            if let Event::Ping { serial } = event {
-                shell_surface.pong(serial);
-            }
-        },
-    ));
+    let shell_surface = shell.get_shell_surface(&surface);
+    shell_surface.assign_mono(|shell_surface, event| {
+        use wayland_client::protocol::wl_shell_surface::Event;
+        // This ping/pong mechanism is used by the wayland server to detect
+        // unresponsive applications
+        if let Event::Ping { serial } = event {
+            shell_surface.pong(serial);
+        }
+    });
 
     // Set our surface as toplevel and define its contents
     shell_surface.set_toplevel();
@@ -149,7 +145,7 @@ fn main() {
     globals
         .instantiate_exact::<wl_seat::WlSeat>(1)
         .unwrap()
-        .assign(Filter::new(move |(seat, event): (Main<wl_seat::WlSeat>, _)| {
+        .assign_mono(move |seat, event| {
             // The capabilities of a seat are known at runtime and we retrieve
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer & keyboard here
@@ -167,11 +163,15 @@ fn main() {
                     seat.get_keyboard().assign(common_filter.clone());
                 }
             }
-        }));
+        });
 
-    event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
+    event_queue
+        .sync_roundtrip(|_, _| { /* we ignore unfiltered messages */ })
+        .unwrap();
 
     loop {
-        event_queue.dispatch(|_, _| unreachable!()).unwrap();
+        event_queue
+            .dispatch(|_, _| { /* we ignore unfiltered messages */ })
+            .unwrap();
     }
 }

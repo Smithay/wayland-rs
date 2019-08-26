@@ -229,13 +229,22 @@ where
         }
     }
 
-    pub fn assign<E>(&mut self, filter: Filter<E>)
+    pub fn assign<E>(&self, filter: Filter<E>)
     where
         I: Sync,
         E: From<(Main<I>, I::Event)> + 'static,
         I::Event: MessageGroup<Map = crate::ProxyMap>,
     {
         self.inner.inner.as_ref().inner.assign(filter);
+    }
+
+    pub fn assign_mono<F>(&self, mut f: F)
+    where
+        I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
+        F: FnMut(Main<I>, I::Event) + 'static,
+        I::Event: MessageGroup<Map = crate::ProxyMap>,
+    {
+        self.assign(Filter::new(move |(proxy, event)| f(proxy, event)))
     }
 }
 
