@@ -17,12 +17,10 @@ travis-ci = { repository = "Smithay/wayland-rs" }
 [dependencies]
 wayland-commons = { version = "0.23.6", path = "../wayland-commons" }
 wayland-sys = { version = "0.23.6", path = "../wayland-sys" }
-nix = "0.14.1"
+nix = "0.15"
 downcast-rs = "1.0"
 bitflags = "1.0"
 libc = "0.2"
-calloop = { version = ">=0.3.1, <0.5", optional = true }
-mio = { version = "0.6.0", optional = true }
 
 [build-dependencies]
 wayland-scanner = { version = "0.23.6", path = "../wayland-scanner" }
@@ -36,4 +34,3 @@ native_lib = [ "wayland-sys/client" ]
 dlopen = ["wayland-sys/dlopen", "native_lib"]
 egl = ["wayland-sys/egl", "native_lib"]
 cursor = ["wayland-sys/cursor", "native_lib"]
-eventloop = ["calloop", "mio"]
