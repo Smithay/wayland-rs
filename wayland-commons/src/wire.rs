@@ -8,6 +8,7 @@ use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
 
 /// Wire metadata of a given message
+#[derive(Copy, Clone, Debug)]
 pub struct MessageDesc {
     /// Name of this message
     pub name: &'static str,

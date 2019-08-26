@@ -5,9 +5,16 @@ struct Inner<E, F: ?Sized> {
     cb: RefCell<F>,
 }
 
-#[derive(Clone)]
 pub struct Filter<E> {
     inner: Rc<Inner<E, dyn FnMut(E)>>,
+}
+
+impl<E> Clone for Filter<E> {
+    fn clone(&self) -> Filter<E> {
+        Filter {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl<E> Filter<E> {

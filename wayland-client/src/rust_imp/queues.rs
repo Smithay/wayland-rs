@@ -8,11 +8,13 @@ use std::sync::{Arc, Mutex};
 use nix::poll::{poll, PollFd, PollFlags};
 
 use wayland_commons::map::ObjectMap;
-use wayland_commons::user_data::UserData;
 use wayland_commons::wire::{Argument, Message};
 
 use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
+use super::Dispatched;
+
+use crate::{AnonymousObject, Filter, Main};
 
 pub(crate) type QueueBuffer = Arc<Mutex<VecDeque<Message>>>;
 
@@ -45,10 +47,13 @@ impl EventQueueInner {
         self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
     }
 
-    pub(crate) fn dispatch(&self) -> io::Result<u32> {
+    pub(crate) fn dispatch<F>(&self, mut fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
         // don't read events if there are some pending
         if let Err(()) = self.prepare_read() {
-            return self.dispatch_pending();
+            return self.dispatch_pending(&mut fallback);
         }
 
         // temporarily retrieve the socket Fd, only using it for POLL-ing!
@@ -94,12 +99,11 @@ impl EventQueueInner {
             }
             Err(_) => unreachable!(),
         }
-
         let read_ret = self.read_events();
 
         // even if read_events returned an error, it may have queued messages the need dispatching
         // so we dispatch them
-        let dispatch_ret = self.dispatch_pending();
+        let dispatch_ret = self.dispatch_pending(&mut fallback);
 
         match read_ret {
             Ok(_) => (),
@@ -115,7 +119,10 @@ impl EventQueueInner {
         dispatch_ret
     }
 
-    fn dispatch_buffer(&self, buffer: &mut VecDeque<Message>) -> io::Result<u32> {
+    fn dispatch_buffer<F>(&self, buffer: &mut VecDeque<Message>, mut fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
         let mut count = 0;
         let mut proxymap = super::ProxyMap::make(self.map.clone(), self.connection.clone());
         for msg in buffer.drain(..) {
@@ -146,13 +153,20 @@ impl EventQueueInner {
                     continue;
                 }
                 let mut dispatcher = object.meta.dispatcher.lock().unwrap();
-                if let Err(()) = dispatcher.dispatch(msg, proxy, &mut proxymap) {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Dispatch for object {}@{} errored.", object.interface, id),
-                    ));
-                } else {
-                    count += 1;
+                match dispatcher.dispatch(msg, proxy, &mut proxymap) {
+                    Dispatched::Yes => {
+                        count += 1;
+                    }
+                    Dispatched::NoDispatch(msg, proxy) => {
+                        fallback(msg, Main::wrap(proxy));
+                        count += 1;
+                    }
+                    Dispatched::BadMsg => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("Dispatch for object {}@{} errored.", object.interface, id),
+                        ))
+                    }
                 }
             } else {
                 return Err(io::Error::new(
@@ -164,59 +178,52 @@ impl EventQueueInner {
         Ok(count)
     }
 
-    pub(crate) fn dispatch_pending(&self) -> io::Result<u32> {
+    pub(crate) fn dispatch_pending<F>(&self, fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
         // First always dispatch the display buffer
         let display_dispatched = {
             let mut buffer = self.display_buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer)
+            self.dispatch_buffer(&mut *buffer, |_, _| unreachable!())
         }?;
 
         // Then our actual buffer
         let self_dispatched = {
             let mut buffer = self.buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer)
+            self.dispatch_buffer(&mut *buffer, fallback)
         }?;
 
         Ok(display_dispatched + self_dispatched)
     }
 
-    pub(crate) fn sync_roundtrip(&self) -> io::Result<u32> {
+    pub(crate) fn sync_roundtrip<F>(&self, mut fallback: F) -> io::Result<u32>
+    where
+        F: FnMut(Message, Main<AnonymousObject>),
+    {
         use crate::protocol::wl_callback::{Event as CbEvent, WlCallback};
-        use crate::protocol::wl_display::WlDisplay;
-        use crate::Proxy;
+        use crate::protocol::wl_display::{Request as DRequest, WlDisplay};
         // first retrieve the display and make a wrapper for it in this event queue
-        let display: WlDisplay = Proxy::wrap(
-            ProxyInner::from_id(1, self.map.clone(), self.connection.clone())
-                .unwrap()
-                .make_wrapper(self)
-                .unwrap(),
-        )
-        .into();
+        let mut display = ProxyInner::from_id(1, self.map.clone(), self.connection.clone()).unwrap();
+        display.attach(&self);
 
         let done = Rc::new(Cell::new(false));
-        let ret = display.sync(|np| {
-            Proxy::wrap(unsafe {
-                let done2 = done.clone();
-                np.inner.implement::<WlCallback, _>(
-                    move |evt, _| {
-                        if let CbEvent::Done { .. } = evt {
-                            done2.set(true);
-                        }
-                    },
-                    UserData::new(),
-                )
-            })
-            .into()
-        });
-
-        if let Err(()) = ret {
-            return Err(::nix::errno::Errno::EPROTO.into());
-        }
+        let cb = display
+            .send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1))
+            .unwrap();
+        let done2 = done.clone();
+        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt)| {
+            if let CbEvent::Done { .. } = evt {
+                done2.set(true);
+            } else {
+                unreachable!();
+            }
+        }));
 
         let mut dispatched = 0;
 
         loop {
-            dispatched += self.dispatch()?;
+            dispatched += self.dispatch(&mut fallback)?;
             if done.get() {
                 return Ok(dispatched);
             }

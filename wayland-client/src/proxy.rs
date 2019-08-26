@@ -35,7 +35,7 @@ pub struct Proxy<I: Interface> {
 
 impl<I: Interface> Clone for Proxy<I> {
     fn clone(&self) -> Proxy<I> {
-        let cloned = self.inner.clone();
+        let mut cloned = self.inner.clone();
         // an owned Proxy must always be detached
         cloned.detach();
         Proxy {
@@ -45,15 +45,21 @@ impl<I: Interface> Clone for Proxy<I> {
     }
 }
 
-impl<I: Interface> PartialEq for Proxy<I> {
+impl<I: Interface> PartialEq for Proxy<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
     fn eq(&self, other: &Proxy<I>) -> bool {
         self.equals(other)
     }
 }
 
-impl<I: Interface> Eq for Proxy<I> {}
+impl<I: Interface> Eq for Proxy<I> where I: AsRef<Proxy<I>> + From<Proxy<I>> {}
 
-impl<I: Interface> Proxy<I> {
+impl<I: Interface> Proxy<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
@@ -67,16 +73,13 @@ impl<I: Interface> Proxy<I> {
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate methods on the Rust object.
     ///
-    /// This is the generic method to send requests that create objects
-    ///
-    /// The slot in the message corresponding with the newly created object must have
-    /// been filled by a placeholder object (see `child_placeholder`).
-    pub fn send<J>(&self, msg: I::Request, version: Option<u32>) -> Result<Option<MainProxy<J>>, ()>
+    /// This is the generic method to send requests
+    pub fn send<J>(&self, msg: I::Request, version: Option<u32>) -> Option<Main<J>>
     where
-        J: Interface,
+        J: Interface + AsRef<Proxy<J>> + From<Proxy<J>>,
     {
         if !self.is_alive() {
-            return Err(());
+            return None;
         }
         if msg.since() > self.version() {
             let opcode = msg.opcode() as usize;
@@ -89,9 +92,7 @@ impl<I: Interface> Proxy<I> {
                 self.version()
             );
         }
-        self.inner
-            .send::<I, J>(msg, version)
-            .map(|o| o.map(MainProxy::wrap))
+        self.inner.send::<I, J>(msg, version).map(Main::wrap)
     }
 
     /// Check if the object associated with this proxy is still alive
@@ -140,10 +141,10 @@ impl<I: Interface> Proxy<I> {
     ///
     /// This does not impact the events received by this object, which
     /// are still handled by their original event queue.
-    pub fn attach(self, token: QueueToken) -> AttachedProxy<I> {
+    pub fn attach(mut self, token: QueueToken) -> Attached<I> {
         self.inner.attach(&token.inner);
-        AttachedProxy {
-            inner: self,
+        Attached {
+            inner: self.into(),
             _s: std::marker::PhantomData,
         }
     }
@@ -162,59 +163,89 @@ impl<I: Interface> Proxy<I> {
 /// As opposed to a mere `Proxy`, you can use it to send requests
 /// that create new objects. The created objects will be handled
 /// by the event queue this proxy has been atatched to.
-pub struct AttachedProxy<I: Interface> {
+pub struct Attached<I: Interface> {
     // AttachedProxy is *not* send/sync
     _s: ::std::marker::PhantomData<*mut ()>,
-    inner: Proxy<I>,
+    inner: I,
 }
 
-impl<I: Interface> AttachedProxy<I> {
+impl<I: Interface> Attached<I>
+where
+    I: Into<Proxy<I>> + From<Proxy<I>>,
+{
     /// Detach this handle, converting it into a threadsafe Proxy
-    pub fn detach(self) -> Proxy<I> {
-        self.inner.inner.detach();
-        self.inner
+    pub fn detach(self) -> I {
+        let mut proxy: Proxy<I> = self.inner.into();
+        proxy.inner.detach();
+        proxy.into()
     }
 }
 
-impl<I: Interface> Deref for AttachedProxy<I> {
-    type Target = Proxy<I>;
+impl<I: Interface> Deref for Attached<I> {
+    type Target = I;
 
-    fn deref(&self) -> &Proxy<I> {
+    fn deref(&self) -> &I {
         &self.inner
     }
 }
 
-/// A main handle to a proxy
-pub struct MainProxy<I: Interface> {
-    inner: AttachedProxy<I>,
+impl<I: Interface> Clone for Attached<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
+    fn clone(&self) -> Attached<I> {
+        let cloned = self.inner.as_ref().inner.clone();
+        Attached {
+            inner: Proxy {
+                _i: std::marker::PhantomData,
+                inner: cloned,
+            }
+            .into(),
+            _s: std::marker::PhantomData,
+        }
+    }
 }
 
-impl<I: Interface> MainProxy<I> {
-    pub(crate) fn wrap(inner: ProxyInner) -> MainProxy<I> {
-        MainProxy {
-            inner: AttachedProxy {
+/// A main handle to a proxy
+#[derive(Clone)]
+pub struct Main<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> {
+    inner: Attached<I>,
+}
+
+impl<I: Interface> Main<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
+    pub(crate) fn wrap(inner: ProxyInner) -> Main<I> {
+        Main {
+            inner: Attached {
                 inner: Proxy {
                     _i: std::marker::PhantomData,
                     inner,
-                },
+                }
+                .into(),
                 _s: std::marker::PhantomData,
             },
         }
     }
 
-    pub fn assign<E>(&self, filter: Filter<E>)
+    pub fn assign<E>(&mut self, filter: Filter<E>)
     where
-        E: From<(MainProxy<I>, I::Event)> + 'static,
+        I: Sync,
+        E: From<(Main<I>, I::Event)> + 'static,
         I::Event: MessageGroup<Map = crate::ProxyMap>,
     {
-        self.inner.inner.inner.assign(filter);
+        self.inner.inner.as_ref().inner.assign(filter);
     }
 }
 
-impl<I: Interface> Deref for MainProxy<I> {
-    type Target = AttachedProxy<I>;
+impl<I: Interface> Deref for Main<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
+    type Target = Attached<I>;
 
-    fn deref(&self) -> &AttachedProxy<I> {
+    fn deref(&self) -> &Attached<I> {
         &self.inner
     }
 }
@@ -223,7 +254,10 @@ impl<I: Interface> Deref for MainProxy<I> {
  * C-interfacing stuff
  */
 
-impl<I: Interface> MainProxy<I> {
+impl<I: Interface> Main<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
     /// Create a `MainProxy` instance from a C pointer
     ///
     /// Create a `MainProxy` from a raw pointer to a wayland object from the
@@ -241,10 +275,7 @@ impl<I: Interface> MainProxy<I> {
     ///
     /// NOTE: This method will panic if called while the `native_lib` feature is
     /// not activated.
-    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> MainProxy<I>
-    where
-        I: From<Proxy<I>>,
-    {
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Main<I> {
         #[cfg(feature = "native_lib")]
         {
             Proxy {

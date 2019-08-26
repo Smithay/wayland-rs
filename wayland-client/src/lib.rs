@@ -132,14 +132,14 @@ extern crate wayland_sys;
 
 mod display;
 mod event_queue;
-//mod globals;
+mod globals;
 mod proxy;
 
 pub use display::{ConnectError, Display, ProtocolError};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
-//pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
+pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
 pub use imp::ProxyMap;
-pub use proxy::{AttachedProxy, MainProxy, Proxy};
+pub use proxy::{Attached, Main, Proxy};
 
 #[cfg(feature = "cursor")]
 pub mod cursor;
@@ -175,7 +175,7 @@ pub mod protocol {
     #![allow(missing_docs)]
     #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
-    pub(crate) use crate::{AnonymousObject, AttachedProxy, MainProxy, Proxy, ProxyMap};
+    pub(crate) use crate::{AnonymousObject, Attached, Main, Proxy, ProxyMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
     pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
     pub(crate) use wayland_commons::{Interface, MessageGroup};
@@ -222,3 +222,91 @@ mod anonymous_object {
         }
     }
 }
+
+/// Generate an enum joining several objects events
+///
+/// This macro allows you to easily create a enum type for use with your message iterators. It is
+/// used like so:
+///
+/// ```ignore
+/// event_enum!(
+///     MyEnum |
+///     Pointer => WlPointer,
+///     Keyboard => WlKeyboard,
+///     Surface => WlSurface
+/// );
+/// ```
+///
+/// This will generate the following enum, unifying the events from each of the provided interface:
+///
+/// ```ignore
+/// pub enum MyEnum {
+///     Pointer { event: WlPointer::Event, object: WlPointer },
+///     Keyboard { event: WlKeyboard::Event, object: WlKeyboard },
+///     Surface { event: WlSurface::Event, object: WlSurface }
+/// }
+/// ```
+///
+/// It will also generate the appropriate `From<_>` implementation so that a `Sink<MyEnum>` can be
+/// used as an implementation for `WlPointer`, `WlKeyboard` and `WlSurface`.
+///
+/// If you want to add custom messages to the enum, the macro also supports it:
+///
+/// ```ignore
+/// event_enum!(
+///     MyEnum |
+///     Pointer => WlPointer,
+///     Keyboard => WlKeyboard,
+///     Surface => WlSurface |
+///     MyMessage => SomeType,
+///     OtherMessage => OtherType
+/// );
+/// ```
+///
+/// will generate the following enum:
+///
+/// ```ignore
+/// pub enum MyEnum {
+///     Pointer { event: WlPointer::Event, object: MainProxy<WlPointer> },
+///     Keyboard { event: WlKeyboard::Event, object: MainProxy<WlKeyboard> },
+///     Surface { event: WlSurface::Event, object: MainProxy<WlSurface> },
+///     MyMessage(SomeType),
+///     OtherMessage(OtherType)
+/// }
+/// ```
+///
+/// as well as implementations of `From<SomeType>` and `From<OtherType>`, so that these types can
+/// directly be provided into a `Sink<MyEnum>`.
+
+#[macro_export]
+macro_rules! event_enum(
+    ($enu:ident | $($evt_name:ident => $iface:ty),*) => {
+        event_enum!($enu | $($evt_name => $iface),* | );
+    };
+    ($enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
+        pub enum $enu {
+            $(
+                $evt_name { event: <$iface as $crate::Interface>::Event, object: $crate::Main<$iface> },
+            )*
+            $(
+                $name($value)
+            )*
+        }
+
+        $(
+            impl From<($crate::Main<$iface>, <$iface as $crate::Interface>::Event)> for $enu {
+                fn from((object, event): ($crate::Main<$iface>, <$iface as $crate::Interface>::Event)) -> $enu {
+                    $enu::$evt_name { event, object }
+                }
+            }
+        )*
+
+        $(
+            impl From<$value> for $enu {
+                fn from(value: $value) -> $enu {
+                    $enu::$name(value)
+                }
+            }
+        )*
+    };
+);
