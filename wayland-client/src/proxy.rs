@@ -1,15 +1,16 @@
+use std::ops::Deref;
+
 use super::AnonymousObject;
-use wayland_commons::utils::UserData;
+use wayland_commons::user_data::UserData;
 use wayland_commons::Interface;
 
 use wayland_sys::client::*;
 
-use event_queue::QueueToken;
+use crate::event_queue::QueueToken;
 
-use imp::{NewProxyInner, ProxyInner};
+use crate::imp::ProxyInner;
 
-use wayland_commons::MessageGroup;
-use ProxyMap;
+use wayland_commons::{filter::Filter, MessageGroup};
 
 /// An handle to a wayland proxy
 ///
@@ -23,6 +24,10 @@ use ProxyMap;
 /// These handles are notably used to send requests to the server. To do this
 /// you need to convert them to the corresponding Rust object (using `.into()`)
 /// and use methods on the Rust object.
+///
+/// This handle is the most conservative one: it can be sent between threads,
+/// but you cannot send any message that would create a new object using it.
+/// You must attach it to a event queue, that will host the newly created objects.
 pub struct Proxy<I: Interface> {
     _i: ::std::marker::PhantomData<&'static I>,
     pub(crate) inner: ProxyInner,
@@ -30,9 +35,12 @@ pub struct Proxy<I: Interface> {
 
 impl<I: Interface> Clone for Proxy<I> {
     fn clone(&self) -> Proxy<I> {
+        let cloned = self.inner.clone();
+        // an owned Proxy must always be detached
+        cloned.detach();
         Proxy {
             _i: ::std::marker::PhantomData,
-            inner: self.inner.clone(),
+            inner: cloned,
         }
     }
 }
@@ -53,42 +61,6 @@ impl<I: Interface> Proxy<I> {
         }
     }
 
-    /// Send a request through this object
-    ///
-    /// **Warning:** This method is mostly intended to be used by code generated
-    /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate methods on the Rust object.
-    ///
-    /// This is the generic method to send requests.
-    ///
-    /// If your request needs to create an object, use `send_constructor`.
-    pub fn send(&self, msg: I::Request) {
-        #[cfg(feature = "native_lib")]
-        {
-            if !self.is_external() && !self.is_alive() {
-                return;
-            }
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            if !self.is_alive() {
-                return;
-            }
-        }
-        if msg.since() > self.version() {
-            let opcode = msg.opcode() as usize;
-            panic!(
-                "Cannot send request {} which requires version >= {} on proxy {}@{} which is version {}.",
-                I::Request::MESSAGES[opcode].name,
-                msg.since(),
-                I::NAME,
-                self.id(),
-                self.version()
-            );
-        }
-        self.inner.send::<I>(msg)
-    }
-
     /// Send a request creating an object through this object
     ///
     /// **Warning:** This method is mostly intended to be used by code generated
@@ -99,15 +71,9 @@ impl<I: Interface> Proxy<I> {
     ///
     /// The slot in the message corresponding with the newly created object must have
     /// been filled by a placeholder object (see `child_placeholder`).
-    pub fn send_constructor<J, F>(
-        &self,
-        msg: I::Request,
-        implementor: F,
-        version: Option<u32>,
-    ) -> Result<J, ()>
+    pub fn send<J>(&self, msg: I::Request, version: Option<u32>) -> Result<Option<MainProxy<J>>, ()>
     where
-        J: Interface + From<Proxy<J>>,
-        F: FnOnce(NewProxy<J>) -> J,
+        J: Interface,
     {
         if !self.is_alive() {
             return Err(());
@@ -124,10 +90,8 @@ impl<I: Interface> Proxy<I> {
             );
         }
         self.inner
-            .send_constructor::<I, J>(msg, version)
-            .map(NewProxy::wrap)
-            .map(implementor)
-            .map(Into::into)
+            .send::<I, J>(msg, version)
+            .map(|o| o.map(MainProxy::wrap))
     }
 
     /// Check if the object associated with this proxy is still alive
@@ -152,18 +116,15 @@ impl<I: Interface> Proxy<I> {
         self.inner.id()
     }
 
-    /// Access the arbitrary payload associated to this object
+    /// Access the UserData associated to this object
     ///
-    /// You need to specify the expected type of this payload, and this
-    /// function will return `None` if either the types don't match or
-    /// you are attempting to access a non `Send + Sync` user data from the
-    /// wrong thread.
+    /// Each wayland object has an associated UserData, that can store
+    /// a payload of arbitrary type and is shared by all proxies of this
+    /// object.
     ///
-    /// This value is associated to the Proxy when you implement it, and you
-    /// cannot access it mutably afterwards. If you need interior mutability,
-    /// you are responsible for using a `Mutex` or similar type to achieve it.
-    pub fn user_data<UD: 'static>(&self) -> Option<&UD> {
-        self.inner.get_user_data()
+    /// See UserData documentation for more details.
+    pub fn user_data(&self) -> &UserData {
+        self.inner.user_data()
     }
 
     /// Check if the other proxy refers to the same underlying wayland object
@@ -171,65 +132,130 @@ impl<I: Interface> Proxy<I> {
         self.inner.equals(&other.inner)
     }
 
-    /// Create a new child object
+    /// Attach this proxy to the event queue represented by this token
     ///
-    /// **Warning:** This method is mostly intended to be used by code generated
-    /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate methods on the Rust object.
+    /// Once a proxy is attached, you can use it to send requests that
+    /// create new objects. These new objects will be handled by the
+    /// event queue represented by the provided token.
     ///
-    /// This creates a new wayland object, considered as a
-    /// child of this object. It will notably inherit its interface
-    /// version.
-    ///
-    /// The created object should immediately be implemented and sent
-    /// in a request to the server, to keep the object list properly
-    /// synchronized. Failure to do so will likely cause a protocol
-    /// error.
-    pub fn child<C: Interface>(&self) -> NewProxy<C> {
-        NewProxy {
-            _i: ::std::marker::PhantomData,
-            inner: self.inner.child::<C>(),
+    /// This does not impact the events received by this object, which
+    /// are still handled by their original event queue.
+    pub fn attach(self, token: QueueToken) -> AttachedProxy<I> {
+        self.inner.attach(&token.inner);
+        AttachedProxy {
+            inner: self,
+            _s: std::marker::PhantomData,
         }
     }
 
-    /// Creates a handle of this proxy with its actual type erased
-    pub fn anonymize(&self) -> Proxy<AnonymousObject> {
+    /// Erase the actual type of this proxy
+    pub fn anonymize(self) -> Proxy<AnonymousObject> {
         Proxy {
             _i: ::std::marker::PhantomData,
-            inner: self.inner.clone(),
+            inner: self.inner,
+        }
+    }
+}
+
+/// A handle to a proxy that has been attached to an event queue
+///
+/// As opposed to a mere `Proxy`, you can use it to send requests
+/// that create new objects. The created objects will be handled
+/// by the event queue this proxy has been atatched to.
+pub struct AttachedProxy<I: Interface> {
+    // AttachedProxy is *not* send/sync
+    _s: ::std::marker::PhantomData<*mut ()>,
+    inner: Proxy<I>,
+}
+
+impl<I: Interface> AttachedProxy<I> {
+    /// Detach this handle, converting it into a threadsafe Proxy
+    pub fn detach(self) -> Proxy<I> {
+        self.inner.inner.detach();
+        self.inner
+    }
+}
+
+impl<I: Interface> Deref for AttachedProxy<I> {
+    type Target = Proxy<I>;
+
+    fn deref(&self) -> &Proxy<I> {
+        &self.inner
+    }
+}
+
+/// A main handle to a proxy
+pub struct MainProxy<I: Interface> {
+    inner: AttachedProxy<I>,
+}
+
+impl<I: Interface> MainProxy<I> {
+    pub(crate) fn wrap(inner: ProxyInner) -> MainProxy<I> {
+        MainProxy {
+            inner: AttachedProxy {
+                inner: Proxy {
+                    _i: std::marker::PhantomData,
+                    inner,
+                },
+                _s: std::marker::PhantomData,
+            },
         }
     }
 
-    /// Create a wrapper for this object for queue management
+    pub fn assign<E>(&self, filter: Filter<E>)
+    where
+        E: From<(MainProxy<I>, I::Event)> + 'static,
+        I::Event: MessageGroup<Map = crate::ProxyMap>,
+    {
+        self.inner.inner.inner.assign(filter);
+    }
+}
+
+impl<I: Interface> Deref for MainProxy<I> {
+    type Target = AttachedProxy<I>;
+
+    fn deref(&self) -> &AttachedProxy<I> {
+        &self.inner
+    }
+}
+
+/*
+ * C-interfacing stuff
+ */
+
+impl<I: Interface> MainProxy<I> {
+    /// Create a `MainProxy` instance from a C pointer
     ///
-    /// As assigning a proxy to an event queue can be a racy operation
-    /// in contexts involving multiple thread, this provides a facility
-    /// to do this safely.
+    /// Create a `MainProxy` from a raw pointer to a wayland object from the
+    /// C library.
     ///
-    /// The wrapper object created behaves like a regular `Proxy`, except that
-    /// all objects created as the result of its requests will be assigned to
-    /// the queue associated to the provided token, rather than the queue of
-    /// their parent. This does not change the queue of the proxy itself.
-    pub fn make_wrapper(&self, queue: &QueueToken) -> Result<I, ()>
+    /// This will take control of the underlying proxy & manage it. To be safe
+    /// you must ensure that:
+    ///
+    /// - The provided proxy has not already been used in any way (it was just created)
+    /// - This is called from the same thread as the one hosting the event queue
+    ///   handling this proxy
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is
+    /// not activated.
+    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> MainProxy<I>
     where
         I: From<Proxy<I>>,
     {
-        let inner = self.inner.make_wrapper(&queue.inner)?;
-
-        Ok(Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
+        #[cfg(feature = "native_lib")]
+        {
+            Proxy {
+                _i: ::std::marker::PhantomData,
+                inner: ProxyInner::init_from_c_ptr::<I>(_ptr),
+            }
         }
-        .into())
-    }
-
-    /// Create a placeholder object, to be used with `send_constructor`
-    ///
-    /// **Warning:** This method is mostly intended to be used by code generated
-    /// by `wayland-scanner`, and you should probably never need to use it directly,
-    /// but rather use the appropriate methods on the Rust object.
-    pub fn child_placeholder<J: Interface + From<Proxy<J>>>(&self) -> J {
-        Proxy::wrap(self.inner.child_placeholder()).into()
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
+        }
     }
 }
 
@@ -320,232 +346,4 @@ impl Proxy<::protocol::wl_display::WlDisplay> {
             inner: ProxyInner::from_c_display_wrapper(ptr),
         }
     }
-}
-
-/// A newly-created proxy that needs implementation
-///
-/// Whenever a new wayland object is created, you will
-/// receive it as a `NewProxy`. You then have to provide an
-/// implementation for it, in order to process the incoming
-/// events it may receive. Once this done you will be able
-/// to use it as a regular Rust object.
-///
-/// Implementations are structs implementing the appropriate
-/// variant of the `Implementation` trait. They can also be
-/// closures.
-pub struct NewProxy<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
-    pub(crate) inner: NewProxyInner,
-}
-
-impl<I: Interface + 'static> NewProxy<I> {
-    #[allow(dead_code)]
-    pub(crate) fn wrap(inner: NewProxyInner) -> NewProxy<I> {
-        NewProxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-    }
-
-    /// Implement this proxy using the given handler and implementation data.
-    ///
-    /// The handler must be a struct implementing the `EventHandler` trait of the `I` interface.
-    ///
-    /// This must be called from the same thread as the one owning the event queue this
-    /// new proxy is attached to and will panic otherwise. A proxy by default inherits
-    /// the event queue of its parent object.
-    ///
-    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`.
-    ///
-    /// If you want the user data to be accessed from other threads,
-    /// see `implement_user_data_threadsafe`.
-    pub fn implement<T, UD>(self, mut handler: T, user_data: UD) -> I
-    where
-        T: 'static,
-        UD: 'static,
-        I: HandledBy<T> + From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
-
-        self.implement_closure(implementation, user_data)
-    }
-
-    /// Implement this proxy using the given implementation closure and implementation data.
-    ///
-    /// This must be called from the same thread as the one owning the event queue this
-    /// new proxy is attached to and will panic otherwise. A proxy by default inherits
-    /// the event queue of its parent object.
-    ///
-    /// If you don't want an object to inherits its parent queue, see `Proxy::make_wrapper`.
-    ///
-    /// If you want the user data to be accessed from other threads,
-    /// see `implement_closure_user_data_threadsafe`.
-    pub fn implement_closure<F, UD>(self, implementation: F, user_data: UD) -> I
-    where
-        F: FnMut(I::Event, I) + 'static,
-        UD: 'static,
-        I: From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        if !self.inner.is_queue_on_current_thread() {
-            panic!("Trying to implement a proxy with a non-Send implementation from an other thread than the one of its event queue.");
-        }
-        let inner = unsafe {
-            self.inner
-                .implement::<I, _>(implementation, UserData::new(user_data))
-        };
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-
-    /// Implement this proxy using a dummy handler which does nothing.
-    pub fn implement_dummy(self) -> I
-    where
-        I: From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        self.implement_closure_threadsafe(|_, _| (), ())
-    }
-
-    /// Implement this proxy using the given handler and implementation data.
-    ///
-    /// The handler must be a struct implementing the `EventHandler` trait of the `I` interface.
-    ///
-    /// This function allows you to implement a proxy from an other thread than the one where its
-    /// event queue is attach, but the implementation thus must be `Send`.
-    pub fn implement_threadsafe<T, UD>(self, mut handler: T, user_data: UD) -> I
-    where
-        T: Send + 'static,
-        UD: Send + Sync + 'static,
-        I: HandledBy<T> + From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
-
-        self.implement_closure_threadsafe(implementation, user_data)
-    }
-
-    /// Implement this proxy using given closure and implementation data from any thread.
-    ///
-    /// This function allows you to implement a proxy from an other thread than the one where its
-    /// event queue is attach, but the implementation thus must be `Send`.
-    pub fn implement_closure_threadsafe<F, UD>(self, implementation: F, user_data: UD) -> I
-    where
-        F: FnMut(I::Event, I) + Send + 'static,
-        UD: Send + Sync + 'static,
-        I: From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        let inner = unsafe {
-            self.inner
-                .implement::<I, _>(implementation, UserData::new_threadsafe(user_data))
-        };
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-
-    /// Implement this proxy using the given handler and implementation data.
-    ///
-    /// This must be called from the same thread as the one owning the event queue this
-    /// new proxy is attached to and will panic otherwise. However the user data
-    /// may be accessed from other threads.
-    pub fn implement_user_data_threadsafe<T, UD>(self, mut handler: T, user_data: UD) -> I
-    where
-        T: 'static,
-        UD: Send + Sync + 'static,
-        I: HandledBy<T> + From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        let implementation = move |event, proxy: I| I::handle(&mut handler, event, proxy);
-
-        self.implement_closure_user_data_threadsafe(implementation, user_data)
-    }
-
-    /// Implement this proxy using the given closure and implementation data.
-    ///
-    /// This must be called from the same thread as the one owning the event queue this
-    /// new proxy is attached to and will panic otherwise. However the user data
-    /// may be accessed from other threads.
-    pub fn implement_closure_user_data_threadsafe<F, UD>(self, implementation: F, user_data: UD) -> I
-    where
-        F: FnMut(I::Event, I) + 'static,
-        UD: Send + Sync + 'static,
-        I: From<Proxy<I>>,
-        I::Event: MessageGroup<Map = ProxyMap>,
-    {
-        if !self.inner.is_queue_on_current_thread() {
-            panic!("Trying to implement a proxy with a non-Send implementation from an other thread than the one of its event queue.");
-        }
-        let inner = unsafe {
-            self.inner
-                .implement::<I, _>(implementation, UserData::new_threadsafe(user_data))
-        };
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-}
-
-impl<I: Interface + 'static> NewProxy<I> {
-    /// Get a raw pointer to the underlying wayland object
-    ///
-    /// Retrieve a pointer to the object from the `libwayland-client.so` library.
-    /// You will mostly need it to interface with C libraries needing access
-    /// to wayland objects (to initialize an opengl context for example).
-    ///
-    /// Use this if you need to pass an unimplemented object to the C library
-    /// you are interfacing with.
-    ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is
-    /// not activated.
-    pub fn c_ptr(&self) -> *mut wl_proxy {
-        #[cfg(feature = "native_lib")]
-        {
-            self.inner.c_ptr()
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
-        }
-    }
-
-    /// Create a `NewProxy` instance from a C pointer.
-    ///
-    /// By doing so, you assert that this wayland object was newly created and
-    /// can be safely implemented. As implementing it will overwrite any previously
-    /// associated data or implementation, this can cause weird errors akin to
-    /// memory corruption if it was not the case.
-    ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is
-    /// not activated.
-    pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Self {
-        #[cfg(feature = "native_lib")]
-        {
-            NewProxy {
-                _i: ::std::marker::PhantomData,
-                inner: NewProxyInner::from_c_ptr(_ptr),
-            }
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
-        }
-    }
-}
-
-/// Provides a callback function to handle events of the implementing interface via `T`.
-///
-/// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
-pub trait HandledBy<T>: Interface + Sized {
-    /// Handles an event.
-    fn handle(handler: &mut T, event: Self::Event, proxy: Self);
 }

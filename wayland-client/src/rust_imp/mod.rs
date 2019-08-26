@@ -3,11 +3,12 @@ use std::sync::{Arc, Mutex};
 
 use downcast::Downcast;
 
+use wayland_commons::filter::Filter;
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::MessageGroup;
 
-use {Interface, NewProxy, Proxy};
+use crate::{Interface, MainProxy, Proxy};
 
 mod connection;
 mod display;
@@ -15,7 +16,7 @@ mod proxy;
 mod queues;
 
 pub(crate) use self::display::DisplayInner;
-pub(crate) use self::proxy::{NewProxyInner, ProxyInner};
+pub(crate) use self::proxy::ProxyInner;
 pub(crate) use self::queues::EventQueueInner;
 
 /// A handle to the object map internal to the library state
@@ -44,7 +45,7 @@ impl ProxyMap {
     }
 
     /// Creates a new proxy for given id
-    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<NewProxy<I>> {
+    pub fn get_new<I: Interface>(&mut self, id: u32) -> Option<MainProxy<I>> {
         debug_assert!(self
             .map
             .lock()
@@ -52,12 +53,56 @@ impl ProxyMap {
             .find(id)
             .map(|obj| obj.is_interface::<I>())
             .unwrap_or(true));
-        NewProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(NewProxy::wrap)
+        ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(MainProxy::wrap)
     }
 }
 
+/// Stores a value in a threadafe container that
+/// only lets you access it from its owning thread
+struct ThreadGuard<T> {
+    val: T,
+    thread: std::thread::ThreadId,
+}
+
+impl<T> ThreadGuard<T> {
+    pub fn new(val: T) -> ThreadGuard<T> {
+        ThreadGuard {
+            val,
+            thread: std::thread::current().id(),
+        }
+    }
+
+    pub fn get(&self) -> &T {
+        assert!(
+            self.thread == std::thread::current().id(),
+            "Attempted to access a ThreadGuard contents from the wrong thread."
+        );
+        &self.val
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        assert!(
+            self.thread == std::thread::current().id(),
+            "Attempted to access a ThreadGuard contents from the wrong thread."
+        );
+        &mut self.val
+    }
+}
+
+unsafe impl<T> Send for ThreadGuard<T> {}
+unsafe impl<T> Sync for ThreadGuard<T> {}
+
+/*
+ * Dispatching logic
+ */
+enum Dispatched {
+    Yes,
+    NoDispatch,
+    BadMsg,
+}
+
 pub(crate) trait Dispatcher: Downcast + Send {
-    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()>;
+    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched;
 }
 
 mod dispatcher_impl {
@@ -67,7 +112,7 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface + From<Proxy<I>>, F: FnMut(I::Event, I) + 'static> {
+pub(crate) struct ImplDispatcher<I: Interface, F: FnMut(I::Event, MainProxy<I>) + 'static> {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
 }
@@ -79,8 +124,7 @@ pub(crate) struct ImplDispatcher<I: Interface + From<Proxy<I>>, F: FnMut(I::Even
 unsafe impl<I, F> Send for ImplDispatcher<I, F>
 where
     I: Interface,
-    F: FnMut(I::Event, I) + 'static,
-    I: From<Proxy<I>>,
+    F: FnMut(I::Event, MainProxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
 }
@@ -88,11 +132,10 @@ where
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface,
-    F: FnMut(I::Event, I) + 'static,
-    I: From<Proxy<I>>,
+    F: FnMut(I::Event, MainProxy<I>) + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
-    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Result<(), ()> {
+    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched {
         let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
@@ -100,7 +143,10 @@ where
                 proxy.object.interface, proxy.id, proxy.object.events[opcode].name, msg.args
             );
         }
-        let message = I::Event::from_raw(msg, map)?;
+        let message = match I::Event::from_raw(msg, map) {
+            Ok(v) => v,
+            Err(()) => return Dispatched::BadMsg,
+        };
         if message.since() > proxy.version() {
             eprintln!(
                 "Received an event {} requiring version >= {} while proxy {}@{} is version {}.",
@@ -110,7 +156,7 @@ where
                 proxy.id,
                 proxy.version()
             );
-            return Err(());
+            return Dispatched::BadMsg;
         }
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);
@@ -127,36 +173,31 @@ where
                     map.remove(proxy.id);
                 }
             }
-            (self.implementation)(message, Proxy::<I>::wrap(proxy.clone()).into());
+            (self.implementation)(message, MainProxy::<I>::wrap(proxy));
         } else {
-            (self.implementation)(message, Proxy::<I>::wrap(proxy).into());
+            (self.implementation)(message, MainProxy::<I>::wrap(proxy));
         }
-        Ok(())
+        Dispatched::Yes
     }
 }
 
-pub(crate) unsafe fn make_dispatcher<I, F>(implementation: F) -> Arc<Mutex<Dispatcher + Send>>
+pub(crate) unsafe fn make_dispatcher<I, E>(filter: Filter<E>) -> Arc<Mutex<dyn Dispatcher + Send>>
 where
     I: Interface,
-    F: FnMut(I::Event, I) + 'static,
-    I: From<Proxy<I>>,
+    E: From<(MainProxy<I>, I::Event)> + 'static,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
     Arc::new(Mutex::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,
-        implementation,
+        implementation: move |evt, proxy| filter.send((proxy, evt).into()),
     }))
 }
 
-pub(crate) fn default_dispatcher() -> Arc<Mutex<Dispatcher + Send>> {
+pub(crate) fn default_dispatcher() -> Arc<Mutex<dyn Dispatcher + Send>> {
     struct DefaultDisp;
     impl Dispatcher for DefaultDisp {
-        fn dispatch(&mut self, _msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Result<(), ()> {
-            eprintln!(
-                "[wayland-client] Received an event for unimplemented object {}@{}.",
-                proxy.object.interface, proxy.id
-            );
-            Err(())
+        fn dispatch(&mut self, _msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Dispatched {
+            Dispatched::NoDispatch
         }
     }
 

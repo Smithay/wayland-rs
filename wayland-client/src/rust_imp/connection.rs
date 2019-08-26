@@ -11,7 +11,7 @@ use wayland_commons::wire::{Argument, ArgumentType, Message, MessageParseError};
 use super::proxy::ObjectMeta;
 use super::queues::QueueBuffer;
 
-use ProtocolError;
+use crate::ProtocolError;
 
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
@@ -105,7 +105,7 @@ impl Connection {
                             new_id
                         );
                         // abort parsing, this is an unrecoverable error
-                        *last_error = Some(Error::Protocol(::ProtocolError {
+                        *last_error = Some(Error::Protocol(ProtocolError {
                             code: 0,
                             object_id: 0,
                             object_interface: "",

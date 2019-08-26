@@ -53,8 +53,8 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
         );
 
-        let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
-        let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events, Side::Client);
+        //let object_methods = gen_object_methods(&iface_name, &iface.requests, Side::Client);
+        //let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.events, Side::Client);
         let sinces = gen_since_constants(&iface.requests, &iface.events);
         let c_interface = super::c_interface_gen::generate_interface(&iface);
 
@@ -63,8 +63,8 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             pub mod #mod_name {
                 use std::os::raw::c_char;
                 use super::{
-                    Proxy, NewProxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
-                    Object, Message, Argument, ObjectMetadata, HandledBy, types_null, NULLPTR
+                    Proxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
+                    Object, Message, Argument, ObjectMetadata, types_null, NULLPTR, MainProxy,
                 };
                 use super::sys::common::{wl_interface, wl_array, wl_argument, wl_message};
                 use super::sys::client::*;
@@ -73,8 +73,8 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 #requests
                 #events
                 #interface
-                #object_methods
-                #event_handler_trait
+                //#object_methods
+                //#event_handler_trait
                 #sinces
                 #c_interface
             }
@@ -273,7 +273,7 @@ fn messagegroup_c_addon(
                                     match side {
                                         Side::Client => {
                                             quote! {
-                                                NewProxy::<super::#iface_mod::#iface_type>::from_c_ptr(
+                                                MainProxy::<super::#iface_mod::#iface_type>::from_c_ptr(
                                                     _args[#idx].o as *mut _
                                                 )
                                             }

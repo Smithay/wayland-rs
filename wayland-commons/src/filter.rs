@@ -2,17 +2,21 @@ use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 struct Inner<E, F: ?Sized> {
     pending: RefCell<VecDeque<E>>,
-    cb: RefCell<F>
+    cb: RefCell<F>,
 }
 
+#[derive(Clone)]
 pub struct Filter<E> {
-    inner: Rc<Inner<E, dyn FnMut(E)>>
+    inner: Rc<Inner<E, dyn FnMut(E)>>,
 }
 
 impl<E> Filter<E> {
     pub fn new<F: FnMut(E) + 'static>(f: F) -> Filter<E> {
         Filter {
-            inner: Rc::new(Inner { pending: RefCell::new(VecDeque::new()), cb: RefCell::new(f) })
+            inner: Rc::new(Inner {
+                pending: RefCell::new(VecDeque::new()),
+                cb: RefCell::new(f),
+            }),
         }
     }
 

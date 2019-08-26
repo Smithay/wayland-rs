@@ -234,10 +234,11 @@ pub(crate) fn gen_messagegroup(
                         }
                         Type::NewId => {
                             let object_name = if receiver {
-                                Some(Ident::new(
-                                    &format!("New{}", side.object_name()),
-                                    Span::call_site(),
-                                ))
+                                if side == Side::Client {
+                                    Some(Ident::new("MainProxy", Span::call_site()))
+                                } else {
+                                    Some(Ident::new("Resource", Span::call_site()))
+                                }
                             } else {
                                 None
                             };
