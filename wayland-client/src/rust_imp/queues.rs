@@ -14,7 +14,7 @@ use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
 use super::Dispatched;
 
-use crate::{AnonymousObject, Filter, Main};
+use crate::{AnonymousObject, Filter, Interface, Main, RawEvent};
 
 pub(crate) type QueueBuffer = Arc<Mutex<VecDeque<Message>>>;
 
@@ -49,7 +49,7 @@ impl EventQueueInner {
 
     pub(crate) fn dispatch<F>(&self, mut fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         // don't read events if there are some pending
         if let Err(()) = self.prepare_read() {
@@ -121,7 +121,7 @@ impl EventQueueInner {
 
     fn dispatch_buffer<F>(&self, buffer: &mut VecDeque<Message>, mut fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         let mut count = 0;
         let mut proxymap = super::ProxyMap::make(self.map.clone(), self.connection.clone());
@@ -158,7 +158,8 @@ impl EventQueueInner {
                         count += 1;
                     }
                     Dispatched::NoDispatch(msg, proxy) => {
-                        fallback(msg, Main::wrap(proxy));
+                        let raw_event = message_to_rawevent(msg, &proxy, &mut proxymap);
+                        fallback(raw_event, Main::wrap(proxy));
                         count += 1;
                     }
                     Dispatched::BadMsg => {
@@ -180,7 +181,7 @@ impl EventQueueInner {
 
     pub(crate) fn dispatch_pending<F>(&self, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         // First always dispatch the display buffer
         let display_dispatched = {
@@ -199,7 +200,7 @@ impl EventQueueInner {
 
     pub(crate) fn sync_roundtrip<F>(&self, mut fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         use crate::protocol::wl_callback::{Event as CbEvent, WlCallback};
         use crate::protocol::wl_display::{Request as DRequest, WlDisplay};
@@ -252,5 +253,33 @@ impl EventQueueInner {
 
     pub(crate) fn cancel_read(&self) {
         // TODO: un-mock
+    }
+}
+
+fn message_to_rawevent(msg: Message, proxy: &ProxyInner, map: &mut super::ProxyMap) -> RawEvent {
+    let Message { opcode, args, .. } = msg;
+
+    let args = args
+        .into_iter()
+        .map(|a| match a {
+            Argument::Int(i) => crate::Argument::Int(i),
+            Argument::Uint(u) => crate::Argument::Uint(u),
+            Argument::Array(v) => crate::Argument::Array(v),
+            Argument::Fixed(f) => crate::Argument::Float(f),
+            Argument::Fd(f) => crate::Argument::Fd(f),
+            Argument::Str(cs) => crate::Argument::Str(
+                String::from_utf8(cs.into_bytes())
+                    .unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into()),
+            ),
+            Argument::Object(id) => crate::Argument::Object(map.get(id).unwrap()),
+            Argument::NewId(id) => crate::Argument::NewId(map.get_new(id).unwrap()),
+        })
+        .collect();
+
+    RawEvent {
+        interface: proxy.object.interface,
+        opcode,
+        name: proxy.object.events[opcode as usize].name,
+        args,
     }
 }
