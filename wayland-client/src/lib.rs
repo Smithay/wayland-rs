@@ -230,15 +230,15 @@ pub enum Argument {
     /// u32
     Uint(u32),
     /// float
-    Float(i32),
+    Float(f32),
     /// CString
-    Str(String),
+    Str(Option<String>),
     /// id of a wayland object
-    Object(Proxy<AnonymousObject>),
+    Object(Option<Proxy<AnonymousObject>>),
     /// id of a newly created wayland object
-    NewId(Main<AnonymousObject>),
+    NewId(Option<Main<AnonymousObject>>),
     /// Vec<u8>
-    Array(Vec<u8>),
+    Array(Option<Vec<u8>>),
     /// RawFd
     Fd(std::os::unix::io::RawFd),
 }

@@ -25,7 +25,7 @@ unsafe impl Sync for UserData {}
 
 impl UserData {
     /// Create a new UserData instance
-    pub fn new() -> UserData {
+    pub const fn new() -> UserData {
         UserData { inner: Once::new() }
     }
 

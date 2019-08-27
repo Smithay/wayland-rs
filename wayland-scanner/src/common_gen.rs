@@ -290,6 +290,7 @@ pub(crate) fn gen_messagegroup(
             let common_type = arg.typ.common_type();
             quote!(super::ArgumentType::#common_type)
         });
+        let is_destructor = msg.typ == Some(Type::Destructor);
 
         quote! {
             super::MessageDesc {
@@ -298,6 +299,7 @@ pub(crate) fn gen_messagegroup(
                 signature: &[
                     #(#signature_values,)*
                 ],
+                destructor: #is_destructor,
             }
         }
     });

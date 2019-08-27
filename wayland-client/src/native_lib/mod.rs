@@ -4,9 +4,9 @@ mod proxy;
 
 pub(crate) use self::display::DisplayInner;
 pub(crate) use self::event_queue::EventQueueInner;
-pub(crate) use self::proxy::{NewProxyInner, ProxyInner};
+pub(crate) use self::proxy::ProxyInner;
 
-use {Interface, NewProxy, Proxy};
+use crate::{Interface, Main, Proxy};
 
 /// This type only exists for type-level compatibility
 /// with the rust implementation.
@@ -21,7 +21,7 @@ impl ProxyMap {
     }
 
     /// Unusable method only existing for type-level compatibility
-    pub fn get_new<I: Interface>(&mut self, _: u32) -> Option<NewProxy<I>> {
+    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, _: u32) -> Option<Main<I>> {
         match *self {}
     }
 }

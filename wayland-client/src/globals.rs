@@ -74,7 +74,7 @@ impl GlobalManager {
         let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
 
-        let mut registry = display
+        let registry = display
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
@@ -119,7 +119,7 @@ impl GlobalManager {
         let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
 
-        let mut registry = display
+        let registry = display
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();

@@ -60,6 +60,7 @@ impl<I: Interface> Proxy<I>
 where
     I: AsRef<Proxy<I>> + From<Proxy<I>>,
 {
+    #[allow(dead_code)]
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
         Proxy {
             _i: ::std::marker::PhantomData,
@@ -296,7 +297,7 @@ where
     }
 }
 
-impl<I: Interface> Proxy<I> {
+impl<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> Proxy<I> {
     /// Check whether this proxy is managed by the library or not
     ///
     /// See `from_c_ptr` for details.

@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use crate::imp::EventQueueInner;
 use crate::{AnonymousObject, Main, RawEvent};
-use wayland_commons::wire::Message;
 
 /// An event queue for protocol messages
 ///
