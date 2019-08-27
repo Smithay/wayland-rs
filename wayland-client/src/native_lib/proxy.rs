@@ -1,39 +1,38 @@
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread::{self, ThreadId};
 
-use wayland_commons::utils::UserData;
+use crate::{Interface, Main, Proxy, RawEvent};
+use wayland_commons::filter::Filter;
+use wayland_commons::user_data::UserData;
 use wayland_commons::wire::ArgumentType;
 use wayland_commons::MessageGroup;
-use {Interface, Proxy};
 
 use super::EventQueueInner;
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
 
+static INVALID_USERDATA: UserData = UserData::new();
+
 pub struct ProxyInternal {
     alive: AtomicBool,
     user_data: UserData,
-    queue_thread: ThreadId,
 }
 
 impl ProxyInternal {
-    pub fn new(user_data: UserData, thread_id: ThreadId) -> ProxyInternal {
+    pub fn new(user_data: UserData) -> ProxyInternal {
         ProxyInternal {
             alive: AtomicBool::new(true),
             user_data,
-            queue_thread: thread_id,
         }
     }
 }
 
-#[derive(Clone)]
 pub(crate) struct ProxyInner {
     internal: Option<Arc<ProxyInternal>>,
     ptr: *mut wl_proxy,
-    wrapping: Option<ThreadId>,
+    wrapping: Option<*mut wl_proxy>,
 }
 
 unsafe impl Send for ProxyInner {}
@@ -71,84 +70,85 @@ impl ProxyInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, self.ptr) }
     }
 
-    pub(crate) fn get_user_data<UD: 'static>(&self) -> Option<&UD> {
+    pub(crate) fn user_data(&self) -> &UserData {
         if let Some(ref inner) = self.internal {
-            inner.user_data.get::<UD>()
+            &inner.user_data
         } else {
-            None
+            INVALID_USERDATA.set_threadsafe(|| ());
+            &INVALID_USERDATA
         }
     }
 
-    pub(crate) fn send<I: Interface>(&self, msg: I::Request) {
-        let destructor = msg.is_destructor();
-        msg.as_raw_c_in(|opcode, args| unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_marshal_array,
-                self.ptr,
-                opcode,
-                args.as_ptr() as *mut _
-            );
-        });
-
-        if destructor {
-            // we need to destroy the proxy now
-            if let Some(ref internal) = self.internal {
-                internal.alive.store(false, Ordering::Release);
-            }
-            unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr);
-            }
-        }
-    }
-
-    pub(crate) fn send_constructor<I, J>(
-        &self,
-        msg: I::Request,
-        version: Option<u32>,
-    ) -> Result<NewProxyInner, ()>
+    pub(crate) fn send<I, J>(&self, msg: I::Request, version: Option<u32>) -> Option<ProxyInner>
     where
         I: Interface,
-        J: Interface,
+        J: Interface + AsRef<Proxy<J>> + From<Proxy<J>>,
     {
         let destructor = msg.is_destructor();
-
         let opcode = msg.opcode();
 
-        // sanity check
-        let mut nid_idx = I::Request::MESSAGES[opcode as usize]
+        // figure out if the call creates an object
+        let nid_idx = I::Request::MESSAGES[opcode as usize]
             .signature
             .iter()
-            .position(|&t| t == ArgumentType::NewId)
-            .expect("Trying to use 'send_constructor' with a message not creating any object.");
+            .position(|&t| t == ArgumentType::NewId);
 
-        if let Some(o) = I::Request::child(opcode, 1, &()) {
-            if !o.is_interface::<J>() {
-                panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
+        let alive = self.is_alive();
+
+        let ret = if let Some(mut nid_idx) = nid_idx {
+            if let Some(o) = I::Request::child(opcode, 1, &()) {
+                if !o.is_interface::<J>() {
+                    panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
+                }
+            } else {
+                // there is no target interface in the protocol, this is a generic object-creating
+                // function (likely wl_registry.bind), the newid arg will thus expand to (str, u32, obj)
+                nid_idx += 2;
+            }
+
+            let version = version.unwrap_or_else(|| self.version());
+
+            if alive {
+                if self.wrapping.is_none() {
+                    panic!("Attemping to create an object from a non-attached proxy.");
+                }
+                unsafe {
+                    let ptr = msg.as_raw_c_in(|opcode, args| {
+                        assert!(
+                            args[nid_idx].o.is_null(),
+                            "Trying to use 'send_constructor' with a non-placeholder object."
+                        );
+                        ffi_dispatch!(
+                            WAYLAND_CLIENT_HANDLE,
+                            wl_proxy_marshal_array_constructor_versioned,
+                            self.ptr,
+                            opcode,
+                            args.as_mut_ptr(),
+                            J::c_interface(),
+                            version
+                        )
+                    });
+                    Some(ProxyInner::init_from_c_ptr::<J>(ptr))
+                }
+            } else {
+                // Create a dead proxy ex-nihilo
+                Some(ProxyInner::dead())
             }
         } else {
-            // there is no target interface in the protocol, this is a generic object-creating
-            // function (likely wl_registry.bind), the newid arg will thus expand to (str, u32, obj)
-            nid_idx += 2;
-        }
-
-        let version = version.unwrap_or_else(|| self.version());
-
-        let ptr = msg.as_raw_c_in(|opcode, args| unsafe {
-            assert!(
-                args[nid_idx].o.is_null(),
-                "Trying to use 'send_constructor' with a non-placeholder object."
-            );
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_marshal_array_constructor_versioned,
-                self.ptr,
-                opcode,
-                args.as_mut_ptr(),
-                J::c_interface(),
-                version
-            )
-        });
+            // not a constructor, nothing much to do
+            if alive {
+                msg.as_raw_c_in(|opcode, args| unsafe {
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_marshal_array,
+                        self.ptr,
+                        opcode,
+                        args.as_ptr() as *mut _
+                    );
+                });
+            }
+            None
+        };
 
         if destructor {
             // we need to destroy the proxy now
@@ -160,12 +160,7 @@ impl ProxyInner {
             }
         }
 
-        let mut newp = unsafe { NewProxyInner::from_c_ptr(ptr) };
-        newp.queue_thread = self
-            .wrapping
-            .or_else(|| self.internal.as_ref().map(|int| int.queue_thread))
-            .unwrap_or_else(|| thread::current().id());
-        Ok(newp)
+        ret
     }
 
     pub(crate) fn equals(&self, other: &ProxyInner) -> bool {
@@ -179,9 +174,20 @@ impl ProxyInner {
         }
     }
 
-    pub(crate) fn make_wrapper(&self, queue: &EventQueueInner) -> Result<ProxyInner, ()> {
+    pub(crate) fn detach(&mut self) {
+        if let Some(ptr) = self.wrapping.take() {
+            // self.ptr == self.wrapping means we are a Main<_>
+            if ptr != self.ptr {
+                unsafe {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_wrapper_destroy, ptr);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn attach(&mut self, queue: &EventQueueInner) {
         if !self.is_external() && !self.is_alive() {
-            return Err(());
+            return;
         }
 
         let wrapper_ptr;
@@ -190,38 +196,65 @@ impl ProxyInner {
             queue.assign_proxy(wrapper_ptr);
         }
 
-        Ok(ProxyInner {
-            internal: self.internal.clone(),
-            ptr: wrapper_ptr,
-            wrapping: Some(thread::current().id()), // EventQueueInner is not Send, so we are necessarily on the right thread
-        })
-    }
-
-    pub(crate) fn child<I: Interface>(&self) -> NewProxyInner {
-        let ptr =
-            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create, self.ptr, I::c_interface()) };
-        let queue_thread = self
-            .wrapping
-            .or_else(|| self.internal.as_ref().map(|internal| internal.queue_thread))
-            .unwrap_or_else(|| thread::current().id());
-        NewProxyInner { ptr, queue_thread }
+        self.wrapping = Some(wrapper_ptr);
     }
 
     pub(crate) fn c_ptr(&self) -> *mut wl_proxy {
-        self.ptr
+        self.wrapping.unwrap_or(self.ptr)
     }
 
-    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Proxy<I>>>(ptr: *mut wl_proxy) -> Self {
+    pub fn assign<I, E>(&self, filter: Filter<E>)
+    where
+        I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
+        E: From<(Main<I>, I::Event)> + 'static,
+        I::Event: MessageGroup<Map = super::ProxyMap>,
+    {
+        unsafe {
+            let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
+                as *mut ProxyUserData<I>;
+            (*user_data).implem = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+        }
+    }
+
+    pub(crate) unsafe fn init_from_c_ptr<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>>(
+        ptr: *mut wl_proxy,
+    ) -> Self {
+        let new_user_data = Box::new(ProxyUserData::<I>::new(UserData::new()));
+        let internal = new_user_data.internal.clone();
+
+        ffi_dispatch!(
+            WAYLAND_CLIENT_HANDLE,
+            wl_proxy_add_dispatcher,
+            ptr,
+            proxy_dispatcher::<I>,
+            &::wayland_sys::RUST_MANAGED as *const _ as *const _,
+            Box::into_raw(new_user_data) as *mut _
+        );
+
+        // We are a Main<_>, so ptr == wrapping
+        ProxyInner {
+            internal: Some(internal),
+            ptr,
+            wrapping: Some(ptr),
+        }
+    }
+
+    fn dead() -> Self {
+        ProxyInner {
+            internal: Some(Arc::new(ProxyInternal {
+                alive: AtomicBool::new(false),
+                user_data: UserData::new(),
+            })),
+            ptr: std::ptr::null_mut(),
+            wrapping: None,
+        }
+    }
+
+    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>>(
+        ptr: *mut wl_proxy,
+    ) -> Self {
         if ptr.is_null() {
-            return ProxyInner {
-                internal: Some(Arc::new(ProxyInternal {
-                    alive: AtomicBool::new(false),
-                    user_data: UserData::empty(),
-                    queue_thread: thread::current().id(),
-                })),
-                ptr,
-                wrapping: None,
-            };
+            return Self::dead();
         }
 
         let is_managed = {
@@ -246,92 +279,54 @@ impl ProxyInner {
         ProxyInner {
             internal: None,
             ptr: d,
-            wrapping: Some(thread::current().id()),
-        }
-    }
-
-    pub(crate) fn child_placeholder(&self) -> ProxyInner {
-        ProxyInner {
-            internal: Some(Arc::new(ProxyInternal {
-                alive: AtomicBool::new(false),
-                user_data: UserData::empty(),
-                queue_thread: self
-                    .internal
-                    .as_ref()
-                    .map(|int| int.queue_thread)
-                    .unwrap_or_else(|| thread::current().id()),
-            })),
-            ptr: ::std::ptr::null_mut(),
-            wrapping: None,
+            wrapping: Some(d),
         }
     }
 }
 
-pub(crate) struct NewProxyInner {
-    ptr: *mut wl_proxy,
-    queue_thread: ThreadId,
-}
-
-impl NewProxyInner {
-    pub(crate) fn is_queue_on_current_thread(&self) -> bool {
-        self.queue_thread == thread::current().id()
-    }
-
-    pub(crate) unsafe fn implement<I: Interface, F>(
-        self,
-        implementation: F,
-        user_data: UserData,
-    ) -> ProxyInner
-    where
-        I: From<Proxy<I>>,
-        F: FnMut(I::Event, I) + 'static,
-    {
-        let new_user_data = Box::new(ProxyUserData::new(implementation, user_data, self.queue_thread));
-        let internal = new_user_data.internal.clone();
-
-        ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_add_dispatcher,
-            self.ptr,
-            proxy_dispatcher::<I>,
-            &::wayland_sys::RUST_MANAGED as *const _ as *const _,
-            Box::into_raw(new_user_data) as *mut _
-        );
-
-        ProxyInner {
-            internal: Some(internal),
+impl Clone for ProxyInner {
+    fn clone(&self) -> ProxyInner {
+        let mut new = ProxyInner {
+            internal: self.internal.clone(),
             ptr: self.ptr,
             wrapping: None,
+        };
+        if let Some(ptr) = self.wrapping {
+            if ptr != self.ptr {
+                // create a new wrapper to keep correct track of them
+                let wrapper_ptr;
+                unsafe {
+                    wrapper_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create_wrapper, ptr);
+                }
+                new.wrapping = Some(wrapper_ptr);
+            } else {
+                // self.wrapping == self.ptr means we are a Main<_>, not a wrapper
+                new.wrapping = Some(self.ptr);
+            }
         }
-    }
-
-    pub(crate) fn c_ptr(&self) -> *mut wl_proxy {
-        self.ptr
-    }
-
-    pub(crate) unsafe fn from_c_ptr(ptr: *mut wl_proxy) -> NewProxyInner {
-        NewProxyInner {
-            ptr,
-            queue_thread: thread::current().id(),
-        }
+        new
     }
 }
 
-type BoxedCallback<I> = Box<FnMut(<I as Interface>::Event, I)>;
+impl Drop for ProxyInner {
+    fn drop(&mut self) {
+        // always detach on drop to avoid leaking wrappers
+        self.detach();
+    }
+}
 
-struct ProxyUserData<I: Interface + From<Proxy<I>>> {
+type BoxedCallback<I> = Box<dyn FnMut(<I as Interface>::Event, Main<I>)>;
+
+struct ProxyUserData<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>> {
     internal: Arc<ProxyInternal>,
     implem: Option<BoxedCallback<I>>,
 }
 
-impl<I: Interface + From<Proxy<I>>> ProxyUserData<I> {
-    fn new<F>(implem: F, user_data: UserData, thread_id: ThreadId) -> ProxyUserData<I>
-    where
-        F: FnMut(I::Event, I) + 'static,
-    {
+impl<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>> ProxyUserData<I> {
+    fn new(user_data: UserData) -> ProxyUserData<I> {
         ProxyUserData {
-            internal: Arc::new(ProxyInternal::new(user_data, thread_id)),
-            implem: Some(Box::new(implem)),
+            internal: Arc::new(ProxyInternal::new(user_data)),
+            implem: None,
         }
     }
 }
@@ -344,29 +339,48 @@ unsafe extern "C" fn proxy_dispatcher<I: Interface>(
     args: *const wl_argument,
 ) -> c_int
 where
-    I: Interface + From<Proxy<I>>,
+    I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>,
 {
     let proxy = proxy as *mut wl_proxy;
 
     // We don't need to worry about panic-safeness, because if there is a panic,
     // we'll abort the process, so no access to corrupted data is possible.
     let ret = ::std::panic::catch_unwind(move || {
-        // parse the message:
-        let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
-        let must_destroy = msg.is_destructor();
-        // create the proxy object
-        let proxy_obj = ::Proxy::<I>::from_c_ptr(proxy).into();
+        let must_destroy = I::Event::MESSAGES[opcode as usize].destructor;
         // retrieve the impl
         let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
         {
             let user_data = &mut *(user_data as *mut ProxyUserData<I>);
-            let implem = user_data.implem.as_mut().unwrap();
+            let implem = user_data.implem.as_mut();
+
             if must_destroy {
                 user_data.internal.alive.store(false, Ordering::Release);
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
-            // call the impl
-            implem(msg, proxy_obj);
+            // if there is an implem, call it, otherwise call the fallback
+            match implem {
+                Some(implem) => {
+                    // parse the message:
+                    let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
+                    // create the proxy object
+                    let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
+                    implem(msg, proxy_obj);
+                }
+                None => {
+                    super::event_queue::FALLBACK.with(|opt_fallback| {
+                        let mut opt_fallback = opt_fallback.borrow_mut();
+                        if let Some(ref mut fb) = *opt_fallback {
+                            // parse the message:
+                            let msg = parse_raw_event::<I>(opcode, args);
+                            // create the proxy object
+                            let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
+                            fb(msg, proxy_obj);
+                        } else {
+                            panic!("Message dispatched without filter nor fallback ?!");
+                        }
+                    });
+                }
+            }
         }
         if must_destroy {
             // final cleanup
@@ -383,11 +397,68 @@ where
                 opcode,
                 I::NAME
             );
-            ::libc::abort();
+            libc::abort();
         }
         Err(_) => {
             eprintln!("[wayland-client error] A handler for {} panicked.", I::NAME);
-            ::libc::abort()
+            libc::abort()
         }
+    }
+}
+
+unsafe fn parse_raw_event<I: Interface>(opcode: u32, args: *const wl_argument) -> RawEvent {
+    let desc = &I::Event::MESSAGES[opcode as usize];
+
+    let c_args = std::slice::from_raw_parts(args, desc.signature.len());
+
+    let mut args = Vec::with_capacity(c_args.len());
+    // parse the arguments one by one
+    for (t, a) in desc.signature.iter().zip(c_args.iter()) {
+        args.push(match t {
+            ArgumentType::Int => crate::Argument::Int(a.i),
+            ArgumentType::Uint => crate::Argument::Uint(a.u),
+            ArgumentType::Fixed => crate::Argument::Float((a.f as f32) / 256.),
+            ArgumentType::Array => {
+                if a.a.is_null() {
+                    crate::Argument::Array(None)
+                } else {
+                    let array = &*a.a;
+                    crate::Argument::Array(Some(
+                        ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned(),
+                    ))
+                }
+            }
+            ArgumentType::Str => {
+                if a.s.is_null() {
+                    crate::Argument::Str(None)
+                } else {
+                    crate::Argument::Str(Some(
+                        ::std::ffi::CStr::from_ptr(a.s).to_string_lossy().into_owned(),
+                    ))
+                }
+            }
+            ArgumentType::Fd => crate::Argument::Fd(a.h),
+            ArgumentType::Object => {
+                if a.o.is_null() {
+                    crate::Argument::Object(None)
+                } else {
+                    crate::Argument::Object(Some(Proxy::from_c_ptr(a.o as *mut _)))
+                }
+            }
+            ArgumentType::NewId => {
+                if a.o.is_null() {
+                    crate::Argument::NewId(None)
+                } else {
+                    crate::Argument::NewId(Some(Main::from_c_ptr(a.o as *mut _)))
+                }
+            }
+        });
+    }
+
+    RawEvent {
+        interface: I::NAME,
+        opcode: opcode as u16,
+        name: desc.name,
+        args,
     }
 }

@@ -2,22 +2,22 @@ use std::io;
 use std::os::unix::io::RawFd;
 use std::sync::Arc;
 
-use protocol::wl_display::WlDisplay;
+use crate::protocol::wl_display::WlDisplay;
 use wayland_sys::client::*;
 
-use {ConnectError, Proxy};
+use crate::{ConnectError, Proxy};
 
 use super::EventQueueInner;
 
 pub(crate) struct DisplayInner {
-    proxy: WlDisplay,
+    proxy: Proxy<WlDisplay>,
     display: *mut wl_display,
 }
 
 unsafe impl Send for DisplayInner {}
 unsafe impl Sync for DisplayInner {}
 
-unsafe fn make_display(ptr: *mut wl_display) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
+unsafe fn make_display(ptr: *mut wl_display) -> Result<Arc<DisplayInner>, ConnectError> {
     if ptr.is_null() {
         return Err(ConnectError::NoCompositorListening);
     }
@@ -27,13 +27,11 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<(Arc<DisplayInner>, Event
         display: ptr,
     });
 
-    let evq = EventQueueInner::new(display.clone(), None);
-
-    Ok((display, evq))
+    Ok(display)
 }
 
 impl DisplayInner {
-    pub unsafe fn from_fd(fd: RawFd) -> Result<(Arc<DisplayInner>, EventQueueInner), ConnectError> {
+    pub unsafe fn from_fd(fd: RawFd) -> Result<Arc<DisplayInner>, ConnectError> {
         if !::wayland_sys::client::is_lib_available() {
             return Err(ConnectError::NoWaylandLib);
         }
@@ -63,11 +61,11 @@ impl DisplayInner {
         }
     }
 
-    pub(crate) fn get_proxy(&self) -> &WlDisplay {
+    pub(crate) fn get_proxy(&self) -> &Proxy<WlDisplay> {
         &self.proxy
     }
 
-    pub(crate) fn protocol_error(&self) -> Option<::ProtocolError> {
+    pub(crate) fn protocol_error(&self) -> Option<crate::ProtocolError> {
         let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_error, self.ptr()) };
         if ret == ::nix::errno::Errno::EPROTO as i32 {
             let mut interface = ::std::ptr::null_mut();
@@ -82,7 +80,7 @@ impl DisplayInner {
                 )
             };
             let interface_name = unsafe { ::std::ffi::CStr::from_ptr((*interface).name) };
-            Some(::ProtocolError {
+            Some(crate::ProtocolError {
                 code,
                 object_id: id,
                 object_interface: interface_name.to_str().unwrap_or("<unknown>"),
@@ -115,13 +113,13 @@ impl DisplayInner {
 
 impl Drop for DisplayInner {
     fn drop(&mut self) {
-        if self.proxy.as_ref().c_ptr() == (self.display as *mut _) {
+        if self.proxy.c_ptr() == (self.display as *mut _) {
             // disconnect only if we are owning this display
             unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
                     wl_display_disconnect,
-                    self.proxy.as_ref().c_ptr() as *mut wl_display
+                    self.proxy.c_ptr() as *mut wl_display
                 );
             }
         }

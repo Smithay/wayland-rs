@@ -16,6 +16,8 @@ pub struct MessageDesc {
     pub signature: &'static [ArgumentType],
     /// Minimum required version of the interface
     pub since: u32,
+    /// Whether this message is a destructor
+    pub destructor: bool
 }
 
 /// Enum of possible argument types as recognized by the wire

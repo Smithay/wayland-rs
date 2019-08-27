@@ -14,7 +14,7 @@ use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
 use super::Dispatched;
 
-use crate::{AnonymousObject, Filter, Interface, Main, RawEvent};
+use crate::{AnonymousObject, Filter, Main, RawEvent};
 
 pub(crate) type QueueBuffer = Arc<Mutex<VecDeque<Message>>>;
 
@@ -264,15 +264,22 @@ fn message_to_rawevent(msg: Message, proxy: &ProxyInner, map: &mut super::ProxyM
         .map(|a| match a {
             Argument::Int(i) => crate::Argument::Int(i),
             Argument::Uint(u) => crate::Argument::Uint(u),
-            Argument::Array(v) => crate::Argument::Array(v),
-            Argument::Fixed(f) => crate::Argument::Float(f),
+            Argument::Array(v) => crate::Argument::Array(if v.len() == 0 { None } else { Some(v) }),
+            Argument::Fixed(f) => crate::Argument::Float((f as f32) / 256.),
             Argument::Fd(f) => crate::Argument::Fd(f),
-            Argument::Str(cs) => crate::Argument::Str(
-                String::from_utf8(cs.into_bytes())
-                    .unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into()),
-            ),
-            Argument::Object(id) => crate::Argument::Object(map.get(id).unwrap()),
-            Argument::NewId(id) => crate::Argument::NewId(map.get_new(id).unwrap()),
+            Argument::Str(cs) => crate::Argument::Str({
+                let bytes = cs.into_bytes();
+                if bytes.len() == 0 {
+                    None
+                } else {
+                    Some(
+                        String::from_utf8(bytes)
+                            .unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into()),
+                    )
+                }
+            }),
+            Argument::Object(id) => crate::Argument::Object(map.get(id)),
+            Argument::NewId(id) => crate::Argument::NewId(map.get_new(id)),
         })
         .collect();
 

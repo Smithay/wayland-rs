@@ -51,4 +51,5 @@ const GLOBAL_EVENT: MessageDesc = MessageDesc {
     name: "global",
     signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint],
     since: 1,
+    destructor: false,
 };

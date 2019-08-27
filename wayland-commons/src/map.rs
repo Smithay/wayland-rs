@@ -114,7 +114,9 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
 
     /// Find an object in the store
     pub fn find(&self, id: u32) -> Option<Object<Meta>> {
-        if id >= SERVER_ID_LIMIT {
+        if id == 0 {
+            None
+        } else if id >= SERVER_ID_LIMIT {
             self.server_objects
                 .get((id - SERVER_ID_LIMIT) as usize)
                 .and_then(Clone::clone)
@@ -127,7 +129,9 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     ///
     /// Does nothing if the object didn't previously exists
     pub fn remove(&mut self, id: u32) {
-        if id >= SERVER_ID_LIMIT {
+        if id == 0 {
+            // nothing
+        } else if id >= SERVER_ID_LIMIT {
             if let Some(place) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize) {
                 *place = None;
             }
@@ -141,7 +145,9 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     /// Can fail if the requested id is not the next free id of this store.
     /// (In which case this is a protocol error)
     pub fn insert_at(&mut self, id: u32, object: Object<Meta>) -> Result<(), ()> {
-        if id >= SERVER_ID_LIMIT {
+        if id == 0 {
+            Err(())
+        } else if id >= SERVER_ID_LIMIT {
             insert_in_at(&mut self.server_objects, (id - SERVER_ID_LIMIT) as usize, object)
         } else {
             insert_in_at(&mut self.client_objects, (id - 1) as usize, object)
@@ -160,7 +166,9 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
 
     /// Mutably access an object of the map
     pub fn with<T, F: FnOnce(&mut Object<Meta>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
-        if id >= SERVER_ID_LIMIT {
+        if id == 0 {
+            Err(())
+        } else if id >= SERVER_ID_LIMIT {
             if let Some(&mut Some(ref mut obj)) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize)
             {
                 Ok(f(obj))
