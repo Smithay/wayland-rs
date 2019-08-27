@@ -223,6 +223,38 @@ mod anonymous_object {
     }
 }
 
+/// Enum of possible argument in an event
+pub enum Argument {
+    /// i32
+    Int(i32),
+    /// u32
+    Uint(u32),
+    /// float
+    Float(i32),
+    /// CString
+    Str(String),
+    /// id of a wayland object
+    Object(Proxy<AnonymousObject>),
+    /// id of a newly created wayland object
+    NewId(Main<AnonymousObject>),
+    /// Vec<u8>
+    Array(Vec<u8>),
+    /// RawFd
+    Fd(std::os::unix::io::RawFd),
+}
+
+/// An generic event
+pub struct RawEvent {
+    /// Interface of the associated object
+    pub interface: &'static str,
+    /// Opcode of the event
+    pub opcode: u16,
+    /// Name of the event
+    pub name: &'static str,
+    /// Arguments of the message
+    pub args: Vec<Argument>,
+}
+
 /// Generate an enum joining several objects events
 ///
 /// This macro allows you to easily create a enum type for use with your message iterators. It is

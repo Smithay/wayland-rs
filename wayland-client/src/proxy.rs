@@ -287,10 +287,7 @@ where
     pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Main<I> {
         #[cfg(feature = "native_lib")]
         {
-            Proxy {
-                _i: ::std::marker::PhantomData,
-                inner: ProxyInner::init_from_c_ptr::<I>(_ptr),
-            }
+            Main::wrap(ProxyInner::init_from_c_ptr::<I>(_ptr))
         }
         #[cfg(not(feature = "native_lib"))]
         {
@@ -377,10 +374,10 @@ impl<I: Interface> Proxy<I> {
 }
 
 #[cfg(feature = "native_lib")]
-impl Proxy<::protocol::wl_display::WlDisplay> {
+impl Proxy<crate::protocol::wl_display::WlDisplay> {
     pub(crate) unsafe fn from_c_display_wrapper(
         ptr: *mut wl_proxy,
-    ) -> Proxy<::protocol::wl_display::WlDisplay> {
+    ) -> Proxy<crate::protocol::wl_display::WlDisplay> {
         Proxy {
             _i: ::std::marker::PhantomData,
             inner: ProxyInner::from_c_display_wrapper(ptr),

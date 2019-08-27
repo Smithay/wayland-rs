@@ -2,7 +2,7 @@ use std::io;
 use std::rc::Rc;
 
 use crate::imp::EventQueueInner;
-use crate::{AnonymousObject, Main};
+use crate::{AnonymousObject, Main, RawEvent};
 use wayland_commons::wire::Message;
 
 /// An event queue for protocol messages
@@ -130,7 +130,7 @@ impl EventQueue {
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn dispatch<F>(&mut self, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         self.inner.dispatch(fallback)
     }
@@ -145,7 +145,7 @@ impl EventQueue {
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn dispatch_pending<F>(&mut self, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         self.inner.dispatch_pending(fallback)
     }
@@ -163,7 +163,7 @@ impl EventQueue {
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
     pub fn sync_roundtrip<F>(&mut self, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(Message, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         self.inner.sync_roundtrip(fallback)
     }
