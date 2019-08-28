@@ -8,45 +8,19 @@ use wayland_sys::client::*;
 
 use super::DisplayInner;
 
-thread_local! {
-    pub(crate) static FALLBACK: RefCell<Option<Box<dyn FnMut(RawEvent, Main<AnonymousObject>)>>> = RefCell::new(None);
+scoped_tls::scoped_thread_local! {
+    pub(crate) static FALLBACK: RefCell<&mut dyn FnMut(RawEvent, Main<AnonymousObject>)>
 }
 
-fn with_fallback<T, FB, F>(fb: FB, f: F) -> T
+fn with_fallback<T, FB, F>(mut fb: FB, f: F) -> T
 where
     FB: FnMut(RawEvent, Main<AnonymousObject>),
     F: FnOnce() -> T,
 {
-    let boxed: Box<dyn FnMut(_, _)> = Box::new(fb) as Box<_>;
-    // We erase the lifetime of the closure to store it in the TLS.
-    // I'll be dropped at the end of this function call anyway
-    let erased = unsafe {
-        ::std::mem::transmute::<_, Box<dyn FnMut(RawEvent, Main<AnonymousObject>) + 'static>>(boxed)
-    };
-
-    // This guard ensures the closure is removed from the TLS when this
-    // function exits, be it normally or due to a panic.
-    struct Guard;
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            FALLBACK.with(|opt_fallback| {
-                let mut opt_fallback = opt_fallback.borrow_mut();
-                *opt_fallback = None;
-            });
-        }
-    }
-
-    let _guard = Guard;
-
-    FALLBACK.with(move |opt_fallback| {
-        let mut opt_fallback = opt_fallback.borrow_mut();
-        assert!(
-            opt_fallback.is_none(),
-            "Trying to reentrantly dispatch queues in the same thread!"
-        );
-        *opt_fallback = Some(erased);
-    });
-    f()
+    // We erase the lifetime of the callback to be able to store it in the tls,
+    // it's safe as it'll only last until the end of this function call anyway
+    let fb = unsafe { std::mem::transmute(&mut fb as &mut dyn FnMut(_, _)) };
+    FALLBACK.set(&RefCell::new(fb), || f())
 }
 
 pub(crate) struct EventQueueInner {
