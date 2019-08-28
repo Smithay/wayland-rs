@@ -367,17 +367,13 @@ where
                     implem(msg, proxy_obj);
                 }
                 None => {
-                    super::event_queue::FALLBACK.with(|opt_fallback| {
-                        let mut opt_fallback = opt_fallback.borrow_mut();
-                        if let Some(ref mut fb) = *opt_fallback {
-                            // parse the message:
-                            let msg = parse_raw_event::<I>(opcode, args);
-                            // create the proxy object
-                            let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
-                            fb(msg, proxy_obj);
-                        } else {
-                            panic!("Message dispatched without filter nor fallback ?!");
-                        }
+                    super::event_queue::FALLBACK.with(|fallback| {
+                        let mut fallback = fallback.borrow_mut();
+                        // parse the message:
+                        let msg = parse_raw_event::<I>(opcode, args);
+                        // create the proxy object
+                        let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
+                        (&mut *fallback)(msg, proxy_obj);
                     });
                 }
             }
