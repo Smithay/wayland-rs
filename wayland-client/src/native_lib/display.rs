@@ -7,11 +7,12 @@ use wayland_sys::client::*;
 
 use crate::{ConnectError, Proxy};
 
-use super::EventQueueInner;
+use super::{EventQueueInner, ProxyInner};
 
 pub(crate) struct DisplayInner {
     proxy: Proxy<WlDisplay>,
     display: *mut wl_display,
+    external: bool,
 }
 
 unsafe impl Send for DisplayInner {}
@@ -25,6 +26,7 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<Arc<DisplayInner>, Connec
     let display = Arc::new(DisplayInner {
         proxy: Proxy::from_c_ptr(ptr as *mut _).into(),
         display: ptr,
+        external: false,
     });
 
     Ok(display)
@@ -57,7 +59,7 @@ impl DisplayInner {
     pub(crate) fn create_event_queue(me: &Arc<DisplayInner>) -> EventQueueInner {
         unsafe {
             let ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, me.ptr());
-            EventQueueInner::new(me.clone(), Some(ptr))
+            EventQueueInner::new(me.clone(), ptr)
         }
     }
 
@@ -91,29 +93,18 @@ impl DisplayInner {
         }
     }
 
-    pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> (Arc<DisplayInner>, EventQueueInner) {
-        let evq_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display_ptr);
-
-        let wrapper_ptr = ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_create_wrapper,
-            display_ptr as *mut _
-        );
-        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapper_ptr, evq_ptr);
-
-        let display = Arc::new(DisplayInner {
-            proxy: Proxy::from_c_display_wrapper(wrapper_ptr).into(),
+    pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> Arc<DisplayInner> {
+        Arc::new(DisplayInner {
+            proxy: Proxy::wrap(ProxyInner::from_external_display(display_ptr as *mut _)).into(),
             display: display_ptr,
-        });
-
-        let evq = EventQueueInner::new(display.clone(), Some(evq_ptr));
-        (display, evq)
+            external: true,
+        })
     }
 }
 
 impl Drop for DisplayInner {
     fn drop(&mut self) {
-        if self.proxy.c_ptr() == (self.display as *mut _) {
+        if !self.external {
             // disconnect only if we are owning this display
             unsafe {
                 ffi_dispatch!(

@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::io;
-use std::ptr;
 use std::sync::Arc;
 
 use crate::{AnonymousObject, Main, RawEvent};
@@ -24,12 +23,12 @@ where
 }
 
 pub(crate) struct EventQueueInner {
-    wlevq: Option<*mut wl_event_queue>,
+    wlevq: *mut wl_event_queue,
     inner: Arc<super::DisplayInner>,
 }
 
 impl EventQueueInner {
-    pub(crate) fn new(inner: Arc<DisplayInner>, wlevq: Option<*mut wl_event_queue>) -> EventQueueInner {
+    pub(crate) fn new(inner: Arc<DisplayInner>, wlevq: *mut wl_event_queue) -> EventQueueInner {
         EventQueueInner { inner, wlevq }
     }
 
@@ -42,18 +41,13 @@ impl EventQueueInner {
         F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         with_fallback(fallback, || {
-            let ret = match self.wlevq {
-                Some(evq) => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_queue,
-                        self.inner.ptr(),
-                        evq
-                    )
-                },
-                None => unsafe {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch, self.inner.ptr())
-                },
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_dispatch_queue,
+                    self.inner.ptr(),
+                    self.wlevq
+                )
             };
             if ret >= 0 {
                 Ok(ret as u32)
@@ -68,22 +62,13 @@ impl EventQueueInner {
         F: FnMut(RawEvent, Main<AnonymousObject>),
     {
         with_fallback(fallback, || {
-            let ret = match self.wlevq {
-                Some(evq) => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_queue_pending,
-                        self.inner.ptr(),
-                        evq
-                    )
-                },
-                None => unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_pending,
-                        self.inner.ptr()
-                    )
-                },
+            let ret = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_dispatch_queue_pending,
+                    self.inner.ptr(),
+                    self.wlevq
+                )
             };
             if ret >= 0 {
                 Ok(ret as u32)
@@ -99,15 +84,12 @@ impl EventQueueInner {
     {
         with_fallback(fallback, || {
             let ret = unsafe {
-                match self.wlevq {
-                    Some(evtq) => ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_roundtrip_queue,
-                        self.inner.ptr(),
-                        evtq
-                    ),
-                    None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_roundtrip, self.inner.ptr()),
-                }
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_roundtrip_queue,
+                    self.inner.ptr(),
+                    self.wlevq
+                )
             };
             if ret >= 0 {
                 Ok(ret as u32)
@@ -119,15 +101,12 @@ impl EventQueueInner {
 
     pub(crate) fn prepare_read(&self) -> Result<(), ()> {
         let ret = unsafe {
-            match self.wlevq {
-                Some(evtq) => ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_prepare_read_queue,
-                    self.inner.ptr(),
-                    evtq
-                ),
-                None => ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.inner.ptr()),
-            }
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_prepare_read_queue,
+                self.inner.ptr(),
+                self.wlevq
+            )
         };
         if ret >= 0 {
             Ok(())
@@ -150,21 +129,14 @@ impl EventQueueInner {
     }
 
     pub(crate) unsafe fn assign_proxy(&self, proxy: *mut wl_proxy) {
-        ffi_dispatch!(
-            WAYLAND_CLIENT_HANDLE,
-            wl_proxy_set_queue,
-            proxy,
-            self.wlevq.unwrap_or(ptr::null_mut())
-        )
+        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, proxy, self.wlevq)
     }
 }
 
 impl Drop for EventQueueInner {
     fn drop(&mut self) {
-        if let Some(evq) = self.wlevq {
-            unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_event_queue_destroy, evq);
-            }
+        unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_event_queue_destroy, self.wlevq);
         }
     }
 }

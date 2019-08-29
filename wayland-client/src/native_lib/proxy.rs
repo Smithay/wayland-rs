@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -12,8 +13,6 @@ use super::EventQueueInner;
 
 use wayland_sys::client::*;
 use wayland_sys::common::*;
-
-static INVALID_USERDATA: UserData = UserData::new();
 
 pub struct ProxyInternal {
     alive: AtomicBool,
@@ -71,6 +70,7 @@ impl ProxyInner {
     }
 
     pub(crate) fn user_data(&self) -> &UserData {
+        static INVALID_USERDATA: UserData = UserData::new();
         if let Some(ref inner) = self.internal {
             &inner.user_data
         } else {
@@ -121,7 +121,7 @@ impl ProxyInner {
                         ffi_dispatch!(
                             WAYLAND_CLIENT_HANDLE,
                             wl_proxy_marshal_array_constructor_versioned,
-                            self.ptr,
+                            self.wrapping.unwrap_or(self.ptr),
                             opcode,
                             args.as_mut_ptr(),
                             J::c_interface(),
@@ -141,7 +141,7 @@ impl ProxyInner {
                     ffi_dispatch!(
                         WAYLAND_CLIENT_HANDLE,
                         wl_proxy_marshal_array,
-                        self.ptr,
+                        self.wrapping.unwrap_or(self.ptr),
                         opcode,
                         args.as_ptr() as *mut _
                     );
@@ -212,7 +212,11 @@ impl ProxyInner {
         unsafe {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
                 as *mut ProxyUserData<I>;
-            (*user_data).implem = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+            if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
+                **guard = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+            } else {
+                panic!("Re-assigning an object from within its own callback is not supported.");
+            }
         }
     }
 
@@ -275,11 +279,11 @@ impl ProxyInner {
         }
     }
 
-    pub(crate) unsafe fn from_c_display_wrapper(d: *mut wl_proxy) -> ProxyInner {
+    pub(crate) unsafe fn from_external_display(d: *mut wl_proxy) -> ProxyInner {
         ProxyInner {
             internal: None,
             ptr: d,
-            wrapping: Some(d),
+            wrapping: None,
         }
     }
 }
@@ -315,18 +319,18 @@ impl Drop for ProxyInner {
     }
 }
 
-type BoxedCallback<I> = Box<dyn FnMut(<I as Interface>::Event, Main<I>)>;
+type BoxedCallback<I> = Box<dyn Fn(<I as Interface>::Event, Main<I>)>;
 
 struct ProxyUserData<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>> {
     internal: Arc<ProxyInternal>,
-    implem: Option<BoxedCallback<I>>,
+    implem: RefCell<Option<BoxedCallback<I>>>,
 }
 
 impl<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>> ProxyUserData<I> {
     fn new(user_data: UserData) -> ProxyUserData<I> {
         ProxyUserData {
             internal: Arc::new(ProxyInternal::new(user_data)),
-            implem: None,
+            implem: RefCell::new(None),
         }
     }
 }
@@ -351,14 +355,14 @@ where
         let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
         {
             let user_data = &mut *(user_data as *mut ProxyUserData<I>);
-            let implem = user_data.implem.as_mut();
+            let implem = user_data.implem.borrow();
 
             if must_destroy {
                 user_data.internal.alive.store(false, Ordering::Release);
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
             }
             // if there is an implem, call it, otherwise call the fallback
-            match implem {
+            match implem.as_ref() {
                 Some(implem) => {
                     // parse the message:
                     let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;

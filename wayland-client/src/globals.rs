@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::protocol::wl_display;
 use crate::protocol::wl_registry;
-use crate::{Attached, Filter, Interface, Main, Proxy};
+use crate::{Attached, Interface, Main, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
@@ -78,7 +78,7 @@ impl GlobalManager {
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
-        registry.assign(Filter::new(move |(_proxy, msg)| {
+        registry.assign_mono(move |_proxy, msg| {
             let mut inner = inner.lock().unwrap();
             match msg {
                 wl_registry::Event::Global {
@@ -93,7 +93,7 @@ impl GlobalManager {
                 }
                 _ => {}
             }
-        }));
+        });
 
         GlobalManager {
             inner: inner_clone,
@@ -123,42 +123,39 @@ impl GlobalManager {
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
-        registry.assign(Filter::new(
-            move |(proxy, msg): (Main<wl_registry::WlRegistry>, _)| {
-                let mut inner = inner.lock().unwrap();
-                let inner = &mut *inner;
-                match msg {
-                    wl_registry::Event::Global {
-                        name,
-                        interface,
-                        version,
-                    } => {
-                        inner.list.push((name, interface.clone(), version));
-                        callback(
-                            GlobalEvent::New {
-                                id: name,
-                                interface,
-                                version,
-                            },
-                            (*proxy).clone(),
+        registry.assign_mono(move |proxy, msg| {
+            let mut inner = inner.lock().unwrap();
+            let inner = &mut *inner;
+            match msg {
+                wl_registry::Event::Global {
+                    name,
+                    interface,
+                    version,
+                } => {
+                    inner.list.push((name, interface.clone(), version));
+                    callback(
+                        GlobalEvent::New {
+                            id: name,
+                            interface,
+                            version,
+                        },
+                        (*proxy).clone(),
+                    );
+                }
+                wl_registry::Event::GlobalRemove { name } => {
+                    if let Some((i, _)) = inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name) {
+                        let (id, interface, _) = inner.list.swap_remove(i);
+                        callback(GlobalEvent::Removed { id, interface }, (*proxy).clone());
+                    } else {
+                        panic!(
+                            "Wayland protocol error: the server removed non-existing global \"{}\".",
+                            name
                         );
                     }
-                    wl_registry::Event::GlobalRemove { name } => {
-                        if let Some((i, _)) = inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name)
-                        {
-                            let (id, interface, _) = inner.list.swap_remove(i);
-                            callback(GlobalEvent::Removed { id, interface }, (*proxy).clone());
-                        } else {
-                            panic!(
-                                "Wayland protocol error: the server removed non-existing global \"{}\".",
-                                name
-                            );
-                        }
-                    }
-                    _ => {}
                 }
-            },
-        ));
+                _ => {}
+            }
+        });
 
         GlobalManager {
             inner: inner_clone,

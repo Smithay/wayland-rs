@@ -103,7 +103,7 @@ fn main() {
     // initialize a seat to retrieve pointer & keyboard events
     //
     // example of using a common filter to handle both pointer & keyboard events
-    let common_filter = Filter::new(move |event| match event {
+    let common_filter = Filter::new(move |event, _| match event {
         Events::Pointer { event, .. } => match event {
             wl_pointer::Event::Enter {
                 surface_x, surface_y, ..
