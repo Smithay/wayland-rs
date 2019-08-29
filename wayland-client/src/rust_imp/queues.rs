@@ -213,7 +213,7 @@ impl EventQueueInner {
             .send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1))
             .unwrap();
         let done2 = done.clone();
-        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt)| {
+        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt), _| {
             if let CbEvent::Done { .. } = evt {
                 done2.set(true);
             } else {

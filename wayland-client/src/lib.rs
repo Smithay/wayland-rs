@@ -257,7 +257,7 @@ pub struct RawEvent {
 
 /// Generate an enum joining several objects events
 ///
-/// This macro allows you to easily create a enum type for use with your message iterators. It is
+/// This macro allows you to easily create a enum type for use with your message Filters. It is
 /// used like so:
 ///
 /// ```ignore
@@ -273,13 +273,13 @@ pub struct RawEvent {
 ///
 /// ```ignore
 /// pub enum MyEnum {
-///     Pointer { event: WlPointer::Event, object: WlPointer },
-///     Keyboard { event: WlKeyboard::Event, object: WlKeyboard },
-///     Surface { event: WlSurface::Event, object: WlSurface }
+///     Pointer { event: WlPointer::Event, object: Main<WlPointer> },
+///     Keyboard { event: WlKeyboard::Event, object: Main<WlKeyboard> },
+///     Surface { event: WlSurface::Event, object: Main<WlSurface> }
 /// }
 /// ```
 ///
-/// It will also generate the appropriate `From<_>` implementation so that a `Sink<MyEnum>` can be
+/// It will also generate the appropriate `From<_>` implementation so that a `Filter<MyEnum>` can be
 /// used as an implementation for `WlPointer`, `WlKeyboard` and `WlSurface`.
 ///
 /// If you want to add custom messages to the enum, the macro also supports it:
@@ -299,16 +299,16 @@ pub struct RawEvent {
 ///
 /// ```ignore
 /// pub enum MyEnum {
-///     Pointer { event: WlPointer::Event, object: MainProxy<WlPointer> },
-///     Keyboard { event: WlKeyboard::Event, object: MainProxy<WlKeyboard> },
-///     Surface { event: WlSurface::Event, object: MainProxy<WlSurface> },
+///     Pointer { event: WlPointer::Event, object: Main<WlPointer> },
+///     Keyboard { event: WlKeyboard::Event, object: Main<WlKeyboard> },
+///     Surface { event: WlSurface::Event, object: Main<WlSurface> },
 ///     MyMessage(SomeType),
 ///     OtherMessage(OtherType)
 /// }
 /// ```
 ///
 /// as well as implementations of `From<SomeType>` and `From<OtherType>`, so that these types can
-/// directly be provided into a `Sink<MyEnum>`.
+/// directly be provided into a `Filter<MyEnum>`.
 
 #[macro_export]
 macro_rules! event_enum(

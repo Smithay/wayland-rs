@@ -79,10 +79,7 @@ where
     where
         J: Interface + AsRef<Proxy<J>> + From<Proxy<J>>,
     {
-        if !self.is_alive() {
-            return None;
-        }
-        if msg.since() > self.version() {
+        if msg.since() > self.version() && self.version() > 0 {
             let opcode = msg.opcode() as usize;
             panic!(
                 "Cannot send request {} which requires version >= {} on proxy {}@{} which is version {}.",
@@ -164,6 +161,7 @@ where
 /// As opposed to a mere `Proxy`, you can use it to send requests
 /// that create new objects. The created objects will be handled
 /// by the event queue this proxy has been atatched to.
+#[derive(PartialEq)]
 pub struct Attached<I: Interface> {
     // AttachedProxy is *not* send/sync
     _s: ::std::marker::PhantomData<*mut ()>,
@@ -208,7 +206,7 @@ where
 }
 
 /// A main handle to a proxy
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Main<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> {
     inner: Attached<I>,
 }
@@ -245,7 +243,7 @@ where
         F: FnMut(Main<I>, I::Event) + 'static,
         I::Event: MessageGroup<Map = crate::ProxyMap>,
     {
-        self.assign(Filter::new(move |(proxy, event)| f(proxy, event)))
+        self.assign(Filter::new(move |(proxy, event), _| f(proxy, event)))
     }
 }
 
@@ -370,18 +368,6 @@ impl<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> Proxy<I> {
         #[cfg(not(feature = "native_lib"))]
         {
             panic!("[wayland-client] C interfacing methods can only be used with the `native_lib` cargo feature.")
-        }
-    }
-}
-
-#[cfg(feature = "native_lib")]
-impl Proxy<crate::protocol::wl_display::WlDisplay> {
-    pub(crate) unsafe fn from_c_display_wrapper(
-        ptr: *mut wl_proxy,
-    ) -> Proxy<crate::protocol::wl_display::WlDisplay> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: ProxyInner::from_c_display_wrapper(ptr),
         }
     }
 }

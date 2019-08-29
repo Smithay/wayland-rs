@@ -225,7 +225,6 @@ impl ProxyInner {
         // ignore failure if target object is dead
         let _ = self.map.lock().unwrap().with(self.id, |obj| {
             obj.meta.dispatcher = super::make_dispatcher(filter);
-            obj.clone()
         });
     }
 }

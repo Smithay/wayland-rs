@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate wayland_client;
 
-use wayland_client::{Display, Filter, GlobalManager, Main};
+use wayland_client::{Display, GlobalManager, Main};
 
 use wayland_client::protocol::{wl_output, wl_seat};
 
@@ -29,10 +29,10 @@ fn main() {
             //
             // NOTE: the type annotations are necessary because rustc's
             // inference is apparently not smart enough
-            [wl_seat::WlSeat, 1, |mut seat: Main<wl_seat::WlSeat>| {
+            [wl_seat::WlSeat, 1, |seat: Main<wl_seat::WlSeat>| {
                 let mut seat_name = None;
                 let mut caps = None;
-                seat.assign(Filter::new(move |(_, event)| {
+                seat.assign_mono(move |_, event| {
                     use wayland_client::protocol::wl_seat::Event;
                     match event {
                         Event::Name { name } => {
@@ -44,14 +44,14 @@ fn main() {
                         }
                         _ => {}
                     }
-                }))
+                })
             }],
             // Same thing with wl_output, but we require version 2
-            [wl_output::WlOutput, 2, |mut output: Main<wl_output::WlOutput>| {
+            [wl_output::WlOutput, 2, |output: Main<wl_output::WlOutput>| {
                 let mut name = "<unknown>".to_owned();
                 let mut modes = vec![];
                 let mut scale = 1;
-                output.assign(Filter::new(move |(_, event)| {
+                output.assign_mono(move |_, event| {
                     use wayland_client::protocol::wl_output::Event;
                     match event {
                         Event::Geometry {
@@ -98,7 +98,7 @@ fn main() {
                         }
                         _ => unreachable!(),
                     }
-                }))
+                })
             }]
         ),
     );
