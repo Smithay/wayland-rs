@@ -1,6 +1,6 @@
-use Interface;
+use crate::Interface;
 
-use imp::GlobalInner;
+use crate::imp::GlobalInner;
 
 /// A handle to a global object
 ///

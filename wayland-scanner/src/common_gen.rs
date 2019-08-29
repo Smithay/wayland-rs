@@ -577,14 +577,14 @@ pub(crate) fn gen_messagegroup(
                             let id = if side == Side::Client {
                                 quote!(0)
                             } else {
-                                quote!(#arg_ident.as_ref().id())
+                                quote!(#arg_ident.id())
                             };
                             quote!(Argument::NewId(#id))
                         } else {
                             let id = if side == Side::Client {
                                 quote!(0)
                             } else {
-                                quote!(#arg_ident.2.as_ref().id())
+                                quote!(#arg_ident.2.id())
                             };
                             quote! {
                                 Argument::Str(unsafe {
@@ -753,7 +753,8 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (Tok
         }
     } else {
         None
-    }.into_iter();
+    }
+    .into_iter();
 
     args.extend(msg.args.iter().filter_map(|arg| {
         let arg_type_inner = if let Some(ref name) = arg.enum_ {
@@ -850,19 +851,22 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
                     &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
                     Span::call_site(),
                 );
-                let mut typ = arg.typ;
-                if typ == Type::NewId && side == Side::Server {
-                    typ = Type::Object;
-                }
-                let arg_value = match typ {
-                    Type::NewId => {
+                let arg_value = match (arg.typ, side) {
+                    (Type::NewId, Side::Client) => {
                         if arg.interface.is_some() {
                             return None;
                         } else {
                             quote!((T::NAME.into(), version))
                         }
+                    },
+                    (Type::NewId, Side::Server) => {
+                        if arg.allow_null {
+                            quote!(#arg_name.map(|o| o.as_ref().clone()))
+                        } else {
+                            quote!(#arg_name.as_ref().clone())
+                        }
                     }
-                    Type::Object => {
+                    (Type::Object, _) => {
                         if arg.allow_null {
                             quote!(#arg_name.map(|o| o.clone()))
                         } else {

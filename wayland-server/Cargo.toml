@@ -9,6 +9,7 @@ categories = ["gui", "api-bindings"]
 keywords = ["wayland", "server", "compositor"]
 description = "Bindings to the standard C implementation of the wayland protocol, server side."
 build = "build.rs"
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "Smithay/wayland-rs" }
@@ -22,10 +23,11 @@ libc = "0.2"
 nix = "0.15"
 mio = "0.6"
 calloop = ">=0.3.1, <0.5"
+lazy_static = { version = "1.0", optional = true}
 
 [build-dependencies]
 wayland-scanner = { version = "0.23.6", path = "../wayland-scanner" }
 
 [features]
-native_lib = [ "wayland-sys/server" ]
+native_lib = [ "wayland-sys/server", "lazy_static" ]
 dlopen = [ "wayland-sys/dlopen", "native_lib" ]

@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread::{self, ThreadId};
 
 use nix::Result as NixResult;
@@ -15,11 +15,12 @@ use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 
-use {Fd, Interface, UserDataMap};
+use crate::{Fd, Interface, UserDataMap};
 
 use super::event_loop_glue::WSLoopHandle;
 use super::globals::GlobalManager;
-use super::resources::{NewResourceInner, ObjectMeta, ResourceInner};
+use super::resources::{ObjectMeta, ResourceInner};
+use super::Dispatched;
 
 type ClientSource = Source<Generic<Fd>>;
 
@@ -32,19 +33,19 @@ pub(crate) enum Error {
 
 pub(crate) struct ClientConnection {
     socket: BufferedSocket,
-    pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
+    pub(crate) map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
     user_data_map: Arc<UserDataMap>,
-    destructors: Vec<Box<FnMut(&UserDataMap) + Send>>,
+    destructors: Vec<Box<dyn FnMut(Arc<UserDataMap>)>>,
     last_error: Option<Error>,
     pending_destructors: Vec<ResourceInner>,
-    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
+    zombie_clients: Rc<RefCell<Vec<ClientConnection>>>,
 }
 
 impl ClientConnection {
     unsafe fn new(
         fd: RawFd,
         display_object: Object<ObjectMeta>,
-        zombies: Arc<Mutex<Vec<ClientConnection>>>,
+        zombies: Rc<RefCell<Vec<ClientConnection>>>,
     ) -> ClientConnection {
         let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
 
@@ -54,7 +55,7 @@ impl ClientConnection {
 
         ClientConnection {
             socket,
-            map: Arc::new(Mutex::new(map)),
+            map: Rc::new(RefCell::new(map)),
             user_data_map: Arc::new(UserDataMap::new()),
             destructors: Vec::new(),
             last_error: None,
@@ -69,13 +70,9 @@ impl ClientConnection {
 
     pub(crate) fn call_destructors(&mut self) {
         for resource in self.pending_destructors.drain(..) {
-            resource
-                .object
-                .meta
-                .dispatcher
-                .lock()
-                .unwrap()
-                .destroy(resource.clone());
+            if let Some(ref dest) = resource.object.meta.destructor {
+                (&mut *dest.borrow_mut())(resource.clone());
+            }
         }
     }
 
@@ -88,7 +85,7 @@ impl ClientConnection {
     }
 
     pub(crate) fn delete_id(&mut self, id: u32) -> NixResult<()> {
-        self.map.lock().unwrap().remove(id);
+        self.map.borrow_mut().remove(id);
 
         if id < SERVER_ID_LIMIT {
             self.write_message(&Message {
@@ -107,7 +104,7 @@ impl ClientConnection {
         }
         // acquire the map lock, this means no objects can be created nor destroyed while we
         // are reading requests
-        let mut map = self.map.lock().unwrap();
+        let mut map = self.map.borrow_mut();
         // read messages
         let ret = self.socket.read_one_message(|id, opcode| {
             map.find(id)
@@ -198,63 +195,65 @@ impl ClientConnection {
 
     fn cleanup(mut self) {
         let dummy_client = ClientInner {
-            data: Arc::new(Mutex::new(None)),
+            data: Rc::new(RefCell::new(None)),
             user_data_map: self.user_data_map.clone(),
             loop_thread: thread::current().id(),
         };
-        self.map.lock().unwrap().with_all(|id, obj| {
+        self.map.borrow_mut().with_all(|id, obj| {
             let resource = ResourceInner {
                 id,
                 object: obj.clone(),
                 client: dummy_client.clone(),
             };
             obj.meta.alive.store(false, Ordering::Release);
-            obj.meta.dispatcher.lock().unwrap().destroy(resource);
+            if let Some(ref dest) = obj.meta.destructor {
+                (&mut *dest.borrow_mut())(resource);
+            }
         });
         let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
         for mut destructor in self.destructors.drain(..) {
-            destructor(&self.user_data_map);
+            destructor(self.user_data_map.clone());
         }
     }
 }
 
 #[derive(Clone)]
 pub(crate) struct ClientInner {
-    pub(crate) data: Arc<Mutex<Option<ClientConnection>>>,
+    pub(crate) data: Rc<RefCell<Option<ClientConnection>>>,
     user_data_map: Arc<UserDataMap>,
     pub(crate) loop_thread: ThreadId,
 }
 
 impl ClientInner {
     pub(crate) fn alive(&self) -> bool {
-        self.data.lock().unwrap().is_some()
+        self.data.borrow().is_some()
     }
 
     pub(crate) fn equals(&self, other: &ClientInner) -> bool {
-        Arc::ptr_eq(&self.data, &other.data)
+        Rc::ptr_eq(&self.data, &other.data)
     }
 
     pub(crate) fn flush(&self) {
-        if let Some(ref mut data) = *self.data.lock().unwrap() {
+        if let Some(ref mut data) = *self.data.borrow_mut() {
             let _ = data.socket.flush();
         }
     }
 
     pub(crate) fn kill(&self) {
-        if let Some(mut clientconn) = self.data.lock().unwrap().take() {
+        if let Some(mut clientconn) = self.data.borrow_mut().take() {
             let _ = clientconn.socket.flush();
             // call all objects destructors
             let zombies = clientconn.zombie_clients.clone();
-            zombies.lock().unwrap().push(clientconn);
+            zombies.borrow_mut().push(clientconn);
         }
     }
 
-    pub(crate) fn user_data_map(&self) -> &UserDataMap {
+    pub(crate) fn user_data_map(&self) -> &Arc<UserDataMap> {
         &self.user_data_map
     }
 
-    pub(crate) fn add_destructor<F: FnOnce(&UserDataMap) + Send + 'static>(&self, destructor: F) {
-        if let Some(ref mut client_data) = *self.data.lock().unwrap() {
+    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>) + 'static>(&self, destructor: F) {
+        if let Some(ref mut client_data) = *self.data.borrow_mut() {
             // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
             // currently =(
             let mut opt_dest = Some(destructor);
@@ -267,7 +266,7 @@ impl ClientInner {
     }
 
     pub(crate) fn post_error(&self, object: u32, error_code: u32, msg: String) {
-        if let Some(ref mut data) = *self.data.lock().unwrap() {
+        if let Some(ref mut data) = *self.data.borrow_mut() {
             let _ = data.write_message(&Message {
                 sender_id: 1,
                 opcode: 0,
@@ -281,13 +280,12 @@ impl ClientInner {
         self.kill();
     }
 
-    pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResourceInner> {
+    pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<ResourceInner> {
         let (id, map) = {
-            if let Some(ref cx) = *self.data.lock().unwrap() {
+            if let Some(ref cx) = *self.data.borrow_mut() {
                 (
                     cx.map
-                        .lock()
-                        .unwrap()
+                        .borrow_mut()
                         .server_insert_new(Object::from_interface::<I>(version, ObjectMeta::new())),
                     cx.map.clone(),
                 )
@@ -295,26 +293,42 @@ impl ClientInner {
                 return None;
             }
         };
-        Some(NewResourceInner::from_id(id, map, self.clone()).unwrap())
+        Some(ResourceInner::from_id(id, map, self.clone()).unwrap())
+    }
+
+    pub(crate) fn set_dispatcher_for(&self, id: u32, dispatcher: Rc<RefCell<dyn super::Dispatcher>>) {
+        if let Some(ref cx) = &*self.data.borrow_mut() {
+            let _ = cx.map.borrow_mut().with(id, move |obj| {
+                obj.meta.dispatcher = dispatcher;
+            });
+        }
+    }
+
+    pub(crate) fn set_destructor_for(&self, id: u32, destructor: Rc<RefCell<dyn FnMut(ResourceInner)>>) {
+        if let Some(ref cx) = &*self.data.borrow_mut() {
+            let _ = cx.map.borrow_mut().with(id, move |obj| {
+                obj.meta.destructor = Some(destructor);
+            });
+        }
     }
 }
 
 pub(crate) struct ClientManager {
-    loophandle: Box<WSLoopHandle>,
+    loophandle: Box<dyn WSLoopHandle>,
     clients: Vec<(RefCell<Option<ClientSource>>, ClientInner)>,
-    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
+    zombie_clients: Rc<RefCell<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
 impl ClientManager {
     pub(crate) fn new(
-        loophandle: Box<WSLoopHandle>,
+        loophandle: Box<dyn WSLoopHandle>,
         global_mgr: Rc<RefCell<GlobalManager>>,
     ) -> ClientManager {
         ClientManager {
             loophandle,
             clients: Vec::new(),
-            zombie_clients: Arc::new(Mutex::new(Vec::new())),
+            zombie_clients: Rc::new(RefCell::new(Vec::new())),
             global_mgr,
         }
     }
@@ -337,7 +351,7 @@ impl ClientManager {
         let user_data_map = cx.user_data_map.clone();
 
         let client = ClientInner {
-            data: Arc::new(Mutex::new(Some(cx))),
+            data: Rc::new(RefCell::new(Some(cx))),
             user_data_map,
             loop_thread: thread::current().id(), // init_client is only called by the display, which does not change threads
         };
@@ -385,7 +399,7 @@ impl ClientManager {
     pub(crate) fn flush_all(&mut self) {
         // flush all clients and cleanup dead ones
         self.clients.retain(|&(ref s, ref c)| {
-            if let Some(ref mut data) = *c.data.lock().unwrap() {
+            if let Some(ref mut data) = *c.data.borrow_mut() {
                 data.call_destructors();
                 data.flush().is_ok()
             } else {
@@ -397,7 +411,7 @@ impl ClientManager {
             }
         });
 
-        let mut guard = self.zombie_clients.lock().unwrap();
+        let mut guard = self.zombie_clients.borrow_mut();
         for zombie in guard.drain(..) {
             zombie.cleanup();
         }
@@ -417,11 +431,13 @@ const DISPLAY_REQUESTS: &[MessageDesc] = &[
         name: "sync",
         since: 1,
         signature: &[ArgumentType::NewId],
+        destructor: false,
     },
     MessageDesc {
         name: "get_registry",
         since: 1,
         signature: &[ArgumentType::NewId],
+        destructor: false,
     },
 ];
 
@@ -430,11 +446,13 @@ const DISPLAY_EVENTS: &[MessageDesc] = &[
         name: "error",
         since: 1,
         signature: &[ArgumentType::Object, ArgumentType::Uint, ArgumentType::Str],
+        destructor: false,
     },
     MessageDesc {
         name: "delete_id",
         since: 1,
         signature: &[ArgumentType::Uint],
+        destructor: false,
     },
 ];
 
@@ -447,6 +465,7 @@ const REGISTRY_REQUESTS: &[MessageDesc] = &[MessageDesc {
         ArgumentType::Uint,
         ArgumentType::NewId,
     ],
+    destructor: false,
 }];
 
 const REGISTRY_EVENTS: &[MessageDesc] = &[
@@ -454,21 +473,20 @@ const REGISTRY_EVENTS: &[MessageDesc] = &[
         name: "global",
         since: 1,
         signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint],
+        destructor: false,
     },
     MessageDesc {
         name: "global_remove",
         since: 1,
         signature: &[ArgumentType::Uint],
+        destructor: false,
     },
 ];
 
 fn display_req_child(opcode: u16, _: u32, meta: &ObjectMeta) -> Option<Object<ObjectMeta>> {
     match opcode {
         // sync
-        0 => Some(Object::from_interface::<::protocol::wl_callback::WlCallback>(
-            1,
-            meta.child(),
-        )),
+        0 => Some(Object::from_interface::<crate::protocol::wl_callback::WlCallback>(1, meta.child())),
         // registry
         1 => Some(Object {
             interface: "wl_registry",
@@ -489,7 +507,7 @@ fn no_child(_: u16, _: u32, _: &ObjectMeta) -> Option<Object<ObjectMeta>> {
 
 struct ClientImplementation {
     inner: ClientInner,
-    map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
+    map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
 }
 
 impl ClientImplementation {
@@ -497,7 +515,7 @@ impl ClientImplementation {
         loop {
             // we must process the messages one by one, because message parsing depends
             // on the contents of the object map, which each message can change...
-            let ret = if let Some(ref mut data) = *self.inner.data.lock().unwrap() {
+            let ret = if let Some(ref mut data) = *self.inner.data.borrow_mut() {
                 data.read_request()
             } else {
                 // client is now dead, abort
@@ -516,14 +534,25 @@ impl ClientImplementation {
                     let opcode = msg.opcode;
                     if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
                         let object = res.object.clone();
-                        let mut dispatcher = object.meta.dispatcher.lock().unwrap();
-                        if let Err(()) = dispatcher.dispatch(msg, res, &mut resourcemap) {
-                            self.inner.post_error(
-                                1,
-                                super::display::DISPLAY_ERROR_INVALID_METHOD,
-                                format!("invalid method {}, object {}@{}", opcode, object.interface, id),
-                            );
-                            return;
+                        let mut dispatcher = object.meta.dispatcher.borrow_mut();
+                        match dispatcher.dispatch(msg, res, &mut resourcemap) {
+                            Dispatched::Yes => {}
+                            Dispatched::NoDispatch(_msg, _res) => {
+                                eprintln!("[wayland-server] Request received for an object not associated to any filter: {}@{}", object.interface, id);
+                                self.inner.post_error(
+                                    1,
+                                    super::display::DISPLAY_ERROR_NO_MEMORY,
+                                    "Server-side bug, sorry.".into(),
+                                );
+                            }
+                            Dispatched::BadMsg => {
+                                self.inner.post_error(
+                                    1,
+                                    super::display::DISPLAY_ERROR_INVALID_METHOD,
+                                    format!("invalid method {}, object {}@{}", opcode, object.interface, id),
+                                );
+                                return;
+                            }
                         }
                     } else {
                         self.inner.post_error(
@@ -554,8 +583,8 @@ impl super::Dispatcher for DisplayDispatcher {
         msg: Message,
         _resource: ResourceInner,
         map: &mut super::ResourceMap,
-    ) -> Result<(), ()> {
-        use protocol::wl_callback;
+    ) -> Dispatched {
+        use crate::protocol::wl_callback;
 
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
@@ -569,14 +598,13 @@ impl super::Dispatcher for DisplayDispatcher {
             0 => {
                 if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                     if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
-                        let cb = cb.implement_dummy();
                         // TODO: send a more meaningful serial ?
-                        cb.as_ref().send(wl_callback::Event::Done { callback_data: 0 });
+                        cb.send(wl_callback::Event::Done { callback_data: 0 });
                     } else {
-                        return Err(());
+                        return Dispatched::BadMsg;
                     }
                 } else {
-                    return Err(());
+                    return Dispatched::BadMsg;
                 }
             }
             // get_registry
@@ -584,24 +612,24 @@ impl super::Dispatcher for DisplayDispatcher {
                 if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                     // we don't have a regular object for the registry, rather we insert the
                     // dispatcher by hand
-                    map.map.lock().unwrap().with(new_id, |obj| {
-                        obj.meta.dispatcher = Arc::new(Mutex::new(RegistryDispatcher {
+                    if let Err(()) = map.map.borrow_mut().with(new_id, |obj| {
+                        obj.meta.dispatcher = Rc::new(RefCell::new(RegistryDispatcher {
                             global_mgr: self.global_mgr.clone(),
                         }));
-                    })?;
+                    }) {
+                        return Dispatched::BadMsg;
+                    }
                     self.global_mgr
                         .borrow_mut()
                         .new_registry(new_id, map.client.clone());
                 } else {
-                    return Err(());
+                    return Dispatched::BadMsg;
                 }
             }
-            _ => return Err(()),
+            _ => return Dispatched::BadMsg,
         }
-        Ok(())
+        Dispatched::Yes
     }
-
-    fn destroy(&mut self, _resource: ResourceInner) {}
 }
 
 struct RegistryDispatcher {
@@ -614,7 +642,7 @@ impl super::Dispatcher for RegistryDispatcher {
         msg: Message,
         resource: ResourceInner,
         map: &mut super::ResourceMap,
-    ) -> Result<(), ()> {
+    ) -> Dispatched {
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
                 " <- wl_registry@{}: {} {:?}",
@@ -625,34 +653,30 @@ impl super::Dispatcher for RegistryDispatcher {
         let mut iter = msg.args.into_iter();
         let global_id = match iter.next() {
             Some(Argument::Uint(u)) => u,
-            _ => return Err(()),
+            _ => return Dispatched::BadMsg,
         };
         let interface = match iter.next() {
             Some(Argument::Str(s)) => s,
-            _ => return Err(()),
+            _ => return Dispatched::BadMsg,
         };
         let version = match iter.next() {
             Some(Argument::Uint(u)) => u,
-            _ => return Err(()),
+            _ => return Dispatched::BadMsg,
         };
         let new_id = match iter.next() {
             Some(Argument::NewId(id)) => id,
-            _ => return Err(()),
+            _ => return Dispatched::BadMsg,
         };
-        self.global_mgr.borrow().bind(
+        match self.global_mgr.borrow().bind(
             resource.id,
             new_id,
             global_id,
             &interface.to_string_lossy(),
             version,
             map.client.clone(),
-        )
+        ) {
+            Ok(()) => Dispatched::Yes,
+            Err(()) => Dispatched::BadMsg,
+        }
     }
-
-    fn destroy(&mut self, _resource: ResourceInner) {}
 }
-
-// These unsafe impl is "technically wrong", but actually right for the same
-// reasons as super::ImplDispatcher
-unsafe impl Send for DisplayDispatcher {}
-unsafe impl Send for RegistryDispatcher {}

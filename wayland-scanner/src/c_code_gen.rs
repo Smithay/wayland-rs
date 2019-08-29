@@ -109,7 +109,13 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Side::Server,
                 true,
                 &iface.requests,
-                Some(messagegroup_c_addon(&ident, &iface_name, Side::Server, true, &iface.requests)),
+                Some(messagegroup_c_addon(
+                    &ident,
+                    &iface_name,
+                    Side::Server,
+                    true,
+                    &iface.requests,
+                )),
             );
 
             let ident = Ident::new("Event", Span::call_site());
@@ -118,7 +124,13 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Side::Server,
                 false,
                 &iface.events,
-                Some(messagegroup_c_addon(&ident, &iface_name, Side::Server, false, &iface.events)),
+                Some(messagegroup_c_addon(
+                    &ident,
+                    &iface_name,
+                    Side::Server,
+                    false,
+                    &iface.events,
+                )),
             );
 
             let interface = gen_interface(
@@ -129,7 +141,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 Side::Server,
             );
             let object_methods = gen_object_methods(&iface_name, &iface.events, Side::Server);
-            let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
+            //let event_handler_trait = gen_event_handler_trait(&iface_name, &iface.requests, Side::Server);
             let sinces = gen_since_constants(&iface.requests, &iface.events);
             let c_interface = super::c_interface_gen::generate_interface(&iface);
 
@@ -138,8 +150,8 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 pub mod #mod_name {
                     use std::os::raw::c_char;
                     use super::{
-                        Resource, NewResource, AnonymousObject, Interface, MessageGroup, MessageDesc,
-                        ArgumentType, Object, Message, Argument, ObjectMetadata, HandledBy, types_null, NULLPTR
+                        Resource, AnonymousObject, Interface, MessageGroup, MessageDesc,
+                        ArgumentType, Object, Message, Argument, ObjectMetadata, types_null, NULLPTR
                     };
                     use super::sys::common::{wl_argument, wl_interface, wl_array, wl_message};
                     use super::sys::server::*;
@@ -149,7 +161,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                     #events
                     #interface
                     #object_methods
-                    #event_handler_trait
+                    //#event_handler_trait
                     #sinces
                     #c_interface
                 }
@@ -469,7 +481,7 @@ fn messagegroup_c_addon(
                                 }
                             } else {
                                 quote! {
-                                    _args_array[#idx].o = #arg_name.as_ref().c_ptr() as *mut _;
+                                    _args_array[#idx].o = #arg_name.c_ptr() as *mut _;
                                 }
                             }
                         } else {

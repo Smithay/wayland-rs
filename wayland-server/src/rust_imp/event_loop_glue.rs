@@ -9,23 +9,27 @@ use calloop::{EventDispatcher, EventSource, LoopHandle, Source};
 
 use mio::{Evented, Poll, PollOpt, Ready, Token};
 
-use Fd;
+use crate::Fd;
 
 pub(crate) trait WSLoopHandle {
     fn add_listener(
         &self,
         source: WaylandListener,
-        cb: Box<FnMut(UnixStream)>,
+        cb: Box<dyn FnMut(UnixStream)>,
     ) -> io::Result<Source<WaylandListener>>;
 
-    fn add_socket(&self, source: Generic<Fd>, cb: Box<FnMut(Event<Fd>)>) -> io::Result<Source<Generic<Fd>>>;
+    fn add_socket(
+        &self,
+        source: Generic<Fd>,
+        cb: Box<dyn FnMut(Event<Fd>)>,
+    ) -> io::Result<Source<Generic<Fd>>>;
 }
 
 impl<Data: 'static> WSLoopHandle for LoopHandle<Data> {
     fn add_listener(
         &self,
         source: WaylandListener,
-        mut cb: Box<FnMut(UnixStream)>,
+        mut cb: Box<dyn FnMut(UnixStream)>,
     ) -> io::Result<Source<WaylandListener>> {
         self.insert_source(source, move |evt, _| cb(evt))
             .map_err(Into::<io::Error>::into)
@@ -34,7 +38,7 @@ impl<Data: 'static> WSLoopHandle for LoopHandle<Data> {
     fn add_socket(
         &self,
         source: Generic<Fd>,
-        mut cb: Box<FnMut(Event<Fd>)>,
+        mut cb: Box<dyn FnMut(Event<Fd>)>,
     ) -> io::Result<Source<Generic<Fd>>> {
         self.insert_source(source, move |evt, _| cb(evt))
             .map_err(Into::<io::Error>::into)
@@ -83,7 +87,7 @@ impl EventSource for WaylandListener {
     fn make_dispatcher<Data: 'static, F: FnMut(Self::Event, &mut Data) + 'static>(
         &self,
         callback: F,
-    ) -> Rc<RefCell<EventDispatcher<Data>>> {
+    ) -> Rc<RefCell<dyn EventDispatcher<Data>>> {
         struct Dispatcher<F> {
             listener: Rc<RefCell<UnixListener>>,
             callback: F,

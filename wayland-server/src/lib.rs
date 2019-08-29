@@ -95,11 +95,11 @@ mod resource;
 pub use client::Client;
 pub use display::Display;
 pub use globals::Global;
-pub use resource::{HandledBy, NewResource, Resource};
+pub use resource::Resource;
 
 pub use anonymous_object::AnonymousObject;
-pub use wayland_commons::utils::UserDataMap;
-pub use wayland_commons::{Interface, MessageGroup, NoMessage};
+pub use wayland_commons::user_data::UserDataMap;
+pub use wayland_commons::{filter::Filter, Interface, MessageGroup, NoMessage};
 
 /// C-associated types
 ///
@@ -127,11 +127,11 @@ pub mod protocol {
     #![allow(missing_docs)]
     #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
+    pub(crate) use crate::{AnonymousObject, Resource, ResourceMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
     pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
     pub(crate) use wayland_commons::{Interface, MessageGroup};
     pub(crate) use wayland_sys as sys;
-    pub(crate) use {AnonymousObject, HandledBy, NewResource, Resource, ResourceMap};
     include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
 }
 
@@ -206,3 +206,91 @@ impl ::mio::Evented for Fd {
         ::mio::unix::EventedFd(&self.0).deregister(poll)
     }
 }
+
+/// Generate an enum joining several objects requests
+///
+/// This macro allows you to easily create a enum type for use with your message Filters. It is
+/// used like so:
+///
+/// ```ignore
+/// event_enum!(
+///     MyEnum |
+///     Pointer => WlPointer,
+///     Keyboard => WlKeyboard,
+///     Surface => WlSurface
+/// );
+/// ```
+///
+/// This will generate the following enum, unifying the requests from each of the provided interface:
+///
+/// ```ignore
+/// pub enum MyEnum {
+///     Pointer { request: WlPointer::Request, object: Resource<WlPointer> },
+///     Keyboard { request: WlKeyboard::Request, object: Resource<WlKeyboard> },
+///     Surface { request: WlSurface::Request, object: Resource<WlSurface> }
+/// }
+/// ```
+///
+/// It will also generate the appropriate `From<_>` implementation so that a `Filter<MyEnum>` can be
+/// used as assignation target for `WlPointer`, `WlKeyboard` and `WlSurface`.
+///
+/// If you want to add custom messages to the enum, the macro also supports it:
+///
+/// ```ignore
+/// event_enum!(
+///     MyEnum |
+///     Pointer => WlPointer,
+///     Keyboard => WlKeyboard,
+///     Surface => WlSurface |
+///     MyMessage => SomeType,
+///     OtherMessage => OtherType
+/// );
+/// ```
+///
+/// will generate the following enum:
+///
+/// ```ignore
+/// pub enum MyEnum {
+///     Pointer { event: WlPointer::Event, object: Resource<WlPointer> },
+///     Keyboard { event: WlKeyboard::Event, object: Resource<WlKeyboard> },
+///     Surface { event: WlSurface::Event, object: Resource<WlSurface> },
+///     MyMessage(SomeType),
+///     OtherMessage(OtherType)
+/// }
+/// ```
+///
+/// as well as implementations of `From<SomeType>` and `From<OtherType>`, so that these types can
+/// directly be provided into a `Filter<MyEnum>`.
+
+#[macro_export]
+macro_rules! request_enum(
+    ($enu:ident | $($evt_name:ident => $iface:ty),*) => {
+        $crate::request_enum!($enu | $($evt_name => $iface),* | );
+    };
+    ($enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
+        pub enum $enu {
+            $(
+                $evt_name { request: <$iface as $crate::Interface>::Request, object: $crate::Resource<$iface> },
+            )*
+            $(
+                $name($value)
+            )*
+        }
+
+        $(
+            impl From<($crate::Resource<$iface>, <$iface as $crate::Interface>::Request)> for $enu {
+                fn from((object, request): ($crate::Resource<$iface>, <$iface as $crate::Interface>::Request)) -> $enu {
+                    $enu::$evt_name { request, object }
+                }
+            }
+        )*
+
+        $(
+            impl From<$value> for $enu {
+                fn from(value: $value) -> $enu {
+                    $enu::$name(value)
+                }
+            }
+        )*
+    };
+);

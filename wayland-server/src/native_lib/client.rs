@@ -5,14 +5,14 @@ use std::sync::{Arc, Mutex};
 
 use wayland_sys::server::*;
 
-use super::resource::NewResourceInner;
-use {Interface, UserDataMap};
+use super::resource::ResourceInner;
+use crate::{Interface, Resource, UserDataMap};
 
-type BoxedDest = Box<FnMut(&UserDataMap) + Send + 'static>;
+type BoxedDest = Box<dyn FnMut(Arc<UserDataMap>) + 'static>;
 
 pub(crate) struct ClientInternal {
     alive: AtomicBool,
-    user_data_map: UserDataMap,
+    user_data_map: Arc<UserDataMap>,
     destructors: Mutex<Vec<BoxedDest>>,
 }
 
@@ -20,7 +20,7 @@ impl ClientInternal {
     fn new() -> ClientInternal {
         ClientInternal {
             alive: AtomicBool::new(true),
-            user_data_map: UserDataMap::new(),
+            user_data_map: Arc::new(UserDataMap::new()),
             destructors: Mutex::new(Vec::new()),
         }
     }
@@ -96,11 +96,11 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn user_data_map(&self) -> &UserDataMap {
+    pub(crate) fn user_data_map(&self) -> &Arc<UserDataMap> {
         &self.internal.user_data_map
     }
 
-    pub(crate) fn add_destructor<F: FnOnce(&UserDataMap) + Send + 'static>(&self, destructor: F) {
+    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>) + 'static>(&self, destructor: F) {
         // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
         // currently =(
         let mut opt_dest = Some(destructor);
@@ -115,7 +115,10 @@ impl ClientInner {
             }))
     }
 
-    pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResourceInner> {
+    pub(crate) fn create_resource<I: Interface + From<Resource<I>>>(
+        &self,
+        version: u32,
+    ) -> Option<ResourceInner> {
         if !self.alive() {
             return None;
         }
@@ -128,7 +131,7 @@ impl ClientInner {
                 version as i32,
                 0
             );
-            Some(NewResourceInner::from_c_ptr(ptr))
+            Some(ResourceInner::init_from_c_ptr::<I>(ptr))
         }
     }
 }
@@ -141,7 +144,7 @@ unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_vo
 
     let mut destructors = internal.destructors.lock().unwrap();
     for mut destructor in destructors.drain(..) {
-        destructor(&internal.user_data_map);
+        destructor(internal.user_data_map.clone());
     }
 
     signal::rust_listener_destroy(listener);
