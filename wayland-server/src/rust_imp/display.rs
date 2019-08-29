@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use calloop::{LoopHandle, Source};
 
-use display::get_runtime_dir;
-use {Interface, NewResource};
+use crate::display::get_runtime_dir;
+use crate::{Interface, Resource};
 
 use super::clients::ClientManager;
 use super::event_loop_glue::{WSLoopHandle, WaylandListener};
@@ -23,7 +23,7 @@ pub(crate) const DISPLAY_ERROR_INVALID_METHOD: u32 = 1;
 pub(crate) const DISPLAY_ERROR_NO_MEMORY: u32 = 2;
 
 pub(crate) struct DisplayInner {
-    loophandle: Box<WSLoopHandle>,
+    loophandle: Box<dyn WSLoopHandle>,
     pub(crate) clients_mgr: Rc<RefCell<ClientManager>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
     listeners: Vec<Source<WaylandListener>>,
@@ -53,7 +53,7 @@ impl DisplayInner {
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(Resource<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         self.global_mgr

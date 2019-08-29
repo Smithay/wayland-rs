@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 #[cfg(feature = "native_lib")]
 use wayland_sys::server::wl_client;
 
-use imp::ClientInner;
+use crate::imp::ClientInner;
 
-use {Interface, NewResource, UserDataMap};
+use crate::{Interface, Resource, UserDataMap};
 
 /// A handle to a client connected to your server
 ///
@@ -57,7 +59,7 @@ impl Client {
     /// Returns a reference to the `UserDataMap` associated with this client
     ///
     /// See `UserDataMap` documentation for details about its use.
-    pub fn data_map(&self) -> &UserDataMap {
+    pub fn data_map(&self) -> &Arc<UserDataMap> {
         self.inner.user_data_map()
     }
 
@@ -71,8 +73,8 @@ impl Client {
     /// twice.
     ///
     /// The destructors will be executed on the thread containing the wayland event loop.
-    pub fn add_destructor<F: FnOnce(&UserDataMap) + Send + 'static>(&self, destructor: F) {
-        self.inner.add_destructor(destructor)
+    pub fn add_destructor(&self, destructor: crate::Filter<Arc<UserDataMap>>) {
+        self.inner.add_destructor(move |ud| destructor.send(ud));
     }
 
     /// Creates a new resource for this client
@@ -81,7 +83,7 @@ impl Client {
     /// resource should immediately be implemented and sent to the client
     /// through an appropriate event. Failure to do so will likely cause
     /// protocol errors.
-    pub fn create_resource<I: Interface>(&self, version: u32) -> Option<NewResource<I>> {
-        self.inner.create_resource::<I>(version).map(NewResource::wrap)
+    pub fn create_resource<I: Interface + From<Resource<I>>>(&self, version: u32) -> Option<Resource<I>> {
+        self.inner.create_resource::<I>(version).map(Resource::wrap)
     }
 }

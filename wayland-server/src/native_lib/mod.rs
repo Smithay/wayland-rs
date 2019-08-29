@@ -1,4 +1,4 @@
-use {Interface, NewResource, Resource};
+use crate::{Interface, Resource};
 
 mod client;
 mod display;
@@ -8,7 +8,7 @@ mod resource;
 pub(crate) use self::client::ClientInner;
 pub(crate) use self::display::DisplayInner;
 pub(crate) use self::globals::GlobalInner;
-pub(crate) use self::resource::{NewResourceInner, ResourceInner};
+pub(crate) use self::resource::ResourceInner;
 
 /// A handle to the object map internal to the library state
 ///
@@ -22,7 +22,7 @@ impl ResourceMap {
         match *self {}
     }
     /// Creates a `NewResource` for a given id
-    pub fn get_new<I: Interface>(&mut self, _id: u32) -> Option<NewResource<I>> {
+    pub fn get_new<I: Interface>(&mut self, _id: u32) -> Option<Resource<I>> {
         match *self {}
     }
 }

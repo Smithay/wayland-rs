@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -5,9 +6,9 @@ use std::sync::Arc;
 use wayland_sys::common::*;
 use wayland_sys::server::*;
 
-use wayland_commons::utils::UserData;
+use wayland_commons::user_data::UserData;
 
-use {Interface, MessageGroup, Resource};
+use crate::{Interface, MessageGroup, Resource};
 
 use super::ClientInner;
 
@@ -119,17 +120,6 @@ impl ResourceInner {
         }
     }
 
-    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
-    where
-        UD: 'static,
-    {
-        if let Some(ref inner) = self.internal {
-            inner.user_data.get()
-        } else {
-            None
-        }
-    }
-
     pub(crate) fn client(&self) -> Option<ClientInner> {
         if self.is_alive() {
             unsafe {
@@ -153,12 +143,44 @@ impl ResourceInner {
         self.ptr
     }
 
+    pub(crate) unsafe fn init_from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
+        if ptr.is_null() {
+            return ResourceInner {
+                internal: Some(Arc::new(ResourceInternal {
+                    alive: AtomicBool::new(false),
+                    user_data: Arc::new(UserData::new()),
+                })),
+                ptr,
+                _hack: (false, false),
+            };
+        }
+
+        let new_user_data = Box::new(ResourceUserData::<I>::new());
+        let internal = Some(new_user_data.internal.clone());
+
+        ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_set_dispatcher,
+            ptr,
+            resource_dispatcher::<I>,
+            &::wayland_sys::RUST_MANAGED as *const _ as *const _,
+            Box::into_raw(new_user_data) as *mut _,
+            Some(resource_destroy::<I>)
+        );
+
+        ResourceInner {
+            internal,
+            ptr,
+            _hack: (false, false),
+        }
+    }
+
     pub(crate) unsafe fn from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
         if ptr.is_null() {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Arc::new(UserData::empty()),
+                    user_data: Arc::new(UserData::new()),
                 })),
                 ptr,
                 _hack: (false, false),
@@ -188,7 +210,7 @@ impl ResourceInner {
         }
     }
 
-    pub unsafe fn make_child_for<J: Interface>(&self, id: u32) -> Option<NewResourceInner> {
+    pub unsafe fn make_child_for<J: Interface + From<Resource<J>>>(&self, id: u32) -> Option<ResourceInner> {
         let version = self.version();
         let client_ptr = match self.client() {
             Some(c) => c.ptr(),
@@ -202,7 +224,22 @@ impl ResourceInner {
             version as i32,
             id
         );
-        Some(NewResourceInner { ptr: new_ptr })
+        Some(ResourceInner::init_from_c_ptr::<J>(new_ptr))
+    }
+
+    pub(crate) fn user_data(&self) -> &Arc<UserData> {
+        lazy_static::lazy_static! {
+            static ref INVALID_USERDATA: Arc<UserData> = {
+                let data = Arc::new(UserData::new());
+                data.set_threadsafe(|| ());
+                data
+            };
+        };
+        if let Some(ref inner) = self.internal {
+            &inner.user_data
+        } else {
+            &INVALID_USERDATA
+        }
     }
 
     pub(crate) fn clone(&self) -> ResourceInner {
@@ -212,75 +249,54 @@ impl ResourceInner {
             _hack: (false, false),
         }
     }
-}
 
-pub(crate) struct NewResourceInner {
-    ptr: *mut wl_resource,
-}
-
-impl NewResourceInner {
-    pub(crate) unsafe fn implement<I: Interface + From<Resource<I>>, F, Dest>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UserData,
-    ) -> ResourceInner
+    pub fn assign<I, E>(&self, filter: crate::Filter<E>)
     where
-        F: FnMut(I::Request, I) + 'static,
-        Dest: FnMut(I) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<(Resource<I>, I::Request)> + 'static,
+        I::Request: MessageGroup<Map = super::ResourceMap>,
     {
-        let new_user_data = Box::new(ResourceUserData::new(implementation, destructor, user_data));
-        let internal = new_user_data.internal.clone();
-
-        ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_resource_set_dispatcher,
-            self.ptr,
-            resource_dispatcher::<I>,
-            &::wayland_sys::RUST_MANAGED as *const _ as *const _,
-            Box::into_raw(new_user_data) as *mut _,
-            Some(resource_destroy::<I>)
-        );
-
-        ResourceInner {
-            internal: Some(internal),
-            ptr: self.ptr,
-            _hack: (false, false),
+        unsafe {
+            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
+                as *mut ResourceUserData<I>;
+            if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
+                **guard = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+            } else {
+                panic!("Re-assigning an object from within its own callback is not supported.");
+            }
         }
     }
 
-    pub(crate) fn c_ptr(&self) -> *mut wl_resource {
-        self.ptr
-    }
-
-    pub(crate) unsafe fn from_c_ptr(ptr: *mut wl_resource) -> Self {
-        NewResourceInner { ptr }
+    pub fn assign_destructor<I, E>(&self, filter: crate::Filter<E>)
+    where
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<Resource<I>> + 'static,
+    {
+        unsafe {
+            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
+                as *mut ResourceUserData<I>;
+            (*user_data).destructor = Some(Box::new(move |obj| filter.send(obj.into())));
+        }
     }
 }
 
-type BoxedHandler<I> = Box<FnMut(<I as Interface>::Request, I)>;
-type BoxedDest<I> = Box<FnMut(I)>;
+type BoxedHandler<I> = Box<dyn Fn(<I as Interface>::Request, Resource<I>)>;
+type BoxedDest<I> = Box<dyn Fn(Resource<I>)>;
 
 pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>>> {
     _i: ::std::marker::PhantomData<*const I>,
     pub(crate) internal: Arc<ResourceInternal>,
-    implem: Option<(BoxedHandler<I>, Option<BoxedDest<I>>)>,
+    implem: RefCell<Option<BoxedHandler<I>>>,
+    destructor: Option<BoxedDest<I>>,
 }
 
 impl<I: Interface + From<Resource<I>>> ResourceUserData<I> {
-    pub(crate) fn new<F, Dest>(
-        implem: F,
-        destructor: Option<Dest>,
-        user_data: UserData,
-    ) -> ResourceUserData<I>
-    where
-        F: FnMut(I::Request, I) + 'static,
-        Dest: FnMut(I) + 'static,
-    {
+    pub(crate) fn new() -> ResourceUserData<I> {
         ResourceUserData {
             _i: ::std::marker::PhantomData,
-            internal: Arc::new(ResourceInternal::new(user_data)),
-            implem: Some((Box::new(implem), destructor.map(|d| Box::new(d) as Box<_>))),
+            internal: Arc::new(ResourceInternal::new(UserData::new())),
+            implem: RefCell::new(None),
+            destructor: None,
         }
     }
 }
@@ -309,13 +325,24 @@ where
         let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
         {
             let user_data = &mut *(user_data as *mut ResourceUserData<I>);
-            let implem = user_data.implem.as_mut().unwrap();
-            let &mut (ref mut implem_func, _) = implem;
+            let implem = user_data.implem.borrow();
+
             if must_destroy {
                 user_data.internal.alive.store(false, Ordering::Release);
             }
-            // call the impl
-            implem_func(msg, resource_obj.into());
+
+            match implem.as_ref() {
+                Some(ref implem_func) => implem_func(msg, resource_obj),
+                None => {
+                    eprintln!(
+                        "[wayland-server] Request received for an object not associated to any filter: {}@{}",
+                        I::NAME,
+                        resource_obj.id()
+                    );
+                    resource_obj.post_error(2, "Server-side bug, sorry.".into());
+                    return Ok(());
+                }
+            }
         }
         if must_destroy {
             // final cleanup
@@ -351,11 +378,9 @@ pub(crate) unsafe extern "C" fn resource_destroy<I: Interface + From<Resource<I>
     let ret = ::std::panic::catch_unwind(move || {
         let mut user_data = Box::from_raw(user_data as *mut ResourceUserData<I>);
         user_data.internal.alive.store(false, Ordering::Release);
-        let implem = user_data.implem.as_mut().unwrap();
-        let &mut (_, ref mut destructor) = implem;
-        if let Some(mut dest_func) = destructor.take() {
+        if let Some(dest_func) = user_data.destructor.take() {
             let resource_obj = Resource::<I>::from_c_ptr(resource);
-            dest_func(resource_obj.into());
+            dest_func(resource_obj);
         }
     });
 

@@ -1,17 +1,20 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use {Interface, Resource};
+use crate::{Interface, Resource};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
-use wayland_commons::utils::UserData;
+use wayland_commons::user_data::UserData;
 use wayland_commons::MessageGroup;
 
 use super::{ClientInner, Dispatcher};
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
-    pub(crate) dispatcher: Arc<Mutex<Dispatcher>>,
+    pub(crate) dispatcher: Rc<RefCell<dyn Dispatcher>>,
+    pub(crate) destructor: Option<Rc<RefCell<dyn FnMut(ResourceInner)>>>,
     pub(crate) alive: Arc<AtomicBool>,
     user_data: Arc<UserData>,
 }
@@ -26,24 +29,18 @@ impl ObjectMeta {
     pub(crate) fn new() -> ObjectMeta {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(UserData::empty()),
+            user_data: Arc::new(UserData::new()),
             dispatcher: super::default_dispatcher(),
-        }
-    }
-
-    pub(crate) fn dead() -> ObjectMeta {
-        ObjectMeta {
-            alive: Arc::new(AtomicBool::new(false)),
-            user_data: Arc::new(UserData::empty()),
-            dispatcher: super::default_dispatcher(),
+            destructor: None,
         }
     }
 
     pub(crate) fn with_dispatcher<D: Dispatcher>(disp: D) -> ObjectMeta {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
-            user_data: Arc::new(UserData::empty()),
-            dispatcher: Arc::new(Mutex::new(disp)),
+            user_data: Arc::new(UserData::new()),
+            dispatcher: Rc::new(RefCell::new(disp)),
+            destructor: None,
         }
     }
 }
@@ -58,10 +55,10 @@ pub(crate) struct ResourceInner {
 impl ResourceInner {
     pub(crate) fn from_id(
         id: u32,
-        map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
+        map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
         client: ClientInner,
     ) -> Option<ResourceInner> {
-        let me = map.lock().unwrap().find(id);
+        let me = map.borrow_mut().find(id);
         me.map(|obj| ResourceInner {
             id,
             object: obj,
@@ -74,7 +71,7 @@ impl ResourceInner {
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
-        if let Some(ref mut conn_lock) = *self.client.data.lock().unwrap() {
+        if let Some(ref mut conn_lock) = *self.client.data.borrow_mut() {
             if !self.is_alive() {
                 return;
             }
@@ -121,11 +118,8 @@ impl ResourceInner {
         self.client.post_error(self.id, error_code, msg)
     }
 
-    pub(crate) fn get_user_data<UD>(&self) -> Option<&UD>
-    where
-        UD: 'static,
-    {
-        self.object.meta.user_data.get()
+    pub(crate) fn user_data(&self) -> &Arc<UserData> {
+        &self.object.meta.user_data
     }
 
     pub(crate) fn client(&self) -> Option<ClientInner> {
@@ -139,65 +133,23 @@ impl ResourceInner {
             0
         }
     }
-}
 
-pub(crate) struct NewResourceInner {
-    map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-    client: ClientInner,
-    id: u32,
-}
-
-impl NewResourceInner {
-    pub(crate) fn from_id(
-        id: u32,
-        map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
-        client: ClientInner,
-    ) -> Option<NewResourceInner> {
-        if map.lock().unwrap().find(id).is_some() {
-            Some(NewResourceInner { map, client, id })
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn is_loop_on_current_thread(&self) -> bool {
-        self.client.loop_thread == ::std::thread::current().id()
-    }
-
-    pub(crate) unsafe fn implement<I: Interface + From<Resource<I>>, F, Dest>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UserData,
-    ) -> ResourceInner
+    pub fn assign<I, E>(&self, filter: crate::Filter<E>)
     where
-        F: FnMut(I::Request, I) + 'static,
-        Dest: FnMut(I) + 'static,
-        I: From<Resource<I>>,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<(Resource<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
-        let object = self.map.lock().unwrap().with(self.id, |obj| {
-            obj.meta.dispatcher = super::make_dispatcher(implementation, destructor);
-            obj.meta.user_data = Arc::new(user_data);
-            obj.clone()
-        });
+        self.client
+            .set_dispatcher_for(self.id, super::make_dispatcher(filter));
+    }
 
-        let object = match object {
-            Ok(obj) => obj,
-            Err(()) => {
-                // We are trying to implement a non-existent object
-                // This is either a bug in the lib (a NewResource was created while it should not
-                // have been possible) or an object was created and the client destroyed it
-                // before it could be implemented.
-                // Thus, we just create a dummy already-dead Resource
-                Object::from_interface::<I>(1, ObjectMeta::dead())
-            }
-        };
-
-        ResourceInner {
-            client: self.client,
-            id: self.id,
-            object,
-        }
+    pub fn assign_destructor<I, E>(&self, filter: crate::Filter<E>)
+    where
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<Resource<I>> + 'static,
+    {
+        self.client
+            .set_destructor_for(self.id, super::make_destructor(filter));
     }
 }

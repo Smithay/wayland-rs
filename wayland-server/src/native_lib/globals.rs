@@ -7,17 +7,17 @@ use wayland_commons::Interface;
 use wayland_sys::server::*;
 
 use super::ClientInner;
-use NewResource;
+use crate::Resource;
 
 pub(crate) struct GlobalData<I: Interface> {
-    pub(crate) bind: Box<FnMut(NewResource<I>, u32)>,
-    pub(crate) filter: Option<Box<FnMut(ClientInner) -> bool>>,
+    pub(crate) bind: Box<dyn FnMut(Resource<I>, u32)>,
+    pub(crate) filter: Option<Box<dyn FnMut(ClientInner) -> bool>>,
 }
 
 impl<I: Interface> GlobalData<I> {
     pub(crate) fn new<F1, F2>(bind: F1, filter: Option<F2>) -> GlobalData<I>
     where
-        F1: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(Resource<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         GlobalData {
@@ -59,7 +59,7 @@ impl<I: Interface> GlobalInner<I> {
     }
 }
 
-pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
+pub(crate) unsafe extern "C" fn global_bind<I: Interface + From<Resource<I>>>(
     client: *mut wl_client,
     data: *mut c_void,
     version: u32,
@@ -76,7 +76,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface>(
             version as i32, // wayland already checks the validity of the version
             id
         );
-        let resource = NewResource::from_c_ptr(ptr as *mut wl_resource);
+        let resource = Resource::init_from_c_ptr(ptr as *mut wl_resource);
         (data.bind)(resource, version);
     });
     match ret {
@@ -110,7 +110,7 @@ pub(crate) unsafe extern "C" fn global_filter(
         }
         // the global is rust-managed, continue
         let global_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, global)
-            as *mut GlobalData<::AnonymousObject>;
+            as *mut GlobalData<crate::AnonymousObject>;
         let client = ClientInner::from_ptr(client as *mut _);
         let filter = &mut (*global_data).filter;
         if let Some(ref mut filter) = *filter {

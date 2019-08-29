@@ -1,11 +1,12 @@
-use wayland_commons::utils::UserData;
-use wayland_commons::{Interface, MessageGroup};
+use std::sync::Arc;
 
-use Client;
+use wayland_commons::user_data::UserData;
+use wayland_commons::{Interface, MessageGroup};
 
 use wayland_sys::server::*;
 
-use imp::{NewResourceInner, ResourceInner};
+use crate::imp::ResourceInner;
+use crate::{Client, Filter};
 
 /// An handle to a wayland resource
 ///
@@ -111,18 +112,15 @@ impl<I: Interface> Resource<I> {
         self.inner.post_error(error_code, msg)
     }
 
-    /// Access the arbitrary payload associated to this object
+    /// Access the UserData associated to this object
     ///
-    /// You need to specify the expected type of this payload, and this
-    /// function will return `None` if either the types don't match or
-    /// you are attempting to access a non `Send + Sync` user data from the
-    /// wrong thread.
+    /// Each wayland object has an associated UserData, that can store
+    /// a payload of arbitrary type and is shared by all proxies of this
+    /// object.
     ///
-    /// This value is associated to the Resource when you implement it, and you
-    /// cannot access it mutably afterwards. If you need interior mutability,
-    /// you are responsible for using a `Mutex` or similar type to achieve it.
-    pub fn user_data<UD: 'static>(&self) -> Option<&UD> {
-        self.inner.get_user_data()
+    /// See UserData documentation for more details.
+    pub fn user_data(&self) -> &Arc<UserData> {
+        self.inner.user_data()
     }
 
     /// Retrieve an handle to the client associated with this resource
@@ -179,6 +177,36 @@ impl<I: Interface> Resource<I> {
         }
     }
 
+    /// Create a `Resource` instance from a C pointer to a new object
+    ///
+    /// Create a `Resource` from a raw pointer to a wayland object from the
+    /// C library by taking control of it. You must ensure that this object was newly
+    /// created and have never been user nor had any listener associated.
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
+    pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self
+    where
+        I: From<Resource<I>>,
+    {
+        #[cfg(feature = "native_lib")]
+        {
+            Resource {
+                _i: ::std::marker::PhantomData,
+                inner: ResourceInner::init_from_c_ptr::<I>(_ptr),
+            }
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
+    }
+
     /// Create a `Resource` instance from a C pointer
     ///
     /// Create a `Resource` from a raw pointer to a wayland object from the
@@ -222,248 +250,10 @@ impl<I: Interface> Resource<I> {
 
     #[doc(hidden)]
     // This method is for scanner-generated use only
-    pub unsafe fn make_child_for<J: Interface>(&self, _id: u32) -> Option<NewResource<J>> {
+    pub unsafe fn make_child_for<J: Interface + From<Resource<J>>>(&self, _id: u32) -> Option<Resource<J>> {
         #[cfg(feature = "native_lib")]
         {
-            self.inner.make_child_for::<J>(_id).map(NewResource::wrap)
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
-            );
-        }
-    }
-}
-
-/// A newly-created resource that needs implementation
-///
-/// Whenever a new wayland object is created, you will
-/// receive it as a `NewResource`. You then have to provide an
-/// implementation for it, in order to process the incoming
-/// events it may receive. Once this done you will be able
-/// to use it as a regular Rust object.
-///
-/// Implementations are structs implementing the appropriate
-/// variant of the `Implementation` trait. They can also be
-/// closures.
-pub struct NewResource<I: Interface> {
-    _i: ::std::marker::PhantomData<*const I>,
-    inner: NewResourceInner,
-}
-
-impl<I: Interface + 'static> NewResource<I> {
-    pub(crate) fn wrap(inner: NewResourceInner) -> NewResource<I> {
-        NewResource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-    }
-
-    /// Implement this resource using a handler, destructor and user data.
-    ///
-    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
-    /// interface.
-    ///
-    /// This must be called from the thread hosting the wayland event loop, otherwise
-    /// it will panic.
-    ///
-    /// If you want the user data to be accessed from other threads,
-    /// see `implement_user_data_threadsafe`.
-    pub fn implement<T, Dest, UD>(self, mut handler: T, destructor: Option<Dest>, user_data: UD) -> I
-    where
-        T: 'static,
-        Dest: FnMut(I) + 'static,
-        UD: 'static,
-        I: HandledBy<T> + From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
-
-        self.implement_closure(implementation, destructor, user_data)
-    }
-
-    /// Implement this resource using given function, destructor, and user data.
-    ///
-    /// This must be called from the thread hosting the wayland event loop, otherwise
-    /// it will panic.
-    ///
-    /// If you want the user data to be accessed from other threads,
-    /// see `implement_closure_user_data_threadsafe`.
-    pub fn implement_closure<F, Dest, UD>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> I
-    where
-        F: FnMut(I::Request, I) + 'static,
-        Dest: FnMut(I) + 'static,
-        UD: 'static,
-        I: From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            if !self.inner.is_loop_on_current_thread() {
-                panic!("Attempted to implement a resource from an other thread than the one hosting the event loop.");
-            }
-        }
-        let inner = unsafe {
-            self.inner
-                .implement::<I, F, Dest>(implementation, destructor, UserData::new(user_data))
-        };
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-
-    /// Implement this resource using a dummy handler which does nothing.
-    pub fn implement_dummy(self) -> I
-    where
-        I: From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        self.implement_closure_threadsafe(|_, _| (), None::<fn(_)>, ())
-    }
-
-    /// Implement this resource using a handler, destructor and user data.
-    ///
-    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
-    /// interface.
-    ///
-    /// This method allows you to implement from any thread with the constraint
-    /// that the implementation and user-data must be threadsafe.
-    pub fn implement_threadsafe<T, Dest, UD>(
-        self,
-        mut handler: T,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> I
-    where
-        T: Send + 'static,
-        Dest: FnMut(I) + Send + 'static,
-        UD: Send + Sync + 'static,
-        I: HandledBy<T> + From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
-
-        self.implement_closure_threadsafe(implementation, destructor, user_data)
-    }
-
-    /// Implement this resource using given function, destructor, and user data.
-    ///
-    /// This method allows you to implement from any thread with the constraint
-    /// that the implementation and user-data must be threadsafe.
-    pub fn implement_closure_threadsafe<F, Dest, UD>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> I
-    where
-        F: FnMut(I::Request, I) + Send + 'static,
-        Dest: FnMut(I) + Send + 'static,
-        UD: Send + Sync + 'static,
-        I: From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        let inner = unsafe {
-            self.inner.implement::<I, F, Dest>(
-                implementation,
-                destructor,
-                UserData::new_threadsafe(user_data),
-            )
-        };
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-
-    /// Implement this resource using a handler, destructor and user data.
-    ///
-    /// The handler is a struct implementing the `RequestHandler` trait for the corresponding
-    /// interface.
-    ///
-    /// This must be called from the thread hosting the wayland event loop, otherwise
-    /// it will panic. However the user data can be accessed from other threads.
-    pub fn implement_user_data_threadsafe<T, Dest, UD>(
-        self,
-        mut handler: T,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> I
-    where
-        T: 'static,
-        Dest: FnMut(I) + 'static,
-        UD: Send + Sync + 'static,
-        I: HandledBy<T> + From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        let implementation = move |request, resource: I| I::handle(&mut handler, request, resource);
-
-        self.implement_closure_user_data_threadsafe(implementation, destructor, user_data)
-    }
-
-    /// Implement this resource using given function, destructor, and user data.
-    ///
-    /// This must be called from the thread hosting the wayland event loop, otherwise
-    /// it will panic. However the user data can be accessed from other threads.
-    pub fn implement_closure_user_data_threadsafe<F, Dest, UD>(
-        self,
-        implementation: F,
-        destructor: Option<Dest>,
-        user_data: UD,
-    ) -> I
-    where
-        F: FnMut(I::Request, I) + 'static,
-        Dest: FnMut(I) + 'static,
-        UD: Send + Sync + 'static,
-        I: From<Resource<I>>,
-        I::Request: MessageGroup<Map = ::imp::ResourceMap>,
-    {
-        #[cfg(not(feature = "native_lib"))]
-        {
-            if !self.inner.is_loop_on_current_thread() {
-                panic!("Attempted to implement a resource from an other thread than the one hosting the event loop.");
-            }
-        }
-        let inner = unsafe {
-            self.inner.implement::<I, F, Dest>(
-                implementation,
-                destructor,
-                UserData::new_threadsafe(user_data),
-            )
-        };
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
-        .into()
-    }
-}
-
-impl<I: Interface> NewResource<I> {
-    /// Get a raw pointer to the underlying wayland object
-    ///
-    /// Retrieve a pointer to the object from the `libwayland-server.so` library.
-    /// You will mostly need it to interface with C libraries needing access
-    /// to wayland objects.
-    ///
-    /// Use this if you need to pass an unimplemented object to the C library
-    /// you are interfacing with.
-    ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
-    /// activated
-    pub fn c_ptr(&self) -> *mut wl_resource {
-        #[cfg(feature = "native_lib")]
-        {
-            self.inner.c_ptr()
+            self.inner.make_child_for::<J>(_id).map(Resource::wrap)
         }
         #[cfg(not(feature = "native_lib"))]
         {
@@ -473,29 +263,30 @@ impl<I: Interface> NewResource<I> {
         }
     }
 
-    /// Create a `NewResource` instance from a C pointer.
-    ///
-    /// By doing so, you assert that this wayland object was newly created and
-    /// can be safely implemented. As implementing it will overwrite any previously
-    /// associated data or implementation, this can cause weird errors akin to
-    /// memory corruption if it was not the case.
-    ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
-    /// activated
-    pub unsafe fn from_c_ptr(_ptr: *mut wl_resource) -> Self {
-        #[cfg(feature = "native_lib")]
-        {
-            NewResource {
-                _i: ::std::marker::PhantomData,
-                inner: NewResourceInner::from_c_ptr(_ptr),
-            }
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
-            );
-        }
+    pub fn assign<E>(&self, filter: Filter<E>)
+    where
+        I: AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<(Resource<I>, I::Request)> + 'static,
+        I::Request: MessageGroup<Map = crate::ResourceMap>,
+    {
+        self.inner.assign(filter);
+    }
+
+    pub fn assign_mono<F>(&self, mut f: F)
+    where
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F: FnMut(Resource<I>, I::Request) + 'static,
+        I::Request: MessageGroup<Map = crate::ResourceMap>,
+    {
+        self.assign(Filter::new(move |(proxy, event), _| f(proxy, event)))
+    }
+
+    pub fn assign_destructor<E>(&self, filter: Filter<E>)
+    where
+        I: AsRef<Resource<I>> + From<Resource<I>>,
+        E: From<Resource<I>> + 'static,
+    {
+        self.inner.assign_destructor(filter)
     }
 }
 
@@ -506,12 +297,4 @@ impl<I: Interface> Clone for Resource<I> {
             inner: self.inner.clone(),
         }
     }
-}
-
-/// Provides a callback function to handle requests of the implementing interface via `T`.
-///
-/// This trait is meant to be implemented automatically by code generated with `wayland-scanner`.
-pub trait HandledBy<T>: Interface + Sized {
-    /// Handles an event.
-    fn handle(handler: &mut T, request: Self::Request, object: Self);
 }

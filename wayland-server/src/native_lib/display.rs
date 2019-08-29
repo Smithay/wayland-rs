@@ -12,13 +12,13 @@ use wayland_sys::server::*;
 use calloop::generic::Generic;
 use calloop::{LoopHandle, Source};
 
-use Fd;
+use crate::Fd;
 
 use super::globals::GlobalData;
 use super::{ClientInner, GlobalInner};
 
-use display::get_runtime_dir;
-use {Interface, NewResource};
+use crate::display::get_runtime_dir;
+use crate::{Interface, Resource};
 
 pub(crate) struct DisplayInner {
     pub(crate) ptr: *mut wl_display,
@@ -88,14 +88,14 @@ impl DisplayInner {
         self.ptr
     }
 
-    pub(crate) fn create_global<I: Interface, F1, F2>(
+    pub(crate) fn create_global<I: Interface + From<Resource<I>>, F1, F2>(
         &mut self,
         version: u32,
         implementation: F1,
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(Resource<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let data = Box::new(GlobalData::new(implementation, filter));

@@ -5,12 +5,12 @@ use std::rc::Rc;
 use wayland_commons::map::Object;
 use wayland_commons::wire::{Argument, Message};
 
-use {Interface, NewResource};
+use crate::{Interface, Resource};
 
 use super::resources::ObjectMeta;
-use super::{ClientInner, NewResourceInner};
+use super::{ClientInner, ResourceInner};
 
-type GlobalFilter = Rc<RefCell<FnMut(ClientInner) -> bool>>;
+type GlobalFilter = Rc<RefCell<dyn FnMut(ClientInner) -> bool>>;
 
 pub(crate) struct GlobalInner<I: Interface> {
     _i: ::std::marker::PhantomData<*const I>,
@@ -35,7 +35,7 @@ struct GlobalData {
     version: u32,
     interface: &'static str,
     destroyed: Rc<Cell<bool>>,
-    implem: Box<Fn(u32, u32, ClientInner) -> Result<(), ()>>,
+    implem: Box<dyn Fn(u32, u32, ClientInner) -> Result<(), ()>>,
     filter: Option<GlobalFilter>,
 }
 
@@ -59,7 +59,7 @@ impl GlobalManager {
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(NewResource<I>, u32) + 'static,
+        F1: FnMut(Resource<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let implem = RefCell::new(implementation);
@@ -71,11 +71,10 @@ impl GlobalManager {
                 // insert the object in the map, and call the global bind callback
                 // This is done in two times to ensure the client lock is not locked during
                 // the callback
-                let map = if let Some(ref clientconn) = *client.data.lock().unwrap() {
+                let map = if let Some(ref clientconn) = *client.data.borrow_mut() {
                     clientconn
                         .map
-                        .lock()
-                        .unwrap()
+                        .borrow_mut()
                         .insert_at(newid, Object::from_interface::<I>(version, ObjectMeta::new()))?;
                     Some(clientconn.map.clone())
                 } else {
@@ -83,7 +82,7 @@ impl GlobalManager {
                 };
                 if let Some(map) = map {
                     (&mut *implem.borrow_mut())(
-                        NewResource::wrap(NewResourceInner::from_id(newid, map, client.clone()).unwrap()),
+                        Resource::wrap(ResourceInner::from_id(newid, map, client.clone()).unwrap()),
                         version,
                     )
                 }
@@ -209,7 +208,7 @@ impl GlobalManager {
 }
 
 fn send_global_msg(reg: &(u32, ClientInner), global_id: u32, interface: CString, version: u32) {
-    if let Some(ref mut clientconn) = *reg.1.data.lock().unwrap() {
+    if let Some(ref mut clientconn) = *reg.1.data.borrow_mut() {
         let _ = clientconn.write_message(&Message {
             sender_id: reg.0,
             opcode: 0,
@@ -227,7 +226,7 @@ fn send_new_global(
     global_id: u32,
     interface: &str,
     version: u32,
-    filter: Option<&RefCell<FnMut(ClientInner) -> bool>>,
+    filter: Option<&RefCell<dyn FnMut(ClientInner) -> bool>>,
 ) {
     let iface = CString::new(interface.as_bytes().to_owned()).unwrap();
     if let Some(filter) = filter {
@@ -248,7 +247,7 @@ fn send_new_global(
 fn send_destroyed_global(
     registries: &[(u32, ClientInner)],
     global_id: u32,
-    filter: Option<&RefCell<FnMut(ClientInner) -> bool>>,
+    filter: Option<&RefCell<dyn FnMut(ClientInner) -> bool>>,
 ) {
     if let Some(filter) = filter {
         let mut filter = filter.borrow_mut();
@@ -256,7 +255,7 @@ fn send_destroyed_global(
             if !(&mut *filter)(client.clone()) {
                 continue;
             }
-            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
+            if let Some(ref mut clientconn) = *client.data.borrow_mut() {
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,
@@ -266,7 +265,7 @@ fn send_destroyed_global(
         }
     } else {
         for &(id, ref client) in registries {
-            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
+            if let Some(ref mut clientconn) = *client.data.borrow_mut() {
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,
