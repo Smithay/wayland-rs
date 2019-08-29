@@ -15,16 +15,16 @@ fn proxy_equals() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
 
     let compositor2 = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
 
     let compositor3 = compositor1.clone();
@@ -40,30 +40,28 @@ fn proxy_user_data() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor1 = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
-            newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
-        })
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
     let compositor1 = compositor1.as_ref();
+    compositor1.user_data().set(|| 0xDEADBEEFusize);
 
     let compositor2 = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
-            newp.implement_closure(|_, _| {}, 0xBADC0FFEusize)
-        })
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
     let compositor2 = compositor2.as_ref();
+    compositor2.user_data().set(|| 0xBADC0FFEusize);
 
     let compositor3 = compositor1.clone();
 
-    assert!(compositor1.user_data::<usize>() == Some(&0xDEADBEEF));
-    assert!(compositor2.user_data::<usize>() == Some(&0xBADC0FFE));
-    assert!(compositor3.user_data::<usize>() == Some(&0xDEADBEEF));
-    assert!(compositor1.user_data::<u32>() == None);
+    assert!(compositor1.user_data().get::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor2.user_data().get::<usize>() == Some(&0xBADC0FFE));
+    assert!(compositor3.user_data().get::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor1.user_data().get::<u32>() == None);
 }
 
 #[test]
@@ -72,23 +70,22 @@ fn proxy_user_data_wrong_thread() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let compositor: Proxy<_> = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| {
-            newp.implement_closure(|_, _| {}, 0xDEADBEEFusize)
-        })
-        .unwrap()
-        .into();
+    let compositor = manager
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
+        .unwrap();
+    let compositor: Proxy<_> = (**compositor).clone().into();
+    compositor.user_data().set(|| 0xDEADBEEFusize);
 
     // we can access on the right thread
-    assert!(compositor.user_data::<usize>().is_some());
+    assert!(compositor.user_data().get::<usize>().is_some());
 
     // but not in a new one
     ::std::thread::spawn(move || {
-        assert!(compositor.user_data::<usize>().is_none());
+        assert!(compositor.user_data().get::<usize>().is_none());
     })
     .join()
     .unwrap();
@@ -102,42 +99,36 @@ fn proxy_wrapper() {
     let mut client = TestClient::new(&server.socket_name);
 
     let mut event_queue_2 = client.display.create_event_queue();
-    let manager = wayc::GlobalManager::new(
-        &(*client.display)
-            .as_ref()
-            .make_wrapper(&event_queue_2.get_token())
-            .unwrap(),
-    );
+    let manager = wayc::GlobalManager::new(&(**client.display).clone().attach(event_queue_2.get_token()));
 
     roundtrip(&mut client, &mut server).unwrap();
 
     // event_queue_2 has not been dispatched
     assert!(manager.list().len() == 0);
 
-    event_queue_2.dispatch_pending().unwrap();
+    event_queue_2.dispatch_pending(|_, _| unreachable!()).unwrap();
 
     assert!(manager.list().len() == 1);
 }
 
 #[test]
-fn proxy_implement_wrong_thread() {
+fn proxy_create_unattached() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
+    let compositor = (**compositor).clone();
 
     let ret = ::std::thread::spawn(move || {
-        compositor
-            .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should panic
-            .unwrap();
+        compositor.create_surface(); // should panic
     })
     .join();
 
@@ -146,52 +137,27 @@ fn proxy_implement_wrong_thread() {
 }
 
 #[test]
-fn proxy_implement_wrapper_threaded() {
+fn proxy_create_attached() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
+        .instantiate_exact::<wl_compositor::WlCompositor>(1)
         .unwrap();
+    let compositor = (**compositor).clone();
 
     let display2 = client.display.clone();
 
     ::std::thread::spawn(move || {
         let evq2 = display2.create_event_queue();
-        let compositor_wrapper = compositor.as_ref().make_wrapper(&evq2.get_token()).unwrap();
-        compositor_wrapper
-            .create_surface(|newp| newp.implement_closure(|_, _| {}, ())) // should not panic
-            .unwrap();
-    })
-    .join()
-    .unwrap();
-}
-
-#[test]
-fn proxy_implement_threadsafe_wrong_thread() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
-
-    let mut client = TestClient::new(&server.socket_name);
-
-    let manager = wayc::GlobalManager::new(&client.display);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let compositor = manager
-        .instantiate_exact::<wl_compositor::WlCompositor, _>(1, |newp| newp.implement_dummy())
-        .unwrap();
-
-    ::std::thread::spawn(move || {
-        compositor
-            .create_surface(|newp| newp.implement_closure_threadsafe(|_, _| {}, ())) // should not panic
-            .unwrap();
+        let compositor_wrapper = compositor.as_ref().clone().attach(evq2.get_token());
+        compositor_wrapper.create_surface(); // should not panic
     })
     .join()
     .unwrap();
@@ -203,13 +169,11 @@ fn dead_proxies() {
     server.display.create_global::<ServerOutput, _>(3, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let output = manager
-        .instantiate_exact::<wl_output::WlOutput, _>(3, |newp| newp.implement_dummy())
-        .unwrap();
+    let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 

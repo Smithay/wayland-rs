@@ -9,7 +9,7 @@ use wayc::protocol::wl_output::WlOutput;
 use std::sync::{Arc, Mutex};
 
 #[test]
-fn resource_destructor() {
+fn resource_destructor_request() {
     let destructor_called = Arc::new(Mutex::new(false));
     let destructor_called_global = destructor_called.clone();
 
@@ -18,23 +18,18 @@ fn resource_destructor() {
         .display
         .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.implement_closure(
-                |_, _| {},
-                Some(move |_| {
-                    *destructor_called_resource.lock().unwrap() = true;
-                }),
-                (),
-            );
+            newo.assign_mono(|_, _| {});
+            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _| {
+                *destructor_called_resource.lock().unwrap() = true;
+            }));
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let output = manager
-        .instantiate_exact::<WlOutput, _>(3, |newp| newp.implement_dummy())
-        .unwrap();
+    let output = manager.instantiate_exact::<WlOutput>(3).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -55,23 +50,17 @@ fn resource_destructor_cleanup() {
         .display
         .create_global::<ServerOutput, _>(3, move |newo, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.implement_closure(
-                |_, _| {},
-                Some(move |_| {
-                    *destructor_called_resource.lock().unwrap() = true;
-                }),
-                (),
-            );
+            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _| {
+                *destructor_called_resource.lock().unwrap() = true;
+            }));
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<WlOutput, _>(3, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<WlOutput>(3).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -91,23 +80,20 @@ fn client_destructor_cleanup() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerOutput, _>(3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |output, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            let output = newo.implement_dummy();
-            let client = output.as_ref().client().unwrap();
-            client.add_destructor(move |_| {
+            let client = output.client().unwrap();
+            client.add_destructor(ways::Filter::new(move |_, _| {
                 *destructor_called_resource.lock().unwrap() = true;
-            });
+            }));
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<WlOutput, _>(3, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<WlOutput>(3).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 

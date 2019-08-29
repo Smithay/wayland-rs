@@ -50,33 +50,42 @@ impl TestServer {
 
 pub struct TestClient {
     pub display: Arc<self::wayc::Display>,
+    pub display_proxy: self::wayc::Attached<self::wayc::protocol::wl_display::WlDisplay>,
     pub event_queue: self::wayc::EventQueue,
 }
 
 impl TestClient {
     pub fn new(socket_name: &OsStr) -> TestClient {
-        let (display, event_queue) =
+        let display =
             self::wayc::Display::connect_to_name(socket_name).expect("Failed to connect to server.");
+        let event_queue = display.create_event_queue();
+        let attached = (*display).clone().attach(event_queue.get_token());
         TestClient {
             display: Arc::new(display),
-            event_queue: event_queue,
+            display_proxy: attached,
+            event_queue,
         }
     }
 
     pub fn new_auto() -> TestClient {
-        let (display, event_queue) =
-            self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
+        let display = self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
+        let event_queue = display.create_event_queue();
+        let attached = (*display).clone().attach(event_queue.get_token());
         TestClient {
             display: Arc::new(display),
-            event_queue: event_queue,
+            display_proxy: attached,
+            event_queue,
         }
     }
 
     pub unsafe fn from_fd(fd: RawFd) -> TestClient {
-        let (display, event_queue) = self::wayc::Display::from_fd(fd).unwrap();
+        let display = self::wayc::Display::from_fd(fd).unwrap();
+        let event_queue = display.create_event_queue();
+        let attached = (*display).clone().attach(event_queue.get_token());
         TestClient {
             display: Arc::new(display),
-            event_queue: event_queue,
+            display_proxy: attached,
+            event_queue,
         }
     }
 }
@@ -86,9 +95,9 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
     client
-        .display
-        .sync(move |newcb| newcb.implement_closure(move |_, _| done2.set(true), ()))
-        .unwrap();
+        .display_proxy
+        .sync()
+        .assign_mono(move |_, _| done2.set(true));
     while !done.get() {
         match client.display.flush() {
             Ok(_) => {}
@@ -103,10 +112,10 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
         server.answer();
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
-        client.event_queue.dispatch_pending()?;
+        client.event_queue.dispatch_pending(|_, _| {})?;
         let e = client.event_queue.prepare_read().unwrap().read_events();
         // even if read_events returns an error, some messages may need dispatching
-        client.event_queue.dispatch_pending()?;
+        client.event_queue.dispatch_pending(|_, _| {})?;
         e?;
     }
     Ok(())

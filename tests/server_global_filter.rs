@@ -37,7 +37,7 @@ fn global_filter() {
 
     // normal client only sees two globals
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -49,7 +49,7 @@ fn global_filter() {
     priv_client.data_map().insert_if_missing(|| Privileged);
 
     let mut client2 = unsafe { TestClient::from_fd(client_cx.into_raw_fd()) };
-    let manager2 = wayc::GlobalManager::new(&client2.display);
+    let manager2 = wayc::GlobalManager::new(&client2.display_proxy);
 
     roundtrip(&mut client2, &mut server).unwrap();
 
@@ -99,25 +99,15 @@ fn global_filter_try_force() {
 
     // privileged client can bind it
 
-    let registry2 = client2
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
-    registry2
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
-        .unwrap();
+    let registry2 = client2.display_proxy.get_registry();
+    registry2.bind::<WlOutput>(1, 1);
 
     roundtrip(&mut client2, &mut server).unwrap();
 
     // unprivileged client cannot
 
-    let registry = client
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
-    registry
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
-        .unwrap();
+    let registry = client.display_proxy.get_registry();
+    registry.bind::<WlOutput>(1, 1);
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }

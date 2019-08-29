@@ -18,7 +18,7 @@ fn main() {
     ::std::env::set_var("WAYLAND_SOCKET", format!("{}", fd2));
 
     let mut client = TestClient::new_auto();
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
     // check that we connected to the right compositor

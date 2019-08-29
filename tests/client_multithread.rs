@@ -44,13 +44,10 @@ fn display_to_new_thread() {
 
     thread::spawn(move || {
         let mut evq = display_clone.create_event_queue();
-        let wrapper = (*display_clone).as_ref().make_wrapper(&evq.get_token()).unwrap();
-        let manager = wayc::GlobalManager::new(&wrapper);
-        evq.sync_roundtrip().unwrap();
-        // can provide a non-send impl
-        manager
-            .instantiate_exact::<wl_seat::WlSeat, _>(5, |newp| newp.implement_closure(|_, _| {}, ()))
-            .unwrap();
+        let attached = (**display_clone).clone().attach(evq.get_token());
+        let manager = wayc::GlobalManager::new(&attached);
+        evq.sync_roundtrip(|_, _| unreachable!()).unwrap();
+        manager.instantiate_exact::<wl_seat::WlSeat>(5).unwrap();
     })
     .join()
     .unwrap();
