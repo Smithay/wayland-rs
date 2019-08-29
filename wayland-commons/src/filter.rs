@@ -6,7 +6,7 @@ struct Inner<E, F: ?Sized> {
 }
 
 pub struct Filter<E> {
-    inner: Rc<Inner<E, dyn FnMut(E)>>,
+    inner: Rc<Inner<E, dyn FnMut(E, &Filter<E>)>>,
 }
 
 impl<E> Clone for Filter<E> {
@@ -18,7 +18,7 @@ impl<E> Clone for Filter<E> {
 }
 
 impl<E> Filter<E> {
-    pub fn new<F: FnMut(E) + 'static>(f: F) -> Filter<E> {
+    pub fn new<F: FnMut(E, &Filter<E>) + 'static>(f: F) -> Filter<E> {
         Filter {
             inner: Rc::new(Inner {
                 pending: RefCell::new(VecDeque::new()),
@@ -30,10 +30,10 @@ impl<E> Filter<E> {
     pub fn send(&self, evt: E) {
         // gracefully handle reentrancy
         if let Ok(mut guard) = self.inner.cb.try_borrow_mut() {
-            (&mut *guard)(evt);
+            (&mut *guard)(evt, self);
             // process all events that might have been enqueued by the cb
             while let Some(evt) = self.inner.pending.borrow_mut().pop_front() {
-                (&mut *guard)(evt);
+                (&mut *guard)(evt, self);
             }
         } else {
             self.inner.pending.borrow_mut().push_back(evt);
