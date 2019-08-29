@@ -15,8 +15,8 @@ pub mod wl_foo {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
@@ -64,7 +64,7 @@ pub mod wl_foo {
             file: ::std::os::unix::io::RawFd,
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        CreateBar { id: super::wl_bar::WlBar },
+        CreateBar {},
         #[doc(hidden)]
         __nonexhaustive,
     }
@@ -80,11 +80,13 @@ pub mod wl_foo {
                     super::ArgumentType::Fixed,
                     super::ArgumentType::Fd,
                 ],
+                destructor: false,
             },
             super::MessageDesc {
                 name: "create_bar",
                 since: 1,
                 signature: &[super::ArgumentType::NewId],
+                destructor: false,
             },
         ];
         type Map = super::ProxyMap;
@@ -140,10 +142,10 @@ pub mod wl_foo {
                         Argument::Fd(file),
                     ],
                 },
-                Request::CreateBar { id } => Message {
+                Request::CreateBar {} => Message {
                     sender_id: sender_id,
                     opcode: 1,
-                    args: vec![Argument::NewId(id.as_ref().id())],
+                    args: vec![Argument::NewId(0)],
                 },
             }
         }
@@ -176,9 +178,9 @@ pub mod wl_foo {
                     _args_array[4].h = file;
                     f(0, &mut _args_array)
                 }
-                Request::CreateBar { id } => {
+                Request::CreateBar {} => {
                     let mut _args_array: [wl_argument; 1] = unsafe { ::std::mem::zeroed() };
-                    _args_array[0].o = id.as_ref().c_ptr() as *mut _;
+                    _args_array[0].o = ::std::ptr::null_mut() as *mut _;
                     f(1, &mut _args_array)
                 }
             }
@@ -195,6 +197,7 @@ pub mod wl_foo {
             name: "cake",
             since: 2,
             signature: &[super::ArgumentType::Uint, super::ArgumentType::Uint],
+            destructor: false,
         }];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
@@ -316,31 +319,12 @@ pub mod wl_foo {
                 float: float,
                 file: file,
             };
-            self.0.send(msg);
+            self.0.send::<AnonymousObject>(msg, None);
         }
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        pub fn create_bar<F>(&self, implementor: F) -> Result<super::wl_bar::WlBar, ()>
-        where
-            F: FnOnce(NewProxy<super::wl_bar::WlBar>) -> super::wl_bar::WlBar,
-        {
-            let msg = Request::CreateBar {
-                id: self.0.child_placeholder(),
-            };
-            self.0.send_constructor(msg, implementor, None)
-        }
-    }
-    #[doc = r" An interface for handling events."]
-    pub trait EventHandler {
-        #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface."]
-        fn cake(&mut self, object: WlFoo, kind: CakeKind, amount: u32) {}
-    }
-    impl<T: EventHandler> HandledBy<T> for WlFoo {
-        #[inline]
-        fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {
-                Event::Cake { kind, amount } => __handler.cake(__object, kind, amount),
-                Event::__nonexhaustive => unreachable!(),
-            }
+        pub fn create_bar(&self) -> Main<super::wl_bar::WlBar> {
+            let msg = Request::CreateBar {};
+            self.0.send(msg, None).unwrap()
         }
     }
     #[doc = r" The minimal object version supporting this request"]
@@ -385,8 +369,8 @@ pub mod wl_bar {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -424,11 +408,13 @@ pub mod wl_bar {
                     super::ArgumentType::Array,
                     super::ArgumentType::Array,
                 ],
+                destructor: false,
             },
             super::MessageDesc {
                 name: "release",
                 since: 1,
                 signature: &[],
+                destructor: true,
             },
             super::MessageDesc {
                 name: "self",
@@ -443,6 +429,7 @@ pub mod wl_bar {
                     super::ArgumentType::Uint,
                     super::ArgumentType::Uint,
                 ],
+                destructor: false,
             },
         ];
         type Map = super::ProxyMap;
@@ -621,6 +608,7 @@ pub mod wl_bar {
                 super::ArgumentType::Uint,
                 super::ArgumentType::Uint,
             ],
+            destructor: false,
         }];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
@@ -788,12 +776,12 @@ pub mod wl_bar {
                 metadata: metadata,
                 metametadata: metametadata,
             };
-            self.0.send(msg);
+            self.0.send::<AnonymousObject>(msg, None);
         }
         #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
         pub fn release(&self) -> () {
             let msg = Request::Release;
-            self.0.send(msg);
+            self.0.send::<AnonymousObject>(msg, None);
         }
         #[doc = "ask for erronous bindings from wayland-scanner\n\nThis request tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface."]
         pub fn _self(
@@ -817,44 +805,7 @@ pub mod wl_bar {
                 request: request,
                 event: event,
             };
-            self.0.send(msg);
-        }
-    }
-    #[doc = r" An interface for handling events."]
-    pub trait EventHandler {
-        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis event tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface."]
-        fn _self(
-            &mut self,
-            object: WlBar,
-            _self: u32,
-            _mut: u32,
-            _object: u32,
-            ___object: u32,
-            handler: u32,
-            ___handler: u32,
-            request: u32,
-            event: u32,
-        ) {
-        }
-    }
-    impl<T: EventHandler> HandledBy<T> for WlBar {
-        #[inline]
-        fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {
-                Event::_Self {
-                    _self,
-                    _mut,
-                    object,
-                    ___object,
-                    handler,
-                    ___handler,
-                    request,
-                    event,
-                } => __handler._self(
-                    __object, _self, _mut, object, ___object, handler, ___handler, request, event,
-                ),
-                Event::__nonexhaustive => unreachable!(),
-            }
+            self.0.send::<AnonymousObject>(msg, None);
         }
     }
     #[doc = r" The minimal object version supporting this request"]
@@ -910,8 +861,8 @@ pub mod wl_display {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -1046,16 +997,6 @@ pub mod wl_display {
         }
     }
     impl WlDisplay {}
-    #[doc = r" An interface for handling events."]
-    pub trait EventHandler {}
-    impl<T: EventHandler> HandledBy<T> for WlDisplay {
-        #[inline]
-        fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {
-                Event::__nonexhaustive => unreachable!(),
-            }
-        }
-    }
     #[doc = r" C representation of this interface, for interop"]
     pub static mut wl_display_interface: wl_interface = wl_interface {
         name: b"wl_display\0" as *const u8 as *const c_char,
@@ -1071,16 +1012,13 @@ pub mod wl_registry {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
-        Bind {
-            name: u32,
-            id: (String, u32, AnonymousObject),
-        },
+        Bind { name: u32, id: (String, u32) },
         #[doc(hidden)]
         __nonexhaustive,
     }
@@ -1089,6 +1027,7 @@ pub mod wl_registry {
             name: "bind",
             since: 1,
             signature: &[super::ArgumentType::Uint, super::ArgumentType::NewId],
+            destructor: false,
         }];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
@@ -1127,7 +1066,7 @@ pub mod wl_registry {
                         Argument::Uint(name),
                         Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(id.0.into()) }),
                         Argument::Uint(id.1),
-                        Argument::NewId(id.2.as_ref().id()),
+                        Argument::NewId(0),
                     ],
                 },
             }
@@ -1239,30 +1178,16 @@ pub mod wl_registry {
     }
     impl WlRegistry {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
-        pub fn bind<T: Interface + From<Proxy<T>>, F>(
+        pub fn bind<T: Interface + From<Proxy<T>> + AsRef<Proxy<T>>>(
             &self,
             version: u32,
             name: u32,
-            implementor: F,
-        ) -> Result<T, ()>
-        where
-            F: FnOnce(NewProxy<T>) -> T,
-        {
+        ) -> Main<T> {
             let msg = Request::Bind {
                 name: name,
-                id: (T::NAME.into(), version, self.0.child_placeholder()),
+                id: (T::NAME.into(), version),
             };
-            self.0.send_constructor(msg, implementor, Some(version))
-        }
-    }
-    #[doc = r" An interface for handling events."]
-    pub trait EventHandler {}
-    impl<T: EventHandler> HandledBy<T> for WlRegistry {
-        #[inline]
-        fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {
-                Event::__nonexhaustive => unreachable!(),
-            }
+            self.0.send(msg, Some(version)).unwrap()
         }
     }
     #[doc = r" The minimal object version supporting this request"]
@@ -1288,8 +1213,8 @@ pub mod wl_callback {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewProxy, Object, ObjectMetadata, Proxy, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -1354,6 +1279,7 @@ pub mod wl_callback {
             name: "done",
             since: 1,
             signature: &[super::ArgumentType::Uint],
+            destructor: true,
         }];
         type Map = super::ProxyMap;
         fn is_destructor(&self) -> bool {
@@ -1451,20 +1377,6 @@ pub mod wl_callback {
         }
     }
     impl WlCallback {}
-    #[doc = r" An interface for handling events."]
-    pub trait EventHandler {
-        #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
-        fn done(&mut self, object: WlCallback, callback_data: u32) {}
-    }
-    impl<T: EventHandler> HandledBy<T> for WlCallback {
-        #[inline]
-        fn handle(__handler: &mut T, event: Event, __object: Self) {
-            match event {
-                Event::Done { callback_data } => __handler.done(__object, callback_data),
-                Event::__nonexhaustive => unreachable!(),
-            }
-        }
-    }
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" C-representation of the messages of this interface, for interop"]

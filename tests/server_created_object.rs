@@ -7,22 +7,13 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use ways::protocol::wl_data_device::WlDataDevice as ServerDD;
-use ways::protocol::wl_data_device_manager::{
-    Request as SDDMReq, RequestHandler as ServerDDMHandler, WlDataDeviceManager as ServerDDMgr,
-};
+use ways::protocol::wl_data_device_manager::{Request as SDDMReq, WlDataDeviceManager as ServerDDMgr};
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
-use ways::protocol::wl_data_source::WlDataSource as ServerDS;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;
-use ways::NewResource;
 
-use wayc::protocol::wl_data_device::{
-    Event as CDDEvt, EventHandler as ClientDDHandler, WlDataDevice as ClientDD,
-};
+use wayc::protocol::wl_data_device::Event as CDDEvt;
 use wayc::protocol::wl_data_device_manager::WlDataDeviceManager as ClientDDMgr;
-use wayc::protocol::wl_data_offer::WlDataOffer as ClientDO;
 use wayc::protocol::wl_seat::WlSeat as ClientSeat;
-use wayc::protocol::wl_surface::WlSurface as ClientSurface;
-use wayc::NewProxy;
 
 #[test]
 fn data_offer() {
@@ -32,165 +23,45 @@ fn data_offer() {
         .display
         .create_global::<ServerDDMgr, _>(3, |new_resource, version| {
             assert!(version == 3);
-            new_resource.implement_closure(
-                |request, _| match request {
-                    SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement_dummy();
-                        // create a data offer and send it
-                        let offer = ddevice
-                            .as_ref()
-                            .client()
-                            .unwrap()
-                            .create_resource::<ServerDO>(ddevice.as_ref().version())
-                            .unwrap()
-                            .implement_dummy();
-                        // this must be the first server-side ID
-                        assert_eq!(offer.as_ref().id(), 0xFF000000);
-                        ddevice.data_offer(&offer)
-                    }
-                    _ => unimplemented!(),
-                },
-                None::<fn(_)>,
-                (),
-            );
+            new_resource.assign_mono(|_, request| match request {
+                SDDMReq::GetDataDevice { id: ddevice, .. } => {
+                    // create a data offer and send it
+                    let offer = ddevice
+                        .client()
+                        .unwrap()
+                        .create_resource::<ServerDO>(ddevice.version())
+                        .unwrap();
+                    // this must be the first server-side ID
+                    assert_eq!(offer.id(), 0xFF000000);
+                    let ddevice: ServerDD = ddevice.into();
+                    ddevice.data_offer(&offer.into());
+                }
+                _ => unimplemented!(),
+            });
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
+    let seat = manager.instantiate_exact::<ClientSeat>(1).unwrap();
+    let ddmgr = manager.instantiate_exact::<ClientDDMgr>(3).unwrap();
 
     let received = Arc::new(Mutex::new(false));
     let received2 = received.clone();
 
-    ddmgr
-        .get_data_device(&seat, move |newdd| {
-            newdd.implement_closure(
-                move |evt, _| match evt {
-                    CDDEvt::DataOffer { id } => {
-                        let doffer = id.implement_dummy();
-                        let doffer = doffer.as_ref();
-                        assert!(doffer.version() == 3);
-                        // this must be the first server-side ID
-                        assert_eq!(doffer.id(), 0xFF000000);
-                        *received2.lock().unwrap() = true;
-                    }
-                    _ => unimplemented!(),
-                },
-                (),
-            )
-        })
-        .unwrap();
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    assert!(*received.lock().unwrap());
-}
-
-#[test]
-fn data_offer_trait_impls() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
-
-    struct ServerHandler;
-    impl ServerDDMHandler for ServerHandler {
-        fn get_data_device(&mut self, _ddmgr: ServerDDMgr, id: NewResource<ServerDD>, _seat: ServerSeat) {
-            let ddevice = id.implement_dummy();
-            // create a data offer and send it
-            let offer = ddevice
-                .as_ref()
-                .client()
-                .unwrap()
-                .create_resource::<ServerDO>(ddevice.as_ref().version())
-                .unwrap()
-                .implement_dummy();
-            // this must be the first server-side ID
-            assert_eq!(offer.as_ref().id(), 0xFF000000);
-            ddevice.data_offer(&offer)
-        }
-
-        fn create_data_source(&mut self, _ddmgr: ServerDDMgr, _id: NewResource<ServerDS>) {
-            unimplemented!()
-        }
-    }
-
-    server
-        .display
-        .create_global::<ServerDDMgr, _>(3, |new_resource, version| {
-            assert!(version == 3);
-            new_resource.implement(ServerHandler, None::<fn(_)>, ());
-        });
-
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
-
-    let received = Arc::new(Mutex::new(false));
-    let received2 = received.clone();
-
-    struct ClientHandler {
-        received: Arc<Mutex<bool>>,
-    }
-
-    impl ClientDDHandler for ClientHandler {
-        fn data_offer(&mut self, _dd: ClientDD, id: NewProxy<ClientDO>) {
-            let doffer = id.implement_dummy();
+    let ddevice = ddmgr.get_data_device(&seat);
+    ddevice.assign_mono(move |_, evt| match evt {
+        CDDEvt::DataOffer { id: doffer } => {
             let doffer = doffer.as_ref();
             assert!(doffer.version() == 3);
             // this must be the first server-side ID
             assert_eq!(doffer.id(), 0xFF000000);
-            *self.received.lock().unwrap() = true;
+            *received2.lock().unwrap() = true;
         }
-
-        fn enter(
-            &mut self,
-            _dd: ClientDD,
-            _serial: u32,
-            _surface: ClientSurface,
-            _x: f64,
-            _y: f64,
-            _id: Option<ClientDO>,
-        ) {
-            unimplemented!()
-        }
-
-        fn leave(&mut self, _dd: ClientDD) {
-            unimplemented!()
-        }
-
-        fn motion(&mut self, _dd: ClientDD, _time: u32, _x: f64, _y: f64) {
-            unimplemented!()
-        }
-
-        fn drop(&mut self, _dd: ClientDD) {
-            unimplemented!()
-        }
-
-        fn selection(&mut self, _dd: ClientDD, _id: Option<ClientDO>) {
-            unimplemented!()
-        }
-    }
-
-    ddmgr
-        .get_data_device(&seat, move |newdd| {
-            newdd.implement(ClientHandler { received: received2 }, ())
-        })
-        .unwrap();
+        _ => unimplemented!(),
+    });
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -201,56 +72,40 @@ fn data_offer_trait_impls() {
 fn server_id_reuse() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
-    let srv_dd = Rc::new(RefCell::new(None));
+    let srv_dd: Rc<RefCell<Option<ServerDD>>> = Rc::new(RefCell::new(None));
     let srv_dd2 = srv_dd.clone();
     server
         .display
         .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
             let srv_dd3 = srv_dd2.clone();
-            new_resource.implement_closure(
-                move |req, _| {
-                    if let SDDMReq::GetDataDevice { id, .. } = req {
-                        let ddevice = id.implement_dummy();
-                        *srv_dd3.borrow_mut() = Some(ddevice);
-                    }
-                },
-                None::<fn(_)>,
-                (),
-            );
+            new_resource.assign_mono(move |_, req| {
+                if let SDDMReq::GetDataDevice { id: ddevice, .. } = req {
+                    *srv_dd3.borrow_mut() = Some(ddevice.into());
+                }
+            });
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
+    let seat = manager.instantiate_exact::<ClientSeat>(1).unwrap();
+    let ddmgr = manager.instantiate_exact::<ClientDDMgr>(3).unwrap();
 
     let offer = Rc::new(RefCell::new(None));
     let offer2 = offer.clone();
 
-    ddmgr
-        .get_data_device(&seat, move |newdd| {
-            newdd.implement_closure(
-                move |evt, _| match evt {
-                    CDDEvt::DataOffer { id } => {
-                        let doffer = id.implement_dummy();
-                        if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer))
-                        {
-                            old_offer.destroy();
-                        }
-                    }
-                    _ => unimplemented!(),
-                },
-                (),
-            )
-        })
-        .unwrap();
+    let ddevice = ddmgr.get_data_device(&seat);
+
+    ddevice.assign_mono(move |_, evt| match evt {
+        CDDEvt::DataOffer { id: doffer } => {
+            if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer)) {
+                old_offer.destroy();
+            }
+        }
+        _ => unimplemented!(),
+    });
 
     roundtrip(&mut client, &mut server).unwrap();
     let ddevice = srv_dd.borrow().as_ref().unwrap().clone();
@@ -261,9 +116,9 @@ fn server_id_reuse() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
-        .unwrap()
-        .implement_dummy();
-    ddevice.data_offer(&offer1);
+        .unwrap();
+    offer1.assign_mono(|_, _| {});
+    ddevice.data_offer(&offer1.into());
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
 
@@ -273,9 +128,9 @@ fn server_id_reuse() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
-        .unwrap()
-        .implement_dummy();
-    ddevice.data_offer(&offer2);
+        .unwrap();
+    offer2.assign_mono(|_, _| {});
+    ddevice.data_offer(&offer2.into());
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000001);
 
@@ -289,9 +144,9 @@ fn server_id_reuse() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
-        .unwrap()
-        .implement_dummy();
-    ddevice.data_offer(&offer3);
+        .unwrap();
+    offer3.assign_mono(|_, _| {});
+    ddevice.data_offer(&offer3.into());
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
 }
@@ -301,75 +156,57 @@ fn server_created_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_do = Rc::new(RefCell::new(None));
+    let server_do: Rc<RefCell<Option<ServerDO>>> = Rc::new(RefCell::new(None));
     let server_do_2 = server_do.clone();
     server
         .display
         .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
             let server_do_3 = server_do_2.clone();
-            new_resource.implement_closure(
-                move |request, _| match request {
-                    SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement_dummy();
-                        // create a data offer and send it
-                        let offer = ddevice
-                            .as_ref()
-                            .client()
-                            .unwrap()
-                            .create_resource::<ServerDO>(ddevice.as_ref().version())
-                            .unwrap()
-                            .implement_dummy();
-                        // this must be the first server-side ID
-                        ddevice.data_offer(&offer);
-                        *server_do_3.borrow_mut() = Some(offer);
-                    }
-                    _ => unimplemented!(),
-                },
-                None::<fn(_)>,
-                (),
-            );
+            new_resource.assign_mono(move |_, request| match request {
+                SDDMReq::GetDataDevice { id: ddevice, .. } => {
+                    // create a data offer and send it
+                    let offer = ddevice
+                        .client()
+                        .unwrap()
+                        .create_resource::<ServerDO>(ddevice.version())
+                        .unwrap();
+                    offer.assign_mono(|_, _| {});
+                    let offer = offer.into();
+                    // this must be the first server-side ID
+                    let ddevice: ServerDD = ddevice.into();
+                    ddevice.data_offer(&offer);
+                    *server_do_3.borrow_mut() = Some(offer);
+                }
+                _ => unimplemented!(),
+            });
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
+    let seat = manager.instantiate_exact::<ClientSeat>(1).unwrap();
+    let ddmgr = manager.instantiate_exact::<ClientDDMgr>(3).unwrap();
 
     let offer = Rc::new(RefCell::new(None));
     let offer2 = offer.clone();
     let received = Rc::new(Cell::new(0));
     let received_2 = received.clone();
 
-    ddmgr
-        .get_data_device(&seat, move |newdd| {
-            newdd.implement_closure(
-                move |evt, _| match evt {
-                    CDDEvt::DataOffer { id } => {
-                        let received_3 = received_2.clone();
-                        let doffer = id.implement_closure(
-                            move |_, _| {
-                                received_3.set(received_3.get() + 1);
-                            },
-                            (),
-                        );
-                        if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer))
-                        {
-                            old_offer.destroy();
-                        }
-                    }
-                    _ => unimplemented!(),
-                },
-                (),
-            )
-        })
-        .unwrap();
+    let ddevice = ddmgr.get_data_device(&seat);
+    ddevice.assign_mono(move |_, evt| match evt {
+        CDDEvt::DataOffer { id: doffer } => {
+            let received_3 = received_2.clone();
+            doffer.assign_mono(move |_, _| {
+                received_3.set(received_3.get() + 1);
+            });
+            if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer)) {
+                old_offer.destroy();
+            }
+        }
+        _ => unimplemented!(),
+    });
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -395,56 +232,42 @@ fn creation_destruction_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_dd = Rc::new(RefCell::new(Vec::new()));
+    let server_dd: Rc<RefCell<Vec<ServerDD>>> = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
         .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.implement_closure(
-                move |request, _| match request {
-                    SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement_dummy();
-                        server_dd_3.borrow_mut().push(ddevice);
-                    }
-                    _ => unimplemented!(),
-                },
-                None::<fn(_)>,
-                (),
-            );
+            new_resource.assign_mono(move |_, request| match request {
+                SDDMReq::GetDataDevice { id: ddevice, .. } => {
+                    ddevice.assign_mono(|_, _| {});
+                    server_dd_3.borrow_mut().push(ddevice.into());
+                }
+                _ => unimplemented!(),
+            });
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
+    let seat = manager.instantiate_exact::<ClientSeat>(1).unwrap();
+    let ddmgr = manager.instantiate_exact::<ClientDDMgr>(3).unwrap();
 
     let client_dd: Vec<_> = (0..2)
         .map(|_| {
-            ddmgr
-                .get_data_device(&seat, move |newdd| {
-                    let mut offer = None;
-                    newdd.implement_closure(
-                        move |evt, _| match evt {
-                            CDDEvt::DataOffer { id } => {
-                                let doffer = id.implement_dummy();
-                                if let Some(old_offer) = ::std::mem::replace(&mut offer, Some(doffer)) {
-                                    old_offer.destroy();
-                                }
-                            }
-                            _ => unimplemented!(),
-                        },
-                        (),
-                    )
-                })
-                .unwrap()
+            let ddevice = ddmgr.get_data_device(&seat);
+            let mut offer = None;
+            ddevice.assign_mono(move |_, evt| match evt {
+                CDDEvt::DataOffer { id: doffer } => {
+                    if let Some(old_offer) = ::std::mem::replace(&mut offer, Some(doffer)) {
+                        old_offer.destroy();
+                    }
+                }
+                _ => unimplemented!(),
+            });
+            ddevice
         })
         .collect();
 
@@ -458,7 +281,7 @@ fn creation_destruction_race() {
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
         .unwrap()
-        .implement_dummy();
+        .into();
     server_dd.borrow()[0].data_offer(&offer1);
     roundtrip(&mut client, &mut server).unwrap();
     // this message should not crash the client, even though it is send to
@@ -472,7 +295,7 @@ fn creation_destruction_race() {
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[1].as_ref().version())
         .unwrap()
-        .implement_dummy();
+        .into();
     server_dd.borrow()[1].data_offer(&offer2);
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -486,36 +309,27 @@ fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_dd = Rc::new(RefCell::new(Vec::new()));
+    let server_dd: Rc<RefCell<Vec<ServerDD>>> = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
         .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.implement_closure(
-                move |request, _| match request {
-                    SDDMReq::GetDataDevice { id, .. } => {
-                        let ddevice = id.implement_dummy();
-                        server_dd_3.borrow_mut().push(ddevice);
-                    }
-                    _ => unimplemented!(),
-                },
-                None::<fn(_)>,
-                (),
-            );
+            new_resource.assign_mono(move |_, request| match request {
+                SDDMReq::GetDataDevice { id: ddevice, .. } => {
+                    server_dd_3.borrow_mut().push(ddevice.into());
+                }
+                _ => unimplemented!(),
+            });
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let seat = manager
-        .instantiate_exact::<ClientSeat, _>(1, |newseat| newseat.implement_dummy())
-        .unwrap();
-    let ddmgr = manager
-        .instantiate_exact::<ClientDDMgr, _>(3, |newddmgr| newddmgr.implement_dummy())
-        .unwrap();
+    let seat = manager.instantiate_exact::<ClientSeat>(1).unwrap();
+    let ddmgr = manager.instantiate_exact::<ClientDDMgr>(3).unwrap();
 
     // this test is more subtle than the previous
     // here, the client destroys the data device while a data_offer
@@ -524,23 +338,16 @@ fn creation_destruction_queue_dispatch_race() {
 
     let called_count = Rc::new(RefCell::new(0u32));
 
-    ddmgr
-        .get_data_device(&seat, |newdd| {
-            let called_count = called_count.clone();
-            newdd.implement_closure(
-                move |evt, dd| match evt {
-                    CDDEvt::DataOffer { id } => {
-                        id.implement_dummy();
-                        // destroy the data device after receiving the first offer
-                        dd.release();
-                        *called_count.borrow_mut() += 1;
-                    }
-                    _ => unimplemented!(),
-                },
-                (),
-            )
-        })
-        .unwrap();
+    let ddevice = ddmgr.get_data_device(&seat);
+    let called_count2 = called_count.clone();
+    ddevice.assign_mono(move |dd, evt| match evt {
+        CDDEvt::DataOffer { .. } => {
+            // destroy the data device after receiving the first offer
+            dd.release();
+            *called_count2.borrow_mut() += 1;
+        }
+        _ => unimplemented!(),
+    });
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -551,7 +358,7 @@ fn creation_destruction_queue_dispatch_race() {
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
         .unwrap()
-        .implement_dummy();
+        .into();
     server_dd.borrow()[0].data_offer(&offer1);
     let offer2 = server_dd.borrow()[0]
         .as_ref()
@@ -559,7 +366,7 @@ fn creation_destruction_queue_dispatch_race() {
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
         .unwrap()
-        .implement_dummy();
+        .into();
     server_dd.borrow()[0].data_offer(&offer2);
 
     roundtrip(&mut client, &mut server).unwrap();

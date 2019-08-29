@@ -19,36 +19,35 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerB
     let buffer_found = Arc::new(Mutex::new(None));
     let buffer_found2 = buffer_found.clone();
 
+    ways::request_enum!(Reqs |
+        Compositor => wl_compositor::WlCompositor,
+        Surface => wl_surface::WlSurface
+    );
+
+    let filter = ways::Filter::new(move |req, filter| match req {
+        Reqs::Compositor {
+            request: wl_compositor::Request::CreateSurface { id: surface },
+            ..
+        } => {
+            surface.assign(filter.clone());
+        }
+        Reqs::Surface {
+            request: wl_surface::Request::Attach { buffer, x, y },
+            ..
+        } => {
+            assert!(x == 0);
+            assert!(y == 0);
+            assert!(buffer_found.lock().unwrap().is_none());
+            *(buffer_found.lock().unwrap()) = Some(buffer);
+        }
+        _ => panic!("Unexpected request."),
+    });
+
     server
         .display
         .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version| {
             assert!(version == 1);
-            let compositor_buffer_found = buffer_found.clone();
-            compositor.implement_closure(
-                move |event, _| {
-                    if let wl_compositor::Request::CreateSurface { id: surface } = event {
-                        let my_buffer_found = compositor_buffer_found.clone();
-                        surface.implement_closure(
-                            move |event, _| {
-                                if let wl_surface::Request::Attach { buffer, x, y } = event {
-                                    assert!(x == 0);
-                                    assert!(y == 0);
-                                    assert!(my_buffer_found.lock().unwrap().is_none());
-                                    *(my_buffer_found.lock().unwrap()) = Some(buffer);
-                                } else {
-                                    panic!("Unexpected request on surface!");
-                                }
-                            },
-                            None::<fn(_)>,
-                            (),
-                        );
-                    } else {
-                        panic!("Unexpected request on compositor!");
-                    }
-                },
-                None::<fn(_)>,
-                (),
-            );
+            compositor.assign(filter.clone());
         });
 
     buffer_found2
@@ -60,37 +59,41 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Server
     let buffer = Arc::new(Mutex::new(None));
     let buffer2 = buffer.clone();
 
+    ways::request_enum!(Reqs |
+        Shm => wl_shm::WlShm,
+        Pool => wl_shm_pool::WlShmPool
+    );
+
+    let filter = ways::Filter::new(move |req, filter| match req {
+        Reqs::Shm {
+            request: wl_shm::Request::CreatePool { id, fd, size },
+            ..
+        } => {
+            assert!(size == 42);
+            assert!(buffer.lock().unwrap().is_none());
+            *buffer.lock().unwrap() = Some((fd, None));
+            id.assign(filter.clone());
+        }
+        Reqs::Pool {
+            request: wl_shm_pool::Request::CreateBuffer { id, .. },
+            ..
+        } => {
+            let mut guard = buffer.lock().unwrap();
+            let buf = guard.as_mut().unwrap();
+            assert!(buf.1.is_none());
+            id.assign_mono(|_, _| {});
+            buf.1 = Some(id.into());
+        }
+        _ => {
+            panic!("Unexpected request");
+        }
+    });
+
     server
         .display
         .create_global::<wl_shm::WlShm, _>(1, move |shm, version| {
             assert!(version == 1);
-            let shm_buffer = buffer.clone();
-            shm.implement_closure(
-                move |req, _| {
-                    if let wl_shm::Request::CreatePool { id, fd, size } = req {
-                        assert!(size == 42);
-                        assert!(shm_buffer.lock().unwrap().is_none());
-                        *shm_buffer.lock().unwrap() = Some((fd, None));
-                        let pool_buffer = shm_buffer.clone();
-                        id.implement_closure(
-                            move |req, _| {
-                                if let wl_shm_pool::Request::CreateBuffer { id, .. } = req {
-                                    let mut buffer_guard = pool_buffer.lock().unwrap();
-                                    let buf = buffer_guard.as_mut().unwrap();
-                                    assert!(buf.1.is_none());
-                                    buf.1 = Some(id.implement_dummy());
-                                } else {
-                                    panic!("Unexpected request on buffer!");
-                                }
-                            },
-                            None::<fn(_)>,
-                            (),
-                        );
-                    }
-                },
-                None::<fn(_)>,
-                (),
-            );
+            shm.assign(filter.clone());
         });
 
     buffer2
@@ -106,17 +109,15 @@ fn attach_null() {
     // Client setup
     //
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     // Initial sync
     roundtrip(&mut client, &mut server).unwrap();
 
     let compositor = manager
-        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| comp.implement_dummy())
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
         .unwrap();
-    let surface = compositor
-        .create_surface(|surface| surface.implement_dummy())
-        .unwrap();
+    let surface = compositor.create_surface();
     surface.attach(None, 0, 0);
 
     roundtrip(&mut client, &mut server).unwrap();
@@ -135,31 +136,25 @@ fn attach_buffer() {
     // Client setup
     //
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     // Initial sync
     roundtrip(&mut client, &mut server).unwrap();
 
     let shm = manager
-        .instantiate_exact::<wayc::protocol::wl_shm::WlShm, _>(1, |shm| shm.implement_dummy())
+        .instantiate_exact::<wayc::protocol::wl_shm::WlShm>(1)
         .unwrap();
 
     let mut file = tempfile::tempfile().unwrap();
     write!(file, "I like trains!").unwrap();
     file.flush().unwrap();
-    let pool = shm
-        .create_pool(file.as_raw_fd(), 42, |newp| newp.implement_dummy())
-        .unwrap();
-    let buffer = pool
-        .create_buffer(0, 0, 0, 0, Format::Argb8888, |newb| newb.implement_dummy())
-        .unwrap();
+    let pool = shm.create_pool(file.as_raw_fd(), 42);
+    let buffer = pool.create_buffer(0, 0, 0, 0, Format::Argb8888);
 
     let compositor = manager
-        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor, _>(1, |comp| comp.implement_dummy())
+        .instantiate_exact::<wayc::protocol::wl_compositor::WlCompositor>(1)
         .unwrap();
-    let surface = compositor
-        .create_surface(|surface| surface.implement_dummy())
-        .unwrap();
+    let surface = compositor.create_surface();
     surface.attach(Some(&buffer), 0, 0);
 
     roundtrip(&mut client, &mut server).unwrap();

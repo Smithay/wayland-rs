@@ -19,9 +19,8 @@ fn client_user_data() {
 
     server.display.create_global::<wl_output::WlOutput, _>(1, {
         let clients = clients.clone();
-        move |newo, _| {
-            let output = newo.implement_dummy();
-            let client = output.as_ref().client().unwrap();
+        move |output, _| {
+            let client = output.client().unwrap();
             let ret = client.data_map().insert_if_missing(|| HasOutput);
             // the data should not be already here
             assert!(ret);
@@ -32,9 +31,8 @@ fn client_user_data() {
         .display
         .create_global::<wl_compositor::WlCompositor, _>(1, {
             let clients = clients.clone();
-            move |newo, _| {
-                let compositor = newo.implement_dummy();
-                let client = compositor.as_ref().client().unwrap();
+            move |compositor, _| {
+                let client = compositor.client().unwrap();
                 let ret = client.data_map().insert_if_missing(|| HasCompositor);
                 // the data should not be already here
                 assert!(ret);
@@ -43,14 +41,12 @@ fn client_user_data() {
         });
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
     // Instantiate the globals
-    manager
-        .instantiate_exact::<ClientOutput, _>(1, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<ClientOutput>(1).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -62,9 +58,7 @@ fn client_user_data() {
         assert!(clients[0].data_map().get::<HasCompositor>().is_none());
     }
 
-    manager
-        .instantiate_exact::<ClientCompositor, _>(1, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<ClientCompositor>(1).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 

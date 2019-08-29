@@ -15,8 +15,8 @@ pub mod wl_foo {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewResource, Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
+        Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
@@ -64,7 +64,7 @@ pub mod wl_foo {
             file: ::std::os::unix::io::RawFd,
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        CreateBar { id: NewResource<super::wl_bar::WlBar> },
+        CreateBar { id: Resource<super::wl_bar::WlBar> },
         #[doc(hidden)]
         __nonexhaustive,
     }
@@ -80,11 +80,13 @@ pub mod wl_foo {
                     super::ArgumentType::Fixed,
                     super::ArgumentType::Fd,
                 ],
+                destructor: false,
             },
             super::MessageDesc {
                 name: "create_bar",
                 since: 1,
                 signature: &[super::ArgumentType::NewId],
+                destructor: false,
             },
         ];
         type Map = super::ResourceMap;
@@ -227,6 +229,7 @@ pub mod wl_foo {
             name: "cake",
             since: 2,
             signature: &[super::ArgumentType::Uint, super::ArgumentType::Uint],
+            destructor: false,
         }];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
@@ -326,38 +329,6 @@ pub mod wl_foo {
             self.0.send(msg);
         }
     }
-    #[doc = r" An interface for handling requests."]
-    pub trait RequestHandler {
-        #[doc = "do some foo\n\nThis will do some foo with its args."]
-        fn foo_it(
-            &mut self,
-            object: WlFoo,
-            number: i32,
-            unumber: u32,
-            text: String,
-            float: f64,
-            file: ::std::os::unix::io::RawFd,
-        ) {
-        }
-        #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        fn create_bar(&mut self, object: WlFoo, id: NewResource<super::wl_bar::WlBar>) {}
-    }
-    impl<T: RequestHandler> HandledBy<T> for WlFoo {
-        #[inline]
-        fn handle(__handler: &mut T, request: Request, __object: Self) {
-            match request {
-                Request::FooIt {
-                    number,
-                    unumber,
-                    text,
-                    float,
-                    file,
-                } => __handler.foo_it(__object, number, unumber, text, float, file),
-                Request::CreateBar { id } => __handler.create_bar(__object, id),
-                Request::__nonexhaustive => unreachable!(),
-            }
-        }
-    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_FOO_IT_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
@@ -400,8 +371,8 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewResource, Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
+        Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -439,11 +410,13 @@ pub mod wl_bar {
                     super::ArgumentType::Array,
                     super::ArgumentType::Array,
                 ],
+                destructor: false,
             },
             super::MessageDesc {
                 name: "release",
                 since: 1,
                 signature: &[],
+                destructor: true,
             },
             super::MessageDesc {
                 name: "self",
@@ -458,6 +431,7 @@ pub mod wl_bar {
                     super::ArgumentType::Uint,
                     super::ArgumentType::Uint,
                 ],
+                destructor: false,
             },
         ];
         type Map = super::ResourceMap;
@@ -674,6 +648,7 @@ pub mod wl_bar {
                 super::ArgumentType::Uint,
                 super::ArgumentType::Uint,
             ],
+            destructor: false,
         }];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
@@ -822,62 +797,6 @@ pub mod wl_bar {
             self.0.send(msg);
         }
     }
-    #[doc = r" An interface for handling requests."]
-    pub trait RequestHandler {
-        #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface."]
-        fn bar_delivery(
-            &mut self,
-            object: WlBar,
-            kind: super::wl_foo::DeliveryKind,
-            target: super::wl_foo::WlFoo,
-            metadata: Vec<u8>,
-            metametadata: Option<Vec<u8>>,
-        ) {
-        }
-        #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
-        fn release(&mut self, object: WlBar) {}
-        #[doc = "ask for erronous bindings from wayland-scanner\n\nThis request tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface."]
-        fn _self(
-            &mut self,
-            object: WlBar,
-            _self: u32,
-            _mut: u32,
-            _object: u32,
-            ___object: u32,
-            handler: u32,
-            ___handler: u32,
-            request: u32,
-            event: u32,
-        ) {
-        }
-    }
-    impl<T: RequestHandler> HandledBy<T> for WlBar {
-        #[inline]
-        fn handle(__handler: &mut T, request: Request, __object: Self) {
-            match request {
-                Request::BarDelivery {
-                    kind,
-                    target,
-                    metadata,
-                    metametadata,
-                } => __handler.bar_delivery(__object, kind, target, metadata, metametadata),
-                Request::Release {} => __handler.release(__object),
-                Request::_Self {
-                    _self,
-                    _mut,
-                    object,
-                    ___object,
-                    handler,
-                    ___handler,
-                    request,
-                    event,
-                } => __handler._self(
-                    __object, _self, _mut, object, ___object, handler, ___handler, request, event,
-                ),
-                Request::__nonexhaustive => unreachable!(),
-            }
-        }
-    }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BAR_DELIVERY_SINCE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this request"]
@@ -931,8 +850,8 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, HandledBy, Interface, Message, MessageDesc,
-        MessageGroup, NewResource, Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
+        Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -997,6 +916,7 @@ pub mod wl_callback {
             name: "done",
             since: 1,
             signature: &[super::ArgumentType::Uint],
+            destructor: true,
         }];
         type Map = super::ResourceMap;
         fn is_destructor(&self) -> bool {
@@ -1092,16 +1012,6 @@ pub mod wl_callback {
                 callback_data: callback_data,
             };
             self.0.send(msg);
-        }
-    }
-    #[doc = r" An interface for handling requests."]
-    pub trait RequestHandler {}
-    impl<T: RequestHandler> HandledBy<T> for WlCallback {
-        #[inline]
-        fn handle(__handler: &mut T, request: Request, __object: Self) {
-            match request {
-                Request::__nonexhaustive => unreachable!(),
-            }
         }
     }
     #[doc = r" The minimal object version supporting this event"]

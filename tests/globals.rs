@@ -14,7 +14,7 @@ fn simple_global() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
     let globals = manager.list();
@@ -31,7 +31,7 @@ fn multi_versions() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
     let globals = manager.list();
@@ -50,7 +50,7 @@ fn dynamic_global() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 1);
@@ -82,7 +82,7 @@ fn global_manager_cb() {
     let counter2 = counter.clone();
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new_with_cb(&client.display, move |event, _| match event {
+    let manager = wayc::GlobalManager::new_with_cb(&client.display_proxy, move |event, _| match event {
         GlobalEvent::New { .. } => *(counter2.lock().unwrap()) += 1,
         GlobalEvent::Removed { .. } => *(counter2.lock().unwrap()) -= 1,
     });
@@ -118,31 +118,18 @@ fn range_instantiate() {
     server.display.create_global::<ServerShell, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let compositor = manager
-        .instantiate_range::<WlCompositor, _>(1, 4, |newp| newp.implement_dummy())
-        .unwrap();
+    let compositor = manager.instantiate_range::<WlCompositor>(1, 4).unwrap();
     assert!(compositor.as_ref().version() == 4);
-    let shell = manager
-        .instantiate_range::<WlShell, _>(1, 3, |newp| newp.implement_dummy())
-        .unwrap();
+    let shell = manager.instantiate_range::<WlShell>(1, 3).unwrap();
     assert!(shell.as_ref().version() == 1);
 
-    assert!(
-        manager.instantiate_exact::<WlCompositor, _>(5, |newp| newp.implement_dummy())
-            == Err(GlobalError::VersionTooLow(4))
-    );
-    assert!(
-        manager.instantiate_exact::<WlOutput, _>(5, |newp| newp.implement_dummy())
-            == Err(GlobalError::Missing)
-    );
-    assert!(
-        manager.instantiate_range::<WlOutput, _>(1, 3, |newp| newp.implement_dummy())
-            == Err(GlobalError::Missing)
-    );
+    assert!(manager.instantiate_exact::<WlCompositor>(5) == Err(GlobalError::VersionTooLow(4)));
+    assert!(manager.instantiate_exact::<WlOutput>(5) == Err(GlobalError::Missing));
+    assert!(manager.instantiate_range::<WlOutput>(1, 3) == Err(GlobalError::Missing));
 }
 
 #[test]
@@ -161,17 +148,12 @@ fn wrong_global() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let registry = client
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
+    let registry = client.display_proxy.get_registry();
 
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
-    registry
-        .bind::<WlOutput, _>(1, 1, |newp| newp.implement_dummy())
-        .unwrap();
+    registry.bind::<WlOutput>(1, 1);
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
@@ -184,17 +166,11 @@ fn wrong_global_version() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let registry = client
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
+    let registry = client.display_proxy.get_registry();
 
     // instantiate a global with wrong version, this should kill the client
 
-    registry
-        .bind::<WlCompositor, _>(2, 1, |newp| newp.implement_dummy())
-        .unwrap();
-
+    registry.bind::<WlCompositor>(2, 1);
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
 
@@ -206,16 +182,11 @@ fn invalid_global_version() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let registry = client
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
+    let registry = client.display_proxy.get_registry();
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry
-        .bind::<WlCompositor, _>(0, 1, |newp| newp.implement_dummy())
-        .unwrap();
+    registry.bind::<WlCompositor>(0, 1);
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
@@ -228,16 +199,11 @@ fn wrong_global_id() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let registry = client
-        .display
-        .get_registry(|newp| newp.implement_dummy())
-        .unwrap();
+    let registry = client.display_proxy.get_registry();
 
     // instantiate a global with wrong id, this should kill the client
 
-    registry
-        .bind::<WlCompositor, _>(1, 3, |newp| newp.implement_dummy())
-        .unwrap();
+    registry.bind::<WlCompositor>(1, 3);
 
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
@@ -251,7 +217,7 @@ fn two_step_binding() {
     server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -260,13 +226,9 @@ fn two_step_binding() {
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<WlCompositor, _>(1, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<WlCompositor>(1).unwrap();
 
-    manager
-        .instantiate_exact::<WlOutput, _>(1, |newp| newp.implement_dummy())
-        .unwrap();
+    manager.instantiate_exact::<WlOutput>(1).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 }
