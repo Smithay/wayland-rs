@@ -1,20 +1,19 @@
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{Interface, Resource};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::user_data::UserData;
-use wayland_commons::MessageGroup;
+use wayland_commons::{MessageGroup, ThreadGuard};
 
 use super::{ClientInner, Dispatcher};
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
-    pub(crate) dispatcher: Rc<RefCell<dyn Dispatcher>>,
-    pub(crate) destructor: Option<Rc<RefCell<dyn FnMut(ResourceInner)>>>,
+    pub(crate) dispatcher: Arc<ThreadGuard<RefCell<dyn Dispatcher>>>,
+    pub(crate) destructor: Option<Arc<ThreadGuard<RefCell<dyn FnMut(ResourceInner)>>>>,
     pub(crate) alive: Arc<AtomicBool>,
     user_data: Arc<UserData>,
 }
@@ -39,7 +38,7 @@ impl ObjectMeta {
         ObjectMeta {
             alive: Arc::new(AtomicBool::new(true)),
             user_data: Arc::new(UserData::new()),
-            dispatcher: Rc::new(RefCell::new(disp)),
+            dispatcher: Arc::new(ThreadGuard::new(RefCell::new(disp))),
             destructor: None,
         }
     }
@@ -55,10 +54,10 @@ pub(crate) struct ResourceInner {
 impl ResourceInner {
     pub(crate) fn from_id(
         id: u32,
-        map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
+        map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
         client: ClientInner,
     ) -> Option<ResourceInner> {
-        let me = map.borrow_mut().find(id);
+        let me = map.lock().unwrap().find(id);
         me.map(|obj| ResourceInner {
             id,
             object: obj,
@@ -71,7 +70,7 @@ impl ResourceInner {
     }
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
-        if let Some(ref mut conn_lock) = *self.client.data.borrow_mut() {
+        if let Some(ref mut conn_lock) = *self.client.data.lock().unwrap() {
             if !self.is_alive() {
                 return;
             }

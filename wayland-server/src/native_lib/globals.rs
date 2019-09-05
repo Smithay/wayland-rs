@@ -7,17 +7,18 @@ use wayland_commons::Interface;
 use wayland_sys::server::*;
 
 use super::ClientInner;
-use crate::Resource;
+use crate::{Main, Resource};
 
-pub(crate) struct GlobalData<I: Interface> {
-    pub(crate) bind: Box<dyn FnMut(Resource<I>, u32)>,
+pub(crate) struct GlobalData<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
+    pub(crate) bind: Box<dyn FnMut(Main<I>, u32)>,
     pub(crate) filter: Option<Box<dyn FnMut(ClientInner) -> bool>>,
 }
 
-impl<I: Interface> GlobalData<I> {
+impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> GlobalData<I> {
     pub(crate) fn new<F1, F2>(bind: F1, filter: Option<F2>) -> GlobalData<I>
     where
-        F1: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F1: FnMut(Main<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         GlobalData {
@@ -27,13 +28,16 @@ impl<I: Interface> GlobalData<I> {
     }
 }
 
-pub(crate) struct GlobalInner<I: Interface> {
+pub(crate) struct GlobalInner<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
     ptr: *mut wl_global,
     data: *mut GlobalData<I>,
     rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
 }
 
-impl<I: Interface> GlobalInner<I> {
+impl<I> GlobalInner<I>
+where
+    I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+{
     pub(crate) unsafe fn create(
         ptr: *mut wl_global,
         data: Box<GlobalData<I>>,
@@ -47,6 +51,7 @@ impl<I: Interface> GlobalInner<I> {
     }
 
     pub fn destroy(self) {
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             // destroy the global
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, self.ptr);
@@ -59,7 +64,7 @@ impl<I: Interface> GlobalInner<I> {
     }
 }
 
-pub(crate) unsafe extern "C" fn global_bind<I: Interface + From<Resource<I>>>(
+pub(crate) unsafe extern "C" fn global_bind<I: Interface + AsRef<Resource<I>> + From<Resource<I>>>(
     client: *mut wl_client,
     data: *mut c_void,
     version: u32,
@@ -76,7 +81,7 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface + From<Resource<I>>>(
             version as i32, // wayland already checks the validity of the version
             id
         );
-        let resource = Resource::init_from_c_ptr(ptr as *mut wl_resource);
+        let resource = Main::init_from_c_ptr(ptr as *mut wl_resource);
         (data.bind)(resource, version);
     });
     match ret {

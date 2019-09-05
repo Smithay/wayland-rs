@@ -5,7 +5,7 @@ use wayland_sys::server::wl_client;
 
 use crate::imp::ClientInner;
 
-use crate::{Interface, Resource, UserDataMap};
+use crate::{Interface, Main, Resource, UserDataMap};
 
 /// A handle to a client connected to your server
 ///
@@ -73,6 +73,9 @@ impl Client {
     /// twice.
     ///
     /// The destructors will be executed on the thread containing the wayland event loop.
+    ///
+    /// **Panics**: This function will panic if called from an other thread than the one
+    /// hosting the Display.
     pub fn add_destructor(&self, destructor: crate::Filter<Arc<UserDataMap>>) {
         self.inner.add_destructor(move |ud| destructor.send(ud));
     }
@@ -83,7 +86,13 @@ impl Client {
     /// resource should immediately be implemented and sent to the client
     /// through an appropriate event. Failure to do so will likely cause
     /// protocol errors.
-    pub fn create_resource<I: Interface + From<Resource<I>>>(&self, version: u32) -> Option<Resource<I>> {
-        self.inner.create_resource::<I>(version).map(Resource::wrap)
+    ///
+    /// **Panics**: This function will panic if called from an other thread than the one
+    /// hosting the Display.
+    pub fn create_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        &self,
+        version: u32,
+    ) -> Option<Main<I>> {
+        self.inner.create_resource::<I>(version).map(Main::wrap)
     }
 }

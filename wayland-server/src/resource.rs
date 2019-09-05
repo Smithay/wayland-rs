@@ -177,36 +177,6 @@ impl<I: Interface> Resource<I> {
         }
     }
 
-    /// Create a `Resource` instance from a C pointer to a new object
-    ///
-    /// Create a `Resource` from a raw pointer to a wayland object from the
-    /// C library by taking control of it. You must ensure that this object was newly
-    /// created and have never been user nor had any listener associated.
-    ///
-    /// In order to handle protocol races, invoking it with a NULL pointer will
-    /// create an already-dead object.
-    ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
-    /// activated
-    pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self
-    where
-        I: From<Resource<I>>,
-    {
-        #[cfg(feature = "native_lib")]
-        {
-            Resource {
-                _i: ::std::marker::PhantomData,
-                inner: ResourceInner::init_from_c_ptr::<I>(_ptr),
-            }
-        }
-        #[cfg(not(feature = "native_lib"))]
-        {
-            panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
-            );
-        }
-    }
-
     /// Create a `Resource` instance from a C pointer
     ///
     /// Create a `Resource` from a raw pointer to a wayland object from the
@@ -250,16 +220,51 @@ impl<I: Interface> Resource<I> {
 
     #[doc(hidden)]
     // This method is for scanner-generated use only
-    pub unsafe fn make_child_for<J: Interface + From<Resource<J>>>(&self, _id: u32) -> Option<Resource<J>> {
+    pub unsafe fn make_child_for<J: Interface + From<Resource<J>> + AsRef<Resource<J>>>(
+        &self,
+        _id: u32,
+    ) -> Option<Main<J>> {
         #[cfg(feature = "native_lib")]
         {
-            self.inner.make_child_for::<J>(_id).map(Resource::wrap)
+            self.inner.make_child_for::<J>(_id).map(Main::wrap)
         }
         #[cfg(not(feature = "native_lib"))]
         {
             panic!(
                 "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
             );
+        }
+    }
+}
+
+impl<I: Interface> Clone for Resource<I> {
+    fn clone(&self) -> Resource<I> {
+        Resource {
+            _i: ::std::marker::PhantomData,
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// A main handle to a proxy
+#[derive(Clone, PartialEq)]
+pub struct Main<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
+    inner: I,
+    _nonsend: std::marker::PhantomData<*mut ()>,
+}
+
+impl<I: Interface> Main<I>
+where
+    I: AsRef<Resource<I>> + From<Resource<I>>,
+{
+    pub(crate) fn wrap(inner: ResourceInner) -> Main<I> {
+        Main {
+            inner: Resource {
+                _i: std::marker::PhantomData,
+                inner,
+            }
+            .into(),
+            _nonsend: std::marker::PhantomData,
         }
     }
 
@@ -269,7 +274,7 @@ impl<I: Interface> Resource<I> {
         E: From<(Resource<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = crate::ResourceMap>,
     {
-        self.inner.assign(filter);
+        self.inner.as_ref().inner.assign(filter);
     }
 
     pub fn assign_mono<F>(&self, mut f: F)
@@ -286,15 +291,40 @@ impl<I: Interface> Resource<I> {
         I: AsRef<Resource<I>> + From<Resource<I>>,
         E: From<Resource<I>> + 'static,
     {
-        self.inner.assign_destructor(filter)
+        self.inner.as_ref().inner.assign_destructor(filter)
+    }
+
+    /// Create a `Main` instance from a C pointer to a new object
+    ///
+    /// Create a `Main` from a raw pointer to a wayland object from the
+    /// C library by taking control of it. You must ensure that this object was newly
+    /// created and have never been user nor had any listener associated.
+    ///
+    /// In order to handle protocol races, invoking it with a NULL pointer will
+    /// create an already-dead object.
+    ///
+    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// activated
+    pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self {
+        #[cfg(feature = "native_lib")]
+        {
+            Main::wrap(ResourceInner::init_from_c_ptr::<I>(_ptr))
+        }
+        #[cfg(not(feature = "native_lib"))]
+        {
+            panic!(
+                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+            );
+        }
     }
 }
 
-impl<I: Interface> Clone for Resource<I> {
-    fn clone(&self) -> Resource<I> {
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner: self.inner.clone(),
-        }
+impl<I> std::ops::Deref for Main<I>
+where
+    I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+{
+    type Target = I;
+    fn deref(&self) -> &I {
+        &self.inner
     }
 }

@@ -1,4 +1,6 @@
-use crate::{Interface, Resource};
+use parking_lot::ReentrantMutex;
+
+use crate::{Interface, Main, Resource};
 
 mod client;
 mod display;
@@ -9,6 +11,12 @@ pub(crate) use self::client::ClientInner;
 pub(crate) use self::display::DisplayInner;
 pub(crate) use self::globals::GlobalInner;
 pub(crate) use self::resource::ResourceInner;
+
+lazy_static::lazy_static! {
+    // This lock *must* be held whenever an ffi call is made to
+    // the C lib, as it is not Sync.
+    pub(crate) static ref C_SAFETY: ReentrantMutex<()> = ReentrantMutex::new(());
+}
 
 /// A handle to the object map internal to the library state
 ///
@@ -22,7 +30,10 @@ impl ResourceMap {
         match *self {}
     }
     /// Creates a `NewResource` for a given id
-    pub fn get_new<I: Interface>(&mut self, _id: u32) -> Option<Resource<I>> {
+    pub fn get_new<I: Interface + AsRef<Resource<I>> + From<Resource<I>>>(
+        &mut self,
+        _id: u32,
+    ) -> Option<Main<I>> {
         match *self {}
     }
 }

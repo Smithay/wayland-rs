@@ -10,7 +10,7 @@ use std::rc::Rc;
 use calloop::{LoopHandle, Source};
 
 use crate::display::get_runtime_dir;
-use crate::{Interface, Resource};
+use crate::{Interface, Main, Resource};
 
 use super::clients::ClientManager;
 use super::event_loop_glue::{WSLoopHandle, WaylandListener};
@@ -46,14 +46,15 @@ impl DisplayInner {
         }))
     }
 
-    pub(crate) fn create_global<I: Interface, F1, F2>(
+    pub(crate) fn create_global<I, F1, F2>(
         &mut self,
         version: u32,
         implementation: F1,
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F1: FnMut(Main<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         self.global_mgr

@@ -40,7 +40,7 @@ fn resource_equals() {
     let cloned = outputs_lock[0].clone();
     assert!(outputs_lock[0] == cloned);
 
-    assert!(outputs_lock[0].same_client_as(&outputs_lock[1]));
+    assert!(outputs_lock[0].as_ref().same_client_as(outputs_lock[1].as_ref()));
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn resource_user_data() {
         .display
         .create_global::<wl_output::WlOutput, _>(1, move |output, _| {
             let mut guard = outputs2.lock().unwrap();
-            output.user_data().set(|| 1000 + guard.len());
+            output.as_ref().user_data().set(|| 1000 + guard.len());
             guard.push(output);
         });
 
@@ -70,10 +70,10 @@ fn resource_user_data() {
     roundtrip(&mut client, &mut server).unwrap();
 
     let outputs_lock = outputs.lock().unwrap();
-    assert!(outputs_lock[0].user_data().get::<usize>() == Some(&1000));
-    assert!(outputs_lock[1].user_data().get::<usize>() == Some(&1001));
+    assert!(outputs_lock[0].as_ref().user_data().get::<usize>() == Some(&1000));
+    assert!(outputs_lock[1].as_ref().user_data().get::<usize>() == Some(&1001));
     let cloned = outputs_lock[0].clone();
-    assert!(cloned.user_data().get::<usize>() == Some(&1000));
+    assert!(cloned.as_ref().user_data().get::<usize>() == Some(&1000));
 }
 
 #[test]
@@ -102,8 +102,8 @@ fn dead_resources() {
 
     let cloned = {
         let outputs_lock = outputs.lock().unwrap();
-        assert!(outputs_lock[0].is_alive());
-        assert!(outputs_lock[1].is_alive());
+        assert!(outputs_lock[0].as_ref().is_alive());
+        assert!(outputs_lock[1].as_ref().is_alive());
         outputs_lock[0].clone()
     };
 
@@ -113,8 +113,8 @@ fn dead_resources() {
 
     {
         let outputs_lock = outputs.lock().unwrap();
-        assert!(!outputs_lock[0].is_alive());
-        assert!(outputs_lock[1].is_alive());
-        assert!(!cloned.is_alive());
+        assert!(!outputs_lock[0].as_ref().is_alive());
+        assert!(outputs_lock[1].as_ref().is_alive());
+        assert!(!cloned.as_ref().is_alive());
     }
 }

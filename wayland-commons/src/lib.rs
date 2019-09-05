@@ -139,3 +139,50 @@ impl MessageGroup for NoMessage {
         match self {}
     }
 }
+
+/// Stores a value in a threadafe container that
+/// only lets you access it from its owning thread
+pub struct ThreadGuard<T: ?Sized> {
+    thread: std::thread::ThreadId,
+    val: T,
+}
+
+impl<T> ThreadGuard<T> {
+    pub fn new(val: T) -> ThreadGuard<T> {
+        ThreadGuard {
+            val,
+            thread: std::thread::current().id(),
+        }
+    }
+}
+
+impl<T: ?Sized> ThreadGuard<T> {
+    pub fn get(&self) -> &T {
+        self.try_get()
+            .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        self.try_get_mut()
+            .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
+    }
+
+    pub fn try_get(&self) -> Option<&T> {
+        if self.thread == ::std::thread::current().id() {
+            Some(&self.val)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_mut(&mut self) -> Option<&mut T> {
+        if self.thread == ::std::thread::current().id() {
+            Some(&mut self.val)
+        } else {
+            None
+        }
+    }
+}
+
+unsafe impl<T: ?Sized> Send for ThreadGuard<T> {}
+unsafe impl<T: ?Sized> Sync for ThreadGuard<T> {}

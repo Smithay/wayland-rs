@@ -5,7 +5,7 @@ use std::rc::Rc;
 use wayland_commons::map::Object;
 use wayland_commons::wire::{Argument, Message};
 
-use crate::{Interface, Resource};
+use crate::{Interface, Main, Resource};
 
 use super::resources::ObjectMeta;
 use super::{ClientInner, ResourceInner};
@@ -52,14 +52,15 @@ impl GlobalManager {
         }
     }
 
-    pub(crate) fn add_global<I: Interface, F1, F2>(
+    pub(crate) fn add_global<I, F1, F2>(
         &mut self,
         version: u32,
         implementation: F1,
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F1: FnMut(Main<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let implem = RefCell::new(implementation);
@@ -71,10 +72,11 @@ impl GlobalManager {
                 // insert the object in the map, and call the global bind callback
                 // This is done in two times to ensure the client lock is not locked during
                 // the callback
-                let map = if let Some(ref clientconn) = *client.data.borrow_mut() {
+                let map = if let Some(ref clientconn) = *client.data.lock().unwrap() {
                     clientconn
                         .map
-                        .borrow_mut()
+                        .lock()
+                        .unwrap()
                         .insert_at(newid, Object::from_interface::<I>(version, ObjectMeta::new()))?;
                     Some(clientconn.map.clone())
                 } else {
@@ -82,7 +84,7 @@ impl GlobalManager {
                 };
                 if let Some(map) = map {
                     (&mut *implem.borrow_mut())(
-                        Resource::wrap(ResourceInner::from_id(newid, map, client.clone()).unwrap()),
+                        Main::wrap(ResourceInner::from_id(newid, map, client.clone()).unwrap()),
                         version,
                     )
                 }
@@ -208,7 +210,7 @@ impl GlobalManager {
 }
 
 fn send_global_msg(reg: &(u32, ClientInner), global_id: u32, interface: CString, version: u32) {
-    if let Some(ref mut clientconn) = *reg.1.data.borrow_mut() {
+    if let Some(ref mut clientconn) = *reg.1.data.lock().unwrap() {
         let _ = clientconn.write_message(&Message {
             sender_id: reg.0,
             opcode: 0,
@@ -255,7 +257,7 @@ fn send_destroyed_global(
             if !(&mut *filter)(client.clone()) {
                 continue;
             }
-            if let Some(ref mut clientconn) = *client.data.borrow_mut() {
+            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,
@@ -265,7 +267,7 @@ fn send_destroyed_global(
         }
     } else {
         for &(id, ref client) in registries {
-            if let Some(ref mut clientconn) = *client.data.borrow_mut() {
+            if let Some(ref mut clientconn) = *client.data.lock().unwrap() {
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,

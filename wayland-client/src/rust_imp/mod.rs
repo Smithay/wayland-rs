@@ -6,7 +6,7 @@ use downcast::Downcast;
 use wayland_commons::filter::Filter;
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
-use wayland_commons::MessageGroup;
+use wayland_commons::{MessageGroup, ThreadGuard};
 
 use crate::{Interface, Main, Proxy};
 
@@ -56,33 +56,6 @@ impl ProxyMap {
         ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(Main::wrap)
     }
 }
-
-/// Stores a value in a threadafe container that
-/// only lets you access it from its owning thread
-struct ThreadGuard<T> {
-    val: T,
-    thread: std::thread::ThreadId,
-}
-
-impl<T> ThreadGuard<T> {
-    pub fn new(val: T) -> ThreadGuard<T> {
-        ThreadGuard {
-            val,
-            thread: std::thread::current().id(),
-        }
-    }
-
-    pub fn get(&self) -> &T {
-        assert!(
-            self.thread == std::thread::current().id(),
-            "Attempted to access a ThreadGuard contents from the wrong thread."
-        );
-        &self.val
-    }
-}
-
-unsafe impl<T> Send for ThreadGuard<T> {}
-unsafe impl<T> Sync for ThreadGuard<T> {}
 
 /*
  * Dispatching logic

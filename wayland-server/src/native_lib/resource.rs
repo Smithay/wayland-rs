@@ -29,11 +29,10 @@ impl ResourceInternal {
 pub(crate) struct ResourceInner {
     internal: Option<Arc<ResourceInternal>>,
     ptr: *mut wl_resource,
-    // this field is only a workaround for https://github.com/rust-lang/rust/issues/50153
-    // this bug is fixed since 1.28.0, the hack can be removed once this becomes
-    // the least supported version
-    _hack: (bool, bool),
 }
+
+unsafe impl Send for ResourceInner {}
+unsafe impl Sync for ResourceInner {}
 
 impl ResourceInner {
     pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
@@ -46,6 +45,8 @@ impl ResourceInner {
         }
 
         let destructor = msg.is_destructor();
+
+        let _c_safety_guard = super::C_SAFETY.lock();
 
         msg.as_raw_c_in(|opcode, args| unsafe {
             ffi_dispatch!(
@@ -79,6 +80,7 @@ impl ResourceInner {
         if !self.is_alive() {
             return 0;
         }
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, self.ptr) as u32 }
     }
 
@@ -98,6 +100,7 @@ impl ResourceInner {
         if !(self.is_alive() && other.is_alive()) {
             return false;
         }
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let my_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
             let other_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr);
@@ -108,6 +111,7 @@ impl ResourceInner {
     pub(crate) fn post_error(&self, error_code: u32, msg: String) {
         // If `str` contains an interior null, the actual transmitted message will
         // be truncated at this point.
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let cstring = ::std::ffi::CString::from_vec_unchecked(msg.into());
             ffi_dispatch!(
@@ -122,6 +126,7 @@ impl ResourceInner {
 
     pub(crate) fn client(&self) -> Option<ClientInner> {
         if self.is_alive() {
+            let _c_safety_guard = super::C_SAFETY.lock();
             unsafe {
                 let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
                 Some(ClientInner::from_ptr(client_ptr))
@@ -133,6 +138,7 @@ impl ResourceInner {
 
     pub(crate) fn id(&self) -> u32 {
         if self.is_alive() {
+            let _c_safety_guard = super::C_SAFETY.lock();
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, self.ptr) }
         } else {
             0
@@ -144,6 +150,7 @@ impl ResourceInner {
     }
 
     pub(crate) unsafe fn init_from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
+        let _c_safety_guard = super::C_SAFETY.lock();
         if ptr.is_null() {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
@@ -151,7 +158,6 @@ impl ResourceInner {
                     user_data: Arc::new(UserData::new()),
                 })),
                 ptr,
-                _hack: (false, false),
             };
         }
 
@@ -168,14 +174,11 @@ impl ResourceInner {
             Some(resource_destroy::<I>)
         );
 
-        ResourceInner {
-            internal,
-            ptr,
-            _hack: (false, false),
-        }
+        ResourceInner { internal, ptr }
     }
 
     pub(crate) unsafe fn from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
+        let _c_safety_guard = super::C_SAFETY.lock();
         if ptr.is_null() {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
@@ -183,7 +186,6 @@ impl ResourceInner {
                     user_data: Arc::new(UserData::new()),
                 })),
                 ptr,
-                _hack: (false, false),
             };
         }
 
@@ -203,14 +205,11 @@ impl ResourceInner {
         } else {
             None
         };
-        ResourceInner {
-            internal,
-            ptr,
-            _hack: (false, false),
-        }
+        ResourceInner { internal, ptr }
     }
 
     pub unsafe fn make_child_for<J: Interface + From<Resource<J>>>(&self, id: u32) -> Option<ResourceInner> {
+        let _c_safety_guard = super::C_SAFETY.lock();
         let version = self.version();
         let client_ptr = match self.client() {
             Some(c) => c.ptr(),
@@ -246,7 +245,6 @@ impl ResourceInner {
         ResourceInner {
             internal: self.internal.clone(),
             ptr: self.ptr,
-            _hack: (false, false),
         }
     }
 
@@ -256,6 +254,7 @@ impl ResourceInner {
         E: From<(Resource<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
                 as *mut ResourceUserData<I>;
@@ -272,6 +271,7 @@ impl ResourceInner {
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
         E: From<Resource<I>> + 'static,
     {
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
                 as *mut ResourceUserData<I>;
