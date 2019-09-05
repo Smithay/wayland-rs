@@ -20,8 +20,11 @@ use std::ops::Deref;
 use std::os::raw::c_int;
 use std::ptr;
 
-use wayland_client::{Proxy, protocol::{wl_buffer::WlBuffer, wl_shm::WlShm}};
-use wayland_sys::{ffi_dispatch, cursor::*};
+use wayland_client::{
+    protocol::{wl_buffer::WlBuffer, wl_shm::WlShm},
+    Proxy,
+};
+use wayland_sys::{cursor::*, ffi_dispatch};
 
 /// Checks if the wayland-cursor library is available and can be used
 ///
@@ -178,7 +181,7 @@ impl<'a> Cursor<'a> {
             None
         } else {
             unsafe {
-                let image = *(*self.cursor).images.offset(frame as isize);
+                let image = *(*self.cursor).images.add(frame);
                 let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
                 let buffer = Proxy::from_c_ptr(ptr).into();
 
@@ -199,7 +202,7 @@ impl<'a> Cursor<'a> {
         if frame >= self.image_count() {
             None
         } else {
-            let image = unsafe { &**(*self.cursor).images.offset(frame as isize) };
+            let image = unsafe { &**(*self.cursor).images.add(frame) };
             Some((
                 image.width,
                 image.height,

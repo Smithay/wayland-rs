@@ -93,7 +93,7 @@ script:
       elif [ -n "$KCOV" ]; then
         ./run_kcov.sh
       elif [ -n "$CLIPPY" ]; then
-        cargo clippy --all -- -D warnings
+        cargo clippy --all --exclude wayland-egl --exclude wayland-cursor -- -D warnings
         cargo clippy --all --all-features -- -D warnings
       elif [ -n "$BUILD_DOC" ]; then
         cargo doc --all --no-deps --all-features
@@ -101,8 +101,8 @@ script:
         cross build --all --target "$TARGET"
         cross build --all --target "$TARGET" --features "client_native server_native"
       elif [ "$FEATURES" == "aux" ]; then
-        cargo test -p wayland-egl
-        cargo test -p wayland-cursor
+        cargo test -p wayland-egl --features "client_native"
+        cargo test -p wayland-cursor --features "client_native"
       else
         cargo test --all --features "$FEATURES" --exclude wayland-egl --exclude wayland-cursor
       fi
