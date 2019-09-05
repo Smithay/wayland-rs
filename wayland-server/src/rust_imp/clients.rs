@@ -20,7 +20,7 @@ use crate::{Fd, Interface, UserDataMap};
 
 use super::event_loop_glue::WSLoopHandle;
 use super::globals::GlobalManager;
-use super::resources::{ObjectMeta, ResourceInner};
+use super::resources::{ObjectMeta, ResourceDestructor, ResourceInner};
 use super::Dispatched;
 
 type ClientSource = Source<Generic<Fd>>;
@@ -32,11 +32,13 @@ pub(crate) enum Error {
     Nix(::nix::Error),
 }
 
+type BoxedClientDestructor = Box<dyn FnMut(Arc<UserDataMap>)>;
+
 pub(crate) struct ClientConnection {
     socket: BufferedSocket,
     pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     user_data_map: Arc<UserDataMap>,
-    destructors: ThreadGuard<Vec<Box<dyn FnMut(Arc<UserDataMap>)>>>,
+    destructors: ThreadGuard<Vec<BoxedClientDestructor>>,
     last_error: Option<Error>,
     pending_destructors: Vec<ResourceInner>,
     zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
@@ -317,11 +319,7 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn set_destructor_for(
-        &self,
-        id: u32,
-        destructor: Arc<ThreadGuard<RefCell<dyn FnMut(ResourceInner)>>>,
-    ) {
+    pub(crate) fn set_destructor_for(&self, id: u32, destructor: Arc<ThreadGuard<ResourceDestructor>>) {
         let guard = self.data.lock().unwrap();
         if let Some(ref cx) = *guard {
             let _ = cx.map.lock().unwrap().with(id, move |obj| {

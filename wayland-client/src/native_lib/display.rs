@@ -24,7 +24,7 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<Arc<DisplayInner>, Connec
     }
 
     let display = Arc::new(DisplayInner {
-        proxy: Proxy::from_c_ptr(ptr as *mut _).into(),
+        proxy: Proxy::from_c_ptr(ptr as *mut _),
         display: ptr,
         external: false,
     });
@@ -95,7 +95,7 @@ impl DisplayInner {
 
     pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> Arc<DisplayInner> {
         Arc::new(DisplayInner {
-            proxy: Proxy::wrap(ProxyInner::from_external_display(display_ptr as *mut _)).into(),
+            proxy: Proxy::wrap(ProxyInner::from_external_display(display_ptr as *mut _)),
             display: display_ptr,
             external: true,
         })

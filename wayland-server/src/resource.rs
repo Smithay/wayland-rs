@@ -49,13 +49,13 @@ where
     /// The event will be send to the client associated to this
     /// object.
     pub fn send(&self, msg: I::Event) {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             if !self.is_external() && !self.is_alive() {
                 return;
             }
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             if !self.is_alive() {
                 return;
@@ -145,17 +145,17 @@ where
     ///
     /// See `from_c_ptr` for details.
     ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
     pub fn is_external(&self) -> bool {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             self.inner.is_external()
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+                "[wayland-server] C interfacing methods are not available without the `use_system_lib` feature"
             );
         }
     }
@@ -166,17 +166,17 @@ where
     /// You will mostly need it to interface with C libraries needing access
     /// to wayland objects (to initialize an opengl context for example).
     ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
     pub fn c_ptr(&self) -> *mut wl_resource {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             self.inner.c_ptr()
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+                "[wayland-server] C interfacing methods are not available without the `use_system_lib` feature"
             );
         }
     }
@@ -201,23 +201,23 @@ where
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
     ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
     pub unsafe fn from_c_ptr(_ptr: *mut wl_resource) -> Self
     where
         I: From<Resource<I>>,
     {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             Resource {
                 _i: ::std::marker::PhantomData,
                 inner: ResourceInner::from_c_ptr::<I>(_ptr),
             }
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+                "[wayland-server] C interfacing methods are not available without the `use_system_lib` feature"
             );
         }
     }
@@ -228,14 +228,14 @@ where
         &self,
         _id: u32,
     ) -> Option<Main<J>> {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             self.inner.make_child_for::<J>(_id).map(Main::wrap)
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+                "[wayland-server] C interfacing methods are not available without the `use_system_lib` feature"
             );
         }
     }
@@ -328,17 +328,17 @@ where
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
     ///
-    /// NOTE: This method will panic if called while the `native_lib` feature is not
+    /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
     pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self {
-        #[cfg(feature = "native_lib")]
+        #[cfg(feature = "use_system_lib")]
         {
             Main::wrap(ResourceInner::init_from_c_ptr::<I>(_ptr))
         }
-        #[cfg(not(feature = "native_lib"))]
+        #[cfg(not(feature = "use_system_lib"))]
         {
             panic!(
-                "[wayland-server] C interfacing methods are not available without the `native_lib` feature"
+                "[wayland-server] C interfacing methods are not available without the `use_system_lib` feature"
             );
         }
     }

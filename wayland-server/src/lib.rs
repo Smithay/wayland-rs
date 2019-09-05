@@ -76,7 +76,7 @@
 #[macro_use]
 extern crate bitflags;
 pub extern crate calloop;
-#[cfg(not(feature = "native_lib"))]
+#[cfg(not(feature = "use_system_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
 extern crate libc;
@@ -84,7 +84,7 @@ extern crate mio;
 extern crate nix;
 
 extern crate wayland_commons;
-#[cfg_attr(feature = "native_lib", macro_use)]
+#[cfg_attr(feature = "use_system_lib", macro_use)]
 extern crate wayland_sys;
 
 mod client;
@@ -110,11 +110,11 @@ pub mod sys {
 }
 
 // rust implementation
-#[cfg(not(feature = "native_lib"))]
+#[cfg(not(feature = "use_system_lib"))]
 #[path = "rust_imp/mod.rs"]
 mod imp;
 // C-lib based implementation
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "use_system_lib")]
 #[path = "native_lib/mod.rs"]
 mod imp;
 
@@ -124,8 +124,7 @@ pub use imp::ResourceMap;
 pub mod protocol {
     #![allow(dead_code, non_camel_case_types, unused_unsafe, unused_variables)]
     #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
-    #![allow(missing_docs)]
-    #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
+    #![allow(missing_docs, clippy::all)]
 
     pub(crate) use crate::{AnonymousObject, Main, Resource, ResourceMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};

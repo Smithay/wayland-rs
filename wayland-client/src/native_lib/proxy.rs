@@ -62,6 +62,18 @@ impl ProxyInner {
         version
     }
 
+    pub(crate) fn is_interface<I: Interface>(&self) -> bool {
+        if !self.is_alive() {
+            return false;
+        }
+        unsafe {
+            let c_class_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, self.ptr);
+            let class = std::ffi::CStr::from_ptr(c_class_ptr);
+            let i_class = std::ffi::CStr::from_ptr((*I::c_interface()).name);
+            class == i_class
+        }
+    }
+
     pub(crate) fn id(&self) -> u32 {
         if !self.is_alive() {
             return 0;

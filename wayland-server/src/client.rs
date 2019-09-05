@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "use_system_lib")]
 use wayland_sys::server::wl_client;
 
 use crate::imp::ClientInner;
@@ -16,7 +16,7 @@ pub struct Client {
 }
 
 impl Client {
-    #[cfg(feature = "native_lib")]
+    #[cfg(feature = "use_system_lib")]
     /// Creates a client from a `wayland-server.so` pointer
     pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
         Client {
@@ -24,7 +24,7 @@ impl Client {
         }
     }
 
-    #[cfg(feature = "native_lib")]
+    #[cfg(feature = "use_system_lib")]
     /// Returns a pointer to the underlying `wl_client` of `wayland-server.so`
     pub fn c_ptr(&self) -> *mut wl_client {
         self.inner.ptr()

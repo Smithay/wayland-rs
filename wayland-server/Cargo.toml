@@ -30,5 +30,5 @@ parking_lot = "0.9"
 wayland-scanner = { version = "0.23.6", path = "../wayland-scanner" }
 
 [features]
-native_lib = [ "wayland-sys/server", "lazy_static" ]
-dlopen = [ "wayland-sys/dlopen", "native_lib" ]
+use_system_lib = [ "wayland-sys/server", "lazy_static" ]
+dlopen = [ "wayland-sys/dlopen", "use_system_lib" ]

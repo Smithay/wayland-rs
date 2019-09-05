@@ -13,7 +13,7 @@ use crate::{EventQueue, Proxy};
 
 use crate::imp::DisplayInner;
 
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "use_system_lib")]
 use wayland_sys::client::wl_display;
 
 /// Enum representing the possible reasons why connecting to the wayland server failed
@@ -132,7 +132,7 @@ impl Display {
                 Err(_) => {
                     // something went wrong in F_GETFD or F_SETFD
                     let _ = ::nix::unistd::close(fd);
-                    return Err(ConnectError::InvalidFd);
+                    Err(ConnectError::InvalidFd)
                 }
             }
         } else {
@@ -207,7 +207,7 @@ impl Display {
         self.inner.protocol_error()
     }
 
-    #[cfg(feature = "native_lib")]
+    #[cfg(feature = "use_system_lib")]
     /// Create a Display and Event Queue from an external display
     ///
     /// This allows you to interface with an already-existing wayland connection,
@@ -221,7 +221,7 @@ impl Display {
         }
     }
 
-    #[cfg(feature = "native_lib")]
+    #[cfg(feature = "use_system_lib")]
     /// Retrieve the `wl_display` pointer
     ///
     /// If this `Display` was created from an external `wl_display`, its `c_ptr()` method will

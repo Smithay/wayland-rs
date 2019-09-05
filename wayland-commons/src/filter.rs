@@ -7,6 +7,8 @@ struct Inner<E, F: ?Sized> {
     cb: RefCell<F>,
 }
 
+type DynInner<E> = Inner<E, dyn FnMut(E, &Filter<E>)>;
+
 /// An event filter
 ///
 /// Can be used in wayland-client and wayland-server to aggregate
@@ -22,7 +24,7 @@ struct Inner<E, F: ?Sized> {
 /// The `Filter` can be cloned, and all clones send messages to the
 /// same closure. However it is not threadsafe.
 pub struct Filter<E> {
-    inner: Rc<Inner<E, dyn FnMut(E, &Filter<E>)>>,
+    inner: Rc<DynInner<E>>,
 }
 
 impl<E> Clone for Filter<E> {
