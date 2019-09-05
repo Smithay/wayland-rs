@@ -20,7 +20,16 @@ nix = "0.15"
 calloop = "0.4.2"
 
 [workspace]
-members = [ "wayland-sys", "wayland-scanner", "wayland-client", "wayland-server", "wayland-protocols", "wayland-commons" ]
+members = [
+    "wayland-sys",
+    "wayland-scanner",
+    "wayland-client",
+    "wayland-server",
+    "wayland-protocols",
+    "wayland-commons",
+    "wayland-cursor",
+    "wayland-egl"
+]
 
 [features]
 client_native = [ "wayland-client/dlopen" ]
