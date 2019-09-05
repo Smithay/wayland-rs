@@ -129,7 +129,7 @@ impl ClientInner {
             }))
     }
 
-    pub(crate) fn create_resource<I: Interface + From<Resource<I>>>(
+    pub(crate) fn create_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
         &self,
         version: u32,
     ) -> Option<ResourceInner> {

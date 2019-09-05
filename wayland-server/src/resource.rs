@@ -24,15 +24,18 @@ pub struct Resource<I: Interface> {
     inner: ResourceInner,
 }
 
-impl<I: Interface> PartialEq for Resource<I> {
+impl<I: Interface + From<Resource<I>> + AsRef<Resource<I>>> PartialEq for Resource<I> {
     fn eq(&self, other: &Resource<I>) -> bool {
         self.equals(other)
     }
 }
 
-impl<I: Interface> Eq for Resource<I> {}
+impl<I: Interface + From<Resource<I>> + AsRef<Resource<I>>> Eq for Resource<I> {}
 
-impl<I: Interface> Resource<I> {
+impl<I> Resource<I>
+where
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+{
     #[allow(dead_code)]
     pub(crate) fn wrap(inner: ResourceInner) -> Resource<I> {
         Resource {
@@ -134,7 +137,10 @@ impl<I: Interface> Resource<I> {
     }
 }
 
-impl<I: Interface> Resource<I> {
+impl<I> Resource<I>
+where
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+{
     /// Check whether this resource is managed by the library or not
     ///
     /// See `from_c_ptr` for details.
@@ -266,24 +272,45 @@ where
         }
     }
 
+    /// Assign this object to given filter
+    ///
+    /// All future requests received by this object will be delivered to this
+    /// filter.
+    ///
+    /// An object that is not assigned to any filter will see trigger a protocol
+    /// error and kill its client signalling a server bug if it receives a request.
+    ///
+    /// Message type of the filter should verify
+    /// `E: From<(Main<I>, I::Request)>`. See the `request_enum!` macro provided
+    /// in this library to easily generate appropriate types.
     pub fn assign<E>(&self, filter: Filter<E>)
     where
         I: AsRef<Resource<I>> + From<Resource<I>>,
-        E: From<(Resource<I>, I::Request)> + 'static,
+        E: From<(Main<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = crate::ResourceMap>,
     {
         self.inner.as_ref().inner.assign(filter);
     }
 
+    /// Shorthand for assigning a closure to an object
+    ///
+    /// Behaves similarly as `assign(..)`, but is a shorthand if
+    /// you want to assign this object to its own filter. In which
+    /// case you just need to provide the appropriate closure, of
+    /// type `FnMut(Main<I>, I::Event)`.
     pub fn assign_mono<F>(&self, mut f: F)
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F: FnMut(Resource<I>, I::Request) + 'static,
+        F: FnMut(Main<I>, I::Request) + 'static,
         I::Request: MessageGroup<Map = crate::ResourceMap>,
     {
         self.assign(Filter::new(move |(proxy, event), _| f(proxy, event)))
     }
 
+    /// Assign a destructor to this object
+    ///
+    /// The filter will be called upon destruction of this object
+    /// with a payload of type `Resource<I>`.
     pub fn assign_destructor<E>(&self, filter: Filter<E>)
     where
         I: AsRef<Resource<I>> + From<Resource<I>>,

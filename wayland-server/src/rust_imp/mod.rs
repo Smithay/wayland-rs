@@ -35,7 +35,10 @@ impl ResourceMap {
     }
 
     /// Returns the `Resource` corresponding to a given id
-    pub fn get<I: Interface>(&mut self, id: u32) -> Option<Resource<I>> {
+    pub fn get<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        &mut self,
+        id: u32,
+    ) -> Option<Resource<I>> {
         ResourceInner::from_id(id, self.map.clone(), self.client.clone()).map(|object| {
             debug_assert!(I::NAME == "<anonymous>" || object.is_interface::<I>());
             Resource::wrap(object)
@@ -78,15 +81,18 @@ mod dispatcher_impl {
     impl_downcast!(Dispatcher);
 }
 
-pub(crate) struct ImplDispatcher<I: Interface + From<Resource<I>>, F: FnMut(I::Request, Resource<I>)> {
+pub(crate) struct ImplDispatcher<
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+    F: FnMut(I::Request, Main<I>),
+> {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
 }
 
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
-    I: Interface + From<Resource<I>>,
-    F: FnMut(I::Request, Resource<I>) + 'static,
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+    F: FnMut(I::Request, Main<I>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
     fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Dispatched {
@@ -122,9 +128,9 @@ where
             if kill {
                 resource.client.kill();
             }
-            (self.implementation)(message, Resource::<I>::wrap(resource.clone()).into());
+            (self.implementation)(message, Main::<I>::wrap(resource.clone()));
         } else {
-            (self.implementation)(message, Resource::<I>::wrap(resource).into());
+            (self.implementation)(message, Main::<I>::wrap(resource));
         }
         Dispatched::Yes
     }
@@ -133,7 +139,7 @@ where
 pub(crate) fn make_dispatcher<I, E>(filter: Filter<E>) -> Arc<ThreadGuard<RefCell<dyn Dispatcher>>>
 where
     I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-    E: From<(Resource<I>, I::Request)> + 'static,
+    E: From<(Main<I>, I::Request)> + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
     Arc::new(ThreadGuard::new(RefCell::new(ImplDispatcher {

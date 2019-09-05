@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use crate::{Interface, Resource};
+use crate::{Interface, Main, Resource};
 
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::user_data::UserData;
@@ -136,7 +136,7 @@ impl ResourceInner {
     pub fn assign<I, E>(&self, filter: crate::Filter<E>)
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        E: From<(Resource<I>, I::Request)> + 'static,
+        E: From<(Main<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         self.client
