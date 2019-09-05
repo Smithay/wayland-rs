@@ -11,7 +11,7 @@ use wayland_sys::server::wl_display;
 
 use crate::imp::DisplayInner;
 
-use crate::{Client, Global, Interface, Resource};
+use crate::{Client, Global, Interface, Main, Resource};
 
 use calloop::LoopHandle;
 
@@ -49,13 +49,10 @@ impl Display {
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
-    pub fn create_global<I: Interface + From<Resource<I>>, F>(
-        &mut self,
-        version: u32,
-        implementation: F,
-    ) -> Global<I>
+    pub fn create_global<I, F>(&mut self, version: u32, implementation: F) -> Global<I>
     where
-        F: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F: FnMut(Main<I>, u32) + 'static,
     {
         assert!(
             version <= I::VERSION,
@@ -82,14 +79,15 @@ impl Display {
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
-    pub fn create_global_with_filter<I: Interface + From<Resource<I>>, F1, F2>(
+    pub fn create_global_with_filter<I, F1, F2>(
         &mut self,
         version: u32,
         implementation: F1,
         mut filter: F2,
     ) -> Global<I>
     where
-        F1: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F1: FnMut(Main<I>, u32) + 'static,
         F2: FnMut(Client) -> bool + 'static,
     {
         assert!(

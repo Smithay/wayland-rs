@@ -150,7 +150,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 pub mod #mod_name {
                     use std::os::raw::c_char;
                     use super::{
-                        Resource, AnonymousObject, Interface, MessageGroup, MessageDesc,
+                        Resource, AnonymousObject, Interface, MessageGroup, MessageDesc, Main,
                         ArgumentType, Object, Message, Argument, ObjectMetadata, types_null, NULLPTR
                     };
                     use super::sys::common::{wl_argument, wl_interface, wl_array, wl_message};

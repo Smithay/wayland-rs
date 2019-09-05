@@ -116,6 +116,7 @@ fn client_receive_error() {
         .borrow()
         .as_ref()
         .unwrap()
+        .as_ref()
         .post_error(42, "I don't like you!".into());
 
     // the error has not yet reached the client

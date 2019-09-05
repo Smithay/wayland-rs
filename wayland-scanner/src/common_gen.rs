@@ -242,10 +242,10 @@ pub(crate) fn gen_messagegroup(
                             }
                         }
                         Type::NewId => {
-                            let object_name = if side == Side::Client {
-                                Ident::new("Main", Span::call_site())
-                            } else {
+                            let object_name = if side == Side::Server && receiver == false {
                                 Ident::new("Resource", Span::call_site())
+                            } else {
+                                Ident::new("Main", Span::call_site())
                             };
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());

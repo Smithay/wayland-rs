@@ -53,7 +53,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerB
     buffer_found2
 }
 
-fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ServerBuffer>)>>> {
+fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ways::Main<ServerBuffer>>)>>> {
     use ways::protocol::{wl_shm, wl_shm_pool};
 
     let buffer = Arc::new(Mutex::new(None));
@@ -82,7 +82,7 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<Server
             let buf = guard.as_mut().unwrap();
             assert!(buf.1.is_none());
             id.assign_mono(|_, _| {});
-            buf.1 = Some(id.into());
+            buf.1 = Some(id);
         }
         _ => {
             panic!("Unexpected request");
@@ -162,7 +162,7 @@ fn attach_buffer() {
     let surface_buffer = buffer_found.lock().unwrap().take().unwrap().unwrap();
     let (shm_fd, shm_buf) = fd_found.lock().unwrap().take().unwrap();
     let shm_buffer = shm_buf.unwrap();
-    assert!(surface_buffer == shm_buffer);
+    assert!(&surface_buffer == &*shm_buffer);
 
     let mut client_file = unsafe { File::from_raw_fd(shm_fd) };
     let mut contents = String::new();

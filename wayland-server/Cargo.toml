@@ -24,6 +24,7 @@ nix = "0.15"
 mio = "0.6"
 calloop = ">=0.3.1, <0.5"
 lazy_static = { version = "1.0", optional = true}
+parking_lot = "0.9"
 
 [build-dependencies]
 wayland-scanner = { version = "0.23.6", path = "../wayland-scanner" }

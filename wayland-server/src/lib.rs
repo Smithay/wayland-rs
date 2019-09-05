@@ -95,7 +95,7 @@ mod resource;
 pub use client::Client;
 pub use display::Display;
 pub use globals::Global;
-pub use resource::Resource;
+pub use resource::{Main, Resource};
 
 pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::user_data::UserDataMap;
@@ -127,7 +127,7 @@ pub mod protocol {
     #![allow(missing_docs)]
     #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
-    pub(crate) use crate::{AnonymousObject, Resource, ResourceMap};
+    pub(crate) use crate::{AnonymousObject, Main, Resource, ResourceMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
     pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
     pub(crate) use wayland_commons::{Interface, MessageGroup};

@@ -15,8 +15,8 @@ pub mod wl_foo {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
-        Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
@@ -64,7 +64,7 @@ pub mod wl_foo {
             file: ::std::os::unix::io::RawFd,
         },
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
-        CreateBar { id: Resource<super::wl_bar::WlBar> },
+        CreateBar { id: Main<super::wl_bar::WlBar> },
         #[doc(hidden)]
         __nonexhaustive,
     }
@@ -371,8 +371,8 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
-        Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {
@@ -850,8 +850,8 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Message, MessageDesc, MessageGroup,
-        Object, ObjectMetadata, Resource, NULLPTR,
+        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     pub enum Request {

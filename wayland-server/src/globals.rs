@@ -1,4 +1,4 @@
-use crate::Interface;
+use crate::{Interface, Resource};
 
 use crate::imp::GlobalInner;
 
@@ -10,11 +10,11 @@ use crate::imp::GlobalInner;
 ///
 /// If you know you will never destroy this global, you can let this
 /// handle go out of scope.
-pub struct Global<I: Interface> {
+pub struct Global<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
     inner: GlobalInner<I>,
 }
 
-impl<I: Interface> Global<I> {
+impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> Global<I> {
     pub(crate) fn create(inner: GlobalInner<I>) -> Global<I> {
         Global { inner }
     }

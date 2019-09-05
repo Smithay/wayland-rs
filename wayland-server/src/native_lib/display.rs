@@ -18,7 +18,7 @@ use super::globals::GlobalData;
 use super::{ClientInner, GlobalInner};
 
 use crate::display::get_runtime_dir;
-use crate::{Interface, Resource};
+use crate::{Interface, Main, Resource};
 
 pub(crate) struct DisplayInner {
     pub(crate) ptr: *mut wl_display,
@@ -30,6 +30,7 @@ impl Drop for DisplayInner {
     fn drop(&mut self) {
         {
             self.source.take().map(Source::remove);
+            let _c_safety_guard = super::C_SAFETY.lock();
             unsafe {
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy_clients, self.ptr);
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.ptr);
@@ -40,6 +41,7 @@ impl Drop for DisplayInner {
 
 impl DisplayInner {
     pub(crate) fn new<Data: 'static>(handle: LoopHandle<Data>) -> Rc<RefCell<DisplayInner>> {
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,);
             // setup the client_created listener
@@ -88,18 +90,19 @@ impl DisplayInner {
         self.ptr
     }
 
-    pub(crate) fn create_global<I: Interface + From<Resource<I>>, F1, F2>(
+    pub(crate) fn create_global<I, F1, F2>(
         &mut self,
         version: u32,
         implementation: F1,
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        F1: FnMut(Resource<I>, u32) + 'static,
+        I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+        F1: FnMut(Main<I>, u32) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let data = Box::new(GlobalData::new(implementation, filter));
-
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let ptr = ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -118,6 +121,7 @@ impl DisplayInner {
     }
 
     pub(crate) fn flush_clients(&mut self) {
+        let _c_safety_guard = super::C_SAFETY.lock();
         unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
     }
 
@@ -125,6 +129,7 @@ impl DisplayInner {
     where
         S: AsRef<OsStr>,
     {
+        let _c_safety_guard = super::C_SAFETY.lock();
         let cname = match name.as_ref().map(|s| CString::new(s.as_ref().as_bytes())) {
             Some(Ok(n)) => Some(n),
             Some(Err(_)) => {
@@ -160,6 +165,7 @@ impl DisplayInner {
     }
 
     pub(crate) fn add_socket_auto(&mut self) -> IoResult<OsString> {
+        let _c_safety_guard = super::C_SAFETY.lock();
         let ret = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.ptr) };
         if ret.is_null() {
             // try to be helpful
@@ -175,6 +181,7 @@ impl DisplayInner {
     }
 
     pub(crate) unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
+        let _c_safety_guard = super::C_SAFETY.lock();
         let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_fd, self.ptr, fd);
         if ret == 0 {
             Ok(())
@@ -184,6 +191,7 @@ impl DisplayInner {
     }
 
     pub unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
+        let _c_safety_guard = super::C_SAFETY.lock();
         let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.ptr, fd);
         ClientInner::from_ptr(ret)
     }

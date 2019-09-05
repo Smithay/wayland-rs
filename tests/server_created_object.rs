@@ -27,14 +27,14 @@ fn data_offer() {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
+                        .as_ref()
                         .client()
                         .unwrap()
-                        .create_resource::<ServerDO>(ddevice.version())
+                        .create_resource::<ServerDO>(ddevice.as_ref().version())
                         .unwrap();
                     // this must be the first server-side ID
-                    assert_eq!(offer.id(), 0xFF000000);
-                    let ddevice: ServerDD = ddevice.into();
-                    ddevice.data_offer(&offer.into());
+                    assert_eq!(offer.as_ref().id(), 0xFF000000);
+                    ddevice.data_offer(&offer);
                 }
                 _ => unimplemented!(),
             });
@@ -72,7 +72,7 @@ fn data_offer() {
 fn server_id_reuse() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
-    let srv_dd: Rc<RefCell<Option<ServerDD>>> = Rc::new(RefCell::new(None));
+    let srv_dd = Rc::new(RefCell::new(None));
     let srv_dd2 = srv_dd.clone();
     server
         .display
@@ -80,7 +80,7 @@ fn server_id_reuse() {
             let srv_dd3 = srv_dd2.clone();
             new_resource.assign_mono(move |_, req| {
                 if let SDDMReq::GetDataDevice { id: ddevice, .. } = req {
-                    *srv_dd3.borrow_mut() = Some(ddevice.into());
+                    *srv_dd3.borrow_mut() = Some(ddevice);
                 }
             });
         });
@@ -118,7 +118,7 @@ fn server_id_reuse() {
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
     offer1.assign_mono(|_, _| {});
-    ddevice.data_offer(&offer1.into());
+    ddevice.data_offer(&offer1);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
 
@@ -130,7 +130,7 @@ fn server_id_reuse() {
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
     offer2.assign_mono(|_, _| {});
-    ddevice.data_offer(&offer2.into());
+    ddevice.data_offer(&offer2);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000001);
 
@@ -146,7 +146,7 @@ fn server_id_reuse() {
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
     offer3.assign_mono(|_, _| {});
-    ddevice.data_offer(&offer3.into());
+    ddevice.data_offer(&offer3);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
 }
@@ -156,7 +156,7 @@ fn server_created_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_do: Rc<RefCell<Option<ServerDO>>> = Rc::new(RefCell::new(None));
+    let server_do = Rc::new(RefCell::new(None));
     let server_do_2 = server_do.clone();
     server
         .display
@@ -166,14 +166,13 @@ fn server_created_race() {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
+                        .as_ref()
                         .client()
                         .unwrap()
-                        .create_resource::<ServerDO>(ddevice.version())
+                        .create_resource::<ServerDO>(ddevice.as_ref().version())
                         .unwrap();
                     offer.assign_mono(|_, _| {});
-                    let offer = offer.into();
                     // this must be the first server-side ID
-                    let ddevice: ServerDD = ddevice.into();
                     ddevice.data_offer(&offer);
                     *server_do_3.borrow_mut() = Some(offer);
                 }
@@ -232,7 +231,7 @@ fn creation_destruction_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_dd: Rc<RefCell<Vec<ServerDD>>> = Rc::new(RefCell::new(Vec::new()));
+    let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
@@ -241,7 +240,7 @@ fn creation_destruction_race() {
             new_resource.assign_mono(move |_, request| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     ddevice.assign_mono(|_, _| {});
-                    server_dd_3.borrow_mut().push(ddevice.into());
+                    server_dd_3.borrow_mut().push(ddevice);
                 }
                 _ => unimplemented!(),
             });
@@ -280,8 +279,7 @@ fn creation_destruction_race() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
-        .unwrap()
-        .into();
+        .unwrap();
     server_dd.borrow()[0].data_offer(&offer1);
     roundtrip(&mut client, &mut server).unwrap();
     // this message should not crash the client, even though it is send to
@@ -294,8 +292,7 @@ fn creation_destruction_race() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[1].as_ref().version())
-        .unwrap()
-        .into();
+        .unwrap();
     server_dd.borrow()[1].data_offer(&offer2);
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -309,7 +306,7 @@ fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerSeat, _>(1, |_, _| {});
 
-    let server_dd: Rc<RefCell<Vec<ServerDD>>> = Rc::new(RefCell::new(Vec::new()));
+    let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
@@ -317,7 +314,7 @@ fn creation_destruction_queue_dispatch_race() {
             let server_dd_3 = server_dd_2.clone();
             new_resource.assign_mono(move |_, request| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
-                    server_dd_3.borrow_mut().push(ddevice.into());
+                    server_dd_3.borrow_mut().push(ddevice);
                 }
                 _ => unimplemented!(),
             });
@@ -357,16 +354,14 @@ fn creation_destruction_queue_dispatch_race() {
         .client()
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
-        .unwrap()
-        .into();
+        .unwrap();
     server_dd.borrow()[0].data_offer(&offer1);
     let offer2 = server_dd.borrow()[0]
         .as_ref()
         .client()
         .unwrap()
         .create_resource::<ServerDO>(server_dd.borrow()[0].as_ref().version())
-        .unwrap()
-        .into();
+        .unwrap();
     server_dd.borrow()[0].data_offer(&offer2);
 
     roundtrip(&mut client, &mut server).unwrap();

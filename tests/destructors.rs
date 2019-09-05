@@ -82,7 +82,7 @@ fn client_destructor_cleanup() {
         .display
         .create_global::<ServerOutput, _>(3, move |output, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            let client = output.client().unwrap();
+            let client = output.as_ref().client().unwrap();
             client.add_destructor(ways::Filter::new(move |_, _| {
                 *destructor_called_resource.lock().unwrap() = true;
             }));

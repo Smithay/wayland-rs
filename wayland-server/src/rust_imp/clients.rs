@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, ThreadId};
 
 use nix::Result as NixResult;
@@ -14,6 +14,7 @@ use calloop::Source;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
+use wayland_commons::ThreadGuard;
 
 use crate::{Fd, Interface, UserDataMap};
 
@@ -33,19 +34,19 @@ pub(crate) enum Error {
 
 pub(crate) struct ClientConnection {
     socket: BufferedSocket,
-    pub(crate) map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
+    pub(crate) map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
     user_data_map: Arc<UserDataMap>,
-    destructors: Vec<Box<dyn FnMut(Arc<UserDataMap>)>>,
+    destructors: ThreadGuard<Vec<Box<dyn FnMut(Arc<UserDataMap>)>>>,
     last_error: Option<Error>,
     pending_destructors: Vec<ResourceInner>,
-    zombie_clients: Rc<RefCell<Vec<ClientConnection>>>,
+    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
 }
 
 impl ClientConnection {
     unsafe fn new(
         fd: RawFd,
         display_object: Object<ObjectMeta>,
-        zombies: Rc<RefCell<Vec<ClientConnection>>>,
+        zombies: Arc<Mutex<Vec<ClientConnection>>>,
     ) -> ClientConnection {
         let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
 
@@ -55,9 +56,9 @@ impl ClientConnection {
 
         ClientConnection {
             socket,
-            map: Rc::new(RefCell::new(map)),
+            map: Arc::new(Mutex::new(map)),
             user_data_map: Arc::new(UserDataMap::new()),
-            destructors: Vec::new(),
+            destructors: ThreadGuard::new(Vec::new()),
             last_error: None,
             pending_destructors: Vec::new(),
             zombie_clients: zombies,
@@ -71,7 +72,7 @@ impl ClientConnection {
     pub(crate) fn call_destructors(&mut self) {
         for resource in self.pending_destructors.drain(..) {
             if let Some(ref dest) = resource.object.meta.destructor {
-                (&mut *dest.borrow_mut())(resource.clone());
+                (&mut *dest.get().borrow_mut())(resource.clone());
             }
         }
     }
@@ -85,7 +86,7 @@ impl ClientConnection {
     }
 
     pub(crate) fn delete_id(&mut self, id: u32) -> NixResult<()> {
-        self.map.borrow_mut().remove(id);
+        self.map.lock().unwrap().remove(id);
 
         if id < SERVER_ID_LIMIT {
             self.write_message(&Message {
@@ -104,7 +105,7 @@ impl ClientConnection {
         }
         // acquire the map lock, this means no objects can be created nor destroyed while we
         // are reading requests
-        let mut map = self.map.borrow_mut();
+        let mut map = self.map.lock().unwrap();
         // read messages
         let ret = self.socket.read_one_message(|id, opcode| {
             map.find(id)
@@ -195,11 +196,11 @@ impl ClientConnection {
 
     fn cleanup(mut self) {
         let dummy_client = ClientInner {
-            data: Rc::new(RefCell::new(None)),
+            data: Arc::new(Mutex::new(None)),
             user_data_map: self.user_data_map.clone(),
             loop_thread: thread::current().id(),
         };
-        self.map.borrow_mut().with_all(|id, obj| {
+        self.map.lock().unwrap().with_all(|id, obj| {
             let resource = ResourceInner {
                 id,
                 object: obj.clone(),
@@ -207,11 +208,11 @@ impl ClientConnection {
             };
             obj.meta.alive.store(false, Ordering::Release);
             if let Some(ref dest) = obj.meta.destructor {
-                (&mut *dest.borrow_mut())(resource);
+                (&mut *dest.get().borrow_mut())(resource);
             }
         });
         let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
-        for mut destructor in self.destructors.drain(..) {
+        for mut destructor in self.destructors.get_mut().drain(..) {
             destructor(self.user_data_map.clone());
         }
     }
@@ -219,32 +220,32 @@ impl ClientConnection {
 
 #[derive(Clone)]
 pub(crate) struct ClientInner {
-    pub(crate) data: Rc<RefCell<Option<ClientConnection>>>,
+    pub(crate) data: Arc<Mutex<Option<ClientConnection>>>,
     user_data_map: Arc<UserDataMap>,
     pub(crate) loop_thread: ThreadId,
 }
 
 impl ClientInner {
     pub(crate) fn alive(&self) -> bool {
-        self.data.borrow().is_some()
+        self.data.lock().unwrap().is_some()
     }
 
     pub(crate) fn equals(&self, other: &ClientInner) -> bool {
-        Rc::ptr_eq(&self.data, &other.data)
+        Arc::ptr_eq(&self.data, &other.data)
     }
 
     pub(crate) fn flush(&self) {
-        if let Some(ref mut data) = *self.data.borrow_mut() {
-            let _ = data.socket.flush();
+        if let Some(ref mut cx) = *self.data.lock().unwrap() {
+            let _ = cx.socket.flush();
         }
     }
 
     pub(crate) fn kill(&self) {
-        if let Some(mut clientconn) = self.data.borrow_mut().take() {
+        if let Some(mut clientconn) = self.data.lock().unwrap().take() {
             let _ = clientconn.socket.flush();
             // call all objects destructors
             let zombies = clientconn.zombie_clients.clone();
-            zombies.borrow_mut().push(clientconn);
+            zombies.lock().unwrap().push(clientconn);
         }
     }
 
@@ -253,11 +254,14 @@ impl ClientInner {
     }
 
     pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>) + 'static>(&self, destructor: F) {
-        if let Some(ref mut client_data) = *self.data.borrow_mut() {
+        if self.loop_thread != std::thread::current().id() {
+            panic!("Can only add a destructor from the thread hosting the Display.");
+        }
+        if let Some(ref mut client_data) = *self.data.lock().unwrap() {
             // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
             // currently =(
             let mut opt_dest = Some(destructor);
-            client_data.destructors.push(Box::new(move |data_map| {
+            client_data.destructors.get_mut().push(Box::new(move |data_map| {
                 if let Some(dest) = opt_dest.take() {
                     dest(data_map);
                 }
@@ -266,7 +270,7 @@ impl ClientInner {
     }
 
     pub(crate) fn post_error(&self, object: u32, error_code: u32, msg: String) {
-        if let Some(ref mut data) = *self.data.borrow_mut() {
+        if let Some(ref mut data) = *self.data.lock().unwrap() {
             let _ = data.write_message(&Message {
                 sender_id: 1,
                 opcode: 0,
@@ -281,11 +285,15 @@ impl ClientInner {
     }
 
     pub(crate) fn create_resource<I: Interface>(&self, version: u32) -> Option<ResourceInner> {
+        if self.loop_thread != thread::current().id() {
+            panic!("Can only create ressources from the thread hosting the Display.");
+        }
         let (id, map) = {
-            if let Some(ref cx) = *self.data.borrow_mut() {
+            if let Some(ref cx) = *self.data.lock().unwrap() {
                 (
                     cx.map
-                        .borrow_mut()
+                        .lock()
+                        .unwrap()
                         .server_insert_new(Object::from_interface::<I>(version, ObjectMeta::new())),
                     cx.map.clone(),
                 )
@@ -296,17 +304,27 @@ impl ClientInner {
         Some(ResourceInner::from_id(id, map, self.clone()).unwrap())
     }
 
-    pub(crate) fn set_dispatcher_for(&self, id: u32, dispatcher: Rc<RefCell<dyn super::Dispatcher>>) {
-        if let Some(ref cx) = &*self.data.borrow_mut() {
-            let _ = cx.map.borrow_mut().with(id, move |obj| {
+    pub(crate) fn set_dispatcher_for(
+        &self,
+        id: u32,
+        dispatcher: Arc<ThreadGuard<RefCell<dyn super::Dispatcher>>>,
+    ) {
+        let guard = self.data.lock().unwrap();
+        if let Some(ref cx) = *guard {
+            let _ = cx.map.lock().unwrap().with(id, move |obj| {
                 obj.meta.dispatcher = dispatcher;
             });
         }
     }
 
-    pub(crate) fn set_destructor_for(&self, id: u32, destructor: Rc<RefCell<dyn FnMut(ResourceInner)>>) {
-        if let Some(ref cx) = &*self.data.borrow_mut() {
-            let _ = cx.map.borrow_mut().with(id, move |obj| {
+    pub(crate) fn set_destructor_for(
+        &self,
+        id: u32,
+        destructor: Arc<ThreadGuard<RefCell<dyn FnMut(ResourceInner)>>>,
+    ) {
+        let guard = self.data.lock().unwrap();
+        if let Some(ref cx) = *guard {
+            let _ = cx.map.lock().unwrap().with(id, move |obj| {
                 obj.meta.destructor = Some(destructor);
             });
         }
@@ -316,7 +334,7 @@ impl ClientInner {
 pub(crate) struct ClientManager {
     loophandle: Box<dyn WSLoopHandle>,
     clients: Vec<(RefCell<Option<ClientSource>>, ClientInner)>,
-    zombie_clients: Rc<RefCell<Vec<ClientConnection>>>,
+    zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
@@ -328,7 +346,7 @@ impl ClientManager {
         ClientManager {
             loophandle,
             clients: Vec::new(),
-            zombie_clients: Rc::new(RefCell::new(Vec::new())),
+            zombie_clients: Arc::new(Mutex::new(Vec::new())),
             global_mgr,
         }
     }
@@ -351,7 +369,7 @@ impl ClientManager {
         let user_data_map = cx.user_data_map.clone();
 
         let client = ClientInner {
-            data: Rc::new(RefCell::new(Some(cx))),
+            data: Arc::new(Mutex::new(Some(cx))),
             user_data_map,
             loop_thread: thread::current().id(), // init_client is only called by the display, which does not change threads
         };
@@ -399,7 +417,7 @@ impl ClientManager {
     pub(crate) fn flush_all(&mut self) {
         // flush all clients and cleanup dead ones
         self.clients.retain(|&(ref s, ref c)| {
-            if let Some(ref mut data) = *c.data.borrow_mut() {
+            if let Some(ref mut data) = *c.data.lock().unwrap() {
                 data.call_destructors();
                 data.flush().is_ok()
             } else {
@@ -411,7 +429,7 @@ impl ClientManager {
             }
         });
 
-        let mut guard = self.zombie_clients.borrow_mut();
+        let mut guard = self.zombie_clients.lock().unwrap();
         for zombie in guard.drain(..) {
             zombie.cleanup();
         }
@@ -507,7 +525,7 @@ fn no_child(_: u16, _: u32, _: &ObjectMeta) -> Option<Object<ObjectMeta>> {
 
 struct ClientImplementation {
     inner: ClientInner,
-    map: Rc<RefCell<ObjectMap<ObjectMeta>>>,
+    map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
 }
 
 impl ClientImplementation {
@@ -515,7 +533,7 @@ impl ClientImplementation {
         loop {
             // we must process the messages one by one, because message parsing depends
             // on the contents of the object map, which each message can change...
-            let ret = if let Some(ref mut data) = *self.inner.data.borrow_mut() {
+            let ret = if let Some(ref mut data) = *self.inner.data.lock().unwrap() {
                 data.read_request()
             } else {
                 // client is now dead, abort
@@ -534,7 +552,7 @@ impl ClientImplementation {
                     let opcode = msg.opcode;
                     if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
                         let object = res.object.clone();
-                        let mut dispatcher = object.meta.dispatcher.borrow_mut();
+                        let mut dispatcher = object.meta.dispatcher.get().borrow_mut();
                         match dispatcher.dispatch(msg, res, &mut resourcemap) {
                             Dispatched::Yes => {}
                             Dispatched::NoDispatch(_msg, _res) => {
@@ -599,7 +617,7 @@ impl super::Dispatcher for DisplayDispatcher {
                 if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                     if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
                         // TODO: send a more meaningful serial ?
-                        cb.send(wl_callback::Event::Done { callback_data: 0 });
+                        cb.as_ref().send(wl_callback::Event::Done { callback_data: 0 });
                     } else {
                         return Dispatched::BadMsg;
                     }
@@ -612,10 +630,10 @@ impl super::Dispatcher for DisplayDispatcher {
                 if let Some(&Argument::NewId(new_id)) = msg.args.first() {
                     // we don't have a regular object for the registry, rather we insert the
                     // dispatcher by hand
-                    if let Err(()) = map.map.borrow_mut().with(new_id, |obj| {
-                        obj.meta.dispatcher = Rc::new(RefCell::new(RegistryDispatcher {
+                    if let Err(()) = map.map.lock().unwrap().with(new_id, |obj| {
+                        obj.meta.dispatcher = Arc::new(ThreadGuard::new(RefCell::new(RegistryDispatcher {
                             global_mgr: self.global_mgr.clone(),
-                        }));
+                        })));
                     }) {
                         return Dispatched::BadMsg;
                     }
