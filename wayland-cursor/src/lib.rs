@@ -1,6 +1,6 @@
-//! Cursor utilities
+//! Wayland cursor utilities
 //!
-//! This module contains bindings to the `libwayland-cursor.so` library.
+//! This crate contains bindings to the `libwayland-cursor.so` library.
 //!
 //! These utilities allow you to load cursor images in order to match
 //! your cursors to the ones of the system.
@@ -14,15 +14,14 @@
 //! what time, as well as handles to the buffers containing these frames, to
 //! attach them to a wayland surface.
 
-use protocol::wl_buffer::WlBuffer;
-use protocol::wl_shm::WlShm;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::os::raw::c_int;
 use std::ptr;
-use wayland_sys::cursor::*;
-use Proxy;
+
+use wayland_client::{Proxy, protocol::{wl_buffer::WlBuffer, wl_shm::WlShm}};
+use wayland_sys::{ffi_dispatch, cursor::*};
 
 /// Checks if the wayland-cursor library is available and can be used
 ///

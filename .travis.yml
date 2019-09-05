@@ -28,6 +28,7 @@ env:
   - FEATURES="client_native"
   - FEATURES="server_native"
   - FEATURES="client_native server_native"
+  - FEATURES="aux"
 
 matrix:
   include:
@@ -99,8 +100,11 @@ script:
       elif [ -n "$TARGET" ]; then
         cross build --all --target "$TARGET"
         cross build --all --target "$TARGET" --features "client_native server_native"
+      elif [ "$TARGET" == "aux" ]; then
+        cargo test -p wayland-egl
+        cargo test -p wayland-cursor
       else
-        cargo test --all --features "$FEATURES"
+        cargo test --all --features "$FEATURES" --exclude wayland-egl --exclude wayland_cursor
       fi
 
 after_success:

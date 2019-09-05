@@ -7,10 +7,10 @@
 //!
 //! See WlEglSurface documentation for details.
 
-use protocol::wl_surface::WlSurface;
 use std::os::raw::c_void;
-use wayland_sys::client::wl_proxy;
-use wayland_sys::egl::*;
+
+use wayland_client::protocol::wl_surface::WlSurface;
+use wayland_sys::{ffi_dispatch, client::wl_proxy, egl::*};
 
 /// Checks if the wayland-egl lib is available and can be used
 ///
