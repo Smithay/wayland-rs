@@ -19,7 +19,7 @@ dist: trusty
 sudo: false
 
 rust:
-  - 1.31.0
+  - 1.32.0
   - stable
   - beta
 
@@ -104,7 +104,7 @@ script:
         cargo test -p wayland-egl
         cargo test -p wayland-cursor
       else
-        cargo test --all --features "$FEATURES" --exclude wayland-egl --exclude wayland_cursor
+        cargo test --all --features "$FEATURES" --exclude wayland-egl --exclude wayland-cursor
       fi
 
 after_success:
