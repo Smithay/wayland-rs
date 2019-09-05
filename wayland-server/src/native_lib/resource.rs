@@ -14,14 +14,14 @@ use super::ClientInner;
 
 pub(crate) struct ResourceInternal {
     alive: AtomicBool,
-    user_data: Arc<UserData>,
+    user_data: UserData,
 }
 
 impl ResourceInternal {
     fn new(user_data: UserData) -> ResourceInternal {
         ResourceInternal {
             alive: AtomicBool::new(true),
-            user_data: Arc::new(user_data),
+            user_data: user_data,
         }
     }
 }
@@ -155,7 +155,7 @@ impl ResourceInner {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Arc::new(UserData::new()),
+                    user_data: UserData::new(),
                 })),
                 ptr,
             };
@@ -183,7 +183,7 @@ impl ResourceInner {
             return ResourceInner {
                 internal: Some(Arc::new(ResourceInternal {
                     alive: AtomicBool::new(false),
-                    user_data: Arc::new(UserData::new()),
+                    user_data: UserData::new(),
                 })),
                 ptr,
             };
@@ -226,10 +226,10 @@ impl ResourceInner {
         Some(ResourceInner::init_from_c_ptr::<J>(new_ptr))
     }
 
-    pub(crate) fn user_data(&self) -> &Arc<UserData> {
+    pub(crate) fn user_data(&self) -> &UserData {
         lazy_static::lazy_static! {
-            static ref INVALID_USERDATA: Arc<UserData> = {
-                let data = Arc::new(UserData::new());
+            static ref INVALID_USERDATA: UserData = {
+                let data = UserData::new();
                 data.set_threadsafe(|| ());
                 data
             };

@@ -106,7 +106,7 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn user_data_map(&self) -> &Arc<UserDataMap> {
+    pub(crate) fn user_data_map(&self) -> &UserDataMap {
         &self.internal.user_data_map
     }
 

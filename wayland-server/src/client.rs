@@ -59,7 +59,7 @@ impl Client {
     /// Returns a reference to the `UserDataMap` associated with this client
     ///
     /// See `UserDataMap` documentation for details about its use.
-    pub fn data_map(&self) -> &Arc<UserDataMap> {
+    pub fn data_map(&self) -> &UserDataMap {
         self.inner.user_data_map()
     }
 
