@@ -23,7 +23,6 @@ use wayland_sys::common as syscom;
 
 pub mod filter;
 pub mod map;
-pub mod sinks;
 pub mod socket;
 pub mod user_data;
 pub mod wire;
@@ -148,6 +147,7 @@ pub struct ThreadGuard<T: ?Sized> {
 }
 
 impl<T> ThreadGuard<T> {
+    /// Create a new ThreadGuard wrapper
     pub fn new(val: T) -> ThreadGuard<T> {
         ThreadGuard {
             val,
@@ -157,16 +157,25 @@ impl<T> ThreadGuard<T> {
 }
 
 impl<T: ?Sized> ThreadGuard<T> {
+    /// Access the underlying value
+    ///
+    /// Panics if done on the wrong thread
     pub fn get(&self) -> &T {
         self.try_get()
             .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
     }
 
+    /// Mutably access the underlying value
+    ///
+    /// Panics if done on the wrong thread
     pub fn get_mut(&mut self) -> &mut T {
         self.try_get_mut()
             .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
     }
 
+    /// Try to access the underlying value
+    ///
+    /// Returns `None` if done on the wrong thread
     pub fn try_get(&self) -> Option<&T> {
         if self.thread == ::std::thread::current().id() {
             Some(&self.val)
@@ -175,6 +184,9 @@ impl<T: ?Sized> ThreadGuard<T> {
         }
     }
 
+    /// Try to mutably access the underlying value
+    ///
+    /// Returns `None` if done on the wrong thread
     pub fn try_get_mut(&mut self) -> Option<&mut T> {
         if self.thread == ::std::thread::current().id() {
             Some(&mut self.val)
