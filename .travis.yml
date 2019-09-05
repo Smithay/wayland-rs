@@ -100,7 +100,7 @@ script:
       elif [ -n "$TARGET" ]; then
         cross build --all --target "$TARGET"
         cross build --all --target "$TARGET" --features "client_native server_native"
-      elif [ "$TARGET" == "aux" ]; then
+      elif [ "$FEATURES" == "aux" ]; then
         cargo test -p wayland-egl
         cargo test -p wayland-cursor
       else
