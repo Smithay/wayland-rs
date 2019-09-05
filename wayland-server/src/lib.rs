@@ -212,8 +212,10 @@ impl ::mio::Evented for Fd {
 /// This macro allows you to easily create a enum type for use with your message Filters. It is
 /// used like so:
 ///
-/// ```ignore
-/// event_enum!(
+/// ```no_run
+/// # use wayland_server::protocol::{wl_surface::WlSurface, wl_keyboard::WlKeyboard, wl_pointer::WlPointer};
+/// # use wayland_server::request_enum;
+/// request_enum!(
 ///     MyEnum |
 ///     Pointer => WlPointer,
 ///     Keyboard => WlKeyboard,
@@ -225,9 +227,9 @@ impl ::mio::Evented for Fd {
 ///
 /// ```ignore
 /// pub enum MyEnum {
-///     Pointer { request: WlPointer::Request, object: Resource<WlPointer> },
-///     Keyboard { request: WlKeyboard::Request, object: Resource<WlKeyboard> },
-///     Surface { request: WlSurface::Request, object: Resource<WlSurface> }
+///     Pointer { request: WlPointer::Request, object: Main<WlPointer> },
+///     Keyboard { request: WlKeyboard::Request, object: Main<WlKeyboard> },
+///     Surface { request: WlSurface::Request, object: Main<WlSurface> }
 /// }
 /// ```
 ///
@@ -236,8 +238,12 @@ impl ::mio::Evented for Fd {
 ///
 /// If you want to add custom messages to the enum, the macro also supports it:
 ///
-/// ```ignore
-/// event_enum!(
+/// ```no_run
+/// # use wayland_server::protocol::{wl_surface::WlSurface, wl_keyboard::WlKeyboard, wl_pointer::WlPointer};
+/// # use wayland_server::request_enum;
+/// # struct SomeType;
+/// # struct OtherType;
+/// request_enum!(
 ///     MyEnum |
 ///     Pointer => WlPointer,
 ///     Keyboard => WlKeyboard,
@@ -251,9 +257,9 @@ impl ::mio::Evented for Fd {
 ///
 /// ```ignore
 /// pub enum MyEnum {
-///     Pointer { event: WlPointer::Event, object: Resource<WlPointer> },
-///     Keyboard { event: WlKeyboard::Event, object: Resource<WlKeyboard> },
-///     Surface { event: WlSurface::Event, object: Resource<WlSurface> },
+///     Pointer { request: WlPointer::Request, object: Main<WlPointer> },
+///     Keyboard { request: WlKeyboard::Request, object: Main<WlKeyboard> },
+///     Surface { request: WlSurface::Request, object: Main<WlSurface> },
 ///     MyMessage(SomeType),
 ///     OtherMessage(OtherType)
 /// }
@@ -270,16 +276,16 @@ macro_rules! request_enum(
     ($enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
         pub enum $enu {
             $(
-                $evt_name { request: <$iface as $crate::Interface>::Request, object: $crate::Resource<$iface> },
+                $evt_name { request: <$iface as $crate::Interface>::Request, object: $crate::Main<$iface> },
             )*
             $(
-                $name($value)
+                $name($value),
             )*
         }
 
         $(
-            impl From<($crate::Resource<$iface>, <$iface as $crate::Interface>::Request)> for $enu {
-                fn from((object, request): ($crate::Resource<$iface>, <$iface as $crate::Interface>::Request)) -> $enu {
+            impl From<($crate::Main<$iface>, <$iface as $crate::Interface>::Request)> for $enu {
+                fn from((object, request): ($crate::Main<$iface>, <$iface as $crate::Interface>::Request)) -> $enu {
                     $enu::$evt_name { request, object }
                 }
             }

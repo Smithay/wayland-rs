@@ -8,7 +8,7 @@ use wayland_sys::server::*;
 
 use wayland_commons::user_data::UserData;
 
-use crate::{Interface, MessageGroup, Resource};
+use crate::{Interface, Main, MessageGroup, Resource};
 
 use super::ClientInner;
 
@@ -149,7 +149,9 @@ impl ResourceInner {
         self.ptr
     }
 
-    pub(crate) unsafe fn init_from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
+    pub(crate) unsafe fn init_from_c_ptr<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        ptr: *mut wl_resource,
+    ) -> Self {
         let _c_safety_guard = super::C_SAFETY.lock();
         if ptr.is_null() {
             return ResourceInner {
@@ -177,7 +179,9 @@ impl ResourceInner {
         ResourceInner { internal, ptr }
     }
 
-    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Resource<I>>>(ptr: *mut wl_resource) -> Self {
+    pub(crate) unsafe fn from_c_ptr<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        ptr: *mut wl_resource,
+    ) -> Self {
         let _c_safety_guard = super::C_SAFETY.lock();
         if ptr.is_null() {
             return ResourceInner {
@@ -208,7 +212,10 @@ impl ResourceInner {
         ResourceInner { internal, ptr }
     }
 
-    pub unsafe fn make_child_for<J: Interface + From<Resource<J>>>(&self, id: u32) -> Option<ResourceInner> {
+    pub unsafe fn make_child_for<J: Interface + From<Resource<J>> + AsRef<Resource<J>>>(
+        &self,
+        id: u32,
+    ) -> Option<ResourceInner> {
         let _c_safety_guard = super::C_SAFETY.lock();
         let version = self.version();
         let client_ptr = match self.client() {
@@ -251,7 +258,7 @@ impl ResourceInner {
     pub fn assign<I, E>(&self, filter: crate::Filter<E>)
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        E: From<(Resource<I>, I::Request)> + 'static,
+        E: From<(Main<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
         let _c_safety_guard = super::C_SAFETY.lock();
@@ -280,17 +287,17 @@ impl ResourceInner {
     }
 }
 
-type BoxedHandler<I> = Box<dyn Fn(<I as Interface>::Request, Resource<I>)>;
+type BoxedHandler<I> = Box<dyn Fn(<I as Interface>::Request, Main<I>)>;
 type BoxedDest<I> = Box<dyn Fn(Resource<I>)>;
 
-pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>>> {
+pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>> + AsRef<Resource<I>>> {
     _i: ::std::marker::PhantomData<*const I>,
     pub(crate) internal: Arc<ResourceInternal>,
     implem: RefCell<Option<BoxedHandler<I>>>,
     destructor: Option<BoxedDest<I>>,
 }
 
-impl<I: Interface + From<Resource<I>>> ResourceUserData<I> {
+impl<I: Interface + From<Resource<I>> + AsRef<Resource<I>>> ResourceUserData<I> {
     pub(crate) fn new() -> ResourceUserData<I> {
         ResourceUserData {
             _i: ::std::marker::PhantomData,
@@ -309,7 +316,7 @@ pub(crate) unsafe extern "C" fn resource_dispatcher<I: Interface>(
     args: *const wl_argument,
 ) -> c_int
 where
-    I: Interface + From<Resource<I>>,
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
 {
     let resource = resource as *mut wl_resource;
 
@@ -320,7 +327,7 @@ where
         let msg = I::Request::from_raw_c(resource as *mut _, opcode, args)?;
         let must_destroy = msg.is_destructor();
         // create the resource object
-        let resource_obj = Resource::<I>::from_c_ptr(resource);
+        let resource_obj = Main::<I>::wrap(ResourceInner::from_c_ptr::<I>(resource));
         // retrieve the impl
         let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
         {
@@ -337,9 +344,11 @@ where
                     eprintln!(
                         "[wayland-server] Request received for an object not associated to any filter: {}@{}",
                         I::NAME,
-                        resource_obj.id()
+                        resource_obj.as_ref().id()
                     );
-                    resource_obj.post_error(2, "Server-side bug, sorry.".into());
+                    resource_obj
+                        .as_ref()
+                        .post_error(2, "Server-side bug, sorry.".into());
                     return Ok(());
                 }
             }
@@ -368,9 +377,10 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn resource_destroy<I: Interface + From<Resource<I>>>(
-    resource: *mut wl_resource,
-) {
+pub(crate) unsafe extern "C" fn resource_destroy<I>(resource: *mut wl_resource)
+where
+    I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
+{
     let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource);
 
     // We don't need to worry about panic-safeness, because if there is a panic,
