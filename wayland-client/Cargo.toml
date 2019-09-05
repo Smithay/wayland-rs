@@ -31,7 +31,5 @@ byteorder = "1.0"
 tempfile = ">=2.0, <4.0"
 
 [features]
-native_lib = [ "wayland-sys/client", "scoped-tls"]
-dlopen = ["wayland-sys/dlopen", "native_lib"]
-egl = ["wayland-sys/egl", "native_lib"]
-cursor = ["wayland-sys/cursor", "native_lib"]
+use_system_lib = [ "wayland-sys/client", "scoped-tls"]
+dlopen = ["wayland-sys/dlopen", "use_system_lib"]

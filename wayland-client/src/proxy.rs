@@ -156,6 +156,20 @@ where
     }
 }
 
+impl Proxy<AnonymousObject> {
+    /// Attempt to recover the typed variant of an anonymous proxy
+    pub fn deanonymize<I: Interface>(self) -> Result<Proxy<I>, Self> {
+        if self.inner.is_interface::<I>() {
+            Ok(Proxy {
+                inner: self.inner,
+                _i: ::std::marker::PhantomData,
+            })
+        } else {
+            Err(self)
+        }
+    }
+}
+
 /// A handle to a proxy that has been attached to an event queue
 ///
 /// As opposed to a mere `Proxy`, you can use it to send requests
@@ -206,6 +220,10 @@ where
 }
 
 /// A main handle to a proxy
+///
+/// This handle allows the same control as an `Attached` handle,
+/// but additionnaly can be used to assign the proxy to a `Filter`,
+/// in order to process its events.
 #[derive(Clone, PartialEq)]
 pub struct Main<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> {
     inner: Attached<I>,
@@ -228,6 +246,17 @@ where
         }
     }
 
+    /// Assign this object to given filter
+    ///
+    /// All future event received by this object will be delivered to this
+    /// filter.
+    ///
+    /// An object that is not assigned to any filter will see its events
+    /// delivered to the fallback callback of its event queue.
+    ///
+    /// Event message type of the filter should verify
+    /// `E: From<(Main<I>, I::Event)>`. See the `event_enum!` macro provided
+    /// in this library to easily generate appropriate types.
     pub fn assign<E>(&self, filter: Filter<E>)
     where
         I: Sync,
@@ -237,6 +266,12 @@ where
         self.inner.inner.as_ref().inner.assign(filter);
     }
 
+    /// Shorthand for assigning a closure to an object
+    ///
+    /// Behaves similarly as `assign(..)`, but is a shorthand if
+    /// you want to assign this object to its own filter. In which
+    /// case you just need to provide the appropriate closure, of
+    /// type `FnMut(Main<I>, I::Event)`.
     pub fn assign_mono<F>(&self, mut f: F)
     where
         I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
@@ -244,6 +279,26 @@ where
         I::Event: MessageGroup<Map = crate::ProxyMap>,
     {
         self.assign(Filter::new(move |(proxy, event), _| f(proxy, event)))
+    }
+}
+
+impl Main<AnonymousObject> {
+    /// Attempt to recover the typed variant of an anonymous proxy
+    pub fn deanonymize<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(self) -> Result<Main<I>, Self> {
+        if self.inner.as_ref().inner.is_interface::<I>() {
+            Ok(Main {
+                inner: Attached {
+                    inner: Proxy {
+                        _i: std::marker::PhantomData,
+                        inner: self.inner.inner.0.inner,
+                    }
+                    .into(),
+                    _s: std::marker::PhantomData,
+                },
+            })
+        } else {
+            Err(self)
+        }
     }
 }
 

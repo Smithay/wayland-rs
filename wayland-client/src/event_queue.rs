@@ -14,14 +14,14 @@ use crate::{AnonymousObject, Main, RawEvent};
 /// they were created. However the `Display` object is `Send + Sync`, allowing
 /// you to create the queues directly in the threads that host them.
 ///
-/// When a queue is dispatched (via the `dispatch()` or `dispatch_pending()` methods)
+/// When a queue is dispatched (via the `dispatch(..)` or `dispatch_pending(..)` methods)
 /// all the incoming messages from the server designated to objects associated with
 /// the queue are processed sequentially, and the appropriate implementation for each
 /// is invoked. When all messages have been processed these methods return.
 ///
 /// There are two main ways to driving an event queue forward. The first way is the
 /// simplest and generally sufficient for single-threaded apps that only process events
-/// from wayland. It consists of using the `EventQueue::dispatch()` method, which will
+/// from wayland. It consists of using the `EventQueue::dispatch(..)` method, which will
 /// take care of sending pending requests to the server, block until some events are
 /// available, read them, and call the associated handlers:
 ///
@@ -29,13 +29,19 @@ use crate::{AnonymousObject, Main, RawEvent};
 /// # extern crate wayland_client;
 /// # use wayland_client::{Display};
 /// # fn main() {
-/// #     let (display, mut event_queue) = Display::connect_to_env().unwrap();
+/// #     let display = Display::connect_to_env().unwrap();
+/// #     let mut event_queue = display.create_event_queue();
 /// loop {
 ///     // The dispatch() method returns once it has received some events to dispatch
 ///     // and have emptied the wayland socket from its pending messages, so it needs
 ///     // to be called in a loop. If this method returns an error, your connection to
 ///     // the wayland server is very likely dead. See its documentation for more details.
-///     event_queue.dispatch().expect("An error occurred during event dispatching!");
+///     event_queue.dispatch(|_,_| {
+///         /* This closure will be called for every event received by an object not
+///            assigned to any Filter. If you plan to assign all your objects to Filter,
+///            the simplest thing to do is to assert this is never called. */
+///         unreachable!();
+///     }).expect("An error occurred during event dispatching!");
 /// }
 /// # }
 /// ```
@@ -49,7 +55,8 @@ use crate::{AnonymousObject, Main, RawEvent};
 /// # extern crate wayland_client;
 /// # use wayland_client::Display;
 /// # fn main() {
-/// # let (display, mut event_queue) = Display::connect_to_env().unwrap();
+/// # let display = Display::connect_to_env().unwrap();
+/// # let mut event_queue = display.create_event_queue();
 /// loop {
 ///     // The first method, called on the Display, is flush(). It writes all pending
 ///     // requests to the socket. Calling it ensures that the server will indeed
@@ -85,7 +92,7 @@ use crate::{AnonymousObject, Main, RawEvent};
 ///     // method will only affect the event queue it is being called on. This method
 ///     // cannot error unless there is a bug in the server or a previous read of events
 ///     // already errored.
-///     event_queue.dispatch_pending().expect("Failed to dispatch all messages.");
+///     event_queue.dispatch_pending(|_,_| {}).expect("Failed to dispatch all messages.");
 ///
 ///     // Note that none of these methods are blocking, as such they should not be used
 ///     // as a loop as-is if there are no other sources of events your program is waiting on.
