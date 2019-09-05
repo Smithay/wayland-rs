@@ -10,10 +10,12 @@ use wayland_commons::{MessageGroup, ThreadGuard};
 
 use super::{ClientInner, Dispatcher};
 
+pub(crate) type ResourceDestructor = RefCell<dyn FnMut(ResourceInner)>;
+
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {
     pub(crate) dispatcher: Arc<ThreadGuard<RefCell<dyn Dispatcher>>>,
-    pub(crate) destructor: Option<Arc<ThreadGuard<RefCell<dyn FnMut(ResourceInner)>>>>,
+    pub(crate) destructor: Option<Arc<ThreadGuard<ResourceDestructor>>>,
     pub(crate) alive: Arc<AtomicBool>,
     user_data: Arc<UserData>,
 }

@@ -6,7 +6,7 @@ use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "use_system_lib")]
 use wayland_sys::server::wl_display;
 
 use crate::imp::DisplayInner;
@@ -183,7 +183,7 @@ impl Display {
     }
 }
 
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "use_system_lib")]
 impl Display {
     /// Retrieve a pointer from the C lib to this `wl_display`
     pub fn c_ptr(&self) -> *mut wl_display {

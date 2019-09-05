@@ -21,7 +21,7 @@ impl ResourceInternal {
     fn new(user_data: UserData) -> ResourceInternal {
         ResourceInternal {
             alive: AtomicBool::new(true),
-            user_data: user_data,
+            user_data,
         }
     }
 }
