@@ -117,7 +117,7 @@ impl ResourceInner {
         self.client.post_error(self.id, error_code, msg)
     }
 
-    pub(crate) fn user_data(&self) -> &Arc<UserData> {
+    pub(crate) fn user_data(&self) -> &UserData {
         &self.object.meta.user_data
     }
 

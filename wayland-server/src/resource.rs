@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use wayland_commons::user_data::UserData;
 use wayland_commons::{Interface, MessageGroup};
 
@@ -119,7 +117,7 @@ impl<I: Interface> Resource<I> {
     /// object.
     ///
     /// See UserData documentation for more details.
-    pub fn user_data(&self) -> &Arc<UserData> {
+    pub fn user_data(&self) -> &UserData {
         self.inner.user_data()
     }
 
