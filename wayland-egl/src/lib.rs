@@ -10,7 +10,7 @@
 use std::os::raw::c_void;
 
 use wayland_client::protocol::wl_surface::WlSurface;
-use wayland_sys::{ffi_dispatch, client::wl_proxy, egl::*};
+use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 
 /// Checks if the wayland-egl lib is available and can be used
 ///

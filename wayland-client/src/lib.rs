@@ -111,19 +111,12 @@ mod event_queue;
 mod globals;
 mod proxy;
 
+pub use anonymous_object::AnonymousObject;
 pub use display::{ConnectError, Display, ProtocolError};
 pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
 pub use imp::ProxyMap;
 pub use proxy::{Attached, Main, Proxy};
-
-#[cfg(feature = "cursor")]
-pub mod cursor;
-
-#[cfg(feature = "egl")]
-pub mod egl;
-
-pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::{filter::Filter, user_data::UserData, Interface, MessageGroup, NoMessage};
 
 // rust implementation

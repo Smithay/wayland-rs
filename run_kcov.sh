@@ -34,25 +34,25 @@ function run_tests {
     done
 }
 
-cargo test --no-run --all --features ""
+cargo test --no-run --all --features "" --exclude wayland-egl --exclude wayland-cursor
 run_tests
 bash <(curl -s https://codecov.io/bash) -cF full_rust
 rm -rf target/cov/
 find target/debug -maxdepth 1 -type f -delete
 
-cargo test --no-run --all --features "client_native"
+cargo test --no-run --all --features "client_native" --exclude wayland-egl --exclude wayland-cursor
 run_tests
 bash <(curl -s https://codecov.io/bash) -cF client_native
 rm -rf target/cov/
 find target/debug -maxdepth 1 -type f -delete
 
-cargo test --no-run --all --features "server_native"
+cargo test --no-run --all --features "server_native" --exclude wayland-egl --exclude wayland-cursor
 run_tests
 bash <(curl -s https://codecov.io/bash) -cF server_native
 rm -rf target/cov/
 find target/debug -maxdepth 1 -type f -delete
 
-cargo test --no-run --all --features "client_native server_native"
+cargo test --no-run --all --features "client_native server_native" --exclude wayland-egl --exclude wayland-cursor
 run_tests
 bash <(curl -s https://codecov.io/bash) -cF both_native
 rm -rf target/cov/
