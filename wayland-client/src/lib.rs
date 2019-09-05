@@ -3,8 +3,9 @@
 //! ## Overview
 //!
 //! This crate provides the interfaces and machinery to safely create
-//! client applications for the Wayland protocol. It is a rust wrapper
-//! around the `libwayland-client.so` C library.
+//! client applications for the Wayland protocol. It can be used as a rust
+//! implementation of the protocol or as a wrapper around the system-wide
+//! `libwayland-client.so` if you enable the `use_system_lib` cargo feature.
 //!
 //! The Wayland protocol revolves around the creation of various objects
 //! and the exchange of messages associated to these objects. The initial
@@ -19,17 +20,19 @@
 //!
 //! ### Proxies
 //!
-//! The underlying representation of Wayland protocol objects in this crate is `Proxy<I>`,
-//! where `I` is the type of the considered Rust object. An object's interface (think "class"
-//! in an object-oriented context) defines which messages it can send and receive.
+//! Wayland objects are represented by proxies, which are handles to wayland objects.
+//! You can interact with them in 4 states:
 //!
-//! These proxies are used to send messages to the server (in the Wayland context,
-//! these are called "requests"). You usually don't use them directly, and instead call
-//! methods on the Rust objects themselves, which invoke the appropriate `Proxy` methods.
-//! It is also possible to directly use the `Proxy::<I>::send(..)` method, but
-//! this should only be done carefully: using it improperly can mess the protocol
-//! state and cause protocol errors, which are fatal to the connection (the server
-//! will kill you).
+//! - As the interface object directly `I`. This representation is the most immediate
+//!   one. It allows you to send requests though this object and can be send accross threads.
+//! - As a `Proxy<I>`. This representation is suitable if you want to access the proxy as
+//!   a proxy, rather than a wayland object. You can convert between `I` and `Proxy<I>` via
+//!   the `From` and `Into` traits, and get a `&Proxy<I>` from an `I` via the `AsRef` trait.
+//! - As a `Main<I>`. This represents a main handle to this proxy, and allows you greater
+//!   control of the object, but cannot be shared accros threads. This handle allows you to
+//!   assign filters to the object, and send requests that create new objects.
+//! - As an `Attached<I>`. If you use more than one event queue (see below), this allows you
+//!   to control on which event queue the children object are created.
 //!
 //! There is not a 1 to 1 mapping between Rust object instances and protocol
 //! objects. Rather, you can think of the Rust objects as `Rc`-like handles to a
@@ -41,24 +44,19 @@
 //! messages, it can happen that an object gets destroyed while one or more
 //! Rust objects still refer to it. In such case, these Rust objects will be disabled
 //! and the `alive()` method on the underlying `Proxy<I>` will start to return `false`.
-//! Trying to send messages with them will also fail.
 //!
-//! ### Implementations
+//! Sending requests on dead objects will be silently ignored. And if these requests
+//! would create new objects, these objects will be created dead.
 //!
-//! To receive and process messages from the server to you (in Wayland context they are
-//! called "events"), you need to provide an `Implementation` for each Wayland object
-//! created in the protocol session. Whenever a new protocol object is created, you will
-//! receive a `NewProxy<I>` object. Providing an implementation via its `implement()` method
-//! will turn it into a regular Rust object.
+//! ### Filters
 //!
-//! **All objects must be implemented**, even if it is an implementation doing nothing.
-//! Failure to do so (by dropping the `NewProxy<I>` for example) can cause future fatal
-//! errors if the server tries to send an event to this object.
+//! Your wayland objects can receive events from the server, which need to be processed.
+//! To do so, you can assign `Filter`s to your object. These are specially wrapped closure
+//! so that several objects can be assigned to the same `Filter`, to ease state sharing
+//! between the code handling different objects.
 //!
-//! An implementation is a struct implementing the `EventHandler` trait for the interface
-//! of the considered object. Alternatively, an `FnMut(I::Event, I)` closure can be
-//! used with the `implement_closure()` method, where `I` is the interface
-//! of the considered object.
+//! If an object is not assigned to any `Filter`, its events will instead be delivered to the
+//! fallback closure given to its event queue when dispatching it.
 //!
 //! ## Event Queues
 //!
@@ -69,14 +67,16 @@
 //! Events received from the server are stored in an internal buffer, and processed (by calling
 //! the appropriate implementations) when the associated event queue is dispatched.
 //!
-//! A default event queue is created at the same time as the initial `Display`, and by default
-//! whenever a Wayland object is created, it inherits the queue of its parent (the object that sent
-//! or receive the message that created the new object). It means that if you only plan to use the
-//! default event queue, you don't need to worry about assigning objects to their queues.
+//! When you send a request creating a new object, this new object will be assigned to an event
+//! queue depending on the parent object that created it.
 //!
-//! See the documentation of `EventQueue` for details about dispatching and integrating the event
-//! queue into the event loop of your application. See the `Proxy::make_wrapper()` method for
-//! details about assigning objects to event queues.
+//! - If the request was sent from a `Main<I>` handle, the child object will be assigned to the
+//!   same event queue as its parent.
+//! - If the request was sent from an `Attached<I>` handle, the child object will be assigned to
+//!   the event queue its parent has been attached to.
+//!
+//! At the beginning you'll need to create an event queue and assign the initial `Proxy<WlDisplay>`
+//! to it.
 //!
 //! ## Dynamic linking with `libwayland-client.so`
 //!
@@ -86,30 +86,6 @@
 //! When this is done, the library will be loaded a runtime rather than directly linked. And trying
 //! to create a `Display` on a system that does not have this library will return a `NoWaylandLib`
 //! error.
-//!
-//! ## Auxiliary libraries
-//!
-//! Two auxiliary libraries are also available behind cargo features:
-//!
-//! - the `cursor` feature will try to load `libwayland-cursor.so`, a library helping with loading
-//!   system themed cursor textures, to integrate your app in the system theme.
-//! - the `egl` feature will try to load `libwayland-egl.so`, a library allowing the creation of
-//!   OpenGL surface from Wayland surfaces.
-//!
-//! Both of them will also be loaded at runtime if the `dlopen` feature was provided. See their
-//! respective submodules for details about their use.
-//!
-//! ### Event Loop integration
-//!
-//! The `eventloop` cargo feature adds the necessary implementations to use an `EventQueue`
-//! as a `calloop` event source. If you want to use it, here are a few points to take into
-//! account:
-//!
-//! - The `EventQueue` will not call its associated callback, but rather manage all the
-//!   event dispatching internally. As a result, there is no point registering it to
-//!   `calloop` with anything other than a dummy callback.
-//! - You still need to call `Display::flush()` yourself between `calloop`s dispatches,
-//!   or in the `EventLoop::run()` callback of `calloop`.
 
 #![warn(missing_docs)]
 
@@ -146,8 +122,6 @@ pub mod cursor;
 
 #[cfg(feature = "egl")]
 pub mod egl;
-
-//pub mod sinks;
 
 pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::{filter::Filter, user_data::UserData, Interface, MessageGroup, NoMessage};
@@ -191,7 +165,7 @@ mod anonymous_object {
     /// A special Interface implementation representing an
     /// handle to an object for which the interface is not known.
     #[derive(Clone, Eq, PartialEq)]
-    pub struct AnonymousObject(Proxy<AnonymousObject>);
+    pub struct AnonymousObject(pub(crate) Proxy<AnonymousObject>);
 
     impl Interface for AnonymousObject {
         type Request = NoMessage;
@@ -260,7 +234,9 @@ pub struct RawEvent {
 /// This macro allows you to easily create a enum type for use with your message Filters. It is
 /// used like so:
 ///
-/// ```ignore
+/// ```no_run
+/// # use wayland_client::protocol::{wl_pointer::WlPointer, wl_keyboard::WlKeyboard, wl_surface::WlSurface};
+/// # use wayland_client::event_enum;
 /// event_enum!(
 ///     MyEnum |
 ///     Pointer => WlPointer,
@@ -284,7 +260,11 @@ pub struct RawEvent {
 ///
 /// If you want to add custom messages to the enum, the macro also supports it:
 ///
-/// ```ignore
+/// ```no_run
+/// # use wayland_client::protocol::{wl_pointer::WlPointer, wl_keyboard::WlKeyboard, wl_surface::WlSurface};
+/// # use wayland_client::event_enum;
+/// # struct SomeType;
+/// # struct OtherType;
 /// event_enum!(
 ///     MyEnum |
 ///     Pointer => WlPointer,
@@ -309,7 +289,6 @@ pub struct RawEvent {
 ///
 /// as well as implementations of `From<SomeType>` and `From<OtherType>`, so that these types can
 /// directly be provided into a `Filter<MyEnum>`.
-
 #[macro_export]
 macro_rules! event_enum(
     ($enu:ident | $($evt_name:ident => $iface:ty),*) => {
@@ -321,7 +300,7 @@ macro_rules! event_enum(
                 $evt_name { event: <$iface as $crate::Interface>::Event, object: $crate::Main<$iface> },
             )*
             $(
-                $name($value)
+                $name($value),
             )*
         }
 

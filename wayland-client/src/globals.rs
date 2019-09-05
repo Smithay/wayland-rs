@@ -271,15 +271,16 @@ where
 /// ```no_run
 /// # #[macro_use] extern crate wayland_client;
 /// use wayland_client::GlobalManager;
-/// # use wayland_client::{Display, NewProxy};
+/// # use wayland_client::{Display, Main};
 /// use wayland_client::protocol::{wl_output, wl_seat};
 ///
 /// # fn main() {
-/// # let (display, mut event_queue) = Display::connect_to_env().unwrap();
-/// # let seat_implementor: fn(NewProxy<_>) -> _ = unimplemented!();
-/// # let output_implementor: fn(NewProxy<_>) -> _ = unimplemented!();
+/// # let display = Display::connect_to_env().unwrap();
+/// # let mut event_queue = display.create_event_queue();
+/// # let seat_implementor: fn(Main<_>) = unimplemented!();
+/// # let output_implementor: fn(Main<_>) = unimplemented!();
 /// let globals = GlobalManager::new_with_cb(
-///     &display,
+///     &display.attach(event_queue.get_token()),
 ///     global_filter!(
 ///         // Bind all wl_seat with version 4
 ///         [wl_seat::WlSeat, 4, seat_implementor],
