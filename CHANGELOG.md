@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- [client/server] The implementations system is replaced by a more versatile `Filter` API, which allows
+  registering more than one wayland object to the same callback
+- [client/server] Introduction of the `Main<I>` (and `Attached<I>` client-side) types, for type-system-level
+  control of which operation on objects can or can not be done in a threadsafe maneer
+- [client/server] Replace the user data system with an `UserData` type, which is a type-generic container that
+  can only be set once, and can store non-threadsafe data by preventing access to it from the wrong thread
+- [client] Creating a `Display` no longer automatically create an `EventQueue` with it, you'll need to create
+  it manually and assign the `WlDisplay` object to it to create your registry
+- [client/server] the `native_lib` feature is renamed to `use_system_lib` to be more explicit
+- [client] the `cursor` and `egl` features are split into their own crates: `wayland-egl` and `wayland-cursor`
+- [server] All dependencies on `calloop` are now removed, `wayland-server` now only exposes a `dispatch(..)`
+  and `get_poll_fd()` method, that you are responsible for integrating into your event loop.
+
 ## 0.23.6 -- 2019-09-06
 
 - [client/server] Make `NewProxy/NewResource::implement_dummy()` threadsafe.
