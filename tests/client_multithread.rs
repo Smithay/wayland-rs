@@ -19,15 +19,12 @@ fn display_to_new_thread() {
     let server_kill_switch = kill_switch.clone();
 
     let server_thread = thread::spawn(move || {
-        let mut event_loop = ways::calloop::EventLoop::<()>::new().unwrap();
-        let mut display = ways::Display::new(event_loop.handle());
+        let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
         display.create_global::<ServerSeat, _>(5, |_, _| {});
 
         loop {
-            event_loop
-                .dispatch(Some(Duration::from_millis(10)), &mut ())
-                .unwrap();
+            display.dispatch(Duration::from_millis(10)).unwrap();
             display.flush_clients();
             if *(server_kill_switch.lock().unwrap()) {
                 break;

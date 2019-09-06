@@ -2,18 +2,16 @@ use std::cell::RefCell;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::io;
-use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::rc::Rc;
-
-use calloop::{LoopHandle, Source};
 
 use crate::display::get_runtime_dir;
 use crate::{Interface, Main, Resource};
 
 use super::clients::ClientManager;
-use super::event_loop_glue::{WSLoopHandle, WaylandListener};
+use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
 use super::{ClientInner, GlobalInner};
 
@@ -23,23 +21,24 @@ pub(crate) const DISPLAY_ERROR_INVALID_METHOD: u32 = 1;
 pub(crate) const DISPLAY_ERROR_NO_MEMORY: u32 = 2;
 
 pub(crate) struct DisplayInner {
-    loophandle: Box<dyn WSLoopHandle>,
+    epoll_mgr: Rc<FdManager>,
     pub(crate) clients_mgr: Rc<RefCell<ClientManager>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
-    listeners: Vec<Source<WaylandListener>>,
+    listeners: Vec<Token>,
 }
 
 impl DisplayInner {
-    pub(crate) fn new<Data: 'static>(handle: LoopHandle<Data>) -> Rc<RefCell<DisplayInner>> {
+    pub(crate) fn new() -> Rc<RefCell<DisplayInner>> {
         let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
+        let epoll_mgr = Rc::new(FdManager::new().unwrap());
 
         let clients_mgr = Rc::new(RefCell::new(ClientManager::new(
-            Box::new(handle.clone()),
+            epoll_mgr.clone(),
             global_mgr.clone(),
         )));
 
         Rc::new(RefCell::new(DisplayInner {
-            loophandle: Box::new(handle.clone()),
+            epoll_mgr,
             clients_mgr,
             global_mgr,
             listeners: Vec::new(),
@@ -68,17 +67,34 @@ impl DisplayInner {
 
     fn add_unix_listener(&mut self, listener: UnixListener) -> io::Result<()> {
         listener.set_nonblocking(true)?;
+        // The WaylandListener will automatically remove the filesystem socket
+        // on drop, if any.
+        let listener = WaylandListener(listener);
 
         let client_mgr = self.clients_mgr.clone();
 
-        let source = self.loophandle.add_listener(
-            WaylandListener::new(listener),
-            Box::new(move |stream| unsafe {
-                client_mgr.borrow_mut().init_client(stream.into_raw_fd());
-            }),
-        )?;
+        let token = self
+            .epoll_mgr
+            .register(listener.0.as_raw_fd(), move || {
+                loop {
+                    match listener.0.accept() {
+                        Ok((stream, _)) => unsafe {
+                            client_mgr.borrow_mut().init_client(stream.into_raw_fd());
+                        },
+                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            // we have exhausted all the pending connections
+                            break;
+                        }
+                        Err(e) => {
+                            // this is a legitimate error
+                            listener.eprint_error(e);
+                        }
+                    }
+                }
+            })
+            .map_err(|e| std::io::Error::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))?;
 
-        self.listeners.push(source);
+        self.listeners.push(token);
         Ok(())
     }
 
@@ -125,16 +141,57 @@ impl DisplayInner {
         self.add_unix_listener(FromRawFd::from_raw_fd(fd))
     }
 
-    pub unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
+    pub(crate) unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
         self.clients_mgr.borrow_mut().init_client(fd)
+    }
+
+    pub(crate) fn dispatch(&mut self, timeout: i32) -> std::io::Result<()> {
+        self.epoll_mgr
+            .poll(timeout)
+            .map_err(|e| From::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))
+    }
+
+    pub(crate) fn get_poll_fd(&self) -> RawFd {
+        self.epoll_mgr.get_poll_fd()
     }
 }
 
 impl Drop for DisplayInner {
     fn drop(&mut self) {
         for l in self.listeners.drain(..) {
-            l.remove();
+            self.epoll_mgr.deregister(l);
         }
         self.clients_mgr.borrow_mut().kill_all();
+    }
+}
+
+struct WaylandListener(UnixListener);
+
+impl WaylandListener {
+    fn eprint_error(&self, error: io::Error) {
+        if let Ok(addr) = self.0.local_addr() {
+            if let Some(path) = addr.as_pathname() {
+                eprintln!(
+                    "[wayland-server] Error accepting connection on listening socket {} : {}",
+                    path.display(),
+                    error
+                );
+                return;
+            }
+        }
+        eprintln!(
+            "[wayland-server] Error accepting connection on listening socket <unnamed> : {}",
+            error
+        );
+    }
+}
+
+impl Drop for WaylandListener {
+    fn drop(&mut self) {
+        if let Ok(socketaddr) = self.0.local_addr() {
+            if let Some(path) = socketaddr.as_pathname() {
+                let _ = ::std::fs::remove_file(path);
+            }
+        }
     }
 }

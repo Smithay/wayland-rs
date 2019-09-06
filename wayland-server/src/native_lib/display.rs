@@ -9,9 +9,6 @@ use std::rc::Rc;
 
 use wayland_sys::server::*;
 
-use calloop::generic::Generic;
-use calloop::{LoopHandle, Source};
-
 use crate::Fd;
 
 use super::globals::GlobalData;
@@ -22,14 +19,12 @@ use crate::{Interface, Main, Resource};
 
 pub(crate) struct DisplayInner {
     pub(crate) ptr: *mut wl_display,
-    source: Option<Source<Generic<Fd>>>,
     rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
 }
 
 impl Drop for DisplayInner {
     fn drop(&mut self) {
         {
-            self.source.take().map(Source::remove);
             let _c_safety_guard = super::C_SAFETY.lock();
             unsafe {
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy_clients, self.ptr);
@@ -40,7 +35,7 @@ impl Drop for DisplayInner {
 }
 
 impl DisplayInner {
-    pub(crate) fn new<Data: 'static>(handle: LoopHandle<Data>) -> Rc<RefCell<DisplayInner>> {
+    pub(crate) fn new() -> Rc<RefCell<DisplayInner>> {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,);
@@ -62,27 +57,7 @@ impl DisplayInner {
                 &*rust_globals as *const RefCell<Vec<*mut wl_global>> as *mut _
             );
 
-            let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, ptr);
-            let evl_fd = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_get_fd, evl_ptr);
-
-            let mut evtsrc = Generic::new(Fd(evl_fd));
-            evtsrc.set_interest(::mio::Ready::readable());
-            evtsrc.set_pollopts(::mio::PollOpt::edge());
-
-            let source = Some(
-                handle
-                    .insert_source(evtsrc, move |_, _| {
-                        ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0);
-                    })
-                    .map_err(Into::<::std::io::Error>::into)
-                    .unwrap(),
-            );
-
-            Rc::new(RefCell::new(DisplayInner {
-                ptr,
-                source,
-                rust_globals,
-            }))
+            Rc::new(RefCell::new(DisplayInner { ptr, rust_globals }))
         }
     }
 
@@ -123,6 +98,27 @@ impl DisplayInner {
     pub(crate) fn flush_clients(&mut self) {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
+    }
+
+    pub(crate) fn dispatch(&mut self, timeout: i32) -> IoResult<()> {
+        let _c_safety_guard = super::C_SAFETY.lock();
+        let ret = unsafe {
+            let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, timeout)
+        };
+
+        if ret < 0 {
+            Err(IoError::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn get_poll_fd(&self) -> RawFd {
+        unsafe {
+            let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_get_fd, evl_ptr)
+        }
     }
 
     pub(crate) fn add_socket<S>(&mut self, name: Option<S>) -> IoResult<()>

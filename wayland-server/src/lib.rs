@@ -75,13 +75,9 @@
 
 #[macro_use]
 extern crate bitflags;
-pub extern crate calloop;
 #[cfg(not(feature = "use_system_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
-extern crate libc;
-extern crate mio;
-extern crate nix;
 
 extern crate wayland_commons;
 #[cfg_attr(feature = "use_system_lib", macro_use)]
@@ -171,38 +167,6 @@ mod anonymous_object {
         fn from(value: AnonymousObject) -> Self {
             value.0
         }
-    }
-}
-
-/*
- * A raw Fd Evented struct
- */
-
-pub(crate) struct Fd(pub ::std::os::unix::io::RawFd);
-
-impl ::mio::Evented for Fd {
-    fn register(
-        &self,
-        poll: &::mio::Poll,
-        token: ::mio::Token,
-        interest: ::mio::Ready,
-        opts: ::mio::PollOpt,
-    ) -> ::std::io::Result<()> {
-        ::mio::unix::EventedFd(&self.0).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &::mio::Poll,
-        token: ::mio::Token,
-        interest: ::mio::Ready,
-        opts: ::mio::PollOpt,
-    ) -> ::std::io::Result<()> {
-        ::mio::unix::EventedFd(&self.0).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &::mio::Poll) -> ::std::io::Result<()> {
-        ::mio::unix::EventedFd(&self.0).deregister(poll)
     }
 }
 

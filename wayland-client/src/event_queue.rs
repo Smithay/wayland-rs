@@ -97,9 +97,8 @@ use crate::{AnonymousObject, Main, RawEvent};
 ///     // Note that none of these methods are blocking, as such they should not be used
 ///     // as a loop as-is if there are no other sources of events your program is waiting on.
 ///
-///     // The wayland socket can also be integrated in a poll-like mechanism, using
-///     // either the integration with calloop provided by the "eventloop" cargo feature,
-///     // or the get_connection_fd() method.
+///     // The wayland socket can also be integrated in a poll-like mechanism by using
+///     // the file descriptor provided by the `get_connection_fd()` method.
 /// }
 /// # }
 /// ```

@@ -8,22 +8,17 @@ use std::thread::{self, ThreadId};
 
 use nix::Result as NixResult;
 
-use calloop::generic::Generic;
-use calloop::Source;
-
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 use wayland_commons::ThreadGuard;
 
-use crate::{Fd, Interface, UserDataMap};
+use crate::{Interface, UserDataMap};
 
-use super::event_loop_glue::WSLoopHandle;
+use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
 use super::resources::{ObjectMeta, ResourceDestructor, ResourceInner};
 use super::Dispatched;
-
-type ClientSource = Source<Generic<Fd>>;
 
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
@@ -330,19 +325,16 @@ impl ClientInner {
 }
 
 pub(crate) struct ClientManager {
-    loophandle: Box<dyn WSLoopHandle>,
-    clients: Vec<(RefCell<Option<ClientSource>>, ClientInner)>,
+    epoll_mgr: Rc<FdManager>,
+    clients: Vec<(RefCell<Option<Token>>, ClientInner)>,
     zombie_clients: Arc<Mutex<Vec<ClientConnection>>>,
     global_mgr: Rc<RefCell<GlobalManager>>,
 }
 
 impl ClientManager {
-    pub(crate) fn new(
-        loophandle: Box<dyn WSLoopHandle>,
-        global_mgr: Rc<RefCell<GlobalManager>>,
-    ) -> ClientManager {
+    pub(crate) fn new(epoll_mgr: Rc<FdManager>, global_mgr: Rc<RefCell<GlobalManager>>) -> ClientManager {
         ClientManager {
-            loophandle,
+            epoll_mgr,
             clients: Vec::new(),
             zombie_clients: Arc::new(Mutex::new(Vec::new())),
             global_mgr,
@@ -386,13 +378,9 @@ impl ClientManager {
             return client;
         }
 
-        let mut evtsrc = Generic::new(Fd(fd));
-        evtsrc.set_interest(::mio::Ready::readable());
-        evtsrc.set_pollopts(::mio::PollOpt::edge());
-
         let source = match self
-            .loophandle
-            .add_socket(evtsrc, Box::new(move |_| implementation.process_messages()))
+            .epoll_mgr
+            .register(fd, move || implementation.process_messages())
         {
             Ok(source) => Some(source),
             Err(e) => {
@@ -414,14 +402,15 @@ impl ClientManager {
 
     pub(crate) fn flush_all(&mut self) {
         // flush all clients and cleanup dead ones
+        let epoll_mgr = self.epoll_mgr.clone();
         self.clients.retain(|&(ref s, ref c)| {
             if let Some(ref mut data) = *c.data.lock().unwrap() {
                 data.call_destructors();
                 data.flush().is_ok()
             } else {
                 // This is a dead client, clean it up
-                if let Some(source) = s.borrow_mut().take() {
-                    source.remove();
+                if let Some(token) = s.borrow_mut().take() {
+                    epoll_mgr.deregister(token);
                 }
                 false
             }
