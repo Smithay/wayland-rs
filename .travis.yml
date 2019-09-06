@@ -50,10 +50,11 @@ matrix:
       env: BUILD_DOC=1
     - rust: stable
       env: CLIPPY=1
-    - rust: stable
-      env: TARGET=x86_64-unknown-freebsd
-      sudo: true
-      services: docker
+# FreeBSD is out of order for now :(
+#    - rust: stable
+#      env: TARGET=x86_64-unknown-freebsd
+#      sudo: true
+#      services: docker
 
 branches:
   only:
