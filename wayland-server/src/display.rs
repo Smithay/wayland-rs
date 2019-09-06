@@ -13,8 +13,6 @@ use crate::imp::DisplayInner;
 
 use crate::{Client, Global, Interface, Main, Resource};
 
-use calloop::LoopHandle;
-
 /// The wayland display
 ///
 /// This is the core of your wayland server, this object must
@@ -32,9 +30,10 @@ impl Display {
     ///
     /// Note that at this point, your server is not yet ready to receive connections,
     /// your need to add listening sockets using the `add_socket*` methods.
-    pub fn new<Data: 'static>(handle: LoopHandle<Data>) -> Display {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Display {
         Display {
-            inner: DisplayInner::new(handle),
+            inner: DisplayInner::new(),
         }
     }
 
@@ -108,8 +107,43 @@ impl Display {
     ///
     /// Will send as many pending events as possible to the respective sockets of the clients.
     /// Will not block, but might not send everything if the socket buffer fills up.
-    pub fn flush_clients(&self) {
+    pub fn flush_clients(&mut self) {
         self.inner.borrow_mut().flush_clients()
+    }
+
+    /// Dispatches all pending messages to their respective filters
+    ///
+    /// This method will block waiting for messages until one of these occur:
+    ///
+    /// - Some messages are received, in which case all pending messages are processed
+    /// - The timeout is reached
+    /// - An error occurs
+    ///
+    /// If `timeout` is a duration of 0, this function will only process pending messages and then
+    /// return, not blocking.
+    ///
+    /// In general for good performance you will want to integrate the `Display` into your own event loop,
+    /// monitoring the file descriptor retrieved by the `get_poll_fd()` method, and only calling this method
+    /// when messages are available, with a timeout of `0`.
+    pub fn dispatch(&mut self, timeout: std::time::Duration) -> IoResult<()> {
+        let ms = timeout.as_millis();
+        let clamped_timeout = if ms > std::i32::MAX as u128 {
+            std::i32::MAX
+        } else {
+            ms as i32
+        };
+        self.inner.borrow_mut().dispatch(clamped_timeout)
+    }
+
+    /// Retrieve the underlying file descriptor
+    ///
+    /// This file descriptor can be monitored for activity with a poll/epoll like mechanism.
+    /// When it becomes readable, this means that there are pending messages that would be dispatched if
+    /// you call `dispatch` with a timeout of 0.
+    ///
+    /// You should not use this file descriptor for any other purpose than monitoring it.
+    pub fn get_poll_fd(&self) -> RawFd {
+        self.inner.borrow().get_poll_fd()
     }
 }
 

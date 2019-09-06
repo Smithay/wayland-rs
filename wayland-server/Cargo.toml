@@ -21,8 +21,6 @@ bitflags = "1.0"
 downcast-rs = "1.0"
 libc = "0.2"
 nix = "0.15"
-mio = "0.6"
-calloop = ">=0.3.1, <0.5"
 lazy_static = { version = "1.0", optional = true}
 parking_lot = "0.9"
 
