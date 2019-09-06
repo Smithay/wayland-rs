@@ -1,5 +1,3 @@
-extern crate calloop;
-
 mod helpers;
 
 use helpers::{wayc, ways, TestClient};
