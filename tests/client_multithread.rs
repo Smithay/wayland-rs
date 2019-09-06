@@ -55,7 +55,7 @@ fn display_to_new_thread() {
 }
 
 #[test]
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "client_native")]
 fn display_from_external_on_new_thread() {
     let socket_name = "wayland-client-display-to-new-thread-external";
 
@@ -63,15 +63,12 @@ fn display_from_external_on_new_thread() {
     let server_kill_switch = kill_switch.clone();
 
     let server_thread = thread::spawn(move || {
-        let mut event_loop = ways::calloop::EventLoop::<()>::new().unwrap();
-        let mut display = ways::Display::new(event_loop.handle());
+        let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
         display.create_global::<ServerSeat, _>(5, |_, _| {});
 
         loop {
-            event_loop
-                .dispatch(Some(Duration::from_millis(10)), &mut ())
-                .unwrap();
+            display.dispatch(Duration::from_millis(10)).unwrap();
             display.flush_clients();
             if *(server_kill_switch.lock().unwrap()) {
                 break;
@@ -87,13 +84,15 @@ fn display_from_external_on_new_thread() {
     let display_ptr = unsafe { client.display.get_display_ptr().as_mut() }.unwrap();
 
     thread::spawn(move || {
-        let (wrapper, mut evq) = unsafe { wayc::Display::from_external_display(display_ptr) };
-        let manager = wayc::GlobalManager::new(&wrapper);
-        evq.sync_roundtrip().unwrap();
-        // can provide a non-send impl
+        let display = unsafe { wayc::Display::from_external_display(display_ptr) };
+        let mut evq = display.create_event_queue();
+        let attached = (*display).clone().attach(evq.get_token());
+        let manager = wayc::GlobalManager::new(&attached);
+        evq.sync_roundtrip(|_, _| {}).unwrap();
         manager
-            .instantiate_exact::<wl_seat::WlSeat, _>(5, |newp| newp.implement_closure(|_, _| {}, ()))
-            .unwrap();
+            .instantiate_exact::<wl_seat::WlSeat>(5)
+            .unwrap()
+            .assign_mono(|_, _| {});
     })
     .join()
     .unwrap();

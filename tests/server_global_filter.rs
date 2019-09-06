@@ -1,4 +1,4 @@
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "server_native")]
 #[macro_use]
 extern crate wayland_sys;
 
@@ -112,7 +112,7 @@ fn global_filter_try_force() {
     assert!(roundtrip(&mut client, &mut server).is_err());
 }
 
-#[cfg(feature = "native_lib")]
+#[cfg(feature = "server_native")]
 #[test]
 fn external_globals() {
     use std::os::raw::c_void;
@@ -144,7 +144,7 @@ fn external_globals() {
 
     // normal client only sees the two globals
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
