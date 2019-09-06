@@ -51,7 +51,7 @@ matrix:
       env: BUILD_DOC=1
     - rust: stable
       env: CLIPPY=1
-# FreeBSD is out of order for now :(
+# The freebsd image no longer works: https://github.com/rust-embedded/cross/issues/306
 #    - rust: stable
 #      env: TARGET=x86_64-unknown-freebsd
 #      sudo: true
