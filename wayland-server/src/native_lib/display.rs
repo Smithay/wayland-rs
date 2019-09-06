@@ -9,8 +9,6 @@ use std::rc::Rc;
 
 use wayland_sys::server::*;
 
-use crate::Fd;
-
 use super::globals::GlobalData;
 use super::{ClientInner, GlobalInner};
 

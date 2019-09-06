@@ -19,7 +19,7 @@ dist: trusty
 sudo: false
 
 rust:
-  - 1.32.0
+  - 1.33.0
   - stable
   - beta
 
