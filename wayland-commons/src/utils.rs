@@ -319,7 +319,6 @@ mod list {
             }
         }
     }
-
 }
 
 #[cfg(test)]

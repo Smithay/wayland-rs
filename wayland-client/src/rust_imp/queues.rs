@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use nix::poll::{poll, PollFlags, PollFd};
+use nix::poll::{poll, PollFd, PollFlags};
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::utils::UserData;

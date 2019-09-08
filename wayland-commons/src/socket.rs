@@ -59,11 +59,9 @@ impl Socket {
         let msg = socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
 
         let mut fd_count = 0;
-        let received_fds = msg.cmsgs().flat_map(|cmsg| {
-            match cmsg {
-                socket::ControlMessageOwned::ScmRights(s) => s,
-                _ => Vec::new(),
-            }
+        let received_fds = msg.cmsgs().flat_map(|cmsg| match cmsg {
+            socket::ControlMessageOwned::ScmRights(s) => s,
+            _ => Vec::new(),
         });
         for (fd, place) in received_fds.zip(fds.iter_mut()) {
             fd_count += 1;
