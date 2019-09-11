@@ -22,7 +22,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_client::protocol::{$($import),*};
                 pub(crate) use wayland_client::sys;
                 $(
-                    pub(crate) use ::$prot_name::client::$prot_import;
+                    pub(crate) use crate::$prot_name::client::$prot_import;
                 )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_client_api.rs"));
             }
@@ -37,7 +37,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_server::protocol::{$($import),*};
                 pub(crate) use wayland_server::sys;
                 $(
-                    pub(crate) use ::$prot_name::server::$prot_import;
+                    pub(crate) use crate::$prot_name::server::$prot_import;
                 )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_server_api.rs"));
             }

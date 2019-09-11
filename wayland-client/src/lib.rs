@@ -94,15 +94,7 @@ extern crate bitflags;
 #[cfg(not(feature = "use_system_lib"))]
 #[macro_use]
 extern crate downcast_rs as downcast;
-extern crate libc;
-extern crate nix;
 
-#[cfg(feature = "eventloop")]
-extern crate calloop;
-#[cfg(feature = "eventloop")]
-extern crate mio;
-
-extern crate wayland_commons;
 #[cfg_attr(feature = "use_system_lib", macro_use)]
 extern crate wayland_sys;
 

@@ -7,6 +7,7 @@ authors = ["Victor Berger <victor.berger@m4x.org>"]
 description = "FFI bindings to the various libwayland-*.so libraries. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"
 categories = ["external-ffi-bindings"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "Smithay/wayland-rs" }

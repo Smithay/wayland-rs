@@ -1,4 +1,4 @@
-use protocol::*;
+use crate::protocol::*;
 use std::io::Read;
 use xml::attribute::OwnedAttribute;
 use xml::reader::ParserConfig;

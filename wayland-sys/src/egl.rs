@@ -4,7 +4,7 @@
 //!
 //! The created handle is named `WAYLAND_EGl_HANDLE`.
 
-use client::wl_proxy;
+use crate::client::wl_proxy;
 use std::os::raw::c_int;
 
 pub enum wl_egl_window {}
@@ -18,7 +18,7 @@ external_library!(WaylandEgl, "wayland-egl",
 );
 
 #[cfg(feature = "dlopen")]
-lazy_static!(
+lazy_static::lazy_static!(
     pub static ref WAYLAND_EGL_OPTION: Option<WaylandEgl> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-client.so but does have it with the version numbers for

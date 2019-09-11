@@ -6,7 +6,6 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use ways::protocol::wl_data_device::WlDataDevice as ServerDD;
 use ways::protocol::wl_data_device_manager::{Request as SDDMReq, WlDataDeviceManager as ServerDDMgr};
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;

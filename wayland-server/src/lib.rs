@@ -75,11 +75,7 @@
 
 #[macro_use]
 extern crate bitflags;
-#[cfg(not(feature = "use_system_lib"))]
-#[macro_use]
-extern crate downcast_rs as downcast;
 
-extern crate wayland_commons;
 #[cfg_attr(feature = "use_system_lib", macro_use)]
 extern crate wayland_sys;
 

@@ -38,16 +38,6 @@
 #[macro_use]
 extern crate dlib;
 
-// Same as with dlib, only that it's a little harder to accidentally trigger
-// (dlopen feature enabled, client and server features disabled)
-#[allow(unused_imports)]
-#[cfg(feature = "dlopen")]
-#[macro_use]
-extern crate lazy_static;
-
-#[cfg(feature = "server")]
-extern crate libc;
-
 /// Magic static for wayland objects managed by wayland-client or wayland-server
 ///
 /// This static serves no purpose other than existing at a stable address.

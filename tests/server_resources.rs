@@ -6,7 +6,6 @@ use ways::protocol::wl_output;
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
 
-use std::os::unix::io::IntoRawFd;
 use std::sync::{Arc, Mutex};
 
 #[test]

@@ -81,11 +81,6 @@
 #![recursion_limit = "128"]
 #![warn(missing_docs)]
 
-extern crate proc_macro2;
-#[macro_use]
-extern crate quote;
-extern crate xml;
-
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -137,7 +132,7 @@ pub fn generate_code_with_destructor_events<P1: AsRef<Path>, P2: AsRef<Path>>(
     for interface in &mut protocol.interfaces {
         for event in &mut interface.events {
             if events.contains(&(&interface.name, &event.name)) {
-                event.typ = Some(::protocol::Type::Destructor);
+                event.typ = Some(crate::protocol::Type::Destructor);
             }
         }
     }
@@ -190,7 +185,7 @@ pub fn generate_code_streams_with_destructor_events<P1: Read, P2: Write>(
     for interface in &mut protocol.interfaces {
         for event in &mut interface.events {
             if events.contains(&(&interface.name, &event.name)) {
-                event.typ = Some(::protocol::Type::Destructor);
+                event.typ = Some(crate::protocol::Type::Destructor);
             }
         }
     }

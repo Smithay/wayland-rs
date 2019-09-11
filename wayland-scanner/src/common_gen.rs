@@ -5,11 +5,11 @@ use std::iter;
 use std::str;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 
-use protocol::*;
-use util::*;
-use Side;
+use crate::protocol::*;
+use crate::util::*;
+use crate::Side;
 
 pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
     let text = text.lines().map(str::trim).collect::<Vec<_>>().join("\n");
