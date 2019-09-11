@@ -15,7 +15,7 @@ pub mod wl_foo {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -134,10 +134,12 @@ pub mod wl_foo {
                 } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![
+                    args: smallvec![
                         Argument::Int(number),
                         Argument::Uint(unumber),
-                        Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(text.into()) }),
+                        Argument::Str(Box::new(unsafe {
+                            ::std::ffi::CString::from_vec_unchecked(text.into())
+                        })),
                         Argument::Fixed((float * 256.) as i32),
                         Argument::Fd(file),
                     ],
@@ -145,7 +147,7 @@ pub mod wl_foo {
                 Request::CreateBar {} => Message {
                     sender_id: sender_id,
                     opcode: 1,
-                    args: vec![Argument::NewId(0)],
+                    args: smallvec![Argument::NewId(0),],
                 },
             }
         }
@@ -369,7 +371,7 @@ pub mod wl_bar {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -475,17 +477,17 @@ pub mod wl_bar {
                 } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![
+                    args: smallvec![
                         Argument::Uint(kind.to_raw()),
                         Argument::Object(target.as_ref().id()),
-                        Argument::Array(metadata),
-                        Argument::Array(metametadata.unwrap_or_else(Vec::new)),
+                        Argument::Array(Box::new(metadata)),
+                        Argument::Array(Box::new(metametadata.unwrap_or_else(Vec::new))),
                     ],
                 },
                 Request::Release => Message {
                     sender_id: sender_id,
                     opcode: 1,
-                    args: vec![],
+                    args: smallvec![],
                 },
                 Request::_Self {
                     _self,
@@ -499,7 +501,7 @@ pub mod wl_bar {
                 } => Message {
                     sender_id: sender_id,
                     opcode: 2,
-                    args: vec![
+                    args: smallvec![
                         Argument::Uint(_self),
                         Argument::Uint(_mut),
                         Argument::Uint(object),
@@ -861,7 +863,7 @@ pub mod wl_display {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -1012,7 +1014,7 @@ pub mod wl_registry {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -1062,9 +1064,11 @@ pub mod wl_registry {
                 Request::Bind { name, id } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![
+                    args: smallvec![
                         Argument::Uint(name),
-                        Argument::Str(unsafe { ::std::ffi::CString::from_vec_unchecked(id.0.into()) }),
+                        Argument::Str(Box::new(unsafe {
+                            ::std::ffi::CString::from_vec_unchecked(id.0.into())
+                        })),
                         Argument::Uint(id.1),
                         Argument::NewId(0),
                     ],
@@ -1213,7 +1217,7 @@ pub mod wl_callback {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;

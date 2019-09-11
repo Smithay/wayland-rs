@@ -135,6 +135,7 @@ pub mod protocol {
 
     pub(crate) use crate::{AnonymousObject, Attached, Main, Proxy, ProxyMap};
     pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+    pub(crate) use wayland_commons::smallvec;
     pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
     pub(crate) use wayland_commons::{Interface, MessageGroup};
     pub(crate) use wayland_sys as sys;

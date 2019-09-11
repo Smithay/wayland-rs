@@ -3,6 +3,7 @@ use std::ffi::CString;
 use std::rc::Rc;
 
 use wayland_commons::map::Object;
+use wayland_commons::smallvec;
 use wayland_commons::wire::{Argument, Message};
 
 use crate::{Interface, Main, Resource};
@@ -214,9 +215,9 @@ fn send_global_msg(reg: &(u32, ClientInner), global_id: u32, interface: CString,
         let _ = clientconn.write_message(&Message {
             sender_id: reg.0,
             opcode: 0,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(global_id),
-                Argument::Str(interface),
+                Argument::Str(Box::new(interface)),
                 Argument::Uint(version),
             ],
         });
@@ -261,7 +262,7 @@ fn send_destroyed_global(
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,
-                    args: vec![Argument::Uint(global_id)],
+                    args: smallvec![Argument::Uint(global_id)],
                 });
             }
         }
@@ -271,7 +272,7 @@ fn send_destroyed_global(
                 let _ = clientconn.write_message(&Message {
                     sender_id: id,
                     opcode: 1,
-                    args: vec![Argument::Uint(global_id)],
+                    args: smallvec![Argument::Uint(global_id)],
                 });
             }
         }

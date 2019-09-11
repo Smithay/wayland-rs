@@ -66,6 +66,7 @@ impl ResourceMap {
 /*
  * Dispatching logic
  */
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Dispatched {
     Yes,
     NoDispatch(Message, ResourceInner),

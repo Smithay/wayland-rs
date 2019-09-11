@@ -5,6 +5,7 @@ use std::os::unix::io::{FromRawFd, IntoRawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
+use wc::smallvec;
 use wc::socket::{BufferedSocket, Socket};
 use wc::wire::{Argument, ArgumentType, Message, MessageDesc};
 
@@ -20,7 +21,7 @@ fn main() {
         .write_message(&Message {
             sender_id: 1, // wl_display
             opcode: 1,    // get registry
-            args: vec![
+            args: smallvec![
                 Argument::NewId(2), // id of the created registry
             ],
         })

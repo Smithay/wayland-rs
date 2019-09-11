@@ -11,7 +11,7 @@ use nix::Result as NixResult;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
-use wayland_commons::ThreadGuard;
+use wayland_commons::{smallvec, ThreadGuard};
 
 use crate::{Interface, UserDataMap};
 
@@ -89,7 +89,7 @@ impl ClientConnection {
             self.write_message(&Message {
                 sender_id: 1,
                 opcode: 1,
-                args: vec![Argument::Uint(id)],
+                args: smallvec![Argument::Uint(id)],
             })
         } else {
             Ok(())
@@ -271,10 +271,10 @@ impl ClientInner {
             let _ = data.write_message(&Message {
                 sender_id: 1,
                 opcode: 0,
-                args: vec![
+                args: smallvec![
                     Argument::Object(object),
                     Argument::Uint(error_code),
-                    Argument::Str(CString::new(msg).unwrap()),
+                    Argument::Str(Box::new(CString::new(msg).unwrap())),
                 ],
             });
         }

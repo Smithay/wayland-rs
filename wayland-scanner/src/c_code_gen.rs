@@ -64,7 +64,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
                 use std::os::raw::c_char;
                 use super::{
                     Proxy, AnonymousObject, Interface, MessageGroup, MessageDesc, ArgumentType,
-                    Object, Message, Argument, ObjectMetadata, types_null, NULLPTR, Main,
+                    Object, Message, Argument, ObjectMetadata, types_null, NULLPTR, Main, smallvec,
                 };
                 use super::sys::common::{wl_interface, wl_array, wl_argument, wl_message};
                 use super::sys::client::*;
@@ -148,7 +148,7 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 pub mod #mod_name {
                     use std::os::raw::c_char;
                     use super::{
-                        Resource, AnonymousObject, Interface, MessageGroup, MessageDesc, Main,
+                        Resource, AnonymousObject, Interface, MessageGroup, MessageDesc, Main, smallvec,
                         ArgumentType, Object, Message, Argument, ObjectMetadata, types_null, NULLPTR
                     };
                     use super::sys::common::{wl_argument, wl_interface, wl_array, wl_message};

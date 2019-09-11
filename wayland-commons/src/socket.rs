@@ -435,6 +435,8 @@ mod tests {
 
     use std::ffi::CString;
 
+    use smallvec::smallvec;
+
     fn same_file(a: RawFd, b: RawFd) -> bool {
         let stat1 = ::nix::sys::stat::fstat(a).unwrap();
         let stat2 = ::nix::sys::stat::fstat(b).unwrap();
@@ -463,11 +465,11 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
-                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                Argument::Str(Box::new(CString::new(&b"I like trains!"[..]).unwrap())),
+                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
                 Argument::Object(88),
                 Argument::NewId(56),
                 Argument::Int(-25),
@@ -516,7 +518,7 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Fd(1), // stdin
                 Argument::Fd(0), // stdout
             ],
@@ -557,15 +559,15 @@ mod tests {
             Message {
                 sender_id: 42,
                 opcode: 0,
-                args: vec![
+                args: smallvec![
                     Argument::Int(42),
-                    Argument::Str(CString::new(&b"I like trains"[..]).unwrap()),
+                    Argument::Str(Box::new(CString::new(&b"I like trains"[..]).unwrap())),
                 ],
             },
             Message {
                 sender_id: 42,
                 opcode: 1,
-                args: vec![
+                args: smallvec![
                     Argument::Fd(1), // stdin
                     Argument::Fd(0), // stdout
                 ],
@@ -573,7 +575,7 @@ mod tests {
             Message {
                 sender_id: 42,
                 opcode: 2,
-                args: vec![
+                args: smallvec![
                     Argument::Uint(3),
                     Argument::Fd(2), // stderr
                 ],
@@ -625,9 +627,9 @@ mod tests {
         let msg = Message {
             sender_id: 2,
             opcode: 0,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(18),
-                Argument::Str(CString::new(&b"wl_shell"[..]).unwrap()),
+                Argument::Str(Box::new(CString::new(&b"wl_shell"[..]).unwrap())),
                 Argument::Uint(1),
             ],
         };
