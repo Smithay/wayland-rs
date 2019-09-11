@@ -1,4 +1,5 @@
 use proc_macro2::TokenStream;
+use quote::quote;
 
 #[derive(Clone, Debug)]
 pub struct Protocol {

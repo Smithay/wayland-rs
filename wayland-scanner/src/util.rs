@@ -1,7 +1,3 @@
-#[allow(unused_imports)]
-#[allow(deprecated)]
-use std::ascii::AsciiExt;
-
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::ToTokens;
 
@@ -53,7 +49,7 @@ pub fn dotted_to_relname(input: &str) -> TokenStream {
         (Some(module), Some(name)) => {
             let module = Ident::new(module, Span::call_site());
             let ident = Ident::new(&snake_to_camel(name), Span::call_site());
-            quote!(super::#module::#ident)
+            quote::quote!(super::#module::#ident)
         }
         (Some(name), None) => Ident::new(&snake_to_camel(name), Span::call_site()).into_token_stream(),
         _ => unreachable!(),

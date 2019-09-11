@@ -2,9 +2,10 @@ use std::cmp;
 use std::iter::repeat;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::quote;
 
-use protocol::*;
-use util::null_terminated_byte_string_literal;
+use crate::protocol::*;
+use crate::util::null_terminated_byte_string_literal;
 
 pub(crate) fn generate_interfaces_prefix(protocol: &Protocol) -> TokenStream {
     let longest_nulls = protocol.interfaces.iter().fold(0, |max, interface| {

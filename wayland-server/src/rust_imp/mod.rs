@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::sync::{atomic::Ordering, Arc, Mutex};
 
-use downcast::Downcast;
+use downcast_rs::Downcast;
 
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
@@ -80,7 +80,7 @@ mod dispatcher_impl {
     // this mod has for sole purpose to allow to silence these `dead_code` warnings...
     #![allow(dead_code)]
     use super::Dispatcher;
-    impl_downcast!(Dispatcher);
+    downcast_rs::impl_downcast!(Dispatcher);
 }
 
 pub(crate) struct ImplDispatcher<

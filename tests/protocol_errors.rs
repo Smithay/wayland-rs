@@ -105,7 +105,7 @@ fn client_receive_error() {
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    let output = manager
+    manager
         .instantiate_exact::<wayc::protocol::wl_output::WlOutput>(3)
         .unwrap();
 

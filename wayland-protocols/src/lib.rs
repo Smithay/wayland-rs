@@ -16,14 +16,6 @@
 
 #![warn(missing_docs)]
 
-#[cfg(feature = "client")]
-extern crate wayland_client;
-
-#[cfg(feature = "server")]
-extern crate wayland_server;
-
-extern crate wayland_commons;
-
 #[macro_use]
 extern crate bitflags;
 

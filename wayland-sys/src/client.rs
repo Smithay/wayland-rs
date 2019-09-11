@@ -84,7 +84,7 @@ external_library!(WaylandClient, "wayland-client",
 );
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
-lazy_static!(
+lazy_static::lazy_static!(
     pub static ref WAYLAND_CLIENT_OPTION: Option<WaylandClient> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-client.so but does have it with the version numbers for

@@ -1,11 +1,12 @@
 use std::iter;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::quote;
 
-use common_gen::*;
-use protocol::*;
-use util::*;
-use Side;
+use crate::common_gen::*;
+use crate::protocol::*;
+use crate::util::*;
+use crate::Side;
 
 pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
     let modules = protocol.interfaces.iter().map(|iface| {

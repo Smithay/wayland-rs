@@ -2,7 +2,7 @@
 //!
 //! The created handle is named `WAYLAND_CURSOR_HANDLE`.
 
-use client::wl_proxy;
+use crate::client::wl_proxy;
 use std::os::raw::{c_char, c_int, c_uint};
 
 pub enum wl_cursor_theme {}
@@ -39,7 +39,7 @@ external_library!(WaylandCursor, "wayland-cursor",
 );
 
 #[cfg(feature = "dlopen")]
-lazy_static!(
+lazy_static::lazy_static!(
     pub static ref WAYLAND_CURSOR_OPTION: Option<WaylandCursor> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-client.so but does have it with the version numbers for

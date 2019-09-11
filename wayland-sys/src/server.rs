@@ -143,7 +143,7 @@ external_library!(WaylandServer, "wayland-server",
 );
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
-lazy_static!(
+lazy_static::lazy_static!(
     pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-server.so but does have it with the version numbers for
@@ -190,7 +190,7 @@ pub mod signal {
     use super::{wl_listener, wl_notify_func_t, wl_signal};
     #[cfg(feature = "dlopen")]
     use super::WAYLAND_SERVER_HANDLE as WSH;
-    use common::wl_list;
+    use crate::common::wl_list;
     use std::os::raw::c_void;
     use std::ptr;
 

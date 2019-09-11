@@ -1,6 +1,6 @@
 mod helpers;
 
-use helpers::{wayc, ways, TestClient};
+use helpers::{ways, TestClient};
 
 use std::cell::Cell;
 use std::ffi::OsStr;
