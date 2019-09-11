@@ -15,7 +15,7 @@ pub mod wl_foo {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -264,7 +264,7 @@ pub mod wl_foo {
                 Event::Cake { kind, amount } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![Argument::Uint(kind.to_raw()), Argument::Uint(amount)],
+                    args: smallvec![Argument::Uint(kind.to_raw()), Argument::Uint(amount),],
                 },
             }
         }
@@ -371,7 +371,7 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -484,7 +484,7 @@ pub mod wl_bar {
                         },
                         metadata: {
                             if let Some(Argument::Array(val)) = args.next() {
-                                val
+                                *val
                             } else {
                                 return Err(());
                             }
@@ -494,7 +494,7 @@ pub mod wl_bar {
                                 if val.len() == 0 {
                                     None
                                 } else {
-                                    Some(val)
+                                    Some(*val)
                                 }
                             } else {
                                 return Err(());
@@ -692,7 +692,7 @@ pub mod wl_bar {
                 } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![
+                    args: smallvec![
                         Argument::Uint(_self),
                         Argument::Uint(_mut),
                         Argument::Uint(object),
@@ -850,7 +850,7 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
         MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
@@ -951,7 +951,7 @@ pub mod wl_callback {
                 Event::Done { callback_data } => Message {
                     sender_id: sender_id,
                     opcode: 0,
-                    args: vec![Argument::Uint(callback_data)],
+                    args: smallvec![Argument::Uint(callback_data),],
                 },
             }
         }

@@ -19,6 +19,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
+                pub(crate) use wayland_commons::smallvec;
                 pub(crate) use wayland_client::protocol::{$($import),*};
                 pub(crate) use wayland_client::sys;
                 $(
@@ -34,6 +35,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
                 pub(crate) use wayland_commons::{Interface, MessageGroup};
                 pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
+                pub(crate) use wayland_commons::smallvec;
                 pub(crate) use wayland_server::protocol::{$($import),*};
                 pub(crate) use wayland_server::sys;
                 $(

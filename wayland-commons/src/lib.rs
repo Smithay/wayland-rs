@@ -27,6 +27,8 @@ pub mod socket;
 pub mod user_data;
 pub mod wire;
 
+pub use smallvec::smallvec;
+
 /// A group of messages
 ///
 /// This represents a group of message that can be serialized on the protocol wire.

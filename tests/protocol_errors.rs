@@ -5,6 +5,7 @@ use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 extern crate nix;
 extern crate wayland_commons as wc;
 
+use wc::smallvec;
 use wc::socket::{BufferedSocket, Socket};
 use wc::wire::{Argument, Message};
 
@@ -28,7 +29,7 @@ fn client_wrong_id() {
         .write_message(&Message {
             sender_id: 1, // wl_display
             opcode: 1,    // wl_registry
-            args: vec![
+            args: smallvec![
                 Argument::NewId(3), // should be 2
             ],
         })
@@ -54,7 +55,7 @@ fn client_wrong_opcode() {
         .write_message(&Message {
             sender_id: 1, // wl_display
             opcode: 42,   // inexistant
-            args: vec![],
+            args: smallvec![],
         })
         .unwrap();
     socket.flush().unwrap();
@@ -78,7 +79,7 @@ fn client_wrong_sender() {
         .write_message(&Message {
             sender_id: 54, // wl_display
             opcode: 0,     // inexistant
-            args: vec![],
+            args: smallvec![],
         })
         .unwrap();
     socket.flush().unwrap();

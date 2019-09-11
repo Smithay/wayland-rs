@@ -7,6 +7,16 @@ use std::ptr;
 use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
 
+use smallvec::SmallVec;
+
+// The value of 4 is chosen for the following reasons:
+// - almost all messages have 4 arguments or less
+// - there are some potentially spammy events that have 3/4 arguments (wl_touch.move has 4 for example)
+//
+// This brings the size of Message to 11*usize (instead of 4*usize with a regular vec), but eliminates
+// almost all allocations that may occur during the processing of messages, both client-side and server-side.
+const INLINE_ARGS: usize = 4;
+
 /// Wire metadata of a given message
 #[derive(Copy, Clone, Debug)]
 pub struct MessageDesc {
@@ -43,6 +53,7 @@ pub enum ArgumentType {
 
 /// Enum of possible argument as recognized by the wire, including values
 #[derive(Clone, PartialEq, Debug)]
+#[allow(clippy::box_vec)]
 pub enum Argument {
     /// i32
     Int(i32),
@@ -51,13 +62,19 @@ pub enum Argument {
     /// fixed point, 1/256 precision
     Fixed(i32),
     /// CString
-    Str(CString),
+    ///
+    /// The value is boxed to reduce the stack size of Argument. The performance
+    /// impact is negligible as `string` arguments are pretty rare in the protocol.
+    Str(Box<CString>),
     /// id of a wayland object
     Object(u32),
     /// id of a newly created wayland object
     NewId(u32),
     /// Vec<u8>
-    Array(Vec<u8>),
+    ///
+    /// The value is boxed to reduce the stack size of Argument. The performance
+    /// impact is negligible as `array` arguments are pretty rare in the protocol.
+    Array(Box<Vec<u8>>),
     /// RawFd
     Fd(RawFd),
 }
@@ -86,7 +103,7 @@ pub struct Message {
     /// Opcode of the message
     pub opcode: u16,
     /// Arguments of the message
-    pub args: Vec<Argument>,
+    pub args: SmallVec<[Argument; INLINE_ARGS]>,
 }
 
 /// Error generated when trying to serialize a message into buffers
@@ -296,7 +313,7 @@ impl Message {
                             read_array_from_payload(front as usize, tail).and_then(|(v, rest)| {
                                 tail = rest;
                                 match CStr::from_bytes_with_nul(v) {
-                                    Ok(s) => Ok(Argument::Str(s.into())),
+                                    Ok(s) => Ok(Argument::Str(Box::new(s.into()))),
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
                             })
@@ -306,7 +323,7 @@ impl Message {
                         ArgumentType::Array => {
                             read_array_from_payload(front as usize, tail).map(|(v, rest)| {
                                 tail = rest;
-                                Argument::Array(v.into())
+                                Argument::Array(Box::new(v.into()))
                             })
                         }
                         ArgumentType::Fd => unreachable!(),
@@ -317,7 +334,7 @@ impl Message {
                     Err(MessageParseError::MissingData)
                 }
             })
-            .collect::<Result<Vec<_>, MessageParseError>>()?;
+            .collect::<Result<SmallVec<_>, MessageParseError>>()?;
 
         let msg = Message {
             sender_id,
@@ -391,6 +408,7 @@ impl Drop for FdStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use smallvec::smallvec;
 
     #[test]
     fn into_from_raw_cycle() {
@@ -400,11 +418,11 @@ mod tests {
         let msg = Message {
             sender_id: 42,
             opcode: 7,
-            args: vec![
+            args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(CString::new(&b"I like trains!"[..]).unwrap()),
-                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                Argument::Str(Box::new(CString::new(&b"I like trains!"[..]).unwrap())),
+                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
                 Argument::Object(88),
                 Argument::NewId(56),
                 Argument::Int(-25),

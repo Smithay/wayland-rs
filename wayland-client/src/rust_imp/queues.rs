@@ -264,7 +264,7 @@ fn message_to_rawevent(msg: Message, proxy: &ProxyInner, map: &mut super::ProxyM
         .map(|a| match a {
             Argument::Int(i) => crate::Argument::Int(i),
             Argument::Uint(u) => crate::Argument::Uint(u),
-            Argument::Array(v) => crate::Argument::Array(if v.is_empty() { None } else { Some(v) }),
+            Argument::Array(v) => crate::Argument::Array(if v.is_empty() { None } else { Some(*v) }),
             Argument::Fixed(f) => crate::Argument::Float((f as f32) / 256.),
             Argument::Fd(f) => crate::Argument::Fd(f),
             Argument::Str(cs) => crate::Argument::Str({

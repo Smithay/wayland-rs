@@ -14,6 +14,8 @@
 - [client] the `cursor` and `egl` features are split into their own crates: `wayland-egl` and `wayland-cursor`
 - [server] All dependencies on `calloop` are now removed, `wayland-server` now only exposes a `dispatch(..)`
   and `get_poll_fd()` method, that you are responsible for integrating into your event loop.
+- [commons] Use `smallvec` to store the arguments of messages having 4 or less, drastically reducing the
+  number of allocations when using the rust implementation of the protocol.
 
 ## 0.23.6 -- 2019-09-06
 

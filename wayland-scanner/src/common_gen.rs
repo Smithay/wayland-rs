@@ -419,9 +419,9 @@ pub(crate) fn gen_messagegroup(
                             Type::Fixed => quote!((val as f64) / 256.),
                             Type::Array => {
                                 if arg.allow_null {
-                                    quote!(if val.len() == 0 { None } else { Some(val) })
+                                    quote!(if val.len() == 0 { None } else { Some(*val) })
                                 } else {
-                                    quote!(val)
+                                    quote!(*val)
                                 }
                             }
                             Type::String => {
@@ -550,25 +550,25 @@ pub(crate) fn gen_messagegroup(
                     Type::String => {
                         if arg.allow_null {
                             quote! {
-                                Argument::Str(unsafe {
+                                Argument::Str(Box::new(unsafe {
                                     ::std::ffi::CString::from_vec_unchecked(
                                         #arg_ident.map(Into::into).unwrap_or_else(Vec::new),
                                     )
-                                })
+                                }))
                             }
                         } else {
                             quote! {
-                                Argument::Str(unsafe {
+                                Argument::Str(Box::new(unsafe {
                                     ::std::ffi::CString::from_vec_unchecked(#arg_ident.into())
-                                })
+                                }))
                             }
                         }
                     }
                     Type::Array => {
                         if arg.allow_null {
-                            quote!(Argument::Array(#arg_ident.unwrap_or_else(Vec::new)))
+                            quote!(Argument::Array(Box::new(#arg_ident.unwrap_or_else(Vec::new))))
                         } else {
-                            quote!(Argument::Array(#arg_ident))
+                            quote!(Argument::Array(Box::new(#arg_ident)))
                         }
                     }
                     Type::Fd => quote!(Argument::Fd(#arg_ident)),
@@ -587,9 +587,9 @@ pub(crate) fn gen_messagegroup(
                                 quote!(#arg_ident.2.id())
                             };
                             quote! {
-                                Argument::Str(unsafe {
+                                Argument::Str(Box::new(unsafe {
                                     ::std::ffi::CString::from_vec_unchecked(#arg_ident.0.into())
-                                }),
+                                })),
                                 Argument::Uint(#arg_ident.1),
                                 Argument::NewId(#id)
                             }
@@ -609,7 +609,7 @@ pub(crate) fn gen_messagegroup(
             quote!(#pattern => Message {
                 sender_id: sender_id,
                 opcode: #opcode_value,
-                args: vec![
+                args: smallvec![
                     #(#args_values,)*
                 ],
             })
