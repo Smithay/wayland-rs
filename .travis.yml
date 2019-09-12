@@ -35,18 +35,12 @@ matrix:
     - rust: stable
       env: BUILD_FMT=1
     - rust: stable
-      env: KCOV=1
+      env: COVERAGE=1
       sudo: true
       addons:
         apt:
           packages:
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-            - cmake
-            - gcc
-            - binutils-dev
-            - libiberty-dev
+            - libssl-dev
     - rust: stable
       env: BUILD_DOC=1
     - rust: stable
@@ -81,6 +75,12 @@ before_script:
         ./travis_install_wayland.sh "1.15.0"
         export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
       fi
+  - |
+      if [ -n "$COVERAGE" ]; then
+        which cargo-install-update || cargo install cargo-update
+        cargo install-update cargo-update
+        cargo install-update -i cargo-tarpaulin
+      fi
 
 os:
   - linux
@@ -90,8 +90,15 @@ script:
       if [ -n "$BUILD_FMT" ]; then
         cargo fmt --all -- --check
         rustfmt --check tests/scanner_assets/*.rs
-      elif [ -n "$KCOV" ]; then
-        ./run_kcov.sh
+      elif [ -n "$COVERAGE" ]; then
+        cargo tarpaulin --out Xml --all --features "" --exclude wayland-egl --exclude wayland-cursor
+        bash <(curl -s https://codecov.io/bash) -cF full_rust
+        cargo tarpaulin --out Xml --all --features "client_native" --exclude wayland-egl --exclude wayland-cursor
+        bash <(curl -s https://codecov.io/bash) -cF client_system
+        cargo tarpaulin --out Xml --all --features "server_native" --exclude wayland-egl --exclude wayland-cursor
+        bash <(curl -s https://codecov.io/bash) -cF server_system
+        cargo tarpaulin --out Xml --all --features "client_native server_native" --exclude wayland-egl --exclude wayland-cursor
+        bash <(curl -s https://codecov.io/bash) -cF both_system
       elif [ -n "$CLIPPY" ]; then
         cargo clippy --all --exclude wayland-egl --exclude wayland-cursor -- -D warnings
         cargo clippy --all --all-features -- -D warnings
