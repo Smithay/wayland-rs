@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.24.0 -- 2019-09-14
+
 - [client/server] The implementations system is replaced by a more versatile `Filter` API, which allows
   registering more than one wayland object to the same callback
 - [client/server] Introduction of the `Main<I>` (and `Attached<I>` client-side) types, for type-system-level
