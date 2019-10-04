@@ -54,3 +54,13 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 Requires at least rust 1.33 to be used, and version 1.15 of the wayland system libraries if using the
 `use_system_lib` cargo feature.
+
+## Chat and support
+
+For general quick questions you can get answers in the chat room.
+
+The chat room is bridged over multiple chat servers, here are 3 options on how to connect to the chat:
+
+- [`#smithay:matrix.org`](https://matrix.to/#/#smithay:matrix.org) in Matrix
+- `#smithay` on Freenode IRC
+- [`Smithay/Lobby`](https://gitter.im/smithay/Lobby) on Gitter
