@@ -379,7 +379,10 @@ where
                     // parse the message:
                     let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
                     // create the proxy object
-                    let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
+                    let mut proxy_inner = ProxyInner::from_c_ptr::<I>(proxy);
+                    // This proxy must be a Main, so it as attached wrapping itself
+                    proxy_inner.wrapping = Some(proxy_inner.ptr);
+                    let proxy_obj = crate::Main::wrap(proxy_inner);
                     implem(msg, proxy_obj);
                 }
                 None => {
