@@ -285,7 +285,6 @@ mod list {
             }
         }
     }
-
 }
 
 #[cfg(test)]
