@@ -159,7 +159,7 @@ fn main() {
                 }
                 if !keyboard_created && capabilities.contains(Capability::Keyboard) {
                     // create the keyboard only once
-                    keyboard_created = false;
+                    keyboard_created = true;
                     seat.get_keyboard().assign(common_filter.clone());
                 }
             }
