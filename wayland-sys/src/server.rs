@@ -184,7 +184,7 @@ pub fn is_lib_available() -> bool {
 
 #[cfg(feature = "server")]
 pub mod signal {
-    #![allow(clippy::cast_ptr_alignment)]
+    #![allow(clippy::cast_ptr_alignment,clippy::missing_safety_doc)]
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};
