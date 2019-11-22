@@ -91,13 +91,13 @@ script:
         cargo fmt --all -- --check
         rustfmt --check tests/scanner_assets/*.rs
       elif [ -n "$COVERAGE" ]; then
-        cargo tarpaulin --out Xml --all --features "" --exclude wayland-egl --exclude wayland-cursor
+        cargo tarpaulin --ignore-tests --out Xml --all --features "" --exclude wayland-egl --exclude wayland-cursor
         bash <(curl -s https://codecov.io/bash) -cF full_rust
-        cargo tarpaulin --out Xml --all --features "client_native" --exclude wayland-egl --exclude wayland-cursor
+        cargo tarpaulin --ignore-tests --out Xml --all --features "client_native" --exclude wayland-egl --exclude wayland-cursor
         bash <(curl -s https://codecov.io/bash) -cF client_system
-        cargo tarpaulin --out Xml --all --features "server_native" --exclude wayland-egl --exclude wayland-cursor
+        cargo tarpaulin --ignore-tests --out Xml --all --features "server_native" --exclude wayland-egl --exclude wayland-cursor
         bash <(curl -s https://codecov.io/bash) -cF server_system
-        cargo tarpaulin --out Xml --all --features "client_native server_native" --exclude wayland-egl --exclude wayland-cursor
+        cargo tarpaulin --ignore-tests --out Xml --all --features "client_native server_native" --exclude wayland-egl --exclude wayland-cursor
         bash <(curl -s https://codecov.io/bash) -cF both_system
       elif [ -n "$CLIPPY" ]; then
         cargo clippy --all --exclude wayland-egl --exclude wayland-cursor -- -D warnings
