@@ -1,5 +1,5 @@
 use std::io;
-use std::os::unix::io::RawFd;
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::{Arc, Mutex};
 
 use wayland_commons::map::{Object, ObjectMap};
@@ -75,6 +75,10 @@ impl DisplayInner {
         } else {
             None
         }
+    }
+
+    pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
     }
 }
 

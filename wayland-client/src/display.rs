@@ -207,6 +207,14 @@ impl Display {
         self.inner.protocol_error()
     }
 
+    /// Retrieve the file descriptor associated with the wayland socket
+    ///
+    /// This FD should only be used to integrate into a polling mechanism, and should
+    /// never be directly read from or written to.
+    pub fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        self.inner.get_connection_fd()
+    }
+
     #[cfg(feature = "use_system_lib")]
     /// Create a Display and Event Queue from an external display
     ///

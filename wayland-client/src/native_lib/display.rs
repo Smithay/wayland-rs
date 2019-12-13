@@ -43,6 +43,10 @@ impl DisplayInner {
         make_display(display_ptr)
     }
 
+    pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
+    }
+
     pub(crate) fn ptr(&self) -> *mut wl_display {
         self.display
     }
