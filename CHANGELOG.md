@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.24.1 -- 2019-12-13
+
 - [client] Add `get_connection_fd()` to `Display` as well as `EventQueue`.
+- [client] Bugfix: remove a spurious panic when using the `use_system_lib` feature.
 
 ## 0.24.0 -- 2019-09-14
 

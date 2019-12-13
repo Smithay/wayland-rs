@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.24.0"
+version = "0.24.1"
 documentation = "https://smithay.github.io/wayland-rs/wayland_server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -15,8 +15,8 @@ edition = "2018"
 travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
-wayland-commons = { version = "0.24.0", path = "../wayland-commons" }
-wayland-sys = { version = "0.24.0", path = "../wayland-sys" }
+wayland-commons = { version = "0.24.1", path = "../wayland-commons" }
+wayland-sys = { version = "0.24.1", path = "../wayland-sys" }
 bitflags = "1.0"
 downcast-rs = "1.0"
 libc = "0.2"
@@ -25,7 +25,7 @@ lazy_static = { version = "1.0", optional = true}
 parking_lot = "0.9"
 
 [build-dependencies]
-wayland-scanner = { version = "0.24.0", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.24.1", path = "../wayland-scanner" }
 
 [features]
 use_system_lib = [ "wayland-sys/server", "lazy_static" ]
