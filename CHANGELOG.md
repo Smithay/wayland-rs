@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Add `get_connection_fd()` to `Display` as well as `EventQueue`.
+
 ## 0.24.0 -- 2019-09-14
 
 - [client/server] The implementations system is replaced by a more versatile `Filter` API, which allows
