@@ -61,6 +61,11 @@ pub trait MessageGroup: Sized {
     /// Turn this message into its raw representation
     fn into_raw(self, send_id: u32) -> wire::Message;
     /// Construct a message of this group from its C representation
+    ///
+    /// # Safety
+    ///
+    /// The pointers provided to this function must all be valid pointers from
+    /// `libwayland-client`
     unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
         -> Result<Self, ()>;
     /// Build a C representation of this message

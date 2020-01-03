@@ -203,6 +203,11 @@ where
     ///
     /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid pointer to a wayland object from
+    /// `libwayland-client` associated to the correct interface.
     pub unsafe fn from_c_ptr(_ptr: *mut wl_resource) -> Self
     where
         I: From<Resource<I>>,
@@ -330,6 +335,11 @@ where
     ///
     /// NOTE: This method will panic if called while the `use_system_lib` feature is not
     /// activated
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid pointer to a wayland object from
+    /// `libwayland-client` associated to the correct interface.
     pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self {
         #[cfg(feature = "use_system_lib")]
         {

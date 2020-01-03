@@ -23,7 +23,7 @@ impl DisplayInner {
     pub unsafe fn from_fd(fd: RawFd) -> Result<Arc<DisplayInner>, ConnectError> {
         // The special buffer for display events
         let buffer = super::queues::create_queue_buffer();
-        let display_object = Object::from_interface::<WlDisplay>(1, ObjectMeta::new(buffer.clone()));
+        let display_object = Object::from_interface::<WlDisplay>(1, ObjectMeta::new(buffer));
         let (connection, map) = {
             let c = Connection::new(fd, display_object);
             let m = c.map.clone();
@@ -41,7 +41,7 @@ impl DisplayInner {
             })
             .unwrap();
 
-        let display_proxy = ProxyInner::from_id(1, map.clone(), connection.clone()).unwrap();
+        let display_proxy = ProxyInner::from_id(1, map, connection.clone()).unwrap();
 
         let display = DisplayInner {
             proxy: Proxy::wrap(display_proxy),

@@ -28,9 +28,8 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 /// ```no_run
 /// # extern crate wayland_client;
 /// # use wayland_client::{Display};
-/// # fn main() {
-/// #     let display = Display::connect_to_env().unwrap();
-/// #     let mut event_queue = display.create_event_queue();
+/// # let display = Display::connect_to_env().unwrap();
+/// # let mut event_queue = display.create_event_queue();
 /// loop {
 ///     // The dispatch() method returns once it has received some events to dispatch
 ///     // and have emptied the wayland socket from its pending messages, so it needs
@@ -43,7 +42,6 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 ///         unreachable!();
 ///     }).expect("An error occurred during event dispatching!");
 /// }
-/// # }
 /// ```
 ///
 /// The second way is more appropriate for apps that are either multithreaded (and need to process
@@ -54,7 +52,6 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 /// ```no_run
 /// # extern crate wayland_client;
 /// # use wayland_client::Display;
-/// # fn main() {
 /// # let display = Display::connect_to_env().unwrap();
 /// # let mut event_queue = display.create_event_queue();
 /// loop {
@@ -100,7 +97,6 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 ///     // The wayland socket can also be integrated in a poll-like mechanism by using
 ///     // the file descriptor provided by the `get_connection_fd()` method.
 /// }
-/// # }
 /// ```
 pub struct EventQueue {
     // EventQueue is *not* Send

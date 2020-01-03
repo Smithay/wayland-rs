@@ -164,10 +164,13 @@ impl Display {
 
     /// Attempt to use an already connected unix socket on given FD to start a wayland connection
     ///
-    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
-    /// the `WlDisplay` wayland object.
+    /// On success, you are given the `Display` object.
     ///
     /// Will take ownership of the FD.
+    ///
+    /// # Safety
+    ///
+    /// The file descriptor must be associated to a connected unix socket.
     pub unsafe fn from_fd(fd: RawFd) -> Result<Display, ConnectError> {
         Ok(Display {
             inner: DisplayInner::from_fd(fd)?,
@@ -223,6 +226,10 @@ impl Display {
     ///
     /// Note that if you need to retrieve the actual `wl_display` pointer back (rather than
     /// its wrapper), you must use the `get_display_ptr()` method.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point to a valid `wl_display` from `libwayland-client`
     pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> Display {
         Display {
             inner: DisplayInner::from_external(display_ptr),

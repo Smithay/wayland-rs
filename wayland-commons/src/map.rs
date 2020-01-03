@@ -1,6 +1,7 @@
 //! Wayland objects map
-
 use crate::{Interface, MessageGroup, NoMessage};
+
+use std::cmp::Ordering;
 
 /// Limit separating server-created from client-created objects IDs in the namespace
 pub const SERVER_ID_LIMIT: u32 = 0xFF00_0000;
@@ -217,17 +218,19 @@ fn insert_in_at<Meta: ObjectMetadata>(
     id: usize,
     object: Object<Meta>,
 ) -> Result<(), ()> {
-    if id > store.len() {
-        Err(())
-    } else if id == store.len() {
-        store.push(Some(object));
-        Ok(())
-    } else {
-        let previous = &mut store[id];
-        if !previous.is_none() {
-            return Err(());
+    match id.cmp(&store.len()) {
+        Ordering::Greater => Err(()),
+        Ordering::Equal => {
+            store.push(Some(object));
+            Ok(())
         }
-        *previous = Some(object);
-        Ok(())
+        Ordering::Less => {
+            let previous = &mut store[id];
+            if !previous.is_none() {
+                return Err(());
+            }
+            *previous = Some(object);
+            Ok(())
+        }
     }
 }

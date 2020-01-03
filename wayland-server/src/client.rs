@@ -17,7 +17,11 @@ pub struct Client {
 
 impl Client {
     #[cfg(feature = "use_system_lib")]
-    /// Creates a client from a `wayland-server.so` pointer
+    /// Creates a client from a pointer
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid pointer from `libwayland-server`.
     pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
         Client {
             inner: ClientInner::from_ptr(ptr),
@@ -25,7 +29,7 @@ impl Client {
     }
 
     #[cfg(feature = "use_system_lib")]
-    /// Returns a pointer to the underlying `wl_client` of `wayland-server.so`
+    /// Returns a pointer to the underlying `wl_client` of `libwayland-server`
     pub fn c_ptr(&self) -> *mut wl_client {
         self.inner.ptr()
     }

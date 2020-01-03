@@ -213,6 +213,8 @@ impl Display {
     /// The library takes ownership of the provided socket if this method returns
     /// successfully.
     ///
+    /// # Safety
+    ///
     /// The existing socket fd must already be created, opened, and locked.
     /// The fd must be properly set to CLOEXEC and bound to a socket file
     /// with both bind() and listen() already called. An error is returned
@@ -222,6 +224,10 @@ impl Display {
     }
 
     /// Create a new client to this display from an already-existing connected Fd
+    ///
+    /// # Safety
+    ///
+    /// The provided file descriptor must be associated to a valid client connection.
     pub unsafe fn create_client<T: std::any::Any>(&self, fd: RawFd, data: &mut T) -> Client {
         let data = crate::DispatchData::wrap(data);
         Client::make(self.inner.borrow_mut().create_client(fd, data))
