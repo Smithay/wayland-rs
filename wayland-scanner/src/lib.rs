@@ -31,20 +31,18 @@
 //!
 //! use wayland_scanner::{Side, generate_code};
 //!
-//! fn main() {
-//!     // Location of the xml file, relative to the `Cargo.toml`
-//!     let protocol_file = "./my_protocol.xml";
+//! // Location of the xml file, relative to the `Cargo.toml`
+//! let protocol_file = "./my_protocol.xml";
 //!
-//!     // Target directory for the generate files
-//!     let out_dir_str = var("OUT_DIR").unwrap();
-//!     let out_dir = Path::new(&out_dir_str);
+//! // Target directory for the generate files
+//! let out_dir_str = var("OUT_DIR").unwrap();
+//! let out_dir = Path::new(&out_dir_str);
 //!
-//!     generate_code(
-//!         protocol_file,
-//!         out_dir.join("my_protocol_api.rs"),
-//!         Side::Client, // Replace by `Side::Server` for server-side code
-//!     );
-//! }
+//! generate_code(
+//!     protocol_file,
+//!     out_dir.join("my_protocol_api.rs"),
+//!     Side::Client, // Replace by `Side::Server` for server-side code
+//! );
 //! ```
 //!
 //! The above example will output two `.rs` files in the `OUT_DIR` defined by
@@ -195,5 +193,5 @@ pub fn generate_code_streams_with_destructor_events<P1: Read, P2: Write>(
         Side::Server => c_code_gen::generate_protocol_server(protocol),
     };
 
-    write!(target, "{}", output.clone()).unwrap();
+    write!(target, "{}", output).unwrap();
 }

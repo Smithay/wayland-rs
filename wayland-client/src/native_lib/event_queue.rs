@@ -11,6 +11,7 @@ scoped_tls::scoped_thread_local! {
     pub(crate) static DISPATCH_METADATA: RefCell<(&mut dyn FnMut(RawEvent, Main<AnonymousObject>, DispatchData), DispatchData)>
 }
 
+#[allow(clippy::transmute_ptr_to_ptr)]
 fn with_dispatch_meta<T, FB, F>(mut fb: FB, data: DispatchData, f: F) -> T
 where
     FB: FnMut(RawEvent, Main<AnonymousObject>, DispatchData),

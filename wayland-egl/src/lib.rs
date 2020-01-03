@@ -42,7 +42,9 @@ impl WlEglSurface {
 
     /// Create an EGL surface from a raw pointer to a wayland surface
     ///
-    /// This function is unsafe because `surface` must be a valid wl_surface pointer
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid `wl_surface` pointer from `libwayland-client`.
     pub unsafe fn new_from_raw(surface: *mut wl_proxy, width: i32, height: i32) -> WlEglSurface {
         let ptr = ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_create, surface, width, height);
         WlEglSurface { ptr }

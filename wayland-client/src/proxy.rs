@@ -338,6 +338,10 @@ where
     ///
     /// NOTE: This method will panic if called while the `use_system_lib` feature is
     /// not activated.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point to a valid wayland object from `libwayland-client`
     pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Main<I> {
         #[cfg(feature = "use_system_lib")]
         {
@@ -409,6 +413,11 @@ impl<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> Proxy<I> {
     ///
     /// NOTE: This method will panic if called while the `use_system_lib` feature is
     /// not activated.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point to a valid wayland object from `libwayland-client`
+    /// with the correct interface.
     pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Proxy<I>
     where
         I: From<Proxy<I>>,

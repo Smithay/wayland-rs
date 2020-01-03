@@ -18,11 +18,9 @@
 //!
 //! use wayland_sys::client::*;
 //!
-//! fn main() {
-//!     let display_ptr = unsafe {
+//! let display_ptr = unsafe {
 //!         ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null())
-//!     };
-//! }
+//! };
 //! ```
 //!
 //! Each module except `common` corresponds to a system library. They all define a function named

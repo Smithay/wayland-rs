@@ -32,11 +32,13 @@ impl<I: Interface> GlobalInner<I> {
     }
 }
 
+type GlobalImplementation = dyn Fn(u32, u32, ClientInner, DispatchData) -> Result<(), ()>;
+
 struct GlobalData {
     version: u32,
     interface: &'static str,
     destroyed: Rc<Cell<bool>>,
-    implem: Box<dyn Fn(u32, u32, ClientInner, DispatchData) -> Result<(), ()>>,
+    implem: Box<GlobalImplementation>,
     filter: Option<GlobalFilter>,
 }
 
@@ -85,7 +87,7 @@ impl GlobalManager {
                 };
                 if let Some(map) = map {
                     (&mut *implem.borrow_mut())(
-                        Main::wrap(ResourceInner::from_id(newid, map, client.clone()).unwrap()),
+                        Main::wrap(ResourceInner::from_id(newid, map, client).unwrap()),
                         version,
                         data,
                     )
@@ -141,6 +143,7 @@ impl GlobalManager {
         self.self_cleanup();
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn bind(
         &self,
         registry_id: u32,

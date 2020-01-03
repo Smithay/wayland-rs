@@ -143,10 +143,8 @@ where
             if kill {
                 resource.client.kill();
             }
-            (self.implementation)(message, Main::<I>::wrap(resource.clone()), data);
-        } else {
-            (self.implementation)(message, Main::<I>::wrap(resource), data);
         }
+        (self.implementation)(message, Main::<I>::wrap(resource), data);
         Dispatched::Yes
     }
 }
