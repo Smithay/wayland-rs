@@ -17,7 +17,7 @@ fn resource_equals() {
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(1, move |newo, _| {
+        .create_global::<wl_output::WlOutput, _>(1, move |newo, _, _| {
             outputs2.lock().unwrap().push(newo);
         });
 
@@ -51,7 +51,7 @@ fn resource_user_data() {
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(1, move |output, _| {
+        .create_global::<wl_output::WlOutput, _>(1, move |output, _, _| {
             let mut guard = outputs2.lock().unwrap();
             output.as_ref().user_data().set(|| 1000 + guard.len());
             guard.push(output);
@@ -84,8 +84,8 @@ fn dead_resources() {
 
     server
         .display
-        .create_global::<wl_output::WlOutput, _>(3, move |newo, _| {
-            newo.assign_mono(|_, _| {});
+        .create_global::<wl_output::WlOutput, _>(3, move |newo, _, _| {
+            newo.quick_assign(|_, _, _| {});
             outputs2.lock().unwrap().push(newo);
         });
 

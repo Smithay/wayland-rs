@@ -21,11 +21,11 @@ fn display_to_new_thread() {
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
-        display.create_global::<ServerSeat, _>(5, |_, _| {});
+        display.create_global::<ServerSeat, _>(5, |_, _, _| {});
 
         loop {
-            display.dispatch(Duration::from_millis(10)).unwrap();
-            display.flush_clients();
+            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
             }
@@ -43,7 +43,7 @@ fn display_to_new_thread() {
         let mut evq = display_clone.create_event_queue();
         let attached = (**display_clone).clone().attach(evq.get_token());
         let manager = wayc::GlobalManager::new(&attached);
-        evq.sync_roundtrip(|_, _| unreachable!()).unwrap();
+        evq.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
         manager.instantiate_exact::<wl_seat::WlSeat>(5).unwrap();
     })
     .join()
@@ -65,11 +65,11 @@ fn display_from_external_on_new_thread() {
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
-        display.create_global::<ServerSeat, _>(5, |_, _| {});
+        display.create_global::<ServerSeat, _>(5, |_, _, _| {});
 
         loop {
-            display.dispatch(Duration::from_millis(10)).unwrap();
-            display.flush_clients();
+            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
             }
@@ -88,11 +88,11 @@ fn display_from_external_on_new_thread() {
         let mut evq = display.create_event_queue();
         let attached = (*display).clone().attach(evq.get_token());
         let manager = wayc::GlobalManager::new(&attached);
-        evq.sync_roundtrip(|_, _| {}).unwrap();
+        evq.sync_roundtrip(&mut (), |_, _, _| {}).unwrap();
         manager
             .instantiate_exact::<wl_seat::WlSeat>(5)
             .unwrap()
-            .assign_mono(|_, _| {});
+            .quick_assign(|_, _, _| {});
     })
     .join()
     .unwrap();

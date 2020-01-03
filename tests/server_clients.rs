@@ -19,7 +19,7 @@ fn client_user_data() {
 
     server.display.create_global::<wl_output::WlOutput, _>(1, {
         let clients = clients.clone();
-        move |output, _| {
+        move |output, _, _| {
             let client = output.as_ref().client().unwrap();
             let ret = client.data_map().insert_if_missing(|| HasOutput);
             // the data should not be already here
@@ -31,7 +31,7 @@ fn client_user_data() {
         .display
         .create_global::<wl_compositor::WlCompositor, _>(1, {
             let clients = clients.clone();
-            move |compositor, _| {
+            move |compositor, _, _| {
                 let client = compositor.as_ref().client().unwrap();
                 let ret = client.data_map().insert_if_missing(|| HasCompositor);
                 // the data should not be already here

@@ -8,11 +8,11 @@ use std::os::unix::io::IntoRawFd;
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(2, |_, _| {});
+    server.display.create_global::<ServerOutput, _>(2, |_, _, _| {});
 
     let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
 
-    let my_client = unsafe { server.display.create_client(s1.into_raw_fd()) };
+    let my_client = unsafe { server.display.create_client(s1.into_raw_fd(), &mut ()) };
 
     let fd2 = s2.into_raw_fd();
     ::std::env::set_var("WAYLAND_SOCKET", format!("{}", fd2));

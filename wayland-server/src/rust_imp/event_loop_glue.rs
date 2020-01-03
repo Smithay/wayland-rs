@@ -3,7 +3,9 @@ use std::os::unix::io::RawFd;
 
 use nix::sys::epoll::*;
 
-type FdData = (RawFd, Option<Box<dyn FnMut()>>);
+use crate::DispatchData;
+
+type FdData = (RawFd, Option<Box<dyn FnMut(crate::DispatchData<'_>)>>);
 
 #[derive(Copy, Clone)]
 pub(crate) struct Token(usize);
@@ -23,11 +25,15 @@ impl FdManager {
         })
     }
 
-    pub(crate) fn register<F: FnMut() + 'static>(&self, fd: RawFd, cb: F) -> nix::Result<Token> {
+    pub(crate) fn register<F: FnMut(DispatchData<'_>) + 'static>(
+        &self,
+        fd: RawFd,
+        cb: F,
+    ) -> nix::Result<Token> {
         let mut callbacks = self.callbacks.borrow_mut();
         // find the first free id
         let free_id = callbacks.iter().position(|c| c.is_none());
-        let cb = Some(Box::new(cb) as Box<dyn FnMut()>);
+        let cb = Some(Box::new(cb) as Box<dyn FnMut(DispatchData<'_>)>);
         let id = match free_id {
             Some(i) => {
                 callbacks[i] = Some((fd, cb));
@@ -55,7 +61,7 @@ impl FdManager {
         }
     }
 
-    pub(crate) fn poll(&self, timeout: i32) -> nix::Result<()> {
+    pub(crate) fn poll(&self, timeout: i32, mut data: crate::DispatchData) -> nix::Result<()> {
         let mut events = [EpollEvent::empty(); 32];
         let n = epoll_wait(self.epoll_fd, &mut events, timeout as isize)?;
 
@@ -66,7 +72,7 @@ impl FdManager {
                 .as_mut()
                 .and_then(|(_, ref mut cb)| cb.take());
             if let Some(mut cb) = cb {
-                cb();
+                cb(data.reborrow());
                 // now, put it back in place
                 if let Some(ref mut place) = self.callbacks.borrow_mut()[id] {
                     if place.1.is_none() {

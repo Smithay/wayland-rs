@@ -9,7 +9,7 @@ use wayc::protocol::{wl_keyboard, wl_seat};
 #[test]
 fn constructor_dead() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(5, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(5, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -26,7 +26,7 @@ fn constructor_dead() {
 #[should_panic]
 fn send_constructor_wrong_type() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(5, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(5, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

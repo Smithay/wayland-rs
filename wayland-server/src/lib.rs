@@ -91,7 +91,10 @@ pub use resource::{Main, Resource};
 
 pub use anonymous_object::AnonymousObject;
 pub use wayland_commons::user_data::UserDataMap;
-pub use wayland_commons::{filter::Filter, Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{
+    filter::{DispatchData, Filter},
+    Interface, MessageGroup, NoMessage,
+};
 
 /// C-associated types
 ///

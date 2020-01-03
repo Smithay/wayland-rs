@@ -70,8 +70,8 @@ impl DisplayInner {
         filter: Option<F2>,
     ) -> GlobalInner<I>
     where
-        I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
-        F1: FnMut(Main<I>, u32) + 'static,
+        I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+        F1: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let data = Box::new(GlobalData::new(implementation, filter));
@@ -93,17 +93,21 @@ impl DisplayInner {
         }
     }
 
-    pub(crate) fn flush_clients(&mut self) {
-        let _c_safety_guard = super::C_SAFETY.lock();
-        unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
+    pub(crate) fn flush_clients(&mut self, data: crate::DispatchData) {
+        super::with_dispatch_data(data, || {
+            let _c_safety_guard = super::C_SAFETY.lock();
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.ptr) };
+        })
     }
 
-    pub(crate) fn dispatch(&mut self, timeout: i32) -> IoResult<()> {
-        let _c_safety_guard = super::C_SAFETY.lock();
-        let ret = unsafe {
-            let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, timeout)
-        };
+    pub(crate) fn dispatch(&mut self, timeout: i32, data: crate::DispatchData) -> std::io::Result<()> {
+        let ret = super::with_dispatch_data(data, || {
+            let _c_safety_guard = super::C_SAFETY.lock();
+            unsafe {
+                let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, timeout)
+            }
+        });
 
         if ret < 0 {
             Err(IoError::last_os_error())
@@ -184,9 +188,11 @@ impl DisplayInner {
         }
     }
 
-    pub unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
-        let _c_safety_guard = super::C_SAFETY.lock();
-        let ret = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.ptr, fd);
+    pub(crate) unsafe fn create_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
+        let ret = super::with_dispatch_data(data, || {
+            let _c_safety_guard = super::C_SAFETY.lock();
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.ptr, fd)
+        });
         ClientInner::from_ptr(ret)
     }
 }

@@ -33,11 +33,11 @@ impl TestServer {
     }
 
     pub fn answer(&mut self) {
-        self.display.dispatch(Duration::from_millis(10)).unwrap();
-        self.display.flush_clients();
+        self.display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+        self.display.flush_clients(&mut ());
         // TODO: find out why native_lib requires two dispatches
-        self.display.dispatch(Duration::from_millis(10)).unwrap();
-        self.display.flush_clients();
+        self.display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+        self.display.flush_clients(&mut ());
     }
 }
 
@@ -90,7 +90,7 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
     client
         .display_proxy
         .sync()
-        .assign_mono(move |_, _| done2.set(true));
+        .quick_assign(move |_, _, _| done2.set(true));
     while !done.get() {
         match client.display.flush() {
             Ok(_) => {}
@@ -105,10 +105,10 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
         server.answer();
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
-        client.event_queue.dispatch_pending(|_, _| {})?;
+        client.event_queue.dispatch_pending(&mut (), |_, _, _| {})?;
         let e = client.event_queue.prepare_read().unwrap().read_events();
         // even if read_events returns an error, some messages may need dispatching
-        client.event_queue.dispatch_pending(|_, _| {})?;
+        client.event_queue.dispatch_pending(&mut (), |_, _, _| {})?;
         e?;
     }
     Ok(())

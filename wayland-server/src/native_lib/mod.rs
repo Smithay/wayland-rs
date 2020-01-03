@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use parking_lot::ReentrantMutex;
 
 use crate::{Interface, Main, Resource};
@@ -36,4 +38,18 @@ impl ResourceMap {
     ) -> Option<Main<I>> {
         match *self {}
     }
+}
+
+scoped_tls::scoped_thread_local! {
+    pub(crate) static DISPATCH_DATA: RefCell<crate::DispatchData>
+}
+
+fn with_dispatch_data<T, F>(data: crate::DispatchData, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    // We erase the lifetime of the callback to be able to store it in the tls,
+    // it's safe as it'll only last until the end of this function call anyway
+    let data = unsafe { std::mem::transmute(data) };
+    DISPATCH_DATA.set(&RefCell::new(data), || f())
 }

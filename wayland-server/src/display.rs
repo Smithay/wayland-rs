@@ -51,7 +51,7 @@ impl Display {
     pub fn create_global<I, F>(&mut self, version: u32, implementation: F) -> Global<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F: FnMut(Main<I>, u32) + 'static,
+        F: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
     {
         assert!(
             version <= I::VERSION,
@@ -86,7 +86,7 @@ impl Display {
     ) -> Global<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F1: FnMut(Main<I>, u32) + 'static,
+        F1: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
         F2: FnMut(Client) -> bool + 'static,
     {
         assert!(
@@ -107,8 +107,13 @@ impl Display {
     ///
     /// Will send as many pending events as possible to the respective sockets of the clients.
     /// Will not block, but might not send everything if the socket buffer fills up.
-    pub fn flush_clients(&mut self) {
-        self.inner.borrow_mut().flush_clients()
+    ///
+    /// The provided `data` will be mutably accessible from all the callbacks that may be called
+    /// during this (destructors notably) via the [`DispatchData`](struct.DispatchData.html) mechanism.
+    /// If you don't need global data, you can just provide a `&mut ()` there.
+    pub fn flush_clients<T: std::any::Any>(&mut self, data: &mut T) {
+        let data = crate::DispatchData::wrap(data);
+        self.inner.borrow_mut().flush_clients(data)
     }
 
     /// Dispatches all pending messages to their respective filters
@@ -122,17 +127,22 @@ impl Display {
     /// If `timeout` is a duration of 0, this function will only process pending messages and then
     /// return, not blocking.
     ///
+    /// The provided `data` will be mutably accessible from all the callbacks, via the
+    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
+    /// can just provide a `&mut ()` there.
+    ///
     /// In general for good performance you will want to integrate the `Display` into your own event loop,
     /// monitoring the file descriptor retrieved by the `get_poll_fd()` method, and only calling this method
     /// when messages are available, with a timeout of `0`.
-    pub fn dispatch(&mut self, timeout: std::time::Duration) -> IoResult<()> {
+    pub fn dispatch<T: std::any::Any>(&mut self, timeout: std::time::Duration, data: &mut T) -> IoResult<()> {
+        let data = crate::DispatchData::wrap(data);
         let ms = timeout.as_millis();
         let clamped_timeout = if ms > std::i32::MAX as u128 {
             std::i32::MAX
         } else {
             ms as i32
         };
-        self.inner.borrow_mut().dispatch(clamped_timeout)
+        self.inner.borrow_mut().dispatch(clamped_timeout, data)
     }
 
     /// Retrieve the underlying file descriptor
@@ -212,8 +222,9 @@ impl Display {
     }
 
     /// Create a new client to this display from an already-existing connected Fd
-    pub unsafe fn create_client(&self, fd: RawFd) -> Client {
-        Client::make(self.inner.borrow_mut().create_client(fd))
+    pub unsafe fn create_client<T: std::any::Any>(&self, fd: RawFd, data: &mut T) -> Client {
+        let data = crate::DispatchData::wrap(data);
+        Client::make(self.inner.borrow_mut().create_client(fd, data))
     }
 }
 

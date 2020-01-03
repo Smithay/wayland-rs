@@ -63,6 +63,9 @@ name = "client_proxies"
 name = "destructors"
 
 [[test]]
+name = "dispatch_data"
+
+[[test]]
 name = "globals"
 
 [[test]]

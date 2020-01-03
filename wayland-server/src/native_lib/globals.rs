@@ -7,10 +7,10 @@ use wayland_commons::Interface;
 use wayland_sys::server::*;
 
 use super::ClientInner;
-use crate::{Main, Resource};
+use crate::{DispatchData, Main, Resource};
 
 pub(crate) struct GlobalData<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
-    pub(crate) bind: Box<dyn FnMut(Main<I>, u32)>,
+    pub(crate) bind: Box<dyn FnMut(Main<I>, u32, DispatchData<'_>)>,
     pub(crate) filter: Option<Box<dyn FnMut(ClientInner) -> bool>>,
 }
 
@@ -18,7 +18,7 @@ impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> GlobalData<I> {
     pub(crate) fn new<F1, F2>(bind: F1, filter: Option<F2>) -> GlobalData<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F1: FnMut(Main<I>, u32) + 'static,
+        F1: FnMut(Main<I>, u32, DispatchData<'_>) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         GlobalData {
@@ -82,7 +82,10 @@ pub(crate) unsafe extern "C" fn global_bind<I: Interface + AsRef<Resource<I>> + 
             id
         );
         let resource = Main::init_from_c_ptr(ptr as *mut wl_resource);
-        (data.bind)(resource, version);
+        super::DISPATCH_DATA.with(|disp_data| {
+            let mut disp_data = disp_data.borrow_mut();
+            (data.bind)(resource, version, disp_data.reborrow());
+        });
     });
     match ret {
         Ok(()) => (), // all went well

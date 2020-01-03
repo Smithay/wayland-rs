@@ -89,7 +89,13 @@ struct DisplayDispatcher {
 }
 
 impl super::Dispatcher for DisplayDispatcher {
-    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched {
+    fn dispatch(
+        &mut self,
+        msg: Message,
+        proxy: ProxyInner,
+        map: &mut ProxyMap,
+        _data: crate::DispatchData,
+    ) -> Dispatched {
         let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(

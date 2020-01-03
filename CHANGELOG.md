@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client/server] Introduce the `DispatchData` mechanism, allowing global state to be shared with the
+  filters and callbaks during an event dispatch.
+
 ## 0.24.1 -- 2019-12-13
 
 - [client] Add `get_connection_fd()` to `Display` as well as `EventQueue`.

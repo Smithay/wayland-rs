@@ -17,12 +17,12 @@ use wayc::protocol::wl_seat::WlSeat as ClientSeat;
 #[test]
 fn data_offer() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, |new_resource, version| {
+        .create_global::<ServerDDMgr, _>(3, |new_resource, version, _| {
             assert!(version == 3);
-            new_resource.assign_mono(|_, request| match request {
+            new_resource.quick_assign(|_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
@@ -51,7 +51,7 @@ fn data_offer() {
     let received2 = received.clone();
 
     let ddevice = ddmgr.get_data_device(&seat);
-    ddevice.assign_mono(move |_, evt| match evt {
+    ddevice.quick_assign(move |_, evt, _| match evt {
         CDDEvt::DataOffer { id: doffer } => {
             let doffer = doffer.as_ref();
             assert!(doffer.version() == 3);
@@ -70,14 +70,14 @@ fn data_offer() {
 #[test]
 fn server_id_reuse() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
     let srv_dd = Rc::new(RefCell::new(None));
     let srv_dd2 = srv_dd.clone();
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
+        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
             let srv_dd3 = srv_dd2.clone();
-            new_resource.assign_mono(move |_, req| {
+            new_resource.quick_assign(move |_, req, _| {
                 if let SDDMReq::GetDataDevice { id: ddevice, .. } = req {
                     *srv_dd3.borrow_mut() = Some(ddevice);
                 }
@@ -97,7 +97,7 @@ fn server_id_reuse() {
 
     let ddevice = ddmgr.get_data_device(&seat);
 
-    ddevice.assign_mono(move |_, evt| match evt {
+    ddevice.quick_assign(move |_, evt, _| match evt {
         CDDEvt::DataOffer { id: doffer } => {
             if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer)) {
                 old_offer.destroy();
@@ -116,7 +116,7 @@ fn server_id_reuse() {
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
-    offer1.assign_mono(|_, _| {});
+    offer1.quick_assign(|_, _, _| {});
     ddevice.data_offer(&offer1);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
@@ -128,7 +128,7 @@ fn server_id_reuse() {
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
-    offer2.assign_mono(|_, _| {});
+    offer2.quick_assign(|_, _, _| {});
     ddevice.data_offer(&offer2);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000001);
@@ -144,7 +144,7 @@ fn server_id_reuse() {
         .unwrap()
         .create_resource::<ServerDO>(ddevice.as_ref().version())
         .unwrap();
-    offer3.assign_mono(|_, _| {});
+    offer3.quick_assign(|_, _, _| {});
     ddevice.data_offer(&offer3);
     roundtrip(&mut client, &mut server).unwrap();
     assert_eq!(offer.borrow().as_ref().unwrap().as_ref().id(), 0xFF000000);
@@ -153,15 +153,15 @@ fn server_id_reuse() {
 #[test]
 fn server_created_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
 
     let server_do = Rc::new(RefCell::new(None));
     let server_do_2 = server_do.clone();
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
+        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
             let server_do_3 = server_do_2.clone();
-            new_resource.assign_mono(move |_, request| match request {
+            new_resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
@@ -170,7 +170,7 @@ fn server_created_race() {
                         .unwrap()
                         .create_resource::<ServerDO>(ddevice.as_ref().version())
                         .unwrap();
-                    offer.assign_mono(|_, _| {});
+                    offer.quick_assign(|_, _, _| {});
                     // this must be the first server-side ID
                     ddevice.data_offer(&offer);
                     *server_do_3.borrow_mut() = Some(offer);
@@ -193,10 +193,10 @@ fn server_created_race() {
     let received_2 = received.clone();
 
     let ddevice = ddmgr.get_data_device(&seat);
-    ddevice.assign_mono(move |_, evt| match evt {
+    ddevice.quick_assign(move |_, evt, _| match evt {
         CDDEvt::DataOffer { id: doffer } => {
             let received_3 = received_2.clone();
-            doffer.assign_mono(move |_, _| {
+            doffer.quick_assign(move |_, _, _| {
                 received_3.set(received_3.get() + 1);
             });
             if let Some(old_offer) = ::std::mem::replace(&mut *offer2.borrow_mut(), Some(doffer)) {
@@ -228,17 +228,17 @@ fn server_created_race() {
 #[test]
 fn creation_destruction_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
+        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.assign_mono(move |_, request| match request {
+            new_resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
-                    ddevice.assign_mono(|_, _| {});
+                    ddevice.quick_assign(|_, _, _| {});
                     server_dd_3.borrow_mut().push(ddevice);
                 }
                 _ => unimplemented!(),
@@ -257,7 +257,7 @@ fn creation_destruction_race() {
         .map(|_| {
             let ddevice = ddmgr.get_data_device(&seat);
             let mut offer = None;
-            ddevice.assign_mono(move |_, evt| match evt {
+            ddevice.quick_assign(move |_, evt, _| match evt {
                 CDDEvt::DataOffer { id: doffer } => {
                     if let Some(old_offer) = ::std::mem::replace(&mut offer, Some(doffer)) {
                         old_offer.destroy();
@@ -303,15 +303,15 @@ fn creation_destruction_race() {
 #[test]
 fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _| {});
+    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _| {
+        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.assign_mono(move |_, request| match request {
+            new_resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     server_dd_3.borrow_mut().push(ddevice);
                 }
@@ -336,7 +336,7 @@ fn creation_destruction_queue_dispatch_race() {
 
     let ddevice = ddmgr.get_data_device(&seat);
     let called_count2 = called_count.clone();
-    ddevice.assign_mono(move |dd, evt| match evt {
+    ddevice.quick_assign(move |dd, evt, _| match evt {
         CDDEvt::DataOffer { .. } => {
             // destroy the data device after receiving the first offer
             dd.release();

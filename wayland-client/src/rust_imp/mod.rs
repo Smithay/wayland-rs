@@ -68,7 +68,13 @@ pub(crate) enum Dispatched {
 }
 
 pub(crate) trait Dispatcher: Downcast + Send {
-    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched;
+    fn dispatch(
+        &mut self,
+        msg: Message,
+        proxy: ProxyInner,
+        map: &mut ProxyMap,
+        data: crate::DispatchData,
+    ) -> Dispatched;
 }
 
 mod dispatcher_impl {
@@ -80,7 +86,7 @@ mod dispatcher_impl {
 
 pub(crate) struct ImplDispatcher<
     I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>,
-    F: FnMut(I::Event, Main<I>) + 'static,
+    F: FnMut(I::Event, Main<I>, crate::DispatchData<'_>) + 'static,
 > {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
@@ -89,10 +95,16 @@ pub(crate) struct ImplDispatcher<
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface + AsRef<Proxy<I>> + From<Proxy<I>> + Sync,
-    F: FnMut(I::Event, Main<I>) + 'static + Send,
+    F: FnMut(I::Event, Main<I>, crate::DispatchData<'_>) + 'static + Send,
     I::Event: MessageGroup<Map = ProxyMap>,
 {
-    fn dispatch(&mut self, msg: Message, proxy: ProxyInner, map: &mut ProxyMap) -> Dispatched {
+    fn dispatch(
+        &mut self,
+        msg: Message,
+        proxy: ProxyInner,
+        map: &mut ProxyMap,
+        data: crate::DispatchData,
+    ) -> Dispatched {
         let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
@@ -130,10 +142,8 @@ where
                     map.remove(proxy.id);
                 }
             }
-            (self.implementation)(message, Main::<I>::wrap(proxy));
-        } else {
-            (self.implementation)(message, Main::<I>::wrap(proxy));
         }
+        (self.implementation)(message, Main::<I>::wrap(proxy), data);
         Dispatched::Yes
     }
 }
@@ -147,14 +157,20 @@ where
     let guard = ThreadGuard::new(filter);
     Arc::new(Mutex::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,
-        implementation: move |evt, proxy| guard.get().send((proxy, evt).into()),
+        implementation: move |evt, proxy, data| guard.get().send((proxy, evt).into(), data),
     }))
 }
 
 pub(crate) fn default_dispatcher() -> Arc<Mutex<dyn Dispatcher + Send>> {
     struct DefaultDisp;
     impl Dispatcher for DefaultDisp {
-        fn dispatch(&mut self, msg: Message, proxy: ProxyInner, _map: &mut ProxyMap) -> Dispatched {
+        fn dispatch(
+            &mut self,
+            msg: Message,
+            proxy: ProxyInner,
+            _map: &mut ProxyMap,
+            _data: crate::DispatchData,
+        ) -> Dispatched {
             Dispatched::NoDispatch(msg, proxy)
         }
     }

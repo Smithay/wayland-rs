@@ -8,7 +8,7 @@ use wayland_sys::server::*;
 
 use wayland_commons::user_data::UserData;
 
-use crate::{Interface, Main, MessageGroup, Resource};
+use crate::{DispatchData, Interface, Main, MessageGroup, Resource};
 
 use super::ClientInner;
 
@@ -266,7 +266,9 @@ impl ResourceInner {
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
                 as *mut ResourceUserData<I>;
             if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
-                **guard = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+                **guard = Some(Box::new(move |evt, obj, data| {
+                    filter.send((obj, evt).into(), data)
+                }));
             } else {
                 panic!("Re-assigning an object from within its own callback is not supported.");
             }
@@ -282,13 +284,13 @@ impl ResourceInner {
         unsafe {
             let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
                 as *mut ResourceUserData<I>;
-            (*user_data).destructor = Some(Box::new(move |obj| filter.send(obj.into())));
+            (*user_data).destructor = Some(Box::new(move |obj, data| filter.send(obj.into(), data)));
         }
     }
 }
 
-type BoxedHandler<I> = Box<dyn Fn(<I as Interface>::Request, Main<I>)>;
-type BoxedDest<I> = Box<dyn Fn(Resource<I>)>;
+type BoxedHandler<I> = Box<dyn Fn(<I as Interface>::Request, Main<I>, DispatchData<'_>)>;
+type BoxedDest<I> = Box<dyn Fn(Resource<I>, DispatchData<'_>)>;
 
 pub(crate) struct ResourceUserData<I: Interface + From<Resource<I>> + AsRef<Resource<I>>> {
     _i: ::std::marker::PhantomData<*const I>,
@@ -339,7 +341,12 @@ where
             }
 
             match implem.as_ref() {
-                Some(ref implem_func) => implem_func(msg, resource_obj),
+                Some(ref implem_func) => {
+                    super::DISPATCH_DATA.with(|disp_data| {
+                        let mut disp_data = disp_data.borrow_mut();
+                        implem_func(msg, resource_obj, disp_data.reborrow())
+                    });
+                }
                 None => {
                     eprintln!(
                         "[wayland-server] Request received for an object not associated to any filter: {}@{}",
@@ -390,7 +397,15 @@ where
         user_data.internal.alive.store(false, Ordering::Release);
         if let Some(dest_func) = user_data.destructor.take() {
             let resource_obj = Resource::<I>::from_c_ptr(resource);
-            dest_func(resource_obj);
+            // DISPATCH_DATA may be unset during destructor runs in final cleanup
+            if super::DISPATCH_DATA.is_set() {
+                super::DISPATCH_DATA.with(|disp_data| {
+                    let mut disp_data = disp_data.borrow_mut();
+                    dest_func(resource_obj, disp_data.reborrow());
+                });
+            } else {
+                dest_func(resource_obj, DispatchData::wrap(&mut ()));
+            }
         }
     });
 
