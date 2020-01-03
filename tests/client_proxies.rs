@@ -12,7 +12,9 @@ use wayc::Proxy;
 #[test]
 fn proxy_equals() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -37,7 +39,9 @@ fn proxy_equals() {
 #[test]
 fn proxy_user_data() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -67,7 +71,9 @@ fn proxy_user_data() {
 #[test]
 fn proxy_user_data_wrong_thread() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -94,7 +100,9 @@ fn proxy_user_data_wrong_thread() {
 #[test]
 fn proxy_wrapper() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -106,7 +114,9 @@ fn proxy_wrapper() {
     // event_queue_2 has not been dispatched
     assert!(manager.list().len() == 0);
 
-    event_queue_2.dispatch_pending(|_, _| unreachable!()).unwrap();
+    event_queue_2
+        .dispatch_pending(&mut (), |_, _, _| unreachable!())
+        .unwrap();
 
     assert!(manager.list().len() == 1);
 }
@@ -114,7 +124,9 @@ fn proxy_wrapper() {
 #[test]
 fn proxy_create_unattached() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -139,7 +151,9 @@ fn proxy_create_unattached() {
 #[test]
 fn proxy_create_attached() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, |_, _| {});
+    server
+        .display
+        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -166,7 +180,7 @@ fn proxy_create_attached() {
 #[test]
 fn dead_proxies() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(3, |_, _| {});
+    server.display.create_global::<ServerOutput, _>(3, |_, _, _| {});
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

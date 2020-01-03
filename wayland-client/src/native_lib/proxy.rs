@@ -225,7 +225,9 @@ impl ProxyInner {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
                 as *mut ProxyUserData<I>;
             if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
-                **guard = Some(Box::new(move |evt, obj| filter.send((obj, evt).into())));
+                **guard = Some(Box::new(move |evt, obj, data| {
+                    filter.send((obj, evt).into(), data)
+                }));
             } else {
                 panic!("Re-assigning an object from within its own callback is not supported.");
             }
@@ -331,7 +333,7 @@ impl Drop for ProxyInner {
     }
 }
 
-type BoxedCallback<I> = Box<dyn Fn(<I as Interface>::Event, Main<I>)>;
+type BoxedCallback<I> = Box<dyn Fn(<I as Interface>::Event, Main<I>, crate::DispatchData<'_>)>;
 
 struct ProxyUserData<I: Interface + From<Proxy<I>> + AsRef<Proxy<I>>> {
     internal: Arc<ProxyInternal>,
@@ -383,17 +385,22 @@ where
                     // This proxy must be a Main, so it as attached wrapping itself
                     proxy_inner.wrapping = Some(proxy_inner.ptr);
                     let proxy_obj = crate::Main::wrap(proxy_inner);
-                    implem(msg, proxy_obj);
+                    super::event_queue::DISPATCH_METADATA.with(|meta| {
+                        let mut meta = meta.borrow_mut();
+                        let (_, ref mut dispatch_data) = *meta;
+                        implem(msg, proxy_obj, dispatch_data.reborrow());
+                    })
                 }
                 None => {
-                    super::event_queue::FALLBACK.with(|fallback| {
-                        let mut fallback = fallback.borrow_mut();
-                        // parse the message:
-                        let msg = parse_raw_event::<I>(opcode, args);
-                        // create the proxy object
-                        let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
-                        (&mut *fallback)(msg, proxy_obj);
-                    });
+                    // parse the message:
+                    let msg = parse_raw_event::<I>(opcode, args);
+                    // create the proxy object
+                    let proxy_obj = crate::Main::wrap(ProxyInner::from_c_ptr::<I>(proxy));
+                    super::event_queue::DISPATCH_METADATA.with(|meta| {
+                        let mut meta = meta.borrow_mut();
+                        let (ref mut fallback, ref mut dispatch_data) = *meta;
+                        (&mut *fallback)(msg, proxy_obj, dispatch_data.reborrow());
+                    })
                 }
             }
         }

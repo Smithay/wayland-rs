@@ -24,7 +24,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerB
         Surface => wl_surface::WlSurface
     );
 
-    let filter = ways::Filter::new(move |req, filter| match req {
+    let filter = ways::Filter::new(move |req, filter, _| match req {
         Reqs::Compositor {
             request: wl_compositor::Request::CreateSurface { id: surface },
             ..
@@ -45,7 +45,7 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerB
 
     server
         .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version| {
+        .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version, _| {
             assert!(version == 1);
             compositor.assign(filter.clone());
         });
@@ -64,7 +64,7 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ways::
         Pool => wl_shm_pool::WlShmPool
     );
 
-    let filter = ways::Filter::new(move |req, filter| match req {
+    let filter = ways::Filter::new(move |req, filter, _| match req {
         Reqs::Shm {
             request: wl_shm::Request::CreatePool { id, fd, size },
             ..
@@ -81,7 +81,7 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ways::
             let mut guard = buffer.lock().unwrap();
             let buf = guard.as_mut().unwrap();
             assert!(buf.1.is_none());
-            id.assign_mono(|_, _| {});
+            id.quick_assign(|_, _, _| {});
             buf.1 = Some(id);
         }
         _ => {
@@ -91,7 +91,7 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ways::
 
     server
         .display
-        .create_global::<wl_shm::WlShm, _>(1, move |shm, version| {
+        .create_global::<wl_shm::WlShm, _>(1, move |shm, version, _| {
             assert!(version == 1);
             shm.assign(filter.clone());
         });

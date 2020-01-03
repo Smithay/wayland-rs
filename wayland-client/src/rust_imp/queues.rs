@@ -14,7 +14,7 @@ use super::connection::{Connection, Error as CError};
 use super::proxy::{ObjectMeta, ProxyInner};
 use super::Dispatched;
 
-use crate::{AnonymousObject, Filter, Main, RawEvent};
+use crate::{AnonymousObject, DispatchData, Filter, Main, RawEvent};
 
 pub(crate) type QueueBuffer = Arc<Mutex<VecDeque<Message>>>;
 
@@ -47,13 +47,13 @@ impl EventQueueInner {
         self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
     }
 
-    pub(crate) fn dispatch<F>(&self, mut fallback: F) -> io::Result<u32>
+    pub(crate) fn dispatch<F>(&self, mut data: DispatchData, mut fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         // don't read events if there are some pending
         if let Err(()) = self.prepare_read() {
-            return self.dispatch_pending(&mut fallback);
+            return self.dispatch_pending(data.reborrow(), &mut fallback);
         }
 
         // temporarily retrieve the socket Fd, only using it for POLL-ing!
@@ -103,7 +103,7 @@ impl EventQueueInner {
 
         // even if read_events returned an error, it may have queued messages the need dispatching
         // so we dispatch them
-        let dispatch_ret = self.dispatch_pending(&mut fallback);
+        let dispatch_ret = self.dispatch_pending(data.reborrow(), &mut fallback);
 
         match read_ret {
             Ok(_) => (),
@@ -119,9 +119,14 @@ impl EventQueueInner {
         dispatch_ret
     }
 
-    fn dispatch_buffer<F>(&self, buffer: &mut VecDeque<Message>, mut fallback: F) -> io::Result<u32>
+    fn dispatch_buffer<F>(
+        &self,
+        buffer: &mut VecDeque<Message>,
+        mut data: DispatchData,
+        mut fallback: F,
+    ) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         let mut count = 0;
         let mut proxymap = super::ProxyMap::make(self.map.clone(), self.connection.clone());
@@ -153,13 +158,13 @@ impl EventQueueInner {
                     continue;
                 }
                 let mut dispatcher = object.meta.dispatcher.lock().unwrap();
-                match dispatcher.dispatch(msg, proxy, &mut proxymap) {
+                match dispatcher.dispatch(msg, proxy, &mut proxymap, data.reborrow()) {
                     Dispatched::Yes => {
                         count += 1;
                     }
                     Dispatched::NoDispatch(msg, proxy) => {
                         let raw_event = message_to_rawevent(msg, &proxy, &mut proxymap);
-                        fallback(raw_event, Main::wrap(proxy));
+                        fallback(raw_event, Main::wrap(proxy), data.reborrow());
                         count += 1;
                     }
                     Dispatched::BadMsg => {
@@ -179,28 +184,28 @@ impl EventQueueInner {
         Ok(count)
     }
 
-    pub(crate) fn dispatch_pending<F>(&self, fallback: F) -> io::Result<u32>
+    pub(crate) fn dispatch_pending<F>(&self, mut data: DispatchData, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         // First always dispatch the display buffer
         let display_dispatched = {
             let mut buffer = self.display_buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer, |_, _| unreachable!())
+            self.dispatch_buffer(&mut *buffer, data.reborrow(), |_, _, _| unreachable!())
         }?;
 
         // Then our actual buffer
         let self_dispatched = {
             let mut buffer = self.buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer, fallback)
+            self.dispatch_buffer(&mut *buffer, data.reborrow(), fallback)
         }?;
 
         Ok(display_dispatched + self_dispatched)
     }
 
-    pub(crate) fn sync_roundtrip<F>(&self, mut fallback: F) -> io::Result<u32>
+    pub(crate) fn sync_roundtrip<F>(&self, mut data: DispatchData, mut fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         use crate::protocol::wl_callback::{Event as CbEvent, WlCallback};
         use crate::protocol::wl_display::{Request as DRequest, WlDisplay};
@@ -213,7 +218,7 @@ impl EventQueueInner {
             .send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1))
             .unwrap();
         let done2 = done.clone();
-        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt), _| {
+        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt), _, _| {
             if let CbEvent::Done { .. } = evt {
                 done2.set(true);
             } else {
@@ -224,7 +229,7 @@ impl EventQueueInner {
         let mut dispatched = 0;
 
         loop {
-            dispatched += self.dispatch(&mut fallback)?;
+            dispatched += self.dispatch(data.reborrow(), &mut fallback)?;
             if done.get() {
                 return Ok(dispatched);
             }

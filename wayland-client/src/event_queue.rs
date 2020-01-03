@@ -2,7 +2,7 @@ use std::io;
 use std::rc::Rc;
 
 use crate::imp::EventQueueInner;
-use crate::{AnonymousObject, Main, RawEvent};
+use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 
 /// An event queue for protocol messages
 ///
@@ -36,7 +36,7 @@ use crate::{AnonymousObject, Main, RawEvent};
 ///     // and have emptied the wayland socket from its pending messages, so it needs
 ///     // to be called in a loop. If this method returns an error, your connection to
 ///     // the wayland server is very likely dead. See its documentation for more details.
-///     event_queue.dispatch(|_,_| {
+///     event_queue.dispatch(&mut (), |_,_,_| {
 ///         /* This closure will be called for every event received by an object not
 ///            assigned to any Filter. If you plan to assign all your objects to Filter,
 ///            the simplest thing to do is to assert this is never called. */
@@ -92,7 +92,7 @@ use crate::{AnonymousObject, Main, RawEvent};
 ///     // method will only affect the event queue it is being called on. This method
 ///     // cannot error unless there is a bug in the server or a previous read of events
 ///     // already errored.
-///     event_queue.dispatch_pending(|_,_| {}).expect("Failed to dispatch all messages.");
+///     event_queue.dispatch_pending(&mut (), |_,_,_| {}).expect("Failed to dispatch all messages.");
 ///
 ///     // Note that none of these methods are blocking, as such they should not be used
 ///     // as a loop as-is if there are no other sources of events your program is waiting on.
@@ -131,13 +131,18 @@ impl EventQueue {
     /// This process can insert events in the internal buffers of
     /// other event queues.
     ///
+    /// The provided `data` will be mutably accessible from all the callbacks, via the
+    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
+    /// can just provide a `&mut ()` there.
+    ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch<F>(&mut self, fallback: F) -> io::Result<u32>
+    pub fn dispatch<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        self.inner.dispatch(fallback)
+        let mut data = DispatchData::wrap(data);
+        self.inner.dispatch(data.reborrow(), fallback)
     }
 
     /// Dispatches pending events from the internal buffer.
@@ -146,13 +151,18 @@ impl EventQueue {
     /// Never blocks, if no events were pending, simply returns
     /// `Ok(0)`.
     ///
+    /// The provided `data` will be mutably accessible from all the callbacks, via the
+    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
+    /// can just provide a `&mut ()` there.
+    ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch_pending<F>(&mut self, fallback: F) -> io::Result<u32>
+    pub fn dispatch_pending<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        self.inner.dispatch_pending(fallback)
+        let mut data = DispatchData::wrap(data);
+        self.inner.dispatch_pending(data.reborrow(), fallback)
     }
 
     /// Synchronous roundtrip
@@ -163,14 +173,19 @@ impl EventQueue {
     ///
     /// Handlers are called as a consequence.
     ///
+    /// The provided `data` will be mutably accessible from all the callbacks, via the
+    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
+    /// can just provide a `&mut ()` there.
+    ///
     /// On success returns the number of dispatched events.
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn sync_roundtrip<F>(&mut self, fallback: F) -> io::Result<u32>
+    pub fn sync_roundtrip<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        self.inner.sync_roundtrip(fallback)
+        let mut data = DispatchData::wrap(data);
+        self.inner.sync_roundtrip(data.reborrow(), fallback)
     }
 
     /// Create a new token associated with this event queue

@@ -298,13 +298,13 @@ where
     /// you want to assign this object to its own filter. In which
     /// case you just need to provide the appropriate closure, of
     /// type `FnMut(Main<I>, I::Event)`.
-    pub fn assign_mono<F>(&self, mut f: F)
+    pub fn quick_assign<F>(&self, mut f: F)
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F: FnMut(Main<I>, I::Request) + 'static,
+        F: FnMut(Main<I>, I::Request, crate::DispatchData) + 'static,
         I::Request: MessageGroup<Map = crate::ResourceMap>,
     {
-        self.assign(Filter::new(move |(proxy, event), _| f(proxy, event)))
+        self.assign(Filter::new(move |(proxy, event), _, data| f(proxy, event, data)))
     }
 
     /// Assign a destructor to this object

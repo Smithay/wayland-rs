@@ -78,7 +78,7 @@ impl GlobalManager {
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
-        registry.assign_mono(move |_proxy, msg| {
+        registry.quick_assign(move |_proxy, msg, _data| {
             let mut inner = inner.lock().unwrap();
             match msg {
                 wl_registry::Event::Global {
@@ -123,7 +123,7 @@ impl GlobalManager {
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
-        registry.assign_mono(move |proxy, msg| {
+        registry.quick_assign(move |proxy, msg, _data| {
             let mut inner = inner.lock().unwrap();
             let inner = &mut *inner;
             match msg {

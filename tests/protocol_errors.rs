@@ -97,7 +97,7 @@ fn client_receive_error() {
     let my_server_output = server_output.clone();
     server
         .display
-        .create_global::<ways::protocol::wl_output::WlOutput, _>(3, move |output, _| {
+        .create_global::<ways::protocol::wl_output::WlOutput, _>(3, move |output, _, _| {
             *my_server_output.borrow_mut() = Some(output)
         });
 

@@ -109,7 +109,11 @@ pub use event_queue::{EventQueue, QueueToken, ReadEventsGuard};
 pub use globals::{GlobalError, GlobalEvent, GlobalImplementor, GlobalManager};
 pub use imp::ProxyMap;
 pub use proxy::{Attached, Main, Proxy};
-pub use wayland_commons::{filter::Filter, user_data::UserData, Interface, MessageGroup, NoMessage};
+pub use wayland_commons::{
+    filter::{DispatchData, Filter},
+    user_data::UserData,
+    Interface, MessageGroup, NoMessage,
+};
 
 // rust implementation
 #[cfg(not(feature = "use_system_lib"))]

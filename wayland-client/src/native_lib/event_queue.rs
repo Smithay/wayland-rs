@@ -2,24 +2,25 @@ use std::cell::RefCell;
 use std::io;
 use std::sync::Arc;
 
-use crate::{AnonymousObject, Main, RawEvent};
+use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 use wayland_sys::client::*;
 
 use super::DisplayInner;
 
 scoped_tls::scoped_thread_local! {
-    pub(crate) static FALLBACK: RefCell<&mut dyn FnMut(RawEvent, Main<AnonymousObject>)>
+    pub(crate) static DISPATCH_METADATA: RefCell<(&mut dyn FnMut(RawEvent, Main<AnonymousObject>, DispatchData), DispatchData)>
 }
 
-fn with_fallback<T, FB, F>(mut fb: FB, f: F) -> T
+fn with_dispatch_meta<T, FB, F>(mut fb: FB, data: DispatchData, f: F) -> T
 where
-    FB: FnMut(RawEvent, Main<AnonymousObject>),
+    FB: FnMut(RawEvent, Main<AnonymousObject>, DispatchData),
     F: FnOnce() -> T,
 {
     // We erase the lifetime of the callback to be able to store it in the tls,
     // it's safe as it'll only last until the end of this function call anyway
-    let fb = unsafe { std::mem::transmute(&mut fb as &mut dyn FnMut(_, _)) };
-    FALLBACK.set(&RefCell::new(fb), || f())
+    let fb = unsafe { std::mem::transmute(&mut fb as &mut dyn FnMut(_, _, _)) };
+    let data = unsafe { std::mem::transmute(data) };
+    DISPATCH_METADATA.set(&RefCell::new((fb, data)), || f())
 }
 
 pub(crate) struct EventQueueInner {
@@ -36,11 +37,11 @@ impl EventQueueInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.inner.ptr()) }
     }
 
-    pub fn dispatch<F>(&self, fallback: F) -> io::Result<u32>
+    pub(crate) fn dispatch<F>(&self, data: DispatchData, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        with_fallback(fallback, || {
+        with_dispatch_meta(fallback, data, || {
             let ret = unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -57,11 +58,11 @@ impl EventQueueInner {
         })
     }
 
-    pub fn dispatch_pending<F>(&self, fallback: F) -> io::Result<u32>
+    pub(crate) fn dispatch_pending<F>(&self, data: DispatchData, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        with_fallback(fallback, || {
+        with_dispatch_meta(fallback, data, || {
             let ret = unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -78,11 +79,11 @@ impl EventQueueInner {
         })
     }
 
-    pub fn sync_roundtrip<F>(&self, fallback: F) -> io::Result<u32>
+    pub(crate) fn sync_roundtrip<F>(&self, data: DispatchData, fallback: F) -> io::Result<u32>
     where
-        F: FnMut(RawEvent, Main<AnonymousObject>),
+        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
-        with_fallback(fallback, || {
+        with_dispatch_meta(fallback, data, || {
             let ret = unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,

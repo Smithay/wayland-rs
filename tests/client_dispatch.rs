@@ -20,8 +20,8 @@ fn client_sync_roundtrip() {
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            display.dispatch(Duration::from_millis(10)).unwrap();
-            display.flush_clients();
+            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
             }
@@ -33,7 +33,10 @@ fn client_sync_roundtrip() {
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
-    client.event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
+    client
+        .event_queue
+        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+        .unwrap();
 
     *(kill_switch.lock().unwrap()) = true;
 
@@ -52,8 +55,8 @@ fn client_dispatch() {
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            display.dispatch(Duration::from_millis(10)).unwrap();
-            display.flush_clients();
+            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
             }
@@ -71,9 +74,12 @@ fn client_dispatch() {
     client
         .display_proxy
         .sync()
-        .assign_mono(move |_, _| done2.set(true));
+        .quick_assign(move |_, _, _| done2.set(true));
     while !done.get() {
-        client.event_queue.dispatch(|_, _| unreachable!()).unwrap();
+        client
+            .event_queue
+            .dispatch(&mut (), |_, _, _| unreachable!())
+            .unwrap();
     }
 
     *(kill_switch.lock().unwrap()) = true;

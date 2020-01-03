@@ -53,7 +53,7 @@ impl DisplayInner {
     ) -> GlobalInner<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F1: FnMut(Main<I>, u32) + 'static,
+        F1: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         self.global_mgr
@@ -61,8 +61,8 @@ impl DisplayInner {
             .add_global(version, implementation, filter)
     }
 
-    pub(crate) fn flush_clients(&mut self) {
-        self.clients_mgr.borrow_mut().flush_all()
+    pub(crate) fn flush_clients(&mut self, data: crate::DispatchData) {
+        self.clients_mgr.borrow_mut().flush_all(data)
     }
 
     fn add_unix_listener(&mut self, listener: UnixListener) -> io::Result<()> {
@@ -75,11 +75,13 @@ impl DisplayInner {
 
         let token = self
             .epoll_mgr
-            .register(listener.0.as_raw_fd(), move || {
+            .register(listener.0.as_raw_fd(), move |mut data| {
                 loop {
                     match listener.0.accept() {
                         Ok((stream, _)) => unsafe {
-                            client_mgr.borrow_mut().init_client(stream.into_raw_fd());
+                            client_mgr
+                                .borrow_mut()
+                                .init_client(stream.into_raw_fd(), data.reborrow());
                         },
                         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                             // we have exhausted all the pending connections
@@ -141,13 +143,13 @@ impl DisplayInner {
         self.add_unix_listener(FromRawFd::from_raw_fd(fd))
     }
 
-    pub(crate) unsafe fn create_client(&mut self, fd: RawFd) -> ClientInner {
-        self.clients_mgr.borrow_mut().init_client(fd)
+    pub(crate) unsafe fn create_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
+        self.clients_mgr.borrow_mut().init_client(fd, data)
     }
 
-    pub(crate) fn dispatch(&mut self, timeout: i32) -> std::io::Result<()> {
+    pub(crate) fn dispatch(&mut self, timeout: i32, data: crate::DispatchData) -> std::io::Result<()> {
         self.epoll_mgr
-            .poll(timeout)
+            .poll(timeout, data)
             .map_err(|e| From::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))
     }
 

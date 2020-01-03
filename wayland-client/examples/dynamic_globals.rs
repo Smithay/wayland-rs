@@ -32,7 +32,7 @@ fn main() {
             [wl_seat::WlSeat, 1, |seat: Main<wl_seat::WlSeat>| {
                 let mut seat_name = None;
                 let mut caps = None;
-                seat.assign_mono(move |_, event| {
+                seat.quick_assign(move |_, event, _| {
                     use wayland_client::protocol::wl_seat::Event;
                     match event {
                         Event::Name { name } => {
@@ -51,7 +51,7 @@ fn main() {
                 let mut name = "<unknown>".to_owned();
                 let mut modes = vec![];
                 let mut scale = 1;
-                output.assign_mono(move |_, event| {
+                output.quick_assign(move |_, event, _| {
                     use wayland_client::protocol::wl_output::Event;
                     match event {
                         Event::Geometry {
@@ -103,7 +103,13 @@ fn main() {
         ),
     );
 
-    event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
-    event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
-    event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
+    event_queue
+        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+        .unwrap();
+    event_queue
+        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+        .unwrap();
+    event_queue
+        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+        .unwrap();
 }

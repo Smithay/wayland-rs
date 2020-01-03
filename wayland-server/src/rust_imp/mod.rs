@@ -7,7 +7,7 @@ use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::{MessageGroup, ThreadGuard};
 
-use crate::{Filter, Interface, Main, Resource};
+use crate::{DispatchData, Filter, Interface, Main, Resource};
 
 mod clients;
 mod display;
@@ -74,7 +74,13 @@ pub(crate) enum Dispatched {
 }
 
 pub(crate) trait Dispatcher: Downcast {
-    fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Dispatched;
+    fn dispatch(
+        &mut self,
+        msg: Message,
+        resource: ResourceInner,
+        map: &mut ResourceMap,
+        data: DispatchData,
+    ) -> Dispatched;
 }
 
 mod dispatcher_impl {
@@ -86,7 +92,7 @@ mod dispatcher_impl {
 
 pub(crate) struct ImplDispatcher<
     I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
-    F: FnMut(I::Request, Main<I>),
+    F: FnMut(I::Request, Main<I>, DispatchData<'_>),
 > {
     _i: ::std::marker::PhantomData<&'static I>,
     implementation: F,
@@ -95,10 +101,16 @@ pub(crate) struct ImplDispatcher<
 impl<I, F> Dispatcher for ImplDispatcher<I, F>
 where
     I: Interface + From<Resource<I>> + AsRef<Resource<I>>,
-    F: FnMut(I::Request, Main<I>) + 'static,
+    F: FnMut(I::Request, Main<I>, DispatchData<'_>) + 'static,
     I::Request: MessageGroup<Map = ResourceMap>,
 {
-    fn dispatch(&mut self, msg: Message, resource: ResourceInner, map: &mut ResourceMap) -> Dispatched {
+    fn dispatch(
+        &mut self,
+        msg: Message,
+        resource: ResourceInner,
+        map: &mut ResourceMap,
+        data: DispatchData,
+    ) -> Dispatched {
         let opcode = msg.opcode as usize;
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
@@ -131,9 +143,9 @@ where
             if kill {
                 resource.client.kill();
             }
-            (self.implementation)(message, Main::<I>::wrap(resource.clone()));
+            (self.implementation)(message, Main::<I>::wrap(resource.clone()), data);
         } else {
-            (self.implementation)(message, Main::<I>::wrap(resource));
+            (self.implementation)(message, Main::<I>::wrap(resource), data);
         }
         Dispatched::Yes
     }
@@ -147,14 +159,20 @@ where
 {
     Arc::new(ThreadGuard::new(RefCell::new(ImplDispatcher {
         _i: ::std::marker::PhantomData,
-        implementation: move |evt, res| filter.send((res, evt).into()),
+        implementation: move |evt, res, data| filter.send((res, evt).into(), data),
     })))
 }
 
 pub(crate) fn default_dispatcher() -> Arc<ThreadGuard<RefCell<dyn Dispatcher>>> {
     struct DefaultDisp;
     impl Dispatcher for DefaultDisp {
-        fn dispatch(&mut self, msg: Message, resource: ResourceInner, _map: &mut ResourceMap) -> Dispatched {
+        fn dispatch(
+            &mut self,
+            msg: Message,
+            resource: ResourceInner,
+            _map: &mut ResourceMap,
+            _data: DispatchData,
+        ) -> Dispatched {
             Dispatched::NoDispatch(msg, resource)
         }
     }
@@ -167,7 +185,7 @@ where
     I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
     E: From<Resource<I>> + 'static,
 {
-    Arc::new(ThreadGuard::new(RefCell::new(move |res| {
-        filter.send(Resource::<I>::wrap(res).into())
-    })))
+    Arc::new(ThreadGuard::new(RefCell::new(
+        move |res, data: DispatchData<'_>| filter.send(Resource::<I>::wrap(res).into(), data),
+    )))
 }

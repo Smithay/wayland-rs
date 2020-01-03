@@ -13,7 +13,7 @@ use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 use wayland_commons::{smallvec, ThreadGuard};
 
-use crate::{Interface, UserDataMap};
+use crate::{DispatchData, Interface, UserDataMap};
 
 use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
@@ -27,7 +27,7 @@ pub(crate) enum Error {
     Nix(::nix::Error),
 }
 
-type BoxedClientDestructor = Box<dyn FnMut(Arc<UserDataMap>)>;
+type BoxedClientDestructor = Box<dyn FnMut(Arc<UserDataMap>, DispatchData<'_>)>;
 
 pub(crate) struct ClientConnection {
     socket: BufferedSocket,
@@ -66,10 +66,10 @@ impl ClientConnection {
         self.pending_destructors.push(resource);
     }
 
-    pub(crate) fn call_destructors(&mut self) {
+    pub(crate) fn call_destructors(&mut self, mut data: crate::DispatchData) {
         for resource in self.pending_destructors.drain(..) {
             if let Some(ref dest) = resource.object.meta.destructor {
-                (&mut *dest.get().borrow_mut())(resource.clone());
+                (&mut *dest.get().borrow_mut())(resource.clone(), data.reborrow());
             }
         }
     }
@@ -191,7 +191,7 @@ impl ClientConnection {
         Ok(Some(msg))
     }
 
-    fn cleanup(mut self) {
+    fn cleanup(mut self, mut data: crate::DispatchData) {
         let dummy_client = ClientInner {
             data: Arc::new(Mutex::new(None)),
             user_data_map: self.user_data_map.clone(),
@@ -205,12 +205,12 @@ impl ClientConnection {
             };
             obj.meta.alive.store(false, Ordering::Release);
             if let Some(ref dest) = obj.meta.destructor {
-                (&mut *dest.get().borrow_mut())(resource);
+                (&mut *dest.get().borrow_mut())(resource, data.reborrow());
             }
         });
         let _ = ::nix::unistd::close(self.socket.into_socket().into_raw_fd());
         for mut destructor in self.destructors.get_mut().drain(..) {
-            destructor(self.user_data_map.clone());
+            destructor(self.user_data_map.clone(), data.reborrow());
         }
     }
 }
@@ -250,7 +250,10 @@ impl ClientInner {
         &self.user_data_map
     }
 
-    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>) + 'static>(&self, destructor: F) {
+    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>, DispatchData<'_>) + 'static>(
+        &self,
+        destructor: F,
+    ) {
         if self.loop_thread != std::thread::current().id() {
             panic!("Can only add a destructor from the thread hosting the Display.");
         }
@@ -258,11 +261,14 @@ impl ClientInner {
             // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
             // currently =(
             let mut opt_dest = Some(destructor);
-            client_data.destructors.get_mut().push(Box::new(move |data_map| {
-                if let Some(dest) = opt_dest.take() {
-                    dest(data_map);
-                }
-            }));
+            client_data
+                .destructors
+                .get_mut()
+                .push(Box::new(move |data_map, data| {
+                    if let Some(dest) = opt_dest.take() {
+                        dest(data_map, data);
+                    }
+                }));
         }
     }
 
@@ -341,7 +347,7 @@ impl ClientManager {
         }
     }
 
-    pub(crate) unsafe fn init_client(&mut self, fd: RawFd) -> ClientInner {
+    pub(crate) unsafe fn init_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
         let display_object = Object {
             interface: "wl_display",
             version: 1,
@@ -370,7 +376,7 @@ impl ClientManager {
         };
 
         // process any pending messages before inserting it into the event loop
-        implementation.process_messages();
+        implementation.process_messages(data);
 
         if !client.alive() {
             // client already made a protocol error and we killed it, there is no point
@@ -380,7 +386,7 @@ impl ClientManager {
 
         let source = match self
             .epoll_mgr
-            .register(fd, move || implementation.process_messages())
+            .register(fd, move |data| implementation.process_messages(data))
         {
             Ok(source) => Some(source),
             Err(e) => {
@@ -400,12 +406,12 @@ impl ClientManager {
         client
     }
 
-    pub(crate) fn flush_all(&mut self) {
+    pub(crate) fn flush_all(&mut self, mut disp_data: crate::DispatchData) {
         // flush all clients and cleanup dead ones
         let epoll_mgr = self.epoll_mgr.clone();
         self.clients.retain(|&(ref s, ref c)| {
             if let Some(ref mut data) = *c.data.lock().unwrap() {
-                data.call_destructors();
+                data.call_destructors(disp_data.reborrow());
                 data.flush().is_ok()
             } else {
                 // This is a dead client, clean it up
@@ -418,7 +424,7 @@ impl ClientManager {
 
         let mut guard = self.zombie_clients.lock().unwrap();
         for zombie in guard.drain(..) {
-            zombie.cleanup();
+            zombie.cleanup(disp_data.reborrow());
         }
     }
 
@@ -427,7 +433,7 @@ impl ClientManager {
         for &(_, ref client) in &self.clients {
             client.kill();
         }
-        self.flush_all();
+        self.flush_all(crate::DispatchData::wrap(&mut ()));
     }
 }
 
@@ -516,7 +522,7 @@ struct ClientImplementation {
 }
 
 impl ClientImplementation {
-    fn process_messages(&self) {
+    fn process_messages(&self, mut data: crate::DispatchData) {
         loop {
             // we must process the messages one by one, because message parsing depends
             // on the contents of the object map, which each message can change...
@@ -540,7 +546,7 @@ impl ClientImplementation {
                     if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
                         let object = res.object.clone();
                         let mut dispatcher = object.meta.dispatcher.get().borrow_mut();
-                        match dispatcher.dispatch(msg, res, &mut resourcemap) {
+                        match dispatcher.dispatch(msg, res, &mut resourcemap, data.reborrow()) {
                             Dispatched::Yes => {}
                             Dispatched::NoDispatch(_msg, _res) => {
                                 eprintln!("[wayland-server] Request received for an object not associated to any filter: {}@{}", object.interface, id);
@@ -588,6 +594,7 @@ impl super::Dispatcher for DisplayDispatcher {
         msg: Message,
         _resource: ResourceInner,
         map: &mut super::ResourceMap,
+        _data: crate::DispatchData,
     ) -> Dispatched {
         use crate::protocol::wl_callback;
 
@@ -647,6 +654,7 @@ impl super::Dispatcher for RegistryDispatcher {
         msg: Message,
         resource: ResourceInner,
         map: &mut super::ResourceMap,
+        data: crate::DispatchData,
     ) -> Dispatched {
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
@@ -679,6 +687,7 @@ impl super::Dispatcher for RegistryDispatcher {
             &interface.to_string_lossy(),
             version,
             map.client.clone(),
+            data,
         ) {
             Ok(()) => Dispatched::Yes,
             Err(()) => Dispatched::BadMsg,

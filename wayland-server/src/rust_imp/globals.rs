@@ -6,7 +6,7 @@ use wayland_commons::map::Object;
 use wayland_commons::smallvec;
 use wayland_commons::wire::{Argument, Message};
 
-use crate::{Interface, Main, Resource};
+use crate::{DispatchData, Interface, Main, Resource};
 
 use super::resources::ObjectMeta;
 use super::{ClientInner, ResourceInner};
@@ -36,7 +36,7 @@ struct GlobalData {
     version: u32,
     interface: &'static str,
     destroyed: Rc<Cell<bool>>,
-    implem: Box<dyn Fn(u32, u32, ClientInner) -> Result<(), ()>>,
+    implem: Box<dyn Fn(u32, u32, ClientInner, DispatchData) -> Result<(), ()>>,
     filter: Option<GlobalFilter>,
 }
 
@@ -61,7 +61,7 @@ impl GlobalManager {
     ) -> GlobalInner<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F1: FnMut(Main<I>, u32) + 'static,
+        F1: FnMut(Main<I>, u32, DispatchData) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
         let implem = RefCell::new(implementation);
@@ -69,7 +69,7 @@ impl GlobalManager {
             version,
             interface: I::NAME,
             destroyed: Rc::new(Cell::new(false)),
-            implem: Box::new(move |newid, version, client| {
+            implem: Box::new(move |newid, version, client, data| {
                 // insert the object in the map, and call the global bind callback
                 // This is done in two times to ensure the client lock is not locked during
                 // the callback
@@ -87,6 +87,7 @@ impl GlobalManager {
                     (&mut *implem.borrow_mut())(
                         Main::wrap(ResourceInner::from_id(newid, map, client.clone()).unwrap()),
                         version,
+                        data,
                     )
                 }
                 Ok(())
@@ -148,6 +149,7 @@ impl GlobalManager {
         interface: &str,
         version: u32,
         client: ClientInner,
+        data: DispatchData,
     ) -> Result<(), ()> {
         if let Some(ref global_data) = self.globals.get((global_id - 1) as usize) {
             if !global_data
@@ -191,7 +193,7 @@ impl GlobalManager {
                 );
             } else {
                 // all is good, we insert the object in the map and send it the events
-                return (global_data.implem)(resource_newid, version, client);
+                return (global_data.implem)(resource_newid, version, client, data);
             }
         } else {
             client.post_error(

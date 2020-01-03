@@ -77,7 +77,8 @@ impl Client {
     /// **Panics**: This function will panic if called from an other thread than the one
     /// hosting the Display.
     pub fn add_destructor(&self, destructor: crate::Filter<Arc<UserDataMap>>) {
-        self.inner.add_destructor(move |ud| destructor.send(ud));
+        self.inner
+            .add_destructor(move |ud, data| destructor.send(ud, data));
     }
 
     /// Creates a new resource for this client

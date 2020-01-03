@@ -10,7 +10,7 @@ use wayland_commons::{MessageGroup, ThreadGuard};
 
 use super::{ClientInner, Dispatcher};
 
-pub(crate) type ResourceDestructor = RefCell<dyn FnMut(ResourceInner)>;
+pub(crate) type ResourceDestructor = RefCell<dyn FnMut(ResourceInner, crate::DispatchData<'_>)>;
 
 #[derive(Clone)]
 pub(crate) struct ObjectMeta {

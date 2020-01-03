@@ -29,7 +29,9 @@ fn main() {
     let globals = GlobalManager::new(&attached_display);
 
     // roundtrip to retrieve the globals list
-    event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
+    event_queue
+        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+        .unwrap();
 
     /*
      * Create a buffer with window contents
@@ -86,7 +88,7 @@ fn main() {
         .instantiate_exact::<wl_shell::WlShell>(1)
         .expect("Compositor does not support wl_shell");
     let shell_surface = shell.get_shell_surface(&surface);
-    shell_surface.assign_mono(|shell_surface, event| {
+    shell_surface.quick_assign(|shell_surface, event, _| {
         use wayland_client::protocol::wl_shell_surface::Event;
         // This ping/pong mechanism is used by the wayland server to detect
         // unresponsive applications
@@ -103,7 +105,7 @@ fn main() {
     // initialize a seat to retrieve pointer & keyboard events
     //
     // example of using a common filter to handle both pointer & keyboard events
-    let common_filter = Filter::new(move |event, _| match event {
+    let common_filter = Filter::new(move |event, _, _| match event {
         Events::Pointer { event, .. } => match event {
             wl_pointer::Event::Enter {
                 surface_x, surface_y, ..
@@ -145,7 +147,7 @@ fn main() {
     globals
         .instantiate_exact::<wl_seat::WlSeat>(1)
         .unwrap()
-        .assign_mono(move |seat, event| {
+        .quick_assign(move |seat, event, _| {
             // The capabilities of a seat are known at runtime and we retrieve
             // them via an events. 3 capabilities exists: pointer, keyboard, and touch
             // we are only interested in pointer & keyboard here
@@ -166,12 +168,12 @@ fn main() {
         });
 
     event_queue
-        .sync_roundtrip(|_, _| { /* we ignore unfiltered messages */ })
+        .sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })
         .unwrap();
 
     loop {
         event_queue
-            .dispatch(|_, _| { /* we ignore unfiltered messages */ })
+            .dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })
             .unwrap();
     }
 }

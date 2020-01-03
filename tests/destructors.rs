@@ -16,10 +16,10 @@ fn resource_destructor_request() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerOutput, _>(3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |newo, _, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.assign_mono(|_, _| {});
-            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _| {
+            newo.quick_assign(|_, _, _| {});
+            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _, _| {
                 *destructor_called_resource.lock().unwrap() = true;
             }));
         });
@@ -48,9 +48,9 @@ fn resource_destructor_cleanup() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerOutput, _>(3, move |newo, _| {
+        .create_global::<ServerOutput, _>(3, move |newo, _, _| {
             let destructor_called_resource = destructor_called_global.clone();
-            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _| {
+            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _, _| {
                 *destructor_called_resource.lock().unwrap() = true;
             }));
         });
@@ -80,10 +80,10 @@ fn client_destructor_cleanup() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerOutput, _>(3, move |output, _| {
+        .create_global::<ServerOutput, _>(3, move |output, _, _| {
             let destructor_called_resource = destructor_called_global.clone();
             let client = output.as_ref().client().unwrap();
-            client.add_destructor(ways::Filter::new(move |_, _| {
+            client.add_destructor(ways::Filter::new(move |_, _, _| {
                 *destructor_called_resource.lock().unwrap() = true;
             }));
         });

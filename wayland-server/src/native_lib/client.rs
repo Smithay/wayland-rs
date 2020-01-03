@@ -8,9 +8,9 @@ use wayland_commons::ThreadGuard;
 use wayland_sys::server::*;
 
 use super::resource::ResourceInner;
-use crate::{Interface, Resource, UserDataMap};
+use crate::{DispatchData, Interface, Resource, UserDataMap};
 
-type BoxedDest = Box<dyn FnMut(Arc<UserDataMap>) + 'static>;
+type BoxedDest = Box<dyn FnMut(Arc<UserDataMap>, DispatchData<'_>) + 'static>;
 
 pub(crate) struct ClientInternal {
     alive: AtomicBool,
@@ -110,7 +110,10 @@ impl ClientInner {
         &self.internal.user_data_map
     }
 
-    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>) + 'static>(&self, destructor: F) {
+    pub(crate) fn add_destructor<F: FnOnce(Arc<UserDataMap>, DispatchData<'_>) + 'static>(
+        &self,
+        destructor: F,
+    ) {
         if self.internal.safe_thread != std::thread::current().id() {
             panic!("Can only add a destructor from the thread hosting the Display.");
         }
@@ -122,9 +125,9 @@ impl ClientInner {
             .destructors
             .get()
             .borrow_mut()
-            .push(Box::new(move |data_map| {
+            .push(Box::new(move |data_map, data| {
                 if let Some(dest) = opt_dest.take() {
-                    dest(data_map);
+                    dest(data_map, data);
                 }
             }))
     }
@@ -161,8 +164,17 @@ unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_vo
     internal.alive.store(false, Ordering::Release);
 
     let mut destructors = internal.destructors.get().borrow_mut();
-    for mut destructor in destructors.drain(..) {
-        destructor(internal.user_data_map.clone());
+    if super::DISPATCH_DATA.is_set() {
+        super::DISPATCH_DATA.with(|disp_data| {
+            let mut disp_data = disp_data.borrow_mut();
+            for mut destructor in destructors.drain(..) {
+                destructor(internal.user_data_map.clone(), disp_data.reborrow());
+            }
+        });
+    } else {
+        for mut destructor in destructors.drain(..) {
+            destructor(internal.user_data_map.clone(), DispatchData::wrap(&mut ()));
+        }
     }
 
     signal::rust_listener_destroy(listener);
