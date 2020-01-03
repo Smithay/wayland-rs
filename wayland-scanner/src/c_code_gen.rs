@@ -526,7 +526,6 @@ fn messagegroup_c_addon(
 
         quote! {
             match self {
-                #name::__nonexhaustive => unreachable!(),
                 #(#match_arms,)*
             }
         }

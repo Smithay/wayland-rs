@@ -105,10 +105,9 @@ impl ToTokens for Enum {
                 #doc_attr
                 #[repr(u32)]
                 #[derive(Copy, Clone, Debug, PartialEq)]
+                #[non_exhaustive]
                 pub enum #ident {
                     #(#variants,)*
-                    #[doc(hidden)]
-                    __nonexhaustive,
                 }
             };
 
@@ -617,16 +616,15 @@ pub(crate) fn gen_messagegroup(
 
         quote! {
             match self {
-                #name::__nonexhaustive => unreachable!(),
                 #(#match_arms,)*
             }
         }
     };
 
     quote! {
+        #[non_exhaustive]
         pub enum #name {
             #(#variants,)*
-            #[doc(hidden)] __nonexhaustive,
         }
 
         impl super::MessageGroup for #name {
@@ -638,21 +636,18 @@ pub(crate) fn gen_messagegroup(
 
             fn is_destructor(&self) -> bool {
                 match *self {
-                    #name::__nonexhaustive => unreachable!(),
                     #(#is_destructor_match_arms,)*
                 }
             }
 
             fn opcode(&self) -> u16 {
                 match *self {
-                    #name::__nonexhaustive => unreachable!(),
                     #(#opcode_match_arms,)*
                 }
             }
 
             fn since(&self) -> u32 {
                 match *self {
-                    #name::__nonexhaustive => unreachable!(),
                     #(#since_match_arms,)*
                 }
             }

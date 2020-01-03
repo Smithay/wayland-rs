@@ -218,12 +218,8 @@ impl EventQueueInner {
             .send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1))
             .unwrap();
         let done2 = done.clone();
-        cb.assign::<WlCallback, _>(Filter::new(move |(_, evt), _, _| {
-            if let CbEvent::Done { .. } = evt {
-                done2.set(true);
-            } else {
-                unreachable!();
-            }
+        cb.assign::<WlCallback, _>(Filter::new(move |(_, CbEvent::Done { .. }), _, _| {
+            done2.set(true);
         }));
 
         let mut dispatched = 0;

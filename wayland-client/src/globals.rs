@@ -91,7 +91,6 @@ impl GlobalManager {
                 wl_registry::Event::GlobalRemove { name } => {
                     inner.list.retain(|&(n, _, _)| n != name);
                 }
-                _ => {}
             }
         });
 
@@ -153,7 +152,6 @@ impl GlobalManager {
                         );
                     }
                 }
-                _ => {}
             }
         });
 

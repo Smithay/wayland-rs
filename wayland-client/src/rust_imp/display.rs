@@ -140,7 +140,6 @@ impl super::Dispatcher for DisplayDispatcher {
                     map.remove(id);
                 }
             }
-            _ => unreachable!(),
         }
         Dispatched::Yes
     }
