@@ -24,7 +24,7 @@ fn main() {
 
     let mut event_queue = display.create_event_queue();
 
-    let attached_display = (*display).clone().attach(event_queue.get_token());
+    let attached_display = (*display).clone().attach(event_queue.token());
 
     let globals = GlobalManager::new(&attached_display);
 

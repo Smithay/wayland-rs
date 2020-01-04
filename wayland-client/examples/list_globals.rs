@@ -11,7 +11,7 @@ fn main() {
 
     let mut event_queue = display.create_event_queue();
 
-    let attached_display = (*display).clone().attach(event_queue.get_token());
+    let attached_display = (*display).clone().attach(event_queue.token());
 
     // We use the GlobalManager convenience provided by the crate, it covers
     // most classic use cases and avoids us the trouble to manually implement

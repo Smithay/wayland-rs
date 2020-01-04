@@ -187,7 +187,7 @@ impl EventQueue {
     /// Create a new token associated with this event queue
     ///
     /// See `QueueToken` documentation for its use.
-    pub fn get_token(&self) -> QueueToken {
+    pub fn token(&self) -> QueueToken {
         QueueToken {
             inner: self.inner.clone(),
         }

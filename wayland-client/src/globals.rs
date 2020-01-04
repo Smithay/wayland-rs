@@ -278,7 +278,7 @@ where
 /// # let seat_implementor: fn(Main<_>) = unimplemented!();
 /// # let output_implementor: fn(Main<_>) = unimplemented!();
 /// let globals = GlobalManager::new_with_cb(
-///     &display.attach(event_queue.get_token()),
+///     &display.attach(event_queue.token()),
 ///     global_filter!(
 ///         // Bind all wl_seat with version 4
 ///         [wl_seat::WlSeat, 4, seat_implementor],

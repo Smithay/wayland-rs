@@ -52,7 +52,7 @@ impl TestClient {
         let display =
             self::wayc::Display::connect_to_name(socket_name).expect("Failed to connect to server.");
         let event_queue = display.create_event_queue();
-        let attached = (*display).clone().attach(event_queue.get_token());
+        let attached = (*display).clone().attach(event_queue.token());
         TestClient {
             display: Arc::new(display),
             display_proxy: attached,
@@ -63,7 +63,7 @@ impl TestClient {
     pub fn new_auto() -> TestClient {
         let display = self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
         let event_queue = display.create_event_queue();
-        let attached = (*display).clone().attach(event_queue.get_token());
+        let attached = (*display).clone().attach(event_queue.token());
         TestClient {
             display: Arc::new(display),
             display_proxy: attached,
@@ -74,7 +74,7 @@ impl TestClient {
     pub unsafe fn from_fd(fd: RawFd) -> TestClient {
         let display = self::wayc::Display::from_fd(fd).unwrap();
         let event_queue = display.create_event_queue();
-        let attached = (*display).clone().attach(event_queue.get_token());
+        let attached = (*display).clone().attach(event_queue.token());
         TestClient {
             display: Arc::new(display),
             display_proxy: attached,

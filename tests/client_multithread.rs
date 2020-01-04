@@ -41,7 +41,7 @@ fn display_to_new_thread() {
 
     thread::spawn(move || {
         let mut evq = display_clone.create_event_queue();
-        let attached = (**display_clone).clone().attach(evq.get_token());
+        let attached = (**display_clone).clone().attach(evq.token());
         let manager = wayc::GlobalManager::new(&attached);
         evq.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
         manager.instantiate_exact::<wl_seat::WlSeat>(5).unwrap();
@@ -86,7 +86,7 @@ fn display_from_external_on_new_thread() {
     thread::spawn(move || {
         let display = unsafe { wayc::Display::from_external_display(display_ptr) };
         let mut evq = display.create_event_queue();
-        let attached = (*display).clone().attach(evq.get_token());
+        let attached = (*display).clone().attach(evq.token());
         let manager = wayc::GlobalManager::new(&attached);
         evq.sync_roundtrip(&mut (), |_, _, _| {}).unwrap();
         manager

@@ -107,7 +107,7 @@ fn proxy_wrapper() {
     let mut client = TestClient::new(&server.socket_name);
 
     let mut event_queue_2 = client.display.create_event_queue();
-    let manager = wayc::GlobalManager::new(&(**client.display).clone().attach(event_queue_2.get_token()));
+    let manager = wayc::GlobalManager::new(&(**client.display).clone().attach(event_queue_2.token()));
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -170,7 +170,7 @@ fn proxy_create_attached() {
 
     ::std::thread::spawn(move || {
         let evq2 = display2.create_event_queue();
-        let compositor_wrapper = compositor.as_ref().clone().attach(evq2.get_token());
+        let compositor_wrapper = compositor.as_ref().clone().attach(evq2.token());
         compositor_wrapper.create_surface(); // should not panic
     })
     .join()
