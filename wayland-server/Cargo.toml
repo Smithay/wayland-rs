@@ -20,9 +20,9 @@ wayland-sys = { version = "0.24.1", path = "../wayland-sys" }
 bitflags = "1.0"
 downcast-rs = "1.0"
 libc = "0.2"
-nix = "0.15"
+nix = "0.16"
 lazy_static = { version = "1.0", optional = true}
-parking_lot = "0.9"
+parking_lot = "0.10"
 scoped-tls = { version = "1.0", optional = true }
 
 [build-dependencies]
