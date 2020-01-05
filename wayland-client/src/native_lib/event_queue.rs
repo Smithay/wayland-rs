@@ -38,6 +38,15 @@ impl EventQueueInner {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.inner.ptr()) }
     }
 
+    pub(crate) fn flush(&self) -> io::Result<()> {
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.inner.ptr()) };
+        if ret >= 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
     pub(crate) fn dispatch<F>(&self, data: DispatchData, fallback: F) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),

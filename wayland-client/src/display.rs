@@ -186,6 +186,8 @@ impl Display {
     /// requests could be written, will return an io error `WouldBlock`.
     ///
     /// On success returns the number of written requests.
+    ///
+    /// This function is identical to `EventQueue::flush`
     pub fn flush(&self) -> io::Result<()> {
         self.inner.flush()
     }

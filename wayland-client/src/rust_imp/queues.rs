@@ -47,6 +47,14 @@ impl EventQueueInner {
         self.connection.lock().unwrap().socket.get_socket().as_raw_fd()
     }
 
+    pub(crate) fn flush(&self) -> io::Result<()> {
+        match self.connection.lock().unwrap().flush() {
+            Ok(()) => Ok(()),
+            Err(::nix::Error::Sys(errno)) => Err(errno.into()),
+            Err(_) => unreachable!(),
+        }
+    }
+
     pub(crate) fn dispatch<F>(&self, mut data: DispatchData, mut fallback: F) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),

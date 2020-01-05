@@ -222,6 +222,21 @@ impl EventQueue {
         }
     }
 
+    /// Non-blocking write to the server
+    ///
+    /// Outgoing messages to the server are buffered by the library for efficiency. This method
+    /// flushes the internal buffer to the server socket.
+    ///
+    /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
+    /// requests could be written, will return an io error `WouldBlock`.
+    ///
+    /// On success returns the number of written requests.
+    ///
+    /// This function is identical to `Display::flush`.
+    pub fn flush(&self) -> io::Result<()> {
+        self.inner.flush()
+    }
+
     /// Retrieve the file descriptor associated with the wayland socket
     ///
     /// This FD should only be used to integrate into a polling mechanism, and should

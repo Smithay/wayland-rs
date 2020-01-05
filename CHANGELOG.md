@@ -6,6 +6,7 @@
   filters and callbaks during an event dispatch.
 - [scanner] Use `#[non_exhaustive]` on protocol-generated enums to replace the `__nonexhaustive` hidden variant
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
+- [client] Introduce `EventQueue::flush`, identical to `Display::flush`, for convenience.
 
 ## 0.24.1 -- 2019-12-13
 
