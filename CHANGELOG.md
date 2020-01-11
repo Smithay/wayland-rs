@@ -7,6 +7,7 @@
 - [scanner] Use `#[non_exhaustive]` on protocol-generated enums to replace the `__nonexhaustive` hidden variant
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
 - [client] Introduce `EventQueue::flush`, identical to `Display::flush`, for convenience.
+- [cursor] The types of the library is no longer `Send` (they should never have been)
 
 ## 0.24.1 -- 2019-12-13
 

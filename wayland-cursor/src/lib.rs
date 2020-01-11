@@ -22,7 +22,7 @@ use std::ptr;
 
 use wayland_client::{
     protocol::{wl_buffer::WlBuffer, wl_shm::WlShm},
-    Proxy,
+    Attached, Proxy,
 };
 use wayland_sys::{cursor::*, ffi_dispatch};
 
@@ -39,8 +39,6 @@ pub struct CursorTheme {
     theme: *mut wl_cursor_theme,
 }
 
-unsafe impl Send for CursorTheme {}
-
 /// Attempts to load a cursor theme.
 ///
 /// If no name is given or the requested theme is not found, the default theme
@@ -55,7 +53,7 @@ unsafe impl Send for CursorTheme {}
 ///   (see `is_available()` function) in this module.
 /// - Panics in case of memory allocation failure.
 /// - Panics if `name` contains an interior null.
-pub fn load_theme(name: Option<&str>, size: u32, shm: &WlShm) -> CursorTheme {
+pub fn load_theme(name: Option<&str>, size: u32, shm: &Attached<WlShm>) -> CursorTheme {
     let ptr = if let Some(theme) = name {
         let cstr = CString::new(theme).expect("Theme name contained an interior null.");
         unsafe {
@@ -126,8 +124,6 @@ pub struct Cursor<'a> {
     _theme: PhantomData<&'a CursorTheme>,
     cursor: *mut wl_cursor,
 }
-
-unsafe impl<'a> Send for Cursor<'a> {}
 
 impl<'a> Cursor<'a> {
     /// Returns the name of this cursor.
@@ -224,8 +220,6 @@ pub struct CursorImageBuffer<'a> {
     _cursor: PhantomData<&'a Cursor<'a>>,
     buffer: WlBuffer,
 }
-
-unsafe impl<'a> Send for CursorImageBuffer<'a> {}
 
 impl<'a> Deref for CursorImageBuffer<'a> {
     type Target = WlBuffer;
