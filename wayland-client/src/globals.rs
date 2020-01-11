@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::protocol::wl_display;
 use crate::protocol::wl_registry;
-use crate::{Attached, Interface, Main, Proxy};
+use crate::{Attached, DispatchData, Interface, Main, Proxy};
 
 struct Inner {
     list: Vec<(u32, String, u32)>,
@@ -113,7 +113,7 @@ impl GlobalManager {
     /// `Proxy::make_wrapper()` before calling this function.
     pub fn new_with_cb<F>(display: &Attached<wl_display::WlDisplay>, mut callback: F) -> GlobalManager
     where
-        F: FnMut(GlobalEvent, Attached<wl_registry::WlRegistry>) + 'static,
+        F: FnMut(GlobalEvent, Attached<wl_registry::WlRegistry>, DispatchData) + 'static,
     {
         let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
@@ -122,7 +122,7 @@ impl GlobalManager {
             .as_ref()
             .send::<wl_registry::WlRegistry>(wl_display::Request::GetRegistry {}, None)
             .unwrap();
-        registry.quick_assign(move |proxy, msg, _data| {
+        registry.quick_assign(move |proxy, msg, data| {
             let mut inner = inner.lock().unwrap();
             let inner = &mut *inner;
             match msg {
@@ -139,12 +139,13 @@ impl GlobalManager {
                             version,
                         },
                         (*proxy).clone(),
+                        data,
                     );
                 }
                 wl_registry::Event::GlobalRemove { name } => {
                     if let Some((i, _)) = inner.list.iter().enumerate().find(|&(_, &(n, _, _))| n == name) {
                         let (id, interface, _) = inner.list.swap_remove(i);
-                        callback(GlobalEvent::Removed { id, interface }, (*proxy).clone());
+                        callback(GlobalEvent::Removed { id, interface }, (*proxy).clone(), data);
                     } else {
                         panic!(
                             "Wayland protocol error: the server removed non-existing global \"{}\".",
@@ -228,26 +229,26 @@ impl GlobalManager {
 
 /// A trait for implementation of the global advertisement
 ///
-/// It is automatically implemented for `FnMut(NewProxy<I>) -> Proxy<I>`
-/// closures, in which case the `error` messages are ignored.
+/// It is automatically implemented for `FnMut(Main<I>, DispatchData)` closures,
+/// in which case the `error` messages are ignored.
 pub trait GlobalImplementor<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> {
     /// A new global of given interface has been instantiated and you are
     /// supposed to provide an implementation for it.
-    fn new_global(&mut self, global: Main<I>);
+    fn new_global(&mut self, global: Main<I>, data: DispatchData);
     /// A global was advertised but its version was lower than the minimal version
     /// you requested.
     ///
     /// The advertised version is provided as argument.
-    fn error(&mut self, _version: u32) {}
+    fn error(&mut self, _version: u32, _data: DispatchData) {}
 }
 
 impl<F, I: Interface> GlobalImplementor<I> for F
 where
     I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>,
-    F: FnMut(Main<I>),
+    F: FnMut(Main<I>, DispatchData),
 {
-    fn new_global(&mut self, global: Main<I>) {
-        (*self)(global)
+    fn new_global(&mut self, global: Main<I>, data: DispatchData) {
+        (*self)(global, data)
     }
 }
 
@@ -269,14 +270,14 @@ where
 /// ```no_run
 /// # #[macro_use] extern crate wayland_client;
 /// use wayland_client::GlobalManager;
-/// # use wayland_client::{Display, Main};
+/// # use wayland_client::{Display, Main, DispatchData};
 /// use wayland_client::protocol::{wl_output, wl_seat};
 ///
 /// # fn main() {
 /// # let display = Display::connect_to_env().unwrap();
 /// # let mut event_queue = display.create_event_queue();
-/// # let seat_implementor: fn(Main<_>) = unimplemented!();
-/// # let output_implementor: fn(Main<_>) = unimplemented!();
+/// # let seat_implementor: fn(Main<_>, DispatchData) = unimplemented!();
+/// # let output_implementor: fn(Main<_>, DispatchData) = unimplemented!();
 /// let globals = GlobalManager::new_with_cb(
 ///     &display.attach(event_queue.token()),
 ///     global_filter!(
@@ -303,8 +304,8 @@ where
 ///
 /// ```ignore
 /// global_filter!(
-///     [Interface, version, |new_proxy: NewProxy<_>| {
-///         ...
+///     [Interface, version, |proxy: Main<_>, dispatch_data| {
+///         /* Setup the global as required */
 ///     }]
 /// );
 /// ```
@@ -313,31 +314,31 @@ macro_rules! global_filter {
     ($([$interface:ty, $version:expr, $callback:expr]),*) => {
         {
             use $crate::protocol::wl_registry;
-            use $crate::{GlobalEvent, Interface, Attached, GlobalImplementor};
-            type Callback = Box<FnMut(u32, u32, Attached<wl_registry::WlRegistry>)>;
+            use $crate::{GlobalEvent, Interface, Attached, GlobalImplementor, DispatchData};
+            type Callback = Box<dyn FnMut(u32, u32, Attached<wl_registry::WlRegistry>, DispatchData<'_>)>;
             let mut callbacks: Vec<(&'static str, Callback)> = Vec::new();
             // Create the callback list
             $({
                 let mut cb = { $callback };
                 callbacks.push((
                     <$interface as Interface>::NAME,
-                    Box::new(move |id, version, registry: Attached<wl_registry::WlRegistry>| {
+                    Box::new(move |id, version, registry: Attached<wl_registry::WlRegistry>, ddata: DispatchData| {
                         if version < $version {
-                            GlobalImplementor::<$interface>::error(&mut cb, version);
+                            GlobalImplementor::<$interface>::error(&mut cb, version, ddata);
                         } else {
                             let proxy = registry.bind::<$interface>(version, id);
-                            GlobalImplementor::<$interface>::new_global(&mut cb, proxy);
+                            GlobalImplementor::<$interface>::new_global(&mut cb, proxy, ddata);
                         }
                     }) as Box<_>
                 ));
             })*
 
             // return the global closure
-            move |event: GlobalEvent, registry: Attached<wl_registry::WlRegistry>| {
+            move |event: GlobalEvent, registry: Attached<wl_registry::WlRegistry>, ddata| {
                 if let GlobalEvent::New { id, interface, version } = event {
                     for &mut (iface, ref mut cb) in &mut callbacks {
                         if iface == interface {
-                            cb(id, version, registry);
+                            cb(id, version, registry, ddata);
                             break;
                         }
                     }

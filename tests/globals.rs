@@ -96,7 +96,7 @@ fn global_manager_cb() {
     let counter2 = counter.clone();
 
     let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new_with_cb(&client.display_proxy, move |event, _| match event {
+    let manager = wayc::GlobalManager::new_with_cb(&client.display_proxy, move |event, _, _| match event {
         GlobalEvent::New { .. } => *(counter2.lock().unwrap()) += 1,
         GlobalEvent::Removed { .. } => *(counter2.lock().unwrap()) -= 1,
     });
