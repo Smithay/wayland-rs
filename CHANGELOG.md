@@ -8,6 +8,8 @@
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
 - [client] Introduce `EventQueue::flush`, identical to `Display::flush`, for convenience.
 - [cursor] The types of the library is no longer `Send` (they should never have been)
+- [protocols] Update wayland-protocols to 1.18
+- [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`
 
 ## 0.24.1 -- 2019-12-13
 
