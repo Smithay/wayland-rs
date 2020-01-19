@@ -139,10 +139,11 @@ where
     ///
     /// This does not impact the events received by this object, which
     /// are still handled by their original event queue.
-    pub fn attach(mut self, token: QueueToken) -> Attached<I> {
-        self.inner.attach(&token.inner);
+    pub fn attach(&self, token: QueueToken) -> Attached<I> {
+        let mut other = self.clone();
+        other.inner.attach(&token.inner);
         Attached {
-            inner: self.into(),
+            inner: other.into(),
             _s: std::marker::PhantomData,
         }
     }
@@ -184,13 +185,11 @@ pub struct Attached<I: Interface> {
 
 impl<I: Interface> Attached<I>
 where
-    I: Into<Proxy<I>> + From<Proxy<I>>,
+    I: Into<Proxy<I>> + From<Proxy<I>> + AsRef<Proxy<I>>,
 {
-    /// Detach this handle, converting it into a threadsafe Proxy
-    pub fn detach(self) -> I {
-        let mut proxy: Proxy<I> = self.inner.into();
-        proxy.inner.detach();
-        proxy.into()
+    /// Create a non-attached handle from this one
+    pub fn detach(&self) -> I {
+        self.inner.as_ref().clone().into()
     }
 }
 

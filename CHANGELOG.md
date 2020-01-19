@@ -10,6 +10,9 @@
 - [cursor] The types of the library is no longer `Send` (they should never have been)
 - [protocols] Update wayland-protocols to 1.18
 - [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`
+- [client] The `attach()` method of `Proxy<_>` and the `detach()` method of `Attached<_>` now take `self` by
+  reference instead of by value, allowing the creation of new attached/detached proxy handles without
+  requiring ownership
 
 ## 0.24.1 -- 2019-12-13
 
