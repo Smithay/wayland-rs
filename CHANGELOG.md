@@ -8,7 +8,8 @@
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
 - [client] Introduce `EventQueue::flush`, identical to `Display::flush`, for convenience.
 - [cursor] The types of the library is no longer `Send` (they should never have been)
-- [protocols] Update wayland-protocols to 1.18
+- [protocols] Update wayland-protocols to `82d4c152a5163fc39c6c1fbf3b27578449d6be8e` (includes fixes to
+  `xdg_shell` enums)
 - [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`
 - [client] The `attach()` method of `Proxy<_>` and the `detach()` method of `Attached<_>` now take `self` by
   reference instead of by value, allowing the creation of new attached/detached proxy handles without
