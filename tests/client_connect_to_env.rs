@@ -6,7 +6,9 @@ use ways::protocol::wl_output::WlOutput as ServerOutput;
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerOutput, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     ::std::env::remove_var("WAYLAND_DISPLAY");
 

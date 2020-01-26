@@ -15,11 +15,12 @@ fn resource_equals() {
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
-    server
-        .display
-        .create_global::<wl_output::WlOutput, _>(1, move |newo, _, _| {
+    server.display.create_global::<wl_output::WlOutput, _>(
+        1,
+        ways::Filter::new(move |(newo, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
             outputs2.lock().unwrap().push(newo);
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -49,13 +50,14 @@ fn resource_user_data() {
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
-    server
-        .display
-        .create_global::<wl_output::WlOutput, _>(1, move |output, _, _| {
+    server.display.create_global::<wl_output::WlOutput, _>(
+        1,
+        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
             let mut guard = outputs2.lock().unwrap();
             output.as_ref().user_data().set(|| 1000 + guard.len());
             guard.push(output);
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -82,12 +84,13 @@ fn dead_resources() {
     let outputs = Arc::new(Mutex::new(Vec::new()));
     let outputs2 = outputs.clone();
 
-    server
-        .display
-        .create_global::<wl_output::WlOutput, _>(3, move |newo, _, _| {
+    server.display.create_global::<wl_output::WlOutput, _>(
+        3,
+        ways::Filter::new(move |(newo, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
             newo.quick_assign(|_, _, _| {});
             outputs2.lock().unwrap().push(newo);
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

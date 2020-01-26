@@ -19,25 +19,27 @@ fn client_user_data() {
 
     server.display.create_global::<wl_output::WlOutput, _>(1, {
         let clients = clients.clone();
-        move |output, _, _| {
+        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
             let client = output.as_ref().client().unwrap();
             let ret = client.data_map().insert_if_missing(|| HasOutput);
             // the data should not be already here
             assert!(ret);
             clients.lock().unwrap().push(client);
-        }
+        })
     });
     server
         .display
         .create_global::<wl_compositor::WlCompositor, _>(1, {
             let clients = clients.clone();
-            move |compositor, _, _| {
-                let client = compositor.as_ref().client().unwrap();
-                let ret = client.data_map().insert_if_missing(|| HasCompositor);
-                // the data should not be already here
-                assert!(ret);
-                clients.lock().unwrap().push(client);
-            }
+            ways::Filter::new(
+                move |(compositor, _): (ways::Main<wl_compositor::WlCompositor>, u32), _, _| {
+                    let client = compositor.as_ref().client().unwrap();
+                    let ret = client.data_map().insert_if_missing(|| HasCompositor);
+                    // the data should not be already here
+                    assert!(ret);
+                    clients.lock().unwrap().push(client);
+                },
+            )
         });
 
     let mut client = TestClient::new(&server.socket_name);

@@ -33,7 +33,7 @@ impl Drop for DisplayInner {
 }
 
 impl DisplayInner {
-    pub(crate) fn new() -> Rc<RefCell<DisplayInner>> {
+    pub(crate) fn new() -> DisplayInner {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,);
@@ -55,7 +55,7 @@ impl DisplayInner {
                 &*rust_globals as *const RefCell<Vec<*mut wl_global>> as *mut _
             );
 
-            Rc::new(RefCell::new(DisplayInner { ptr, rust_globals }))
+            DisplayInner { ptr, rust_globals }
         }
     }
 

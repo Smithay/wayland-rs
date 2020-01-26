@@ -17,12 +17,14 @@ use wayc::protocol::wl_seat::WlSeat as ClientSeat;
 #[test]
 fn data_offer() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, |new_resource, version, _| {
+        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerDDMgr, _>(
+        3,
+        ways::Filter::new(move |(resource, version): (ways::Main<ServerDDMgr>, u32), _, _| {
             assert!(version == 3);
-            new_resource.quick_assign(|_, request, _| match request {
+            resource.quick_assign(|_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
@@ -37,7 +39,8 @@ fn data_offer() {
                 }
                 _ => unimplemented!(),
             });
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -70,19 +73,22 @@ fn data_offer() {
 #[test]
 fn server_id_reuse() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
-    let srv_dd = Rc::new(RefCell::new(None));
-    let srv_dd2 = srv_dd.clone();
     server
         .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
+        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    let srv_dd = Rc::new(RefCell::new(None));
+    let srv_dd2 = srv_dd.clone();
+    server.display.create_global::<ServerDDMgr, _>(
+        3,
+        ways::Filter::new(move |(resource, _): (ways::Main<ServerDDMgr>, u32), _, _| {
             let srv_dd3 = srv_dd2.clone();
-            new_resource.quick_assign(move |_, req, _| {
+            resource.quick_assign(move |_, req, _| {
                 if let SDDMReq::GetDataDevice { id: ddevice, .. } = req {
                     *srv_dd3.borrow_mut() = Some(ddevice);
                 }
             });
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -153,15 +159,17 @@ fn server_id_reuse() {
 #[test]
 fn server_created_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_do = Rc::new(RefCell::new(None));
     let server_do_2 = server_do.clone();
-    server
-        .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
+    server.display.create_global::<ServerDDMgr, _>(
+        3,
+        ways::Filter::new(move |(resource, _): (ways::Main<ServerDDMgr>, u32), _, _| {
             let server_do_3 = server_do_2.clone();
-            new_resource.quick_assign(move |_, request, _| match request {
+            resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     // create a data offer and send it
                     let offer = ddevice
@@ -177,7 +185,8 @@ fn server_created_race() {
                 }
                 _ => unimplemented!(),
             });
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -228,22 +237,25 @@ fn server_created_race() {
 #[test]
 fn creation_destruction_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
-    server
-        .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
+    server.display.create_global::<ServerDDMgr, _>(
+        3,
+        ways::Filter::new(move |(resource, _): (ways::Main<ServerDDMgr>, u32), _, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.quick_assign(move |_, request, _| match request {
+            resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     ddevice.quick_assign(|_, _, _| {});
                     server_dd_3.borrow_mut().push(ddevice);
                 }
                 _ => unimplemented!(),
             });
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -303,21 +315,24 @@ fn creation_destruction_race() {
 #[test]
 fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerSeat, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
-    server
-        .display
-        .create_global::<ServerDDMgr, _>(3, move |new_resource, _, _| {
+    server.display.create_global::<ServerDDMgr, _>(
+        3,
+        ways::Filter::new(move |(resource, _): (ways::Main<ServerDDMgr>, u32), _, _| {
             let server_dd_3 = server_dd_2.clone();
-            new_resource.quick_assign(move |_, request, _| match request {
+            resource.quick_assign(move |_, request, _| match request {
                 SDDMReq::GetDataDevice { id: ddevice, .. } => {
                     server_dd_3.borrow_mut().push(ddevice);
                 }
                 _ => unimplemented!(),
             });
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

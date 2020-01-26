@@ -19,19 +19,21 @@ fn global_filter() {
     // everyone see the compositor
     server
         .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, |_, _, _| {});
+        .create_global::<wl_compositor::WlCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     // everyone see the shm
-    server
-        .display
-        .create_global_with_filter::<wl_shm::WlShm, _, _>(1, |_, _, _| {}, |_| true);
+    server.display.create_global_with_filter::<wl_shm::WlShm, _, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, _| {}),
+        |_| true,
+    );
 
     // only privileged clients see the output
     let privileged_output = server
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
             1,
-            |_, _, _| {},
+            ways::Filter::new(|_: (_, _), _, _| {}),
             |client| client.data_map().get::<Privileged>().is_some(),
         );
 
@@ -82,7 +84,7 @@ fn global_filter_try_force() {
         .display
         .create_global_with_filter::<wl_output::WlOutput, _, _>(
             1,
-            |_, _, _| {},
+            ways::Filter::new(|_: (_, _), _, _| {}),
             |client| client.data_map().get::<Privileged>().is_some(),
         );
 
@@ -127,7 +129,7 @@ fn external_globals() {
     // everyone see the compositor
     server
         .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, |_, _, _| {});
+        .create_global::<wl_compositor::WlCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     // create a global via the C API, it'll not be initialized like a rust one
     unsafe {

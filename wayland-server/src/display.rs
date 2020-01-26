@@ -1,17 +1,15 @@
-use std::cell::RefCell;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::os::unix::io::{IntoRawFd, RawFd};
 use std::path::PathBuf;
-use std::rc::Rc;
 
 #[cfg(feature = "use_system_lib")]
 use wayland_sys::server::wl_display;
 
 use crate::imp::DisplayInner;
 
-use crate::{Client, Global, Interface, Main, Resource};
+use crate::{Client, Filter, Global, Interface, Main, Resource};
 
 /// The wayland display
 ///
@@ -19,7 +17,7 @@ use crate::{Client, Global, Interface, Main, Resource};
 /// be kept alive as long as your server is running. It allows
 /// you to manage listening sockets and clients.
 pub struct Display {
-    inner: Rc<RefCell<DisplayInner>>,
+    inner: DisplayInner,
 }
 
 impl Display {
@@ -42,16 +40,16 @@ impl Display {
     /// This object will be advertised to all clients, and they will
     /// be able to instantiate it from their registries.
     ///
-    /// Your implementation will be called whenever a client instantiates
+    /// Your filter will receinve an event whenever a client instantiates
     /// this global.
     ///
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
-    pub fn create_global<I, F>(&mut self, version: u32, implementation: F) -> Global<I>
+    pub fn create_global<I, E>(&mut self, version: u32, filter: Filter<E>) -> Global<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
+        E: From<(Main<I>, u32)> + 'static,
     {
         assert!(
             version <= I::VERSION,
@@ -60,34 +58,37 @@ impl Display {
             version,
             I::VERSION
         );
-        Global::create(
-            self.inner
-                .borrow_mut()
-                .create_global(version, implementation, None::<fn(_) -> bool>),
-        )
+        Global::create(self.inner.create_global(
+            version,
+            move |main, id, ddata| filter.send((main, id).into(), ddata),
+            None::<fn(_) -> bool>,
+        ))
     }
 
-    /// Create a new global object with a filter
+    /// Create a new global object with a client filter
     ///
-    /// This object will be advertised to all clients, and they will
-    /// be able to instantiate it from their registries.
+    /// This object will only be advertized to clients for which your
+    /// client filter closure returns `true`. Note that this client filter cannot
+    /// access the `DispatchData` as it may be invoked outside of a dispatch. As
+    /// such it should only rely on the client-associated user-data to make its
+    /// decision.
     ///
-    /// Your implementation will be called whenever a client instantiates
+    /// Your event filter will be receive an event whenever a client instantiates
     /// this global.
     ///
     /// The version specified is the **highest supported version**, you must
     /// be able to handle clients that choose to instantiate this global with
     /// a lower version number.
-    pub fn create_global_with_filter<I, F1, F2>(
+    pub fn create_global_with_filter<I, E, F>(
         &mut self,
         version: u32,
-        implementation: F1,
-        mut filter: F2,
+        filter: Filter<E>,
+        mut client_filter: F,
     ) -> Global<I>
     where
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
-        F1: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
-        F2: FnMut(Client) -> bool + 'static,
+        E: From<(Main<I>, u32)> + 'static,
+        F: FnMut(Client) -> bool + 'static,
     {
         assert!(
             version <= I::VERSION,
@@ -96,10 +97,10 @@ impl Display {
             version,
             I::VERSION
         );
-        Global::create(self.inner.borrow_mut().create_global(
+        Global::create(self.inner.create_global(
             version,
-            implementation,
-            Some(move |client_inner| filter(Client::make(client_inner))),
+            move |main, id, ddata| filter.send((main, id).into(), ddata),
+            Some(move |client_inner| client_filter(Client::make(client_inner))),
         ))
     }
 
@@ -113,7 +114,7 @@ impl Display {
     /// If you don't need global data, you can just provide a `&mut ()` there.
     pub fn flush_clients<T: std::any::Any>(&mut self, data: &mut T) {
         let data = crate::DispatchData::wrap(data);
-        self.inner.borrow_mut().flush_clients(data)
+        self.inner.flush_clients(data)
     }
 
     /// Dispatches all pending messages to their respective filters
@@ -142,7 +143,7 @@ impl Display {
         } else {
             ms as i32
         };
-        self.inner.borrow_mut().dispatch(clamped_timeout, data)
+        self.inner.dispatch(clamped_timeout, data)
     }
 
     /// Retrieve the underlying file descriptor
@@ -153,7 +154,7 @@ impl Display {
     ///
     /// You should not use this file descriptor for any other purpose than monitoring it.
     pub fn get_poll_fd(&self) -> RawFd {
-        self.inner.borrow().get_poll_fd()
+        self.inner.get_poll_fd()
     }
 }
 
@@ -175,7 +176,7 @@ impl Display {
     where
         S: AsRef<OsStr>,
     {
-        self.inner.borrow_mut().add_socket(name)
+        self.inner.add_socket(name)
     }
 
     /// Add an automatically named listening socket to this display
@@ -188,7 +189,7 @@ impl Display {
     ///
     /// Errors if `XDG_RUNTIME_DIR` is not set, or all 32 names are already in use.
     pub fn add_socket_auto(&mut self) -> IoResult<OsString> {
-        self.inner.borrow_mut().add_socket_auto()
+        self.inner.add_socket_auto()
     }
 
     /// Add existing listening socket to this display
@@ -219,8 +220,8 @@ impl Display {
     /// The fd must be properly set to CLOEXEC and bound to a socket file
     /// with both bind() and listen() already called. An error is returned
     /// otherwise.
-    pub unsafe fn add_socket_fd(&self, fd: RawFd) -> IoResult<()> {
-        self.inner.borrow_mut().add_socket_fd(fd)
+    pub unsafe fn add_socket_fd(&mut self, fd: RawFd) -> IoResult<()> {
+        self.inner.add_socket_fd(fd)
     }
 
     /// Create a new client to this display from an already-existing connected Fd
@@ -228,9 +229,9 @@ impl Display {
     /// # Safety
     ///
     /// The provided file descriptor must be associated to a valid client connection.
-    pub unsafe fn create_client<T: std::any::Any>(&self, fd: RawFd, data: &mut T) -> Client {
+    pub unsafe fn create_client<T: std::any::Any>(&mut self, fd: RawFd, data: &mut T) -> Client {
         let data = crate::DispatchData::wrap(data);
-        Client::make(self.inner.borrow_mut().create_client(fd, data))
+        Client::make(self.inner.create_client(fd, data))
     }
 }
 
@@ -238,7 +239,7 @@ impl Display {
 impl Display {
     /// Retrieve a pointer from the C lib to this `wl_display`
     pub fn c_ptr(&self) -> *mut wl_display {
-        self.inner.borrow().ptr()
+        self.inner.ptr()
     }
 }
 

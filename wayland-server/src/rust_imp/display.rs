@@ -28,7 +28,7 @@ pub(crate) struct DisplayInner {
 }
 
 impl DisplayInner {
-    pub(crate) fn new() -> Rc<RefCell<DisplayInner>> {
+    pub(crate) fn new() -> DisplayInner {
         let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
         let epoll_mgr = Rc::new(FdManager::new().unwrap());
 
@@ -37,12 +37,12 @@ impl DisplayInner {
             global_mgr.clone(),
         )));
 
-        Rc::new(RefCell::new(DisplayInner {
+        DisplayInner {
             epoll_mgr,
             clients_mgr,
             global_mgr,
             listeners: Vec::new(),
-        }))
+        }
     }
 
     pub(crate) fn create_global<I, F1, F2>(

@@ -69,7 +69,7 @@ impl Client {
 
     /// Adds a destructor for this client
     ///
-    /// This closure will be called when the client disconnects or is killed.
+    /// This filter will be called when the client disconnects or is killed.
     /// It has access to the `UserDataMap` associated with this client.
     ///
     /// You can add several destructors which will all be called sequentially. Note
@@ -88,7 +88,7 @@ impl Client {
     /// Creates a new resource for this client
     ///
     /// To ensure the state coherence between client and server, this
-    /// resource should immediately be implemented and sent to the client
+    /// resource should immediately be assigned to a filter and sent to the client
     /// through an appropriate event. Failure to do so will likely cause
     /// protocol errors.
     ///

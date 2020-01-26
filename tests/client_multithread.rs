@@ -21,7 +21,7 @@ fn display_to_new_thread() {
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
-        display.create_global::<ServerSeat, _>(5, |_, _, _| {});
+        display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
         loop {
             display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
@@ -65,7 +65,7 @@ fn display_from_external_on_new_thread() {
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
-        display.create_global::<ServerSeat, _>(5, |_, _, _| {});
+        display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
         loop {
             display.dispatch(Duration::from_millis(10), &mut ()).unwrap();

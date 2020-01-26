@@ -3,8 +3,9 @@
 //! ## Overview
 //!
 //! This crate provides the interfaces and machinery to safely create servers
-//! for the Wayland protocol. It is a rust wrapper around the `libwayland-server.so`
-//! C library.
+//! for the Wayland protocol. It can be used as either a rust implementatin of the protocol,
+//! or as a wrapper around the system-wide `libwayland-server.so` if you need interoperability
+//! with other libraries. This last case is activated by the `use_system_lib` cargo feature.
 //!
 //! The Wayland protocol revolves around the creation of various objects and the exchange
 //! of messages associated to these objects. Whenever a client connects, a `Display` object
@@ -15,7 +16,7 @@
 //!
 //! The protocol being bi-directional, you can send and receive messages.
 //! Sending messages is done via methods of Rust objects corresponding to the wayland protocol
-//! objects, receiving and handling them is done by providing implementations.
+//! objects, receiving and handling them is done by providing callbacks.
 //!
 //! ### Resources
 //!
@@ -40,36 +41,30 @@
 //! and the `alive()` method on the underlying `Resource<I>` will start to return `false`.
 //! Events that are subsequently sent to them are ignored.
 //!
-//! ### Implementations
+//! ### Filters
 //!
-//! To receive and process messages from the clients to you (in Wayland context they are
-//! called "requests"), you need to provide an `Implementation` for each Wayland object
-//! created in the protocol session. Whenever a new protocol object is created, you will
-//! receive a `NewResource<I>` object. Providing an implementation via its `implement()` method
-//! will turn it into a regular Rust object.
+//! Your wayland objects can receive requests from the client, which need to be processed.
+//! To do so, you can assign `Filter`s to your object. These are specially wrapped closure
+//! so that several objects can be assigned to the same `Filter`, to ease state sharing
+//! between the code handling different objects.
 //!
-//! **All objects must be implemented**, even if it is an implementation doing nothing.
-//! Failure to do so (by dropping the `NewResource<I>` for example) can cause future fatal
-//! protocol errors if the client tries to send a request to this object.
-//!
-//! An implementation is a struct implementing the `RequestHandler` trait for the interface
-//! of the considered object. Alternatively, an `FnMut(I::Request, I)` closure can be
-//! used with the `implement_closure()` method, where `I` is the interface
-//! of the considered object.
+//! **All objects must be assigned to a filter**, even if it is for doing nothing.
+//! Failure to do will cause a `panic!()` if a request is dispatched to the faulty object.
 //!
 //! A Rust object passed to your implementation is guaranteed to be alive (as it just received
 //! a request), unless the exact message received is a destructor (which is indicated in the API
 //! documentations).
 //!
-//! ## Event loops and general structure
+//! ## General structure
 //!
 //! The core of your server is the `Display` object. It represent the ability of your program to
 //! process Wayland messages. Once this object is created, you can configure it to listen on one
 //! or more sockets for incoming client connections (see the `Display` docs for details).
 //!
-//! To properly function, this Wayland implementation also needs an event loop structure,
-//! which is here provided by the `calloop` crate. It is a public dependency and is reexported
-//! as `wayland_server::calloop`.
+//! `wayland-server` does not include an event loop, and you are expected to drive the wayland socket
+//! yourself using the `Display::flush_clients` and `Display::dispatch` methods. The `Display::get_poll_fd`
+//! methods provides you with a file descriptor that can be used in a polling structure to integrate
+//! the wayland socket in an event loop.
 
 #![warn(missing_docs)]
 

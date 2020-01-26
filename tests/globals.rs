@@ -13,7 +13,7 @@ fn simple_global() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -29,16 +29,16 @@ fn multi_versions() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(4, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(4, ways::Filter::new(|_: (_, _), _, _| {}));
     server
         .display
-        .create_global::<ServerCompositor, _>(3, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(3, ways::Filter::new(|_: (_, _), _, _| {}));
     server
         .display
-        .create_global::<ServerCompositor, _>(2, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(2, ways::Filter::new(|_: (_, _), _, _| {}));
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -59,7 +59,7 @@ fn dynamic_global() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -67,12 +67,16 @@ fn dynamic_global() {
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 1);
 
-    server.display.create_global::<ServerShell, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerShell, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 2);
 
-    let output = server.display.create_global::<ServerOutput, _>(1, |_, _, _| {});
+    let output = server
+        .display
+        .create_global::<ServerOutput, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     roundtrip(&mut client, &mut server).unwrap();
     assert!(manager.list().len() == 3);
@@ -90,7 +94,7 @@ fn global_manager_cb() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let counter = Arc::new(Mutex::new(0));
     let counter2 = counter.clone();
@@ -105,13 +109,13 @@ fn global_manager_cb() {
 
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
     let comp = server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     roundtrip(&mut client, &mut server).unwrap();
 
@@ -136,8 +140,10 @@ fn range_instantiate() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(4, |_, _, _| {});
-    server.display.create_global::<ServerShell, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(4, ways::Filter::new(|_: (_, _), _, _| {}));
+    server
+        .display
+        .create_global::<ServerShell, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -160,7 +166,7 @@ fn wrong_version_create_global() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(42, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(42, ways::Filter::new(|_: (_, _), _, _| {}));
 }
 
 #[test]
@@ -171,7 +177,7 @@ fn wrong_global() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client.display_proxy.get_registry();
@@ -191,7 +197,7 @@ fn wrong_global_version() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client.display_proxy.get_registry();
@@ -209,7 +215,7 @@ fn invalid_global_version() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client.display_proxy.get_registry();
@@ -228,7 +234,7 @@ fn wrong_global_id() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let registry = client.display_proxy.get_registry();
@@ -248,7 +254,7 @@ fn two_step_binding() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -256,7 +262,9 @@ fn two_step_binding() {
     roundtrip(&mut client, &mut server).unwrap();
 
     // add a new global while clients already exist
-    server.display.create_global::<ServerOutput, _>(1, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerOutput, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     roundtrip(&mut client, &mut server).unwrap();
 

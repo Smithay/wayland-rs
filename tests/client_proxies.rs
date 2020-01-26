@@ -14,7 +14,7 @@ fn proxy_equals() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -41,7 +41,7 @@ fn proxy_user_data() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -73,7 +73,7 @@ fn proxy_user_data_wrong_thread() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -102,7 +102,7 @@ fn proxy_wrapper() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -126,7 +126,7 @@ fn proxy_create_unattached() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -153,7 +153,7 @@ fn proxy_create_attached() {
     let mut server = TestServer::new();
     server
         .display
-        .create_global::<ServerCompositor, _>(1, |_, _, _| {});
+        .create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
 
@@ -180,7 +180,9 @@ fn proxy_create_attached() {
 #[test]
 fn dead_proxies() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(3, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerOutput, _>(3, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

@@ -43,12 +43,14 @@ fn insert_compositor(server: &mut TestServer) -> Arc<Mutex<Option<Option<ServerB
         _ => panic!("Unexpected request."),
     });
 
-    server
-        .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, move |compositor, version, _| {
+    server.display.create_global::<wl_compositor::WlCompositor, _>(
+        1,
+        ways::Filter::new(move |evt, _, _| {
+            let (compositor, version): (ways::Main<wl_compositor::WlCompositor>, u32) = evt;
             assert!(version == 1);
             compositor.assign(filter.clone());
-        });
+        }),
+    );
 
     buffer_found2
 }
@@ -89,12 +91,14 @@ fn insert_shm(server: &mut TestServer) -> Arc<Mutex<Option<(RawFd, Option<ways::
         }
     });
 
-    server
-        .display
-        .create_global::<wl_shm::WlShm, _>(1, move |shm, version, _| {
+    server.display.create_global::<wl_shm::WlShm, _>(
+        1,
+        ways::Filter::new(move |evt, _, _| {
+            let (shm, version): (ways::Main<wl_shm::WlShm>, u32) = evt;
             assert!(version == 1);
             shm.assign(filter.clone());
-        });
+        }),
+    );
 
     buffer2
 }

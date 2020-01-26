@@ -97,9 +97,10 @@ fn client_receive_error() {
     let my_server_output = server_output.clone();
     server
         .display
-        .create_global::<ways::protocol::wl_output::WlOutput, _>(3, move |output, _, _| {
-            *my_server_output.borrow_mut() = Some(output)
-        });
+        .create_global::<ways::protocol::wl_output::WlOutput, _>(
+            3,
+            ways::Filter::new(move |(output, _), _, _| *my_server_output.borrow_mut() = Some(output)),
+        );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

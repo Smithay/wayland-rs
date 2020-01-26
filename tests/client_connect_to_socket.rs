@@ -8,7 +8,9 @@ use std::os::unix::io::IntoRawFd;
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(2, |_, _, _| {});
+    server
+        .display
+        .create_global::<ServerOutput, _>(2, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
 

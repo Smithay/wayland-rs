@@ -31,12 +31,13 @@ fn client_dispatch_data() {
 #[test]
 fn server_dispatch_data_global() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(1, |_, _, mut data| {
+    server.display.create_global::<ServerCompositor, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, mut data| {
             let done = data.get::<bool>().unwrap();
             *done = true;
-        });
+        }),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -58,18 +59,21 @@ fn server_dispatch_data_global() {
 #[test]
 fn server_dispatch_data_client_destructor() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(1, move |compositor, _, _| {
-            compositor
-                .as_ref()
-                .client()
-                .unwrap()
-                .add_destructor(ways::Filter::new(|_, _, mut data| {
-                    let done = data.get::<bool>().unwrap();
-                    *done = true;
-                }));
-        });
+    server.display.create_global::<ServerCompositor, _>(
+        1,
+        ways::Filter::new(
+            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+                compositor
+                    .as_ref()
+                    .client()
+                    .unwrap()
+                    .add_destructor(ways::Filter::new(|_, _, mut data| {
+                        let done = data.get::<bool>().unwrap();
+                        *done = true;
+                    }));
+            },
+        ),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -100,14 +104,17 @@ fn server_dispatch_data_client_destructor() {
 #[test]
 fn server_dispatch_data_resource() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(1, move |compositor, _, _| {
-            compositor.quick_assign(|_, _, mut data| {
-                let done = data.get::<bool>().unwrap();
-                *done = true;
-            });
-        });
+    server.display.create_global::<ServerCompositor, _>(
+        1,
+        ways::Filter::new(
+            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+                compositor.quick_assign(|_, _, mut data| {
+                    let done = data.get::<bool>().unwrap();
+                    *done = true;
+                });
+            },
+        ),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -134,14 +141,17 @@ fn server_dispatch_data_resource() {
 #[test]
 fn server_dispatch_data_resource_destructor() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerCompositor, _>(1, move |compositor, _, _| {
-            compositor.assign_destructor(ways::Filter::new(|_: ways::Resource<_>, _, mut data| {
-                let done = data.get::<bool>().unwrap();
-                *done = true;
-            }));
-        });
+    server.display.create_global::<ServerCompositor, _>(
+        1,
+        ways::Filter::new(
+            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+                compositor.assign_destructor(ways::Filter::new(|_: ways::Resource<_>, _, mut data| {
+                    let done = data.get::<bool>().unwrap();
+                    *done = true;
+                }));
+            },
+        ),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

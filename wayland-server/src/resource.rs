@@ -46,8 +46,7 @@ where
 
     /// Send an event through this object
     ///
-    /// The event will be send to the client associated to this
-    /// object.
+    /// The event will be send to the client associated to this object.
     pub fn send(&self, msg: I::Event) {
         #[cfg(feature = "use_system_lib")]
         {
@@ -77,10 +76,12 @@ where
 
     /// Check if the object associated with this resource is still alive
     ///
-    /// Will return `false` if either:
+    /// Will return `false` if the object has been destroyed.
     ///
-    /// - The object has been destroyed
-    /// - The object is not managed by this library (see the `from_c_ptr` method)
+    /// WHen using the `use_system_lib` feature, if this object was created
+    /// from a raw pointer the crate cannot track its lifetime, and this
+    /// method will always return `true`. You are responsible for only using
+    /// it while it is still alive.
     pub fn is_alive(&self) -> bool {
         self.inner.is_alive()
     }
@@ -93,6 +94,8 @@ where
     }
 
     /// Check if the other resource refers to the same underlying wayland object
+    ///
+    /// You can also use the `PartialEq` trait.
     pub fn equals(&self, other: &Resource<I>) -> bool {
         self.inner.equals(&other.inner)
     }
@@ -327,8 +330,7 @@ where
     /// Create a `Main` instance from a C pointer to a new object
     ///
     /// Create a `Main` from a raw pointer to a wayland object from the
-    /// C library by taking control of it. You must ensure that this object was newly
-    /// created and have never been user nor had any listener associated.
+    /// C library by taking control of it.
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
@@ -340,6 +342,9 @@ where
     ///
     /// The provided pointer must be a valid pointer to a wayland object from
     /// `libwayland-client` associated to the correct interface.
+    ///
+    /// You must ensure that this object was newly created and have never been user nor
+    /// had any listener associated.
     pub unsafe fn init_from_c_ptr(_ptr: *mut wl_resource) -> Self {
         #[cfg(feature = "use_system_lib")]
         {
