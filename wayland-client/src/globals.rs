@@ -67,9 +67,8 @@ pub enum GlobalEvent {
 impl GlobalManager {
     /// Create a global manager handling a registry
     ///
-    /// In order to use `GlobalManager` from a different thread than the one `display` was created
-    /// on, wrap the `display` to an `EventQueue` on the appropriate thread using
-    /// `Proxy::make_wrapper()` before calling this function.
+    /// You need to provide an attached handle of the Waland display, and the
+    /// global manager will be managed by the associated event queue.
     pub fn new(display: &Attached<wl_display::WlDisplay>) -> GlobalManager {
         let inner = Arc::new(Mutex::new(Inner { list: Vec::new() }));
         let inner_clone = inner.clone();
@@ -108,9 +107,8 @@ impl GlobalManager {
     /// This can be used if you want to handle specially certain globals, but want
     /// to use the default mechanism for the rest.
     ///
-    /// In order to use `GlobalManager` from a different thread than the one `display` was created
-    /// on, wrap the `display` to an `EventQueue` on the appropriate thread using
-    /// `Proxy::make_wrapper()` before calling this function.
+    /// You need to provide an attached handle of the Waland display, and the
+    /// global manager will be managed by the associated event queue.
     pub fn new_with_cb<F>(display: &Attached<wl_display::WlDisplay>, mut callback: F) -> GlobalManager
     where
         F: FnMut(GlobalEvent, Attached<wl_registry::WlRegistry>, DispatchData) + 'static,
@@ -232,8 +230,8 @@ impl GlobalManager {
 /// It is automatically implemented for `FnMut(Main<I>, DispatchData)` closures,
 /// in which case the `error` messages are ignored.
 pub trait GlobalImplementor<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> {
-    /// A new global of given interface has been instantiated and you are
-    /// supposed to provide an implementation for it.
+    /// A new global of given interface has been instantiated and you can assign
+    /// a filter to it.
     fn new_global(&mut self, global: Main<I>, data: DispatchData);
     /// A global was advertised but its version was lower than the minimal version
     /// you requested.
@@ -292,15 +290,14 @@ where
 ///
 /// The supplied callbacks for each global kind must be an instance of a type
 /// implementing the `GlobalImplementor<I>` trait. The argument provided to your
-/// callback is a `NewProxy`  of the newly instantiated global, and you should implement
-/// it and return the implemented proxy. The error case happens if the server advertised
-/// a lower version of the global than the one you requested, in which case you are given
-/// the version it advertised in the error method, if you want to handle it graciously.
+/// callback is a `Main` handle of the newly instantiated global, and you should assign it
+/// to a filter in this callback if you plan to do so.. The error case happens if the server
+/// advertised a lower version of the global than the one you requested, in which case you
+/// are given the version it advertised in the error method, if you want to handle it graciously.
 ///
-/// As with all implementations, you can also provide closures for the various
-/// callbacks, in this case the errors will be ignored. However, due to a lack of
-/// capability of rustc's inference, you'll likely need to add some type annotation
-/// to your closure, typically something like
+/// You can also provide closures for the various callbacks, in this case the errors will
+/// be ignored. However, due to a lack of capability of rustc's inference, you'll likely need
+/// to add some type annotation to your closure, typically something like this:
 ///
 /// ```ignore
 /// global_filter!(

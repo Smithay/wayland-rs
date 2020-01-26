@@ -74,7 +74,7 @@ where
     /// by `wayland-scanner`, and you should probably never need to use it directly,
     /// but rather use the appropriate methods on the Rust object.
     ///
-    /// This is the generic method to send requests
+    /// This is the generic method to send requests.
     pub fn send<J>(&self, msg: I::Request, version: Option<u32>) -> Option<Main<J>>
     where
         J: Interface + AsRef<Proxy<J>> + From<Proxy<J>>,
@@ -97,7 +97,8 @@ where
     ///
     /// Will return `false` if the object has been destroyed.
     ///
-    /// If the object is not managed by this library, this will always
+    /// If the object is not managed by this library (if it was created from a raw
+    /// pointer from some other library your program interfaces with), this will always
     /// returns `true`.
     pub fn is_alive(&self) -> bool {
         self.inner.is_alive()
@@ -121,12 +122,14 @@ where
     /// a payload of arbitrary type and is shared by all proxies of this
     /// object.
     ///
-    /// See UserData documentation for more details.
+    /// See [`UserData`](struct.UserData.html) documentation for more details.
     pub fn user_data(&self) -> &UserData {
         self.inner.user_data()
     }
 
     /// Check if the other proxy refers to the same underlying wayland object
+    ///
+    /// You can also use the `PartialEq` implementation.
     pub fn equals(&self, other: &Proxy<I>) -> bool {
         self.inner.equals(&other.inner)
     }
@@ -173,7 +176,7 @@ impl Proxy<AnonymousObject> {
 
 /// A handle to a proxy that has been attached to an event queue
 ///
-/// As opposed to a mere `Proxy`, you can use it to send requests
+/// As opposed to `Proxy`, you can use it to send requests
 /// that create new objects. The created objects will be handled
 /// by the event queue this proxy has been atatched to.
 #[derive(PartialEq)]
@@ -320,17 +323,10 @@ impl<I: Interface> Main<I>
 where
     I: AsRef<Proxy<I>> + From<Proxy<I>>,
 {
-    /// Create a `MainProxy` instance from a C pointer
+    /// Create a `Main` instance from a C pointer
     ///
-    /// Create a `MainProxy` from a raw pointer to a wayland object from the
+    /// Create a `Main` from a raw pointer to a wayland object from the
     /// C library.
-    ///
-    /// This will take control of the underlying proxy & manage it. To be safe
-    /// you must ensure that:
-    ///
-    /// - The provided proxy has not already been used in any way (it was just created)
-    /// - This is called from the same thread as the one hosting the event queue
-    ///   handling this proxy
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.
@@ -340,7 +336,12 @@ where
     ///
     /// # Safety
     ///
-    /// The provided pointer must point to a valid wayland object from `libwayland-client`
+    /// This will take control of the underlying proxy & manage it. To be safe
+    /// you must ensure that:
+    ///
+    /// - The provided proxy has not already been used in any way (it was just created)
+    /// - This is called from the same thread as the one hosting the event queue
+    ///   handling this proxy
     pub unsafe fn from_c_ptr(_ptr: *mut wl_proxy) -> Main<I> {
         #[cfg(feature = "use_system_lib")]
         {
@@ -403,9 +404,9 @@ impl<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> Proxy<I> {
     /// with, it will be created in an "unmanaged" state: wayland-client will
     /// treat it as foreign, and as such most of the safeties will be absent.
     /// Notably the lifetime of the object can't be tracked, so the `alive()`
-    /// method will always return `false` and you are responsible of not using
+    /// method will always return `true` and you are responsible of not using
     /// an object past its destruction (as this would cause a protocol error).
-    /// You will also be unable to associate any user data pointer to this object.
+    /// You will also be unable to associate any user data value to this object.
     ///
     /// In order to handle protocol races, invoking it with a NULL pointer will
     /// create an already-dead object.

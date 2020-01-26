@@ -24,8 +24,7 @@ pub enum ConnectError {
     NoWaylandLib,
     /// The `XDG_RUNTIME_DIR` variable is not set while it should be
     XdgRuntimeDirNotSet,
-    /// Any needed library was found, but the listening socket of the server could not be
-    /// found.
+    /// Any needed library was found, but the listening socket of the server was not.
     ///
     /// Most of the time, this means that the program was not started from a wayland session.
     NoCompositorListening,
@@ -106,13 +105,10 @@ impl Display {
     /// Attempt to connect to a wayland server using the contents of the environment variables
     ///
     /// First of all, if the `WAYLAND_SOCKET` environment variable is set, it'll try to interpret
-    /// it as a FD number to use
+    /// it as a FD number to use.
     ///
     /// Otherwise, it will try to connect to the socket name defined in the `WAYLAND_DISPLAY`
     /// environment variable, and error if it is not set.
-    ///
-    /// On success, you are given the `Display` object as well as the main `EventQueue` hosting
-    /// the `WlDisplay` wayland object.
     ///
     /// This requires the `XDG_RUNTIME_DIR` variable to be properly set.
     pub fn connect_to_env() -> Result<Display, ConnectError> {
@@ -185,8 +181,6 @@ impl Display {
     /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
     /// requests could be written, will return an io error `WouldBlock`.
     ///
-    /// On success returns the number of written requests.
-    ///
     /// This function is identical to `EventQueue::flush`
     pub fn flush(&self) -> io::Result<()> {
         self.inner.flush()
@@ -221,7 +215,7 @@ impl Display {
     }
 
     #[cfg(feature = "use_system_lib")]
-    /// Create a Display and Event Queue from an external display
+    /// Create a Display and from an external display
     ///
     /// This allows you to interface with an already-existing wayland connection,
     /// for example provided by a GUI toolkit.

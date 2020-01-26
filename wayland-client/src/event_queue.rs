@@ -10,9 +10,9 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 /// to organize your objects into different queues that can be dispatched
 /// independently, for example from different threads.
 ///
-/// And `EventQueue` is not `Send`, and thus must stay on the thread on which
-/// they were created. However the `Display` object is `Send + Sync`, allowing
-/// you to create the queues directly in the threads that host them.
+/// An `EventQueue` is not `Send`, and thus must stay on the thread on which
+/// it was created. However the `Display` object is `Send + Sync`, allowing
+/// you to create the queues directly on the threads that host them.
 ///
 /// When a queue is dispatched (via the `dispatch(..)` or `dispatch_pending(..)` methods)
 /// all the incoming messages from the server designated to objects associated with
@@ -108,7 +108,7 @@ pub struct EventQueue {
 /// This token can be cloned and is meant to allow easier
 /// interaction with other functions in the library that
 /// require the specification of an event queue, like
-/// `Proxy::make_wrapper` and `NewProxy::implement_nonsend`.
+/// `Proxy::assign`.
 pub struct QueueToken {
     pub(crate) inner: Rc<EventQueueInner>,
 }
@@ -121,7 +121,7 @@ impl EventQueue {
     }
     /// Dispatches events from the internal buffer.
     ///
-    /// Dispatches all events to their appropriators.
+    /// Dispatches all events to their appropriate filters.
     /// If no events were in the internal buffer, will block until
     /// some events are read and dispatch them.
     /// This process can insert events in the internal buffers of
@@ -143,7 +143,7 @@ impl EventQueue {
 
     /// Dispatches pending events from the internal buffer.
     ///
-    /// Dispatches all events to their appropriators.
+    /// Dispatches all events to their appropriate callbacks.
     /// Never blocks, if no events were pending, simply returns
     /// `Ok(0)`.
     ///
@@ -200,9 +200,7 @@ impl EventQueue {
     /// Will return `None` if there are still some events awaiting dispatch on this EventIterator.
     /// In this case, you need to call `dispatch_pending()` before calling this method again.
     ///
-    /// As long as the returned guard is in scope, no events can be dispatched to any event iterator.
-    ///
-    /// The guard can then be destroyed by two means:
+    /// The guard can then be used by two means:
     ///
     ///  - Calling its `cancel()` method (or letting it go out of scope): the read intention will
     ///    be cancelled
@@ -259,7 +257,7 @@ impl ReadEventsGuard {
     ///
     /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
     /// until they are all consumed or destroyed.
-    pub fn read_events(mut self) -> io::Result<i32> {
+    pub fn read_events(mut self) -> io::Result<()> {
         self.done = true;
         self.inner.read_events()
     }
@@ -269,9 +267,8 @@ impl ReadEventsGuard {
     /// Will cancel the read intention associated with this guard. Never blocks.
     ///
     /// Has the same effect as letting the guard go out of scope.
-    pub fn cancel(mut self) {
+    pub fn cancel(self) {
         // just run the destructor
-        self.done = true;
     }
 }
 

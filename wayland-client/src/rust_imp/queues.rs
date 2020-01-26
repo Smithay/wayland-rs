@@ -114,7 +114,7 @@ impl EventQueueInner {
         let dispatch_ret = self.dispatch_pending(data.reborrow(), &mut fallback);
 
         match read_ret {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // we waited for read readiness be then received a WouldBlock error
                 // this means that an other thread was also reading events and read them
@@ -249,10 +249,10 @@ impl EventQueueInner {
         Ok(())
     }
 
-    pub(crate) fn read_events(&self) -> io::Result<i32> {
+    pub(crate) fn read_events(&self) -> io::Result<()> {
         // TODO: integrate more properly with prepare read with a fence
         match self.connection.lock().unwrap().read_events() {
-            Ok(n) => Ok(n as i32),
+            Ok(_) => Ok(()),
             Err(CError::Protocol(_)) => Err(::nix::errno::Errno::EPROTO.into()),
             Err(CError::Parse(_)) => Err(::nix::errno::Errno::EPROTO.into()),
             Err(CError::Nix(::nix::Error::Sys(errno))) => Err(errno.into()),

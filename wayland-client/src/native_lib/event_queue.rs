@@ -126,10 +126,10 @@ impl EventQueueInner {
         }
     }
 
-    pub(crate) fn read_events(&self) -> io::Result<i32> {
+    pub(crate) fn read_events(&self) -> io::Result<()> {
         let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.inner.ptr()) };
         if ret >= 0 {
-            Ok(ret)
+            Ok(())
         } else {
             Err(io::Error::last_os_error())
         }

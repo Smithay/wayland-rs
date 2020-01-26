@@ -16,11 +16,11 @@
 //!
 //! The protocol being bi-directional, you can send and receive messages.
 //! Sending messages is done via methods of Rust objects corresponding to the wayland protocol
-//! objects, receiving and handling them is done by providing implementations.
+//! objects, receiving and handling them is done by providing callbacks.
 //!
 //! ### Proxies
 //!
-//! Wayland objects are represented by proxies, which are handles to wayland objects.
+//! Wayland objects are represented by proxies, which are handles to them.
 //! You can interact with them in 4 states:
 //!
 //! - As the interface object directly `I`. This representation is the most immediate
@@ -65,7 +65,7 @@
 //! event queue, which controls when its events are dispatched.
 //!
 //! Events received from the server are stored in an internal buffer, and processed (by calling
-//! the appropriate implementations) when the associated event queue is dispatched.
+//! the appropriate callbacks) when the associated event queue is dispatched.
 //!
 //! When you send a request creating a new object, this new object will be assigned to an event
 //! queue depending on the parent object that created it.
