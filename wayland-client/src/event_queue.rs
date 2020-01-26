@@ -1,8 +1,7 @@
-use std::io;
-use std::rc::Rc;
+use std::{io, rc::Rc};
 
 use crate::imp::EventQueueInner;
-use crate::{AnonymousObject, DispatchData, Main, RawEvent};
+use crate::{AnonymousObject, DispatchData, Display, Main, RawEvent};
 
 /// An event queue for protocol messages
 ///
@@ -101,6 +100,7 @@ use crate::{AnonymousObject, DispatchData, Main, RawEvent};
 pub struct EventQueue {
     // EventQueue is *not* Send
     pub(crate) inner: Rc<EventQueueInner>,
+    display: Display,
 }
 
 /// A token representing this event queue
@@ -114,9 +114,10 @@ pub struct QueueToken {
 }
 
 impl EventQueue {
-    pub(crate) fn new(inner: EventQueueInner) -> EventQueue {
+    pub(crate) fn new(inner: EventQueueInner, display: Display) -> EventQueue {
         EventQueue {
             inner: Rc::new(inner),
+            display,
         }
     }
     /// Dispatches events from the internal buffer.
@@ -220,27 +221,9 @@ impl EventQueue {
         }
     }
 
-    /// Non-blocking write to the server
-    ///
-    /// Outgoing messages to the server are buffered by the library for efficiency. This method
-    /// flushes the internal buffer to the server socket.
-    ///
-    /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
-    /// requests could be written, will return an io error `WouldBlock`.
-    ///
-    /// On success returns the number of written requests.
-    ///
-    /// This function is identical to `Display::flush`.
-    pub fn flush(&self) -> io::Result<()> {
-        self.inner.flush()
-    }
-
-    /// Retrieve the file descriptor associated with the wayland socket
-    ///
-    /// This FD should only be used to integrate into a polling mechanism, and should
-    /// never be directly read from or written to.
-    pub fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
-        self.inner.get_connection_fd()
+    /// Access the `Display` of the connection
+    pub fn display(&self) -> &Display {
+        &self.display
     }
 }
 

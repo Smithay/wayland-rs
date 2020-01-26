@@ -6,8 +6,8 @@
   filters and callbaks during an event dispatch.
 - [scanner] Use `#[non_exhaustive]` on protocol-generated enums to replace the `__nonexhaustive` hidden variant
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
-- [client] Introduce `EventQueue::flush`, identical to `Display::flush`, for convenience.
-- [cursor] The types of the library is no longer `Send` (they should never have been)
+- [client] Introduce `EventQueue::display()` to access the `Display` from an `EventQueue`
+- [cursor] The types of the wayland-cursor library are no longer `Send` (they should never have been)
 - [protocols] Update wayland-protocols to `82d4c152a5163fc39c6c1fbf3b27578449d6be8e` (includes fixes to
   `xdg_shell` enums)
 - [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`

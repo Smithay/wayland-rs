@@ -189,7 +189,7 @@ impl Display {
     /// Create a new event queue associated with this wayland connection
     pub fn create_event_queue(&self) -> EventQueue {
         let evq_inner = DisplayInner::create_event_queue(&self.inner);
-        EventQueue::new(evq_inner)
+        EventQueue::new(evq_inner, self.clone())
     }
 
     /// Retrieve the last protocol error if any occured
