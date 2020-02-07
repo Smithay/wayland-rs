@@ -16,5 +16,5 @@ travis-ci = { repository = "Smithay/wayland-rs" }
 [dependencies]
 wayland-sys = { version = "0.24.1", path = "../wayland-sys" }
 nix = "0.16"
-spin = "0.5"
+once_cell = "1.0"
 smallvec = "1"

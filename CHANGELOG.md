@@ -15,6 +15,7 @@
   reference instead of by value, allowing the creation of new attached/detached proxy handles without
   requiring ownership
 - [server] The globals-creation APIs now take a `Filter`, as the rest of the callbacks of the crate.
+- [commons] Carefully handle `Drop` types in the thread-aware containers.
 
 ## 0.24.1 -- 2019-12-13
 

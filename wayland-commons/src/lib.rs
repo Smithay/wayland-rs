@@ -148,16 +148,19 @@ impl MessageGroup for NoMessage {
 
 /// Stores a value in a threadafe container that
 /// only lets you access it from its owning thread
+/// 
+/// If the ThreadGuard is dropped from the wrong thread,
+/// the underlying value will be leaked.
 pub struct ThreadGuard<T: ?Sized> {
     thread: std::thread::ThreadId,
-    val: T,
+    val: std::mem::ManuallyDrop<T>,
 }
 
 impl<T> ThreadGuard<T> {
     /// Create a new ThreadGuard wrapper
     pub fn new(val: T) -> ThreadGuard<T> {
         ThreadGuard {
-            val,
+            val: std::mem::ManuallyDrop::new(val),
             thread: std::thread::current().id(),
         }
     }
@@ -199,6 +202,16 @@ impl<T: ?Sized> ThreadGuard<T> {
             Some(&mut self.val)
         } else {
             None
+        }
+    }
+}
+
+impl<T: ?Sized> Drop for ThreadGuard<T> {
+    fn drop(&mut self) {
+        // We can only actually perform the drop if we are on the right thread
+        // otherwise it may be racy, so we just leak the value
+        if self.thread == ::std::thread::current().id() {
+            unsafe { std::mem::ManuallyDrop::drop(&mut self.val) }
         }
     }
 }

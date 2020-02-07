@@ -1,8 +1,9 @@
 //! Various utilities used for other implementations
 
-use spin::Once;
+use once_cell::sync::OnceCell;
 
 use std::any::Any;
+use std::mem::ManuallyDrop;
 use std::thread::{self, ThreadId};
 
 use self::list::AppendList;
@@ -10,12 +11,12 @@ use self::list::AppendList;
 /// A wrapper for user data, able to store any type, and correctly
 /// handling access from a wrong thread
 pub struct UserData {
-    inner: Once<UserDataInner>,
+    inner: OnceCell<UserDataInner>,
 }
 
 enum UserDataInner {
     ThreadSafe(Box<dyn Any + Send + Sync + 'static>),
-    NonThreadSafe(Box<dyn Any + 'static>, ThreadId),
+    NonThreadSafe(Box<ManuallyDrop<dyn Any + 'static>>, ThreadId),
 }
 
 // UserData itself is always threadsafe, as it only gives access to its
@@ -26,7 +27,9 @@ unsafe impl Sync for UserData {}
 impl UserData {
     /// Create a new UserData instance
     pub const fn new() -> UserData {
-        UserData { inner: Once::new() }
+        UserData {
+            inner: OnceCell::new(),
+        }
     }
 
     /// Sets the UserData to a given value
@@ -34,8 +37,9 @@ impl UserData {
     /// The provided closure is called to init the UserData,
     /// does nothing is the UserData had already been set.
     pub fn set<T: Any + 'static, F: FnOnce() -> T>(&self, f: F) {
-        self.inner
-            .call_once(|| UserDataInner::NonThreadSafe(Box::new(f()), thread::current().id()));
+        self.inner.get_or_init(|| {
+            UserDataInner::NonThreadSafe(Box::new(ManuallyDrop::new(f())), thread::current().id())
+        });
     }
 
     /// Sets the UserData to a given threadsafe value
@@ -43,7 +47,8 @@ impl UserData {
     /// The provided closure is called to init the UserData,
     /// does nothing is the UserData had already been set.
     pub fn set_threadsafe<T: Any + Send + Sync + 'static, F: FnOnce() -> T>(&self, f: F) {
-        self.inner.call_once(|| UserDataInner::ThreadSafe(Box::new(f())));
+        self.inner
+            .get_or_init(|| UserDataInner::ThreadSafe(Box::new(f())));
     }
 
     /// Attempt to access the wrapped user data
@@ -54,17 +59,30 @@ impl UserData {
     /// - This `UserData` has been created using the non-threadsafe variant and access
     ///   is attempted from an other thread than the one it was created on
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        match self.inner.wait() {
+        match self.inner.get() {
             Some(&UserDataInner::ThreadSafe(ref val)) => Any::downcast_ref::<T>(&**val),
             Some(&UserDataInner::NonThreadSafe(ref val, threadid)) => {
                 // only give access if we are on the right thread
                 if threadid == thread::current().id() {
-                    Any::downcast_ref::<T>(&**val)
+                    Any::downcast_ref::<T>(&***val)
                 } else {
                     None
                 }
             }
             None => None,
+        }
+    }
+}
+
+impl Drop for UserData {
+    fn drop(&mut self) {
+        // only drop non-Send user data if we are on the right thread, leak it otherwise
+        if let Some(&mut UserDataInner::NonThreadSafe(ref mut val, threadid)) = self.inner.get_mut() {
+            if threadid == thread::current().id() {
+                unsafe {
+                    ManuallyDrop::drop(&mut **val);
+                }
+            }
         }
     }
 }
