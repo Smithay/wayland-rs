@@ -2,20 +2,32 @@
 
 ## Unreleased
 
+## 0.25.0 -- 2020-02-07
+
+#### Breaking Changes
+
 - [client/server] Introduce the `DispatchData` mechanism, allowing global state to be shared with the
   filters and callbaks during an event dispatch.
 - [scanner] Use `#[non_exhaustive]` on protocol-generated enums to replace the `__nonexhaustive` hidden variant
 - [client] Rename `EventQueue::get_token` to `EventQueue::token`
 - [client] Introduce `EventQueue::display()` to access the `Display` from an `EventQueue`
 - [cursor] The types of the wayland-cursor library are no longer `Send` (they should never have been)
-- [protocols] Update wayland-protocols to `82d4c152a5163fc39c6c1fbf3b27578449d6be8e` (includes fixes to
-  `xdg_shell` enums)
-- [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`
+- [server] The globals-creation APIs now take a `Filter`, as the rest of the callbacks of the crate.
+
+#### Fixes
+
 - [client] The `attach()` method of `Proxy<_>` and the `detach()` method of `Attached<_>` now take `self` by
   reference instead of by value, allowing the creation of new attached/detached proxy handles without
   requiring ownership
-- [server] The globals-creation APIs now take a `Filter`, as the rest of the callbacks of the crate.
 - [commons] Carefully handle `Drop` types in the thread-aware containers.
+
+
+#### Updates
+
+- [protocols] Update wayland-protocols to `82d4c152a5163fc39c6c1fbf3b27578449d6be8e` (includes fixes to
+  `xdg_shell` enums)
+- [protocols] Update wlr-protocols to `67abc798b03f3b4f4691f3307c9ca86fa6aa16ed`
+- Update `nix` dependency to `0.17`
 
 ## 0.24.1 -- 2019-12-13
 

@@ -148,7 +148,7 @@ impl MessageGroup for NoMessage {
 
 /// Stores a value in a threadafe container that
 /// only lets you access it from its owning thread
-/// 
+///
 /// If the ThreadGuard is dropped from the wrong thread,
 /// the underlying value will be leaked.
 pub struct ThreadGuard<T: ?Sized> {
