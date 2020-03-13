@@ -115,20 +115,16 @@ pub enum MessageWriteError {
     DupFdFailed(::nix::Error),
 }
 
-impl ::std::error::Error for MessageWriteError {
-    fn description(&self) -> &str {
-        match *self {
-            MessageWriteError::BufferTooSmall => "The provided buffer is too small to hold message content.",
-            MessageWriteError::DupFdFailed(_) => {
-                "The message contains a file descriptor that could not be dup()-ed."
-            }
-        }
-    }
-}
+impl ::std::error::Error for MessageWriteError {}
 
 impl ::std::fmt::Display for MessageWriteError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        f.write_str(::std::error::Error::description(self))
+        match *self {
+            MessageWriteError::BufferTooSmall => f.write_str("The provided buffer is too small to hold message content."),
+            MessageWriteError::DupFdFailed(_) => {
+                f.write_str("The message contains a file descriptor that could not be dup()-ed.")
+            }
+        }
     }
 }
 
@@ -143,19 +139,15 @@ pub enum MessageParseError {
     Malformed,
 }
 
-impl ::std::error::Error for MessageParseError {
-    fn description(&self) -> &str {
-        match *self {
-            MessageParseError::MissingFD => "The message references a FD but the buffer FD is empty.",
-            MessageParseError::MissingData => "More data is needed to deserialize the message",
-            MessageParseError::Malformed => "The message is malformed and cannot be parsed",
-        }
-    }
-}
+impl ::std::error::Error for MessageParseError {}
 
 impl ::std::fmt::Display for MessageParseError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        f.write_str(::std::error::Error::description(self))
+        match *self {
+            MessageParseError::MissingFD => f.write_str("The message references a FD but the buffer FD is empty."),
+            MessageParseError::MissingData => f.write_str("More data is needed to deserialize the message"),
+            MessageParseError::Malformed => f.write_str("The message is malformed and cannot be parsed"),
+        }
     }
 }
 

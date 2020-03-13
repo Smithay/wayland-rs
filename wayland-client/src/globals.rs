@@ -29,18 +29,14 @@ pub enum GlobalError {
     VersionTooLow(u32),
 }
 
-impl ::std::error::Error for GlobalError {
-    fn description(&self) -> &str {
-        match *self {
-            GlobalError::Missing => "The requested global was missing.",
-            GlobalError::VersionTooLow(_) => "The requested global's version is too low.",
-        }
-    }
-}
+impl ::std::error::Error for GlobalError {}
 
 impl ::std::fmt::Display for GlobalError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        f.write_str(::std::error::Error::description(self))
+        match *self {
+            GlobalError::Missing => f.write_str("The requested global was missing."),
+            GlobalError::VersionTooLow(_) => f.write_str("The requested global's version is too low."),
+        }
     }
 }
 
