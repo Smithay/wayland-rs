@@ -4,13 +4,16 @@ use std::env::var;
 use std::path::Path;
 use wayland_scanner::*;
 
-static STABLE_PROTOCOLS: &[(&str, &[(&str, &str)])] = &[
+type StableProtocol<'a> = (&'a str, &'a [(&'a str, &'a str)]);
+type UnstableProtocol<'a> = (&'a str, &'a [(&'a str, &'a [(&'a str, &'a str)])]);
+
+static STABLE_PROTOCOLS: &[StableProtocol] = &[
     ("presentation-time", &[]),
     ("viewporter", &[]),
     ("xdg-shell", &[]),
 ];
 
-static UNSTABLE_PROTOCOLS: &[(&str, &[(&str, &[(&str, &str)])])] = &[
+static UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
     ("fullscreen-shell", &[("v1", &[])]),
     ("idle-inhibit", &[("v1", &[])]),
     ("input-method", &[("v1", &[])]),
@@ -40,7 +43,7 @@ static UNSTABLE_PROTOCOLS: &[(&str, &[(&str, &[(&str, &str)])])] = &[
     ("xwayland-keyboard-grab", &[("v1", &[])]),
 ];
 
-static WLR_UNSTABLE_PROTOCOLS: &[(&str, &[(&str, &[(&str, &str)])])] = &[
+static WLR_UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
     ("wlr-data-control", &[("v1", &[])]),
     ("wlr-export-dmabuf", &[("v1", &[])]),
     ("wlr-foreign-toplevel-management", &[("v1", &[])]),
@@ -50,7 +53,7 @@ static WLR_UNSTABLE_PROTOCOLS: &[(&str, &[(&str, &[(&str, &str)])])] = &[
     ("wlr-screencopy", &[("v1", &[])]),
 ];
 
-static MISC_PROTOCOLS: &[(&str, &[(&str, &str)])] = &[("gtk-primary-selection", &[])];
+static MISC_PROTOCOLS: &[StableProtocol] = &[("gtk-primary-selection", &[])];
 
 fn generate_protocol(
     name: &str,
