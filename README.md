@@ -27,7 +27,7 @@ This repository actually hosts 8 crates. The 3 main crates you'll likely want to
 There are also two auxilliary crates:
 
 - *wayland-egl*, which is necessary client-side for OpenGL integration
-- *wayland-cursor*, which helps with loading cursor images from the system temes for use in your apps
+- *wayland-cursor*, which helps with loading cursor images from the system themes for use in your apps
 
 And finally 3 internal crates, that you'll need only for integrating a custom protocol extension:
 
