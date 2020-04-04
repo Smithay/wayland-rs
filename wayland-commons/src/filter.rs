@@ -57,7 +57,7 @@ type DynInner<E> = Inner<E, dyn FnMut(E, &Filter<E>, DispatchData<'_>)>;
 /// messages from different objects into the same closure.
 ///
 /// You need to provide it a closure of type `FnMut(E, &Filter<E>)`,
-/// which will be called eny time a message is sent to the filter
+/// which will be called any time a message is sent to the filter
 /// via the `send(..)` method. Your closure also receives a handle
 /// to the filter as argument, so that you can use it from within
 /// the callback (to assign new wayland objects to this filter for
