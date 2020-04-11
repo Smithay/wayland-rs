@@ -32,6 +32,7 @@ members = [
 [features]
 client_native = [ "wayland-client/dlopen" ]
 server_native = [ "wayland-server/dlopen" ]
+both_native = [ "client_native", "server_native" ]
 
 # Manual list of the tests, required because some need `harness = false`
 
