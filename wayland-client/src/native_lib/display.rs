@@ -11,7 +11,11 @@ use super::{EventQueueInner, ProxyInner};
 
 pub(crate) struct DisplayInner {
     proxy: Proxy<WlDisplay>,
-    display: *mut wl_display,
+    display: Arc<DisplayGuard>,
+}
+
+pub(crate) struct DisplayGuard {
+    ptr: *mut wl_display,
     external: bool,
 }
 
@@ -23,13 +27,14 @@ unsafe fn make_display(ptr: *mut wl_display) -> Result<Arc<DisplayInner>, Connec
         return Err(ConnectError::NoCompositorListening);
     }
 
-    let display = Arc::new(DisplayInner {
+    let mut inner = DisplayInner {
         proxy: Proxy::from_c_ptr(ptr as *mut _),
-        display: ptr,
-        external: false,
-    });
+        display: Arc::new(DisplayGuard { ptr, external: false }),
+    };
 
-    Ok(display)
+    inner.proxy.inner.display = Some(Arc::downgrade(&inner.display));
+
+    Ok(Arc::new(inner))
 }
 
 impl DisplayInner {
@@ -44,11 +49,11 @@ impl DisplayInner {
     }
 
     pub(crate) fn get_connection_fd(&self) -> ::std::os::unix::io::RawFd {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.ptr()) }
     }
 
     pub(crate) fn ptr(&self) -> *mut wl_display {
-        self.display
+        self.display.ptr
     }
 
     pub(crate) fn flush(&self) -> io::Result<()> {
@@ -100,22 +105,20 @@ impl DisplayInner {
     pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> Arc<DisplayInner> {
         Arc::new(DisplayInner {
             proxy: Proxy::wrap(ProxyInner::from_external_display(display_ptr as *mut _)),
-            display: display_ptr,
-            external: true,
+            display: Arc::new(DisplayGuard {
+                ptr: display_ptr,
+                external: true,
+            }),
         })
     }
 }
 
-impl Drop for DisplayInner {
+impl Drop for DisplayGuard {
     fn drop(&mut self) {
         if !self.external {
             // disconnect only if we are owning this display
             unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_disconnect,
-                    self.proxy.c_ptr() as *mut wl_display
-                );
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.ptr);
             }
         }
     }

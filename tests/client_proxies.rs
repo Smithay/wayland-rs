@@ -207,3 +207,26 @@ fn dead_proxies() {
     assert!(!output.as_ref().is_alive());
     assert!(!output2.as_ref().is_alive());
 }
+
+#[test]
+fn dead_connection() {
+    fn get_output() -> wl_output::WlOutput {
+        let mut server = TestServer::new();
+        server
+            .display
+            .create_global::<ServerOutput, _>(3, ways::Filter::new(|_: (_, _), _, _| {}));
+
+        let mut client = TestClient::new(&server.socket_name);
+        let manager = wayc::GlobalManager::new(&client.display_proxy);
+
+        roundtrip(&mut client, &mut server).unwrap();
+
+        let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
+        return output.detach();
+    }
+
+    let output = get_output();
+    // At this point the client connection is already freed, calling this request should be a no-op
+    // and not a crash into freed memory
+    output.release();
+}

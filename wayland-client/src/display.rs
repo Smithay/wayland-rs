@@ -92,6 +92,11 @@ impl ::std::fmt::Display for ProtocolError {
 /// primary `WlDisplay` wayland object. As such, it must be kept alive as long
 /// as you are connected. You can access the contained `WlDisplay` via `Deref`
 /// to create all the objects you need.
+///
+/// **Safety note:** If you activate the `use_system_lib` cargo feature and provide pointers
+/// to wayland objects to other libraries, you **must** ensure that these libraries clean up
+/// their state before the last clone of this `Display` is dropped, otherwise these libraries
+/// will access freed memory when doing their cleanup.
 #[derive(Clone)]
 pub struct Display {
     pub(crate) inner: Arc<DisplayInner>,
