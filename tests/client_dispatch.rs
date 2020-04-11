@@ -20,7 +20,7 @@ fn client_sync_roundtrip() {
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.dispatch(Duration::from_millis(100), &mut ()).unwrap();
             display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
@@ -29,7 +29,7 @@ fn client_sync_roundtrip() {
     });
 
     // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(100));
+    ::std::thread::sleep(::std::time::Duration::from_millis(500));
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
@@ -55,7 +55,7 @@ fn client_dispatch() {
         display.add_socket(Some(socket_name)).unwrap();
 
         loop {
-            display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
+            display.dispatch(Duration::from_millis(100), &mut ()).unwrap();
             display.flush_clients(&mut ());
             if *(server_kill_switch.lock().unwrap()) {
                 break;
@@ -64,7 +64,7 @@ fn client_dispatch() {
     });
 
     // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(100));
+    ::std::thread::sleep(::std::time::Duration::from_millis(500));
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
