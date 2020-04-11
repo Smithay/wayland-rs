@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::os::raw::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use crate::{Interface, Main, Proxy, RawEvent};
 use wayland_commons::filter::Filter;
@@ -32,6 +32,7 @@ pub(crate) struct ProxyInner {
     internal: Option<Arc<ProxyInternal>>,
     ptr: *mut wl_proxy,
     wrapping: Option<*mut wl_proxy>,
+    pub(crate) display: Option<Weak<super::display::DisplayGuard>>,
 }
 
 unsafe impl Send for ProxyInner {}
@@ -39,6 +40,13 @@ unsafe impl Sync for ProxyInner {}
 
 impl ProxyInner {
     pub(crate) fn is_alive(&self) -> bool {
+        if let Some(ref weak) = self.display {
+            if Weak::strong_count(weak) == 0 {
+                // the connection is dead
+                return false;
+            }
+        }
+
         self.internal
             .as_ref()
             .map(|i| i.alive.load(Ordering::Acquire))
@@ -140,7 +148,9 @@ impl ProxyInner {
                             version
                         )
                     });
-                    Some(ProxyInner::init_from_c_ptr::<J>(ptr))
+                    let mut new_proxy = ProxyInner::init_from_c_ptr::<J>(ptr);
+                    new_proxy.display = self.display.clone();
+                    Some(new_proxy)
                 }
             } else {
                 // Create a dead proxy ex-nihilo
@@ -162,7 +172,7 @@ impl ProxyInner {
             None
         };
 
-        if destructor {
+        if destructor && alive {
             // we need to destroy the proxy now
             if let Some(ref internal) = self.internal {
                 internal.alive.store(false, Ordering::Release);
@@ -187,6 +197,10 @@ impl ProxyInner {
     }
 
     pub(crate) fn detach(&mut self) {
+        if !self.is_external() && !self.is_alive() {
+            return;
+        }
+
         if let Some(ptr) = self.wrapping.take() {
             // self.ptr == self.wrapping means we are a Main<_>
             if ptr != self.ptr {
@@ -221,6 +235,14 @@ impl ProxyInner {
         E: From<(Main<I>, I::Event)> + 'static,
         I::Event: MessageGroup<Map = super::ProxyMap>,
     {
+        if self.is_external() {
+            panic!("Cannot assign an external proxy to a filter.");
+        }
+
+        if !self.is_alive() {
+            return;
+        }
+
         unsafe {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
                 as *mut ProxyUserData<I>;
@@ -254,6 +276,7 @@ impl ProxyInner {
             internal: Some(internal),
             ptr,
             wrapping: Some(ptr),
+            display: None,
         }
     }
 
@@ -265,6 +288,7 @@ impl ProxyInner {
             })),
             ptr: std::ptr::null_mut(),
             wrapping: None,
+            display: None,
         }
     }
 
@@ -290,6 +314,7 @@ impl ProxyInner {
             internal,
             ptr,
             wrapping: None,
+            display: None,
         }
     }
 
@@ -298,6 +323,7 @@ impl ProxyInner {
             internal: None,
             ptr: d,
             wrapping: None,
+            display: None,
         }
     }
 }
@@ -308,7 +334,11 @@ impl Clone for ProxyInner {
             internal: self.internal.clone(),
             ptr: self.ptr,
             wrapping: None,
+            display: self.display.clone(),
         };
+        if !self.is_external() && !self.is_alive() {
+            return new;
+        }
         if let Some(ptr) = self.wrapping {
             if ptr != self.ptr {
                 // create a new wrapper to keep correct track of them

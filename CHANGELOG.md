@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+####
+
+- The minimum supported Rust version is now 1.41.0
+
+#### Fixes
+
+- [client] When using the `use_system_lib` feature, track the lifetime of the `Display` so that attempting
+  to send a request after the connection is dropped results in a noop instead of a `SIGSEGV`.
+
 ## 0.25.0 -- 2020-02-07
 
 #### Breaking Changes
