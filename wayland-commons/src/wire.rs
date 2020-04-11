@@ -120,7 +120,9 @@ impl ::std::error::Error for MessageWriteError {}
 impl ::std::fmt::Display for MessageWriteError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
-            MessageWriteError::BufferTooSmall => f.write_str("The provided buffer is too small to hold message content."),
+            MessageWriteError::BufferTooSmall => {
+                f.write_str("The provided buffer is too small to hold message content.")
+            }
             MessageWriteError::DupFdFailed(_) => {
                 f.write_str("The message contains a file descriptor that could not be dup()-ed.")
             }
@@ -144,7 +146,9 @@ impl ::std::error::Error for MessageParseError {}
 impl ::std::fmt::Display for MessageParseError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
-            MessageParseError::MissingFD => f.write_str("The message references a FD but the buffer FD is empty."),
+            MessageParseError::MissingFD => {
+                f.write_str("The message references a FD but the buffer FD is empty.")
+            }
             MessageParseError::MissingData => f.write_str("More data is needed to deserialize the message"),
             MessageParseError::Malformed => f.write_str("The message is malformed and cannot be parsed"),
         }

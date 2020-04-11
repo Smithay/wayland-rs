@@ -41,7 +41,9 @@ impl ::std::fmt::Display for ConnectError {
         match *self {
             ConnectError::NoWaylandLib => f.write_str("Could not find libwayland-client.so."),
             ConnectError::XdgRuntimeDirNotSet => f.write_str("XDG_RUNTIME_DIR is not set."),
-            ConnectError::NoCompositorListening => f.write_str("Could not find a listening wayland compositor."),
+            ConnectError::NoCompositorListening => {
+                f.write_str("Could not find a listening wayland compositor.")
+            }
             ConnectError::InvalidName => f.write_str("The wayland socket name is invalid."),
             ConnectError::InvalidFd => f.write_str("The FD provided in WAYLAND_SOCKET is invalid."),
         }
