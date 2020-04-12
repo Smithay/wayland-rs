@@ -16,3 +16,6 @@ travis-ci = { repository = "Smithay/wayland-rs" }
 [dependencies]
 wayland-client = { version = "0.25.0", path = "../wayland-client", features = ["use_system_lib"] }
 wayland-sys = { version = "0.25.0", path="../wayland-sys", features = ["cursor"] }
+tempfile = "3.1.0"
+xcursor = "0.1"
+xcur = "0.1"
