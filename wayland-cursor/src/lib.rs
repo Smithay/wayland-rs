@@ -34,6 +34,7 @@ use xcursor::{theme_search_paths, XCursorTheme};
 pub struct CursorTheme {
     name: String,
     cursors: Vec<Cursor>,
+    size: u32,
     pool: Main<WlShmPool>,
     pool_size: i32,
     file: File,
@@ -41,9 +42,9 @@ pub struct CursorTheme {
 
 impl CursorTheme {
     /// Create a new cursor theme.
-    pub fn new(name: &str, size: i32, shm: &Attached<WlShm>) -> Self {
+    pub fn new(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
         let name = String::from(name);
-        let pool_size = size * size * 4;
+        let pool_size = (size * size * 4) as i32;
         let mem_fd = create_shm_fd().unwrap();
         let file = unsafe { File::from_raw_fd(mem_fd) };
         let pool = shm.create_pool(file.as_raw_fd(), pool_size);
@@ -51,6 +52,7 @@ impl CursorTheme {
         CursorTheme {
             name,
             file,
+            size,
             pool,
             pool_size,
             cursors: Vec::new(),
@@ -67,7 +69,7 @@ impl CursorTheme {
         match cur {
             Some(i) => Some(&self.cursors[i]),
             None => {
-                let cur = self.load_cursor(name).unwrap();
+                let cur = self.load_cursor(name, self.size).unwrap();
                 self.cursors.push(cur);
                 self.cursors.iter().last()
             }
@@ -78,7 +80,7 @@ impl CursorTheme {
     /// pushes the images onto the shm pool.
     /// Keep in mind that if the cursor is already loaded,
     /// the function will make a duplicate.
-    fn load_cursor(&mut self, name: &str) -> Option<Cursor> {
+    fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
         let icon_path = XCursorTheme::load(&self.name, &theme_search_paths()).load_icon(name);
         let mut icon_file = File::open(icon_path.unwrap()).ok()?;
 
@@ -94,7 +96,7 @@ impl CursorTheme {
         }
 
         let file_images = xcur.unwrap().1.images;
-        let cursor = Cursor::new(name, self, &file_images);
+        let cursor = Cursor::new(name, self, &file_images, size);
 
         Some(cursor)
     }
@@ -122,9 +124,11 @@ impl Cursor {
     ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
-    fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image]) -> Self {
+    fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image], size: u32) -> Self {
         let mut buffers = Vec::with_capacity(images.len());
-        for img in images {
+        let iter = images.iter().filter(|el| {el.width == size && el.height == size});
+
+        for img in iter {
             buffers.push(CursorImageBuffer::new(theme, img));
         }
 
