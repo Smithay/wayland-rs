@@ -1,12 +1,12 @@
 //! Wayland cursor utilities
-//! 
+//!
 //! This crate aims to reimplement the functionality of the `libwayland-cursor` library in Rust.
 //!
 //! It allows you to load cursors from the system and display them correctly.
-//! 
+//!
 //! First of all, you need to create a `CursorTheme`,
 //! which represents the full cursor theme.
-//! 
+//!
 //! From this theme, using the `get_cursor` method, you can load a specific `Cursor`,
 //! which can contain several images if the cursor is animated. It also provides you with the
 //! means of querying which frame of the animation should be displayed at
@@ -17,15 +17,15 @@ use std::{
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
     ops::{Deref, Index},
-    os::unix::io::AsRawFd,
+    os::unix::io::{AsRawFd, FromRawFd},
 };
 use wayland_client::{
-    Attached, Main,
     protocol::{
         wl_buffer::WlBuffer,
         wl_shm::{Format, WlShm},
         wl_shm_pool::WlShmPool,
     },
+    Attached, Main,
 };
 use xcur::parser::File as XCurFile;
 use xcursor::{theme_search_paths, XCursorTheme};
@@ -40,16 +40,19 @@ pub struct CursorTheme {
 }
 
 impl CursorTheme {
-
     /// Create a new cursor theme.
     pub fn new(name: &str, size: i32, shm: &Attached<WlShm>) -> Self {
         let name = String::from(name);
         let pool_size = size * size * 4;
-        let file = tempfile::tempfile().expect("Can't create temporary file");
+        let mem_fd = create_shm_fd().unwrap();
+        let file = unsafe { File::from_raw_fd(mem_fd) };
         let pool = shm.create_pool(file.as_raw_fd(), pool_size);
 
         CursorTheme {
-            name, file, pool, pool_size,
+            name,
+            file,
+            pool,
+            pool_size,
             cursors: Vec::new(),
         }
     }
@@ -63,11 +66,11 @@ impl CursorTheme {
 
         match cur {
             Some(i) => Some(&self.cursors[i]),
-            None    => {
+            None => {
                 let cur = self.load_cursor(name).unwrap();
                 self.cursors.push(cur);
                 self.cursors.iter().last()
-            },
+            }
         }
     }
 
@@ -116,7 +119,7 @@ pub struct Cursor {
 
 impl Cursor {
     /// Construct a new Cursor.
-    /// 
+    ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
     fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image]) -> Self {
@@ -132,7 +135,7 @@ impl Cursor {
     }
 
     /// Given a time, calculate which frame to show, and how much time remains until the next frame.
-    /// 
+    ///
     /// Time will wrap, so if for instance the cursor has an animation during 100ms,
     /// then calling this function with 5ms and 105ms as input gives the same output.
     pub fn frame_and_duration(&self, mut millis: u32) -> FrameAndDuration {
@@ -142,7 +145,10 @@ impl Cursor {
             if millis > img.delay {
                 millis -= img.delay;
             } else {
-                return FrameAndDuration { frame_index: i, frame_duration: millis };
+                return FrameAndDuration {
+                    frame_index: i,
+                    frame_duration: millis,
+                };
             }
         }
     }
@@ -173,9 +179,8 @@ pub struct CursorImageBuffer {
 }
 
 impl CursorImageBuffer {
-
     /// Construct a new CursorImageBuffer
-    /// 
+    ///
     /// This function appends the pixels of the image to the provided file,
     /// and constructs a wl_buffer on that data.
     fn new(theme: &mut CursorTheme, image: &xcur::parser::Image) -> Self {
@@ -186,13 +191,16 @@ impl CursorImageBuffer {
         let new_size = theme.file.seek(SeekFrom::End(0)).unwrap();
         theme.grow(new_size as i32);
 
-        let buffer = theme.pool.create_buffer(
-            offset as i32,
-            image.width as i32,
-            image.height as i32,
-            (image.width * 4) as i32,
-            Format::Argb8888,
-        ).detach();
+        let buffer = theme
+            .pool
+            .create_buffer(
+                offset as i32,
+                image.width as i32,
+                image.height as i32,
+                (image.width * 4) as i32,
+                Format::Argb8888,
+            )
+            .detach();
 
         CursorImageBuffer {
             buffer,
@@ -226,9 +234,8 @@ impl Deref for CursorImageBuffer {
     }
 }
 
-
 /// Which frame to show, and for how long.
-/// 
+///
 /// This struct is output by `Cursor::frame_and_duration`
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FrameAndDuration {
@@ -236,6 +243,73 @@ pub struct FrameAndDuration {
     pub frame_index: usize,
     /// The duration that the frame should be shown for.
     pub frame_duration: u32,
+}
+
+/// Create a shared file descriptor in memory
+use {
+    nix::{
+        errno::Errno,
+        fcntl,
+        sys::{memfd, mman, stat},
+        unistd,
+    },
+    std::{
+        ffi::CStr,
+        io,
+        os::unix::io::RawFd,
+        time::{SystemTime, UNIX_EPOCH},
+    },
+};
+fn create_shm_fd() -> io::Result<RawFd> {
+    // Only try memfd on linux
+    #[cfg(target_os = "linux")]
+    loop {
+        match memfd::memfd_create(
+            CStr::from_bytes_with_nul(b"smithay-client-toolkit\0").unwrap(),
+            memfd::MemFdCreateFlag::MFD_CLOEXEC,
+        ) {
+            Ok(fd) => return Ok(fd),
+            Err(nix::Error::Sys(Errno::EINTR)) => continue,
+            Err(nix::Error::Sys(Errno::ENOSYS)) => break,
+            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(err) => unreachable!(err),
+        }
+    }
+
+    // Fallback to using shm_open
+    let sys_time = SystemTime::now();
+    let mut mem_file_handle = format!(
+        "/smithay-client-toolkit-{}",
+        sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+    );
+    loop {
+        match mman::shm_open(
+            mem_file_handle.as_str(),
+            fcntl::OFlag::O_CREAT | fcntl::OFlag::O_EXCL | fcntl::OFlag::O_RDWR | fcntl::OFlag::O_CLOEXEC,
+            stat::Mode::S_IRUSR | stat::Mode::S_IWUSR,
+        ) {
+            Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
+                Ok(_) => return Ok(fd),
+                Err(nix::Error::Sys(errno)) => match unistd::close(fd) {
+                    Ok(_) => return Err(io::Error::from(errno)),
+                    Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+                    Err(err) => panic!(err),
+                },
+                Err(err) => panic!(err),
+            },
+            Err(nix::Error::Sys(Errno::EEXIST)) => {
+                // If a file with that handle exists then change the handle
+                mem_file_handle = format!(
+                    "/smithay-client-toolkit-{}",
+                    sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+                );
+                continue;
+            }
+            Err(nix::Error::Sys(Errno::EINTR)) => continue,
+            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(err) => unreachable!(err),
+        }
+    }
 }
 
 #[cfg(test)]
