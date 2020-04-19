@@ -14,6 +14,7 @@
 //! attach them to a wayland surface.
 
 use std::{
+    env,
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
     ops::{Deref, Index},
@@ -41,8 +42,33 @@ pub struct CursorTheme {
 }
 
 impl CursorTheme {
-    /// Create a new cursor theme.
-    pub fn new(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
+    /// Load a cursor theme from system defaults.
+    ///
+    /// Same as calling `load_or("default", size, shm)`
+    pub fn load(size: u32, shm: &Attached<WlShm>) -> Self {
+        CursorTheme::load_or("default", size, shm)
+    }
+
+    /// Load a cursor theme, using `name` as fallback.
+    ///
+    /// The theme name and cursor size are read from the `XCURSOR_THEME` and
+    /// `XCURSOR_SIZE` environment variables, respectively, or from the provided variables
+    /// if those are invalid.
+    pub fn load_or(name: &str, mut size: u32, shm: &Attached<WlShm>) -> Self {
+        let name_string = String::from(name);
+        let name = &env::var("XCURSOR_THEME").unwrap_or(name_string);
+
+        if let Ok(var) = env::var("XCURSOR_SIZE") {
+            if let Ok(int) = var.parse() {
+                size = int;
+            }
+        }
+
+        CursorTheme::load_from_name(name, size, shm)
+    }
+
+    /// Create a new cursor theme, ignoring the system defaults.
+    pub fn load_from_name(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
         let name = String::from(name);
         let pool_size = (size * size * 4) as i32;
         let mem_fd = create_shm_fd().unwrap();
@@ -81,8 +107,8 @@ impl CursorTheme {
     /// Keep in mind that if the cursor is already loaded,
     /// the function will make a duplicate.
     fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
-        let icon_path = XCursorTheme::load(&self.name, &theme_search_paths()).load_icon(name);
-        let mut icon_file = File::open(icon_path.unwrap()).ok()?;
+        let icon_path = XCursorTheme::load(&self.name, &theme_search_paths()).load_icon(name)?;
+        let mut icon_file = File::open(icon_path).ok()?;
 
         let mut buf = Vec::new();
         let xcur = {
@@ -126,7 +152,7 @@ impl Cursor {
     /// This will also grow `theme.pool` if necessary.
     fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image], size: u32) -> Self {
         let mut buffers = Vec::with_capacity(images.len());
-        let iter = images.iter().filter(|el| {el.width == size && el.height == size});
+        let iter = images.iter().filter(|el| el.width == size && el.height == size);
 
         for img in iter {
             buffers.push(CursorImageBuffer::new(theme, img));
