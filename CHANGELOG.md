@@ -5,6 +5,7 @@
 ####
 
 - The minimum supported Rust version is now 1.41.0
+- `wayland-cursor` is now fully implemented in Rust
 
 #### Fixes
 
