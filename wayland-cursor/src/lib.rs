@@ -12,6 +12,32 @@
 //! means of querying which frame of the animation should be displayed at
 //! what time, as well as handles to the buffers containing these frames, to
 //! attach them to a wayland surface.
+//!
+//! # Example
+//!
+//! ```ignore
+//! use wayland_cursor::CursorTheme;
+//! # use std::thread::sleep;
+//! # use std::time::{Instant, Duration};
+//!
+//! let cursor_theme = CursorTheme::load(32, wl_shm);
+//! let cursor = cursor_theme.get_cursor("wait").expect("Cursor not provided by theme");
+//!
+//! let start_time = Instant::now();
+//! loop {
+//!     // Obtain which frame we should show, and for how long.
+//!     let millis = start_time.elapsed().as_millis();
+//!     let fr_info = cursor.frame_and_duration(millis as u32);
+//!
+//!     // Here, we obtain the right cursor frame...
+//!     let buffer = cursor[fr_info.frame_index];
+//!     // and attach it to a wl_surface.
+//!     cursor_surface.attach(Some(&buffer), 0, 0);
+//!     cursor_surface.commit();
+//!
+//!     sleep(fr_info.frame_duration);
+//! }
+//! ```
 
 use std::{
     env,
@@ -143,6 +169,7 @@ impl CursorTheme {
 pub struct Cursor {
     name: String,
     images: Vec<CursorImageBuffer>,
+    total_duration: u32,
 }
 
 impl Cursor {
@@ -152,16 +179,39 @@ impl Cursor {
     /// This will also grow `theme.pool` if necessary.
     fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image], size: u32) -> Self {
         let mut buffers = Vec::with_capacity(images.len());
+        let size = Cursor::nearest_size(size, images);
         let iter = images.iter().filter(|el| el.width == size && el.height == size);
 
         for img in iter {
             buffers.push(CursorImageBuffer::new(theme, img));
         }
 
+        let total_duration = buffers.iter().map(|el| el.delay).sum();
+
         Cursor {
+            total_duration,
             name: String::from(name),
             images: buffers,
         }
+    }
+
+    fn nearest_size(size: u32, images: &[xcur::parser::Image]) -> u32 {
+        let size = size as i32;
+        let mut all_sizes = Vec::new();
+
+        for img in images {
+            if !all_sizes.contains(&(img.width as i32)) {
+                all_sizes.push(img.width as i32);
+            }
+        }
+
+        let mut min = 0;
+        for (i, width) in all_sizes.iter().enumerate() {
+            if (width - size).abs() < (all_sizes[min] - size).abs() {
+                min = i;
+            }
+        }
+        all_sizes[min] as u32
     }
 
     /// Given a time, calculate which frame to show, and how much time remains until the next frame.
@@ -169,17 +219,20 @@ impl Cursor {
     /// Time will wrap, so if for instance the cursor has an animation during 100ms,
     /// then calling this function with 5ms and 105ms as input gives the same output.
     pub fn frame_and_duration(&self, mut millis: u32) -> FrameAndDuration {
-        let mut iter = self.images.iter().enumerate().cycle();
-        loop {
-            let (i, img) = iter.next().unwrap();
-            if millis > img.delay {
-                millis -= img.delay;
-            } else {
-                return FrameAndDuration {
-                    frame_index: i,
-                    frame_duration: millis,
-                };
+        millis %= self.total_duration;
+
+        let mut res = 0;
+        for (i, img) in self.images.iter().enumerate() {
+            if millis < img.delay {
+                res = i;
+                break;
             }
+            millis -= img.delay;
+        }
+
+        FrameAndDuration {
+            frame_index: res,
+            frame_duration: millis,
         }
     }
 }
@@ -247,10 +300,7 @@ impl CursorImageBuffer {
         let mut buf: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
 
         for pixel in pixels {
-            buf.push((pixel >> 24) as u8);
-            buf.push((pixel >> 16) as u8);
-            buf.push((pixel >> 8) as u8);
-            buf.push(*pixel as u8);
+            buf.extend_from_slice(&pixel.to_be_bytes());
         }
 
         buf
@@ -271,7 +321,7 @@ impl Deref for CursorImageBuffer {
 pub struct FrameAndDuration {
     /// The index of the frame which should be shown.
     pub frame_index: usize,
-    /// The duration that the frame should be shown for.
+    /// The duration that the frame should be shown for (in milliseconds).
     pub frame_duration: u32,
 }
 
@@ -295,7 +345,7 @@ fn create_shm_fd() -> io::Result<RawFd> {
     #[cfg(target_os = "linux")]
     loop {
         match memfd::memfd_create(
-            CStr::from_bytes_with_nul(b"smithay-client-toolkit\0").unwrap(),
+            CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
             memfd::MemFdCreateFlag::MFD_CLOEXEC,
         ) {
             Ok(fd) => return Ok(fd),
@@ -309,7 +359,7 @@ fn create_shm_fd() -> io::Result<RawFd> {
     // Fallback to using shm_open
     let sys_time = SystemTime::now();
     let mut mem_file_handle = format!(
-        "/smithay-client-toolkit-{}",
+        "/wayland-cursor-rs-{}",
         sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
     );
     loop {
@@ -330,7 +380,7 @@ fn create_shm_fd() -> io::Result<RawFd> {
             Err(nix::Error::Sys(Errno::EEXIST)) => {
                 // If a file with that handle exists then change the handle
                 mem_file_handle = format!(
-                    "/smithay-client-toolkit-{}",
+                    "/wayland-cursor-rs-{}",
                     sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
                 );
                 continue;
