@@ -1,212 +1,247 @@
 //! Wayland cursor utilities
 //!
-//! This crate contains bindings to the `libwayland-cursor.so` library.
+//! This crate aims to reimplement the functionality of the `libwayland-cursor` library in Rust.
 //!
-//! These utilities allow you to load cursor images in order to match
-//! your cursors to the ones of the system.
+//! It allows you to load cursors from the system and display them correctly.
 //!
-//! First of all, the function `load_theme` will allow you to load a
-//! `CursorTheme`, which represents the full cursor theme.
+//! First of all, you need to create a `CursorTheme`,
+//! which represents the full cursor theme.
 //!
-//! From this theme, you can load a specific `Cursor`, which can contain
-//! several images if the cursor is animated. It also provides you with the
+//! From this theme, using the `get_cursor` method, you can load a specific `Cursor`,
+//! which can contain several images if the cursor is animated. It also provides you with the
 //! means of querying which frame of the animation should be displayed at
 //! what time, as well as handles to the buffers containing these frames, to
 //! attach them to a wayland surface.
+//!
+//! # Example
+//!
+//! ```ignore
+//! use wayland_cursor::CursorTheme;
+//! # use std::thread::sleep;
+//! # use std::time::{Instant, Duration};
+//!
+//! let cursor_theme = CursorTheme::load(32, wl_shm);
+//! let cursor = cursor_theme.get_cursor("wait").expect("Cursor not provided by theme");
+//!
+//! let start_time = Instant::now();
+//! loop {
+//!     // Obtain which frame we should show, and for how long.
+//!     let millis = start_time.elapsed().as_millis();
+//!     let fr_info = cursor.frame_and_duration(millis as u32);
+//!
+//!     // Here, we obtain the right cursor frame...
+//!     let buffer = cursor[fr_info.frame_index];
+//!     // and attach it to a wl_surface.
+//!     cursor_surface.attach(Some(&buffer), 0, 0);
+//!     cursor_surface.commit();
+//!
+//!     sleep(fr_info.frame_duration);
+//! }
+//! ```
 
-use std::ffi::{CStr, CString};
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::os::raw::c_int;
-use std::ptr;
-
-use wayland_client::{
-    protocol::{wl_buffer::WlBuffer, wl_shm::WlShm},
-    Attached, Proxy,
+use std::{
+    env,
+    fs::File,
+    io::{Read, Seek, SeekFrom, Write},
+    ops::{Deref, Index},
+    os::unix::io::{AsRawFd, FromRawFd},
 };
-use wayland_sys::{cursor::*, ffi_dispatch};
-
-/// Checks if the wayland-cursor library is available and can be used
-///
-/// Trying to call any function of this module if the library cannot
-/// be used will result in a panic.
-pub fn is_available() -> bool {
-    is_lib_available()
-}
+use wayland_client::{
+    protocol::{
+        wl_buffer::WlBuffer,
+        wl_shm::{Format, WlShm},
+        wl_shm_pool::WlShmPool,
+    },
+    Attached, Main,
+};
+use xcur::parser::File as XCurFile;
+use xcursor::{theme_search_paths, XCursorTheme};
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
-    theme: *mut wl_cursor_theme,
-}
-
-/// Attempts to load a cursor theme.
-///
-/// If no name is given or the requested theme is not found, the default theme
-/// will be loaded.
-///
-/// Other arguments are the requested size for the cursor images (ex: 16)
-/// and a handle to the global `WlShm` object.
-///
-/// # Panics
-///
-/// - Panics if the `wayland-cursor` lib is not available
-///   (see `is_available()` function) in this module.
-/// - Panics in case of memory allocation failure.
-/// - Panics if `name` contains an interior null.
-pub fn load_theme(name: Option<&str>, size: u32, shm: &Attached<WlShm>) -> CursorTheme {
-    let ptr = if let Some(theme) = name {
-        let cstr = CString::new(theme).expect("Theme name contained an interior null.");
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CURSOR_HANDLE,
-                wl_cursor_theme_load,
-                cstr.as_ptr(),
-                size as c_int,
-                shm.as_ref().c_ptr()
-            )
-        }
-    } else {
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CURSOR_HANDLE,
-                wl_cursor_theme_load,
-                ptr::null(),
-                size as c_int,
-                shm.as_ref().c_ptr()
-            )
-        }
-    };
-
-    assert!(!ptr.is_null(), "Memory allocation failure while loading a theme.");
-
-    CursorTheme { theme: ptr }
+    name: String,
+    cursors: Vec<Cursor>,
+    size: u32,
+    pool: Main<WlShmPool>,
+    pool_size: i32,
+    file: File,
 }
 
 impl CursorTheme {
-    /// Retrieves a cursor from the theme.
+    /// Load a cursor theme from system defaults.
     ///
-    /// Returns `None` if this cursor is not provided by the theme.
+    /// Same as calling `load_or("default", size, shm)`
+    pub fn load(size: u32, shm: &Attached<WlShm>) -> Self {
+        CursorTheme::load_or("default", size, shm)
+    }
+
+    /// Load a cursor theme, using `name` as fallback.
     ///
-    /// # Panics
-    ///
-    /// Panics if the name contains an interior null.
-    pub fn get_cursor(&self, name: &str) -> Option<Cursor> {
-        let cstr = CString::new(name).expect("Cursor name contained an interior null.");
-        let ptr = unsafe {
-            ffi_dispatch!(
-                WAYLAND_CURSOR_HANDLE,
-                wl_cursor_theme_get_cursor,
-                self.theme,
-                cstr.as_ptr()
-            )
-        };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(Cursor {
-                _theme: PhantomData,
-                cursor: ptr,
-            })
+    /// The theme name and cursor size are read from the `XCURSOR_THEME` and
+    /// `XCURSOR_SIZE` environment variables, respectively, or from the provided variables
+    /// if those are invalid.
+    pub fn load_or(name: &str, mut size: u32, shm: &Attached<WlShm>) -> Self {
+        let name_string = String::from(name);
+        let name = &env::var("XCURSOR_THEME").unwrap_or(name_string);
+
+        if let Ok(var) = env::var("XCURSOR_SIZE") {
+            if let Ok(int) = var.parse() {
+                size = int;
+            }
+        }
+
+        CursorTheme::load_from_name(name, size, shm)
+    }
+
+    /// Create a new cursor theme, ignoring the system defaults.
+    pub fn load_from_name(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
+        let name = String::from(name);
+        let pool_size = (size * size * 4) as i32;
+        let mem_fd = create_shm_fd().unwrap();
+        let file = unsafe { File::from_raw_fd(mem_fd) };
+        let pool = shm.create_pool(file.as_raw_fd(), pool_size);
+
+        CursorTheme {
+            name,
+            file,
+            size,
+            pool,
+            pool_size,
+            cursors: Vec::new(),
         }
     }
-}
 
-impl Drop for CursorTheme {
-    fn drop(&mut self) {
-        unsafe {
-            ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_theme_destroy, self.theme);
+    /// Retrieve a cursor from the theme.
+    ///
+    /// This method returns `None` if this cursor is not provided
+    /// either by the theme, or by one of its parents.
+    pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
+        let cur = self.cursors.iter().position(|i| i.name == name);
+
+        match cur {
+            Some(i) => Some(&self.cursors[i]),
+            None => {
+                let cur = self.load_cursor(name, self.size).unwrap();
+                self.cursors.push(cur);
+                self.cursors.iter().last()
+            }
+        }
+    }
+
+    /// This function loads a cursor, parses it and
+    /// pushes the images onto the shm pool.
+    /// Keep in mind that if the cursor is already loaded,
+    /// the function will make a duplicate.
+    fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
+        let icon_path = XCursorTheme::load(&self.name, &theme_search_paths()).load_icon(name)?;
+        let mut icon_file = File::open(icon_path).ok()?;
+
+        let mut buf = Vec::new();
+        let xcur = {
+            icon_file.read_to_end(&mut buf).ok()?;
+            XCurFile::parse(&buf)
+        };
+
+        // Terminate if cursor can't be parsed
+        if !xcur.is_done() {
+            return None;
+        }
+
+        let file_images = xcur.unwrap().1.images;
+        let cursor = Cursor::new(name, self, &file_images, size);
+
+        Some(cursor)
+    }
+
+    /// Grow the wl_shm_pool this theme is stored on.
+    /// This method does nothing if the provided size is
+    /// smaller or equal to the pool's current size.
+    fn grow(&mut self, size: i32) {
+        if size > self.pool_size {
+            self.pool.resize(size);
+            self.pool_size = size;
         }
     }
 }
 
 /// A cursor from a theme. Can contain several images if animated.
-pub struct Cursor<'a> {
-    _theme: PhantomData<&'a CursorTheme>,
-    cursor: *mut wl_cursor,
+#[derive(Clone)]
+pub struct Cursor {
+    name: String,
+    images: Vec<CursorImageBuffer>,
+    total_duration: u32,
 }
 
-impl<'a> Cursor<'a> {
-    /// Returns the name of this cursor.
-    pub fn name(&self) -> String {
-        let name = unsafe { CStr::from_ptr((*self.cursor).name) };
-        name.to_string_lossy().into_owned()
+impl Cursor {
+    /// Construct a new Cursor.
+    ///
+    /// Each of the provided images will be written into `theme`.
+    /// This will also grow `theme.pool` if necessary.
+    fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image], size: u32) -> Self {
+        let mut buffers = Vec::with_capacity(images.len());
+        let size = Cursor::nearest_size(size, images);
+        let iter = images.iter().filter(|el| el.width == size && el.height == size);
+
+        for img in iter {
+            buffers.push(CursorImageBuffer::new(theme, img));
+        }
+
+        let total_duration = buffers.iter().map(|el| el.delay).sum();
+
+        Cursor {
+            total_duration,
+            name: String::from(name),
+            images: buffers,
+        }
     }
 
-    /// Returns the number of images contained in this animated cursor
-    pub fn image_count(&self) -> usize {
-        let count = unsafe { (*self.cursor).image_count };
-        count as usize
-    }
+    fn nearest_size(size: u32, images: &[xcur::parser::Image]) -> u32 {
+        let size = size as i32;
+        let mut all_sizes = Vec::new();
 
-    /// Returns which frame of an animated cursor should be displayed at a given time.
-    ///
-    /// The time is given in milliseconds after the beginning of the animation.
-    pub fn frame(&self, duration: u32) -> usize {
-        let frame = unsafe { ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_frame, self.cursor, duration) };
-        frame as usize
-    }
-
-    /// Returns the frame number and its remaining duration.
-    ///
-    /// Same as `frame()`, but also returns the amount of milliseconds this
-    /// frame should continue to be displayed.
-    pub fn frame_and_duration(&self, duration: u32) -> (usize, u32) {
-        let mut out_duration = 0u32;
-        let frame = unsafe {
-            ffi_dispatch!(
-                WAYLAND_CURSOR_HANDLE,
-                wl_cursor_frame_and_duration,
-                self.cursor,
-                duration,
-                &mut out_duration as *mut u32
-            )
-        } as usize;
-        (frame, out_duration)
-    }
-
-    /// Returns a `CursorImageBuffer` containing the given image of an animation.
-    ///
-    /// It can be attached to a surface as a classic `WlBuffer`.
-    ///
-    /// Returns `None` if the frame is out of bounds.
-    ///
-    /// Note: destroying this buffer (using the `destroy` method) will corrupt
-    /// your theme data, so you might not want to do it.
-    pub fn frame_buffer(&self, frame: usize) -> Option<CursorImageBuffer> {
-        if frame >= self.image_count() {
-            None
-        } else {
-            unsafe {
-                let image = *(*self.cursor).images.add(frame);
-                let ptr = ffi_dispatch!(WAYLAND_CURSOR_HANDLE, wl_cursor_image_get_buffer, image);
-                let buffer = Proxy::from_c_ptr(ptr).into();
-
-                Some(CursorImageBuffer {
-                    _cursor: PhantomData,
-                    buffer,
-                })
+        for img in images {
+            if !all_sizes.contains(&(img.width as i32)) {
+                all_sizes.push(img.width as i32);
             }
         }
+
+        let mut min = 0;
+        for (i, width) in all_sizes.iter().enumerate() {
+            if (width - size).abs() < (all_sizes[min] - size).abs() {
+                min = i;
+            }
+        }
+        all_sizes[min] as u32
     }
 
-    /// Returns the metadata associated with a given frame of the animation.
+    /// Given a time, calculate which frame to show, and how much time remains until the next frame.
     ///
-    /// The tuple contains: `(width, height, hotspot_x, hotspot_y, delay)`
-    ///
-    /// Returns `None` if the frame is out of bounds.
-    pub fn frame_info(&self, frame: usize) -> Option<(u32, u32, u32, u32, u32)> {
-        if frame >= self.image_count() {
-            None
-        } else {
-            let image = unsafe { &**(*self.cursor).images.add(frame) };
-            Some((
-                image.width,
-                image.height,
-                image.hotspot_x,
-                image.hotspot_y,
-                image.delay,
-            ))
+    /// Time will wrap, so if for instance the cursor has an animation during 100ms,
+    /// then calling this function with 5ms and 105ms as input gives the same output.
+    pub fn frame_and_duration(&self, mut millis: u32) -> FrameAndDuration {
+        millis %= self.total_duration;
+
+        let mut res = 0;
+        for (i, img) in self.images.iter().enumerate() {
+            if millis < img.delay {
+                res = i;
+                break;
+            }
+            millis -= img.delay;
         }
+
+        FrameAndDuration {
+            frame_index: res,
+            frame_duration: millis,
+        }
+    }
+}
+
+impl Index<usize> for Cursor {
+    type Output = CursorImageBuffer;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.images[index]
     }
 }
 
@@ -216,14 +251,158 @@ impl<'a> Cursor<'a> {
 ///
 /// Note that this proxy will be considered as "unmanaged" by the crate, as such you should
 /// not try to act on it beyond assigning it to `wl_surface`s.
-pub struct CursorImageBuffer<'a> {
-    _cursor: PhantomData<&'a Cursor<'a>>,
+#[derive(Clone)]
+pub struct CursorImageBuffer {
     buffer: WlBuffer,
+    delay: u32,
+    xhot: u32,
+    yhot: u32,
+    width: u32,
+    height: u32,
 }
 
-impl<'a> Deref for CursorImageBuffer<'a> {
+impl CursorImageBuffer {
+    /// Construct a new CursorImageBuffer
+    ///
+    /// This function appends the pixels of the image to the provided file,
+    /// and constructs a wl_buffer on that data.
+    fn new(theme: &mut CursorTheme, image: &xcur::parser::Image) -> Self {
+        let buf = CursorImageBuffer::convert_pixels(&image.pixels);
+        let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
+        theme.file.write_all(&buf).unwrap();
+
+        let new_size = theme.file.seek(SeekFrom::End(0)).unwrap();
+        theme.grow(new_size as i32);
+
+        let buffer = theme
+            .pool
+            .create_buffer(
+                offset as i32,
+                image.width as i32,
+                image.height as i32,
+                (image.width * 4) as i32,
+                Format::Argb8888,
+            )
+            .detach();
+
+        CursorImageBuffer {
+            buffer,
+            delay: image.delay,
+            xhot: image.xhot,
+            yhot: image.yhot,
+            width: image.width,
+            height: image.height,
+        }
+    }
+
+    /// Convert the pixels saved in `u32`s into `u8`s.
+    fn convert_pixels(pixels: &[u32]) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
+
+        for pixel in pixels {
+            buf.extend_from_slice(&pixel.to_be_bytes());
+        }
+
+        buf
+    }
+}
+
+impl Deref for CursorImageBuffer {
     type Target = WlBuffer;
     fn deref(&self) -> &WlBuffer {
         &self.buffer
+    }
+}
+
+/// Which frame to show, and for how long.
+///
+/// This struct is output by `Cursor::frame_and_duration`
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FrameAndDuration {
+    /// The index of the frame which should be shown.
+    pub frame_index: usize,
+    /// The duration that the frame should be shown for (in milliseconds).
+    pub frame_duration: u32,
+}
+
+/// Create a shared file descriptor in memory
+use {
+    nix::{
+        errno::Errno,
+        fcntl,
+        sys::{memfd, mman, stat},
+        unistd,
+    },
+    std::{
+        ffi::CStr,
+        io,
+        os::unix::io::RawFd,
+        time::{SystemTime, UNIX_EPOCH},
+    },
+};
+fn create_shm_fd() -> io::Result<RawFd> {
+    // Only try memfd on linux
+    #[cfg(target_os = "linux")]
+    loop {
+        match memfd::memfd_create(
+            CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
+            memfd::MemFdCreateFlag::MFD_CLOEXEC,
+        ) {
+            Ok(fd) => return Ok(fd),
+            Err(nix::Error::Sys(Errno::EINTR)) => continue,
+            Err(nix::Error::Sys(Errno::ENOSYS)) => break,
+            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(err) => unreachable!(err),
+        }
+    }
+
+    // Fallback to using shm_open
+    let sys_time = SystemTime::now();
+    let mut mem_file_handle = format!(
+        "/wayland-cursor-rs-{}",
+        sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+    );
+    loop {
+        match mman::shm_open(
+            mem_file_handle.as_str(),
+            fcntl::OFlag::O_CREAT | fcntl::OFlag::O_EXCL | fcntl::OFlag::O_RDWR | fcntl::OFlag::O_CLOEXEC,
+            stat::Mode::S_IRUSR | stat::Mode::S_IWUSR,
+        ) {
+            Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
+                Ok(_) => return Ok(fd),
+                Err(nix::Error::Sys(errno)) => match unistd::close(fd) {
+                    Ok(_) => return Err(io::Error::from(errno)),
+                    Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+                    Err(err) => panic!(err),
+                },
+                Err(err) => panic!(err),
+            },
+            Err(nix::Error::Sys(Errno::EEXIST)) => {
+                // If a file with that handle exists then change the handle
+                mem_file_handle = format!(
+                    "/wayland-cursor-rs-{}",
+                    sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+                );
+                continue;
+            }
+            Err(nix::Error::Sys(Errno::EINTR)) => continue,
+            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(err) => unreachable!(err),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_convert_pixels() {
+        let pixels: &[u32] = &[0x12345678, 0x87654321];
+        let parsed_pixels: &[u8] = &[0x12, 0x34, 0x56, 0x78, 0x87, 0x65, 0x43, 0x21];
+
+        assert_eq!(
+            super::CursorImageBuffer::convert_pixels(&pixels),
+            Vec::from(parsed_pixels)
+        );
     }
 }
