@@ -1,6 +1,6 @@
 [package]
 name = "wayland-cursor"
-version = "0.26.2"
+version = "0.26.3"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,7 +14,7 @@ description = "Bindings to libwayland-cursor."
 travis-ci = { repository = "Smithay/wayland-rs" }
 
 [dependencies]
-wayland-client = { version = "0.26.2", path = "../wayland-client" }
+wayland-client = { version = "0.26.3", path = "../wayland-client" }
 xcursor = "0.1"
 xcur = "0.1"
 nix = "0.17.0"
