@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-####
+## 0.26.0 -- 2020-04-22
+
+#### Breaking Changes
 
 - The minimum supported Rust version is now 1.41.0
 - `wayland-cursor` is now fully implemented in Rust
