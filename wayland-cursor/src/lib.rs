@@ -235,6 +235,11 @@ impl Cursor {
             frame_duration: millis,
         }
     }
+
+    /// Total number of images forming this cursor animation
+    pub fn image_count(&self) -> usize {
+        self.images.len()
+    }
 }
 
 impl Index<usize> for Cursor {
@@ -304,6 +309,21 @@ impl CursorImageBuffer {
         }
 
         buf
+    }
+
+    /// Dimensions of this image
+    pub fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    /// Location of the pointer hotspot in this image
+    pub fn hotspot(&self) -> (u32, u32) {
+        (self.xhot, self.yhot)
+    }
+
+    /// Time (in milliseconds) for which this image should be displayed
+    pub fn delay(&self) -> u32 {
+        self.delay
     }
 }
 

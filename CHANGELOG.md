@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- [cursor] Introduce helper functions `Cursor::image_count()`, `CursorImageBuffer::delay`,
+  `CursorImageBuffer::hotspot()` and `CursorImageBuffer::dimensions()` to access metadata of cursor images.
+
 ## 0.26.0 -- 2020-04-22
 
 #### Breaking Changes
