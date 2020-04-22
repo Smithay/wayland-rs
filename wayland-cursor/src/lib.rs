@@ -279,19 +279,17 @@ impl CursorImageBuffer {
         let new_size = theme.file.seek(SeekFrom::End(0)).unwrap();
         theme.grow(new_size as i32);
 
-        let buffer = theme
-            .pool
-            .create_buffer(
-                offset as i32,
-                image.width as i32,
-                image.height as i32,
-                (image.width * 4) as i32,
-                Format::Argb8888,
-            )
-            .detach();
+        let buffer = theme.pool.create_buffer(
+            offset as i32,
+            image.width as i32,
+            image.height as i32,
+            (image.width * 4) as i32,
+            Format::Argb8888,
+        );
+        buffer.quick_assign(|_, _, _| {});
 
         CursorImageBuffer {
-            buffer,
+            buffer: buffer.detach(),
             delay: image.delay,
             xhot: image.xhot,
             yhot: image.yhot,
