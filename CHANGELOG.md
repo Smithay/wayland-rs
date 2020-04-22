@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.2 -- 2020-04-22
+
 #### Bugfixes
 
 - [cursor] Properly assign internal buffers to filters.
