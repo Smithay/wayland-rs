@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.1 -- 2020-04-22
+
 #### Additions
 
 - [cursor] Introduce helper functions `Cursor::image_count()`, `CursorImageBuffer::delay`,
