@@ -18,8 +18,7 @@
 //! First, have the XML files you want to use in your project, somewhere the build script
 //! will be able to read them.
 //!
-//! Then, you'll need to invoke both `generate_c_interfaces` *and* `generate_c_code` for
-//! each of these files.
+//! Then, you'll need to invoke `generate_code` for each of these files.
 //!
 //! A sample build script:
 //!
@@ -45,13 +44,13 @@
 //! );
 //! ```
 //!
-//! The above example will output two `.rs` files in the `OUT_DIR` defined by
-//! cargo. Then, you'll need to include these two generated files (using the
+//! The above example will output a `.rs` file in the `OUT_DIR` defined by
+//! cargo. Then, you'll need to include this generated file (using the
 //! macro of the same name) to make this code available in your crate.
 //!
 //! ```ignore
-//! // The generated code will import stuff from wayland_sys
-//! extern crate wayland_sys;
+//! // The generated code will import stuff from wayland_commons
+//! extern crate wayland_commons;
 //! extern crate wayland_client;
 //!
 //! // Re-export only the actual code, and then only use this re-export
@@ -68,6 +67,14 @@
 //!     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
 //!
 //!     pub mod client {
+//!         // These imports are used by the generated code
+//!         pub(crate) use wayland_client::{Main, Attached, Proxy, ProxyMap, AnonymousObject};
+//!         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
+//!         pub(crate) use wayland_commons::{Interface, MessageGroup};
+//!         pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
+//!         pub(crate) use wayland_commons::smallvec;
+//!         pub(crate) use wayland_client::protocol::{$($import),*};
+//!         pub(crate) use wayland_client::sys;
 //!         // If you protocol interacts with objects from other protocols, you'll need to import
 //!         // their modules, like so:
 //!         pub(crate) use wayland_client::protocol::{wl_surface, wl_region};
@@ -76,7 +83,6 @@
 //! }
 //! ```
 
-#![recursion_limit = "128"]
 #![warn(missing_docs)]
 
 use std::fs::{File, OpenOptions};
@@ -100,7 +106,7 @@ fn load_xml<P: AsRef<Path>>(prot: P) -> protocol::Protocol {
     parse::parse_stream(pfile)
 }
 
-/// Generate the code for a protocol using the C system libs
+/// Generate the code for a protocol
 ///
 /// See this crate toplevel documentation for details.
 ///
@@ -118,7 +124,8 @@ pub fn generate_code<P1: AsRef<Path>, P2: AsRef<Path>>(prot: P1, target: P2, sid
 ///
 /// Same as `generate_code`, but allows you to additionnaly specify some events
 /// (in the format `("interface_name", "event_name")`) as being destructor, as this
-/// information is not encoded in the protocol files.
+/// information is not encoded in the protocol files but instead written in the
+/// protocol documentation.
 pub fn generate_code_with_destructor_events<P1: AsRef<Path>, P2: AsRef<Path>>(
     prot: P1,
     target: P2,
@@ -171,7 +178,8 @@ pub fn generate_code_streams<P1: Read, P2: Write>(protocol: P1, target: &mut P2,
 ///
 /// Same as `generate_code_streams`, but allows you to additionnaly specify some events
 /// (in the format `("interface_name", "event_name")`) as being destructor, as this
-/// information is not encoded in the protocol files.
+/// information is not encoded in the protocol files but instead written in the documentation
+/// of the protocol.
 pub fn generate_code_streams_with_destructor_events<P1: Read, P2: Write>(
     protocol: P1,
     target: &mut P2,
