@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.4 -- 2020-05-01
+
 #### Bugfixes
 
 - [cursor] Fix FreeBSD build
