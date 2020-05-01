@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- [cursor] Fix FreeBSD build
+
 ## 0.26.3 -- 2020-04-22
 
 *Technical release due to crates.io issues.*
