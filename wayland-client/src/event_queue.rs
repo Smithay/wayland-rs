@@ -154,7 +154,7 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch_pending<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
+    pub fn dispatch_pending<T: std::any::Any, F>(&self, data: &mut T, fallback: F) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
