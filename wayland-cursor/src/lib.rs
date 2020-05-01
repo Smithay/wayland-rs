@@ -303,7 +303,7 @@ impl CursorImageBuffer {
         let mut buf: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
 
         for pixel in pixels {
-            buf.extend_from_slice(&pixel.to_be_bytes());
+            buf.extend_from_slice(&pixel.to_le_bytes());
         }
 
         buf
@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn test_convert_pixels() {
         let pixels: &[u32] = &[0x12345678, 0x87654321];
-        let parsed_pixels: &[u8] = &[0x12, 0x34, 0x56, 0x78, 0x87, 0x65, 0x43, 0x21];
+        let parsed_pixels: &[u8] = &[0x78, 0x56, 0x34, 0x12, 0x21, 0x43, 0x65, 0x87];
 
         assert_eq!(
             super::CursorImageBuffer::convert_pixels(&pixels),
