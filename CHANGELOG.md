@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- [cursor] Don't panic if `load_cursor` fails to find the requested cursor
+
 ## 0.26.4 -- 2020-05-01
 
 #### Bugfixes
