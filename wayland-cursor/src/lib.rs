@@ -348,20 +348,21 @@ use {
     nix::{
         errno::Errno,
         fcntl,
-        sys::{memfd, mman, stat},
+        sys::{mman, stat},
         unistd,
     },
     std::{
-        ffi::CStr,
         io,
         os::unix::io::RawFd,
         time::{SystemTime, UNIX_EPOCH},
     },
 };
+
 fn create_shm_fd() -> io::Result<RawFd> {
     // Only try memfd on linux
     #[cfg(target_os = "linux")]
     loop {
+        use {nix::sys::memfd, std::ffi::CStr};
         match memfd::memfd_create(
             CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
             memfd::MemFdCreateFlag::MFD_CLOEXEC,
