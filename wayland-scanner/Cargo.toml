@@ -10,9 +10,6 @@ categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 edition = "2018"
 
-[badges]
-travis-ci = { repository = "Smithay/wayland-rs" }
-
 [dependencies]
 proc-macro2 = "1.0"
 quote = "1.0"

@@ -10,9 +10,6 @@ categories = ["gui", "api-bindings"]
 keywords = ["wayland", "client"]
 description = "Bindings to libwayland-cursor."
 
-[badges]
-travis-ci = { repository = "Smithay/wayland-rs" }
-
 [dependencies]
 wayland-client = { version = "0.26.4", path = "../wayland-client" }
 xcursor = "0.1"

@@ -11,9 +11,6 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 edition = "2018"
 
-[badges]
-travis-ci = { repository = "Smithay/wayland-rs" }
-
 [dependencies]
 wayland-commons = { version = "0.26.4", path = "../wayland-commons" }
 wayland-sys = { version = "0.26.4", path = "../wayland-sys" }

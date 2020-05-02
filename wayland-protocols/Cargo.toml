@@ -11,9 +11,6 @@ build = "build.rs"
 categories = ["gui", "api-bindings"]
 edition = "2018"
 
-[badges]
-travis-ci = { repository = "Smithay/wayland-rs" }
-
 [dependencies]
 wayland-commons = { version = "0.26.4", path = "../wayland-commons" }
 wayland-client = { version = "0.26.4", path = "../wayland-client", optional = true }
