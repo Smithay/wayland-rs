@@ -1,4 +1,5 @@
 task:
+  only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_PR != ''
   matrix:
     - name: FreeBSD 11.3
       freebsd_instance:
