@@ -117,7 +117,7 @@ impl EventQueueInner {
 
     fn dispatch_buffer<F>(
         &self,
-        buffer: &mut VecDeque<Message>,
+        buffer: &Mutex<VecDeque<Message>>,
         mut data: DispatchData,
         mut fallback: F,
     ) -> io::Result<u32>
@@ -126,7 +126,12 @@ impl EventQueueInner {
     {
         let mut count = 0;
         let mut proxymap = super::ProxyMap::make(self.map.clone(), self.connection.clone());
-        for msg in buffer.drain(..) {
+        loop {
+            let msg = { buffer.lock().unwrap().pop_front() };
+            let msg = match msg {
+                Some(m) => m,
+                None => break,
+            };
             let id = msg.sender_id;
             if let Some(proxy) = ProxyInner::from_id(id, self.map.clone(), self.connection.clone()) {
                 let object = proxy.object.clone();
@@ -185,16 +190,11 @@ impl EventQueueInner {
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         // First always dispatch the display buffer
-        let display_dispatched = {
-            let mut buffer = self.display_buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer, data.reborrow(), |_, _, _| unreachable!())
-        }?;
+        let display_dispatched =
+            self.dispatch_buffer(&self.display_buffer, data.reborrow(), |_, _, _| unreachable!())?;
 
         // Then our actual buffer
-        let self_dispatched = {
-            let mut buffer = self.buffer.lock().unwrap();
-            self.dispatch_buffer(&mut *buffer, data.reborrow(), fallback)
-        }?;
+        let self_dispatched = self.dispatch_buffer(&self.buffer, data.reborrow(), fallback)?;
 
         Ok(display_dispatched + self_dispatched)
     }
