@@ -4,6 +4,8 @@
 
 #### Bugfixes
 
+- [client] Fix a deadlock when dispatching & reading event queues conccurently from different threads when
+  using the rust implementation of the protocol.
 - [cursor] Don't panic if `load_cursor` fails to find the requested cursor
 - [cursor] Fix buffer content endianness
 
