@@ -54,8 +54,8 @@ use wayland_client::{
     },
     Attached, Main,
 };
-use xcursor::{theme_search_paths, CursorTheme as XCursorTheme};
 use xcursor::parser as xparser;
+use xcursor::{theme_search_paths, CursorTheme as XCursorTheme};
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
@@ -174,9 +174,10 @@ impl Cursor {
         let mut buffers = Vec::with_capacity(images.len());
         let size = Cursor::nearest_size(size, images);
 
-        images.iter()
-        .filter(|el| el.width == size && el.height == size)
-        .for_each(|el| buffers.push(CursorImageBuffer::new(theme, el)));
+        images
+            .iter()
+            .filter(|el| el.width == size && el.height == size)
+            .for_each(|el| buffers.push(CursorImageBuffer::new(theme, el)));
 
         let total_duration = buffers.iter().map(|el| el.delay).sum();
 
@@ -391,4 +392,3 @@ fn create_shm_fd() -> io::Result<RawFd> {
         }
     }
 }
-
