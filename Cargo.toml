@@ -6,6 +6,7 @@ autotests = false
 
 [dependencies]
 wayland-commons = { path = "./wayland-commons" }
+wayland-cursor = { path = "./wayland-cursor" }
 wayland-scanner = { path = "./wayland-scanner" }
 wayland-client = { path = "./wayland-client", default-features = false }
 wayland-server = { path = "./wayland-server", default-features = false }
