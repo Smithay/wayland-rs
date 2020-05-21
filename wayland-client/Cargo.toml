@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.26.4"
+version = "0.26.5"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -12,8 +12,8 @@ description = "Bindings to the standard C implementation of the wayland protocol
 build = "build.rs"
 
 [dependencies]
-wayland-commons = { version = "0.26.4", path = "../wayland-commons" }
-wayland-sys = { version = "0.26.4", path = "../wayland-sys" }
+wayland-commons = { version = "0.26.5", path = "../wayland-commons" }
+wayland-sys = { version = "0.26.5", path = "../wayland-sys" }
 nix = "0.17"
 downcast-rs = "1.0"
 bitflags = "1.0"
@@ -21,7 +21,7 @@ libc = "0.2"
 scoped-tls = { version = "1.0", optional = true }
 
 [build-dependencies]
-wayland-scanner = { version = "0.26.4", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.26.5", path = "../wayland-scanner" }
 
 [dev-dependencies]
 byteorder = "1.0"

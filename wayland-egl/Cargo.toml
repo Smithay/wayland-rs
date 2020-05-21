@@ -1,6 +1,6 @@
 [package]
 name = "wayland-egl"
-version = "0.26.4"
+version = "0.26.5"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -11,5 +11,5 @@ keywords = ["wayland", "client"]
 description = "Bindings to libwayland-egl."
 
 [dependencies]
-wayland-client = { version = "0.26.4", path = "../wayland-client", features = ["use_system_lib"] }
-wayland-sys = { version = "0.26.4", path="../wayland-sys", features = ["egl"] }
+wayland-client = { version = "0.26.5", path = "../wayland-client", features = ["use_system_lib"] }
+wayland-sys = { version = "0.26.5", path="../wayland-sys", features = ["egl"] }
