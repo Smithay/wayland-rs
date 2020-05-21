@@ -54,8 +54,8 @@ use wayland_client::{
     },
     Attached, Main,
 };
-use xcur::parser::File as XCurFile;
-use xcursor::{theme_search_paths, XCursorTheme};
+use xcursor::parser as xparser;
+use xcursor::{theme_search_paths, CursorTheme as XCursorTheme};
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
@@ -97,7 +97,7 @@ impl CursorTheme {
     pub fn load_from_name(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
         let name = String::from(name);
         let pool_size = (size * size * 4) as i32;
-        let mem_fd = create_shm_fd().unwrap();
+        let mem_fd = create_shm_fd().expect("Shm fd allocation failed");
         let file = unsafe { File::from_raw_fd(mem_fd) };
         let pool = shm.create_pool(file.as_raw_fd(), pool_size);
 
@@ -137,19 +137,12 @@ impl CursorTheme {
         let mut icon_file = File::open(icon_path).ok()?;
 
         let mut buf = Vec::new();
-        let xcur = {
+        let images = {
             icon_file.read_to_end(&mut buf).ok()?;
-            XCurFile::parse(&buf)
+            xparser::parse_xcursor(&buf)?
         };
 
-        // Terminate if cursor can't be parsed
-        if !xcur.is_done() {
-            return None;
-        }
-
-        let file_images = xcur.unwrap().1.images;
-        let cursor = Cursor::new(name, self, &file_images, size);
-
+        let cursor = Cursor::new(name, self, &images, size);
         Some(cursor)
     }
 
@@ -177,14 +170,14 @@ impl Cursor {
     ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
-    fn new(name: &str, theme: &mut CursorTheme, images: &[xcur::parser::Image], size: u32) -> Self {
+    fn new(name: &str, theme: &mut CursorTheme, images: &[xparser::Image], size: u32) -> Self {
         let mut buffers = Vec::with_capacity(images.len());
         let size = Cursor::nearest_size(size, images);
-        let iter = images.iter().filter(|el| el.width == size && el.height == size);
 
-        for img in iter {
-            buffers.push(CursorImageBuffer::new(theme, img));
-        }
+        images
+            .iter()
+            .filter(|el| el.width == size && el.height == size)
+            .for_each(|el| buffers.push(CursorImageBuffer::new(theme, el)));
 
         let total_duration = buffers.iter().map(|el| el.delay).sum();
 
@@ -195,7 +188,7 @@ impl Cursor {
         }
     }
 
-    fn nearest_size(size: u32, images: &[xcur::parser::Image]) -> u32 {
+    fn nearest_size(size: u32, images: &[xparser::Image]) -> u32 {
         let size = size as i32;
         let mut all_sizes = Vec::new();
 
@@ -271,8 +264,8 @@ impl CursorImageBuffer {
     ///
     /// This function appends the pixels of the image to the provided file,
     /// and constructs a wl_buffer on that data.
-    fn new(theme: &mut CursorTheme, image: &xcur::parser::Image) -> Self {
-        let buf = CursorImageBuffer::convert_pixels(&image.pixels);
+    fn new(theme: &mut CursorTheme, image: &xparser::Image) -> Self {
+        let buf = &image.pixels_rgba;
         let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
         theme.file.write_all(&buf).unwrap();
 
@@ -296,17 +289,6 @@ impl CursorImageBuffer {
             width: image.width,
             height: image.height,
         }
-    }
-
-    /// Convert the pixels saved in `u32`s into `u8`s.
-    fn convert_pixels(pixels: &[u32]) -> Vec<u8> {
-        let mut buf: Vec<u8> = Vec::with_capacity(pixels.len() * 4);
-
-        for pixel in pixels {
-            buf.extend_from_slice(&pixel.to_le_bytes());
-        }
-
-        buf
     }
 
     /// Dimensions of this image
@@ -408,20 +390,5 @@ fn create_shm_fd() -> io::Result<RawFd> {
             Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
             Err(err) => unreachable!(err),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_convert_pixels() {
-        let pixels: &[u32] = &[0x12345678, 0x87654321];
-        let parsed_pixels: &[u8] = &[0x78, 0x56, 0x34, 0x12, 0x21, 0x43, 0x65, 0x87];
-
-        assert_eq!(
-            super::CursorImageBuffer::convert_pixels(&pixels),
-            Vec::from(parsed_pixels)
-        );
     }
 }
