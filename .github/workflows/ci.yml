@@ -97,3 +97,10 @@ jobs:
       
       - name: Clippy native lib
         run: cargo clippy --all --features "both_native" -- -D warnings
+
+  cargo-deny:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: EmbarkStudios/cargo-deny-action@v1
