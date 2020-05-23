@@ -9,6 +9,7 @@ edition = "2018"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "client"]
 description = "Bindings to libwayland-egl."
+readme = "README.md"
 
 [dependencies]
 wayland-client = { version = "0.26.5", path = "../wayland-client", features = ["use_system_lib"] }

@@ -10,6 +10,7 @@ keywords = ["wayland", "server", "compositor"]
 description = "Bindings to the standard C implementation of the wayland protocol, server side."
 build = "build.rs"
 edition = "2018"
+readme = "README.md"
 
 [dependencies]
 wayland-commons = { version = "0.26.5", path = "../wayland-commons" }

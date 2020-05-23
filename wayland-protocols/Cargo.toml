@@ -10,6 +10,7 @@ description = "Generated API for the officials wayland protocol extensions"
 build = "build.rs"
 categories = ["gui", "api-bindings"]
 edition = "2018"
+readme = "README.md"
 
 [dependencies]
 wayland-commons = { version = "0.26.5", path = "../wayland-commons" }

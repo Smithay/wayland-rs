@@ -9,6 +9,7 @@ license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 edition = "2018"
+readme = "README.md"
 
 [dependencies]
 proc-macro2 = "1.0"
