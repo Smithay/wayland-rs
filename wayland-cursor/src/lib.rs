@@ -55,7 +55,7 @@ use wayland_client::{
     Attached, Main,
 };
 use xcursor::parser as xparser;
-use xcursor::{theme_search_paths, CursorTheme as XCursorTheme};
+use xcursor::CursorTheme as XCursorTheme;
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
@@ -133,7 +133,7 @@ impl CursorTheme {
     /// Keep in mind that if the cursor is already loaded,
     /// the function will make a duplicate.
     fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
-        let icon_path = XCursorTheme::load(&self.name, &theme_search_paths()).load_icon(name)?;
+        let icon_path = XCursorTheme::load(&self.name).load_icon(name)?;
         let mut icon_file = File::open(icon_path).ok()?;
 
         let mut buf = Vec::new();
