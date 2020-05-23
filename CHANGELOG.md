@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.26.6 -- 2020-05-23
+
+#### Bugfixes
+
+- [cursor] Update `xcursor` to `0.3`, fixing a few cursor-related bugs.
+
 ## 0.26.5 -- 2020-05-21
 
 #### Bugfixes
