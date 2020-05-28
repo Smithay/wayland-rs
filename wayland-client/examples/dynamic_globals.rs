@@ -29,95 +29,79 @@ fn main() {
             //
             // NOTE: the type annotations are necessary because rustc's
             // inference is apparently not smart enough
-            [
-                wl_seat::WlSeat,
-                1,
-                |seat: Main<wl_seat::WlSeat>, _: DispatchData| {
-                    let mut seat_name = None;
-                    let mut caps = None;
-                    seat.quick_assign(move |_, event, _| {
-                        use wayland_client::protocol::wl_seat::Event;
-                        match event {
-                            Event::Name { name } => {
-                                seat_name = Some(name);
-                            }
-                            Event::Capabilities { capabilities } => {
-                                // We *should* have received the "name" event first
-                                caps = Some(capabilities);
-                            }
-                            _ => {}
+            [wl_seat::WlSeat, 1, |seat: Main<wl_seat::WlSeat>, _: DispatchData| {
+                let mut seat_name = None;
+                let mut caps = None;
+                seat.quick_assign(move |_, event, _| {
+                    use wayland_client::protocol::wl_seat::Event;
+                    match event {
+                        Event::Name { name } => {
+                            seat_name = Some(name);
                         }
-                    })
-                }
-            ],
+                        Event::Capabilities { capabilities } => {
+                            // We *should* have received the "name" event first
+                            caps = Some(capabilities);
+                        }
+                        _ => {}
+                    }
+                })
+            }],
             // Same thing with wl_output, but we require version 2
-            [
-                wl_output::WlOutput,
-                2,
-                |output: Main<wl_output::WlOutput>, _: DispatchData| {
-                    let mut name = "<unknown>".to_owned();
-                    let mut modes = vec![];
-                    let mut scale = 1;
-                    output.quick_assign(move |_, event, _| {
-                        use wayland_client::protocol::wl_output::Event;
-                        match event {
-                            Event::Geometry {
-                                x,
-                                y,
-                                physical_width,
-                                physical_height,
-                                subpixel,
-                                make,
-                                model,
-                                transform,
-                            } => {
-                                println!("New output: \"{} ({})\"", make, model);
-                                println!(" -> physical dimensions {}x{}", physical_width, physical_height);
-                                println!(" -> location in the compositor space: ({}, {})", x, y);
-                                println!(" -> transform: {:?}", transform);
-                                println!(" -> subpixel orientation: {:?}", subpixel);
-                                name = format!("{} ({})", make, model);
-                            }
-                            Event::Mode {
-                                flags,
-                                width,
-                                height,
-                                refresh,
-                            } => {
-                                modes.push((flags, width, height, refresh));
-                            }
-                            Event::Scale { factor } => {
-                                scale = factor;
-                            }
-                            Event::Done => {
-                                println!("Modesetting information for output \"{}\"", name);
-                                println!(" -> scaling factor: {}", scale);
-                                println!(" -> mode list:");
-                                for &(f, w, h, r) in &modes {
-                                    println!(
-                                        "   -> {}x{} @{}Hz (flags: [ {:?} ])",
-                                        w,
-                                        h,
-                                        (r as f32) / 1000.0,
-                                        f
-                                    );
-                                }
-                            }
-                            _ => unreachable!(),
+            [wl_output::WlOutput, 2, |output: Main<wl_output::WlOutput>, _: DispatchData| {
+                let mut name = "<unknown>".to_owned();
+                let mut modes = vec![];
+                let mut scale = 1;
+                output.quick_assign(move |_, event, _| {
+                    use wayland_client::protocol::wl_output::Event;
+                    match event {
+                        Event::Geometry {
+                            x,
+                            y,
+                            physical_width,
+                            physical_height,
+                            subpixel,
+                            make,
+                            model,
+                            transform,
+                        } => {
+                            println!("New output: \"{} ({})\"", make, model);
+                            println!(
+                                " -> physical dimensions {}x{}",
+                                physical_width, physical_height
+                            );
+                            println!(" -> location in the compositor space: ({}, {})", x, y);
+                            println!(" -> transform: {:?}", transform);
+                            println!(" -> subpixel orientation: {:?}", subpixel);
+                            name = format!("{} ({})", make, model);
                         }
-                    })
-                }
-            ]
+                        Event::Mode { flags, width, height, refresh } => {
+                            modes.push((flags, width, height, refresh));
+                        }
+                        Event::Scale { factor } => {
+                            scale = factor;
+                        }
+                        Event::Done => {
+                            println!("Modesetting information for output \"{}\"", name);
+                            println!(" -> scaling factor: {}", scale);
+                            println!(" -> mode list:");
+                            for &(f, w, h, r) in &modes {
+                                println!(
+                                    "   -> {}x{} @{}Hz (flags: [ {:?} ])",
+                                    w,
+                                    h,
+                                    (r as f32) / 1000.0,
+                                    f
+                                );
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                })
+            }]
         ),
     );
 
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 }

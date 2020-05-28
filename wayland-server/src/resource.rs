@@ -38,10 +38,7 @@ where
 {
     #[allow(dead_code)]
     pub(crate) fn wrap(inner: ResourceInner) -> Resource<I> {
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
+        Resource { _i: ::std::marker::PhantomData, inner }
     }
 
     /// Send an event through this object
@@ -217,10 +214,7 @@ where
     {
         #[cfg(feature = "use_system_lib")]
         {
-            Resource {
-                _i: ::std::marker::PhantomData,
-                inner: ResourceInner::from_c_ptr::<I>(_ptr),
-            }
+            Resource { _i: ::std::marker::PhantomData, inner: ResourceInner::from_c_ptr::<I>(_ptr) }
         }
         #[cfg(not(feature = "use_system_lib"))]
         {
@@ -251,10 +245,7 @@ where
 
 impl<I: Interface> Clone for Resource<I> {
     fn clone(&self) -> Resource<I> {
-        Resource {
-            _i: ::std::marker::PhantomData,
-            inner: self.inner.clone(),
-        }
+        Resource { _i: ::std::marker::PhantomData, inner: self.inner.clone() }
     }
 }
 
@@ -271,11 +262,7 @@ where
 {
     pub(crate) fn wrap(inner: ResourceInner) -> Main<I> {
         Main {
-            inner: Resource {
-                _i: std::marker::PhantomData,
-                inner,
-            }
-            .into(),
+            inner: Resource { _i: std::marker::PhantomData, inner }.into(),
             _nonsend: std::marker::PhantomData,
         }
     }

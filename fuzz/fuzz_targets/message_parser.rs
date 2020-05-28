@@ -1,17 +1,15 @@
 #![no_main]
-#[macro_use] extern crate libfuzzer_sys;
+#[macro_use]
+extern crate libfuzzer_sys;
 extern crate wayland_commons;
 
-use std::{mem, slice};
 use std::os::unix::io::RawFd;
-use wayland_commons::wire::{Message, ArgumentType};
+use std::{mem, slice};
+use wayland_commons::wire::{ArgumentType, Message};
 
 unsafe fn convert_slice<T: Sized>(data: &[u8]) -> &[T] {
     let n = mem::size_of::<T>();
-    slice::from_raw_parts(
-        data.as_ptr() as *const T,
-        data.len()/n,
-    )
+    slice::from_raw_parts(data.as_ptr() as *const T, data.len() / n)
 }
 
 fn get_arg_types(data: &[u8]) -> [ArgumentType; 16] {
@@ -36,7 +34,9 @@ fn get_arg_types(data: &[u8]) -> [ArgumentType; 16] {
 }
 
 fuzz_target!(|data: &[u8]| {
-    if data.len() < 32 { return; }
+    if data.len() < 32 {
+        return;
+    }
     // 4 `RawFd`s
     let fds: &[RawFd] = unsafe { convert_slice(&data[..16]) };
     // 16 `ArgumentType`s

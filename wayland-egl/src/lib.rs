@@ -74,15 +74,7 @@ impl WlEglSurface {
     /// direction of the resizing if necessary.
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
         unsafe {
-            ffi_dispatch!(
-                WAYLAND_EGL_HANDLE,
-                wl_egl_window_resize,
-                self.ptr,
-                width,
-                height,
-                dx,
-                dy
-            )
+            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_resize, self.ptr, width, height, dx, dy)
         }
     }
 

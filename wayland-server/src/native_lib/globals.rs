@@ -21,10 +21,7 @@ impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> GlobalData<I> {
         F1: FnMut(Main<I>, u32, DispatchData<'_>) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
-        GlobalData {
-            bind: Box::new(bind) as Box<_>,
-            filter: filter.map(|f| Box::new(f) as Box<_>),
-        }
+        GlobalData { bind: Box::new(bind) as Box<_>, filter: filter.map(|f| Box::new(f) as Box<_>) }
     }
 }
 
@@ -43,11 +40,7 @@ where
         data: Box<GlobalData<I>>,
         rust_globals: Rc<RefCell<Vec<*mut wl_global>>>,
     ) -> GlobalInner<I> {
-        GlobalInner {
-            ptr,
-            data: Box::into_raw(data),
-            rust_globals,
-        }
+        GlobalInner { ptr, data: Box::into_raw(data), rust_globals }
     }
 
     pub fn destroy(self) {
@@ -64,7 +57,9 @@ where
     }
 }
 
-pub(crate) unsafe extern "C" fn global_bind<I: Interface + AsRef<Resource<I>> + From<Resource<I>>>(
+pub(crate) unsafe extern "C" fn global_bind<
+    I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
+>(
     client: *mut wl_client,
     data: *mut c_void,
     version: u32,
@@ -109,11 +104,7 @@ pub(crate) unsafe extern "C" fn global_filter(
     let ret = ::std::panic::catch_unwind(move || {
         // early exit with true if the global is not rust-managed
         let rust_globals = &*(data as *const RefCell<Vec<*mut wl_global>>);
-        if rust_globals
-            .borrow()
-            .iter()
-            .all(|&g| g as *const wl_global != global)
-        {
+        if rust_globals.borrow().iter().all(|&g| g as *const wl_global != global) {
             return true;
         }
         // the global is rust-managed, continue

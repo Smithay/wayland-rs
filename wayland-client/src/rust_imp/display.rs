@@ -43,10 +43,7 @@ impl DisplayInner {
 
         let display_proxy = ProxyInner::from_id(1, map, connection.clone()).unwrap();
 
-        let display = DisplayInner {
-            proxy: Proxy::wrap(display_proxy),
-            connection,
-        };
+        let display = DisplayInner { proxy: Proxy::wrap(display_proxy), connection };
 
         Ok(Arc::new(display))
     }
@@ -108,11 +105,7 @@ impl super::Dispatcher for DisplayDispatcher {
             Err(()) => return Dispatched::BadMsg,
         };
         match event {
-            wl_display::Event::Error {
-                object_id,
-                code,
-                message,
-            } => {
+            wl_display::Event::Error { object_id, code, message } => {
                 eprintln!(
                     "[wayland-client] Protocol error {} on object {}@{}: {}",
                     code,

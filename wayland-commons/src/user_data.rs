@@ -27,9 +27,7 @@ unsafe impl Sync for UserData {}
 impl UserData {
     /// Create a new UserData instance
     pub const fn new() -> UserData {
-        UserData {
-            inner: OnceCell::new(),
-        }
+        UserData { inner: OnceCell::new() }
     }
 
     /// Sets the UserData to a given value
@@ -47,8 +45,7 @@ impl UserData {
     /// The provided closure is called to init the UserData,
     /// does nothing is the UserData had already been set.
     pub fn set_threadsafe<T: Any + Send + Sync + 'static, F: FnOnce() -> T>(&self, f: F) {
-        self.inner
-            .get_or_init(|| UserDataInner::ThreadSafe(Box::new(f())));
+        self.inner.get_or_init(|| UserDataInner::ThreadSafe(Box::new(f())));
     }
 
     /// Attempt to access the wrapped user data
@@ -77,7 +74,8 @@ impl UserData {
 impl Drop for UserData {
     fn drop(&mut self) {
         // only drop non-Send user data if we are on the right thread, leak it otherwise
-        if let Some(&mut UserDataInner::NonThreadSafe(ref mut val, threadid)) = self.inner.get_mut() {
+        if let Some(&mut UserDataInner::NonThreadSafe(ref mut val, threadid)) = self.inner.get_mut()
+        {
             if threadid == thread::current().id() {
                 unsafe {
                     ManuallyDrop::drop(&mut **val);
@@ -96,9 +94,7 @@ pub struct UserDataMap {
 impl UserDataMap {
     /// Create a new map
     pub fn new() -> UserDataMap {
-        UserDataMap {
-            list: AppendList::new(),
-        }
+        UserDataMap { list: AppendList::new() }
     }
 
     /// Attempt to access the wrapped user data of a given type
@@ -141,7 +137,10 @@ impl UserDataMap {
     /// If the value does not already exists, the closure is called to create it and
     /// this function returns `true`. If the value already exists, the closure is not
     /// called, and this function returns `false`.
-    pub fn insert_if_missing_threadsafe<T: Send + Sync + 'static, F: FnOnce() -> T>(&self, init: F) -> bool {
+    pub fn insert_if_missing_threadsafe<T: Send + Sync + 'static, F: FnOnce() -> T>(
+        &self,
+        init: F,
+    ) -> bool {
         if self.get::<T>().is_some() {
             return false;
         }
@@ -213,10 +212,12 @@ mod list {
 
         unsafe fn append_ptr(&self, p: *mut Node<T>) {
             loop {
-                match self
-                    .0
-                    .compare_exchange_weak(ptr::null_mut(), p, Ordering::AcqRel, Ordering::Acquire)
-                {
+                match self.0.compare_exchange_weak(
+                    ptr::null_mut(),
+                    p,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
                     Ok(_) => return,
                     Err(head) => {
                         if !head.is_null() {

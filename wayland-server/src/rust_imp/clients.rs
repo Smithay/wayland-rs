@@ -105,9 +105,7 @@ impl ClientConnection {
         let mut map = self.map.lock().unwrap();
         // read messages
         let ret = self.socket.read_one_message(|id, opcode| {
-            map.find(id)
-                .and_then(|o| o.requests.get(opcode as usize))
-                .map(|desc| desc.signature)
+            map.find(id).and_then(|o| o.requests.get(opcode as usize)).map(|desc| desc.signature)
         });
         let msg = match ret {
             Ok(msg) => msg,
@@ -159,13 +157,7 @@ impl ClientConnection {
             let new_id = msg
                 .args
                 .iter()
-                .flat_map(|a| {
-                    if let Argument::NewId(nid) = *a {
-                        Some(nid)
-                    } else {
-                        None
-                    }
-                })
+                .flat_map(|a| if let Argument::NewId(nid) = *a { Some(nid) } else { None })
                 .next()
                 .unwrap();
             let child_interface = child.interface;
@@ -198,11 +190,7 @@ impl ClientConnection {
             loop_thread: thread::current().id(),
         };
         self.map.lock().unwrap().with_all(|id, obj| {
-            let resource = ResourceInner {
-                id,
-                object: obj.clone(),
-                client: dummy_client.clone(),
-            };
+            let resource = ResourceInner { id, object: obj.clone(), client: dummy_client.clone() };
             obj.meta.alive.store(false, Ordering::Release);
             if let Some(ref dest) = obj.meta.destructor {
                 (&mut *dest.get().borrow_mut())(resource, data.reborrow());
@@ -261,14 +249,11 @@ impl ClientInner {
             // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
             // currently =(
             let mut opt_dest = Some(destructor);
-            client_data
-                .destructors
-                .get_mut()
-                .push(Box::new(move |data_map, data| {
-                    if let Some(dest) = opt_dest.take() {
-                        dest(data_map, data);
-                    }
-                }));
+            client_data.destructors.get_mut().push(Box::new(move |data_map, data| {
+                if let Some(dest) = opt_dest.take() {
+                    dest(data_map, data);
+                }
+            }));
         }
     }
 
@@ -320,7 +305,11 @@ impl ClientInner {
         }
     }
 
-    pub(crate) fn set_destructor_for(&self, id: u32, destructor: Arc<ThreadGuard<ResourceDestructor>>) {
+    pub(crate) fn set_destructor_for(
+        &self,
+        id: u32,
+        destructor: Arc<ThreadGuard<ResourceDestructor>>,
+    ) {
         let guard = self.data.lock().unwrap();
         if let Some(ref cx) = *guard {
             let _ = cx.map.lock().unwrap().with(id, move |obj| {
@@ -338,7 +327,10 @@ pub(crate) struct ClientManager {
 }
 
 impl ClientManager {
-    pub(crate) fn new(epoll_mgr: Rc<FdManager>, global_mgr: Rc<RefCell<GlobalManager>>) -> ClientManager {
+    pub(crate) fn new(
+        epoll_mgr: Rc<FdManager>,
+        global_mgr: Rc<RefCell<GlobalManager>>,
+    ) -> ClientManager {
         ClientManager {
             epoll_mgr,
             clients: Vec::new(),
@@ -347,7 +339,11 @@ impl ClientManager {
         }
     }
 
-    pub(crate) unsafe fn init_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
+    pub(crate) unsafe fn init_client(
+        &mut self,
+        fd: RawFd,
+        data: crate::DispatchData,
+    ) -> ClientInner {
         let display_object = Object {
             interface: "wl_display",
             version: 1,
@@ -370,10 +366,7 @@ impl ClientManager {
             loop_thread: thread::current().id(), // init_client is only called by the display, which does not change threads
         };
 
-        let implementation = ClientImplementation {
-            inner: client.clone(),
-            map,
-        };
+        let implementation = ClientImplementation { inner: client.clone(), map };
 
         // process any pending messages before inserting it into the event loop
         implementation.process_messages(data);
@@ -384,20 +377,15 @@ impl ClientManager {
             return client;
         }
 
-        let source = match self
-            .epoll_mgr
-            .register(fd, move |data| implementation.process_messages(data))
-        {
-            Ok(source) => Some(source),
-            Err(e) => {
-                eprintln!(
-                    "[wayland-server] Failed to insert client into event loop: {:?}",
-                    e
-                );
-                client.kill();
-                None
-            }
-        };
+        let source =
+            match self.epoll_mgr.register(fd, move |data| implementation.process_messages(data)) {
+                Ok(source) => Some(source),
+                Err(e) => {
+                    eprintln!("[wayland-server] Failed to insert client into event loop: {:?}", e);
+                    client.kill();
+                    None
+                }
+            };
 
         if source.is_some() {
             self.clients.push((RefCell::new(source), client.clone()));
@@ -438,12 +426,7 @@ impl ClientManager {
 }
 
 const DISPLAY_REQUESTS: &[MessageDesc] = &[
-    MessageDesc {
-        name: "sync",
-        since: 1,
-        signature: &[ArgumentType::NewId],
-        destructor: false,
-    },
+    MessageDesc { name: "sync", since: 1, signature: &[ArgumentType::NewId], destructor: false },
     MessageDesc {
         name: "get_registry",
         since: 1,
@@ -470,12 +453,7 @@ const DISPLAY_EVENTS: &[MessageDesc] = &[
 const REGISTRY_REQUESTS: &[MessageDesc] = &[MessageDesc {
     name: "bind",
     since: 1,
-    signature: &[
-        ArgumentType::Uint,
-        ArgumentType::Str,
-        ArgumentType::Uint,
-        ArgumentType::NewId,
-    ],
+    signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint, ArgumentType::NewId],
     destructor: false,
 }];
 
@@ -497,7 +475,10 @@ const REGISTRY_EVENTS: &[MessageDesc] = &[
 fn display_req_child(opcode: u16, _: u32, meta: &ObjectMeta) -> Option<Object<ObjectMeta>> {
     match opcode {
         // sync
-        0 => Some(Object::from_interface::<crate::protocol::wl_callback::WlCallback>(1, meta.child())),
+        0 => Some(Object::from_interface::<crate::protocol::wl_callback::WlCallback>(
+            1,
+            meta.child(),
+        )),
         // registry
         1 => Some(Object {
             interface: "wl_registry",
@@ -540,10 +521,13 @@ impl ClientImplementation {
                 }
                 Ok(Some(msg)) => {
                     // there is a message to dispatch
-                    let mut resourcemap = super::ResourceMap::make(self.map.clone(), self.inner.clone());
+                    let mut resourcemap =
+                        super::ResourceMap::make(self.map.clone(), self.inner.clone());
                     let id = msg.sender_id;
                     let opcode = msg.opcode;
-                    if let Some(res) = ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
+                    if let Some(res) =
+                        ResourceInner::from_id(id, self.map.clone(), self.inner.clone())
+                    {
                         let object = res.object.clone();
                         let mut dispatcher = object.meta.dispatcher.get().borrow_mut();
                         match dispatcher.dispatch(msg, res, &mut resourcemap, data.reborrow()) {
@@ -560,7 +544,10 @@ impl ClientImplementation {
                                 self.inner.post_error(
                                     1,
                                     super::display::DISPLAY_ERROR_INVALID_METHOD,
-                                    format!("invalid method {}, object {}@{}", opcode, object.interface, id),
+                                    format!(
+                                        "invalid method {}, object {}@{}",
+                                        opcode, object.interface, id
+                                    ),
                                 );
                                 return;
                             }
@@ -625,15 +612,14 @@ impl super::Dispatcher for DisplayDispatcher {
                     // we don't have a regular object for the registry, rather we insert the
                     // dispatcher by hand
                     if let Err(()) = map.map.lock().unwrap().with(new_id, |obj| {
-                        obj.meta.dispatcher = Arc::new(ThreadGuard::new(RefCell::new(RegistryDispatcher {
-                            global_mgr: self.global_mgr.clone(),
-                        })));
+                        obj.meta.dispatcher =
+                            Arc::new(ThreadGuard::new(RefCell::new(RegistryDispatcher {
+                                global_mgr: self.global_mgr.clone(),
+                            })));
                     }) {
                         return Dispatched::BadMsg;
                     }
-                    self.global_mgr
-                        .borrow_mut()
-                        .new_registry(new_id, map.client.clone());
+                    self.global_mgr.borrow_mut().new_registry(new_id, map.client.clone());
                 } else {
                     return Dispatched::BadMsg;
                 }

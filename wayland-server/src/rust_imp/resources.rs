@@ -60,11 +60,7 @@ impl ResourceInner {
         client: ClientInner,
     ) -> Option<ResourceInner> {
         let me = map.lock().unwrap().find(id);
-        me.map(|obj| ResourceInner {
-            id,
-            object: obj,
-            client,
-        })
+        me.map(|obj| ResourceInner { id, object: obj, client })
     }
 
     pub(crate) fn is_interface<I: Interface>(&self) -> bool {
@@ -141,8 +137,7 @@ impl ResourceInner {
         E: From<(Main<I>, I::Request)> + 'static,
         I::Request: MessageGroup<Map = super::ResourceMap>,
     {
-        self.client
-            .set_dispatcher_for(self.id, super::make_dispatcher(filter));
+        self.client.set_dispatcher_for(self.id, super::make_dispatcher(filter));
     }
 
     pub fn assign_destructor<I, E>(&self, filter: crate::Filter<E>)
@@ -150,7 +145,6 @@ impl ResourceInner {
         I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
         E: From<Resource<I>> + 'static,
     {
-        self.client
-            .set_destructor_for(self.id, super::make_destructor(filter));
+        self.client.set_destructor_for(self.id, super::make_destructor(filter));
     }
 }

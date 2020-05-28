@@ -37,7 +37,10 @@ impl ProxyMap {
     }
 
     /// Returns the Proxy corresponding to a given id
-    pub fn get<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, id: u32) -> Option<Proxy<I>> {
+    pub fn get<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
+        &mut self,
+        id: u32,
+    ) -> Option<Proxy<I>> {
         ProxyInner::from_id(id, self.map.clone(), self.connection.clone()).map(|object| {
             debug_assert!(I::NAME == "<anonymous>" || object.is_interface::<I>());
             Proxy::wrap(object)
@@ -45,7 +48,10 @@ impl ProxyMap {
     }
 
     /// Creates a new proxy for given id
-    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, id: u32) -> Option<Main<I>> {
+    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
+        &mut self,
+        id: u32,
+    ) -> Option<Main<I>> {
         debug_assert!(self
             .map
             .lock()

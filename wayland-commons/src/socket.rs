@@ -57,7 +57,8 @@ impl Socket {
         let mut cmsg = cmsg_space!([RawFd; MAX_FDS_OUT]);
         let iov = [uio::IoVec::from_mut_slice(buffer)];
 
-        let msg = socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
+        let msg =
+            socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
 
         let mut fd_count = 0;
         let received_fds = msg.cmsgs().flat_map(|cmsg| match cmsg {
@@ -138,7 +139,9 @@ impl BufferedSocket {
     pub fn flush(&mut self) -> NixResult<()> {
         {
             let words = self.out_data.get_contents();
-            let bytes = unsafe { ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4) };
+            let bytes = unsafe {
+                ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
+            };
             let fds = self.out_fds.get_contents();
             self.socket.send_msg(bytes, fds)?;
             for &fd in fds {
@@ -206,8 +209,9 @@ impl BufferedSocket {
         // receive a message
         let (in_bytes, in_fds) = {
             let words = self.in_data.get_writable_storage();
-            let bytes =
-                unsafe { ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4) };
+            let bytes = unsafe {
+                ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4)
+            };
             let fds = self.in_fds.get_writable_storage();
             self.socket.rcv_msg(bytes, fds)?
         };
@@ -216,8 +220,7 @@ impl BufferedSocket {
             return Err(::nix::Error::Sys(::nix::errno::Errno::EPIPE));
         }
         // advance the storage
-        self.in_data
-            .advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
+        self.in_data.advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
         self.in_fds.advance(in_fds);
         Ok(())
     }
@@ -372,11 +375,7 @@ struct Buffer<T: Copy> {
 
 impl<T: Copy + Default> Buffer<T> {
     fn new(size: usize) -> Buffer<T> {
-        Buffer {
-            storage: vec![T::default(); size],
-            occupied: 0,
-            offset: 0,
-        }
+        Buffer { storage: vec![T::default(); size], occupied: 0, offset: 0 }
     }
 
     /// Check if this buffer has content to read

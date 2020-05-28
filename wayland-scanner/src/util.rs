@@ -3,12 +3,13 @@ use quote::ToTokens;
 
 pub fn is_keyword(txt: &str) -> bool {
     match txt {
-        "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue" | "crate"
-        | "do" | "else" | "enum" | "extern" | "false" | "final" | "fn" | "for" | "if" | "impl" | "in"
-        | "let" | "loop" | "macro" | "match" | "mod" | "move" | "mut" | "offsetof" | "override" | "priv"
-        | "proc" | "pub" | "pure" | "ref" | "return" | "Self" | "self" | "sizeof" | "static" | "struct"
-        | "super" | "trait" | "true" | "type" | "typeof" | "unsafe" | "unsized" | "use" | "virtual"
-        | "where" | "while" | "yield" | "__handler" | "__object" => true,
+        "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue"
+        | "crate" | "do" | "else" | "enum" | "extern" | "false" | "final" | "fn" | "for" | "if"
+        | "impl" | "in" | "let" | "loop" | "macro" | "match" | "mod" | "move" | "mut"
+        | "offsetof" | "override" | "priv" | "proc" | "pub" | "pure" | "ref" | "return"
+        | "Self" | "self" | "sizeof" | "static" | "struct" | "super" | "trait" | "true"
+        | "type" | "typeof" | "unsafe" | "unsized" | "use" | "virtual" | "where" | "while"
+        | "yield" | "__handler" | "__object" => true,
         _ => false,
     }
 }
@@ -51,7 +52,9 @@ pub fn dotted_to_relname(input: &str) -> TokenStream {
             let ident = Ident::new(&snake_to_camel(name), Span::call_site());
             quote::quote!(super::#module::#ident)
         }
-        (Some(name), None) => Ident::new(&snake_to_camel(name), Span::call_site()).into_token_stream(),
+        (Some(name), None) => {
+            Ident::new(&snake_to_camel(name), Span::call_site()).into_token_stream()
+        }
         _ => unreachable!(),
     }
 }

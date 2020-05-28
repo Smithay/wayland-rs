@@ -30,7 +30,10 @@ pub(crate) struct EventQueueInner {
 }
 
 impl EventQueueInner {
-    pub(crate) fn new(connection: Arc<Mutex<Connection>>, buffer: Option<QueueBuffer>) -> EventQueueInner {
+    pub(crate) fn new(
+        connection: Arc<Mutex<Connection>>,
+        buffer: Option<QueueBuffer>,
+    ) -> EventQueueInner {
         let (map, display_buffer) = {
             let cx = connection.lock().unwrap();
             (cx.map.clone(), cx.display_buffer.clone())
@@ -133,7 +136,8 @@ impl EventQueueInner {
                 None => break,
             };
             let id = msg.sender_id;
-            if let Some(proxy) = ProxyInner::from_id(id, self.map.clone(), self.connection.clone()) {
+            if let Some(proxy) = ProxyInner::from_id(id, self.map.clone(), self.connection.clone())
+            {
                 let object = proxy.object.clone();
                 if object.meta.client_destroyed {
                     // This is a potential race, if we reach here it means that the proxy was
@@ -199,20 +203,23 @@ impl EventQueueInner {
         Ok(display_dispatched + self_dispatched)
     }
 
-    pub(crate) fn sync_roundtrip<F>(&self, mut data: DispatchData, mut fallback: F) -> io::Result<u32>
+    pub(crate) fn sync_roundtrip<F>(
+        &self,
+        mut data: DispatchData,
+        mut fallback: F,
+    ) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
         use crate::protocol::wl_callback::{Event as CbEvent, WlCallback};
         use crate::protocol::wl_display::{Request as DRequest, WlDisplay};
         // first retrieve the display and make a wrapper for it in this event queue
-        let mut display = ProxyInner::from_id(1, self.map.clone(), self.connection.clone()).unwrap();
+        let mut display =
+            ProxyInner::from_id(1, self.map.clone(), self.connection.clone()).unwrap();
         display.attach(&self);
 
         let done = Rc::new(Cell::new(false));
-        let cb = display
-            .send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1))
-            .unwrap();
+        let cb = display.send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1)).unwrap();
         let done2 = done.clone();
         cb.assign::<WlCallback, _>(Filter::new(move |(_, CbEvent::Done { .. }), _, _| {
             done2.set(true);
@@ -261,7 +268,9 @@ fn message_to_rawevent(msg: Message, proxy: &ProxyInner, map: &mut super::ProxyM
         .map(|a| match a {
             Argument::Int(i) => crate::Argument::Int(i),
             Argument::Uint(u) => crate::Argument::Uint(u),
-            Argument::Array(v) => crate::Argument::Array(if v.is_empty() { None } else { Some(*v) }),
+            Argument::Array(v) => {
+                crate::Argument::Array(if v.is_empty() { None } else { Some(*v) })
+            }
             Argument::Fixed(f) => crate::Argument::Float((f as f32) / 256.),
             Argument::Fd(f) => crate::Argument::Fd(f),
             Argument::Str(cs) => crate::Argument::Str({

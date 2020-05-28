@@ -15,8 +15,8 @@ pub mod wl_foo {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
@@ -105,12 +105,13 @@ pub mod wl_foo {
                 Request::CreateBar { .. } => 1,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
-                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(
-                    version,
-                    meta.child(),
-                )),
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
                 _ => None,
             }
         }
@@ -135,8 +136,9 @@ pub mod wl_foo {
                         },
                         text: {
                             if let Some(Argument::Str(val)) = args.next() {
-                                let s = String::from_utf8(val.into_bytes())
-                                    .unwrap_or_else(|e| String::from_utf8_lossy(&e.into_bytes()).into());
+                                let s = String::from_utf8(val.into_bytes()).unwrap_or_else(|e| {
+                                    String::from_utf8_lossy(&e.into_bytes()).into()
+                                });
                                 s
                             } else {
                                 return Err(());
@@ -187,9 +189,7 @@ pub mod wl_foo {
                     Ok(Request::FooIt {
                         number: _args[0].i,
                         unumber: _args[1].u,
-                        text: ::std::ffi::CStr::from_ptr(_args[2].s)
-                            .to_string_lossy()
-                            .into_owned(),
+                        text: ::std::ffi::CStr::from_ptr(_args[2].s).to_string_lossy().into_owned(),
                         float: (_args[3].f as f64) / 256.,
                         file: _args[4].h,
                     })
@@ -241,7 +241,11 @@ pub mod wl_foo {
                 Event::Cake { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -252,7 +256,7 @@ pub mod wl_foo {
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
                 Event::Cake { kind, amount } => Message {
-                    sender_id: sender_id,
+                    sender_id,
                     opcode: 0,
                     args: smallvec![Argument::Uint(kind.to_raw()), Argument::Uint(amount),],
                 },
@@ -311,10 +315,7 @@ pub mod wl_foo {
     impl WlFoo {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface."]
         pub fn cake(&self, kind: CakeKind, amount: u32) -> () {
-            let msg = Event::Cake {
-                kind: kind,
-                amount: amount,
-            };
+            let msg = Event::Cake { kind, amount };
             self.0.send(msg);
         }
     }
@@ -360,8 +361,8 @@ pub mod wl_bar {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -400,12 +401,7 @@ pub mod wl_bar {
                 ],
                 destructor: false,
             },
-            super::MessageDesc {
-                name: "release",
-                since: 1,
-                signature: &[],
-                destructor: true,
-            },
+            super::MessageDesc { name: "release", since: 1, signature: &[], destructor: true },
             super::MessageDesc {
                 name: "self",
                 since: 2,
@@ -443,7 +439,11 @@ pub mod wl_bar {
                 Request::_Self { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -565,17 +565,20 @@ pub mod wl_bar {
                     let _args = ::std::slice::from_raw_parts(args, 4);
                     Ok(Request::BarDelivery {
                         kind: super::wl_foo::DeliveryKind::from_raw(_args[0].u).ok_or(())?,
-                        target: Resource::<super::wl_foo::WlFoo>::from_c_ptr(_args[1].o as *mut _).into(),
+                        target: Resource::<super::wl_foo::WlFoo>::from_c_ptr(_args[1].o as *mut _)
+                            .into(),
                         metadata: {
                             let array = &*_args[2].a;
-                            ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned()
+                            ::std::slice::from_raw_parts(array.data as *const u8, array.size)
+                                .to_owned()
                         },
                         metametadata: if _args[3].a.is_null() {
                             None
                         } else {
                             Some({
                                 let array = &*_args[3].a;
-                                ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned()
+                                ::std::slice::from_raw_parts(array.data as *const u8, array.size)
+                                    .to_owned()
                             })
                         },
                     })
@@ -650,7 +653,11 @@ pub mod wl_bar {
                 Event::_Self { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -670,7 +677,7 @@ pub mod wl_bar {
                     request,
                     event,
                 } => Message {
-                    sender_id: sender_id,
+                    sender_id,
                     opcode: 0,
                     args: smallvec![
                         Argument::Uint(_self),
@@ -764,14 +771,14 @@ pub mod wl_bar {
             event: u32,
         ) -> () {
             let msg = Event::_Self {
-                _self: _self,
-                _mut: _mut,
-                object: object,
-                ___object: ___object,
-                handler: handler,
-                ___handler: ___handler,
-                request: request,
-                event: event,
+                _self,
+                _mut,
+                object,
+                ___object,
+                handler,
+                ___handler,
+                request,
+                event,
             };
             self.0.send(msg);
         }
@@ -829,8 +836,8 @@ pub mod wl_callback {
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::sys::server::*;
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -847,7 +854,11 @@ pub mod wl_callback {
         fn since(&self) -> u32 {
             match *self {}
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -904,7 +915,11 @@ pub mod wl_callback {
                 Event::Done { .. } => 1,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -915,7 +930,7 @@ pub mod wl_callback {
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
                 Event::Done { callback_data } => Message {
-                    sender_id: sender_id,
+                    sender_id,
                     opcode: 0,
                     args: smallvec![Argument::Uint(callback_data),],
                 },
@@ -973,9 +988,7 @@ pub mod wl_callback {
     impl WlCallback {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
         pub fn done(&self, callback_data: u32) -> () {
-            let msg = Event::Done {
-                callback_data: callback_data,
-            };
+            let msg = Event::Done { callback_data };
             self.0.send(msg);
         }
     }

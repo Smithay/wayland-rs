@@ -22,13 +22,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
             false,
             &iface.requests,
-            Some(messagegroup_c_addon(
-                &ident,
-                &iface_name,
-                Side::Client,
-                false,
-                &iface.requests,
-            )),
+            Some(messagegroup_c_addon(&ident, &iface_name, Side::Client, false, &iface.requests)),
         );
 
         let ident = Ident::new("Event", Span::call_site());
@@ -37,13 +31,7 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
             Side::Client,
             true,
             &iface.events,
-            Some(messagegroup_c_addon(
-                &ident,
-                &iface_name,
-                Side::Client,
-                true,
-                &iface.events,
-            )),
+            Some(messagegroup_c_addon(&ident, &iface_name, Side::Client, true, &iface.events)),
         );
 
         let interface = gen_interface(

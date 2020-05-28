@@ -33,10 +33,7 @@ fn client_sync_roundtrip() {
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
-    client
-        .event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
+    client.event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 
     *(kill_switch.lock().unwrap()) = true;
 
@@ -71,15 +68,9 @@ fn client_dispatch() {
     // do a manual roundtrip
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
-    client
-        .display_proxy
-        .sync()
-        .quick_assign(move |_, _, _| done2.set(true));
+    client.display_proxy.sync().quick_assign(move |_, _, _| done2.set(true));
     while !done.get() {
-        client
-            .event_queue
-            .dispatch(&mut (), |_, _, _| unreachable!())
-            .unwrap();
+        client.event_queue.dispatch(&mut (), |_, _, _| unreachable!()).unwrap();
     }
 
     *(kill_switch.lock().unwrap()) = true;

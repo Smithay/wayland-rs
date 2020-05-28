@@ -23,7 +23,8 @@ macro_rules! extract_end_tag(
 );
 
 pub fn parse_stream<S: Read>(stream: S) -> Protocol {
-    let mut reader = EventReader::new_with_config(stream, ParserConfig::new().trim_whitespace(true));
+    let mut reader =
+        EventReader::new_with_config(stream, ParserConfig::new().trim_whitespace(true));
     reader.next().expect("Could not read from event reader");
     parse_protocol(reader)
 }
@@ -44,7 +45,8 @@ fn parse_protocol<R: Read>(mut reader: EventReader<R>) -> Protocol {
                     "copyright" => {
                         // parse the copyright
                         let copyright = match reader.next() {
-                            Ok(XmlEvent::Characters(copyright)) | Ok(XmlEvent::CData(copyright)) => copyright,
+                            Ok(XmlEvent::Characters(copyright))
+                            | Ok(XmlEvent::CData(copyright)) => copyright,
                             e => panic!("Ill-formed protocol file: {:?}", e),
                         };
 
@@ -91,7 +93,9 @@ fn parse_interface<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribu
     loop {
         match reader.next() {
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
-                "description" => interface.description = Some(parse_description(reader, attributes)),
+                "description" => {
+                    interface.description = Some(parse_description(reader, attributes))
+                }
                 "request" => interface.requests.push(parse_request(reader, attributes)),
                 "event" => interface.events.push(parse_event(reader, attributes)),
                 "enum" => interface.enums.push(parse_enum(reader, attributes)),
@@ -105,7 +109,10 @@ fn parse_interface<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribu
     interface
 }
 
-fn parse_description<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) -> (String, String) {
+fn parse_description<R: Read>(
+    reader: &mut EventReader<R>,
+    attrs: Vec<OwnedAttribute>,
+) -> (String, String) {
     let mut summary = String::new();
     for attr in attrs {
         if &attr.name.local_name[..] == "summary" {
@@ -212,7 +219,9 @@ fn parse_arg<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) -
         match &attr.name.local_name[..] {
             "name" => arg.name = attr.value,
             "type" => arg.typ = parse_type(&attr.value),
-            "summary" => arg.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
+            "summary" => {
+                arg.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" "))
+            }
             "interface" => arg.interface = Some(attr.value),
             "allow-null" => {
                 if attr.value == "true" {
@@ -266,7 +275,9 @@ fn parse_entry<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>)
                 };
             }
             "since" => entry.since = attr.value.parse().unwrap(),
-            "summary" => entry.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" ")),
+            "summary" => {
+                entry.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" "))
+            }
             _ => {}
         }
     }

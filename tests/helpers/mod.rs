@@ -22,14 +22,9 @@ pub struct TestServer {
 impl TestServer {
     pub fn new() -> TestServer {
         let mut display = self::ways::Display::new();
-        let socket_name = display
-            .add_socket_auto()
-            .expect("Failed to create a server socket.");
+        let socket_name = display.add_socket_auto().expect("Failed to create a server socket.");
 
-        TestServer {
-            display: display,
-            socket_name: socket_name,
-        }
+        TestServer { display, socket_name }
     }
 
     pub fn answer(&mut self) {
@@ -49,37 +44,25 @@ pub struct TestClient {
 
 impl TestClient {
     pub fn new(socket_name: &OsStr) -> TestClient {
-        let display =
-            self::wayc::Display::connect_to_name(socket_name).expect("Failed to connect to server.");
+        let display = self::wayc::Display::connect_to_name(socket_name)
+            .expect("Failed to connect to server.");
         let event_queue = display.create_event_queue();
         let attached = (*display).clone().attach(event_queue.token());
-        TestClient {
-            display: Arc::new(display),
-            display_proxy: attached,
-            event_queue,
-        }
+        TestClient { display: Arc::new(display), display_proxy: attached, event_queue }
     }
 
     pub fn new_auto() -> TestClient {
         let display = self::wayc::Display::connect_to_env().expect("Failed to connect to server.");
         let event_queue = display.create_event_queue();
         let attached = (*display).clone().attach(event_queue.token());
-        TestClient {
-            display: Arc::new(display),
-            display_proxy: attached,
-            event_queue,
-        }
+        TestClient { display: Arc::new(display), display_proxy: attached, event_queue }
     }
 
     pub unsafe fn from_fd(fd: RawFd) -> TestClient {
         let display = self::wayc::Display::from_fd(fd).unwrap();
         let event_queue = display.create_event_queue();
         let attached = (*display).clone().attach(event_queue.token());
-        TestClient {
-            display: Arc::new(display),
-            display_proxy: attached,
-            event_queue,
-        }
+        TestClient { display: Arc::new(display), display_proxy: attached, event_queue }
     }
 }
 
@@ -87,10 +70,7 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
     // send to the server
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
-    client
-        .display_proxy
-        .sync()
-        .quick_assign(move |_, _, _| done2.set(true));
+    client.display_proxy.sync().quick_assign(move |_, _, _| done2.set(true));
     while !done.get() {
         match client.display.flush() {
             Ok(_) => {}

@@ -38,9 +38,7 @@ impl<'a> DispatchData<'a> {
     /// callback stack by value. It is basically a noop only there to ease
     /// work with the borrow checker.
     pub fn reborrow(&mut self) -> DispatchData {
-        DispatchData {
-            data: &mut *self.data,
-        }
+        DispatchData { data: &mut *self.data }
     }
 }
 
@@ -71,9 +69,7 @@ pub struct Filter<E> {
 
 impl<E> Clone for Filter<E> {
     fn clone(&self) -> Filter<E> {
-        Filter {
-            inner: self.inner.clone(),
-        }
+        Filter { inner: self.inner.clone() }
     }
 }
 
@@ -81,10 +77,7 @@ impl<E> Filter<E> {
     /// Create a new filter from given closure
     pub fn new<F: FnMut(E, &Filter<E>, DispatchData<'_>) + 'static>(f: F) -> Filter<E> {
         Filter {
-            inner: Rc::new(Inner {
-                pending: RefCell::new(VecDeque::new()),
-                cb: RefCell::new(f),
-            }),
+            inner: Rc::new(Inner { pending: RefCell::new(VecDeque::new()), cb: RefCell::new(f) }),
         }
     }
 

@@ -32,17 +32,10 @@ impl DisplayInner {
         let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
         let epoll_mgr = Rc::new(FdManager::new().unwrap());
 
-        let clients_mgr = Rc::new(RefCell::new(ClientManager::new(
-            epoll_mgr.clone(),
-            global_mgr.clone(),
-        )));
+        let clients_mgr =
+            Rc::new(RefCell::new(ClientManager::new(epoll_mgr.clone(), global_mgr.clone())));
 
-        DisplayInner {
-            epoll_mgr,
-            clients_mgr,
-            global_mgr,
-            listeners: Vec::new(),
-        }
+        DisplayInner { epoll_mgr, clients_mgr, global_mgr, listeners: Vec::new() }
     }
 
     pub(crate) fn create_global<I, F1, F2>(
@@ -56,9 +49,7 @@ impl DisplayInner {
         F1: FnMut(Main<I>, u32, crate::DispatchData<'_>) + 'static,
         F2: FnMut(ClientInner) -> bool + 'static,
     {
-        self.global_mgr
-            .borrow_mut()
-            .add_global(version, implementation, filter)
+        self.global_mgr.borrow_mut().add_global(version, implementation, filter)
     }
 
     pub(crate) fn flush_clients(&mut self, data: crate::DispatchData) {
@@ -143,11 +134,19 @@ impl DisplayInner {
         self.add_unix_listener(FromRawFd::from_raw_fd(fd))
     }
 
-    pub(crate) unsafe fn create_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
+    pub(crate) unsafe fn create_client(
+        &mut self,
+        fd: RawFd,
+        data: crate::DispatchData,
+    ) -> ClientInner {
         self.clients_mgr.borrow_mut().init_client(fd, data)
     }
 
-    pub(crate) fn dispatch(&mut self, timeout: i32, data: crate::DispatchData) -> std::io::Result<()> {
+    pub(crate) fn dispatch(
+        &mut self,
+        timeout: i32,
+        data: crate::DispatchData,
+    ) -> std::io::Result<()> {
         self.epoll_mgr
             .poll(timeout, data)
             .map_err(|e| From::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))

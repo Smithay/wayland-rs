@@ -15,8 +15,8 @@ pub mod wl_foo {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[doc = "Possible cake kinds\n\nList of the possible kind of cake supported by the protocol."]
@@ -105,12 +105,13 @@ pub mod wl_foo {
                 Request::CreateBar { .. } => 1,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
-                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(
-                    version,
-                    meta.child(),
-                )),
+                1 => Some(Object::from_interface::<super::wl_bar::WlBar>(version, meta.child())),
                 _ => None,
             }
         }
@@ -119,14 +120,8 @@ pub mod wl_foo {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
-                Request::FooIt {
-                    number,
-                    unumber,
-                    text,
-                    float,
-                    file,
-                } => Message {
-                    sender_id: sender_id,
+                Request::FooIt { number, unumber, text, float, file } => Message {
+                    sender_id,
                     opcode: 0,
                     args: smallvec![
                         Argument::Int(number),
@@ -138,11 +133,9 @@ pub mod wl_foo {
                         Argument::Fd(file),
                     ],
                 },
-                Request::CreateBar {} => Message {
-                    sender_id: sender_id,
-                    opcode: 1,
-                    args: smallvec![Argument::NewId(0),],
-                },
+                Request::CreateBar {} => {
+                    Message { sender_id, opcode: 1, args: smallvec![Argument::NewId(0),] }
+                }
             }
         }
         unsafe fn from_raw_c(
@@ -157,13 +150,7 @@ pub mod wl_foo {
             F: FnOnce(u32, &mut [wl_argument]) -> T,
         {
             match self {
-                Request::FooIt {
-                    number,
-                    unumber,
-                    text,
-                    float,
-                    file,
-                } => {
+                Request::FooIt { number, unumber, text, float, file } => {
                     let mut _args_array: [wl_argument; 5] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].i = number;
                     _args_array[1].u = unumber;
@@ -209,7 +196,11 @@ pub mod wl_foo {
                 Event::Cake { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -303,13 +294,7 @@ pub mod wl_foo {
             float: f64,
             file: ::std::os::unix::io::RawFd,
         ) -> () {
-            let msg = Request::FooIt {
-                number: number,
-                unumber: unumber,
-                text: text,
-                float: float,
-                file: file,
-            };
+            let msg = Request::FooIt { number, unumber, text, float, file };
             self.0.send::<AnonymousObject>(msg, None);
         }
         #[doc = "create a bar\n\nCreate a bar which will do its bar job."]
@@ -360,8 +345,8 @@ pub mod wl_bar {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -400,12 +385,7 @@ pub mod wl_bar {
                 ],
                 destructor: false,
             },
-            super::MessageDesc {
-                name: "release",
-                since: 1,
-                signature: &[],
-                destructor: true,
-            },
+            super::MessageDesc { name: "release", since: 1, signature: &[], destructor: true },
             super::MessageDesc {
                 name: "self",
                 since: 2,
@@ -443,7 +423,11 @@ pub mod wl_bar {
                 Request::_Self { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -453,13 +437,8 @@ pub mod wl_bar {
         }
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
-                Request::BarDelivery {
-                    kind,
-                    target,
-                    metadata,
-                    metametadata,
-                } => Message {
-                    sender_id: sender_id,
+                Request::BarDelivery { kind, target, metadata, metametadata } => Message {
+                    sender_id,
                     opcode: 0,
                     args: smallvec![
                         Argument::Uint(kind.to_raw()),
@@ -468,11 +447,7 @@ pub mod wl_bar {
                         Argument::Array(Box::new(metametadata.unwrap_or_else(Vec::new))),
                     ],
                 },
-                Request::Release => Message {
-                    sender_id: sender_id,
-                    opcode: 1,
-                    args: smallvec![],
-                },
+                Request::Release => Message { sender_id, opcode: 1, args: smallvec![] },
                 Request::_Self {
                     _self,
                     _mut,
@@ -483,7 +458,7 @@ pub mod wl_bar {
                     request,
                     event,
                 } => Message {
-                    sender_id: sender_id,
+                    sender_id,
                     opcode: 2,
                     args: smallvec![
                         Argument::Uint(_self),
@@ -510,12 +485,7 @@ pub mod wl_bar {
             F: FnOnce(u32, &mut [wl_argument]) -> T,
         {
             match self {
-                Request::BarDelivery {
-                    kind,
-                    target,
-                    metadata,
-                    metametadata,
-                } => {
+                Request::BarDelivery { kind, target, metadata, metametadata } => {
                     let mut _args_array: [wl_argument; 4] = unsafe { ::std::mem::zeroed() };
                     _args_array[0].u = kind.to_raw();
                     _args_array[1].o = target.as_ref().c_ptr() as *mut _;
@@ -530,10 +500,8 @@ pub mod wl_bar {
                         alloc: vec.capacity(),
                         data: vec.as_ptr() as *mut _,
                     });
-                    _args_array[3].a = _arg_3
-                        .as_ref()
-                        .map(|a| a as *const wl_array)
-                        .unwrap_or(::std::ptr::null());
+                    _args_array[3].a =
+                        _arg_3.as_ref().map(|a| a as *const wl_array).unwrap_or(::std::ptr::null());
                     f(0, &mut _args_array)
                 }
                 Request::Release => {
@@ -610,7 +578,11 @@ pub mod wl_bar {
                 Event::_Self { .. } => 2,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -751,12 +723,7 @@ pub mod wl_bar {
             metadata: Vec<u8>,
             metametadata: Option<Vec<u8>>,
         ) -> () {
-            let msg = Request::BarDelivery {
-                kind: kind,
-                target: target.clone(),
-                metadata: metadata,
-                metametadata: metametadata,
-            };
+            let msg = Request::BarDelivery { kind, target: target.clone(), metadata, metametadata };
             self.0.send::<AnonymousObject>(msg, None);
         }
         #[doc = "release this bar\n\nNotify the compositor that you have finished using this bar.\n\nThis is a destructor, you cannot send requests to this object any longer once this method is called."]
@@ -777,14 +744,14 @@ pub mod wl_bar {
             event: u32,
         ) -> () {
             let msg = Request::_Self {
-                _self: _self,
-                _mut: _mut,
-                object: object,
-                ___object: ___object,
-                handler: handler,
-                ___handler: ___handler,
-                request: request,
-                event: event,
+                _self,
+                _mut,
+                object,
+                ___object,
+                handler,
+                ___handler,
+                request,
+                event,
             };
             self.0.send::<AnonymousObject>(msg, None);
         }
@@ -842,8 +809,8 @@ pub mod wl_display {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -860,7 +827,11 @@ pub mod wl_display {
         fn since(&self) -> u32 {
             match *self {}
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -899,7 +870,11 @@ pub mod wl_display {
         fn since(&self) -> u32 {
             match *self {}
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -973,8 +948,8 @@ pub mod wl_registry {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -1005,7 +980,11 @@ pub mod wl_registry {
                 Request::Bind { .. } => 1,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -1016,7 +995,7 @@ pub mod wl_registry {
         fn into_raw(self, sender_id: u32) -> Message {
             match self {
                 Request::Bind { name, id } => Message {
-                    sender_id: sender_id,
+                    sender_id,
                     opcode: 0,
                     args: smallvec![
                         Argument::Uint(name),
@@ -1067,7 +1046,11 @@ pub mod wl_registry {
         fn since(&self) -> u32 {
             match *self {}
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -1132,10 +1115,7 @@ pub mod wl_registry {
             version: u32,
             name: u32,
         ) -> Main<T> {
-            let msg = Request::Bind {
-                name: name,
-                id: (T::NAME.into(), version),
-            };
+            let msg = Request::Bind { name, id: (T::NAME.into(), version) };
             self.0.send(msg, Some(version)).unwrap()
         }
     }
@@ -1162,8 +1142,8 @@ pub mod wl_callback {
     use super::sys::client::*;
     use super::sys::common::{wl_argument, wl_array, wl_interface, wl_message};
     use super::{
-        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message, MessageDesc,
-        MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
+        smallvec, types_null, AnonymousObject, Argument, ArgumentType, Interface, Main, Message,
+        MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
     #[non_exhaustive]
@@ -1180,7 +1160,11 @@ pub mod wl_callback {
         fn since(&self) -> u32 {
             match *self {}
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -1233,7 +1217,11 @@ pub mod wl_callback {
                 Event::Done { .. } => 1,
             }
         }
-        fn child<Meta: ObjectMetadata>(opcode: u16, version: u32, meta: &Meta) -> Option<Object<Meta>> {
+        fn child<Meta: ObjectMetadata>(
+            opcode: u16,
+            version: u32,
+            meta: &Meta,
+        ) -> Option<Object<Meta>> {
             match opcode {
                 _ => None,
             }
@@ -1266,9 +1254,7 @@ pub mod wl_callback {
             match opcode {
                 0 => {
                     let _args = ::std::slice::from_raw_parts(args, 1);
-                    Ok(Event::Done {
-                        callback_data: _args[0].u,
-                    })
+                    Ok(Event::Done { callback_data: _args[0].u })
                 }
                 _ => return Err(()),
             }

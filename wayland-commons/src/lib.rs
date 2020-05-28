@@ -66,8 +66,11 @@ pub trait MessageGroup: Sized {
     ///
     /// The pointers provided to this function must all be valid pointers from
     /// `libwayland-client`
-    unsafe fn from_raw_c(obj: *mut c_void, opcode: u32, args: *const syscom::wl_argument)
-        -> Result<Self, ()>;
+    unsafe fn from_raw_c(
+        obj: *mut c_void,
+        opcode: u32,
+        args: *const syscom::wl_argument,
+    ) -> Result<Self, ()>;
     /// Build a C representation of this message
     ///
     /// It can only be accessed from the provided closure, and this consumes
@@ -159,10 +162,7 @@ pub struct ThreadGuard<T: ?Sized> {
 impl<T> ThreadGuard<T> {
     /// Create a new ThreadGuard wrapper
     pub fn new(val: T) -> ThreadGuard<T> {
-        ThreadGuard {
-            val: std::mem::ManuallyDrop::new(val),
-            thread: std::thread::current().id(),
-        }
+        ThreadGuard { val: std::mem::ManuallyDrop::new(val), thread: std::thread::current().id() }
     }
 }
 
@@ -171,8 +171,7 @@ impl<T: ?Sized> ThreadGuard<T> {
     ///
     /// Panics if done on the wrong thread
     pub fn get(&self) -> &T {
-        self.try_get()
-            .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
+        self.try_get().expect("Attempted to access a ThreadGuard contents from the wrong thread.")
     }
 
     /// Mutably access the underlying value

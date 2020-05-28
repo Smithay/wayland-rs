@@ -32,7 +32,10 @@ pub struct ResourceMap {
 }
 
 impl ResourceMap {
-    fn make(map: Arc<Mutex<ObjectMap<self::resources::ObjectMeta>>>, client: ClientInner) -> ResourceMap {
+    fn make(
+        map: Arc<Mutex<ObjectMap<self::resources::ObjectMeta>>>,
+        client: ClientInner,
+    ) -> ResourceMap {
         ResourceMap { map, client }
     }
 
@@ -115,7 +118,10 @@ where
         if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
             eprintln!(
                 " <- {}@{}: {} {:?}",
-                resource.object.interface, resource.id, resource.object.requests[opcode].name, msg.args
+                resource.object.interface,
+                resource.id,
+                resource.object.requests[opcode].name,
+                msg.args
             );
         }
         let message = match I::Request::from_raw(msg, map) {
@@ -183,7 +189,7 @@ where
     I: Interface + AsRef<Resource<I>> + From<Resource<I>>,
     E: From<Resource<I>> + 'static,
 {
-    Arc::new(ThreadGuard::new(RefCell::new(
-        move |res, data: DispatchData<'_>| filter.send(Resource::<I>::wrap(res).into(), data),
-    )))
+    Arc::new(ThreadGuard::new(RefCell::new(move |res, data: DispatchData<'_>| {
+        filter.send(Resource::<I>::wrap(res).into(), data)
+    })))
 }

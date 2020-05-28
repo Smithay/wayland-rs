@@ -115,10 +115,7 @@ pub struct QueueToken {
 
 impl EventQueue {
     pub(crate) fn new(inner: EventQueueInner, display: Display) -> EventQueue {
-        EventQueue {
-            inner: Rc::new(inner),
-            display,
-        }
+        EventQueue { inner: Rc::new(inner), display }
     }
     /// Dispatches events from the internal buffer.
     ///
@@ -154,7 +151,11 @@ impl EventQueue {
     ///
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch_pending<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
+    pub fn dispatch_pending<T: std::any::Any, F>(
+        &mut self,
+        data: &mut T,
+        fallback: F,
+    ) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
@@ -177,7 +178,11 @@ impl EventQueue {
     /// On success returns the number of dispatched events.
     /// If an error is returned, your connection with the wayland compositor is probably lost.
     /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn sync_roundtrip<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
+    pub fn sync_roundtrip<T: std::any::Any, F>(
+        &mut self,
+        data: &mut T,
+        fallback: F,
+    ) -> io::Result<u32>
     where
         F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
     {
@@ -189,9 +194,7 @@ impl EventQueue {
     ///
     /// See `QueueToken` documentation for its use.
     pub fn token(&self) -> QueueToken {
-        QueueToken {
-            inner: self.inner.clone(),
-        }
+        QueueToken { inner: self.inner.clone() }
     }
 
     /// Prepare an concurrent read
@@ -213,10 +216,7 @@ impl EventQueue {
     /// an io error `WouldBlock` in such cases.
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
         match self.inner.prepare_read() {
-            Ok(()) => Some(ReadEventsGuard {
-                inner: self.inner.clone(),
-                done: false,
-            }),
+            Ok(()) => Some(ReadEventsGuard { inner: self.inner.clone(), done: false }),
             Err(()) => None,
         }
     }

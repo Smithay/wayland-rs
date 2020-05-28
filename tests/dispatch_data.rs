@@ -21,10 +21,7 @@ fn client_dispatch_data() {
     });
     client.display.flush().unwrap();
     server.answer();
-    client
-        .event_queue
-        .dispatch(&mut done, |_, _, _| unreachable!())
-        .unwrap();
+    client.event_queue.dispatch(&mut done, |_, _, _| unreachable!()).unwrap();
     assert!(done);
 }
 
@@ -43,16 +40,11 @@ fn server_dispatch_data_global() {
     let manager = wayc::GlobalManager::new(&client.display_proxy);
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .unwrap();
+    manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     client.display.flush().unwrap();
 
     let mut done = false;
-    server
-        .display
-        .dispatch(Duration::from_millis(10), &mut done)
-        .unwrap();
+    server.display.dispatch(Duration::from_millis(10), &mut done).unwrap();
     assert!(done);
 }
 
@@ -61,27 +53,21 @@ fn server_dispatch_data_client_destructor() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(
         1,
-        ways::Filter::new(
-            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
-                compositor
-                    .as_ref()
-                    .client()
-                    .unwrap()
-                    .add_destructor(ways::Filter::new(|_, _, mut data| {
-                        let done = data.get::<bool>().unwrap();
-                        *done = true;
-                    }));
-            },
-        ),
+        ways::Filter::new(move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+            compositor.as_ref().client().unwrap().add_destructor(ways::Filter::new(
+                |_, _, mut data| {
+                    let done = data.get::<bool>().unwrap();
+                    *done = true;
+                },
+            ));
+        }),
     );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .unwrap();
+    manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     roundtrip(&mut client, &mut server).unwrap();
 
     // the client detructor should be in place and ready
@@ -93,10 +79,7 @@ fn server_dispatch_data_client_destructor() {
     // process the destructor
     let mut done = false;
     // system_lib / rust_impl do not process destructors at the same time
-    server
-        .display
-        .dispatch(Duration::from_millis(10), &mut done)
-        .unwrap();
+    server.display.dispatch(Duration::from_millis(10), &mut done).unwrap();
     server.display.flush_clients(&mut done);
     assert!(done);
 }
@@ -106,23 +89,19 @@ fn server_dispatch_data_resource() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(
         1,
-        ways::Filter::new(
-            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
-                compositor.quick_assign(|_, _, mut data| {
-                    let done = data.get::<bool>().unwrap();
-                    *done = true;
-                });
-            },
-        ),
+        ways::Filter::new(move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+            compositor.quick_assign(|_, _, mut data| {
+                let done = data.get::<bool>().unwrap();
+                *done = true;
+            });
+        }),
     );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
     roundtrip(&mut client, &mut server).unwrap();
 
-    let compositor = manager
-        .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .unwrap();
+    let compositor = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     roundtrip(&mut client, &mut server).unwrap();
 
     // the resource filter should be in place and ready
@@ -131,10 +110,7 @@ fn server_dispatch_data_resource() {
 
     // process the event
     let mut done = false;
-    server
-        .display
-        .dispatch(Duration::from_millis(10), &mut done)
-        .unwrap();
+    server.display.dispatch(Duration::from_millis(10), &mut done).unwrap();
     assert!(done);
 }
 
@@ -143,23 +119,19 @@ fn server_dispatch_data_resource_destructor() {
     let mut server = TestServer::new();
     server.display.create_global::<ServerCompositor, _>(
         1,
-        ways::Filter::new(
-            move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
-                compositor.assign_destructor(ways::Filter::new(|_: ways::Resource<_>, _, mut data| {
-                    let done = data.get::<bool>().unwrap();
-                    *done = true;
-                }));
-            },
-        ),
+        ways::Filter::new(move |(compositor, _): (ways::Main<ServerCompositor>, u32), _, _| {
+            compositor.assign_destructor(ways::Filter::new(|_: ways::Resource<_>, _, mut data| {
+                let done = data.get::<bool>().unwrap();
+                *done = true;
+            }));
+        }),
     );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .unwrap();
+    manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     roundtrip(&mut client, &mut server).unwrap();
 
     // the resource detructor should be in place and ready
@@ -171,10 +143,7 @@ fn server_dispatch_data_resource_destructor() {
     // process the destructor
     let mut done = false;
     // system_lib / rust_impl do not process destructors at the same time
-    server
-        .display
-        .dispatch(Duration::from_millis(10), &mut done)
-        .unwrap();
+    server.display.dispatch(Duration::from_millis(10), &mut done).unwrap();
     server.display.flush_clients(&mut done);
     assert!(done);
 }

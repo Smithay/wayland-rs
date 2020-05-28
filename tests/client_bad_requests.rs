@@ -9,9 +9,7 @@ use wayc::protocol::{wl_keyboard, wl_seat};
 #[test]
 fn constructor_dead() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -28,9 +26,7 @@ fn constructor_dead() {
 #[should_panic]
 fn send_constructor_wrong_type() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
@@ -39,7 +35,5 @@ fn send_constructor_wrong_type() {
 
     let seat = manager.instantiate_exact::<wl_seat::WlSeat>(5).unwrap();
 
-    let _ = seat
-        .as_ref()
-        .send::<wl_keyboard::WlKeyboard>(wl_seat::Request::GetPointer {}, None);
+    let _ = seat.as_ref().send::<wl_keyboard::WlKeyboard>(wl_seat::Request::GetPointer {}, None);
 }

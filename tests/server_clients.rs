@@ -27,20 +27,18 @@ fn client_user_data() {
             clients.lock().unwrap().push(client);
         })
     });
-    server
-        .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, {
-            let clients = clients.clone();
-            ways::Filter::new(
-                move |(compositor, _): (ways::Main<wl_compositor::WlCompositor>, u32), _, _| {
-                    let client = compositor.as_ref().client().unwrap();
-                    let ret = client.data_map().insert_if_missing(|| HasCompositor);
-                    // the data should not be already here
-                    assert!(ret);
-                    clients.lock().unwrap().push(client);
-                },
-            )
-        });
+    server.display.create_global::<wl_compositor::WlCompositor, _>(1, {
+        let clients = clients.clone();
+        ways::Filter::new(
+            move |(compositor, _): (ways::Main<wl_compositor::WlCompositor>, u32), _, _| {
+                let client = compositor.as_ref().client().unwrap();
+                let ret = client.data_map().insert_if_missing(|| HasCompositor);
+                // the data should not be already here
+                assert!(ret);
+                clients.lock().unwrap().push(client);
+            },
+        )
+    });
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);

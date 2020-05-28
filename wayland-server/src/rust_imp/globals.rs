@@ -49,10 +49,7 @@ pub(crate) struct GlobalManager {
 
 impl GlobalManager {
     pub(crate) fn new() -> GlobalManager {
-        GlobalManager {
-            registries: Rc::new(RefCell::new(Vec::new())),
-            globals: Vec::new(),
-        }
+        GlobalManager { registries: Rc::new(RefCell::new(Vec::new())), globals: Vec::new() }
     }
 
     pub(crate) fn add_global<I, F1, F2>(
@@ -76,11 +73,10 @@ impl GlobalManager {
                 // This is done in two times to ensure the client lock is not locked during
                 // the callback
                 let map = if let Some(ref clientconn) = *client.data.lock().unwrap() {
-                    clientconn
-                        .map
-                        .lock()
-                        .unwrap()
-                        .insert_at(newid, Object::from_interface::<I>(version, ObjectMeta::new()))?;
+                    clientconn.map.lock().unwrap().insert_at(
+                        newid,
+                        Object::from_interface::<I>(version, ObjectMeta::new()),
+                    )?;
                     Some(clientconn.map.clone())
                 } else {
                     None
@@ -209,9 +205,7 @@ impl GlobalManager {
     }
 
     fn self_cleanup(&self) {
-        self.registries
-            .borrow_mut()
-            .retain(|&(_, ref client)| client.alive());
+        self.registries.borrow_mut().retain(|&(_, ref client)| client.alive());
     }
 }
 

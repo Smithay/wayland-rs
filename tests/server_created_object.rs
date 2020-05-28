@@ -6,7 +6,9 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use ways::protocol::wl_data_device_manager::{Request as SDDMReq, WlDataDeviceManager as ServerDDMgr};
+use ways::protocol::wl_data_device_manager::{
+    Request as SDDMReq, WlDataDeviceManager as ServerDDMgr,
+};
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;
 
@@ -17,9 +19,7 @@ use wayc::protocol::wl_seat::WlSeat as ClientSeat;
 #[test]
 fn data_offer() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
     server.display.create_global::<ServerDDMgr, _>(
         3,
         ways::Filter::new(move |(resource, version): (ways::Main<ServerDDMgr>, u32), _, _| {
@@ -73,9 +73,7 @@ fn data_offer() {
 #[test]
 fn server_id_reuse() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
     let srv_dd = Rc::new(RefCell::new(None));
     let srv_dd2 = srv_dd.clone();
     server.display.create_global::<ServerDDMgr, _>(
@@ -159,9 +157,7 @@ fn server_id_reuse() {
 #[test]
 fn server_created_race() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_do = Rc::new(RefCell::new(None));
     let server_do_2 = server_do.clone();
@@ -237,9 +233,7 @@ fn server_created_race() {
 #[test]
 fn creation_destruction_race() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();
@@ -315,9 +309,7 @@ fn creation_destruction_race() {
 #[test]
 fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
-    server
-        .display
-        .create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<ServerSeat, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
 
     let server_dd = Rc::new(RefCell::new(Vec::new()));
     let server_dd_2 = server_dd.clone();

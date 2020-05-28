@@ -105,10 +105,7 @@ impl DisplayInner {
     pub(crate) unsafe fn from_external(display_ptr: *mut wl_display) -> Arc<DisplayInner> {
         Arc::new(DisplayInner {
             proxy: Proxy::wrap(ProxyInner::from_external_display(display_ptr as *mut _)),
-            display: Arc::new(DisplayGuard {
-                ptr: display_ptr,
-                external: true,
-            }),
+            display: Arc::new(DisplayGuard { ptr: display_ptr, external: true }),
         })
     }
 }

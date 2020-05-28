@@ -23,9 +23,7 @@ impl Client {
     ///
     /// The provided pointer must be a valid pointer from `libwayland-server`.
     pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
-        Client {
-            inner: ClientInner::from_ptr(ptr),
-        }
+        Client { inner: ClientInner::from_ptr(ptr) }
     }
 
     #[cfg(feature = "use_system_lib")]
@@ -81,8 +79,7 @@ impl Client {
     /// **Panics**: This function will panic if called from an other thread than the one
     /// hosting the Display.
     pub fn add_destructor(&self, destructor: crate::Filter<Arc<UserDataMap>>) {
-        self.inner
-            .add_destructor(move |ud, data| destructor.send(ud, data));
+        self.inner.add_destructor(move |ud, data| destructor.send(ud, data));
     }
 
     /// Creates a new resource for this client

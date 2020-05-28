@@ -38,10 +38,7 @@ impl<I: Interface> Clone for Proxy<I> {
         let mut cloned = self.inner.clone();
         // an owned Proxy must always be detached
         cloned.detach();
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: cloned,
-        }
+        Proxy { _i: ::std::marker::PhantomData, inner: cloned }
     }
 }
 
@@ -62,10 +59,7 @@ where
 {
     #[allow(dead_code)]
     pub(crate) fn wrap(inner: ProxyInner) -> Proxy<I> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner,
-        }
+        Proxy { _i: ::std::marker::PhantomData, inner }
     }
 
     /// Send a request creating an object through this object
@@ -145,18 +139,12 @@ where
     pub fn attach(&self, token: QueueToken) -> Attached<I> {
         let mut other = self.clone();
         other.inner.attach(&token.inner);
-        Attached {
-            inner: other.into(),
-            _s: std::marker::PhantomData,
-        }
+        Attached { inner: other.into(), _s: std::marker::PhantomData }
     }
 
     /// Erase the actual type of this proxy
     pub fn anonymize(self) -> Proxy<AnonymousObject> {
-        Proxy {
-            _i: ::std::marker::PhantomData,
-            inner: self.inner,
-        }
+        Proxy { _i: ::std::marker::PhantomData, inner: self.inner }
     }
 }
 
@@ -164,10 +152,7 @@ impl Proxy<AnonymousObject> {
     /// Attempt to recover the typed variant of an anonymous proxy
     pub fn deanonymize<I: Interface>(self) -> Result<Proxy<I>, Self> {
         if self.inner.is_interface::<I>() {
-            Ok(Proxy {
-                inner: self.inner,
-                _i: ::std::marker::PhantomData,
-            })
+            Ok(Proxy { inner: self.inner, _i: ::std::marker::PhantomData })
         } else {
             Err(self)
         }
@@ -211,11 +196,7 @@ where
     fn clone(&self) -> Attached<I> {
         let cloned = self.inner.as_ref().inner.clone();
         Attached {
-            inner: Proxy {
-                _i: std::marker::PhantomData,
-                inner: cloned,
-            }
-            .into(),
+            inner: Proxy { _i: std::marker::PhantomData, inner: cloned }.into(),
             _s: std::marker::PhantomData,
         }
     }
@@ -238,11 +219,7 @@ where
     pub(crate) fn wrap(inner: ProxyInner) -> Main<I> {
         Main {
             inner: Attached {
-                inner: Proxy {
-                    _i: std::marker::PhantomData,
-                    inner,
-                }
-                .into(),
+                inner: Proxy { _i: std::marker::PhantomData, inner }.into(),
                 _s: std::marker::PhantomData,
             },
         }
@@ -286,15 +263,14 @@ where
 
 impl Main<AnonymousObject> {
     /// Attempt to recover the typed variant of an anonymous proxy
-    pub fn deanonymize<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(self) -> Result<Main<I>, Self> {
+    pub fn deanonymize<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
+        self,
+    ) -> Result<Main<I>, Self> {
         if self.inner.as_ref().inner.is_interface::<I>() {
             Ok(Main {
                 inner: Attached {
-                    inner: Proxy {
-                        _i: std::marker::PhantomData,
-                        inner: self.inner.inner.0.inner,
-                    }
-                    .into(),
+                    inner: Proxy { _i: std::marker::PhantomData, inner: self.inner.inner.0.inner }
+                        .into(),
                     _s: std::marker::PhantomData,
                 },
             })
@@ -424,10 +400,7 @@ impl<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>> Proxy<I> {
     {
         #[cfg(feature = "use_system_lib")]
         {
-            Proxy {
-                _i: ::std::marker::PhantomData,
-                inner: ProxyInner::from_c_ptr::<I>(_ptr),
-            }
+            Proxy { _i: ::std::marker::PhantomData, inner: ProxyInner::from_c_ptr::<I>(_ptr) }
         }
         #[cfg(not(feature = "use_system_lib"))]
         {

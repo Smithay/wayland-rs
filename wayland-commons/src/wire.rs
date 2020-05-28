@@ -149,8 +149,12 @@ impl ::std::fmt::Display for MessageParseError {
             MessageParseError::MissingFD => {
                 f.write_str("The message references a FD but the buffer FD is empty.")
             }
-            MessageParseError::MissingData => f.write_str("More data is needed to deserialize the message"),
-            MessageParseError::Malformed => f.write_str("The message is malformed and cannot be parsed"),
+            MessageParseError::MissingData => {
+                f.write_str("More data is needed to deserialize the message")
+            }
+            MessageParseError::Malformed => {
+                f.write_str("The message is malformed and cannot be parsed")
+            }
         }
     }
 }
@@ -267,8 +271,9 @@ impl Message {
                 return Err(MessageParseError::MissingData);
             }
             let (array_contents, rest) = payload.split_at(word_len);
-            let array =
-                unsafe { ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len) };
+            let array = unsafe {
+                ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len)
+            };
             Ok((array, rest))
         }
 
@@ -305,15 +310,14 @@ impl Message {
                         ArgumentType::Int => Ok(Argument::Int(front as i32)),
                         ArgumentType::Uint => Ok(Argument::Uint(front)),
                         ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
-                        ArgumentType::Str => {
-                            read_array_from_payload(front as usize, tail).and_then(|(v, rest)| {
+                        ArgumentType::Str => read_array_from_payload(front as usize, tail)
+                            .and_then(|(v, rest)| {
                                 tail = rest;
                                 match CStr::from_bytes_with_nul(v) {
                                     Ok(s) => Ok(Argument::Str(Box::new(s.into()))),
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
-                            })
-                        }
+                            }),
                         ArgumentType::Object => Ok(Argument::Object(front)),
                         ArgumentType::NewId => Ok(Argument::NewId(front)),
                         ArgumentType::Array => {
@@ -332,11 +336,7 @@ impl Message {
             })
             .collect::<Result<SmallVec<_>, MessageParseError>>()?;
 
-        let msg = Message {
-            sender_id,
-            opcode,
-            args: arguments,
-        };
+        let msg = Message { sender_id, opcode, args: arguments };
         Ok((msg, rest, fds))
     }
 }
@@ -425,8 +425,7 @@ mod tests {
             ],
         };
         // write the message to the buffers
-        msg.write_to_buffers(&mut bytes_buffer[..], &mut fd_buffer[..])
-            .unwrap();
+        msg.write_to_buffers(&mut bytes_buffer[..], &mut fd_buffer[..]).unwrap();
         // read them back
         let (rebuilt, _, _) = Message::from_raw(
             &bytes_buffer[..],

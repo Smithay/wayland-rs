@@ -143,12 +143,8 @@ pub fn generate_code_with_destructor_events<P1: AsRef<Path>, P2: AsRef<Path>>(
     }
 
     {
-        let mut out = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(&target)
-            .unwrap();
+        let mut out =
+            OpenOptions::new().write(true).truncate(true).create(true).open(&target).unwrap();
 
         let output = match side {
             Side::Client => c_code_gen::generate_protocol_client(protocol),

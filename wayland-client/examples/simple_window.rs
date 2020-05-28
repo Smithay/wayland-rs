@@ -29,9 +29,7 @@ fn main() {
     let globals = GlobalManager::new(&attached_display);
 
     // roundtrip to retrieve the globals list
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 
     /*
      * Create a buffer with window contents
@@ -59,9 +57,7 @@ fn main() {
      */
 
     // The compositor allows us to creates surfaces
-    let compositor = globals
-        .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .unwrap();
+    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     let surface = compositor.create_surface();
 
     // The SHM allows us to share memory with the server, and create buffers
@@ -107,17 +103,13 @@ fn main() {
     // example of using a common filter to handle both pointer & keyboard events
     let common_filter = Filter::new(move |event, _, _| match event {
         Events::Pointer { event, .. } => match event {
-            wl_pointer::Event::Enter {
-                surface_x, surface_y, ..
-            } => {
+            wl_pointer::Event::Enter { surface_x, surface_y, .. } => {
                 println!("Pointer entered at ({}, {}).", surface_x, surface_y);
             }
             wl_pointer::Event::Leave { .. } => {
                 println!("Pointer left.");
             }
-            wl_pointer::Event::Motion {
-                surface_x, surface_y, ..
-            } => {
+            wl_pointer::Event::Motion { surface_x, surface_y, .. } => {
                 println!("Pointer moved to ({}, {}).", surface_x, surface_y);
             }
             wl_pointer::Event::Button { button, state, .. } => {
@@ -144,36 +136,29 @@ fn main() {
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
     let mut keyboard_created = false;
-    globals
-        .instantiate_exact::<wl_seat::WlSeat>(1)
-        .unwrap()
-        .quick_assign(move |seat, event, _| {
-            // The capabilities of a seat are known at runtime and we retrieve
-            // them via an events. 3 capabilities exists: pointer, keyboard, and touch
-            // we are only interested in pointer & keyboard here
-            use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent};
+    globals.instantiate_exact::<wl_seat::WlSeat>(1).unwrap().quick_assign(move |seat, event, _| {
+        // The capabilities of a seat are known at runtime and we retrieve
+        // them via an events. 3 capabilities exists: pointer, keyboard, and touch
+        // we are only interested in pointer & keyboard here
+        use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent};
 
-            if let SeatEvent::Capabilities { capabilities } = event {
-                if !pointer_created && capabilities.contains(Capability::Pointer) {
-                    // create the pointer only once
-                    pointer_created = true;
-                    seat.get_pointer().assign(common_filter.clone());
-                }
-                if !keyboard_created && capabilities.contains(Capability::Keyboard) {
-                    // create the keyboard only once
-                    keyboard_created = true;
-                    seat.get_keyboard().assign(common_filter.clone());
-                }
+        if let SeatEvent::Capabilities { capabilities } = event {
+            if !pointer_created && capabilities.contains(Capability::Pointer) {
+                // create the pointer only once
+                pointer_created = true;
+                seat.get_pointer().assign(common_filter.clone());
             }
-        });
+            if !keyboard_created && capabilities.contains(Capability::Keyboard) {
+                // create the keyboard only once
+                keyboard_created = true;
+                seat.get_keyboard().assign(common_filter.clone());
+            }
+        }
+    });
 
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })
-        .unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
 
     loop {
-        event_queue
-            .dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })
-            .unwrap();
+        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
     }
 }

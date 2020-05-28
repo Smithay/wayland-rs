@@ -95,7 +95,8 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
             let array_values = msg.args.iter().map(|arg| match (arg.typ, &arg.interface) {
                 (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
                     let module = Ident::new(inter, Span::call_site());
-                    let interface_ident = Ident::new(&format!("{}_interface", inter), Span::call_site());
+                    let interface_ident =
+                        Ident::new(&format!("{}_interface", inter), Span::call_site());
                     quote!(unsafe { &super::#module::#interface_ident as *const wl_interface })
                 }
                 _ => quote!(NULLPTR as *const wl_interface),
@@ -109,7 +110,8 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
         }
     });
 
-    let message_array_ident = Ident::new(&format!("{}_{}", interface.name, which), Span::call_site());
+    let message_array_ident =
+        Ident::new(&format!("{}_{}", interface.name, which), Span::call_site());
     let message_array_len = Literal::usize_unsuffixed(messages.len());
     let message_array_values = messages.iter().map(|msg| {
         let name_value = null_terminated_byte_string_literal(&msg.name);

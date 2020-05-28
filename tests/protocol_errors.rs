@@ -95,31 +95,22 @@ fn client_receive_error() {
     let mut server = TestServer::new();
     let server_output = Rc::new(RefCell::new(None));
     let my_server_output = server_output.clone();
-    server
-        .display
-        .create_global::<ways::protocol::wl_output::WlOutput, _>(
-            3,
-            ways::Filter::new(move |(output, _), _, _| *my_server_output.borrow_mut() = Some(output)),
-        );
+    server.display.create_global::<ways::protocol::wl_output::WlOutput, _>(
+        3,
+        ways::Filter::new(move |(output, _), _, _| *my_server_output.borrow_mut() = Some(output)),
+    );
 
     let mut client = TestClient::new(&server.socket_name);
     let manager = wayc::GlobalManager::new(&client.display_proxy);
 
     roundtrip(&mut client, &mut server).unwrap();
 
-    manager
-        .instantiate_exact::<wayc::protocol::wl_output::WlOutput>(3)
-        .unwrap();
+    manager.instantiate_exact::<wayc::protocol::wl_output::WlOutput>(3).unwrap();
 
     roundtrip(&mut client, &mut server).unwrap();
 
     // the server sends a protocol error
-    server_output
-        .borrow()
-        .as_ref()
-        .unwrap()
-        .as_ref()
-        .post_error(42, "I don't like you!".into());
+    server_output.borrow().as_ref().unwrap().as_ref().post_error(42, "I don't like you!".into());
 
     // the error has not yet reached the client
     assert!(client.display.protocol_error().is_none());

@@ -30,9 +30,7 @@ impl Display {
     /// your need to add listening sockets using the `add_socket*` methods.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Display {
-        Display {
-            inner: DisplayInner::new(),
-        }
+        Display { inner: DisplayInner::new() }
     }
 
     /// Create a new global object
@@ -135,14 +133,14 @@ impl Display {
     /// In general for good performance you will want to integrate the `Display` into your own event loop,
     /// monitoring the file descriptor retrieved by the `get_poll_fd()` method, and only calling this method
     /// when messages are available, with a timeout of `0`.
-    pub fn dispatch<T: std::any::Any>(&mut self, timeout: std::time::Duration, data: &mut T) -> IoResult<()> {
+    pub fn dispatch<T: std::any::Any>(
+        &mut self,
+        timeout: std::time::Duration,
+        data: &mut T,
+    ) -> IoResult<()> {
         let data = crate::DispatchData::wrap(data);
         let ms = timeout.as_millis();
-        let clamped_timeout = if ms > std::i32::MAX as u128 {
-            std::i32::MAX
-        } else {
-            ms as i32
-        };
+        let clamped_timeout = if ms > std::i32::MAX as u128 { std::i32::MAX } else { ms as i32 };
         self.inner.dispatch(clamped_timeout, data)
     }
 
@@ -246,9 +244,6 @@ impl Display {
 pub(crate) fn get_runtime_dir() -> IoResult<PathBuf> {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(s) => Ok(s.into()),
-        None => Err(IoError::new(
-            ErrorKind::NotFound,
-            "XDG_RUNTIME_DIR env variable is not set",
-        )),
+        None => Err(IoError::new(ErrorKind::NotFound, "XDG_RUNTIME_DIR env variable is not set")),
     }
 }

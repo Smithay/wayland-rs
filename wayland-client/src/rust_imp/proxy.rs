@@ -154,11 +154,7 @@ impl ProxyInner {
             // insert the newly created object in the message
             let new_object = Object::from_interface::<J>(
                 version.unwrap_or(self.object.version),
-                if alive {
-                    ObjectMeta::new(target_queue.clone())
-                } else {
-                    ObjectMeta::dead()
-                },
+                if alive { ObjectMeta::new(target_queue.clone()) } else { ObjectMeta::dead() },
             );
             let mut new_id = 0;
             if alive {
