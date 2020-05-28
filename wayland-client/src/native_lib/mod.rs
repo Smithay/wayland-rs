@@ -21,7 +21,10 @@ impl ProxyMap {
     }
 
     /// Unusable method only existing for type-level compatibility
-    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(&mut self, _: u32) -> Option<Main<I>> {
+    pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
+        &mut self,
+        _: u32,
+    ) -> Option<Main<I>> {
         match *self {}
     }
 }

@@ -107,10 +107,7 @@ pub struct ObjectMap<Meta: ObjectMetadata> {
 impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     /// Create a new empty object map
     pub fn new() -> ObjectMap<Meta> {
-        ObjectMap {
-            client_objects: Vec::new(),
-            server_objects: Vec::new(),
-        }
+        ObjectMap { client_objects: Vec::new(), server_objects: Vec::new() }
     }
 
     /// Find an object in the store
@@ -118,9 +115,7 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         if id == 0 {
             None
         } else if id >= SERVER_ID_LIMIT {
-            self.server_objects
-                .get((id - SERVER_ID_LIMIT) as usize)
-                .and_then(Clone::clone)
+            self.server_objects.get((id - SERVER_ID_LIMIT) as usize).and_then(Clone::clone)
         } else {
             self.client_objects.get((id - 1) as usize).and_then(Clone::clone)
         }
@@ -170,13 +165,15 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
         if id == 0 {
             Err(())
         } else if id >= SERVER_ID_LIMIT {
-            if let Some(&mut Some(ref mut obj)) = self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize)
+            if let Some(&mut Some(ref mut obj)) =
+                self.server_objects.get_mut((id - SERVER_ID_LIMIT) as usize)
             {
                 Ok(f(obj))
             } else {
                 Err(())
             }
-        } else if let Some(&mut Some(ref mut obj)) = self.client_objects.get_mut((id - 1) as usize) {
+        } else if let Some(&mut Some(ref mut obj)) = self.client_objects.get_mut((id - 1) as usize)
+        {
             Ok(f(obj))
         } else {
             Err(())
@@ -199,7 +196,10 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
 }
 
 // insert a new object in a store at the first free place
-fn insert_in<Meta: ObjectMetadata>(store: &mut Vec<Option<Object<Meta>>>, object: Object<Meta>) -> u32 {
+fn insert_in<Meta: ObjectMetadata>(
+    store: &mut Vec<Option<Object<Meta>>>,
+    object: Object<Meta>,
+) -> u32 {
     match store.iter().position(Option::is_none) {
         Some(id) => {
             store[id] = Some(object);

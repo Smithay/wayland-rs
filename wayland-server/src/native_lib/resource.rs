@@ -19,10 +19,7 @@ pub(crate) struct ResourceInternal {
 
 impl ResourceInternal {
     fn new(user_data: UserData) -> ResourceInternal {
-        ResourceInternal {
-            alive: AtomicBool::new(true),
-            user_data,
-        }
+        ResourceInternal { alive: AtomicBool::new(true), user_data }
     }
 }
 
@@ -70,10 +67,7 @@ impl ResourceInner {
     }
 
     pub(crate) fn is_alive(&self) -> bool {
-        self.internal
-            .as_ref()
-            .map(|i| i.alive.load(Ordering::Acquire))
-            .unwrap_or(true)
+        self.internal.as_ref().map(|i| i.alive.load(Ordering::Acquire)).unwrap_or(true)
     }
 
     pub(crate) fn version(&self) -> u32 {
@@ -102,8 +96,10 @@ impl ResourceInner {
         }
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
-            let my_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
-            let other_client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr);
+            let my_client_ptr =
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
+            let other_client_ptr =
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr);
             my_client_ptr == other_client_ptr
         }
     }
@@ -128,7 +124,8 @@ impl ResourceInner {
         if self.is_alive() {
             let _c_safety_guard = super::C_SAFETY.lock();
             unsafe {
-                let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
+                let client_ptr =
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr);
                 Some(ClientInner::from_ptr(client_ptr))
             }
         } else {
@@ -249,10 +246,7 @@ impl ResourceInner {
     }
 
     pub(crate) fn clone(&self) -> ResourceInner {
-        ResourceInner {
-            internal: self.internal.clone(),
-            ptr: self.ptr,
-        }
+        ResourceInner { internal: self.internal.clone(), ptr: self.ptr }
     }
 
     pub fn assign<I, E>(&self, filter: crate::Filter<E>)
@@ -263,12 +257,12 @@ impl ResourceInner {
     {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
-            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
-                as *mut ResourceUserData<I>;
+            let user_data =
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
+                    as *mut ResourceUserData<I>;
             if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
-                **guard = Some(Box::new(move |evt, obj, data| {
-                    filter.send((obj, evt).into(), data)
-                }));
+                **guard =
+                    Some(Box::new(move |evt, obj, data| filter.send((obj, evt).into(), data)));
             } else {
                 panic!("Re-assigning an object from within its own callback is not supported.");
             }
@@ -282,9 +276,11 @@ impl ResourceInner {
     {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
-            let user_data = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
-                as *mut ResourceUserData<I>;
-            (*user_data).destructor = Some(Box::new(move |obj, data| filter.send(obj.into(), data)));
+            let user_data =
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, self.ptr)
+                    as *mut ResourceUserData<I>;
+            (*user_data).destructor =
+                Some(Box::new(move |obj, data| filter.send(obj.into(), data)));
         }
     }
 }
@@ -353,9 +349,7 @@ where
                         I::NAME,
                         resource_obj.as_ref().id()
                     );
-                    resource_obj
-                        .as_ref()
-                        .post_error(2, "Server-side bug, sorry.".into());
+                    resource_obj.as_ref().post_error(2, "Server-side bug, sorry.".into());
                     return Ok(());
                 }
             }

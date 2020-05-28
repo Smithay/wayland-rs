@@ -17,9 +17,10 @@ fn global_filter() {
     let mut server = TestServer::new();
 
     // everyone see the compositor
-    server
-        .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<wl_compositor::WlCompositor, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, _| {}),
+    );
 
     // everyone see the shm
     server.display.create_global_with_filter::<wl_shm::WlShm, _, _>(
@@ -29,13 +30,11 @@ fn global_filter() {
     );
 
     // only privileged clients see the output
-    let privileged_output = server
-        .display
-        .create_global_with_filter::<wl_output::WlOutput, _, _>(
-            1,
-            ways::Filter::new(|_: (_, _), _, _| {}),
-            |client| client.data_map().get::<Privileged>().is_some(),
-        );
+    let privileged_output = server.display.create_global_with_filter::<wl_output::WlOutput, _, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, _| {}),
+        |client| client.data_map().get::<Privileged>().is_some(),
+    );
 
     // normal client only sees two globals
     let mut client = TestClient::new(&server.socket_name);
@@ -80,13 +79,11 @@ fn global_filter_try_force() {
     let mut server = TestServer::new();
 
     // only privileged clients see the output
-    server
-        .display
-        .create_global_with_filter::<wl_output::WlOutput, _, _>(
-            1,
-            ways::Filter::new(|_: (_, _), _, _| {}),
-            |client| client.data_map().get::<Privileged>().is_some(),
-        );
+    server.display.create_global_with_filter::<wl_output::WlOutput, _, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, _| {}),
+        |client| client.data_map().get::<Privileged>().is_some(),
+    );
 
     // normal client that cannot bind the privileged global
     let mut client = TestClient::new(&server.socket_name);
@@ -124,12 +121,19 @@ fn external_globals() {
 
     let mut server = TestServer::new();
 
-    extern "C" fn dummy_global_bind(_client: *mut wl_client, _data: *mut c_void, _version: u32, _id: u32) {}
+    extern "C" fn dummy_global_bind(
+        _client: *mut wl_client,
+        _data: *mut c_void,
+        _version: u32,
+        _id: u32,
+    ) {
+    }
 
     // everyone see the compositor
-    server
-        .display
-        .create_global::<wl_compositor::WlCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.create_global::<wl_compositor::WlCompositor, _>(
+        1,
+        ways::Filter::new(|_: (_, _), _, _| {}),
+    );
 
     // create a global via the C API, it'll not be initialized like a rust one
     unsafe {

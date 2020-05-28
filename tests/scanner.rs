@@ -27,9 +27,7 @@ fn print_diff(diffs: &[Difference]) {
             if let &Difference::Same(_) = d {
                 Vec::new().into_iter()
             } else {
-                ((max(i, 3) - 3)..(min(i + 4, n)))
-                    .collect::<Vec<usize>>()
-                    .into_iter()
+                ((max(i, 3) - 3)..(min(i + 4, n))).collect::<Vec<usize>>().into_iter()
             }
         })
         .collect::<Vec<_>>();
@@ -97,10 +95,7 @@ fn run_codegen_test(generated_file_path: &Path, expected_output: &str) {
             let changeset = Changeset::new(expected_output, &actual_output, "\n");
             if changeset.distance != 0 {
                 print_diff(&changeset.diffs);
-                panic!(
-                    "Scanner output does not match expected output: d = {}",
-                    changeset.distance
-                );
+                panic!("Scanner output does not match expected output: d = {}", changeset.distance);
             }
         }
         _ => {

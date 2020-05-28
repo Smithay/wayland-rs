@@ -19,10 +19,7 @@ impl FdManager {
     pub(crate) fn new() -> nix::Result<FdManager> {
         let fd = epoll_create1(EpollCreateFlags::EPOLL_CLOEXEC)?;
 
-        Ok(FdManager {
-            epoll_fd: fd,
-            callbacks: RefCell::new(Vec::new()),
-        })
+        Ok(FdManager { epoll_fd: fd, callbacks: RefCell::new(Vec::new()) })
     }
 
     pub(crate) fn register<F: FnMut(DispatchData<'_>) + 'static>(
@@ -68,9 +65,7 @@ impl FdManager {
         for event in events.iter().take(n) {
             let id = event.data() as usize;
             // remove the cb while we call it, to gracefully handle reentrancy
-            let cb = self.callbacks.borrow_mut()[id]
-                .as_mut()
-                .and_then(|(_, ref mut cb)| cb.take());
+            let cb = self.callbacks.borrow_mut()[id].as_mut().and_then(|(_, ref mut cb)| cb.take());
             if let Some(mut cb) = cb {
                 cb(data.reborrow());
                 // now, put it back in place

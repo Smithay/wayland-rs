@@ -35,7 +35,9 @@ impl ::std::fmt::Display for GlobalError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             GlobalError::Missing => f.write_str("The requested global was missing."),
-            GlobalError::VersionTooLow(_) => f.write_str("The requested global's version is too low."),
+            GlobalError::VersionTooLow(_) => {
+                f.write_str("The requested global's version is too low.")
+            }
         }
     }
 }
@@ -76,11 +78,7 @@ impl GlobalManager {
         registry.quick_assign(move |_proxy, msg, _data| {
             let mut inner = inner.lock().unwrap();
             match msg {
-                wl_registry::Event::Global {
-                    name,
-                    interface,
-                    version,
-                } => {
+                wl_registry::Event::Global { name, interface, version } => {
                     inner.list.push((name, interface, version));
                 }
                 wl_registry::Event::GlobalRemove { name } => {
@@ -89,10 +87,7 @@ impl GlobalManager {
             }
         });
 
-        GlobalManager {
-            inner: inner_clone,
-            registry,
-        }
+        GlobalManager { inner: inner_clone, registry }
     }
 
     /// Create a global manager handling a registry with a callback
@@ -105,7 +100,10 @@ impl GlobalManager {
     ///
     /// You need to provide an attached handle of the Waland display, and the
     /// global manager will be managed by the associated event queue.
-    pub fn new_with_cb<F>(display: &Attached<wl_display::WlDisplay>, mut callback: F) -> GlobalManager
+    pub fn new_with_cb<F>(
+        display: &Attached<wl_display::WlDisplay>,
+        mut callback: F,
+    ) -> GlobalManager
     where
         F: FnMut(GlobalEvent, Attached<wl_registry::WlRegistry>, DispatchData) + 'static,
     {
@@ -150,10 +148,7 @@ impl GlobalManager {
             }
         });
 
-        GlobalManager {
-            inner: inner_clone,
-            registry,
-        }
+        GlobalManager { inner: inner_clone, registry }
     }
 
     /// Instantiate a global with a specific version
@@ -197,7 +192,11 @@ impl GlobalManager {
     /// actually been used on any object using the `Proxy::version()` method.
     ///
     /// As `instantiate_exact`, it should only be used for singleton globals, for the same reasons.
-    pub fn instantiate_range<I>(&self, min_version: u32, max_version: u32) -> Result<Main<I>, GlobalError>
+    pub fn instantiate_range<I>(
+        &self,
+        min_version: u32,
+        max_version: u32,
+    ) -> Result<Main<I>, GlobalError>
     where
         I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>,
     {

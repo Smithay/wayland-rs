@@ -21,10 +21,7 @@ pub struct ProxyInternal {
 
 impl ProxyInternal {
     pub fn new(user_data: UserData) -> ProxyInternal {
-        ProxyInternal {
-            alive: AtomicBool::new(true),
-            user_data,
-        }
+        ProxyInternal { alive: AtomicBool::new(true), user_data }
     }
 }
 
@@ -47,10 +44,7 @@ impl ProxyInner {
             }
         }
 
-        self.internal
-            .as_ref()
-            .map(|i| i.alive.load(Ordering::Acquire))
-            .unwrap_or(true)
+        self.internal.as_ref().map(|i| i.alive.load(Ordering::Acquire)).unwrap_or(true)
     }
 
     pub(crate) fn is_external(&self) -> bool {
@@ -61,7 +55,8 @@ impl ProxyInner {
         if !self.is_alive() {
             return 0;
         }
-        let version = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 };
+        let version =
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, self.ptr) as u32 };
         if version == 0 {
             // For backcompat reasons the C libs return 0 as a version for the wl_display
             // So override it
@@ -247,9 +242,8 @@ impl ProxyInner {
             let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr)
                 as *mut ProxyUserData<I>;
             if let Ok(ref mut guard) = (*user_data).implem.try_borrow_mut() {
-                **guard = Some(Box::new(move |evt, obj, data| {
-                    filter.send((obj, evt).into(), data)
-                }));
+                **guard =
+                    Some(Box::new(move |evt, obj, data| filter.send((obj, evt).into(), data)));
             } else {
                 panic!("Re-assigning an object from within its own callback is not supported.");
             }
@@ -272,12 +266,7 @@ impl ProxyInner {
         );
 
         // We are a Main<_>, so ptr == wrapping
-        ProxyInner {
-            internal: Some(internal),
-            ptr,
-            wrapping: Some(ptr),
-            display: None,
-        }
+        ProxyInner { internal: Some(internal), ptr, wrapping: Some(ptr), display: None }
     }
 
     fn dead() -> Self {
@@ -304,27 +293,17 @@ impl ProxyInner {
                 == &::wayland_sys::RUST_MANAGED as *const u8 as *const _
         };
         let internal = if is_managed {
-            let user_data =
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr) as *mut ProxyUserData<I>;
+            let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr)
+                as *mut ProxyUserData<I>;
             Some((*user_data).internal.clone())
         } else {
             None
         };
-        ProxyInner {
-            internal,
-            ptr,
-            wrapping: None,
-            display: None,
-        }
+        ProxyInner { internal, ptr, wrapping: None, display: None }
     }
 
     pub(crate) unsafe fn from_external_display(d: *mut wl_proxy) -> ProxyInner {
-        ProxyInner {
-            internal: None,
-            ptr: d,
-            wrapping: None,
-            display: None,
-        }
+        ProxyInner { internal: None, ptr: d, wrapping: None, display: None }
     }
 }
 
@@ -344,7 +323,8 @@ impl Clone for ProxyInner {
                 // create a new wrapper to keep correct track of them
                 let wrapper_ptr;
                 unsafe {
-                    wrapper_ptr = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create_wrapper, ptr);
+                    wrapper_ptr =
+                        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create_wrapper, ptr);
                 }
                 new.wrapping = Some(wrapper_ptr);
             } else {
@@ -476,7 +456,8 @@ unsafe fn parse_raw_event<I: Interface>(opcode: u32, args: *const wl_argument) -
                 } else {
                     let array = &*a.a;
                     crate::Argument::Array(Some(
-                        ::std::slice::from_raw_parts(array.data as *const u8, array.size).to_owned(),
+                        ::std::slice::from_raw_parts(array.data as *const u8, array.size)
+                            .to_owned(),
                     ))
                 }
             }
@@ -507,10 +488,5 @@ unsafe fn parse_raw_event<I: Interface>(opcode: u32, args: *const wl_argument) -
         });
     }
 
-    RawEvent {
-        interface: I::NAME,
-        opcode: opcode as u16,
-        name: desc.name,
-        args,
-    }
+    RawEvent { interface: I::NAME, opcode: opcode as u16, name: desc.name, args }
 }

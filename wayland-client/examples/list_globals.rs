@@ -20,9 +20,7 @@ fn main() {
 
     // A roundtrip synchronization to make sure the server received our registry
     // creation and sent us the global list
-    event_queue
-        .sync_roundtrip(&mut (), |_, _, _| unreachable!())
-        .unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 
     // Print the list
     for (id, interface, version) in globals.list() {

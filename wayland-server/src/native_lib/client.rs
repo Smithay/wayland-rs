@@ -57,20 +57,13 @@ impl ClientInner {
                 listener,
                 Box::into_raw(Box::new(internal.clone())) as *mut c_void,
             );
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_client_add_destroy_listener,
-                ptr,
-                listener
-            );
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_add_destroy_listener, ptr, listener);
             ClientInner { ptr, internal }
         } else {
             // client already initialized
-            let internal = signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>;
-            ClientInner {
-                ptr,
-                internal: (*internal).clone(),
-            }
+            let internal =
+                signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>;
+            ClientInner { ptr, internal: (*internal).clone() }
         }
     }
 
@@ -121,15 +114,11 @@ impl ClientInner {
         // Wrap the FnOnce in an FnMut because Box<FnOnce()> does not work
         // currently =(
         let mut opt_dest = Some(destructor);
-        self.internal
-            .destructors
-            .get()
-            .borrow_mut()
-            .push(Box::new(move |data_map, data| {
-                if let Some(dest) = opt_dest.take() {
-                    dest(data_map, data);
-                }
-            }))
+        self.internal.destructors.get().borrow_mut().push(Box::new(move |data_map, data| {
+            if let Some(dest) = opt_dest.take() {
+                dest(data_map, data);
+            }
+        }))
     }
 
     pub(crate) fn create_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
@@ -158,7 +147,8 @@ impl ClientInner {
 }
 
 unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_void) {
-    let internal = Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>);
+    let internal =
+        Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut Arc<ClientInternal>);
     signal::rust_listener_set_user_data(listener, ptr::null_mut());
     // Store that we are dead
     internal.alive.store(false, Ordering::Release);

@@ -7,11 +7,8 @@ use wayland_scanner::*;
 type StableProtocol<'a> = (&'a str, &'a [(&'a str, &'a str)]);
 type UnstableProtocol<'a> = (&'a str, &'a [(&'a str, &'a [(&'a str, &'a str)])]);
 
-static STABLE_PROTOCOLS: &[StableProtocol] = &[
-    ("presentation-time", &[]),
-    ("viewporter", &[]),
-    ("xdg-shell", &[]),
-];
+static STABLE_PROTOCOLS: &[StableProtocol] =
+    &[("presentation-time", &[]), ("viewporter", &[]), ("xdg-shell", &[])];
 
 static UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
     ("fullscreen-shell", &[("v1", &[])]),
@@ -121,11 +118,8 @@ fn main() {
     if var("CARGO_FEATURE_UNSTABLE_PROTOCOLS").ok().is_some() {
         for &(name, versions) in UNSTABLE_PROTOCOLS {
             for &(version, dest_events) in versions {
-                let file = format!(
-                    "{name}/{name}-unstable-{version}.xml",
-                    name = name,
-                    version = version
-                );
+                let file =
+                    format!("{name}/{name}-unstable-{version}.xml", name = name, version = version);
                 generate_protocol(
                     &format!("{name}-{version}", name = name, version = version),
                     &Path::new("./protocols/unstable").join(file),

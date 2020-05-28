@@ -38,11 +38,7 @@ impl ToTokens for Enum {
                     .map(description_to_doc_attr)
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
 
-                let prefix = if entry.name.chars().next().unwrap().is_numeric() {
-                    "_"
-                } else {
-                    ""
-                };
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
                 let ident = Ident::new(
                     &format!("{}{}", prefix, snake_to_camel(&entry.name)),
                     Span::call_site(),
@@ -83,11 +79,7 @@ impl ToTokens for Enum {
                     .map(description_to_doc_attr)
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
 
-                let prefix = if entry.name.chars().next().unwrap().is_numeric() {
-                    "_"
-                } else {
-                    ""
-                };
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
                 let variant = Ident::new(
                     &format!("{}{}", prefix, snake_to_camel(&entry.name)),
                     Span::call_site(),
@@ -114,11 +106,7 @@ impl ToTokens for Enum {
             let match_arms = self.entries.iter().map(|entry| {
                 let value = Literal::u32_unsuffixed(entry.value);
 
-                let prefix = if entry.name.chars().next().unwrap().is_numeric() {
-                    "_"
-                } else {
-                    ""
-                };
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
                 let variant = Ident::new(
                     &format!("{}{}", prefix, snake_to_camel(&entry.name)),
                     Span::call_site(),
@@ -152,10 +140,8 @@ impl ToTokens for Enum {
 
 pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> TokenStream {
     let req_constants = requests.iter().map(|msg| {
-        let cstname = Ident::new(
-            &format!("REQ_{}_SINCE", msg.name.to_ascii_uppercase()),
-            Span::call_site(),
-        );
+        let cstname =
+            Ident::new(&format!("REQ_{}_SINCE", msg.name.to_ascii_uppercase()), Span::call_site());
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this request
@@ -163,10 +149,8 @@ pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> T
         }
     });
     let evt_constants = events.iter().map(|msg| {
-        let cstname = Ident::new(
-            &format!("EVT_{}_SINCE", msg.name.to_ascii_uppercase()),
-            Span::call_site(),
-        );
+        let cstname =
+            Ident::new(&format!("EVT_{}_SINCE", msg.name.to_ascii_uppercase()), Span::call_site());
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this event
@@ -225,7 +209,8 @@ pub(crate) fn gen_messagegroup(
                         Type::Object => {
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());
-                                let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+                                let iface_type =
+                                    Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(super::#iface_mod::#iface_type)
                             } else {
                                 quote!(AnonymousObject)
@@ -248,7 +233,8 @@ pub(crate) fn gen_messagegroup(
                             };
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(&iface, Span::call_site());
-                                let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
+                                let iface_type =
+                                    Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(#object_name<super::#iface_mod::#iface_type>)
                             } else {
                                 // bind-like function
@@ -303,11 +289,7 @@ pub(crate) fn gen_messagegroup(
         }
     });
 
-    let map_type = if side == Side::Client {
-        quote!(ProxyMap)
-    } else {
-        quote!(ResourceMap)
-    };
+    let map_type = if side == Side::Client { quote!(ProxyMap) } else { quote!(ResourceMap) };
 
     // Can't be a closure because closures are never Copy / Clone in rustc < 1.26.0, and we supports 1.21.0
     fn map_fn((ref msg, ref name): (&Message, &Ident)) -> TokenStream {
@@ -334,13 +316,10 @@ pub(crate) fn gen_messagegroup(
         is_destructor_match_arms.push(quote!(_ => false));
     }
 
-    let opcode_match_arms = message_match_patterns
-        .clone()
-        .enumerate()
-        .map(|(opcode, pattern)| {
-            let value = Literal::u16_unsuffixed(opcode as u16);
-            quote!(#pattern => #value)
-        });
+    let opcode_match_arms = message_match_patterns.clone().enumerate().map(|(opcode, pattern)| {
+        let value = Literal::u16_unsuffixed(opcode as u16);
+        quote!(#pattern => #value)
+    });
 
     let since_match_arms = messages.iter().zip(message_match_patterns).map(|(msg, pattern)| {
         let since = Literal::u32_unsuffixed(msg.since as u32);
@@ -717,7 +696,11 @@ pub(crate) fn gen_interface(
     }
 }
 
-pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (TokenStream, Option<&'a Arg>) {
+pub fn method_prototype<'a>(
+    iname: &Ident,
+    msg: &'a Message,
+    side: Side,
+) -> (TokenStream, Option<&'a Arg>) {
     let mut it = msg.args.iter().filter(|arg| arg.typ == Type::NewId);
     let mut newid = it.next();
     assert!(
@@ -782,11 +765,8 @@ pub fn method_prototype<'a>(iname: &Ident, msg: &'a Message, side: Side) -> (Tok
             Span::call_site(),
         );
 
-        let arg_type = if arg.allow_null {
-            quote!(Option<#arg_type_inner>)
-        } else {
-            arg_type_inner
-        };
+        let arg_type =
+            if arg.allow_null { quote!(Option<#arg_type_inner>) } else { arg_type_inner };
 
         Some(quote!(#arg_name: #arg_type))
     }));

@@ -100,11 +100,16 @@ impl DisplayInner {
         })
     }
 
-    pub(crate) fn dispatch(&mut self, timeout: i32, data: crate::DispatchData) -> std::io::Result<()> {
+    pub(crate) fn dispatch(
+        &mut self,
+        timeout: i32,
+        data: crate::DispatchData,
+    ) -> std::io::Result<()> {
         let ret = super::with_dispatch_data(data, || {
             let _c_safety_guard = super::C_SAFETY.lock();
             unsafe {
-                let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
+                let evl_ptr =
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.ptr);
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, timeout)
             }
         });
@@ -164,7 +169,8 @@ impl DisplayInner {
 
     pub(crate) fn add_socket_auto(&mut self) -> IoResult<OsString> {
         let _c_safety_guard = super::C_SAFETY.lock();
-        let ret = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.ptr) };
+        let ret =
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_add_socket_auto, self.ptr) };
         if ret.is_null() {
             // try to be helpful
             let socket_name = get_runtime_dir()?;
@@ -188,7 +194,11 @@ impl DisplayInner {
         }
     }
 
-    pub(crate) unsafe fn create_client(&mut self, fd: RawFd, data: crate::DispatchData) -> ClientInner {
+    pub(crate) unsafe fn create_client(
+        &mut self,
+        fd: RawFd,
+        data: crate::DispatchData,
+    ) -> ClientInner {
         let ret = super::with_dispatch_data(data, || {
             let _c_safety_guard = super::C_SAFETY.lock();
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_create, self.ptr, fd)

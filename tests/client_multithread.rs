@@ -89,10 +89,7 @@ fn display_from_external_on_new_thread() {
         let attached = (*display).clone().attach(evq.token());
         let manager = wayc::GlobalManager::new(&attached);
         evq.sync_roundtrip(&mut (), |_, _, _| {}).unwrap();
-        manager
-            .instantiate_exact::<wl_seat::WlSeat>(5)
-            .unwrap()
-            .quick_assign(|_, _, _| {});
+        manager.instantiate_exact::<wl_seat::WlSeat>(5).unwrap().quick_assign(|_, _, _| {});
     })
     .join()
     .unwrap();

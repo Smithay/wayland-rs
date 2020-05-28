@@ -138,9 +138,11 @@ impl Display {
             let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
                 .map(Into::<PathBuf>::into)
                 .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
-            socket_path.push(env::var_os("WAYLAND_DISPLAY").ok_or(ConnectError::NoCompositorListening)?);
+            socket_path
+                .push(env::var_os("WAYLAND_DISPLAY").ok_or(ConnectError::NoCompositorListening)?);
 
-            let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
+            let socket = UnixStream::connect(socket_path)
+                .map_err(|_| ConnectError::NoCompositorListening)?;
             unsafe { Display::from_fd(socket.into_raw_fd()) }
         }
     }
@@ -157,7 +159,8 @@ impl Display {
             .ok_or(ConnectError::XdgRuntimeDirNotSet)?;
         socket_path.push(name.into());
 
-        let socket = UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
+        let socket =
+            UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositorListening)?;
         unsafe { Display::from_fd(socket.into_raw_fd()) }
     }
 
@@ -171,9 +174,7 @@ impl Display {
     ///
     /// The file descriptor must be associated to a connected unix socket.
     pub unsafe fn from_fd(fd: RawFd) -> Result<Display, ConnectError> {
-        Ok(Display {
-            inner: DisplayInner::from_fd(fd)?,
-        })
+        Ok(Display { inner: DisplayInner::from_fd(fd)? })
     }
 
     /// Non-blocking write to the server
@@ -230,9 +231,7 @@ impl Display {
     ///
     /// The provided pointer must point to a valid `wl_display` from `libwayland-client`
     pub unsafe fn from_external_display(display_ptr: *mut wl_display) -> Display {
-        Display {
-            inner: DisplayInner::from_external(display_ptr),
-        }
+        Display { inner: DisplayInner::from_external(display_ptr) }
     }
 
     #[cfg(feature = "use_system_lib")]

@@ -105,8 +105,7 @@ impl CursorTheme {
         let mut file = unsafe { File::from_raw_fd(mem_fd) };
 
         // Ensure that we have the same we requested.
-        file.write_all(&[0; INITIAL_POOL_SIZE as usize])
-            .expect("Write to shm fd failed");
+        file.write_all(&[0; INITIAL_POOL_SIZE as usize]).expect("Write to shm fd failed");
         // Flush to ensure the compositor has access to the buffer when it tries to map it.
         file.flush().expect("Flush on shm fd failed");
 
@@ -114,14 +113,7 @@ impl CursorTheme {
 
         let name = String::from(name);
 
-        CursorTheme {
-            name,
-            file,
-            size,
-            pool,
-            pool_size: INITIAL_POOL_SIZE,
-            cursors: Vec::new(),
-        }
+        CursorTheme { name, file, size, pool, pool_size: INITIAL_POOL_SIZE, cursors: Vec::new() }
     }
 
     /// Retrieve a cursor from the theme.
@@ -194,11 +186,7 @@ impl Cursor {
 
         let total_duration = buffers.iter().map(|el| el.delay).sum();
 
-        Cursor {
-            total_duration,
-            name: String::from(name),
-            images: buffers,
-        }
+        Cursor { total_duration, name: String::from(name), images: buffers }
     }
 
     fn nearest_size(size: u32, images: &[xparser::Image]) -> u32 {
@@ -236,10 +224,7 @@ impl Cursor {
             millis -= img.delay;
         }
 
-        FrameAndDuration {
-            frame_index: res,
-            frame_duration: millis,
-        }
+        FrameAndDuration { frame_index: res, frame_duration: millis }
     }
 
     /// Total number of images forming this cursor animation
@@ -380,7 +365,10 @@ fn create_shm_fd() -> io::Result<RawFd> {
     loop {
         match mman::shm_open(
             mem_file_handle.as_str(),
-            fcntl::OFlag::O_CREAT | fcntl::OFlag::O_EXCL | fcntl::OFlag::O_RDWR | fcntl::OFlag::O_CLOEXEC,
+            fcntl::OFlag::O_CREAT
+                | fcntl::OFlag::O_EXCL
+                | fcntl::OFlag::O_RDWR
+                | fcntl::OFlag::O_CLOEXEC,
             stat::Mode::S_IRUSR | stat::Mode::S_IWUSR,
         ) {
             Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
