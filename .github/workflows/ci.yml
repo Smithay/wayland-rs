@@ -52,7 +52,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --features "${{ matrix.features }}" --exclude wayland-egl --exclude wayland-cursor
+          args: --ignore-tests --features "${{ matrix.features }}" --workspace --exclude wayland-egl --exclude wayland-cursor
       
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
