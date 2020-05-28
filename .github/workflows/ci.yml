@@ -39,6 +39,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           override: true
+          components: rustfmt
 
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
