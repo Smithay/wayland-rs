@@ -95,18 +95,31 @@ impl CursorTheme {
 
     /// Create a new cursor theme, ignoring the system defaults.
     pub fn load_from_name(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
-        let name = String::from(name);
-        let pool_size = (size * size * 4) as i32;
+        // Set some minimal cursor size to hold it. We're not using `size` argument for that,
+        // because the actual size that we'll use depends on theme sizes available on a system.
+        // The minimal size covers most common minimal theme size, which is 16.
+        const INITIAL_POOL_SIZE: i32 = 16 * 16 * 4;
+
+        //  Create shm.
         let mem_fd = create_shm_fd().expect("Shm fd allocation failed");
-        let file = unsafe { File::from_raw_fd(mem_fd) };
-        let pool = shm.create_pool(file.as_raw_fd(), pool_size);
+        let mut file = unsafe { File::from_raw_fd(mem_fd) };
+
+        // Ensure that we have the same we requested.
+        file.write_all(&[0; INITIAL_POOL_SIZE as usize])
+            .expect("Write to shm fd failed");
+        // Flush to ensure the compositor has access to the buffer when it tries to map it.
+        file.flush().expect("Flush on shm fd failed");
+
+        let pool = shm.create_pool(file.as_raw_fd(), INITIAL_POOL_SIZE);
+
+        let name = String::from(name);
 
         CursorTheme {
             name,
             file,
             size,
             pool,
-            pool_size,
+            pool_size: INITIAL_POOL_SIZE,
             cursors: Vec::new(),
         }
     }
@@ -309,6 +322,7 @@ impl CursorImageBuffer {
 
 impl Deref for CursorImageBuffer {
     type Target = WlBuffer;
+
     fn deref(&self) -> &WlBuffer {
         &self.buffer
     }
