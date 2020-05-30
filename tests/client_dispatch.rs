@@ -5,7 +5,7 @@ use helpers::{ways, TestClient};
 use std::cell::Cell;
 use std::ffi::OsStr;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 #[test]
@@ -15,9 +15,21 @@ fn client_sync_roundtrip() {
     let kill_switch = Arc::new(Mutex::new(false));
     let server_kill_switch = kill_switch.clone();
 
+    let server_startup_info = Arc::new((Mutex::new(false), Condvar::new()));
+    let server_startup_info_clone = server_startup_info.clone();
+
     let server_thread = ::std::thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
+
+        // Make sure to release the lock.
+        {
+            let (lock, cvar) = &*server_startup_info_clone;
+            let mut started = lock.lock().unwrap();
+            *started = true;
+            // Notify the client that we're ready.
+            cvar.notify_one();
+        }
 
         loop {
             display.dispatch(Duration::from_millis(100), &mut ()).unwrap();
@@ -28,8 +40,12 @@ fn client_sync_roundtrip() {
         }
     });
 
-    // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(500));
+    // Wait for the server to start up.
+    let (lock, cvar) = &*server_startup_info;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
@@ -47,9 +63,21 @@ fn client_dispatch() {
     let kill_switch = Arc::new(Mutex::new(false));
     let server_kill_switch = kill_switch.clone();
 
+    let server_startup_info = Arc::new((Mutex::new(false), Condvar::new()));
+    let server_startup_info_clone = server_startup_info.clone();
+
     let server_thread = ::std::thread::spawn(move || {
         let mut display = ways::Display::new();
         display.add_socket(Some(socket_name)).unwrap();
+
+        // Make sure to release the lock.
+        {
+            let (lock, cvar) = &*server_startup_info_clone;
+            let mut started = lock.lock().unwrap();
+            *started = true;
+            // Notify the client that we're ready.
+            cvar.notify_one();
+        }
 
         loop {
             display.dispatch(Duration::from_millis(100), &mut ()).unwrap();
@@ -60,8 +88,12 @@ fn client_dispatch() {
         }
     });
 
-    // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(500));
+    // Wait for the server to start up.
+    let (lock, cvar) = &*server_startup_info;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
 
     let mut client = TestClient::new(OsStr::new(socket_name));
 
