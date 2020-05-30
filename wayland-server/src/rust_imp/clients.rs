@@ -534,7 +534,11 @@ impl ClientImplementation {
                         match dispatcher.dispatch(msg, res, &mut resourcemap, data.reborrow()) {
                             Dispatched::Yes => {}
                             Dispatched::NoDispatch(_msg, _res) => {
-                                eprintln!("[wayland-server] Request received for an object not associated to any filter: {}@{}", object.interface, id);
+                                eprintln!(
+                                    "[wayland-server] Request received for an object \
+                                    not associated to any filter: {}@{}",
+                                    object.interface, id
+                                );
                                 self.inner.post_error(
                                     1,
                                     super::display::DISPLAY_ERROR_NO_MEMORY,

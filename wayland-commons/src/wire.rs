@@ -130,9 +130,9 @@ pub enum MessageWriteError {
     DupFdFailed(::nix::Error),
 }
 
-impl ::std::error::Error for MessageWriteError {}
+impl std::error::Error for MessageWriteError {}
 
-impl ::std::fmt::Display for MessageWriteError {
+impl std::fmt::Display for MessageWriteError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             MessageWriteError::BufferTooSmall => {
@@ -156,9 +156,9 @@ pub enum MessageParseError {
     Malformed,
 }
 
-impl ::std::error::Error for MessageParseError {}
+impl std::error::Error for MessageParseError {}
 
-impl ::std::fmt::Display for MessageParseError {
+impl std::fmt::Display for MessageParseError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             MessageParseError::MissingFD => {

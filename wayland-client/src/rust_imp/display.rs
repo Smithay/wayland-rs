@@ -111,10 +111,12 @@ impl super::Dispatcher for DisplayDispatcher {
                 &msg.args,
             );
         }
+
         let event = match wl_display::Event::from_raw(msg, map) {
             Ok(v) => v,
             Err(()) => return Dispatched::BadMsg,
         };
+
         match event {
             wl_display::Event::Error { object_id, code, message } => {
                 eprintln!(
@@ -145,6 +147,7 @@ impl super::Dispatcher for DisplayDispatcher {
                 }
             }
         }
+
         Dispatched::Yes
     }
 }

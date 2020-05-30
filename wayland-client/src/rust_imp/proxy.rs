@@ -145,11 +145,17 @@ impl ProxyInner {
                 .expect("Attemping to create an object from a non-attached proxy.");
             if let Some(o) = I::Request::child(opcode, 1, &()) {
                 if !o.is_interface::<J>() {
-                    panic!("Trying to use 'send_constructor' with the wrong return type. Required interface {} but the message creates interface {}", J::NAME, o.interface)
+                    panic!(
+                        "Trying to use 'send_constructor' with the wrong return type. \
+                        Required interface {} but the message creates interface {}",
+                        J::NAME,
+                        o.interface
+                    )
                 }
             } else {
-                // there is no target interface in the protocol, this is a generic object-creating
-                // function (likely wl_registry.bind), the newid arg will thus expand to (str, u32, obj)
+                // There is no target interface in the protocol, this is a generic object-creating
+                // function (likely wl_registry.bind), the newid arg will thus expand to
+                // (str, u32, obj).
                 nid_idx += 2;
             }
             // insert the newly created object in the message
@@ -183,25 +189,27 @@ impl ProxyInner {
             );
         }
 
-        // only actually send the message (& process destructor) if the object is alive
-        if alive {
-            conn_lock.write_message(&msg).expect("Sending a message failed.");
+        // Only actually send the message (& process destructor) if the object is alive.
+        if !alive {
+            return ret;
+        }
 
-            if destructor {
-                self.object.meta.alive.store(false, Ordering::Release);
-                {
-                    // cleanup the map as appropriate
-                    let mut map = conn_lock.map.lock().unwrap();
-                    let server_destroyed = map
-                        .with(self.id, |obj| {
-                            obj.meta.client_destroyed = true;
-                            obj.meta.server_destroyed
-                        })
-                        .unwrap_or(false);
-                    if server_destroyed {
-                        map.remove(self.id);
-                    }
-                }
+        conn_lock.write_message(&msg).expect("Sending a message failed.");
+
+        if destructor {
+            self.object.meta.alive.store(false, Ordering::Release);
+
+            // Cleanup the map as appropriate.
+            let mut map = conn_lock.map.lock().unwrap();
+            let server_destroyed = map
+                .with(self.id, |obj| {
+                    obj.meta.client_destroyed = true;
+                    obj.meta.server_destroyed
+                })
+                .unwrap_or(false);
+
+            if server_destroyed {
+                map.remove(self.id);
             }
         }
 
