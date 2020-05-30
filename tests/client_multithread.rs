@@ -7,7 +7,7 @@ use ways::protocol::wl_seat::WlSeat as ServerSeat;
 use wayc::protocol::wl_seat;
 
 use std::ffi::OsStr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -18,9 +18,24 @@ fn display_to_new_thread() {
     let kill_switch = Arc::new(Mutex::new(false));
     let server_kill_switch = kill_switch.clone();
 
+    let server_startup_info = Arc::new((Mutex::new(false), Condvar::new()));
+    let server_startup_info_clone = server_startup_info.clone();
+
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
-        display.add_socket(Some(socket_name)).unwrap();
+        let socket = display.add_socket(Some(socket_name));
+
+        // Make sure to release the lock.
+        {
+            let (lock, cvar) = &*server_startup_info_clone;
+            let mut started = lock.lock().unwrap();
+            *started = true;
+            // Notify the client that we're ready.
+            cvar.notify_one();
+        }
+
+        let _ = socket.unwrap();
+
         display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
         loop {
@@ -32,8 +47,12 @@ fn display_to_new_thread() {
         }
     });
 
-    // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(100));
+    // Wait for the server to start up.
+    let (lock, cvar) = &*server_startup_info;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
 
     let client = TestClient::new(OsStr::new(socket_name));
 
@@ -62,9 +81,24 @@ fn display_from_external_on_new_thread() {
     let kill_switch = Arc::new(Mutex::new(false));
     let server_kill_switch = kill_switch.clone();
 
+    let server_startup_info = Arc::new((Mutex::new(false), Condvar::new()));
+    let server_startup_info_clone = server_startup_info.clone();
+
     let server_thread = thread::spawn(move || {
         let mut display = ways::Display::new();
-        display.add_socket(Some(socket_name)).unwrap();
+        let socket = display.add_socket(Some(socket_name));
+
+        // Make sure to release the lock.
+        {
+            let (lock, cvar) = &*server_startup_info_clone;
+            let mut started = lock.lock().unwrap();
+            *started = true;
+            // Notify the client that we're ready.
+            cvar.notify_one();
+        }
+
+        let _ = socket.unwrap();
+
         display.create_global::<ServerSeat, _>(5, ways::Filter::new(|_: (_, _), _, _| {}));
 
         loop {
@@ -76,8 +110,12 @@ fn display_from_external_on_new_thread() {
         }
     });
 
-    // let the server boot up
-    ::std::thread::sleep(::std::time::Duration::from_millis(100));
+    // Wait for the server to start up.
+    let (lock, cvar) = &*server_startup_info;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
 
     let client = TestClient::new(OsStr::new(socket_name));
 
