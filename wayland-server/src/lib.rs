@@ -127,6 +127,7 @@ pub mod protocol {
 
 mod anonymous_object {
     use super::{Interface, NoMessage, Resource};
+    use std::fmt::{self, Debug, Formatter};
 
     /// Anonymous interface
     ///
@@ -161,6 +162,11 @@ mod anonymous_object {
         #[inline]
         fn from(value: AnonymousObject) -> Self {
             value.0
+        }
+    }
+    impl Debug for AnonymousObject {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
         }
     }
 }

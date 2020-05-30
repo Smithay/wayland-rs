@@ -53,6 +53,7 @@ pub mod wl_foo {
             self.bits()
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
         #[doc = "do some foo\n\nThis will do some foo with its args."]
@@ -168,6 +169,7 @@ pub mod wl_foo {
             }
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface"]
@@ -275,6 +277,11 @@ pub mod wl_foo {
             value.0
         }
     }
+    impl std::fmt::Debug for WlFoo {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlFoo {
         type Request = Request;
         type Event = Event;
@@ -349,6 +356,7 @@ pub mod wl_bar {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
@@ -532,6 +540,7 @@ pub mod wl_bar {
             }
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "ask for erronous bindings from wayland-scanner\n\nThis event tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface"]
@@ -705,6 +714,11 @@ pub mod wl_bar {
             value.0
         }
     }
+    impl std::fmt::Debug for WlBar {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlBar {
         type Request = Request;
         type Event = Event;
@@ -813,6 +827,7 @@ pub mod wl_display {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -856,6 +871,7 @@ pub mod wl_display {
             match self {}
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
     impl super::MessageGroup for Event {
@@ -923,6 +939,11 @@ pub mod wl_display {
             value.0
         }
     }
+    impl std::fmt::Debug for WlDisplay {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlDisplay {
         type Request = Request;
         type Event = Event;
@@ -952,6 +973,7 @@ pub mod wl_registry {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
         #[doc = "bind an object to the display\n\nThis request is a special code-path, as its new-id argument as no target type."]
@@ -1032,6 +1054,7 @@ pub mod wl_registry {
             }
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
     impl super::MessageGroup for Event {
@@ -1099,6 +1122,11 @@ pub mod wl_registry {
             value.0
         }
     }
+    impl std::fmt::Debug for WlRegistry {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlRegistry {
         type Request = Request;
         type Event = Event;
@@ -1146,6 +1174,7 @@ pub mod wl_callback {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Proxy, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -1189,6 +1218,7 @@ pub mod wl_callback {
             match self {}
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, once received this object cannot be used any longer."]
@@ -1284,6 +1314,11 @@ pub mod wl_callback {
         #[inline]
         fn from(value: WlCallback) -> Self {
             value.0
+        }
+    }
+    impl std::fmt::Debug for WlCallback {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
         }
     }
     impl Interface for WlCallback {

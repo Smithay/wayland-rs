@@ -6,6 +6,9 @@
 
 - [client] Clone implementation for `QueueToken`
 - [client] implement `From<Main<I: Interface>>` impl for `Attached<I: Interface>`
+- [client] std::fmt::Debug implementation for `Proxy`, `Attached`, `Main`
+- [server] std::fmt::Debug implementation for `Resource`, `Main`
+- [scanner] std::fmt::Debug implementation for `Event` and `Request`
 
 #### Bugfixes
 
