@@ -117,11 +117,14 @@ impl ClientConnection {
             Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
                 // missing data, read sockets and try again
                 self.socket.fill_incoming_buffers().map_err(Error::Nix)?;
-                match self.socket.read_one_message(|id, opcode| {
+
+                let msg = self.socket.read_one_message(|id, opcode| {
                     map.find(id)
                         .and_then(|o| o.requests.get(opcode as usize))
                         .map(|desc| desc.signature)
-                }) {
+                });
+
+                match msg {
                     Ok(msg) => msg,
                     Err(MessageParseError::Malformed) => {
                         self.last_error = Some(Error::Parse(MessageParseError::Malformed));
@@ -149,6 +152,7 @@ impl ClientConnection {
                         let _ = ::nix::unistd::close(fd);
                     }
                 }
+
                 return Ok(None);
             }
         };
@@ -161,7 +165,9 @@ impl ClientConnection {
                 .flat_map(|a| if let Argument::NewId(nid) = *a { Some(nid) } else { None })
                 .next()
                 .unwrap();
+
             let child_interface = child.interface;
+
             if let Err(()) = map.insert_at(new_id, child) {
                 eprintln!(
                     "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
@@ -278,7 +284,7 @@ impl ClientInner {
             panic!("Can only create ressources from the thread hosting the Display.");
         }
         let (id, map) = {
-            if let Some(ref cx) = *self.data.lock().unwrap() {
+            if let Some(cx) = self.data.lock().unwrap().as_ref() {
                 (
                     cx.map
                         .lock()
@@ -290,6 +296,7 @@ impl ClientInner {
                 return None;
             }
         };
+
         Some(ResourceInner::from_id(id, map, self.clone()).unwrap())
     }
 
@@ -515,61 +522,59 @@ impl ClientImplementation {
                 return;
             };
 
-            match ret {
+            let msg = match ret {
                 Ok(None) | Err(Error::Nix(::nix::Error::Sys(::nix::errno::Errno::EAGAIN))) => {
-                    // nothing more to read
+                    // Nothing more to read.
                     return;
                 }
-                Ok(Some(msg)) => {
-                    // there is a message to dispatch
-                    let mut resourcemap =
-                        super::ResourceMap::make(self.map.clone(), self.inner.clone());
-                    let id = msg.sender_id;
-                    let opcode = msg.opcode;
-                    if let Some(res) =
-                        ResourceInner::from_id(id, self.map.clone(), self.inner.clone())
-                    {
-                        let object = res.object.clone();
-                        let mut dispatcher = object.meta.dispatcher.get().borrow_mut();
-                        match dispatcher.dispatch(msg, res, &mut resourcemap, data.reborrow()) {
-                            Dispatched::Yes => {}
-                            Dispatched::NoDispatch(_msg, _res) => {
-                                eprintln!(
-                                    "[wayland-server] Request received for an object \
-                                    not associated to any filter: {}@{}",
-                                    object.interface, id
-                                );
-                                self.inner.post_error(
-                                    1,
-                                    super::display::DISPLAY_ERROR_NO_MEMORY,
-                                    "Server-side bug, sorry.".into(),
-                                );
-                            }
-                            Dispatched::BadMsg => {
-                                self.inner.post_error(
-                                    1,
-                                    super::display::DISPLAY_ERROR_INVALID_METHOD,
-                                    format!(
-                                        "invalid method {}, object {}@{}",
-                                        opcode, object.interface, id
-                                    ),
-                                );
-                                return;
-                            }
-                        }
-                    } else {
-                        self.inner.post_error(
-                            1,
-                            super::display::DISPLAY_ERROR_INVALID_OBJECT,
-                            format!("invalid object {}", id),
-                        );
-                        return;
-                    }
-                }
+                Ok(Some(msg)) => msg,
                 Err(_) => {
-                    // on error, kill the client
+                    // On error, kill the client.
                     self.inner.kill();
                     return;
+                }
+            };
+
+            // There is a message to dispatch.
+            let mut resourcemap = super::ResourceMap::make(self.map.clone(), self.inner.clone());
+            let id = msg.sender_id;
+            let opcode = msg.opcode;
+
+            let res = match ResourceInner::from_id(id, self.map.clone(), self.inner.clone()) {
+                Some(res) => res,
+                None => {
+                    self.inner.post_error(
+                        1,
+                        super::display::DISPLAY_ERROR_INVALID_OBJECT,
+                        format!("invalid object {}", id),
+                    );
+                    return;
+                }
+            };
+
+            let object = res.object.clone();
+            let mut dispatcher = object.meta.dispatcher.get().borrow_mut();
+
+            match dispatcher.dispatch(msg, res, &mut resourcemap, data.reborrow()) {
+                Dispatched::Yes => (),
+                Dispatched::NoDispatch(_msg, _res) => {
+                    eprintln!(
+                        "[wayland-server] Request received for an object \
+                                    not associated to any filter: {}@{}",
+                        object.interface, id
+                    );
+                    self.inner.post_error(
+                        1,
+                        super::display::DISPLAY_ERROR_NO_MEMORY,
+                        "Server-side bug, sorry.".into(),
+                    );
+                }
+                Dispatched::BadMsg => {
+                    self.inner.post_error(
+                        1,
+                        super::display::DISPLAY_ERROR_INVALID_METHOD,
+                        format!("invalid method {}, object {}@{}", opcode, object.interface, id),
+                    );
                 }
             }
         }
@@ -602,37 +607,42 @@ impl super::Dispatcher for DisplayDispatcher {
         match msg.opcode {
             // sync
             0 => {
-                if let Some(&Argument::NewId(new_id)) = msg.args.first() {
-                    if let Some(cb) = map.get_new::<wl_callback::WlCallback>(new_id) {
-                        // TODO: send a more meaningful serial ?
-                        cb.as_ref().send(wl_callback::Event::Done { callback_data: 0 });
-                    } else {
-                        return Dispatched::BadMsg;
-                    }
-                } else {
-                    return Dispatched::BadMsg;
-                }
+                let new_id = match msg.args.first() {
+                    Some(&Argument::NewId(new_id)) => new_id,
+                    _ => return Dispatched::BadMsg,
+                };
+
+                let cb = match map.get_new::<wl_callback::WlCallback>(new_id) {
+                    Some(cb) => cb,
+                    None => return Dispatched::BadMsg,
+                };
+
+                // TODO: send a more meaningful serial?
+                cb.as_ref().send(wl_callback::Event::Done { callback_data: 0 });
             }
             // get_registry
             1 => {
-                if let Some(&Argument::NewId(new_id)) = msg.args.first() {
-                    // we don't have a regular object for the registry, rather we insert the
-                    // dispatcher by hand
-                    if let Err(()) = map.map.lock().unwrap().with(new_id, |obj| {
-                        obj.meta.dispatcher =
-                            Arc::new(ThreadGuard::new(RefCell::new(RegistryDispatcher {
-                                global_mgr: self.global_mgr.clone(),
-                            })));
-                    }) {
-                        return Dispatched::BadMsg;
-                    }
-                    self.global_mgr.borrow_mut().new_registry(new_id, map.client.clone());
-                } else {
+                let new_id = match msg.args.first() {
+                    Some(&Argument::NewId(new_id)) => new_id,
+                    _ => return Dispatched::BadMsg,
+                };
+
+                // We don't have a regular object for the registry, rather we insert the
+                // dispatcher by hand
+                if let Err(()) = map.map.lock().unwrap().with(new_id, |obj| {
+                    obj.meta.dispatcher =
+                        Arc::new(ThreadGuard::new(RefCell::new(RegistryDispatcher {
+                            global_mgr: self.global_mgr.clone(),
+                        })));
+                }) {
                     return Dispatched::BadMsg;
                 }
+
+                self.global_mgr.borrow_mut().new_registry(new_id, map.client.clone());
             }
             _ => return Dispatched::BadMsg,
         }
+
         Dispatched::Yes
     }
 }
