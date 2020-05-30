@@ -21,6 +21,7 @@ extern crate nix;
 use std::os::raw::c_void;
 use wayland_sys::common as syscom;
 
+pub mod debug;
 pub mod filter;
 pub mod map;
 pub mod socket;

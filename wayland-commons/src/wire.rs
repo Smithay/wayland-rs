@@ -95,6 +95,21 @@ impl Argument {
     }
 }
 
+impl std::fmt::Display for Argument {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Argument::Int(value) => write!(f, "{}", value),
+            Argument::Uint(value) => write!(f, "{}", value),
+            Argument::Fixed(value) => write!(f, "{}", value),
+            Argument::Str(value) => write!(f, "{:?}", value),
+            Argument::Object(value) => write!(f, "{}", value),
+            Argument::NewId(value) => write!(f, "{}", value),
+            Argument::Array(value) => write!(f, "{:?}", value),
+            Argument::Fd(value) => write!(f, "{}", value),
+        }
+    }
+}
+
 /// A wire message
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {

@@ -4,11 +4,12 @@ use std::sync::{Arc, Mutex};
 
 use crate::{Interface, Main, Resource};
 
+use wayland_commons::debug;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::user_data::UserData;
 use wayland_commons::{MessageGroup, ThreadGuard};
 
-use super::{ClientInner, Dispatcher};
+use super::{ClientInner, Dispatcher, WAYLAND_DEBUG};
 
 pub(crate) type ResourceDestructor = RefCell<dyn FnMut(ResourceInner, crate::DispatchData<'_>)>;
 
@@ -69,20 +70,25 @@ impl ResourceInner {
 
     pub(crate) fn send<I: Interface>(&self, msg: I::Event) {
         if let Some(ref mut conn_lock) = *self.client.data.lock().unwrap() {
-            if !self.is_alive() {
+            let is_alive = self.is_alive();
+
+            if !is_alive {
                 return;
             }
+
             let destructor = msg.is_destructor();
             let msg = msg.into_raw(self.id);
-            if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-                eprintln!(
-                    " -> {}@{}: {} {:?}",
+
+            if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+                debug::print_send_message(
                     I::NAME,
                     self.id,
+                    is_alive,
                     self.object.events[msg.opcode as usize].name,
-                    msg.args
+                    &msg.args,
                 );
             }
+
             // TODO: figure our if this can fail and still be recoverable ?
             conn_lock.write_message(&msg).expect("Sending a message failed.");
             if destructor {

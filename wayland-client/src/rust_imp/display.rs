@@ -1,7 +1,9 @@
 use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
+use wayland_commons::debug;
 use wayland_commons::map::{Object, ObjectMap};
 use wayland_commons::wire::Message;
 use wayland_commons::MessageGroup;
@@ -12,7 +14,7 @@ use crate::{ConnectError, ProtocolError, Proxy};
 
 use super::connection::{Connection, Error as CxError};
 use super::proxy::{ObjectMeta, ProxyInner};
-use super::{Dispatched, EventQueueInner, ProxyMap};
+use super::{Dispatched, EventQueueInner, ProxyMap, WAYLAND_DEBUG};
 
 pub(crate) struct DisplayInner {
     connection: Arc<Mutex<Connection>>,
@@ -21,6 +23,14 @@ pub(crate) struct DisplayInner {
 
 impl DisplayInner {
     pub unsafe fn from_fd(fd: RawFd) -> Result<Arc<DisplayInner>, ConnectError> {
+        if let Some(value) = std::env::var_os("WAYLAND_DEBUG") {
+            // Follow libwayland-client and enable debug log only on `1` and `client` values.
+            if value == "1" || value == "client" {
+                // Toggle debug log.
+                WAYLAND_DEBUG.store(true, Ordering::Relaxed);
+            }
+        }
+
         // The special buffer for display events
         let buffer = super::queues::create_queue_buffer();
         let display_object = Object::from_interface::<WlDisplay>(1, ObjectMeta::new(buffer));
@@ -93,11 +103,12 @@ impl super::Dispatcher for DisplayDispatcher {
         map: &mut ProxyMap,
         _data: crate::DispatchData,
     ) -> Dispatched {
-        let opcode = msg.opcode as usize;
-        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            eprintln!(
-                " <- {}@{}: {} {:?}",
-                proxy.object.interface, proxy.id, proxy.object.events[opcode].name, msg.args
+        if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+            debug::print_dispatched_message(
+                proxy.object.interface,
+                proxy.id,
+                proxy.object.events[msg.opcode as usize].name,
+                &msg.args,
             );
         }
         let event = match wl_display::Event::from_raw(msg, map) {
