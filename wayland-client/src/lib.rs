@@ -148,6 +148,7 @@ pub mod protocol {
 
 mod anonymous_object {
     use super::{Interface, NoMessage, Proxy};
+    use std::fmt::{self, Debug, Formatter};
 
     /// Anonymous interface
     ///
@@ -162,7 +163,7 @@ mod anonymous_object {
         const NAME: &'static str = "<anonymous>";
         const VERSION: u32 = 0;
         fn c_interface() -> *const crate::sys::common::wl_interface {
-            ::std::ptr::null()
+            std::ptr::null()
         }
     }
 
@@ -184,9 +185,15 @@ mod anonymous_object {
             value.0
         }
     }
+    impl Debug for AnonymousObject {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
 }
 
 /// Enum of possible argument in an event
+#[derive(Debug)]
 pub enum Argument {
     /// i32
     Int(i32),
@@ -207,6 +214,7 @@ pub enum Argument {
 }
 
 /// An generic event
+#[derive(Debug)]
 pub struct RawEvent {
     /// Interface of the associated object
     pub interface: &'static str,

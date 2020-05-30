@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Formatter};
+
 use wayland_commons::user_data::UserData;
 use wayland_commons::{Interface, MessageGroup};
 
@@ -249,6 +251,12 @@ impl<I: Interface> Clone for Resource<I> {
     }
 }
 
+impl<I: Interface> Debug for Resource<I> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", I::NAME, self.inner.id())
+    }
+}
+
 /// A main handle to a proxy
 #[derive(Clone, PartialEq)]
 pub struct Main<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
@@ -353,5 +361,14 @@ where
     type Target = I;
     fn deref(&self) -> &I {
         &self.inner
+    }
+}
+
+impl<I: Interface> Debug for Main<I>
+where
+    I: Debug + AsRef<Resource<I>> + From<Resource<I>>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}[MAIN]", self.inner)
     }
 }

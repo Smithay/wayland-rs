@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::ops::Deref;
 
 use super::AnonymousObject;
@@ -48,6 +49,12 @@ where
 {
     fn eq(&self, other: &Proxy<I>) -> bool {
         self.equals(other)
+    }
+}
+
+impl<I: Interface> Debug for Proxy<I> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", I::NAME, self.inner.id())
     }
 }
 
@@ -156,6 +163,12 @@ impl Proxy<AnonymousObject> {
         } else {
             Err(self)
         }
+    }
+}
+
+impl<I: Interface + Debug> Debug for Attached<I> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}[ATTACHED]", self.inner)
     }
 }
 
@@ -297,6 +310,15 @@ where
 {
     fn from(main: Main<I>) -> Attached<I> {
         main.inner
+    }
+}
+
+impl<I: Interface> Debug for Main<I>
+where
+    I: Debug + AsRef<Proxy<I>> + From<Proxy<I>>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}[MAIN]", self.inner.inner)
     }
 }
 

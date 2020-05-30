@@ -53,6 +53,7 @@ pub mod wl_foo {
             self.bits()
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
         #[doc = "do some foo\n\nThis will do some foo with its args."]
@@ -213,6 +214,7 @@ pub mod wl_foo {
             panic!("Request::as_raw_c_in can not be used Server-side.")
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "a cake is possible\n\nThe server advertises that a kind of cake is available\n\nOnly available since version 2 of the interface"]
@@ -303,6 +305,11 @@ pub mod wl_foo {
             value.0
         }
     }
+    impl std::fmt::Debug for WlFoo {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlFoo {
         type Request = Request;
         type Event = Event;
@@ -365,6 +372,7 @@ pub mod wl_bar {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
         #[doc = "ask for a bar delivery\n\nProceed to a bar delivery of given foo.\n\nOnly available since version 2 of the interface"]
@@ -607,6 +615,7 @@ pub mod wl_bar {
             panic!("Request::as_raw_c_in can not be used Server-side.")
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "ask for erronous bindings from wayland-scanner\n\nThis event tests argument names which can break wayland-scanner.\n\nOnly available since version 2 of the interface"]
@@ -748,6 +757,11 @@ pub mod wl_bar {
             value.0
         }
     }
+    impl std::fmt::Debug for WlBar {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
+        }
+    }
     impl Interface for WlBar {
         type Request = Request;
         type Event = Event;
@@ -840,6 +854,7 @@ pub mod wl_callback {
         MessageDesc, MessageGroup, Object, ObjectMetadata, Resource, NULLPTR,
     };
     use std::os::raw::c_char;
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
     impl super::MessageGroup for Request {
@@ -887,6 +902,7 @@ pub mod wl_callback {
             panic!("Request::as_raw_c_in can not be used Server-side.")
         }
     }
+    #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "done event\n\nThis event is actually a destructor, but the protocol XML has no way of specifying it.\nAs such, the scanner should consider wl_callback.done as a special case.\n\nThis is a destructor, once sent this object cannot be used any longer."]
@@ -974,6 +990,11 @@ pub mod wl_callback {
         #[inline]
         fn from(value: WlCallback) -> Self {
             value.0
+        }
+    }
+    impl std::fmt::Debug for WlCallback {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{:?}", self.0))
         }
     }
     impl Interface for WlCallback {
