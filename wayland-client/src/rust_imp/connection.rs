@@ -65,29 +65,31 @@ impl Connection {
         // read messages
         let ret = self.socket.read_messages(
             |id, opcode| {
-                map.borrow().find(id).and_then(|o| o.events.get(opcode as usize)).map(|desc| desc.signature)
+                map.borrow()
+                    .find(id)
+                    .and_then(|o| o.events.get(opcode as usize))
+                    .map(|desc| desc.signature)
             },
             |msg| {
                 let mut map = map.borrow_mut();
                 let object = map.find(msg.sender_id);
 
                 // create a new object if applicable
-                if let Some((mut child, dead_parent)) = object.as_ref().and_then(|o| o.event_child(msg.opcode).map(|c| (c, o.meta.client_destroyed))) {
+                if let Some((mut child, dead_parent)) = object
+                    .as_ref()
+                    .and_then(|o| o.event_child(msg.opcode).map(|c| (c, o.meta.client_destroyed)))
+                {
                     let new_id = msg
                         .args
                         .iter()
-                        .flat_map(|a| {
-                            if let Argument::NewId(nid) = *a {
-                                Some(nid)
-                            } else {
-                                None
-                            }
-                        })
+                        .flat_map(|a| if let Argument::NewId(nid) = *a { Some(nid) } else { None })
                         .next()
                         .unwrap();
                     let child_interface = child.interface;
                     // if this ID belonged to a now destroyed server object, we can replace it
-                    if new_id >= SERVER_ID_LIMIT && map.with(new_id, |obj| obj.meta.client_destroyed).unwrap_or(false) {
+                    if new_id >= SERVER_ID_LIMIT
+                        && map.with(new_id, |obj| obj.meta.client_destroyed).unwrap_or(false)
+                    {
                         map.remove(new_id)
                     }
                     // if the parent object is already destroyed, the user will never see this
@@ -97,16 +99,20 @@ impl Connection {
                     }
                     if let Err(()) = map.insert_at(new_id, child) {
                         eprintln!(
-                            "[wayland-client] Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".",
-                            child_interface,
-                            new_id
+                            "[wayland-client] Protocol error: server tried to create \
+                            an object \"{}\" with invalid id \"{}\".",
+                            child_interface, new_id
                         );
                         // abort parsing, this is an unrecoverable error
                         *last_error = Some(Error::Protocol(ProtocolError {
                             code: 0,
                             object_id: 0,
                             object_interface: "",
-                            message: format!("Protocol error: server tried to create an object \"{}\" with invalid id \"{}\".", child_interface, new_id)
+                            message: format!(
+                                "Protocol error: server tried to create \
+                                an object \"{}\" with invalid id \"{}\".",
+                                child_interface, new_id
+                            ),
                         }));
                         return false;
                     }
@@ -127,7 +133,7 @@ impl Connection {
                                 let _ = ::nix::unistd::close(fd);
                             }
                         }
-                    },
+                    }
                     Some(obj) => {
                         obj.meta.buffer.lock().unwrap().push_back(msg);
                     }

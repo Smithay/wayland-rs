@@ -125,10 +125,12 @@ where
                 &msg.args,
             );
         }
+
         let message = match I::Event::from_raw(msg, map) {
             Ok(v) => v,
             Err(()) => return Dispatched::BadMsg,
         };
+
         if message.since() > proxy.version() {
             eprintln!(
                 "Received an event {} requiring version >= {} while proxy {}@{} is version {}.",
@@ -140,6 +142,7 @@ where
             );
             return Dispatched::BadMsg;
         }
+
         if message.is_destructor() {
             proxy.object.meta.alive.store(false, Ordering::Release);
             {
@@ -156,7 +159,9 @@ where
                 }
             }
         }
+
         (self.implementation)(message, Main::<I>::wrap(proxy), data);
+
         Dispatched::Yes
     }
 }

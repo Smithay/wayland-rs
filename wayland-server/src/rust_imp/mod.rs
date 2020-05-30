@@ -129,10 +129,12 @@ where
                 &msg.args,
             );
         }
+
         let message = match I::Request::from_raw(msg, map) {
             Ok(msg) => msg,
             Err(_) => return Dispatched::BadMsg,
         };
+
         if message.since() > resource.version() {
             eprintln!(
                 "Received an request {} requiring version >= {} while resource {}@{} is version {}.",
@@ -144,6 +146,7 @@ where
             );
             return Dispatched::BadMsg;
         }
+
         if message.is_destructor() {
             resource.object.meta.alive.store(false, Ordering::Release);
             let mut kill = false;
@@ -155,7 +158,9 @@ where
                 resource.client.kill();
             }
         }
+
         (self.implementation)(message, Main::<I>::wrap(resource), data);
+
         Dispatched::Yes
     }
 }
