@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use wayland_commons::debug;
 use wayland_commons::filter::Filter;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata};
 use wayland_commons::user_data::UserData;
@@ -9,7 +10,7 @@ use wayland_commons::MessageGroup;
 
 use super::connection::Connection;
 use super::queues::QueueBuffer;
-use super::{Dispatcher, EventQueueInner};
+use super::{Dispatcher, EventQueueInner, WAYLAND_DEBUG};
 use crate::{Interface, Main, Proxy};
 
 #[derive(Clone)]
@@ -172,14 +173,13 @@ impl ProxyInner {
             None
         };
 
-        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            eprintln!(
-                " -> {}@{}{}: {} {:?}",
+        if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+            debug::print_send_message(
                 I::NAME,
                 self.id,
-                if alive { "" } else { "[ZOMBIE]" },
+                alive,
                 self.object.requests[msg.opcode as usize].name,
-                msg.args
+                &msg.args,
             );
         }
 

@@ -6,6 +6,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 
 use crate::display::get_runtime_dir;
 use crate::{Interface, Main, Resource};
@@ -13,7 +14,7 @@ use crate::{Interface, Main, Resource};
 use super::clients::ClientManager;
 use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
-use super::{ClientInner, GlobalInner};
+use super::{ClientInner, GlobalInner, WAYLAND_DEBUG};
 
 pub(crate) const DISPLAY_ERROR_INVALID_OBJECT: u32 = 0;
 pub(crate) const DISPLAY_ERROR_INVALID_METHOD: u32 = 1;
@@ -29,6 +30,14 @@ pub(crate) struct DisplayInner {
 
 impl DisplayInner {
     pub(crate) fn new() -> DisplayInner {
+        if let Some(value) = std::env::var_os("WAYLAND_DEBUG") {
+            // Follow libwayland-client and enable debug log only on `1` and `server` values.
+            if value == "1" || value == "server" {
+                // Toggle debug log.
+                WAYLAND_DEBUG.store(true, Ordering::Relaxed);
+            }
+        }
+
         let global_mgr = Rc::new(RefCell::new(GlobalManager::new()));
         let epoll_mgr = Rc::new(FdManager::new().unwrap());
 

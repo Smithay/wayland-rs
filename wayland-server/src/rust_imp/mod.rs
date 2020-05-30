@@ -1,8 +1,10 @@
 use std::cell::RefCell;
-use std::sync::{atomic::Ordering, Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use downcast_rs::Downcast;
 
+use wayland_commons::debug;
 use wayland_commons::map::ObjectMap;
 use wayland_commons::wire::Message;
 use wayland_commons::{MessageGroup, ThreadGuard};
@@ -21,6 +23,9 @@ pub(crate) use self::globals::GlobalInner;
 pub(crate) use self::resources::ResourceInner;
 
 use self::resources::ResourceDestructor;
+
+/// Flag to toggle debug output.
+static WAYLAND_DEBUG: AtomicBool = AtomicBool::new(false);
 
 /// A handle to the object map internal to the library state
 ///
@@ -115,13 +120,13 @@ where
         data: DispatchData,
     ) -> Dispatched {
         let opcode = msg.opcode as usize;
-        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            eprintln!(
-                " <- {}@{}: {} {:?}",
+
+        if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+            debug::print_dispatched_message(
                 resource.object.interface,
                 resource.id,
                 resource.object.requests[opcode].name,
-                msg.args
+                &msg.args,
             );
         }
         let message = match I::Request::from_raw(msg, map) {

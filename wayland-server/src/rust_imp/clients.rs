@@ -8,6 +8,7 @@ use std::thread::{self, ThreadId};
 
 use nix::Result as NixResult;
 
+use wayland_commons::debug;
 use wayland_commons::map::{Object, ObjectMap, ObjectMetadata, SERVER_ID_LIMIT};
 use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
@@ -18,7 +19,7 @@ use crate::{DispatchData, Interface, UserDataMap};
 use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
 use super::resources::{ObjectMeta, ResourceDestructor, ResourceInner};
-use super::Dispatched;
+use super::{Dispatched, WAYLAND_DEBUG};
 
 #[derive(Clone, Debug)]
 pub(crate) enum Error {
@@ -585,10 +586,12 @@ impl super::Dispatcher for DisplayDispatcher {
     ) -> Dispatched {
         use crate::protocol::wl_callback;
 
-        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            eprintln!(
-                " <- wl_display@1: {} {:?}",
-                DISPLAY_REQUESTS[msg.opcode as usize].name, msg.args
+        if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+            debug::print_dispatched_message(
+                "wl_display",
+                1,
+                DISPLAY_REQUESTS[msg.opcode as usize].name,
+                &msg.args,
             );
         }
 
@@ -642,10 +645,12 @@ impl super::Dispatcher for RegistryDispatcher {
         map: &mut super::ResourceMap,
         data: crate::DispatchData,
     ) -> Dispatched {
-        if ::std::env::var_os("WAYLAND_DEBUG").is_some() {
-            eprintln!(
-                " <- wl_registry@{}: {} {:?}",
-                resource.id, REGISTRY_REQUESTS[msg.opcode as usize].name, msg.args
+        if WAYLAND_DEBUG.load(Ordering::Relaxed) {
+            debug::print_dispatched_message(
+                "wl_registry",
+                resource.id,
+                REGISTRY_REQUESTS[msg.opcode as usize].name,
+                &msg.args,
             );
         }
 
