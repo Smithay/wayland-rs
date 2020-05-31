@@ -5,6 +5,7 @@
 #### Bugfixes
 
 - [cursor] Fix crash when providing extra large or 0 sizes for cursor theme
+- [sys] Use pkg-config for compile time linking (fixes FreeBSD build without dlopen)
 
 ## 0.26.6 -- 2020-05-23
 
