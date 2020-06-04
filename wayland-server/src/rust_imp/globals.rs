@@ -24,11 +24,7 @@ pub(crate) struct GlobalInner<I: Interface> {
 impl<I: Interface> GlobalInner<I> {
     pub fn destroy(self) {
         self.destroyed_marker.set(true);
-        send_destroyed_global(
-            &self.registries.borrow(),
-            self.id,
-            self.filter.as_ref().map(|f| &**f),
-        );
+        send_destroyed_global(&self.registries.borrow(), self.id, self.filter.as_deref());
     }
 }
 
@@ -99,13 +95,7 @@ impl GlobalManager {
 
         let filter = data.filter.clone();
         {
-            send_new_global(
-                &self.registries.borrow(),
-                id,
-                I::NAME,
-                version,
-                filter.as_ref().map(|f| &**f),
-            );
+            send_new_global(&self.registries.borrow(), id, I::NAME, version, filter.as_deref());
         }
 
         self.globals.push(data);
