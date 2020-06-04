@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- [client] Clone implementation for `QueueToken`
+
 #### Bugfixes
 
 - [cursor] Fix crash when providing extra large or 0 sizes for cursor theme

@@ -109,6 +109,7 @@ pub struct EventQueue {
 /// interaction with other functions in the library that
 /// require the specification of an event queue, like
 /// `Proxy::assign`.
+#[derive(Clone)]
 pub struct QueueToken {
     pub(crate) inner: Rc<EventQueueInner>,
 }
