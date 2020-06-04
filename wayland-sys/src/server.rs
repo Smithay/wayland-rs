@@ -26,7 +26,8 @@ pub type wl_event_loop_idle_func_t = unsafe extern "C" fn(*mut c_void) -> ();
 pub type wl_global_bind_func_t = unsafe extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
 pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) -> ();
 pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
-pub type wl_display_global_filter_func_t = unsafe extern "C" fn(*const wl_client, *const wl_global, *mut c_void) -> bool;
+pub type wl_display_global_filter_func_t =
+    unsafe extern "C" fn(*const wl_client, *const wl_global, *mut c_void) -> bool;
 
 #[repr(C)]
 pub struct wl_listener {
@@ -184,12 +185,12 @@ pub fn is_lib_available() -> bool {
 
 #[cfg(feature = "server")]
 pub mod signal {
-    #![allow(clippy::cast_ptr_alignment,clippy::missing_safety_doc)]
+    #![allow(clippy::cast_ptr_alignment, clippy::missing_safety_doc)]
+    #[cfg(feature = "dlopen")]
+    use super::WAYLAND_SERVER_HANDLE as WSH;
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};
-    #[cfg(feature = "dlopen")]
-    use super::WAYLAND_SERVER_HANDLE as WSH;
     use crate::common::wl_list;
     use std::os::raw::c_void;
     use std::ptr;
@@ -234,58 +235,41 @@ pub mod signal {
     }
 
     pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
-        ffi_dispatch!(
-            WSH,
-            wl_list_insert,
-            (*signal).listener_list.prev,
-            &mut (*listener).link
-        )
+        ffi_dispatch!(WSH, wl_list_insert, (*signal).listener_list.prev, &mut (*listener).link)
     }
 
-    pub unsafe fn wl_signal_get(signal: *mut wl_signal, notify: wl_notify_func_t) -> *mut wl_listener {
-        list_for_each!(
-            l,
-            &mut (*signal).listener_list as *mut wl_list,
-            wl_listener,
-            link,
-            {
-                if (*l).notify == notify {
-                    return l;
-                }
+    pub unsafe fn wl_signal_get(
+        signal: *mut wl_signal,
+        notify: wl_notify_func_t,
+    ) -> *mut wl_listener {
+        list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+            if (*l).notify == notify {
+                return l;
             }
-        );
+        });
 
         ptr::null_mut()
     }
 
     pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
-        list_for_each_safe!(
-            l,
-            &mut (*signal).listener_list as *mut wl_list,
-            wl_listener,
-            link,
-            {
-                ((*l).notify)(l, data);
-            }
-        );
+        list_for_each_safe!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+            ((*l).notify)(l, data);
+        });
     }
 
     #[repr(C)]
     struct ListenerWithUserData {
         listener: wl_listener,
-        user_data: *mut c_void
+        user_data: *mut c_void,
     }
 
     pub fn rust_listener_create(notify: wl_notify_func_t) -> *mut wl_listener {
         let data = Box::into_raw(Box::new(ListenerWithUserData {
             listener: wl_listener {
-                link: wl_list {
-                    prev: ptr::null_mut(),
-                    next: ptr::null_mut()
-                },
-                notify
+                link: wl_list { prev: ptr::null_mut(), next: ptr::null_mut() },
+                notify,
             },
-            user_data: ptr::null_mut()
+            user_data: ptr::null_mut(),
         }));
 
         unsafe { &mut (*data).listener as *mut wl_listener }

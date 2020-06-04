@@ -22,10 +22,7 @@ pub mod fullscreen_shell {
     wayland_protocol_versioned!(
         "fullscreen-shell",
         [v1],
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_output, wl_output_interface)
-        ],
+        [(wl_surface, wl_surface_interface), (wl_output, wl_output_interface)],
         []
     );
 }
@@ -33,14 +30,8 @@ pub mod fullscreen_shell {
 pub mod idle_inhibit {
     //! Screensaver inhibition protocol
 
-    wayland_protocol_versioned!(
-        "idle-inhibit",
-        [v1],
-        [(wl_surface, wl_surface_interface)],
-        []
-    );
+    wayland_protocol_versioned!("idle-inhibit", [v1], [(wl_surface, wl_surface_interface)], []);
 }
-
 
 pub mod input_method {
     //! Input method protocol
@@ -82,10 +73,7 @@ pub mod keyboard_shortcuts_inhibit {
     wayland_protocol_versioned!(
         "keyboard-shortcuts-inhibit",
         [v1],
-        [
-            (wl_seat, wl_seat_interface),
-            (wl_surface, wl_surface_interface)
-        ],
+        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
         []
     );
 }
@@ -93,12 +81,7 @@ pub mod keyboard_shortcuts_inhibit {
 pub mod linux_dmabuf {
     //! Linux DMA-BUF protocol
 
-    wayland_protocol_versioned!(
-        "linux-dmabuf",
-        [v1],
-        [(wl_buffer, wl_buffer_interface)],
-        []
-    );
+    wayland_protocol_versioned!("linux-dmabuf", [v1], [(wl_buffer, wl_buffer_interface)], []);
 }
 
 pub mod linux_explicit_synchronization {
@@ -107,9 +90,7 @@ pub mod linux_explicit_synchronization {
     wayland_protocol_versioned!(
         "linux-explicit-synchronization",
         [v1],
-        [
-            (wl_surface, wl_surface_interface)
-        ],
+        [(wl_surface, wl_surface_interface)],
         []
     );
 }
@@ -145,10 +126,7 @@ pub mod pointer_gestures {
     wayland_protocol_versioned!(
         "pointer-gestures",
         [v1],
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_pointer, wl_pointer_interface)
-        ],
+        [(wl_surface, wl_surface_interface), (wl_pointer, wl_pointer_interface)],
         []
     );
 }
@@ -156,14 +134,7 @@ pub mod pointer_gestures {
 pub mod primary_selection {
     //! Primary selection protocol
 
-    wayland_protocol_versioned!(
-        "primary-selection",
-        [v1],
-        [
-            (wl_seat, wl_seat_interface)
-        ],
-        []
-    );
+    wayland_protocol_versioned!("primary-selection", [v1], [(wl_seat, wl_seat_interface)], []);
 }
 
 pub mod relative_pointer {
@@ -183,12 +154,7 @@ pub mod relative_pointer {
     //! the newly created relative pointer object. See the documentation of the
     //! relative pointer interface for more details.
 
-    wayland_protocol_versioned!(
-        "relative-pointer",
-        [v1],
-        [(wl_pointer, wl_pointer_interface)],
-        []
-    );
+    wayland_protocol_versioned!("relative-pointer", [v1], [(wl_pointer, wl_pointer_interface)], []);
 }
 
 pub mod tablet {
@@ -274,10 +240,7 @@ pub mod tablet {
     wayland_protocol_versioned!(
         "tablet",
         [v1, v2],
-        [
-            (wl_seat, wl_seat_interface),
-            (wl_surface, wl_surface_interface)
-        ],
+        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
         []
     );
 }
@@ -288,10 +251,7 @@ pub mod text_input {
     wayland_protocol_versioned!(
         "text-input",
         [v1, v3],
-        [
-            (wl_seat, wl_seat_interface),
-            (wl_surface, wl_surface_interface)
-        ],
+        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
         []
     );
 }
@@ -315,9 +275,7 @@ pub mod xdg_decoration {
         "xdg-decoration",
         [v1],
         [],
-        [
-            (xdg_shell, xdg_toplevel, xdg_toplevel_interface)
-        ]
+        [(xdg_shell, xdg_toplevel, xdg_toplevel_interface)]
     );
 }
 
@@ -345,12 +303,7 @@ pub mod xdg_foreign {
     //! can show a file browser dialog and stack it above the sandboxed client's
     //! surface.
 
-    wayland_protocol_versioned!(
-        "xdg-foreign",
-        [v1, v2],
-        [(wl_surface, wl_surface_interface)],
-        []
-    );
+    wayland_protocol_versioned!("xdg-foreign", [v1, v2], [(wl_surface, wl_surface_interface)], []);
 }
 
 pub mod xdg_output {
@@ -373,12 +326,7 @@ pub mod xdg_output {
     //! concepts (such as output location within the global compositor space,
     //! the connector name and types, etc.) out of the core wl_output protocol.
 
-    wayland_protocol_versioned!(
-        "xdg-output",
-        [v1],
-        [(wl_output, wl_output_interface)],
-        []
-    );
+    wayland_protocol_versioned!("xdg-output", [v1], [(wl_output, wl_output_interface)], []);
 }
 
 pub mod xdg_shell {
@@ -434,10 +382,7 @@ pub mod xwayland_keyboard_grab {
     wayland_protocol_versioned!(
         "xwayland-keyboard-grab",
         [v1],
-        [
-            (wl_seat, wl_seat_interface),
-            (wl_surface, wl_surface_interface)
-        ],
+        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
         []
     );
 }
