@@ -56,9 +56,5 @@ pub mod gtk_primary_selection {
     //! The primary selection owner should be checking for errors during
     //! writes, merely cancelling the ongoing transfer if any happened.
 
-    wayland_protocol!(
-        "gtk-primary-selection",
-        [(wl_seat, wl_seat_interface)],
-        []
-    );
+    wayland_protocol!("gtk-primary-selection", [(wl_seat, wl_seat_interface)], []);
 }

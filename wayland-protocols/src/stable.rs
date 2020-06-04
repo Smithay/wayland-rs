@@ -7,10 +7,7 @@ pub mod presentation_time {
 
     wayland_protocol!(
         "presentation-time",
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_output, wl_output_interface)
-        ],
+        [(wl_surface, wl_surface_interface), (wl_output, wl_output_interface)],
         []
     );
 }

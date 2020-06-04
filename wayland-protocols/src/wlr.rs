@@ -27,14 +27,7 @@ pub mod unstable {
         //! An interface to control data devices, particularly to manage the current selection and
         //! take the role of a clipboard manager.
 
-        wayland_protocol_versioned!(
-            "wlr-data-control",
-            [v1],
-            [
-                (wl_seat, wl_seat_interface)
-            ],
-            []
-        );
+        wayland_protocol_versioned!("wlr-data-control", [v1], [(wl_seat, wl_seat_interface)], []);
     }
 
     pub mod export_dmabuf {
@@ -45,9 +38,7 @@ pub mod unstable {
         wayland_protocol_versioned!(
             "wlr-export-dmabuf",
             [v1],
-            [
-                (wl_output, wl_output_interface)
-            ],
+            [(wl_output, wl_output_interface)],
             []
         );
     }
@@ -77,9 +68,7 @@ pub mod unstable {
         wayland_protocol_versioned!(
             "wlr-gamma-control",
             [v1],
-            [
-                (wl_output, wl_output_interface)
-            ],
+            [(wl_output, wl_output_interface)],
             []
         );
     }
@@ -87,12 +76,7 @@ pub mod unstable {
     pub mod input_inhibitor {
         //! Inhibits input events to other clients
 
-        wayland_protocol_versioned!(
-            "wlr-input-inhibitor",
-            [v1],
-            [],
-            []
-        );
+        wayland_protocol_versioned!("wlr-input-inhibitor", [v1], [], []);
     }
 
     pub mod layer_shell {
@@ -101,13 +85,8 @@ pub mod unstable {
         wayland_protocol_versioned!(
             "wlr-layer-shell",
             [v1],
-            [
-                (wl_output, wl_output_interface),
-                (wl_surface, wl_surface_interface)
-            ],
-            [
-                (xdg_shell, xdg_popup, xdg_popup_interface)
-            ]
+            [(wl_output, wl_output_interface), (wl_surface, wl_surface_interface)],
+            [(xdg_shell, xdg_popup, xdg_popup_interface)]
         );
     }
 
@@ -120,10 +99,7 @@ pub mod unstable {
         wayland_protocol_versioned!(
             "wlr-screencopy",
             [v1],
-            [
-                (wl_buffer, wl_buffer_interface),
-                (wl_output, wl_output_interface)
-            ],
+            [(wl_buffer, wl_buffer_interface), (wl_output, wl_output_interface)],
             []
         );
     }
