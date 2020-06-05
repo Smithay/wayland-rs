@@ -163,7 +163,7 @@ impl Proxy<AnonymousObject> {
 ///
 /// As opposed to `Proxy`, you can use it to send requests
 /// that create new objects. The created objects will be handled
-/// by the event queue this proxy has been atatched to.
+/// by the event queue this proxy has been attached to.
 #[derive(PartialEq)]
 pub struct Attached<I: Interface> {
     // AttachedProxy is *not* send/sync
@@ -288,6 +288,15 @@ where
 
     fn deref(&self) -> &Attached<I> {
         &self.inner
+    }
+}
+
+impl<I: Interface> From<Main<I>> for Attached<I>
+where
+    I: AsRef<Proxy<I>> + From<Proxy<I>>,
+{
+    fn from(main: Main<I>) -> Attached<I> {
+        main.inner
     }
 }
 

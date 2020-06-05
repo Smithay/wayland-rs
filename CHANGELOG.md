@@ -5,6 +5,7 @@
 #### Additions
 
 - [client] Clone implementation for `QueueToken`
+- [client] implement `From<Main<I: Interface>>` impl for `Attached<I: Interface>`
 
 #### Bugfixes
 
