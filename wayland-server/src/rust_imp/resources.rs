@@ -72,10 +72,6 @@ impl ResourceInner {
         if let Some(ref mut conn_lock) = *self.client.data.lock().unwrap() {
             let is_alive = self.is_alive();
 
-            if !is_alive {
-                return;
-            }
-
             let destructor = msg.is_destructor();
             let msg = msg.into_raw(self.id);
 
@@ -87,6 +83,10 @@ impl ResourceInner {
                     self.object.events[msg.opcode as usize].name,
                     &msg.args,
                 );
+            }
+
+            if !is_alive {
+                return;
             }
 
             // TODO: figure our if this can fail and still be recoverable ?
