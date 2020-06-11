@@ -186,6 +186,7 @@ fn parse_event<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>)
     for attr in attrs {
         match &attr.name.local_name[..] {
             "name" => event.name = attr.value,
+            "type" => event.typ = Some(parse_type(&attr.value)),
             "since" => event.since = attr.value.parse().unwrap(),
             _ => {}
         }
