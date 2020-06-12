@@ -1,4 +1,3 @@
-extern crate byteorder;
 extern crate tempfile;
 #[macro_use(event_enum)]
 extern crate wayland_client;
@@ -6,8 +5,6 @@ extern crate wayland_client;
 use std::cmp::min;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
-
-use byteorder::{NativeEndian, WriteBytesExt};
 
 use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm};
 use wayland_client::{Display, Filter, GlobalManager};
@@ -48,7 +45,7 @@ fn main() {
         let r: u32 = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
         let g: u32 = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
         let b: u32 = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-        let _ = tmp.write_u32::<NativeEndian>((0xFF << 24) + (r << 16) + (g << 8) + b);
+        tmp.write_all(&((0xFF << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
     }
     let _ = tmp.flush();
 
