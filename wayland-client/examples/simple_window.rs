@@ -1,13 +1,14 @@
-extern crate tempfile;
-#[macro_use(event_enum)]
-extern crate wayland_client;
+// Allow single character names so clippy doesn't lint on x, y, r, g, b, which
+// are reasonable variable names in this domain.
+#![allow(clippy::many_single_char_names)]
 
-use std::cmp::min;
-use std::io::Write;
-use std::os::unix::io::AsRawFd;
+use std::{cmp::min, io::Write, os::unix::io::AsRawFd};
 
-use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm};
-use wayland_client::{Display, Filter, GlobalManager};
+use wayland_client::{
+    event_enum,
+    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm},
+    Display, Filter, GlobalManager,
+};
 
 // declare an event enum containing the events we want to receive in the iterator
 event_enum!(
@@ -16,8 +17,8 @@ event_enum!(
     Keyboard => wl_keyboard::WlKeyboard
 );
 
-fn main() {
-    let display = Display::connect_to_env().unwrap();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let display = Display::connect_to_env()?;
 
     let mut event_queue = display.create_event_queue();
 
@@ -25,8 +26,11 @@ fn main() {
 
     let globals = GlobalManager::new(&attached_display);
 
-    // roundtrip to retrieve the globals list
-    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
+    // Make a synchronized roundtrip to the wayland server.
+    //
+    // When this returns it must be true that the server has already
+    // sent us all available globals.
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!())?;
 
     /*
      * Create a buffer with window contents
@@ -37,15 +41,16 @@ fn main() {
     let buf_y: u32 = 240;
 
     // create a tempfile to write the contents of the window on
-    let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
+    let mut tmp = tempfile::tempfile().expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {
-        let x = (i % buf_x) as u32;
-        let y = (i / buf_x) as u32;
-        let r: u32 = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let g: u32 = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let b: u32 = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-        tmp.write_all(&((0xFF << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
+        let x = i % buf_x;
+        let y = i / buf_x;
+        let a = 0xFF;
+        let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+        tmp.write_all(&((a << 24) + (r << 16) + (g << 8) + b).to_ne_bytes())?;
     }
     let _ = tmp.flush();
 
@@ -54,12 +59,12 @@ fn main() {
      */
 
     // The compositor allows us to creates surfaces
-    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
+    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1)?;
     let surface = compositor.create_surface();
 
     // The SHM allows us to share memory with the server, and create buffers
     // on this shared memory to paint our surfaces
-    let shm = globals.instantiate_exact::<wl_shm::WlShm>(1).unwrap();
+    let shm = globals.instantiate_exact::<wl_shm::WlShm>(1)?;
     let pool = shm.create_pool(
         tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
         (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
@@ -133,7 +138,7 @@ fn main() {
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
     let mut keyboard_created = false;
-    globals.instantiate_exact::<wl_seat::WlSeat>(1).unwrap().quick_assign(move |seat, event, _| {
+    globals.instantiate_exact::<wl_seat::WlSeat>(1)?.quick_assign(move |seat, event, _| {
         // The capabilities of a seat are known at runtime and we retrieve
         // them via an events. 3 capabilities exists: pointer, keyboard, and touch
         // we are only interested in pointer & keyboard here
@@ -153,9 +158,9 @@ fn main() {
         }
     });
 
-    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
+    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })?;
 
     loop {
-        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
+        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })?;
     }
 }
