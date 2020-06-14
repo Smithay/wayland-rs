@@ -17,8 +17,8 @@ event_enum!(
     Keyboard => wl_keyboard::WlKeyboard
 );
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let display = Display::connect_to_env()?;
+fn main() {
+    let display = Display::connect_to_env().unwrap();
 
     let mut event_queue = display.create_event_queue();
 
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
     // When this returns it must be true that the server has already
     // sent us all available globals.
-    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!())?;
+    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 
     /*
      * Create a buffer with window contents
@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
         let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
         let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-        tmp.write_all(&((a << 24) + (r << 16) + (g << 8) + b).to_ne_bytes())?;
+        tmp.write_all(&((a << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
     }
     let _ = tmp.flush();
 
@@ -59,12 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
      */
 
     // The compositor allows us to creates surfaces
-    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1)?;
+    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
     let surface = compositor.create_surface();
 
     // The SHM allows us to share memory with the server, and create buffers
     // on this shared memory to paint our surfaces
-    let shm = globals.instantiate_exact::<wl_shm::WlShm>(1)?;
+    let shm = globals.instantiate_exact::<wl_shm::WlShm>(1).unwrap();
     let pool = shm.create_pool(
         tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
         (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // seat, so we'll keep it simple here
     let mut pointer_created = false;
     let mut keyboard_created = false;
-    globals.instantiate_exact::<wl_seat::WlSeat>(1)?.quick_assign(move |seat, event, _| {
+    globals.instantiate_exact::<wl_seat::WlSeat>(1).unwrap().quick_assign(move |seat, event, _| {
         // The capabilities of a seat are known at runtime and we retrieve
         // them via an events. 3 capabilities exists: pointer, keyboard, and touch
         // we are only interested in pointer & keyboard here
@@ -158,9 +158,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })?;
+    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
 
     loop {
-        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ })?;
+        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
     }
 }
