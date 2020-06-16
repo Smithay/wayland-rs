@@ -1,13 +1,14 @@
-extern crate tempfile;
-#[macro_use(event_enum)]
-extern crate wayland_client;
+// Allow single character names so clippy doesn't lint on x, y, r, g, b, which
+// are reasonable variable names in this domain.
+#![allow(clippy::many_single_char_names)]
 
-use std::cmp::min;
-use std::io::Write;
-use std::os::unix::io::AsRawFd;
+use std::{cmp::min, io::Write, os::unix::io::AsRawFd};
 
-use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm};
-use wayland_client::{Display, Filter, GlobalManager};
+use wayland_client::{
+    event_enum,
+    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm},
+    Display, Filter, GlobalManager,
+};
 
 // declare an event enum containing the events we want to receive in the iterator
 event_enum!(
@@ -25,7 +26,10 @@ fn main() {
 
     let globals = GlobalManager::new(&attached_display);
 
-    // roundtrip to retrieve the globals list
+    // Make a synchronized roundtrip to the wayland server.
+    //
+    // When this returns it must be true that the server has already
+    // sent us all available globals.
     event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
 
     /*
@@ -37,15 +41,16 @@ fn main() {
     let buf_y: u32 = 240;
 
     // create a tempfile to write the contents of the window on
-    let mut tmp = tempfile::tempfile().ok().expect("Unable to create a tempfile.");
+    let mut tmp = tempfile::tempfile().expect("Unable to create a tempfile.");
     // write the contents to it, lets put a nice color gradient
     for i in 0..(buf_x * buf_y) {
-        let x = (i % buf_x) as u32;
-        let y = (i / buf_x) as u32;
-        let r: u32 = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let g: u32 = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let b: u32 = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-        tmp.write_all(&((0xFF << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
+        let x = i % buf_x;
+        let y = i / buf_x;
+        let a = 0xFF;
+        let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+        let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+        tmp.write_all(&((a << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
     }
     let _ = tmp.flush();
 
