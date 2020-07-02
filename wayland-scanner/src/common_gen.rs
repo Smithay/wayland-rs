@@ -422,7 +422,11 @@ pub(crate) fn gen_messagegroup(
                             }
                             Type::Fd => quote!(val),
                             Type::Object => {
-                                let map_lookup = quote!(map.get(val).ok_or(())?.into());
+                                let map_lookup = if side == Side::Client {
+                                    quote!(map.get_or_dead(val).into())
+                                } else {
+                                    quote!(map.get(val).ok_or(())?.into())
+                                };
                                 if arg.allow_null {
                                     quote!(if val == 0 { None } else { Some(#map_lookup) })
                                 } else {

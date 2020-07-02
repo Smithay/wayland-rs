@@ -21,6 +21,11 @@ impl ProxyMap {
     }
 
     /// Unusable method only existing for type-level compatibility
+    pub fn get_or_dead<I: Interface>(&mut self, _: u32) -> Proxy<I> {
+        match *self {}
+    }
+
+    /// Unusable method only existing for type-level compatibility
     pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
         &mut self,
         _: u32,
