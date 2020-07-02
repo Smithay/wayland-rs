@@ -51,6 +51,16 @@ impl ProxyMap {
         })
     }
 
+    /// Returns the Proxy corresponding to a given id, and create a dead one if none is found
+    pub fn get_or_dead<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
+        &mut self,
+        id: u32,
+    ) -> Proxy<I> {
+        self.get(id).unwrap_or_else(|| {
+            Proxy::wrap(ProxyInner::dead::<I>(id, self.map.clone(), self.connection.clone()))
+        })
+    }
+
     /// Creates a new proxy for given id
     pub fn get_new<I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>>(
         &mut self,

@@ -85,6 +85,20 @@ impl ProxyInner {
         })
     }
 
+    pub(crate) fn dead<I: Interface>(
+        id: u32,
+        map: Arc<Mutex<ObjectMap<ObjectMeta>>>,
+        connection: Arc<Mutex<Connection>>,
+    ) -> ProxyInner {
+        ProxyInner {
+            map,
+            connection,
+            id,
+            queue: None,
+            object: Object::from_interface::<I>(1, ObjectMeta::dead()),
+        }
+    }
+
     pub(crate) fn is_interface<I: Interface>(&self) -> bool {
         self.object.is_interface::<I>()
     }

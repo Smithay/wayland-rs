@@ -28,11 +28,15 @@ impl TestServer {
     }
 
     pub fn answer(&mut self) {
-        self.display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
-        self.display.flush_clients(&mut ());
+        self.answer_with_ddata(&mut ());
+    }
+
+    pub fn answer_with_ddata<SD: 'static>(&mut self, ddata: &mut SD) {
+        self.display.dispatch(Duration::from_millis(10), ddata).unwrap();
+        self.display.flush_clients(ddata);
         // TODO: find out why native_lib requires two dispatches
-        self.display.dispatch(Duration::from_millis(10), &mut ()).unwrap();
-        self.display.flush_clients(&mut ());
+        self.display.dispatch(Duration::from_millis(10), ddata).unwrap();
+        self.display.flush_clients(ddata);
     }
 }
 
@@ -67,6 +71,15 @@ impl TestClient {
 }
 
 pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result<()> {
+    roundtrip_with_ddata(client, server, &mut (), &mut ())
+}
+
+pub fn roundtrip_with_ddata<CD: 'static, SD: 'static>(
+    client: &mut TestClient,
+    server: &mut TestServer,
+    client_ddata: &mut CD,
+    server_ddata: &mut SD,
+) -> io::Result<()> {
     // send to the server
     let done = Rc::new(Cell::new(false));
     let done2 = done.clone();
@@ -82,13 +95,13 @@ pub fn roundtrip(client: &mut TestClient, server: &mut TestServer) -> io::Result
         }
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // make it answer messages
-        server.answer();
+        server.answer_with_ddata(server_ddata);
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
-        client.event_queue.dispatch_pending(&mut (), |_, _, _| {})?;
+        client.event_queue.dispatch_pending(client_ddata, |_, _, _| {})?;
         let e = client.event_queue.prepare_read().unwrap().read_events();
         // even if read_events returns an error, some messages may need dispatching
-        client.event_queue.dispatch_pending(&mut (), |_, _, _| {})?;
+        client.event_queue.dispatch_pending(client_ddata, |_, _, _| {})?;
         e?;
     }
     Ok(())

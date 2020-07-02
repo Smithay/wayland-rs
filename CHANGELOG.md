@@ -16,6 +16,7 @@
 - [sys] Use pkg-config for compile time linking (fixes FreeBSD build without dlopen)
 - [scanner] Force the use of `proc_macro2` fallback implementation, so that the scanner doesn't panic
   when ran with `RUSTFLAGS="-Cpanic=abort"`.
+- [client] Fix a crash when receiving an event with a dead object argument (can happen due to protocol races).
 
 ## 0.26.6 -- 2020-05-23
 

@@ -1,6 +1,6 @@
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use helpers::{roundtrip, roundtrip_with_ddata, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
@@ -198,4 +198,58 @@ fn dead_connection() {
     // At this point the client connection is already freed, calling this request should be a no-op
     // and not a crash into freed memory
     output.release();
+}
+
+#[test]
+fn dead_object_argument() {
+    let mut server = TestServer::new();
+    server.display.create_global::<ServerOutput, _>(
+        3,
+        ways::Filter::new(|(output, _): (ways::Main<ServerOutput>, u32), _, mut ddata| {
+            let opt = ddata.get::<Option<ServerOutput>>().unwrap();
+            output.quick_assign(|_, _, _| {});
+            *opt = Some((*output).clone());
+        }),
+    );
+
+    // Send a wl_surface.enter() as soon as the surface is created.
+    server.display.create_global::<ServerCompositor, _>(
+        1,
+        ways::Filter::new(|(comp, _): (ways::Main<ServerCompositor>, u32), _, _| {
+            comp.quick_assign(|_, req, mut ddata| {
+                if let ways::protocol::wl_compositor::Request::CreateSurface { id } = req {
+                    id.quick_assign(|_, _, _| {});
+                    let output = ddata.get::<Option<ServerOutput>>().unwrap().as_ref().unwrap();
+                    assert!(output.as_ref().is_alive());
+                    id.enter(output);
+                }
+            });
+        }),
+    );
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
+    let comp = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
+    let surface = comp.create_surface();
+    surface.quick_assign(|_, evt, mut ddata| {
+        if let wayc::protocol::wl_surface::Event::Enter { output } = evt {
+            assert!(!output.as_ref().is_alive());
+            *ddata.get::<bool>().unwrap() = true;
+        } else {
+            panic!("Unexpected event.");
+        }
+    });
+
+    output.release();
+
+    let mut server_output = None::<ServerOutput>;
+    let mut client_entered = false;
+    roundtrip_with_ddata(&mut client, &mut server, &mut client_entered, &mut server_output)
+        .unwrap();
+
+    assert!(client_entered);
 }
