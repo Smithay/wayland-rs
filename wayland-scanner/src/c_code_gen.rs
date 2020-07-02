@@ -9,6 +9,9 @@ use crate::util::*;
 use crate::Side;
 
 pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
+    // Force the fallback to work around https://github.com/alexcrichton/proc-macro2/issues/218
+    proc_macro2::fallback::force();
+
     let modules = protocol.interfaces.iter().map(|iface| {
         let doc_attr = iface.description.as_ref().map(description_to_doc_attr);
         let mod_name = Ident::new(&iface.name, Span::call_site());
@@ -78,6 +81,9 @@ pub(crate) fn generate_protocol_client(protocol: Protocol) -> TokenStream {
 }
 
 pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
+    // Force the fallback to work around https://github.com/alexcrichton/proc-macro2/issues/218
+    proc_macro2::fallback::force();
+
     let modules = protocol
         .interfaces
         .iter()
