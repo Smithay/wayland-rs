@@ -10,6 +10,10 @@ Wayland objects, as well as object definitions for the core Wayland protocol. Pr
 can be supported as well by combining this crate with `wayland-protocols`, which provides object
 definitions for a large set of extensions.
 
+**Note:** This crate is a low-level interface to the Wayland protocol. If you are looking for a more
+battery-included toolkit for writing a Wayland server, you may consider
+[Smithay](https://github.com/Smithay/smithay), which is a Wayland server framework built on top of it.
+
 The crate has different backends to Wayland protocol serialization:
 
 - By default, it uses a pure-rust implementation of the protocol, and contains little `unsafe` code.
