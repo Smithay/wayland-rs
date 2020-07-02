@@ -113,7 +113,7 @@ pub trait Interface: 'static {
 /// An empty enum representing a MessageGroup with no messages
 pub enum NoMessage {}
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 impl MessageGroup for NoMessage {
     const MESSAGES: &'static [wire::MessageDesc] = &[];
     type Map = ();
