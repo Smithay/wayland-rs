@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- [protocols] Update `wayland-protocols` to version 1.20. Some arguments are replaced with their correct
+  enum type (instead of a plain `u32`), making it a breaking change.
+
 #### Additions
 
 - [client] Clone implementation for `QueueToken`
@@ -9,6 +14,8 @@
 - [client] std::fmt::Debug implementation for `Proxy`, `Attached`, `Main`
 - [server] std::fmt::Debug implementation for `Resource`, `Main`
 - [scanner] std::fmt::Debug implementation for `Event` and `Request`
+- [protocols] Update `wlr-protocols` to commit `16a28885bc92869d8e589e725e7bf018432c47e4`. Adding the
+  `wlr-output-management`, `wlr-output-power-management` and `wlr-virtual-pointer` protocol extensions.
 
 #### Bugfixes
 

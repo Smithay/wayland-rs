@@ -90,6 +90,35 @@ pub mod unstable {
         );
     }
 
+    pub mod output_management {
+        //! Output management protocol
+        //!
+        //! This protocol exposes interfaces to obtain and modify output device configuration.
+
+        wayland_protocol_versioned!(
+            "wlr-output-management",
+            [v1],
+            [(wl_output, wl_output_interface)],
+            []
+        );
+    }
+
+    pub mod output_power_management {
+        //! Output power management protocol
+        //!
+        //! This protocol allows clients to control power management modes
+        //! of outputs that are currently part of the compositor space. The
+        //! intent is to allow special clients like desktop shells to power
+        //! down outputs when the system is idle.
+
+        wayland_protocol_versioned!(
+            "wlr-output-power-management",
+            [v1],
+            [(wl_output, wl_output_interface)],
+            []
+        );
+    }
+
     pub mod screencopy {
         //! Screen content capturing on client buffers
         //!
@@ -99,8 +128,24 @@ pub mod unstable {
         wayland_protocol_versioned!(
             "wlr-screencopy",
             [v1],
-            [(wl_buffer, wl_buffer_interface), (wl_output, wl_output_interface)],
+            [(wl_buffer, wl_buffer_interface), (wl_output, wl_output_interface), (wl_shm, wl_shm_interface)],
             []
         );
     }
+
+    pub mod virtual_pointer {
+        //! Virtual pointer protocol
+        //!
+        //! This protocol allows clients to emulate a physical pointer device. The
+        //! requests are mostly mirror opposites of those specified in wl_pointer.
+
+        wayland_protocol_versioned!(
+            "wlr-virtual-pointer",
+            [v1],
+            [(wl_seat, wl_seat_interface), (wl_output, wl_output_interface), (wl_pointer, wl_pointer_interface)],
+            []
+        );
+    }
+
+
 }

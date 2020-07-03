@@ -47,7 +47,10 @@ static WLR_UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
     ("wlr-gamma-control", &[("v1", &[])]),
     ("wlr-input-inhibitor", &[("v1", &[])]),
     ("wlr-layer-shell", &[("v1", &[])]),
+    ("wlr-output-management", &[("v1", &[])]),
+    ("wlr-output-power-management", &[("v1", &[])]),
     ("wlr-screencopy", &[("v1", &[])]),
+    ("wlr-virtual-pointer", &[("v1", &[])]),
 ];
 
 static MISC_PROTOCOLS: &[StableProtocol] = &[("gtk-primary-selection", &[])];
