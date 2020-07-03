@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.27.0 -- 2020-07-03
+
 #### Breaking changes
 
 - [protocols] Update `wayland-protocols` to version 1.20. Some arguments are replaced with their correct
