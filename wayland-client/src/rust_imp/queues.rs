@@ -248,8 +248,14 @@ impl EventQueueInner {
         // TODO: integrate more properly with prepare read with a fence
         match self.connection.lock().unwrap().read_events() {
             Ok(_) => Ok(()),
-            Err(CError::Protocol(_)) => Err(::nix::errno::Errno::EPROTO.into()),
-            Err(CError::Parse(_)) => Err(::nix::errno::Errno::EPROTO.into()),
+            Err(CError::Protocol(e)) => {
+                eprintln!("[wayland-client] Protocol error while reading events: {}", e);
+                Err(::nix::errno::Errno::EPROTO.into())
+            },
+            Err(CError::Parse(e)) => {
+                eprintln!("[wayland-client] Parse error while reading events: {}", e);
+                Err(::nix::errno::Errno::EPROTO.into())
+            },
             Err(CError::Nix(::nix::Error::Sys(errno))) => Err(errno.into()),
             Err(CError::Nix(_)) => unreachable!(),
         }

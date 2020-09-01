@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- [client] Parsing or protocol errors encountered when reading events are now written to stderr,
+  rather than being swallowed into a generic `EPROTO`.
+
 ## 0.27.0 -- 2020-07-03
 
 #### Breaking changes
