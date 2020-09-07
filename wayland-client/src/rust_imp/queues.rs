@@ -251,11 +251,11 @@ impl EventQueueInner {
             Err(CError::Protocol(e)) => {
                 eprintln!("[wayland-client] Protocol error while reading events: {}", e);
                 Err(::nix::errno::Errno::EPROTO.into())
-            },
+            }
             Err(CError::Parse(e)) => {
                 eprintln!("[wayland-client] Parse error while reading events: {}", e);
                 Err(::nix::errno::Errno::EPROTO.into())
-            },
+            }
             Err(CError::Nix(::nix::Error::Sys(errno))) => Err(errno.into()),
             Err(CError::Nix(_)) => unreachable!(),
         }
