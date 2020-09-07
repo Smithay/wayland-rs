@@ -44,7 +44,7 @@ pub mod wl_foo {
             *self as u32
         }
     }
-    bitflags! { # [ doc = "possible delivery modes" ] pub struct DeliveryKind : u32 { # [ doc = "pick your cake up yourself" ] const PickUp = 1 ; # [ doc = "flying drone delivery" ] const Drone = 2 ; # [ doc = "because we fear nothing" ] const Catapult = 4 ; } }
+    bitflags! { # [doc = "possible delivery modes"] pub struct DeliveryKind : u32 { # [doc = "pick your cake up yourself"] const PickUp = 1 ; # [doc = "flying drone delivery"] const Drone = 2 ; # [doc = "because we fear nothing"] const Catapult = 4 ; } }
     impl DeliveryKind {
         pub fn from_raw(n: u32) -> Option<DeliveryKind> {
             Some(DeliveryKind::from_bits_truncate(n))
