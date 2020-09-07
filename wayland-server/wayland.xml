@@ -91,18 +91,20 @@
       <entry name="invalid_object" value="0"
 	     summary="server couldn't find object"/>
       <entry name="invalid_method" value="1"
-	     summary="method doesn't exist on the specified interface"/>
+	     summary="method doesn't exist on the specified interface or malformed request"/>
       <entry name="no_memory" value="2"
 	     summary="server is out of memory"/>
+      <entry name="implementation" value="3"
+	     summary="implementation error in compositor"/>
     </enum>
 
     <event name="delete_id">
       <description summary="acknowledge object ID deletion">
 	This event is used internally by the object ID management
-	logic.  When a client deletes an object, the server will send
-	this event to acknowledge that it has seen the delete request.
-	When the client receives this event, it will know that it can
-	safely reuse the object ID.
+	logic. When a client deletes an object that it had created,
+	the server will send this event to acknowledge that it has
+	seen the delete request. When the client receives this event,
+	it will know that it can safely reuse the object ID.
       </description>
       <arg name="id" type="uint" summary="deleted object ID"/>
     </event>
@@ -291,10 +293,12 @@
 	formats are optional and may not be supported by the particular
 	renderer in use.
 
-	The drm format codes match the macros defined in drm_fourcc.h.
-	The formats actually supported by the compositor will be
-	reported by the format event.
+	The drm format codes match the macros defined in drm_fourcc.h, except
+	argb8888 and xrgb8888. The formats actually supported by the compositor
+	will be reported by the format event.
       </description>
+      <!-- Note to protocol writers: don't update this list manually, instead
+           run the automated script that keeps it in sync with drm_fourcc.h. -->
       <entry name="argb8888" value="0" summary="32-bit ARGB format, [31:0] A:R:G:B 8:8:8:8 little endian"/>
       <entry name="xrgb8888" value="1" summary="32-bit RGB format, [31:0] x:R:G:B 8:8:8:8 little endian"/>
       <entry name="c8" value="0x20203843" summary="8-bit color index format, [7:0] C"/>
@@ -353,6 +357,48 @@
       <entry name="yvu422" value="0x36315659" summary="3 plane YCbCr format, 2x1 subsampled Cr (1) and Cb (2) planes"/>
       <entry name="yuv444" value="0x34325559" summary="3 plane YCbCr format, non-subsampled Cb (1) and Cr (2) planes"/>
       <entry name="yvu444" value="0x34325659" summary="3 plane YCbCr format, non-subsampled Cr (1) and Cb (2) planes"/>
+      <entry name="r8" value="0x20203852" summary="[7:0] R"/>
+      <entry name="r16" value="0x20363152" summary="[15:0] R little endian"/>
+      <entry name="rg88" value="0x38384752" summary="[15:0] R:G 8:8 little endian"/>
+      <entry name="gr88" value="0x38385247" summary="[15:0] G:R 8:8 little endian"/>
+      <entry name="rg1616" value="0x32334752" summary="[31:0] R:G 16:16 little endian"/>
+      <entry name="gr1616" value="0x32335247" summary="[31:0] G:R 16:16 little endian"/>
+      <entry name="xrgb16161616f" value="0x48345258" summary="[63:0] x:R:G:B 16:16:16:16 little endian"/>
+      <entry name="xbgr16161616f" value="0x48344258" summary="[63:0] x:B:G:R 16:16:16:16 little endian"/>
+      <entry name="argb16161616f" value="0x48345241" summary="[63:0] A:R:G:B 16:16:16:16 little endian"/>
+      <entry name="abgr16161616f" value="0x48344241" summary="[63:0] A:B:G:R 16:16:16:16 little endian"/>
+      <entry name="xyuv8888" value="0x56555958" summary="[31:0] X:Y:Cb:Cr 8:8:8:8 little endian"/>
+      <entry name="vuy888" value="0x34325556" summary="[23:0] Cr:Cb:Y 8:8:8 little endian"/>
+      <entry name="vuy101010" value="0x30335556" summary="Y followed by U then V, 10:10:10. Non-linear modifier only"/>
+      <entry name="y210" value="0x30313259" summary="[63:0] Cr0:0:Y1:0:Cb0:0:Y0:0 10:6:10:6:10:6:10:6 little endian per 2 Y pixels"/>
+      <entry name="y212" value="0x32313259" summary="[63:0] Cr0:0:Y1:0:Cb0:0:Y0:0 12:4:12:4:12:4:12:4 little endian per 2 Y pixels"/>
+      <entry name="y216" value="0x36313259" summary="[63:0] Cr0:Y1:Cb0:Y0 16:16:16:16 little endian per 2 Y pixels"/>
+      <entry name="y410" value="0x30313459" summary="[31:0] A:Cr:Y:Cb 2:10:10:10 little endian"/>
+      <entry name="y412" value="0x32313459" summary="[63:0] A:0:Cr:0:Y:0:Cb:0 12:4:12:4:12:4:12:4 little endian"/>
+      <entry name="y416" value="0x36313459" summary="[63:0] A:Cr:Y:Cb 16:16:16:16 little endian"/>
+      <entry name="xvyu2101010" value="0x30335658" summary="[31:0] X:Cr:Y:Cb 2:10:10:10 little endian"/>
+      <entry name="xvyu12_16161616" value="0x36335658" summary="[63:0] X:0:Cr:0:Y:0:Cb:0 12:4:12:4:12:4:12:4 little endian"/>
+      <entry name="xvyu16161616" value="0x38345658" summary="[63:0] X:Cr:Y:Cb 16:16:16:16 little endian"/>
+      <entry name="y0l0" value="0x304c3059" summary="[63:0]   A3:A2:Y3:0:Cr0:0:Y2:0:A1:A0:Y1:0:Cb0:0:Y0:0  1:1:8:2:8:2:8:2:1:1:8:2:8:2:8:2 little endian"/>
+      <entry name="x0l0" value="0x304c3058" summary="[63:0]   X3:X2:Y3:0:Cr0:0:Y2:0:X1:X0:Y1:0:Cb0:0:Y0:0  1:1:8:2:8:2:8:2:1:1:8:2:8:2:8:2 little endian"/>
+      <entry name="y0l2" value="0x324c3059" summary="[63:0]   A3:A2:Y3:Cr0:Y2:A1:A0:Y1:Cb0:Y0  1:1:10:10:10:1:1:10:10:10 little endian"/>
+      <entry name="x0l2" value="0x324c3058" summary="[63:0]   X3:X2:Y3:Cr0:Y2:X1:X0:Y1:Cb0:Y0  1:1:10:10:10:1:1:10:10:10 little endian"/>
+      <entry name="yuv420_8bit" value="0x38305559"/>
+      <entry name="yuv420_10bit" value="0x30315559"/>
+      <entry name="xrgb8888_a8" value="0x38415258"/>
+      <entry name="xbgr8888_a8" value="0x38414258"/>
+      <entry name="rgbx8888_a8" value="0x38415852"/>
+      <entry name="bgrx8888_a8" value="0x38415842"/>
+      <entry name="rgb888_a8" value="0x38413852"/>
+      <entry name="bgr888_a8" value="0x38413842"/>
+      <entry name="rgb565_a8" value="0x38413552"/>
+      <entry name="bgr565_a8" value="0x38413542"/>
+      <entry name="nv24" value="0x3432564e" summary="non-subsampled Cr:Cb plane"/>
+      <entry name="nv42" value="0x3234564e" summary="non-subsampled Cb:Cr plane"/>
+      <entry name="p210" value="0x30313250" summary="2x1 subsampled Cr:Cb plane, 10 bit per channel"/>
+      <entry name="p010" value="0x30313050" summary="2x2 subsampled Cr:Cb plane 10 bits per channel"/>
+      <entry name="p012" value="0x32313050" summary="2x2 subsampled Cr:Cb plane 12 bits per channel"/>
+      <entry name="p016" value="0x36313050" summary="2x2 subsampled Cr:Cb plane 16 bits per channel"/>
     </enum>
 
     <request name="create_pool">
@@ -507,6 +553,9 @@
 	this request after a NULL mime type has been set in
 	wl_data_offer.accept or no action was received through
 	wl_data_offer.action.
+
+	If wl_data_offer.finish request is received for a non drag and drop
+	operation, the invalid_finish protocol error is raised.
       </description>
     </request>
 
@@ -523,7 +572,7 @@
 
 	This request determines the final result of the drag-and-drop
 	operation. If the end result is that no action is accepted,
-	the drag source will receive wl_drag_source.cancelled.
+	the drag source will receive wl_data_source.cancelled.
 
 	The dnd_actions argument must contain only values expressed in the
 	wl_data_device_manager.dnd_actions enum, and the preferred_action
@@ -544,8 +593,10 @@
 	This request can only be made on drag-and-drop offers, a protocol error
 	will be raised otherwise.
       </description>
-      <arg name="dnd_actions" type="uint" summary="actions supported by the destination client"/>
-      <arg name="preferred_action" type="uint" summary="action preferred by the destination client"/>
+      <arg name="dnd_actions" type="uint" summary="actions supported by the destination client"
+           enum="wl_data_device_manager.dnd_action"/>
+      <arg name="preferred_action" type="uint" summary="action preferred by the destination client"
+           enum="wl_data_device_manager.dnd_action"/>
     </request>
 
     <event name="source_actions" since="3">
@@ -554,7 +605,8 @@
 	will be sent right after wl_data_device.enter, or anytime the source
 	side changes its offered actions through wl_data_source.set_actions.
       </description>
-      <arg name="source_actions" type="uint" summary="actions offered by the data source"/>
+      <arg name="source_actions" type="uint" summary="actions offered by the data source"
+           enum="wl_data_device_manager.dnd_action"/>
     </event>
 
     <event name="action" since="3">
@@ -595,7 +647,8 @@
 	final wl_data_offer.set_actions and wl_data_offer.accept requests
 	must happen before the call to wl_data_offer.finish.
       </description>
-      <arg name="dnd_action" type="uint" summary="action selected by the compositor"/>
+      <arg name="dnd_action" type="uint" summary="action selected by the compositor"
+           enum="wl_data_device_manager.dnd_action"/>
     </event>
   </interface>
 
@@ -692,7 +745,8 @@
 	wl_data_device.start_drag. Attempting to use the source other than
 	for drag-and-drop will raise a protocol error.
       </description>
-      <arg name="dnd_actions" type="uint" summary="actions supported by the data source"/>
+      <arg name="dnd_actions" type="uint" summary="actions supported by the data source"
+           enum="wl_data_device_manager.dnd_action"/>
     </request>
 
     <event name="dnd_drop_performed" since="3">
@@ -748,7 +802,8 @@
 	Clients can trigger cursor surface changes from this point, so
 	they reflect the current action.
       </description>
-      <arg name="dnd_action" type="uint" summary="action selected by the compositor"/>
+      <arg name="dnd_action" type="uint" summary="action selected by the compositor"
+           enum="wl_data_device_manager.dnd_action"/>
     </event>
   </interface>
 
@@ -1274,8 +1329,10 @@
 
   <interface name="wl_surface" version="4">
     <description summary="an onscreen surface">
-      A surface is a rectangular area that is displayed on the screen.
-      It has a location, size and pixel contents.
+      A surface is a rectangular area that may be displayed on zero
+      or more outputs, and shown any number of times at the compositor's
+      discretion. They can present wl_buffers, receive user input, and
+      define a local coordinate system.
 
       The size of a surface (and relative positions on it) is described
       in surface-local coordinates, which may differ from the buffer
@@ -1363,6 +1420,12 @@
 	will not receive a release event, and is not used by the
 	compositor.
 
+	If a pending wl_buffer has been committed to more than one wl_surface,
+	the delivery of wl_buffer.release events becomes undefined. A well
+	behaved client should not rely on wl_buffer.release events in this
+	case. Alternatively, a client could create multiple wl_buffer objects
+	from the same backing storage or use wp_linux_buffer_release.
+
 	Destroying the wl_buffer after wl_buffer.release does not change
 	the surface contents. However, if the client destroys the
 	wl_buffer before receiving the wl_buffer.release event, the surface
@@ -1397,9 +1460,9 @@
 	and clears pending damage. The server will clear the current
 	damage as it repaints the surface.
 
-	Alternatively, damage can be posted with wl_surface.damage_buffer
-	which uses buffer coordinates instead of surface coordinates,
-	and is probably the preferred and intuitive way of doing this.
+	Note! New clients should not use this request. Instead damage can be
+	posted with wl_surface.damage_buffer which uses buffer coordinates
+	instead of surface coordinates.
       </description>
       <arg name="x" type="int" summary="surface-local x coordinate"/>
       <arg name="y" type="int" summary="surface-local y coordinate"/>
@@ -1660,7 +1723,7 @@
     </request>
    </interface>
 
-  <interface name="wl_seat" version="6">
+  <interface name="wl_seat" version="7">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -1769,7 +1832,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="6">
+  <interface name="wl_pointer" version="7">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -2092,7 +2155,7 @@
     </event>
   </interface>
 
-  <interface name="wl_keyboard" version="6">
+  <interface name="wl_keyboard" version="7">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2113,6 +2176,9 @@
       <description summary="keyboard mapping">
 	This event provides a file descriptor to the client which can be
 	memory-mapped to provide a keyboard mapping description.
+
+	From version 7 onwards, the fd must be mapped with MAP_PRIVATE by
+	the recipient, as MAP_SHARED may fail.
       </description>
       <arg name="format" type="uint" enum="keymap_format" summary="keymap format"/>
       <arg name="fd" type="fd" summary="keymap file descriptor"/>
@@ -2203,7 +2269,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="6">
+  <interface name="wl_touch" version="7">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
@@ -2402,6 +2468,13 @@
 
 	The physical size can be set to zero if it doesn't make sense for this
 	output (e.g. for projectors or virtual outputs).
+
+	Note: wl_output only advertises partial information about the output
+	position and identification. Some compositors, for instance those not
+	implementing a desktop-style output layout or those exposing virtual
+	outputs, might fake this information. Instead of using x and y, clients
+	should use xdg_output.logical_position. Instead of using make and model,
+	clients should use xdg_output.name and xdg_output.description.
       </description>
       <arg name="x" type="int"
 	   summary="x position within the global compositor space"/>
@@ -2446,7 +2519,20 @@
 	the output device. This is not necessarily the same as
 	the output size in the global compositor space. For instance,
 	the output may be scaled, as described in wl_output.scale,
-	or transformed, as described in wl_output.transform.
+	or transformed, as described in wl_output.transform. Clients
+	willing to retrieve the output size in the global compositor
+	space should use xdg_output.logical_size instead.
+
+	The vertical refresh rate can be set to zero if it doesn't make
+	sense for this output (e.g. for virtual outputs).
+
+	Clients should not use the refresh rate to schedule frames. Instead,
+	they should use the wl_surface.frame event or the presentation-time
+	protocol.
+
+	Note: this information is not always meaningful for all outputs. Some
+	compositors, such as those exposing virtual outputs, might fake the
+	refresh rate or the size.
       </description>
       <arg name="flags" type="uint" enum="mode" summary="bitfield of mode flags"/>
       <arg name="width" type="int" summary="width of the mode in hardware units"/>
