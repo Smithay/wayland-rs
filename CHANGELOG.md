@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- [wayland-client] Update core protocol to 1.18.
+- [wayland-server] Update core protocol to 1.18.
+
 #### Additions
 
 - [client] Parsing or protocol errors encountered when reading events are now written to stderr,
