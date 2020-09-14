@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.0 -- 2020-09-14
+
 #### Breaking changes
 
 - [wayland-client] Update core protocol to 1.18.
