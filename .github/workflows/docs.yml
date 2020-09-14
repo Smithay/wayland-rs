@@ -28,11 +28,14 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: System dependencies
+        run: sudo apt-get install libwayland-client0 libwayland-server0
+
       - name: Build Documentation
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --all --no-deps
+          args: --all --no-deps --all-features
 
       - name: Setup index
         run: cp ./doc/index.html ./doc/rust.css ./target/doc/
