@@ -86,7 +86,7 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.41.0
           override: true
           components: rustfmt, clippy
       
