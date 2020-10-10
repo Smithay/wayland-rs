@@ -103,6 +103,7 @@ impl CursorTheme {
         //  Create shm.
         let mem_fd = create_shm_fd().expect("Shm fd allocation failed");
         let mut file = unsafe { File::from_raw_fd(mem_fd) };
+        file.set_len(INITIAL_POOL_SIZE as u64).expect("Failed to set buffer length");
 
         // Ensure that we have the same we requested.
         file.write_all(&[0; INITIAL_POOL_SIZE as usize]).expect("Write to shm fd failed");
@@ -156,6 +157,7 @@ impl CursorTheme {
     /// smaller or equal to the pool's current size.
     fn grow(&mut self, size: i32) {
         if size > self.pool_size {
+            self.file.set_len(size as u64).expect("Failed to set new buffer length");
             self.pool.resize(size);
             self.pool_size = size;
         }
@@ -265,10 +267,12 @@ impl CursorImageBuffer {
     fn new(theme: &mut CursorTheme, image: &xparser::Image) -> Self {
         let buf = &image.pixels_rgba;
         let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
-        theme.file.write_all(&buf).unwrap();
 
-        let new_size = theme.file.seek(SeekFrom::End(0)).unwrap();
+        // Resize memory before writing to it to handle shm correctly.
+        let new_size = offset + buf.len() as u64;
         theme.grow(new_size as i32);
+
+        theme.file.write_all(&buf).unwrap();
 
         let buffer = theme.pool.create_buffer(
             offset as i32,
