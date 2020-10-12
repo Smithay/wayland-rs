@@ -84,6 +84,8 @@
 //! ```
 
 #![warn(missing_docs)]
+// disable clippy lints that are not compatible with rust 1.41
+#![allow(clippy::match_like_matches_macro)]
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};

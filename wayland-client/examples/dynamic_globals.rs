@@ -44,6 +44,9 @@ fn main() {
                         }
                         _ => {}
                     }
+                    if let (Some(ref name), Some(caps)) = (&seat_name, caps) {
+                        println!("Seat '{}' with caps: {:x}", name, caps);
+                    }
                 })
             }],
             // Same thing with wl_output, but we require version 2
