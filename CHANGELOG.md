@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.1 -- 2020-10-12
+
 #### Bugfixes
 
 - [cursor] Fix crash on systems without `memfd`.
