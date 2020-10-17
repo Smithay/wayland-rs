@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- [scanner] automatically use common wayland-rs dependencies in generated code
+
 ## 0.28.1 -- 2020-10-12
 
 #### Bugfixes

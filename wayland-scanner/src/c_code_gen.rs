@@ -141,12 +141,12 @@ pub(crate) fn generate_protocol_server(protocol: Protocol) -> TokenStream {
                 #doc_attr
                 pub mod #mod_name {
                     use std::os::raw::c_char;
-                    use super::{
+                    use wayland_client::{
                         Resource, AnonymousObject, Interface, MessageGroup, MessageDesc, Main, smallvec,
                         ArgumentType, Object, Message, Argument, ObjectMetadata, types_null, NULLPTR
                     };
-                    use super::sys::common::{wl_argument, wl_interface, wl_array, wl_message};
-                    use super::sys::server::*;
+                    use wayland_sys::common::{wl_argument, wl_interface, wl_array, wl_message};
+                    use wayland_sys::server::*;
 
                     #(#enums)*
                     #requests

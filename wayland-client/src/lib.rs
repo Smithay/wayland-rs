@@ -137,12 +137,7 @@ pub mod protocol {
     #![allow(non_upper_case_globals, non_snake_case, unused_imports)]
     #![allow(missing_docs, clippy::all)]
 
-    pub(crate) use crate::{AnonymousObject, Attached, Main, Proxy, ProxyMap};
-    pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
-    pub(crate) use wayland_commons::smallvec;
-    pub(crate) use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
-    pub(crate) use wayland_commons::{Interface, MessageGroup};
-    pub(crate) use wayland_sys as sys;
+    use crate as wayland_client;
     include!(concat!(env!("OUT_DIR"), "/wayland_api.rs"));
 }
 

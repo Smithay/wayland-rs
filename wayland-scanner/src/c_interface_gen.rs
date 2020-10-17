@@ -33,6 +33,13 @@ pub(crate) fn generate_interfaces_prefix(protocol: &Protocol) -> TokenStream {
     quote! {
         use std::os::raw::{c_char, c_void};
 
+        use wayland_client::{AnonymousObject, Attached, Main, Proxy, ProxyMap};
+        use wayland_commons::map::{Object, ObjectMetadata};
+        use wayland_commons::smallvec;
+        use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc};
+        use wayland_commons::{Interface, MessageGroup};
+        use wayland_sys as sys;
+
         const NULLPTR: *const c_void = 0 as *const c_void;
         static mut types_null: [*const sys::common::wl_interface; #types_null_len] = [
             #(#nulls,)*

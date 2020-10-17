@@ -67,17 +67,10 @@
 //!     #![allow(non_upper_case_globals,non_snake_case,unused_imports)]
 //!
 //!     pub mod client {
-//!         // These imports are used by the generated code
-//!         pub(crate) use wayland_client::{Main, Attached, Proxy, ProxyMap, AnonymousObject};
-//!         pub(crate) use wayland_commons::map::{Object, ObjectMetadata};
-//!         pub(crate) use wayland_commons::{Interface, MessageGroup};
-//!         pub(crate) use wayland_commons::wire::{Argument, MessageDesc, ArgumentType, Message};
-//!         pub(crate) use wayland_commons::smallvec;
-//!         pub(crate) use wayland_client::protocol::{$($import),*};
-//!         pub(crate) use wayland_client::sys;
 //!         // If you protocol interacts with objects from other protocols, you'll need to import
 //!         // their modules, like so:
 //!         pub(crate) use wayland_client::protocol::{wl_surface, wl_region};
+//!
 //!         include!(concat!(env!("OUT_DIR"), "/my_protocol_code.rs"));
 //!     }
 //! }
