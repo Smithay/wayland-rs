@@ -8,6 +8,11 @@
 
 - [cursor] Fix crash on systems without `memfd`.
 
+#### Additions
+
+- [protocols] Update `wlr-protocols` to commit `992841c2aa731ab02774c9bf8c6cda9f24dfbf10`,
+  updating `wlr-foreign-toplevel-management` to version 3.
+
 ## 0.28.0 -- 2020-09-14
 
 #### Breaking changes
