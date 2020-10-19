@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- [protocols] Update `wlr-protocols` to commit `d1598e82240d6e8ca57729495a94d4e11d222033`,
+  updating `wlr-layer-shell` to version 4.
+  
 ## 0.28.5 -- 2020-02-26
 
 - [sys] Update `dlib` dependency to v0.5 to match new macro fornat. The `dlopen` feature no longer
