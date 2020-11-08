@@ -39,23 +39,28 @@
 //! }
 //! ```
 
-use std::{
-    env,
-    fs::File,
-    io::{Read, Seek, SeekFrom, Write},
-    ops::{Deref, Index},
-    os::unix::io::{AsRawFd, FromRawFd},
-};
-use wayland_client::{
-    protocol::{
-        wl_buffer::WlBuffer,
-        wl_shm::{Format, WlShm},
-        wl_shm_pool::WlShmPool,
-    },
-    Attached, Main,
-};
+use std::env;
+use std::fs::File;
+use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
+use std::ops::{Deref, Index};
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use nix::errno::Errno;
+use nix::fcntl;
+use nix::sys::{mman, stat};
+use nix::unistd;
+#[cfg(target_os = "linux")]
+use {nix::sys::memfd, std::ffi::CStr};
+
+use wayland_client::protocol::wl_buffer::WlBuffer;
+use wayland_client::protocol::wl_shm::{Format, WlShm};
+use wayland_client::protocol::wl_shm_pool::WlShmPool;
+use wayland_client::{Attached, Main};
+
 use xcursor::parser as xparser;
 use xcursor::CursorTheme as XCursorTheme;
+use xparser::Image as XCursorImage;
 
 /// Represents a cursor theme loaded from the system.
 pub struct CursorTheme {
@@ -122,13 +127,11 @@ impl CursorTheme {
     /// This method returns `None` if this cursor is not provided
     /// either by the theme, or by one of its parents.
     pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
-        let cur = self.cursors.iter().position(|i| i.name == name);
-
-        match cur {
+        match self.cursors.iter().position(|cursor| cursor.name == name) {
             Some(i) => Some(&self.cursors[i]),
             None => {
-                let cur = self.load_cursor(name, self.size)?;
-                self.cursors.push(cur);
+                let cursor = self.load_cursor(name, self.size)?;
+                self.cursors.push(cursor);
                 self.cursors.iter().last()
             }
         }
@@ -148,8 +151,7 @@ impl CursorTheme {
             xparser::parse_xcursor(&buf)?
         };
 
-        let cursor = Cursor::new(name, self, &images, size);
-        Some(cursor)
+        Some(Cursor::new(name, self, &images, size))
     }
 
     /// Grow the wl_shm_pool this theme is stored on.
@@ -177,37 +179,36 @@ impl Cursor {
     ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
-    fn new(name: &str, theme: &mut CursorTheme, images: &[xparser::Image], size: u32) -> Self {
-        let mut buffers = Vec::with_capacity(images.len());
-        let size = Cursor::nearest_size(size, images);
+    fn new(name: &str, theme: &mut CursorTheme, images: &[XCursorImage], size: u32) -> Self {
+        let mut total_duration = 0;
+        let images: Vec<CursorImageBuffer> = Cursor::nearest_images(size, images)
+            .map(|image| {
+                let buffer = CursorImageBuffer::new(theme, image);
+                total_duration += buffer.delay;
 
-        images
-            .iter()
-            .filter(|el| el.width == size && el.height == size)
-            .for_each(|el| buffers.push(CursorImageBuffer::new(theme, el)));
+                buffer
+            })
+            .collect();
 
-        let total_duration = buffers.iter().map(|el| el.delay).sum();
-
-        Cursor { total_duration, name: String::from(name), images: buffers }
+        Cursor { total_duration, name: String::from(name), images }
     }
 
-    fn nearest_size(size: u32, images: &[xparser::Image]) -> u32 {
-        let size = size as i32;
-        let mut all_sizes = Vec::new();
+    fn nearest_images(size: u32, images: &[XCursorImage]) -> impl Iterator<Item = &XCursorImage> {
+        // Since cursor could have shapes other than squares we find nearest image by its square,
+        // instead of side size.
+        let target_square = (size * size) as i32;
 
-        for img in images {
-            if !all_sizes.contains(&(img.width as i32)) {
-                all_sizes.push(img.width as i32);
-            }
-        }
+        let nearest_image = images
+            .iter()
+            .min_by_key(|image| {
+                let image_square = (image.width * image.height) as i32;
+                (target_square - image_square).abs()
+            })
+            .unwrap();
 
-        let mut min = 0;
-        for (i, width) in all_sizes.iter().enumerate() {
-            if (width - size).abs() < (all_sizes[min] - size).abs() {
-                min = i;
-            }
-        }
-        all_sizes[min] as u32
+        images.iter().filter(move |image| {
+            image.width == nearest_image.width && image.height == nearest_image.height
+        })
     }
 
     /// Given a time, calculate which frame to show, and how much time remains until the next frame.
@@ -264,7 +265,7 @@ impl CursorImageBuffer {
     ///
     /// This function appends the pixels of the image to the provided file,
     /// and constructs a wl_buffer on that data.
-    fn new(theme: &mut CursorTheme, image: &xparser::Image) -> Self {
+    fn new(theme: &mut CursorTheme, image: &XCursorImage) -> Self {
         let buf = &image.pixels_rgba;
         let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
 
@@ -328,26 +329,11 @@ pub struct FrameAndDuration {
     pub frame_duration: u32,
 }
 
-/// Create a shared file descriptor in memory
-use {
-    nix::{
-        errno::Errno,
-        fcntl,
-        sys::{mman, stat},
-        unistd,
-    },
-    std::{
-        io,
-        os::unix::io::RawFd,
-        time::{SystemTime, UNIX_EPOCH},
-    },
-};
-
-fn create_shm_fd() -> io::Result<RawFd> {
-    // Only try memfd on linux
+/// Create a shared file descriptor in memory.
+fn create_shm_fd() -> IoResult<RawFd> {
+    // Only try memfd on linux.
     #[cfg(target_os = "linux")]
     loop {
-        use {nix::sys::memfd, std::ffi::CStr};
         match memfd::memfd_create(
             CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
             memfd::MemFdCreateFlag::MFD_CLOEXEC,
@@ -355,12 +341,12 @@ fn create_shm_fd() -> io::Result<RawFd> {
             Ok(fd) => return Ok(fd),
             Err(nix::Error::Sys(Errno::EINTR)) => continue,
             Err(nix::Error::Sys(Errno::ENOSYS)) => break,
-            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
             Err(err) => unreachable!(err),
         }
     }
 
-    // Fallback to using shm_open
+    // Fallback to using shm_open.
     let sys_time = SystemTime::now();
     let mut mem_file_handle = format!(
         "/wayland-cursor-rs-{}",
@@ -378,8 +364,8 @@ fn create_shm_fd() -> io::Result<RawFd> {
             Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
                 Ok(_) => return Ok(fd),
                 Err(nix::Error::Sys(errno)) => match unistd::close(fd) {
-                    Ok(_) => return Err(io::Error::from(errno)),
-                    Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+                    Ok(_) => return Err(IoError::from(errno)),
+                    Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
                     Err(err) => panic!(err),
                 },
                 Err(err) => panic!(err),
@@ -393,7 +379,7 @@ fn create_shm_fd() -> io::Result<RawFd> {
                 continue;
             }
             Err(nix::Error::Sys(Errno::EINTR)) => continue,
-            Err(nix::Error::Sys(errno)) => return Err(io::Error::from(errno)),
+            Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
             Err(err) => unreachable!(err),
         }
     }
