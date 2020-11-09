@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.2 -- 2020-11-09
+
 #### Bugfixes
 
 - [cursor] Account for both width and height when picking nearest cursor.
