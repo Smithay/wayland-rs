@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- [server] Introduce `Client::get_resource()` to retrieve a resource from its protocol id and its client
+
 #### Bugfixes
 
 - [client] Properly print protocol errors to stderr when they occur on the rust backend

@@ -2,7 +2,7 @@ mod helpers;
 
 use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
 
-use ways::protocol::wl_output;
+use ways::protocol::{wl_compositor, wl_output};
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
 
@@ -119,4 +119,39 @@ fn dead_resources() {
         assert!(outputs_lock[1].as_ref().is_alive());
         assert!(!cloned.as_ref().is_alive());
     }
+}
+
+#[test]
+fn get_resource() {
+    let mut server = TestServer::new();
+    let clients = Arc::new(Mutex::new(Vec::new()));
+
+    server.display.create_global::<wl_output::WlOutput, _>(1, {
+        let clients = clients.clone();
+        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
+            // retrieve and store the client
+            let client = output.as_ref().client().unwrap();
+            clients.lock().unwrap().push(client);
+        })
+    });
+
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // Instantiate a global
+    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // try to retrieve the resource
+    // its id should be 3 (1 is wl_display and 2 is wl_registry)
+    let clients = clients.lock().unwrap();
+    // wrong interface fails
+    assert!(clients[0].get_resource::<wl_compositor::WlCompositor>(3).is_none());
+    // wrong id fails
+    assert!(clients[0].get_resource::<wl_output::WlOutput>(4).is_none());
+    // but this suceeds
+    assert!(clients[0].get_resource::<wl_output::WlOutput>(3).is_some());
 }

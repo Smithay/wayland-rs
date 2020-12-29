@@ -300,6 +300,20 @@ impl ClientInner {
         Some(ResourceInner::from_id(id, map, self.clone()).unwrap())
     }
 
+    pub(crate) fn get_resource<I: Interface>(&self, id: u32) -> Option<ResourceInner> {
+        let object = self
+            .data
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|cx| ResourceInner::from_id(id, cx.map.clone(), self.clone()))?;
+        if object.is_interface::<I>() {
+            Some(object)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn set_dispatcher_for(
         &self,
         id: u32,

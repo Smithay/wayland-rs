@@ -97,4 +97,16 @@ impl Client {
     ) -> Option<Main<I>> {
         self.inner.create_resource::<I>(version).map(Main::wrap)
     }
+
+    /// Retrieve a resource of this client for a given id
+    ///
+    /// You need to know in advance which is the interface of this object. If the given id does
+    /// not correspond to an existing object or the existing object is not of the requested
+    /// interface, this call returns `None`.
+    pub fn get_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        &self,
+        id: u32,
+    ) -> Option<I> {
+        self.inner.get_resource::<I>(id).map(|obj| Resource::wrap(obj).into())
+    }
 }
