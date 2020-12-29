@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ffi::CStr;
 use std::os::raw::c_void;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -142,6 +143,26 @@ impl ClientInner {
                 0
             );
             Some(ResourceInner::init_from_c_ptr::<I>(ptr))
+        }
+    }
+
+    pub(crate) fn get_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+        &self,
+        id: u32,
+    ) -> Option<ResourceInner> {
+        let _c_safety_guard = super::C_SAFETY.lock();
+        unsafe {
+            let ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_object, self.ptr(), id);
+            if ptr.is_null() {
+                return None;
+            }
+            let interface = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_class, ptr);
+            let requested_interface = (*I::c_interface()).name;
+            if CStr::from_ptr(interface) != CStr::from_ptr(requested_interface) {
+                // interface of this resource is not the requested one
+                return None;
+            }
+            Some(ResourceInner::from_c_ptr::<I>(ptr))
         }
     }
 }
