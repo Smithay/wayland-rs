@@ -71,6 +71,25 @@ impl Connection {
                     .map(|desc| desc.signature)
             },
             |msg| {
+                // Early exit on protocol error
+                if msg.sender_id == 1 && msg.opcode == 0 {
+                    if let [Argument::Object(faulty_id), Argument::Uint(error_code), Argument::Str(ref error_msg)] = &msg.args[..] {
+                        let error_msg = error_msg.to_string_lossy().into_owned();
+                        let faulty_interface = map.borrow().find(*faulty_id).map(|obj| obj.interface).unwrap_or("unknown");
+                        // abort parsing, this is an unrecoverable error
+                        *last_error = Some(Error::Protocol(ProtocolError {
+                            code: *error_code,
+                            object_id: *faulty_id,
+                            object_interface: faulty_interface,
+                            message: error_msg
+                        }));
+                    } else {
+                        unreachable!();
+                    }
+                    return false;
+                }
+
+                // dispatch the message to the proper object
                 let mut map = map.borrow_mut();
                 let object = map.find(msg.sender_id);
 
@@ -98,11 +117,6 @@ impl Connection {
                         child.meta.client_destroyed = true;
                     }
                     if let Err(()) = map.insert_at(new_id, child) {
-                        eprintln!(
-                            "[wayland-client] Protocol error: server tried to create \
-                            an object \"{}\" with invalid id \"{}\".",
-                            child_interface, new_id
-                        );
                         // abort parsing, this is an unrecoverable error
                         *last_error = Some(Error::Protocol(ProtocolError {
                             code: 0,
@@ -143,14 +157,14 @@ impl Connection {
                 true
             },
         );
+
+        if let Some(ref e) = *last_error {
+            // a protocol error was generated, don't lose it, it is the source of any subsequent error
+            return Err(e.clone());
+        }
+
         match ret {
-            Ok(Ok(n)) => {
-                if let Some(ref e) = *last_error {
-                    Err(e.clone())
-                } else {
-                    Ok(n)
-                }
-            }
+            Ok(Ok(n)) => Ok(n),
             Ok(Err(e)) => {
                 *last_error = Some(Error::Parse(e.clone()));
                 Err(Error::Parse(e))

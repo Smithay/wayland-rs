@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- [client] Properly print protocol errors to stderr when they occur on the rust backend
+
 ## 0.28.2 -- 2020-11-09
 
 #### Bugfixes
