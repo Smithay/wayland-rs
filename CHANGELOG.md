@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.3 -- 2020-12-30
+
 #### Additions
 
 - [server] Introduce `Client::get_resource()` to retrieve a resource from its protocol id and its client
