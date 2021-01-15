@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [client] Unset WAYLAND\_SOCKET when we use the socket
+
 ## 0.28.3 -- 2020-12-30
 
 #### Additions
