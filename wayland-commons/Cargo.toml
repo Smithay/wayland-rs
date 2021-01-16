@@ -14,5 +14,5 @@ readme = "README.md"
 [dependencies]
 wayland-sys = { version = "0.28.3", path = "../wayland-sys" }
 nix = "0.18"
-once_cell = "1.0"
+once_cell = "1.1"
 smallvec = "1"
