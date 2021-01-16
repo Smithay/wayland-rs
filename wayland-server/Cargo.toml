@@ -16,7 +16,7 @@ readme = "README.md"
 wayland-commons = { version = "0.28.3", path = "../wayland-commons" }
 wayland-sys = { version = "0.28.3", path = "../wayland-sys" }
 bitflags = "1.0"
-downcast-rs = "1.0"
+downcast-rs = "1.0.4"
 libc = "0.2"
 nix = "0.18"
 lazy_static = { version = "1.0.2", optional = true }
