@@ -26,6 +26,7 @@ wayland-scanner = { version = "0.28.3", path = "../wayland-scanner" }
 
 [dev-dependencies]
 tempfile = ">=2.0, <4.0"
+wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 
 [features]
 use_system_lib = [ "wayland-sys/client", "scoped-tls"]
