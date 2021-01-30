@@ -18,7 +18,7 @@ wayland-sys = { version = "0.28.3", path = "../wayland-sys" }
 bitflags = "1.0"
 downcast-rs = "1.0"
 libc = "0.2"
-nix = "0.18"
+nix = "0.19"
 lazy_static = { version = "1.0", optional = true }
 parking_lot = { version = "0.11", optional = true }
 scoped-tls = { version = "1.0", optional = true }
