@@ -301,7 +301,7 @@ pub(crate) fn gen_messagegroup(
         } else {
             quote!(#msg_type_qualified { .. })
         }
-    };
+    }
 
     let message_match_patterns = messages.iter().zip(iter::repeat(name)).map(map_fn);
 
