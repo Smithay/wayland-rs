@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
 - [client] Unset WAYLAND\_SOCKET when we use the socket
+- [client] Correctly cleanup internal state on object destruction when usin the system lib backend
 
 ## 0.28.3 -- 2020-12-30
 
