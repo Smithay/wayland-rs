@@ -96,7 +96,7 @@ impl ProxyInner {
 
     pub(crate) fn send<I, J>(&self, msg: I::Request, version: Option<u32>) -> Option<ProxyInner>
     where
-        I: Interface,
+        I: Interface + AsRef<Proxy<I>> + From<Proxy<I>>,
         J: Interface + AsRef<Proxy<J>> + From<Proxy<J>>,
     {
         let destructor = msg.is_destructor();
@@ -171,6 +171,17 @@ impl ProxyInner {
             // we need to destroy the proxy now
             if let Some(ref internal) = self.internal {
                 internal.alive.store(false, Ordering::Release);
+                unsafe {
+                    let user_data =
+                        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, self.ptr);
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_set_user_data,
+                        self.ptr,
+                        std::ptr::null_mut()
+                    );
+                    let _ = Box::from_raw(user_data as *mut ProxyUserData<I>);
+                }
             }
             unsafe {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, self.ptr);
@@ -378,16 +389,22 @@ where
         // retrieve the impl
         let user_data = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, proxy);
         {
-            let user_data = &mut *(user_data as *mut ProxyUserData<I>);
-            let implem = user_data.implem.borrow();
+            // a scope to ensure the &mut reference to the user data no longer exists when
+            // the callback is invoked
+            let (implem, internal) = {
+                let user_data = &mut *(user_data as *mut ProxyUserData<I>);
 
-            if must_destroy {
-                user_data.internal.alive.store(false, Ordering::Release);
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
-            }
+                if must_destroy {
+                    user_data.internal.alive.store(false, Ordering::Release);
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
+                }
+                // remove the implem from the user data, so that it remains valid even if the
+                // object is destroyed from within the callback
+                (user_data.implem.borrow_mut().take(), user_data.internal.clone())
+            };
             // if there is an implem, call it, otherwise call the fallback
-            match implem.as_ref() {
-                Some(implem) => {
+            match implem {
+                Some(ref implem) => {
                     // parse the message:
                     let msg = I::Event::from_raw_c(proxy as *mut _, opcode, args)?;
                     // create the proxy object
@@ -411,6 +428,16 @@ where
                         let (ref mut fallback, ref mut dispatch_data) = *meta;
                         (&mut *fallback)(msg, proxy_obj, dispatch_data.reborrow());
                     })
+                }
+            }
+
+            // if the proxy is still alive, put the implem back in place
+            if internal.alive.load(Ordering::Acquire) {
+                let user_data = &mut *(user_data as *mut ProxyUserData<I>);
+                let mut implem_place = user_data.implem.borrow_mut();
+                // only place the implem back if it has not been replaced with an other
+                if implem_place.is_none() {
+                    *implem_place = implem;
                 }
             }
         }
