@@ -195,10 +195,8 @@ impl Cursor {
 
     fn nearest_images(size: u32, images: &[XCursorImage]) -> impl Iterator<Item = &XCursorImage> {
         // Follow the nominal size of the cursor to choose the nearest
-        let nearest_image = images
-            .iter()
-            .min_by_key(|image| (size as i32 - image.size as i32).abs())
-            .unwrap();
+        let nearest_image =
+            images.iter().min_by_key(|image| (size as i32 - image.size as i32).abs()).unwrap();
 
         images.iter().filter(move |image| {
             image.width == nearest_image.width && image.height == nearest_image.height
