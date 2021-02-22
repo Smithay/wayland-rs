@@ -6,6 +6,7 @@
 
 - [client] Unset WAYLAND\_SOCKET when we use the socket
 - [client] Correctly cleanup internal state on object destruction when usin the system lib backend
+- [cursor] Fix the algorithm for choosing cursor icons to match libwayland-cursor.
 
 ## 0.28.3 -- 2020-12-30
 

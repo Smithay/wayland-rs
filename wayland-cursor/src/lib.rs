@@ -194,16 +194,10 @@ impl Cursor {
     }
 
     fn nearest_images(size: u32, images: &[XCursorImage]) -> impl Iterator<Item = &XCursorImage> {
-        // Since cursor could have shapes other than squares we find nearest image by its square,
-        // instead of side size.
-        let target_square = (size * size) as i32;
-
+        // Follow the nominal size of the cursor to choose the nearest
         let nearest_image = images
             .iter()
-            .min_by_key(|image| {
-                let image_square = (image.width * image.height) as i32;
-                (target_square - image_square).abs()
-            })
+            .min_by_key(|image| (size as i32 - image.size as i32).abs())
             .unwrap();
 
         images.iter().filter(move |image| {
