@@ -13,10 +13,10 @@ readme = "README.md"
 [dependencies]
 dlib = { version = "0.4", optional = true }
 libc = { version = "0.2", optional = true }
-lazy_static = { version = "1", optional = true }
+lazy_static = { version = "1.0.2", optional = true }
 
 [build-dependencies]
-pkg-config = "0.3"
+pkg-config = "0.3.7"
 
 [features]
 dlopen = ["dlib/dlopen", "lazy_static"]
