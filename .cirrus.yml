@@ -14,7 +14,6 @@ task:
   setup_script:
     - fetch https://sh.rustup.rs -o rustup.sh
     - sh rustup.sh -y --default-toolchain stable
-    - pkg update -f
     - pkg install -y git wayland
     - git submodule update --init --recursive
   test_script:
