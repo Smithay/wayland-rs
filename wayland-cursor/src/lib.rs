@@ -366,9 +366,9 @@ fn create_shm_fd() -> IoResult<RawFd> {
                 Err(nix::Error::Sys(errno)) => match unistd::close(fd) {
                     Ok(_) => return Err(IoError::from(errno)),
                     Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
-                    Err(err) => panic!(err),
+                    Err(err) => panic!("{}", err),
                 },
-                Err(err) => panic!(err),
+                Err(err) => panic!("{}", err),
             },
             Err(nix::Error::Sys(Errno::EEXIST)) => {
                 // If a file with that handle exists then change the handle
