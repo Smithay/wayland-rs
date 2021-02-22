@@ -2,13 +2,15 @@
 // are reasonable variable names in this domain.
 #![allow(clippy::many_single_char_names)]
 
+use std::process::exit;
 use std::{cmp::min, io::Write, os::unix::io::AsRawFd};
 
 use wayland_client::{
     event_enum,
-    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shell, wl_shm},
+    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shm},
     Display, Filter, GlobalManager,
 };
+use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
 // declare an event enum containing the events we want to receive in the iterator
 event_enum!(
@@ -77,28 +79,39 @@ fn main() {
         wl_shm::Format::Argb8888, // chosen encoding for the data
     );
 
-    // The shell allows us to define our surface as a "toplevel", meaning the
-    // server will treat it as a window
-    //
-    // NOTE: the wl_shell interface is actually deprecated in favour of the xdg_shell
-    // protocol, available in wayland-protocols. But this will do for this example.
-    let shell = globals
-        .instantiate_exact::<wl_shell::WlShell>(1)
-        .expect("Compositor does not support wl_shell");
-    let shell_surface = shell.get_shell_surface(&surface);
-    shell_surface.quick_assign(|shell_surface, event, _| {
-        use wayland_client::protocol::wl_shell_surface::Event;
-        // This ping/pong mechanism is used by the wayland server to detect
-        // unresponsive applications
-        if let Event::Ping { serial } = event {
-            shell_surface.pong(serial);
-        }
+    let xdg_wm_base = globals
+        .instantiate_exact::<xdg_wm_base::XdgWmBase>(2)
+        .expect("Compositor does not support xdg_shell");
+
+    xdg_wm_base.quick_assign(|xdg_wm_base, event, _| {
+        if let xdg_wm_base::Event::Ping { serial } = event {
+            xdg_wm_base.pong(serial);
+        };
     });
 
-    // Set our surface as toplevel and define its contents
-    shell_surface.set_toplevel();
-    surface.attach(Some(&buffer), 0, 0);
-    surface.commit();
+    let xdg_surface = xdg_wm_base.get_xdg_surface(&surface);
+    xdg_surface.quick_assign(move |xdg_surface, event, _| match event {
+        xdg_surface::Event::Configure { serial } => {
+            println!("xdg_surface (Configure)");
+            xdg_surface.ack_configure(serial);
+        }
+        _ => unreachable!(),
+    });
+
+    let xdg_toplevel = xdg_surface.get_toplevel();
+    xdg_toplevel.quick_assign(move |_, event, _| match event {
+        xdg_toplevel::Event::Close => {
+            exit(0);
+        }
+        xdg_toplevel::Event::Configure { width, height, states } => {
+            println!(
+                "xdg_toplevel (Configure) width: {}, height: {}, states: {:?}",
+                width, height, states
+            );
+        }
+        _ => unreachable!(),
+    });
+    xdg_toplevel.set_title("Simple Window".to_string());
 
     // initialize a seat to retrieve pointer & keyboard events
     //
@@ -159,6 +172,9 @@ fn main() {
     });
 
     event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
+
+    surface.attach(Some(&buffer), 0, 0);
+    surface.commit();
 
     loop {
         event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();

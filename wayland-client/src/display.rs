@@ -118,6 +118,8 @@ impl Display {
         if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+            // remove the variable so any child processes don't see it
+            env::remove_var("WAYLAND_SOCKET");
             // set the CLOEXEC flag on this FD
             let flags = fcntl::fcntl(fd, fcntl::FcntlArg::F_GETFD);
             let result = flags

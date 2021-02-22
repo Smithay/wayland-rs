@@ -38,8 +38,9 @@ fn client_wrong_id() {
 
     server.answer();
 
-    // server should have killed us due to the error
-    assert_eq!(socket.flush(), Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    // server should have killed us due to the error, but it might send us that error first
+    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
 }
 
 #[test]
@@ -62,8 +63,9 @@ fn client_wrong_opcode() {
 
     server.answer();
 
-    // server should have killed us due to the error
-    assert_eq!(socket.flush(), Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    // server should have killed us due to the error, but it might send us that error first
+    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
 }
 
 #[test]
@@ -86,8 +88,9 @@ fn client_wrong_sender() {
 
     server.answer();
 
-    // server should have killed us due to the error
-    assert_eq!(socket.flush(), Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    // server should have killed us due to the error, but it might send us that error first
+    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
 }
 
 #[test]

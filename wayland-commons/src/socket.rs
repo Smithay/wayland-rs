@@ -139,6 +139,9 @@ impl BufferedSocket {
     pub fn flush(&mut self) -> NixResult<()> {
         {
             let words = self.out_data.get_contents();
+            if words.is_empty() {
+                return Ok(());
+            }
             let bytes = unsafe {
                 ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
             };
