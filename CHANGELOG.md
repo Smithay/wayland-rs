@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.4 -- 2020-02-22
+
 #### Bugfixes
 
 - [client] Unset WAYLAND\_SOCKET when we use the socket
