@@ -180,10 +180,10 @@ impl Message {
     /// Returns the number of elements written in each buffer
     ///
     /// Any serialized Fd will be `dup()`-ed in the process
-    pub fn write_to_buffers<'a, 'b>(
+    pub fn write_to_buffers(
         &self,
-        payload: &'a mut [u32],
-        mut fds: &'b mut [RawFd],
+        payload: &mut [u32],
+        mut fds: &mut [RawFd],
     ) -> Result<(usize, usize), MessageWriteError> {
         let orig_payload_len = payload.len();
         let orig_fds_len = fds.len();

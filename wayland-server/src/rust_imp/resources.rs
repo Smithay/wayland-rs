@@ -126,7 +126,11 @@ impl ResourceInner {
     }
 
     pub(crate) fn client(&self) -> Option<ClientInner> {
-        Some(self.client.clone())
+        if self.is_alive() {
+            Some(self.client.clone())
+        } else {
+            None
+        }
     }
 
     pub(crate) fn id(&self) -> u32 {

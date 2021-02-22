@@ -58,6 +58,8 @@ pub trait MessageGroup: Sized {
         meta: &Meta,
     ) -> Option<crate::map::Object<Meta>>;
     /// Construct a message from its raw representation
+    // -- The lint is allowed because fixing it would be a breaking change --
+    #[allow(clippy::result_unit_err)]
     fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
     /// Turn this message into its raw representation
     fn into_raw(self, send_id: u32) -> wire::Message;
@@ -67,6 +69,8 @@ pub trait MessageGroup: Sized {
     ///
     /// The pointers provided to this function must all be valid pointers from
     /// `libwayland-client`
+    // -- The lint is allowed because fixing it would be a breaking change --
+    #[allow(clippy::result_unit_err)]
     unsafe fn from_raw_c(
         obj: *mut c_void,
         opcode: u32,
@@ -76,6 +80,8 @@ pub trait MessageGroup: Sized {
     ///
     /// It can only be accessed from the provided closure, and this consumes
     /// the message.
+    // -- The lint is allowed because fixing it would be a breaking change --
+    #[allow(clippy::clippy::wrong_self_convention)]
     fn as_raw_c_in<F, T>(self, f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T;

@@ -140,6 +140,8 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     ///
     /// Can fail if the requested id is not the next free id of this store.
     /// (In which case this is a protocol error)
+    // -- The lint is allowed because fixing it would be a breaking change --
+    #[allow(clippy::result_unit_err)]
     pub fn insert_at(&mut self, id: u32, object: Object<Meta>) -> Result<(), ()> {
         if id == 0 {
             Err(())
@@ -161,6 +163,8 @@ impl<Meta: ObjectMetadata> ObjectMap<Meta> {
     }
 
     /// Mutably access an object of the map
+    // -- The lint is allowed because fixing it would be a breaking change --
+    #[allow(clippy::result_unit_err)]
     pub fn with<T, F: FnOnce(&mut Object<Meta>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
         if id == 0 {
             Err(())
