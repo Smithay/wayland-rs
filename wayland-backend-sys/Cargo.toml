@@ -1,0 +1,16 @@
+[package]
+name = "wayland-backend-sys"
+version = "0.1.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+edition = "2018"
+repository = "https://github.com/smithay/wayland-rs"
+documentation = "https://smithay.github.io/wayland-rs/wayland_backend_sys/"
+license = "MIT"
+categories = ["gui", "api-bindings"]
+keywords = ["wayland"]
+readme = "README.md"
+
+[dependencies]
+wayland-commons = { path = "../wayland-commons" }
+wayland-sys = { path = "../wayland-sys" }
+nix = "0.20"
