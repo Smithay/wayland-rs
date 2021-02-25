@@ -28,7 +28,9 @@ members = [
     "wayland-protocols",
     "wayland-commons",
     "wayland-cursor",
-    "wayland-egl"
+    "wayland-egl",
+    "wayland-backend-sys",
+    "wayland-backend-rs",
 ]
 
 [features]
