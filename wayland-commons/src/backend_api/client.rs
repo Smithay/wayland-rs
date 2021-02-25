@@ -1,0 +1,205 @@
+use std::{os::unix::io::RawFd, sync::Arc};
+
+use super::{Argument, Interface, ObjectInfo};
+
+/// A trait representing your data associated to an object
+///
+/// You will only be given access to it as a `&` reference, so you
+/// need to handle interior mutability by yourself.
+///
+/// The methods of this trait will be invoked internally every time a
+/// new object is created to initialize its data.
+pub trait ObjectData<B: ClientBackend>: downcast_rs::DowncastSync {
+    /// Create a new object data from the parent data
+    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData<B>>;
+    /// Dispatch an event for the associated object
+    fn event(
+        self: Arc<Self>,
+        handle: &B::Handle,
+        object_id: B::ObjectId,
+        opcode: u16,
+        arguments: &[Argument<B::ObjectId>],
+    );
+    /// Notification that the object has been destroyed and is no longer active
+    fn destroyed(self: Arc<Self>, object_id: B::ObjectId);
+}
+
+downcast_rs::impl_downcast!(sync ObjectData<B> where B: ClientBackend);
+
+pub trait ClientBackend: Sized {
+    type ObjectId: Clone + Send + std::fmt::Debug;
+    type Handle: BackendHandle<Self>;
+
+    /// Initialize the wayland state on a connected unix socket
+    fn connect(fd: RawFd) -> Result<Self, ConnectError>;
+
+    /// Get the connection FD for monitoring using epoll or equivalent
+    fn connection_fd(&self) -> RawFd;
+
+    /// Try to read and dispatch incoming events
+    ///
+    /// This function never blocks. If new events are available, they are read
+    /// from the socket and the `event()` method of the `ObjectData` associated
+    /// to their target object is invoked, sequentially.
+    fn dispatch_events(&mut self) -> std::io::Result<usize>;
+
+    /// Access the handle for protocol interaction with this backend.
+    fn handle(&self) -> &Self::Handle;
+}
+
+pub trait BackendHandle<B: ClientBackend> {
+    /// Get the `wl_display` id
+    fn display_id(&self) -> B::ObjectId;
+
+    /// Retrieve the last error that occured if the connection is in an error state
+    fn last_error(&self) -> Option<WaylandError>;
+
+    /// Get the object info associated to given object
+    fn info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId>;
+
+    /// Send a request to the server
+    ///
+    /// This method does not handle requests that create new objects, as such the provided
+    /// arguments cannot contain an `NewId`. If a `NewId` argument is provided the method
+    /// will panic.
+    fn send_request(
+        &self,
+        id: B::ObjectId,
+        opcode: u16,
+        args: &[Argument<B::ObjectId>],
+    ) -> Result<(), InvalidId>;
+
+    /// Create a placeholder id, to be used with `send_contructor()`.
+    ///
+    /// Optionnaly the expected interface and version of the to-be-created object can be provided.
+    /// If they are provided, they will be checked against the ones derived from the protocol
+    /// specification by a `debug_assert!()`.
+    fn placeholder_id(&self, spec: Option<(&'static Interface, u32)>) -> B::ObjectId;
+
+    /// Send a request creating a new object
+    ///
+    /// The id of the newly created object is returned. The provided arguments must contain exactly
+    /// one `NewId`, filled with a placeholed id created from `placeholder_id()`.
+    ///
+    /// If the interface and version of the created object cannot be derived from the protocol
+    /// specification (notable example being `wl_registry.bind`), then they must have been given to
+    /// `placeholder_id()`.
+    ///
+    /// The optional `data` provided will be used as `ObjectData` for the created object. If `None`,
+    /// the `ObjectData` will instead be used by invoking `ObjectData::make_chikd()` on the parent
+    /// data. If the parent object is the `wl_display`, then some `ObjectData` *must* be provided.
+    /// Failing to do so will cause a panic.
+    fn send_constructor(
+        &self,
+        id: B::ObjectId,
+        opcode: u16,
+        args: &[Argument<B::ObjectId>],
+        data: Option<Arc<dyn ObjectData<B>>>,
+    ) -> Result<B::ObjectId, InvalidId>;
+
+    /// Access the `ObjectData` associated with a given object id
+    fn get_data(&self, id: B::ObjectId) -> Result<Arc<dyn ObjectData<B>>, InvalidId>;
+}
+/// Enum representing the possible reasons why connecting to the wayland server failed
+#[derive(Debug)]
+pub enum ConnectError {
+    /// The library was compiled with the `dlopen` feature, and the `libwayland-client.so`
+    /// library could not be found at runtime
+    NoWaylandLib,
+    /// The `XDG_RUNTIME_DIR` variable is not set while it should be
+    XdgRuntimeDirNotSet,
+    /// Any needed library was found, but the listening socket of the server was not.
+    ///
+    /// Most of the time, this means that the program was not started from a wayland session.
+    NoCompositorListening,
+    /// The provided socket name is invalid
+    InvalidName,
+    /// The FD provided in `WAYLAND_SOCKET` was invalid
+    InvalidFd,
+}
+
+impl ::std::error::Error for ConnectError {}
+
+impl ::std::fmt::Display for ConnectError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        match *self {
+            ConnectError::NoWaylandLib => f.write_str("Could not find libwayland-client.so."),
+            ConnectError::XdgRuntimeDirNotSet => f.write_str("XDG_RUNTIME_DIR is not set."),
+            ConnectError::NoCompositorListening => {
+                f.write_str("Could not find a listening wayland compositor.")
+            }
+            ConnectError::InvalidName => f.write_str("The wayland socket name is invalid."),
+            ConnectError::InvalidFd => f.write_str("The FD provided in WAYLAND_SOCKET is invalid."),
+        }
+    }
+}
+
+/// A protocol error
+///
+/// This kind of error is generated by the server if your client didn't respect
+/// the protocol, after which the server will kill your connection.
+#[derive(Clone, Debug)]
+pub struct ProtocolError {
+    /// The error code associated with the error
+    ///
+    /// It should be interpreted as an instance of the `Error` enum of the
+    /// associated interface.
+    pub code: u32,
+    /// The id of the object that caused the error
+    pub object_id: u32,
+    /// The interface of the object that caused the error
+    pub object_interface: &'static str,
+    /// The message sent by the server describing the error
+    pub message: String,
+}
+
+impl std::error::Error for ProtocolError {}
+
+impl std::fmt::Display for ProtocolError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        write!(
+            f,
+            "Protocol error {} on object {}@{}: {}",
+            self.code, self.object_interface, self.object_id, self.message
+        )
+    }
+}
+
+/// An error that can occur when using a Wayland connection
+#[derive(Debug)]
+pub enum WaylandError {
+    /// The connection encountered an IO error
+    Io(std::io::Error),
+    /// The connection encountered a protocol error
+    Protocol(ProtocolError),
+}
+
+impl std::error::Error for WaylandError {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            WaylandError::Io(e) => Some(e),
+            WaylandError::Protocol(e) => Some(e),
+        }
+    }
+}
+
+impl std::fmt::Display for WaylandError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        match self {
+            WaylandError::Io(e) => write!(f, "Io error: {}", e),
+            WaylandError::Protocol(e) => std::fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+/// An error generated when trying to act on an invalid `ObjectId`.
+#[derive(Clone, Debug)]
+pub struct InvalidId;
+
+impl std::error::Error for InvalidId {}
+
+impl std::fmt::Display for InvalidId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        write!(f, "Invalid ObjectId")
+    }
+}
