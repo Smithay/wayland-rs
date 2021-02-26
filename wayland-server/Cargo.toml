@@ -27,5 +27,5 @@ scoped-tls = { version = "1.0", optional = true }
 wayland-scanner = { version = "0.28.4", path = "../wayland-scanner" }
 
 [features]
-use_system_lib = [ "wayland-sys/server", "lazy_static", "scoped-tls", "parking_lot" ]
-dlopen = [ "wayland-sys/dlopen", "use_system_lib" ]
+use_system_lib = ["wayland-sys/server", "lazy_static", "scoped-tls", "parking_lot"]
+dlopen = ["wayland-sys/dlopen", "use_system_lib"]

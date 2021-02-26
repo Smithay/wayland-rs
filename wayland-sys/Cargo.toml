@@ -20,10 +20,10 @@ pkg-config = "0.3.7"
 
 [features]
 dlopen = ["dlib/dlopen", "lazy_static"]
-client = [ "dlib" ]
-cursor = [ "client" ]
-egl = [ "client" ]
-server = ["libc", "dlib" ]
+client = ["dlib"]
+cursor = ["client"]
+egl = ["client"]
+server = ["libc", "dlib"]
 
 [package.metadata.docs.rs]
 all-features = true
