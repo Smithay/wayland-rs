@@ -29,5 +29,5 @@ tempfile = ">=2.0, <4.0"
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 
 [features]
-use_system_lib = [ "wayland-sys/client", "scoped-tls"]
+use_system_lib = ["wayland-sys/client", "scoped-tls"]
 dlopen = ["wayland-sys/dlopen", "use_system_lib"]
