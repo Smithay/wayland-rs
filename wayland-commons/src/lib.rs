@@ -19,6 +19,7 @@ use std::os::unix::io::RawFd;
 
 pub mod client;
 pub mod server;
+pub mod core_interfaces;
 
 
 // Description of the protocol-level information of an object
