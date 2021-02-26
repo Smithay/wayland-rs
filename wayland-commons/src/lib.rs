@@ -15,215 +15,81 @@
 
 #![warn(missing_docs, missing_debug_implementations)]
 
-#[macro_use]
-extern crate nix;
+use std::os::unix::io::RawFd;
 
-use std::os::raw::c_void;
-use wayland_sys::common as syscom;
+pub mod client;
+pub mod server;
 
-pub mod backend_api;
-pub mod debug;
-pub mod filter;
-pub mod map;
-pub mod socket;
-pub mod user_data;
-pub mod wire;
 
-pub use smallvec::smallvec;
-
-/// A group of messages
-///
-/// This represents a group of message that can be serialized on the protocol wire.
-/// Typically the set of events or requests of a single interface.
-///
-/// Implementations of this trait are supposed to be
-/// generated using the `wayland-scanner` crate.
-pub trait MessageGroup: Sized {
-    /// Wire representation of this MessageGroup
-    const MESSAGES: &'static [wire::MessageDesc];
-    /// The wrapper type for ObjectMap allowing the mapping of Object and
-    /// NewId arguments to the object map during parsing.
-    type Map;
-    /// The opcode of this message
-    fn opcode(&self) -> u16;
-    /// Whether this message is a destructor
-    ///
-    /// If it is, once send or receive the associated object cannot be used any more.
-    fn is_destructor(&self) -> bool;
-    /// The minimal object version for which this message exists
-    fn since(&self) -> u32;
-    /// Retrieve the child `Object` associated with this message if any
-    fn child<Meta: self::map::ObjectMetadata>(
-        opcode: u16,
-        version: u32,
-        meta: &Meta,
-    ) -> Option<crate::map::Object<Meta>>;
-    /// Construct a message from its raw representation
-    // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::result_unit_err)]
-    fn from_raw(msg: wire::Message, map: &mut Self::Map) -> Result<Self, ()>;
-    /// Turn this message into its raw representation
-    fn into_raw(self, send_id: u32) -> wire::Message;
-    /// Construct a message of this group from its C representation
-    ///
-    /// # Safety
-    ///
-    /// The pointers provided to this function must all be valid pointers from
-    /// `libwayland-client`
-    // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::result_unit_err)]
-    unsafe fn from_raw_c(
-        obj: *mut c_void,
-        opcode: u32,
-        args: *const syscom::wl_argument,
-    ) -> Result<Self, ()>;
-    /// Build a C representation of this message
-    ///
-    /// It can only be accessed from the provided closure, and this consumes
-    /// the message.
-    // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::wrong_self_convention)]
-    fn as_raw_c_in<F, T>(self, f: F) -> T
-    where
-        F: FnOnce(u32, &mut [syscom::wl_argument]) -> T;
+// Description of the protocol-level information of an object
+pub struct ObjectInfo {
+    /// The protocol ID
+    id: u32,
+    /// The interface
+    interface: &'static str,
+    /// The version
+    version: u32,
+}
+/// Enum of possible argument types as recognized by the wire
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum ArgumentType {
+    /// i32
+    Int,
+    /// u32
+    Uint,
+    /// fixed point, 1/256 precision
+    Fixed,
+    /// CString
+    Str,
+    /// id of a wayland object
+    Object,
+    /// id of a newly created wayland object
+    NewId,
+    /// Vec<u8>
+    Array,
+    /// RawFd
+    Fd,
 }
 
-/// The description of a wayland interface
-///
-/// Implementations of this trait are supposed to be
-/// generated using the `wayland-scanner` crate.
-pub trait Interface: 'static {
-    /// Set of requests associated to this interface
+/// Enum of possible argument of the protocol
+#[derive(Clone, PartialEq, Debug)]
+#[allow(clippy::box_vec)]
+pub enum Argument<Id: Clone + std::fmt::Debug> {
+    /// i32
+    Int(i32),
+    /// u32
+    Uint(u32),
+    /// fixed point, 1/256 precision
+    Fixed(i32),
+    /// CString
     ///
-    /// Requests are messages from the client to the server
-    type Request: MessageGroup + 'static;
-    /// Set of events associated to this interface
+    /// The value is boxed to reduce the stack size of Argument. The performance
+    /// impact is negligible as `string` arguments are pretty rare in the protocol.
+    Str(Box<String>),
+    /// id of a wayland object
+    Object(Id),
+    /// id of a newly created wayland object
+    NewId(Id),
+    /// Vec<u8>
     ///
-    /// Events are messages from the server to the client
-    type Event: MessageGroup + 'static;
-    /// Name of this interface
-    const NAME: &'static str;
-    /// Maximum supported version of this interface
-    ///
-    /// This is the maximum version supported by the protocol specification currently
-    /// used by this library, and should not be used as-is in your code, as a version
-    /// change can subtly change the behavior of some objects.
-    ///
-    /// Server are supposed to be able to handle all versions from 1 to the one they
-    /// advertise through the registry, and clients can choose any version among the
-    /// ones the server supports.
-    const VERSION: u32;
-    /// Pointer to the C representation of this interface
-    fn c_interface() -> *const syscom::wl_interface;
+    /// The value is boxed to reduce the stack size of Argument. The performance
+    /// impact is negligible as `array` arguments are pretty rare in the protocol.
+    Array(Box<Vec<u8>>),
+    /// RawFd
+    Fd(RawFd),
 }
 
-/// An empty enum representing a MessageGroup with no messages
-#[derive(Debug)]
-pub enum NoMessage {}
-
-#[cfg(not(tarpaulin_include))]
-impl MessageGroup for NoMessage {
-    const MESSAGES: &'static [wire::MessageDesc] = &[];
-    type Map = ();
-    fn is_destructor(&self) -> bool {
-        match *self {}
-    }
-    fn opcode(&self) -> u16 {
-        match *self {}
-    }
-    fn since(&self) -> u32 {
-        match *self {}
-    }
-    fn child<M: self::map::ObjectMetadata>(_: u16, _: u32, _: &M) -> Option<crate::map::Object<M>> {
-        None
-    }
-    fn from_raw(_: wire::Message, _: &mut ()) -> Result<Self, ()> {
-        Err(())
-    }
-    fn into_raw(self, _: u32) -> wire::Message {
-        match self {}
-    }
-    unsafe fn from_raw_c(
-        _obj: *mut c_void,
-        _opcode: u32,
-        _args: *const syscom::wl_argument,
-    ) -> Result<Self, ()> {
-        Err(())
-    }
-    fn as_raw_c_in<F, T>(self, _f: F) -> T
-    where
-        F: FnOnce(u32, &mut [syscom::wl_argument]) -> T,
-    {
-        match self {}
-    }
+pub struct Interface {
+    pub name: &'static str,
+    pub version: u32,
+    pub requests: &'static [MessageDesc],
+    pub events: &'static [MessageDesc],
 }
 
-/// Stores a value in a threadafe container that
-/// only lets you access it from its owning thread
-///
-/// If the ThreadGuard is dropped from the wrong thread,
-/// the underlying value will be leaked.
-#[derive(Debug)]
-pub struct ThreadGuard<T: ?Sized> {
-    thread: std::thread::ThreadId,
-    val: std::mem::ManuallyDrop<T>,
+pub struct MessageDesc {
+    pub name: &'static str,
+    pub since: u32,
+    pub is_destructor: bool,
+    pub signature: &'static [ArgumentType],
+    pub child_interface: Option<&'static Interface>,
 }
-
-impl<T> ThreadGuard<T> {
-    /// Create a new ThreadGuard wrapper
-    pub fn new(val: T) -> ThreadGuard<T> {
-        ThreadGuard { val: std::mem::ManuallyDrop::new(val), thread: std::thread::current().id() }
-    }
-}
-
-impl<T: ?Sized> ThreadGuard<T> {
-    /// Access the underlying value
-    ///
-    /// Panics if done on the wrong thread
-    pub fn get(&self) -> &T {
-        self.try_get().expect("Attempted to access a ThreadGuard contents from the wrong thread.")
-    }
-
-    /// Mutably access the underlying value
-    ///
-    /// Panics if done on the wrong thread
-    pub fn get_mut(&mut self) -> &mut T {
-        self.try_get_mut()
-            .expect("Attempted to access a ThreadGuard contents from the wrong thread.")
-    }
-
-    /// Try to access the underlying value
-    ///
-    /// Returns `None` if done on the wrong thread
-    pub fn try_get(&self) -> Option<&T> {
-        if self.thread == ::std::thread::current().id() {
-            Some(&self.val)
-        } else {
-            None
-        }
-    }
-
-    /// Try to mutably access the underlying value
-    ///
-    /// Returns `None` if done on the wrong thread
-    pub fn try_get_mut(&mut self) -> Option<&mut T> {
-        if self.thread == ::std::thread::current().id() {
-            Some(&mut self.val)
-        } else {
-            None
-        }
-    }
-}
-
-impl<T: ?Sized> Drop for ThreadGuard<T> {
-    fn drop(&mut self) {
-        // We can only actually perform the drop if we are on the right thread
-        // otherwise it may be racy, so we just leak the value
-        if self.thread == ::std::thread::current().id() {
-            unsafe { std::mem::ManuallyDrop::drop(&mut self.val) }
-        }
-    }
-}
-
-unsafe impl<T: ?Sized> Send for ThreadGuard<T> {}
-unsafe impl<T: ?Sized> Sync for ThreadGuard<T> {}
