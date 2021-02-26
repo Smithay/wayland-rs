@@ -20,7 +20,7 @@ The crate has different backends to Wayland protocol serialization:
 - Activating the `use_system_lib` makes it instead bind to the system `libwayland-server.so`. This
   allows you to access C pointer versions of the wayland objects, which is necessary for interfacing
   with other non-Rust Wayland-related libraries (such as for OpenGL support, see the `wayland-egl` crate).
-- Activating the `dlopen` implies `use_system_lib`, but additionnaly the crate will not explicitly
+- Activating the `dlopen` implies `use_system_lib`, but additionaly the crate will not explicitly
   link to `libwayland-server.so` and instead try to open it at runtime, and return an error if it cannot
   find it. This allows you to build apps that can gracefully run in non-Wayland environment without needing
   compile-time switches.

@@ -156,9 +156,9 @@ lazy_static::lazy_static!(
         let versions = ["libwayland-server.so",
                         "libwayland-server.so.0"];
         for ver in &versions {
-            match WaylandServer::open(ver) {
+            match unsafe { WaylandServer::open(ver) } {
                 Ok(h) => return Some(h),
-                Err(::dlib::DlError::NotFound) => continue,
+                Err(::dlib::DlError::CantOpen(_)) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
                     if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
                         // only print debug messages if WAYLAND_RS_DEBUG is set

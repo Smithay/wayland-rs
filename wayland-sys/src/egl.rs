@@ -30,9 +30,9 @@ lazy_static::lazy_static!(
                         "libwayland-egl.so.1"];
 
         for ver in &versions {
-            match WaylandEgl::open(ver) {
+            match unsafe { WaylandEgl::open(ver) } {
                 Ok(h) => return Some(h),
-                Err(::dlib::DlError::NotFound) => continue,
+                Err(::dlib::DlError::CantOpen(_)) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
                     if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
                         // only print debug messages if WAYLAND_RS_DEBUG is set
