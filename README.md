@@ -17,7 +17,7 @@ There are two ways to use them:
 
 If you use the `use_system_lib` feature, the crates thus obviously require that the wayland C libs are installed
 on your system. You can however require that they are dynamically loaded at startup rather than directly
-linked by setting the `dlopen` flag. This can be useful if you want to ship a binary that should gracelly
+linked by setting the `dlopen` flag. This can be useful if you want to ship a binary that should gracefully
 handle the absence of these libs (by fallbacking to X11 for example).
 
 This repository actually hosts 8 crates. The 3 main crates you'll likely want to use:

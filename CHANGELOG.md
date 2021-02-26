@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [sys] Update `dlib` dependency to v0.5 to match new macro fornat. The `dlopen` feature no longer
+  affects other crates using `dlib`.
+
 ## 0.28.4 -- 2020-02-22
 
 #### Bugfixes
