@@ -1,6 +1,6 @@
 use std::{os::unix::io::RawFd, sync::Arc};
 
-use wayland_commons::backend_api::{
+use wayland_commons::{
     client::{
         BackendHandle, ClientBackend, ConnectError, InvalidId, ObjectData, ProtocolError,
         WaylandError,
