@@ -1,11 +1,8 @@
 use std::{os::unix::io::RawFd, sync::Arc};
 
 use wayland_commons::{
-    client::{
-        BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, ProtocolError,
-        WaylandError,
-    },
-    Argument, Interface, MessageDesc, ObjectInfo,
+    client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
+    Argument, Interface, MessageDesc, ObjectInfo, ProtocolError,
 };
 
 #[derive(Debug, Clone)]
