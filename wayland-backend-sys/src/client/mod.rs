@@ -2,7 +2,7 @@ use std::{os::unix::io::RawFd, sync::Arc};
 
 use wayland_commons::{
     client::{
-        BackendHandle, ClientBackend, ConnectError, InvalidId, ObjectData, ProtocolError,
+        BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, ProtocolError,
         WaylandError,
     },
     Argument, Interface, MessageDesc, ObjectInfo,
@@ -21,7 +21,7 @@ impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
 
-    fn connect(fd: RawFd) -> Result<Self, ConnectError> {
+    unsafe fn connect(fd: RawFd) -> Result<Self, NoWaylandLib> {
         todo!()
     }
 
@@ -29,12 +29,16 @@ impl ClientBackend for Backend {
         todo!()
     }
 
+    fn flush(&mut self) -> std::io::Result<()> {
+        todo!()
+    }
+
     fn dispatch_events(&mut self) -> std::io::Result<usize> {
         todo!()
     }
 
-    fn handle(&self) -> &Self::Handle {
-        &self.handle
+    fn handle(&mut self) -> &mut Self::Handle {
+        &mut self.handle
     }
 }
 
@@ -43,7 +47,7 @@ impl BackendHandle<Backend> for Handle {
         todo!()
     }
 
-    fn last_error(&self) -> Option<WaylandError> {
+    fn last_error(&self) -> Option<&WaylandError> {
         todo!()
     }
 
@@ -51,16 +55,21 @@ impl BackendHandle<Backend> for Handle {
         todo!()
     }
 
-    fn send_request(&self, id: Id, opcode: u16, args: &[Argument<Id>]) -> Result<(), InvalidId> {
+    fn send_request(
+        &mut self,
+        id: Id,
+        opcode: u16,
+        args: &[Argument<Id>],
+    ) -> Result<(), InvalidId> {
         todo!()
     }
 
-    fn placeholder_id(&self, spec: Option<(&'static Interface, u32)>) -> Id {
+    fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> Id {
         todo!()
     }
 
     fn send_constructor(
-        &self,
+        &mut self,
         id: Id,
         opcode: u16,
         args: &[Argument<Id>],

@@ -4,7 +4,11 @@
 //! These interfaces are frozen in the protocol and can never change. They are the only interfaces
 //! which the backends need to be aware of in particular.
 
-use super::{Interface, MessageDesc, ArgumentType};
+use super::{ArgumentType, Interface, MessageDesc};
+
+/// Special interface representing an anonymous object
+pub static ANONYMOUS_INTERFACE: Interface =
+    Interface { name: "<anonymous>", version: 0, requests: &[], events: &[] };
 
 /// Interface `wl_display`
 pub static WL_DISPLAY_INTERFACE: Interface = Interface {
@@ -16,15 +20,17 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::NewId],
-            child_interface: Some(&WL_CALLBACK_INTERFACE)
+            child_interface: Some(&WL_CALLBACK_INTERFACE),
+            arg_interfaces: &[],
         },
         MessageDesc {
             name: "get_registry",
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::NewId],
-            child_interface: Some(&WL_REGISTRY_INTERFACE)
-        }
+            child_interface: Some(&WL_REGISTRY_INTERFACE),
+            arg_interfaces: &[],
+        },
     ],
     events: &[
         MessageDesc {
@@ -32,47 +38,50 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::Object, ArgumentType::Uint, ArgumentType::Str],
-            child_interface: None
+            child_interface: None,
+            arg_interfaces: &[&ANONYMOUS_INTERFACE],
         },
         MessageDesc {
             name: "delete_id",
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::Uint],
-            child_interface: None
-        }
-    ]
+            child_interface: None,
+            arg_interfaces: &[],
+        },
+    ],
 };
 
 /// Interface `wl_registry`
 pub static WL_REGISTRY_INTERFACE: Interface = Interface {
     name: "wl_registry",
     version: 1,
-    requests: &[
-        MessageDesc {
-            name: "bind",
-            since: 1,
-            is_destructor: false,
-            signature: &[ArgumentType::Uint, ArgumentType::NewId],
-            child_interface: None
-        }
-    ],
+    requests: &[MessageDesc {
+        name: "bind",
+        since: 1,
+        is_destructor: false,
+        signature: &[ArgumentType::Uint, ArgumentType::NewId],
+        child_interface: None,
+        arg_interfaces: &[],
+    }],
     events: &[
         MessageDesc {
             name: "global",
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint],
-            child_interface: None
+            child_interface: None,
+            arg_interfaces: &[],
         },
         MessageDesc {
             name: "global_remove",
             since: 1,
             is_destructor: false,
             signature: &[ArgumentType::Uint],
-            child_interface: None
-        }
-    ]
+            child_interface: None,
+            arg_interfaces: &[],
+        },
+    ],
 };
 
 /// Interface `wl_callback`
@@ -80,13 +89,12 @@ pub static WL_CALLBACK_INTERFACE: Interface = Interface {
     name: "wl_callback",
     version: 1,
     requests: &[],
-    events: &[
-        MessageDesc {
-            name: "done",
-            since: 1,
-            is_destructor: true,
-            signature: &[ArgumentType::Uint],
-            child_interface: None
-        }
-    ]
+    events: &[MessageDesc {
+        name: "done",
+        since: 1,
+        is_destructor: true,
+        signature: &[ArgumentType::Uint],
+        child_interface: None,
+        arg_interfaces: &[],
+    }],
 };
