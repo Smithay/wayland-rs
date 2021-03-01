@@ -64,8 +64,6 @@ impl<Data: Clone> ObjectMap<Data> {
     ///
     /// Can fail if the requested id is not the next free id of this store.
     /// (In which case this is a protocol error)
-    // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::result_unit_err)]
     pub fn insert_at(&mut self, id: u32, object: Object<Data>) -> Result<(), ()> {
         if id == 0 {
             Err(())
@@ -87,8 +85,6 @@ impl<Data: Clone> ObjectMap<Data> {
     }
 
     /// Mutably access an object of the map
-    // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::result_unit_err)]
     pub fn with<T, F: FnOnce(&mut Object<Data>) -> T>(&mut self, id: u32, f: F) -> Result<T, ()> {
         if id == 0 {
             Err(())
@@ -120,6 +116,22 @@ impl<Data: Clone> ObjectMap<Data> {
                 f(id as u32 + SERVER_ID_LIMIT, obj);
             }
         }
+    }
+
+    pub fn all_objects<'a>(&'a self) -> impl Iterator<Item = (u32, &'a Object<Data>)> {
+        let client_side_iter =
+            self.client_objects.iter().enumerate().flat_map(|(idx, obj)| match obj {
+                Some(obj) => Some((idx as u32 + 1, obj)),
+                None => None,
+            });
+
+        let server_side_iter =
+            self.server_objects.iter().enumerate().flat_map(|(idx, obj)| match obj {
+                Some(obj) => Some((idx as u32 + SERVER_ID_LIMIT, obj)),
+                None => None,
+            });
+
+        client_side_iter.chain(server_side_iter)
     }
 }
 

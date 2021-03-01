@@ -60,7 +60,12 @@ pub static WL_REGISTRY_INTERFACE: Interface = Interface {
         name: "bind",
         since: 1,
         is_destructor: false,
-        signature: &[ArgumentType::Uint, ArgumentType::NewId],
+        signature: &[
+            ArgumentType::Uint,
+            ArgumentType::Str,
+            ArgumentType::Uint,
+            ArgumentType::NewId,
+        ],
         child_interface: None,
         arg_interfaces: &[],
     }],
