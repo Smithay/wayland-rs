@@ -18,17 +18,6 @@ pub struct Object<Data> {
     pub data: Data,
 }
 
-impl<Data> Object<Data> {
-    /// Create an Object corresponding to given interface and version
-    pub fn from_interface(interface: &'static Interface, version: u32, data: Data) -> Object<Data> {
-        Object {
-            interface,
-            version,
-            data,
-        }
-    }
-}
-
 /// A holder for the object store of a connection
 ///
 /// Keeps track of which object id is associated to which
@@ -135,10 +124,7 @@ impl<Data: Clone> ObjectMap<Data> {
 }
 
 // insert a new object in a store at the first free place
-fn insert_in<Data>(
-    store: &mut Vec<Option<Object<Data>>>,
-    object: Object<Data>,
-) -> u32 {
+fn insert_in<Data>(store: &mut Vec<Option<Object<Data>>>, object: Object<Data>) -> u32 {
     match store.iter().position(Option::is_none) {
         Some(id) => {
             store[id] = Some(object);
