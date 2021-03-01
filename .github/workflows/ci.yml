@@ -44,22 +44,21 @@ jobs:
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
 
-      - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all --features "${{ matrix.features}}" --exclude wayland-egl --exclude wayland-cursor
-
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          version: '0.16.0'
-          args: --ignore-tests --features "${{ matrix.features }}" --workspace --exclude wayland-egl --exclude wayland-cursor
+          args: --ignore-tests --features "${{ matrix.features }}" --workspace --exclude wayland-egl
       
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
           flags: ${{ matrix.features }}
+
+      - name: Cleanup before test EGL
+        if: matrix.features == 'client_native'
+        uses: actions-rs/cargo@v1
+        with:
+          command: clean
       
       - name: Test EGL
         if: matrix.features == 'client_native'
@@ -67,14 +66,7 @@ jobs:
         with:
           command: test
           args: --features "${{ matrix.features}}" -p wayland-egl
-      
-      - name: Test Cursor
-        if: matrix.features == 'client_native'
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "${{ matrix.features}}" -p wayland-cursor
-  
+
   lint:
     runs-on: ubuntu-latest
 
