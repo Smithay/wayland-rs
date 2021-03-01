@@ -6,18 +6,16 @@ use std::{
 
 use smallvec::SmallVec;
 use wayland_commons::{
-    client::{
-        BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, ProtocolError,
-        WaylandError,
-    },
+    client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE},
-    Argument, ArgumentType, Interface, ObjectInfo,
+    Argument, ArgumentType, Interface, ObjectInfo, ProtocolError,
 };
 
 use crate::{
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
+    same_interface,
     socket::{BufferedSocket, Socket},
-    wire::{Message, MessageParseError, INLINE_ARGS},
+    wire::{check_for_signature, Message, MessageParseError, INLINE_ARGS},
 };
 
 #[derive(Clone)]
@@ -263,7 +261,7 @@ impl ClientBackend for Backend {
                         obj.data.client_destroyed = true;
                     })
                     .unwrap();
-                receiver.data.user_data.clone().destroyed(Id {
+                receiver.data.user_data.destroyed(Id {
                     id: message.sender_id,
                     serial: receiver.data.serial,
                     interface: receiver.interface,
@@ -271,7 +269,7 @@ impl ClientBackend for Backend {
             }
 
             // At this point, we invoke the user callback
-            receiver.data.user_data.clone().event(
+            receiver.data.user_data.event(
                 &mut self.handle,
                 Id {
                     id: message.sender_id,
@@ -372,7 +370,7 @@ impl BackendHandle<Backend> for Handle {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            object.data.user_data.clone().destroyed(id);
+            object.data.user_data.destroyed(id);
         }
 
         Ok(())
@@ -515,7 +513,7 @@ impl BackendHandle<Backend> for Handle {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            object.data.user_data.clone().destroyed(id);
+            object.data.user_data.destroyed(id);
         }
 
         Ok(Id { id: child_id, serial: child_serial, interface: child_interface })
@@ -523,7 +521,7 @@ impl BackendHandle<Backend> for Handle {
 
     fn get_data(&self, id: Id) -> Result<Arc<dyn ObjectData<Backend>>, InvalidId> {
         let object = self.get_object(id)?;
-        Ok(object.data.user_data.clone())
+        Ok(object.data.user_data)
     }
 }
 
@@ -591,7 +589,7 @@ impl ObjectData<Backend> for DumbObjectData {
     }
 
     fn event(
-        self: Arc<Self>,
+        &self,
         _handle: &mut Handle,
         _object_id: Id,
         _opcode: u16,
@@ -600,24 +598,7 @@ impl ObjectData<Backend> for DumbObjectData {
         unreachable!()
     }
 
-    fn destroyed(self: Arc<Self>, _object_id: Id) {
+    fn destroyed(&self, _object_id: Id) {
         unreachable!()
     }
-}
-
-fn check_for_signature(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {
-    if signature.len() != args.len() {
-        return false;
-    }
-    for (typ, arg) in signature.iter().copied().zip(args.iter()) {
-        if arg.get_type() != typ {
-            return false;
-        }
-    }
-    true
-}
-
-#[inline]
-fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
-    a as *const Interface == b as *const Interface || a.name == b.name
 }
