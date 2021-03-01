@@ -12,5 +12,5 @@ readme = "README.md"
 
 [dependencies]
 wayland-commons = { path = "../wayland-commons" }
-nix = "0.20"
+nix = "0.22"
 smallvec = "1.0"

@@ -15,21 +15,21 @@
 
 #![warn(missing_docs, missing_debug_implementations)]
 
-use std::os::unix::io::RawFd;
+use std::{ffi::CString, os::unix::io::RawFd};
 
 pub mod client;
-pub mod server;
 pub mod core_interfaces;
+pub mod server;
 
-
-// Description of the protocol-level information of an object
+/// Description of the protocol-level information of an object
+#[derive(Copy, Clone, Debug)]
 pub struct ObjectInfo {
     /// The protocol ID
-    id: u32,
+    pub id: u32,
     /// The interface
-    interface: &'static str,
+    pub interface: &'static Interface,
     /// The version
-    version: u32,
+    pub version: u32,
 }
 /// Enum of possible argument types as recognized by the wire
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -55,7 +55,7 @@ pub enum ArgumentType {
 /// Enum of possible argument of the protocol
 #[derive(Clone, PartialEq, Debug)]
 #[allow(clippy::box_vec)]
-pub enum Argument<Id: Clone + std::fmt::Debug> {
+pub enum Argument<Id> {
     /// i32
     Int(i32),
     /// u32
@@ -66,7 +66,7 @@ pub enum Argument<Id: Clone + std::fmt::Debug> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Box<String>),
+    Str(Box<CString>),
     /// id of a wayland object
     Object(Id),
     /// id of a newly created wayland object
@@ -80,6 +80,38 @@ pub enum Argument<Id: Clone + std::fmt::Debug> {
     Fd(RawFd),
 }
 
+impl<Id> Argument<Id> {
+    /// Retrieve the type of a given argument instance
+    pub fn get_type(&self) -> ArgumentType {
+        match *self {
+            Argument::Int(_) => ArgumentType::Int,
+            Argument::Uint(_) => ArgumentType::Uint,
+            Argument::Fixed(_) => ArgumentType::Fixed,
+            Argument::Str(_) => ArgumentType::Str,
+            Argument::Object(_) => ArgumentType::Object,
+            Argument::NewId(_) => ArgumentType::NewId,
+            Argument::Array(_) => ArgumentType::Array,
+            Argument::Fd(_) => ArgumentType::Fd,
+        }
+    }
+}
+
+impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Argument::Int(value) => write!(f, "{}", value),
+            Argument::Uint(value) => write!(f, "{}", value),
+            Argument::Fixed(value) => write!(f, "{}", value),
+            Argument::Str(value) => write!(f, "{:?}", value),
+            Argument::Object(value) => write!(f, "{}", value),
+            Argument::NewId(value) => write!(f, "{}", value),
+            Argument::Array(value) => write!(f, "{:?}", value),
+            Argument::Fd(value) => write!(f, "{}", value),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Interface {
     pub name: &'static str,
     pub version: u32,
@@ -87,10 +119,17 @@ pub struct Interface {
     pub events: &'static [MessageDesc],
 }
 
+/// Wire metadata of a given message
+#[derive(Copy, Clone, Debug)]
 pub struct MessageDesc {
+    /// Name of this message
     pub name: &'static str,
-    pub since: u32,
-    pub is_destructor: bool,
+    /// Signature of the message
     pub signature: &'static [ArgumentType],
+    /// Minimum required version of the interface
+    pub since: u32,
+    /// Whether this message is a destructor
+    pub is_destructor: bool,
     pub child_interface: Option<&'static Interface>,
+    pub arg_interfaces: &'static [&'static Interface],
 }

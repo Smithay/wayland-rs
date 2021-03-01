@@ -1,12 +1,13 @@
 //! Types and routines used to manipulate arguments from the wire format
 
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
+use std::io::Result as IoResult;
 use std::os::unix::io::RawFd;
 use std::ptr;
 
-use nix::{Error as NixError, Result as NixResult};
+use nix::Error as NixError;
 
-use wayland_commons::ArgumentType;
+use wayland_commons::{Argument, ArgumentType};
 
 use smallvec::SmallVec;
 
@@ -16,79 +17,7 @@ use smallvec::SmallVec;
 //
 // This brings the size of Message to 11*usize (instead of 4*usize with a regular vec), but eliminates
 // almost all allocations that may occur during the processing of messages, both client-side and server-side.
-const INLINE_ARGS: usize = 4;
-
-/// Wire metadata of a given message
-#[derive(Copy, Clone, Debug)]
-pub struct MessageDesc {
-    /// Name of this message
-    pub name: &'static str,
-    /// Signature of the message
-    pub signature: &'static [ArgumentType],
-    /// Minimum required version of the interface
-    pub since: u32,
-    /// Whether this message is a destructor
-    pub destructor: bool,
-}
-
-/// Enum of possible argument as recognized by the wire, including values
-#[derive(Clone, PartialEq, Debug)]
-#[allow(clippy::box_vec)]
-pub enum Argument {
-    /// i32
-    Int(i32),
-    /// u32
-    Uint(u32),
-    /// fixed point, 1/256 precision
-    Fixed(i32),
-    /// CString
-    ///
-    /// The value is boxed to reduce the stack size of Argument. The performance
-    /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Box<CString>),
-    /// id of a wayland object
-    Object(u32),
-    /// id of a newly created wayland object
-    NewId(u32),
-    /// Vec<u8>
-    ///
-    /// The value is boxed to reduce the stack size of Argument. The performance
-    /// impact is negligible as `array` arguments are pretty rare in the protocol.
-    Array(Box<Vec<u8>>),
-    /// RawFd
-    Fd(RawFd),
-}
-
-impl Argument {
-    /// Retrieve the type of a given argument instance
-    pub fn get_type(&self) -> ArgumentType {
-        match *self {
-            Argument::Int(_) => ArgumentType::Int,
-            Argument::Uint(_) => ArgumentType::Uint,
-            Argument::Fixed(_) => ArgumentType::Fixed,
-            Argument::Str(_) => ArgumentType::Str,
-            Argument::Object(_) => ArgumentType::Object,
-            Argument::NewId(_) => ArgumentType::NewId,
-            Argument::Array(_) => ArgumentType::Array,
-            Argument::Fd(_) => ArgumentType::Fd,
-        }
-    }
-}
-
-impl std::fmt::Display for Argument {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Argument::Int(value) => write!(f, "{}", value),
-            Argument::Uint(value) => write!(f, "{}", value),
-            Argument::Fixed(value) => write!(f, "{}", value),
-            Argument::Str(value) => write!(f, "{:?}", value),
-            Argument::Object(value) => write!(f, "{}", value),
-            Argument::NewId(value) => write!(f, "{}", value),
-            Argument::Array(value) => write!(f, "{:?}", value),
-            Argument::Fd(value) => write!(f, "{}", value),
-        }
-    }
-}
+pub(crate) const INLINE_ARGS: usize = 4;
 
 /// A wire message
 #[derive(Debug, Clone, PartialEq)]
@@ -98,28 +27,32 @@ pub struct Message {
     /// Opcode of the message
     pub opcode: u16,
     /// Arguments of the message
-    pub args: SmallVec<[Argument; INLINE_ARGS]>,
+    pub args: SmallVec<[Argument<u32>; INLINE_ARGS]>,
 }
 
 /// Error generated when trying to serialize a message into buffers
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum MessageWriteError {
     /// The buffer is too small to hold the message contents
     BufferTooSmall,
     /// The message contains a FD that could not be dup-ed
-    DupFdFailed(::nix::Error),
+    DupFdFailed(std::io::Error),
 }
 
 impl std::error::Error for MessageWriteError {}
 
 impl std::fmt::Display for MessageWriteError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        match *self {
+        match self {
             MessageWriteError::BufferTooSmall => {
                 f.write_str("The provided buffer is too small to hold message content.")
             }
-            MessageWriteError::DupFdFailed(_) => {
-                f.write_str("The message contains a file descriptor that could not be dup()-ed.")
+            MessageWriteError::DupFdFailed(e) => {
+                write!(
+                    f,
+                    "The message contains a file descriptor that could not be dup()-ed ({}).",
+                    e
+                )
             }
         }
     }
@@ -337,7 +270,7 @@ impl Message {
 }
 
 /// Duplicate a `RawFd` and set the CLOEXEC flag on the copy
-pub fn dup_fd_cloexec(fd: RawFd) -> NixResult<RawFd> {
+pub fn dup_fd_cloexec(fd: RawFd) -> IoResult<RawFd> {
     use nix::fcntl;
     match fcntl::fcntl(fd, fcntl::FcntlArg::F_DUPFD_CLOEXEC(0)) {
         Ok(newfd) => Ok(newfd),
@@ -358,11 +291,11 @@ pub fn dup_fd_cloexec(fd: RawFd) -> NixResult<RawFd> {
                 Err(e) => {
                     // something went wrong in F_GETFD or F_SETFD
                     let _ = ::nix::unistd::close(newfd);
-                    Err(e)
+                    Err(e.into())
                 }
             }
         }
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -400,6 +333,7 @@ impl Drop for FdStore {
 mod tests {
     use super::*;
     use smallvec::smallvec;
+    use std::ffi::CString;
 
     #[test]
     fn into_from_raw_cycle() {

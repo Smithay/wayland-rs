@@ -15,7 +15,7 @@ pub trait ObjectData<B: ClientBackend>: downcast_rs::DowncastSync {
     /// Dispatch an event for the associated object
     fn event(
         self: Arc<Self>,
-        handle: &B::Handle,
+        handle: &mut B::Handle,
         object_id: B::ObjectId,
         opcode: u16,
         arguments: &[Argument<B::ObjectId>],
@@ -31,10 +31,16 @@ pub trait ClientBackend: Sized {
     type Handle: BackendHandle<Self>;
 
     /// Initialize the wayland state on a connected unix socket
-    fn connect(fd: RawFd) -> Result<Self, ConnectError>;
+    ///
+    /// If debug is true, the details of all sent and received messages will
+    /// be printed to stderr.
+    unsafe fn connect(fd: RawFd) -> Result<Self, NoWaylandLib>;
 
     /// Get the connection FD for monitoring using epoll or equivalent
     fn connection_fd(&self) -> RawFd;
+
+    /// Flush the internal outgoing buffers to the server
+    fn flush(&mut self) -> std::io::Result<()>;
 
     /// Try to read and dispatch incoming events
     ///
@@ -44,7 +50,7 @@ pub trait ClientBackend: Sized {
     fn dispatch_events(&mut self) -> std::io::Result<usize>;
 
     /// Access the handle for protocol interaction with this backend.
-    fn handle(&self) -> &Self::Handle;
+    fn handle(&mut self) -> &mut Self::Handle;
 }
 
 pub trait BackendHandle<B: ClientBackend> {
@@ -52,7 +58,7 @@ pub trait BackendHandle<B: ClientBackend> {
     fn display_id(&self) -> B::ObjectId;
 
     /// Retrieve the last error that occured if the connection is in an error state
-    fn last_error(&self) -> Option<WaylandError>;
+    fn last_error(&self) -> Option<&WaylandError>;
 
     /// Get the object info associated to given object
     fn info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId>;
@@ -63,7 +69,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// arguments cannot contain an `NewId`. If a `NewId` argument is provided the method
     /// will panic.
     fn send_request(
-        &self,
+        &mut self,
         id: B::ObjectId,
         opcode: u16,
         args: &[Argument<B::ObjectId>],
@@ -74,7 +80,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// Optionnaly the expected interface and version of the to-be-created object can be provided.
     /// If they are provided, they will be checked against the ones derived from the protocol
     /// specification by a `debug_assert!()`.
-    fn placeholder_id(&self, spec: Option<(&'static Interface, u32)>) -> B::ObjectId;
+    fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> B::ObjectId;
 
     /// Send a request creating a new object
     ///
@@ -90,7 +96,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// data. If the parent object is the `wl_display`, then some `ObjectData` *must* be provided.
     /// Failing to do so will cause a panic.
     fn send_constructor(
-        &self,
+        &mut self,
         id: B::ObjectId,
         opcode: u16,
         args: &[Argument<B::ObjectId>],
@@ -100,37 +106,16 @@ pub trait BackendHandle<B: ClientBackend> {
     /// Access the `ObjectData` associated with a given object id
     fn get_data(&self, id: B::ObjectId) -> Result<Arc<dyn ObjectData<B>>, InvalidId>;
 }
-/// Enum representing the possible reasons why connecting to the wayland server failed
+
+/// An error type representing the failure to load libwayland
 #[derive(Debug)]
-pub enum ConnectError {
-    /// The library was compiled with the `dlopen` feature, and the `libwayland-client.so`
-    /// library could not be found at runtime
-    NoWaylandLib,
-    /// The `XDG_RUNTIME_DIR` variable is not set while it should be
-    XdgRuntimeDirNotSet,
-    /// Any needed library was found, but the listening socket of the server was not.
-    ///
-    /// Most of the time, this means that the program was not started from a wayland session.
-    NoCompositorListening,
-    /// The provided socket name is invalid
-    InvalidName,
-    /// The FD provided in `WAYLAND_SOCKET` was invalid
-    InvalidFd,
-}
+pub struct NoWaylandLib;
 
-impl ::std::error::Error for ConnectError {}
+impl std::error::Error for NoWaylandLib {}
 
-impl ::std::fmt::Display for ConnectError {
+impl std::fmt::Display for NoWaylandLib {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        match *self {
-            ConnectError::NoWaylandLib => f.write_str("Could not find libwayland-client.so."),
-            ConnectError::XdgRuntimeDirNotSet => f.write_str("XDG_RUNTIME_DIR is not set."),
-            ConnectError::NoCompositorListening => {
-                f.write_str("Could not find a listening wayland compositor.")
-            }
-            ConnectError::InvalidName => f.write_str("The wayland socket name is invalid."),
-            ConnectError::InvalidFd => f.write_str("The FD provided in WAYLAND_SOCKET is invalid."),
-        }
+        f.write_str("could not load libwayland.so")
     }
 }
 
