@@ -31,6 +31,7 @@ members = [
     "wayland-egl",
     "wayland-backend-sys",
     "wayland-backend-rs",
+    "wayland-backend-test",
 ]
 
 [features]

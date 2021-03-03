@@ -1,0 +1,14 @@
+[package]
+name = "wayland-backend-test"
+version = "0.1.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wayland-commons = { path = "../wayland-commons" }
+wayland-backend-rs = { path = "../wayland-backend-rs", features = ["client", "server"]}
+wayland-backend-sys = { path = "../wayland-backend-sys", features = ["client", "server"]}
+concat-idents = "1.1"

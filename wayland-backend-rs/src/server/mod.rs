@@ -2,15 +2,21 @@ use std::{fmt, sync::Arc};
 
 use wayland_commons::{server::ObjectData, Interface};
 
+use crate::same_interface;
+
 mod client;
 mod handle;
+mod independent;
 mod registry;
+
+pub use handle::Handle;
+pub use independent::IndependentServerBackend;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ObjectId {
     id: u32,
-    client_id: u32,
     serial: u32,
+    client_id: ClientId,
     interface: &'static Interface,
 }
 
@@ -20,7 +26,16 @@ impl fmt::Display for ObjectId {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+impl PartialEq for ObjectId {
+    fn eq(&self, other: &ObjectId) -> bool {
+        self.id == other.id
+            && self.serial == other.serial
+            && self.client_id == other.client_id
+            && same_interface(self.interface, other.interface)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ClientId {
     id: u32,
     serial: u32,
@@ -31,7 +46,7 @@ impl fmt::Display for ClientId {
         write!(f, "[{}]", self.id)
     }
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GlobalId {
     id: u32,
     serial: u32,

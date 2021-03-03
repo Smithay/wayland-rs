@@ -1,6 +1,9 @@
 use std::{
     fmt,
-    os::unix::io::{AsRawFd, FromRawFd, RawFd},
+    os::unix::{
+        io::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
+        net::UnixStream,
+    },
     sync::Arc,
 };
 
@@ -8,7 +11,7 @@ use smallvec::SmallVec;
 use wayland_commons::{
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE},
-    Argument, ArgumentType, Interface, ObjectInfo, ProtocolError,
+    Argument, Interface, ObjectInfo, ProtocolError,
 };
 
 use crate::{
@@ -56,8 +59,8 @@ impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
 
-    unsafe fn connect(fd: RawFd) -> Result<Self, NoWaylandLib> {
-        let socket = BufferedSocket::new(Socket::from_raw_fd(fd));
+    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
+        let socket = BufferedSocket::new(Socket::from_raw_fd(stream.into_raw_fd()));
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
@@ -100,6 +103,7 @@ impl ClientBackend for Backend {
     }
 
     fn dispatch_events(&mut self) -> std::io::Result<usize> {
+        let mut dispatched = 0;
         loop {
             // Attempt to read a message
             let map = &self.handle.map;
@@ -111,7 +115,13 @@ impl ClientBackend for Backend {
                 Ok(msg) => msg,
                 Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
                     // need to read more data
-                    self.handle.socket.fill_incoming_buffers()?;
+                    if let Err(e) = self.handle.socket.fill_incoming_buffers() {
+                        if e.kind() != std::io::ErrorKind::WouldBlock || dispatched == 0 {
+                            return Err(e);
+                        } else {
+                            break;
+                        }
+                    }
                     continue;
                 }
                 Err(MessageParseError::Malformed) => {
@@ -279,7 +289,10 @@ impl ClientBackend for Backend {
                 message.opcode,
                 &args,
             );
+
+            dispatched += 1;
         }
+        Ok(dispatched)
     }
 
     fn handle(&mut self) -> &mut Self::Handle {
