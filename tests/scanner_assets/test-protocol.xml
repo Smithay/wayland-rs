@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="test-protocol">
+
+  <!-- mimicking a few interfaces from the wayland protocol to trigger edge cases -->
+
+  <interface name="wl_display" version="1">
+    <description summary="core global object">
+      This global is special and should only generate code client-side, not server-side.
+    </description>
+  </interface>
+
+  <interface name="wl_registry" version="1">
+    <description summary="global registry object">
+      This global is special and should only generate code client-side, not server-side.
+    </description>
+
+    <request name="bind">
+      <description summary="bind an object to the display">
+        This request is a special code-path, as its new-id argument as no target type.
+      </description>
+      <arg name="name" type="uint" summary="unique numeric name of the object"/>
+      <arg name="id" type="new_id" summary="bounded object"/>
+    </request>
+  </interface>
+
+  <interface name="wl_callback" version="1">
+    <description summary="callback object">
+      This object has a special behavior regarding its destructor.
+    </description>
+
+    <event name="done">
+      <description summary="done event">
+        This event is actually a destructor, but the protocol XML has no way of specifying it.
+        As such, the scanner should consider wl_callback.done as a special case.
+      </description>
+      <arg name="callback_data" type="uint" summary="request-specific data for the callback"/>
+    </event>
+  </interface>
+
+</protocol>

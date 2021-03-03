@@ -1,4 +1,4 @@
-use crate::protocol::*;
+use super::protocol::*;
 use std::io::Read;
 use xml::attribute::OwnedAttribute;
 use xml::reader::ParserConfig;
@@ -22,7 +22,7 @@ macro_rules! extract_end_tag(
     )
 );
 
-pub fn parse_stream<S: Read>(stream: S) -> Protocol {
+pub fn parse<S: Read>(stream: S) -> Protocol {
     let mut reader =
         EventReader::new_with_config(stream, ParserConfig::new().trim_whitespace(true));
     reader.next().expect("Could not read from event reader");

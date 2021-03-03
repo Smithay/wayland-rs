@@ -11,4 +11,5 @@ publish = false
 wayland-commons = { path = "../wayland-commons" }
 wayland-backend-rs = { path = "../wayland-backend-rs", features = ["client", "server"]}
 wayland-backend-sys = { path = "../wayland-backend-sys", features = ["client", "server"]}
+wayland-scanner = { path = "../wayland-scanner" }
 concat-idents = "1.1"
