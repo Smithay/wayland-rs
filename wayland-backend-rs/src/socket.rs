@@ -403,6 +403,8 @@ mod tests {
             ArgumentType::Int,
         ];
 
+        server.fill_incoming_buffers().unwrap();
+
         let ret_msg =
             server
                 .read_one_message(|sender_id, opcode| {
@@ -436,6 +438,9 @@ mod tests {
         client.flush().unwrap();
 
         static SIGNATURE: &'static [ArgumentType] = &[ArgumentType::Fd, ArgumentType::Fd];
+
+
+        server.fill_incoming_buffers().unwrap();
 
         let ret_msg =
             server
@@ -494,6 +499,8 @@ mod tests {
         }
         client.flush().unwrap();
 
+        server.fill_incoming_buffers().unwrap();
+
         let mut recv_msgs = Vec::new();
         while let Ok(message) = server.read_one_message(|sender_id, opcode| {
             if sender_id == 42 {
@@ -531,6 +538,8 @@ mod tests {
 
         static SIGNATURE: &'static [ArgumentType] =
             &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint];
+
+        server.fill_incoming_buffers().unwrap();
 
         let ret_msg =
             server

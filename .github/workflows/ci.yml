@@ -43,15 +43,13 @@ jobs:
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
 
-      - name: Backend coverage
+      - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests -p wayland-backend-test
+          args: --ignore-tests --lib -p wayland-backend-rs -p wayland-backend-test -p wayland-scanner
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
-        with:
-          flags: "backend"
  
   lint:
     runs-on: ubuntu-latest
