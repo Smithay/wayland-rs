@@ -19,6 +19,7 @@ use std::{ffi::CString, os::unix::io::RawFd};
 
 pub mod client;
 pub mod core_interfaces;
+pub mod scanner;
 pub mod server;
 
 /// Description of the protocol-level information of an object
