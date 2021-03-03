@@ -14,3 +14,7 @@ readme = "README.md"
 wayland-commons = { path = "../wayland-commons" }
 wayland-sys = { path = "../wayland-sys" }
 nix = "0.20"
+
+[features]
+client = []
+server = []

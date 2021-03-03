@@ -1,4 +1,7 @@
-use std::{os::unix::io::RawFd, sync::Arc};
+use std::{
+    os::unix::{io::RawFd, net::UnixStream},
+    sync::Arc,
+};
 
 use wayland_commons::{
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
@@ -18,7 +21,7 @@ impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
 
-    unsafe fn connect(fd: RawFd) -> Result<Self, NoWaylandLib> {
+    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         todo!()
     }
 

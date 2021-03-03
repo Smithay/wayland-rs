@@ -14,3 +14,7 @@ readme = "README.md"
 wayland-commons = { path = "../wayland-commons" }
 nix = "0.22"
 smallvec = "1.0"
+
+[features]
+client = []
+server = []

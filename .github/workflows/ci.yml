@@ -11,8 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: ['1.41.0', 'stable', 'beta']
-        features: ['', 'client_native', 'server_native', 'both_native']
+        rust: ['1.42.0', 'stable', 'beta']
       
     runs-on: ubuntu-latest
 
@@ -44,29 +43,16 @@ jobs:
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
 
-      - name: Coverage
+      - name: Backend coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --features "${{ matrix.features }}" --workspace --exclude wayland-egl
-      
+          args: --ignore-tests -p wayland-backend-test
+
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          flags: ${{ matrix.features }}
-
-      - name: Cleanup before test EGL
-        if: matrix.features == 'client_native'
-        uses: actions-rs/cargo@v1
-        with:
-          command: clean
-      
-      - name: Test EGL
-        if: matrix.features == 'client_native'
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "${{ matrix.features}}" -p wayland-egl
-
+          flags: "backend"
+ 
   lint:
     runs-on: ubuntu-latest
 

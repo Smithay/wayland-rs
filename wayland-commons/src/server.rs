@@ -1,13 +1,19 @@
-use std::{os::unix::io::RawFd, sync::Arc};
+use std::{
+    ffi::CString,
+    os::unix::{io::RawFd, net::UnixStream},
+    sync::Arc,
+};
 
 use downcast_rs::DowncastSync;
+
+use crate::client;
 
 use super::{Argument, Interface, ObjectInfo};
 
 pub struct GlobalInfo {
-    interface: &'static Interface,
-    version: u32,
-    disabled: bool,
+    pub interface: &'static Interface,
+    pub version: u32,
+    pub disabled: bool,
 }
 
 /// A trait representing your data associated to an object
@@ -59,8 +65,11 @@ downcast_rs::impl_downcast!(sync GlobalHandler<B> where B: ServerBackend);
 
 /// A trait representing your data associated to a clientObjectData
 pub trait ClientData<B: ServerBackend>: downcast_rs::DowncastSync {
-    /// Notification that the object has been destroyed and is no longer active
-    fn disconnected(&self, object_id: B::ClientId, reason: DisconnectReason);
+    /// Notification that a client was initialized
+    fn initialized(&self, client_id: B::ClientId);
+
+    /// Notification that a client is disconnected
+    fn disconnected(&self, client_id: B::ClientId, reason: DisconnectReason);
 }
 
 downcast_rs::impl_downcast!(sync ClientData<B> where B: ServerBackend);
@@ -75,7 +84,11 @@ pub trait ServerBackend: Sized {
     fn new() -> Result<Self, NoWaylandLib>;
 
     /// Initialize a client on a connected unix socket
-    unsafe fn insert_client(fd: RawFd, data: Arc<dyn ClientData<Self>>) -> Self::ClientId;
+    fn insert_client(
+        &mut self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData<Self>>,
+    ) -> Self::ClientId;
 
     /// Flush the internal outgoing buffers to clients
     ///
@@ -92,7 +105,7 @@ pub trait ServerBackend: Sized {
 /// This backend presents the set of clients as a whole, and gives you a single file
 /// descriptor for monitoring it. It maintains an internal epoll-like instance and
 /// client FDs are added to it when you invoke `insert_client`.
-pub trait CommonPollBackend<B: ServerBackend> {
+pub trait CommonPollBackend: ServerBackend {
     /// Get an FD for monitoring using epoll or equivalent
     fn poll_fd(&self) -> RawFd;
 
@@ -111,13 +124,16 @@ pub trait CommonPollBackend<B: ServerBackend> {
 ///
 /// It can be used for setups when you want to implement priority mechanisms between
 /// clients, for example.
-pub trait IndependentBackend<B: ServerBackend> {
+pub trait IndependentBackend: ServerBackend {
     /// Read and dispatch incoming requests for a single client
     ///
     /// This function never blocks. If new events are available, they are read
     /// from the socket and the `event()` method of the `ObjectData` associated
     /// to their target object is invoked, sequentially.
-    fn dispatch_event_for(&mut self, client_id: B::ClientId) -> std::io::Result<usize>;
+    fn dispatch_events_for(
+        &mut self,
+        client_id: <Self as ServerBackend>::ClientId,
+    ) -> std::io::Result<usize>;
 }
 
 pub trait BackendHandle<B: ServerBackend> {
@@ -137,7 +153,7 @@ pub trait BackendHandle<B: ServerBackend> {
     fn all_objects_for<'a>(
         &'a self,
         client_id: B::ClientId,
-    ) -> Box<dyn Iterator<Item = B::ObjectId> + 'a>;
+    ) -> Result<Box<dyn Iterator<Item = B::ObjectId> + 'a>, InvalidId>;
 
     /// Create a new object for given client
     ///
@@ -149,7 +165,7 @@ pub trait BackendHandle<B: ServerBackend> {
         interface: &'static Interface,
         version: u32,
         data: Arc<dyn ObjectData<B>>,
-    ) -> B::ObjectId;
+    ) -> Result<B::ObjectId, InvalidId>;
 
     /// Send an event to a client
     fn send_event(
@@ -166,13 +182,13 @@ pub trait BackendHandle<B: ServerBackend> {
     ///
     /// The associated client will be disconnected after the error has been sent
     /// to it.
-    fn post_error(&mut self, object_id: B::ObjectId, error_code: u32, message: String);
+    fn post_error(&mut self, object_id: B::ObjectId, error_code: u32, message: CString);
 
     /// Disconnect a client
     ///
     /// The connection of this client will be terminated without sending it anything. When applicable,
     /// `post_error()` should generally be preferred.
-    fn kill_client(&mut self, client_id: B::ClientId);
+    fn kill_client(&mut self, client_id: B::ClientId, reason: DisconnectReason);
 
     fn create_global(
         &mut self,
