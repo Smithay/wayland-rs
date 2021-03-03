@@ -24,4 +24,4 @@ task:
     - . $HOME/.cargo/env
     - mkdir -p $HOME/sockets
     - export XDG_RUNTIME_DIR="$HOME/sockets"
-    - cargo test --features "both_native" --all
+    - cargo test -p wayland-backend-test

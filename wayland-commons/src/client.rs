@@ -1,4 +1,7 @@
-use std::{os::unix::io::RawFd, sync::Arc};
+use std::{
+    os::unix::{io::RawFd, net::UnixStream},
+    sync::Arc,
+};
 
 use super::{Argument, Interface, ObjectInfo};
 
@@ -31,7 +34,7 @@ pub trait ClientBackend: Sized {
     type Handle: BackendHandle<Self>;
 
     /// Initialize the wayland state on a connected unix socket
-    unsafe fn connect(fd: RawFd) -> Result<Self, NoWaylandLib>;
+    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib>;
 
     /// Get the connection FD for monitoring using epoll or equivalent
     fn connection_fd(&self) -> RawFd;
