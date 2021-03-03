@@ -33,6 +33,10 @@ macro_rules! expand_test {
     };
 }
 
+mod interfaces {
+    wayland_scanner::generate_interfaces!("./tests/scanner_assets/test-protocol.xml");
+}
+
 struct DoNothingClientData;
 
 impl<S: ServerBackend> ClientData<S> for DoNothingClientData {

@@ -45,19 +45,11 @@ pub struct Message {
     pub since: u32,
     pub description: Option<(String, String)>,
     pub args: Vec<Arg>,
-    pub type_index: usize,
 }
 
 impl Message {
     pub fn new() -> Message {
-        Message {
-            name: String::new(),
-            typ: None,
-            since: 1,
-            description: None,
-            args: Vec::new(),
-            type_index: 0,
-        }
+        Message { name: String::new(), typ: None, since: 1, description: None, args: Vec::new() }
     }
 
     pub fn all_null(&self) -> bool {
@@ -146,19 +138,6 @@ impl Type {
         match self {
             Type::String | Type::Object | Type::NewId | Type::Array => true,
             _ => false,
-        }
-    }
-
-    pub fn rust_type(self) -> TokenStream {
-        match self {
-            Type::Int => quote!(i32),
-            Type::Uint => quote!(u32),
-            Type::Fixed => quote!(f64),
-            Type::Array => quote!(Vec<u8>),
-            Type::Fd => quote!(::std::os::unix::io::RawFd),
-            Type::String => quote!(String),
-            Type::Object => quote!(ProxyId),
-            _ => quote!(()),
         }
     }
 
