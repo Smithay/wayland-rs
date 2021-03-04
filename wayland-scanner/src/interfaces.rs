@@ -34,7 +34,19 @@ fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
         let name = &message.name;
         let since = message.since;
         let is_destructor = message.typ == Some(Type::Destructor);
-        let signature = message.args.iter().map(|arg| arg.typ.common_type());
+        let signature = message.args.iter().map(|arg| {
+            if arg.typ == Type::NewId && arg.interface.is_none() {
+                // this is a special generic message, it expands to multiple arguments
+                quote!(
+                    wayland_commons::ArgumentType::Str,
+                    wayland_commons::ArgumentType::Uint,
+                    wayland_commons::ArgumentType::NewId
+                )
+            } else {
+                let typ = arg.typ.common_type();
+                quote!(wayland_commons::ArgumentType::#typ)
+            }
+        });
         let child_interface = match message
             .args
             .iter()
@@ -60,14 +72,14 @@ fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
                     quote!( &#target_iface )
                 }
                 None => {
-                    panic!("Unsupported anonymous object argument in {}.{}", iface, message.name);
+                    quote!(&wayland_commons::core_interfaces::ANONYMOUS_INTERFACE)
                 }
             }
         });
         quote!(
             wayland_commons::MessageDesc {
                 name: #name,
-                signature: &[ #(wayland_commons::ArgumentType::#signature),* ],
+                signature: &[ #(#signature),* ],
                 since: #since,
                 is_destructor: #is_destructor,
                 child_interface: #child_interface,
@@ -77,7 +89,7 @@ fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
     });
 
     quote!(
-        &[ #(#desc_list)* ]
+        &[ #(#desc_list),* ]
     )
 }
 

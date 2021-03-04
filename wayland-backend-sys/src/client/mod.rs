@@ -21,7 +21,7 @@ impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
 
-    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
+    fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         todo!()
     }
 
