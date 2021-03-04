@@ -58,7 +58,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
             }
         };
 
-        let id = GlobalId { id: id as u32, serial };
+        let id = GlobalId { id: id as u32 + 1, serial };
 
         *place = Some(Global { id, interface, version, handler, disabled: false });
 

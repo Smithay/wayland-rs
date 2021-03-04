@@ -13,3 +13,4 @@ wayland-backend-rs = { path = "../wayland-backend-rs", features = ["client", "se
 wayland-backend-sys = { path = "../wayland-backend-sys", features = ["client", "server"]}
 wayland-scanner = { path = "../wayland-scanner" }
 concat-idents = "1.1"
+nix = "0.20"
