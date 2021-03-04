@@ -46,7 +46,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests -p wayland-backend-rs -p wayland-backend-test -p wayland-scanner
+          args: --ignore-tests --workspace -e wayland-client -e wayland-server -e wayland-protocols -e wayland-cursor -e wayland-egl --exclude-files 'wayland-backend-test/*,wayland-client/*,wayland-server/*,wayland-egl/*,wayland-cursor/*'
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
