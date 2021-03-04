@@ -439,7 +439,6 @@ mod tests {
 
         static SIGNATURE: &'static [ArgumentType] = &[ArgumentType::Fd, ArgumentType::Fd];
 
-
         server.fill_incoming_buffers().unwrap();
 
         let ret_msg =

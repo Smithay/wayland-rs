@@ -1,3 +1,5 @@
+use std::{ffi::OsString, path::PathBuf};
+
 use wayland_commons::scanner;
 
 use syn::{parse_macro_input, LitStr};
@@ -6,10 +8,18 @@ mod interfaces;
 
 #[proc_macro]
 pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path = parse_macro_input!(stream as LitStr).value();
-    eprintln!("Opening file: {}", path);
-    eprintln!("Working directory: {:?}", std::env::current_dir());
-    let file = std::fs::File::open(&path).unwrap();
+    let path: OsString = parse_macro_input!(stream as LitStr).value().into();
+    let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+        let mut buf = PathBuf::from(manifest_dir);
+        buf.push(path);
+        buf
+    } else {
+        path.into()
+    };
+    let file = match std::fs::File::open(&path) {
+        Ok(file) => file,
+        Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
+    };
     let protocol = scanner::parse(file);
     interfaces::generate(&protocol).into()
 }
@@ -25,7 +35,7 @@ fn format_rust_code(code: &str) -> String {
         .arg("--edition=2018")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        //.stderr(Stdio::null())
         .spawn()
     {
         {

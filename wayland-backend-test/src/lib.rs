@@ -1,9 +1,6 @@
-#![allow(dead_code)]
+#![allow(dead_code, non_snake_case)]
 
-use std::{
-    os::unix::{net::UnixStream, prelude::AsRawFd},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use wayland_commons::{
     client::{BackendHandle as ClientHandle, ClientBackend},
@@ -34,7 +31,7 @@ macro_rules! expand_test {
 }
 
 mod interfaces {
-    wayland_scanner::generate_interfaces!("./tests/scanner_assets/test-protocol.xml");
+    wayland_scanner::generate_interfaces!("../tests/scanner_assets/test-protocol.xml");
 }
 
 struct DoNothingClientData;
@@ -50,7 +47,7 @@ struct TestPair<C: ClientBackend, S: ServerBackend> {
     pub client_id: <S as ServerBackend>::ClientId,
 }
 
-impl<C: ClientBackend, S: ServerBackend> TestPair<C, S> {
+impl<C: ClientBackend, S: ServerBackend + ServerPolling<S>> TestPair<C, S> {
     fn init() -> TestPair<C, S> {
         TestPair::init_with_data(Arc::new(DoNothingClientData))
     }
@@ -59,70 +56,43 @@ impl<C: ClientBackend, S: ServerBackend> TestPair<C, S> {
         let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
 
         let mut server = S::new().unwrap();
-        let client_id = unsafe { server.insert_client(rx, data) };
-
-        let client = unsafe { C::connect(tx) }.unwrap();
+        let client_id = server.insert_client(rx, data);
+        let client = C::connect(tx).unwrap();
 
         TestPair { client, server, client_id }
     }
-}
 
-// send a wl_display.sync request and receive the response
-fn independent_sync<C: ClientBackend, S: ServerBackend + IndependentBackend>() {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use wayland_commons::client::ObjectData;
-    struct SyncData(AtomicBool);
-    impl<B: ClientBackend> ObjectData<B> for SyncData {
-        fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ObjectData<B>> {
-            unimplemented!()
-        }
-
-        fn event(
-            &self,
-            _: &mut B::Handle,
-            _: B::ObjectId,
-            opcode: u16,
-            args: &[Argument<B::ObjectId>],
-        ) {
-            assert_eq!(opcode, 0);
-            assert!(matches!(args, [Argument::Uint(_)]));
-            self.0.store(true, Ordering::SeqCst);
-        }
-
-        fn destroyed(&self, _: B::ObjectId) {}
+    fn client_dispatch(&mut self) -> std::io::Result<usize> {
+        self.client.dispatch_events()
     }
 
-    let mut test = TestPair::<C, S>::init();
+    fn client_flush(&mut self) -> std::io::Result<()> {
+        self.client.flush()
+    }
 
-    // send the request
-    let client_display = test.client.handle().display_id();
-    let placeholder = test.client.handle().placeholder_id(Some((&WL_CALLBACK_INTERFACE, 1)));
-    let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
-    let sync_id = test
-        .client
-        .handle()
-        .send_constructor(
-            client_display,
-            0,
-            &[Argument::NewId(placeholder)],
-            Some(sync_data.clone()),
-        )
-        .unwrap();
-    test.client.flush().unwrap();
+    fn server_dispatch(&mut self) -> std::io::Result<usize> {
+        self.server.poll_client(self.client_id.clone())
+    }
 
-    std::thread::sleep(std::time::Duration::from_millis(10));
-
-    // process it server-side
-    test.server.dispatch_events_for(test.client_id.clone()).unwrap();
-    test.server.flush(Some(test.client_id)).unwrap();
-
-    std::thread::sleep(std::time::Duration::from_millis(10));
-
-    // ensure the answer is received client-side
-    test.client.dispatch_events().unwrap();
-    assert!(sync_data.0.load(Ordering::SeqCst));
-    // and the sync object should be dead
-    assert!(test.client.handle().get_data(sync_id).is_err());
+    fn server_flush(&mut self) -> std::io::Result<()> {
+        self.server.flush(Some(self.client_id.clone()))
+    }
 }
 
-expand_test!(independent_sync);
+// A generic trait for polling any kind of server in tests
+trait ServerPolling<S: ServerBackend> {
+    fn poll_client(&mut self, id: S::ClientId) -> std::io::Result<usize>;
+}
+
+// We need to do manual implementations, because otherwise we get conflicting implementations
+
+impl ServerPolling<server_independent_rs> for server_independent_rs {
+    fn poll_client(
+        &mut self,
+        id: <server_independent_rs as ServerBackend>::ClientId,
+    ) -> std::io::Result<usize> {
+        self.dispatch_events_for(id)
+    }
+}
+
+mod sync;

@@ -34,7 +34,7 @@ pub trait ClientBackend: Sized {
     type Handle: BackendHandle<Self>;
 
     /// Initialize the wayland state on a connected unix socket
-    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib>;
+    fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib>;
 
     /// Get the connection FD for monitoring using epoll or equivalent
     fn connection_fd(&self) -> RawFd;
