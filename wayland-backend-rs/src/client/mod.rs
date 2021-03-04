@@ -59,8 +59,8 @@ impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
 
-    unsafe fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
-        let socket = BufferedSocket::new(Socket::from_raw_fd(stream.into_raw_fd()));
+    fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
+        let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
