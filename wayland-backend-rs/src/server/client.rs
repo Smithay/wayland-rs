@@ -434,7 +434,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         object: &Object<Data<B>>,
         message: Message,
     ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool)> {
-        let message_desc = object.interface.events.get(message.opcode as usize).unwrap();
+        let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
         let mut new_args =
             SmallVec::<[Argument<ObjectId>; INLINE_ARGS]>::with_capacity(message.args.len());
