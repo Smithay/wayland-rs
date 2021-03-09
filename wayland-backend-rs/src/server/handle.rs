@@ -1,5 +1,6 @@
 use std::{ffi::CString, io::ErrorKind, sync::Arc};
 
+use smallvec::SmallVec;
 use wayland_commons::{
     core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     server::{
@@ -34,9 +35,10 @@ where
         Handle { clients: ClientStore::new(debug), registry: Registry::new() }
     }
 
-    pub(crate) fn cleanup(&mut self) {
+    pub(crate) fn cleanup(&mut self) -> SmallVec<[ClientId; 1]> {
         let dead_clients = self.clients.cleanup();
         self.registry.cleanup(&dead_clients);
+        dead_clients
     }
 
     pub(crate) fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {

@@ -79,16 +79,17 @@ pub trait ServerBackend: Sized {
     type ClientId: Clone + Send + std::fmt::Debug;
     type GlobalId: Clone + Send + std::fmt::Debug;
     type Handle: BackendHandle<Self>;
+    type InitError: std::error::Error;
 
     /// Initialize the backend
-    fn new() -> Result<Self, NoWaylandLib>;
+    fn new() -> Result<Self, Self::InitError>;
 
     /// Initialize a client on a connected unix socket
     fn insert_client(
         &mut self,
         stream: UnixStream,
         data: Arc<dyn ClientData<Self>>,
-    ) -> Self::ClientId;
+    ) -> std::io::Result<Self::ClientId>;
 
     /// Flush the internal outgoing buffers to clients
     ///
