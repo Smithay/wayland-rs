@@ -32,9 +32,10 @@ downcast_rs::impl_downcast!(sync ObjectData<B> where B: ClientBackend);
 pub trait ClientBackend: Sized {
     type ObjectId: Clone + Send + std::fmt::Debug;
     type Handle: BackendHandle<Self>;
+    type InitError: std::error::Error;
 
     /// Initialize the wayland state on a connected unix socket
-    fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib>;
+    fn connect(stream: UnixStream) -> Result<Self, Self::InitError>;
 
     /// Get the connection FD for monitoring using epoll or equivalent
     fn connection_fd(&self) -> RawFd;

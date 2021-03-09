@@ -20,6 +20,7 @@ pub struct Backend {
 impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
+    type InitError = NoWaylandLib;
 
     fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         todo!()

@@ -11,7 +11,7 @@ use smallvec::SmallVec;
 use wayland_commons::{
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE},
-    Argument, Interface, ObjectInfo, ProtocolError,
+    Argument, Interface, Never, ObjectInfo, ProtocolError,
 };
 
 use crate::{
@@ -58,8 +58,9 @@ pub struct Backend {
 impl ClientBackend for Backend {
     type ObjectId = Id;
     type Handle = Handle;
+    type InitError = Never;
 
-    fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
+    fn connect(stream: UnixStream) -> Result<Self, Never> {
         let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
         let mut map = ObjectMap::new();
         map.insert_at(
