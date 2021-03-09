@@ -165,3 +165,14 @@ impl std::fmt::Display for ProtocolError {
         )
     }
 }
+/// A type representing an error that cannot occur
+#[derive(Clone, Debug)]
+pub enum Never {}
+
+impl std::error::Error for Never {}
+
+impl std::fmt::Display for Never {
+    fn fmt(&self, _: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        match *self {}
+    }
+}

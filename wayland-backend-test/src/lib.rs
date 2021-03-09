@@ -12,7 +12,8 @@ use wayland_commons::{
 };
 
 use wayland_backend_rs::{
-    client::Backend as client_rs, server::IndependentServerBackend as server_independent_rs,
+    client::Backend as client_rs, server::CommonPollServerBackend as server_common_rs,
+    server::IndependentServerBackend as server_independent_rs,
 };
 
 macro_rules! expand_test {
@@ -24,6 +25,7 @@ macro_rules! expand_test {
     };
     (__list_expand, $panic:tt, $test_name:ident) => {
         expand_test!(__expand, $panic, $test_name, client_rs, server_independent_rs);
+        expand_test!(__expand, $panic, $test_name, client_rs, server_common_rs);
     };
     (__expand, __panic, $test_name: ident, $client_backend: ty, $server_backend: ty) => {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {
@@ -57,7 +59,7 @@ impl<C: ClientBackend, S: ServerBackend + ServerPolling<S>> TestPair<C, S> {
         let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
 
         let mut server = S::new().unwrap();
-        let client_id = server.insert_client(rx, data);
+        let client_id = server.insert_client(rx, data).unwrap();
         let client = C::connect(tx).unwrap();
 
         TestPair { client, server, client_id }
@@ -93,6 +95,15 @@ impl ServerPolling<server_independent_rs> for server_independent_rs {
         id: <server_independent_rs as ServerBackend>::ClientId,
     ) -> std::io::Result<usize> {
         self.dispatch_events_for(id)
+    }
+}
+
+impl ServerPolling<server_common_rs> for server_common_rs {
+    fn poll_client(
+        &mut self,
+        _: <server_independent_rs as ServerBackend>::ClientId,
+    ) -> std::io::Result<usize> {
+        self.dispatch_events()
     }
 }
 

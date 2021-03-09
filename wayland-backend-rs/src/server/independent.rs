@@ -1,6 +1,9 @@
 use std::{os::unix::net::UnixStream, sync::Arc};
 
-use wayland_commons::server::{ClientData, IndependentBackend, NoWaylandLib, ServerBackend};
+use wayland_commons::{
+    server::{ClientData, IndependentBackend, ServerBackend},
+    Never,
+};
 
 use super::{ClientId, GlobalId, Handle, ObjectId};
 
@@ -13,8 +16,9 @@ impl ServerBackend for IndependentServerBackend {
     type ClientId = ClientId;
     type GlobalId = GlobalId;
     type Handle = Handle<IndependentServerBackend>;
+    type InitError = Never;
 
-    fn new() -> Result<Self, NoWaylandLib> {
+    fn new() -> Result<Self, Never> {
         Ok(IndependentServerBackend { handle: Handle::new() })
     }
 
@@ -22,8 +26,8 @@ impl ServerBackend for IndependentServerBackend {
         &mut self,
         stream: UnixStream,
         data: Arc<dyn ClientData<Self>>,
-    ) -> Self::ClientId {
-        self.handle.clients.create_client(stream, data)
+    ) -> std::io::Result<Self::ClientId> {
+        Ok(self.handle.clients.create_client(stream, data))
     }
 
     fn flush(&mut self, client: Option<Self::ClientId>) -> std::io::Result<()> {
