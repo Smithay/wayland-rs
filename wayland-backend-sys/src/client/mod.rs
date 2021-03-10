@@ -14,8 +14,7 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, Argument, ArgumentType, Interface, MessageDesc, ObjectInfo,
-    ANONYMOUS_INTERFACE,
+    same_interface, Argument, ArgumentType, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
@@ -34,6 +33,12 @@ pub struct Id {
 
 unsafe impl Send for Id {}
 
+impl wayland_commons::client::ObjecttId for Id {
+    fn is_null(&self) -> bool {
+        self.ptr.is_null()
+    }
+}
+
 struct ProxyUserData {
     alive: Arc<AtomicBool>,
     data: Arc<dyn ObjectData<Backend>>,
@@ -46,7 +51,6 @@ pub struct Handle {
     display_id: Id,
     last_error: Option<WaylandError>,
     pending_placeholder: Option<(&'static Interface, u32)>,
-    display_udata: ProxyUserData,
 }
 
 pub struct Backend {
@@ -81,11 +85,6 @@ impl ClientBackend for Backend {
                 },
                 last_error: None,
                 pending_placeholder: None,
-                display_udata: ProxyUserData {
-                    alive: display_alive,
-                    data: Arc::new(DumbObjectData),
-                    interface: &WL_DISPLAY_INTERFACE,
-                },
             },
         })
     }
@@ -189,7 +188,9 @@ impl BackendHandle<Backend> for Handle {
     }
 
     fn info(&self, id: Id) -> Result<ObjectInfo, InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
+            && !id.ptr.is_null()
+        {
             return Err(InvalidId);
         }
 
@@ -202,13 +203,19 @@ impl BackendHandle<Backend> for Handle {
         Ok(ObjectInfo { id: id.id, interface: udata.interface, version })
     }
 
+    fn null_id(&mut self) -> Id {
+        Id { ptr: std::ptr::null_mut(), interface: &ANONYMOUS_INTERFACE, id: 0, alive: None }
+    }
+
     fn send_request(
         &mut self,
         id: Id,
         opcode: u16,
         args: &[Argument<Id>],
     ) -> Result<(), InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
+            && !id.ptr.is_null()
+        {
             return Err(InvalidId);
         }
 
@@ -245,13 +252,15 @@ impl BackendHandle<Backend> for Handle {
                 }
                 Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Object(ref o) => {
-                    if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
-                        unsafe { free_arrays(message_desc.signature, &argument_list) };
-                        return Err(InvalidId);
-                    }
-                    let next_interface = arg_interfaces.next().unwrap();
-                    if !same_interface(next_interface, o.interface) {
-                        panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
+                    if !o.ptr.is_null() {
+                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+                            unsafe { free_arrays(message_desc.signature, &argument_list) };
+                            return Err(InvalidId);
+                        }
+                        let next_interface = arg_interfaces.next().unwrap();
+                        if !same_interface(next_interface, o.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
+                        }
                     }
                     argument_list.push(wl_argument { o: o.ptr as *const _ })
                 }
@@ -320,7 +329,9 @@ impl BackendHandle<Backend> for Handle {
         args: &[Argument<Id>],
         data: Option<Arc<dyn ObjectData<Backend>>>,
     ) -> Result<Id, InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
+            && !id.ptr.is_null()
+        {
             return Err(InvalidId);
         }
         let parent_version = if id.id == 1 {
@@ -386,13 +397,15 @@ impl BackendHandle<Backend> for Handle {
                 }
                 Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Object(ref o) => {
-                    if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
-                        unsafe { free_arrays(message_desc.signature, &argument_list) };
-                        return Err(InvalidId);
-                    }
-                    let next_interface = arg_interfaces.next().unwrap();
-                    if !same_interface(next_interface, o.interface) {
-                        panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
+                    if !o.ptr.is_null() {
+                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+                            unsafe { free_arrays(message_desc.signature, &argument_list) };
+                            return Err(InvalidId);
+                        }
+                        let next_interface = arg_interfaces.next().unwrap();
+                        if !same_interface(next_interface, o.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
+                        }
                     }
                     argument_list.push(wl_argument { o: o.ptr as *const _ })
                 }
@@ -545,37 +558,46 @@ unsafe extern "C" fn dispatcher_func(
             }
             ArgumentType::Object => {
                 let obj = (*args.offset(i as isize)).o as *mut wl_proxy;
-                // retrieve the object relevant info
-                let obj_id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj);
-                // check if this is a local or distant proxy
-                let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
-                let listener = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, obj);
-                if listener == &RUST_MANAGED as *const u8 as *const c_void {
-                    let obj_udata =
-                        &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, obj)
-                            as *mut ProxyUserData);
-                    if !same_interface(next_interface, obj_udata.interface) {
-                        eprintln!(
-                            "[wayland-backlend-sys] Received object {}@{} in {}.{} but expected interface {}.",
-                            obj_udata.interface.name, obj_id,
-                            interface.name, message_desc.name,
-                            next_interface.name,
-                        );
-                        nix::libc::abort();
+                if !obj.is_null() {
+                    // retrieve the object relevant info
+                    let obj_id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj);
+                    // check if this is a local or distant proxy
+                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
+                    let listener = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, obj);
+                    if listener == &RUST_MANAGED as *const u8 as *const c_void {
+                        let obj_udata =
+                            &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, obj)
+                                as *mut ProxyUserData);
+                        if !same_interface(next_interface, obj_udata.interface) {
+                            eprintln!(
+                                "[wayland-backlend-sys] Received object {}@{} in {}.{} but expected interface {}.",
+                                obj_udata.interface.name, obj_id,
+                                interface.name, message_desc.name,
+                                next_interface.name,
+                            );
+                            nix::libc::abort();
+                        }
+                        parsed_args.push(Argument::Object(Id {
+                            alive: Some(obj_udata.alive.clone()),
+                            ptr: obj,
+                            id: obj_id,
+                            interface: obj_udata.interface,
+                        }));
+                    } else {
+                        parsed_args.push(Argument::Object(Id {
+                            alive: None,
+                            id: obj_id,
+                            ptr: obj,
+                            interface: next_interface,
+                        }));
                     }
-                    parsed_args.push(Argument::Object(Id {
-                        alive: Some(obj_udata.alive.clone()),
-                        ptr: obj,
-                        id: obj_id,
-                        interface: obj_udata.interface,
-                    }));
                 } else {
                     parsed_args.push(Argument::Object(Id {
                         alive: None,
-                        id: obj_id,
-                        ptr: obj,
-                        interface: next_interface,
-                    }));
+                        id: 0,
+                        ptr: std::ptr::null_mut(),
+                        interface: &ANONYMOUS_INTERFACE,
+                    }))
                 }
             }
             ArgumentType::NewId => {
