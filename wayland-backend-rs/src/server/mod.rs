@@ -20,6 +20,12 @@ pub struct ObjectId {
     interface: &'static Interface,
 }
 
+impl wayland_commons::server::ObjecttId for ObjectId {
+    fn is_null(&self) -> bool {
+        self.id == 0
+    }
+}
+
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}[{}]", self.interface.name, self.id, self.client_id)
