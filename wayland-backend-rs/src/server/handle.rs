@@ -7,7 +7,7 @@ use wayland_commons::{
         BackendHandle, ClientData, DisconnectReason, GlobalHandler, GlobalInfo, InvalidId,
         ObjectData, ServerBackend,
     },
-    Argument, Interface, ObjectInfo,
+    Argument, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
 use super::{client::ClientStore, registry::Registry, ClientId, GlobalId, ObjectId};
@@ -147,6 +147,15 @@ where
     ) -> Result<ObjectId, InvalidId> {
         let client = self.clients.get_client_mut(client_id)?;
         Ok(client.create_object(interface, version, data))
+    }
+
+    fn null_id(&mut self) -> ObjectId {
+        ObjectId {
+            id: 0,
+            serial: 0,
+            client_id: ClientId { id: 0, serial: 0 },
+            interface: &ANONYMOUS_INTERFACE,
+        }
     }
 
     fn send_event(

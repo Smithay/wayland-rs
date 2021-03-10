@@ -42,6 +42,12 @@ impl fmt::Display for Id {
     }
 }
 
+impl wayland_commons::client::ObjecttId for Id {
+    fn is_null(&self) -> bool {
+        self.id == 0
+    }
+}
+
 pub struct Handle {
     socket: BufferedSocket,
     map: ObjectMap<Data>,
@@ -161,34 +167,38 @@ impl ClientBackend for Backend {
                     Argument::Fixed(f) => Argument::Fixed(f),
                     Argument::Fd(f) => Argument::Fd(f),
                     Argument::Object(o) => {
-                        // Lookup the object to make the appropriate Id
-                        let obj = match self.handle.map.find(o) {
-                            Some(o) => o,
-                            None => {
-                                self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
-                                    code: 0,
-                                    object_id: 0,
-                                    object_interface: "",
-                                    message: format!("Unknown object {}.", o),
-                                }));
-                                return Err(nix::errno::Errno::EPROTO.into())
+                        if o != 0 {
+                            // Lookup the object to make the appropriate Id
+                            let obj = match self.handle.map.find(o) {
+                                Some(o) => o,
+                                None => {
+                                    self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                                        code: 0,
+                                        object_id: 0,
+                                        object_interface: "",
+                                        message: format!("Unknown object {}.", o),
+                                    }));
+                                    return Err(nix::errno::Errno::EPROTO.into())
+                                }
+                            };
+                            if let Some(next_interface) = arg_interfaces.next() {
+                                if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
+                                    self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                                        code: 0,
+                                        object_id: 0,
+                                        object_interface: "",
+                                        message: format!(
+                                            "Protocol error: server sent object {} for interface {}, but it has interface {}.",
+                                            o, next_interface.name, obj.interface.name
+                                        ),
+                                    }));
+                                    return Err(nix::errno::Errno::EPROTO.into())
+                                }
                             }
-                        };
-                        if let Some(next_interface) = arg_interfaces.next() {
-                            if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
-                                self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
-                                    code: 0,
-                                    object_id: 0,
-                                    object_interface: "",
-                                    message: format!(
-                                        "Protocol error: server sent object {} for interface {}, but it has interface {}.",
-                                        o, next_interface.name, obj.interface.name
-                                    ),
-                                }));
-                                return Err(nix::errno::Errno::EPROTO.into())
-                            }
+                            Argument::Object(Id { id: o, serial: obj.data.serial, interface: obj.interface })
+                        } else {
+                            Argument::Object(Id { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE })
                         }
-                        Argument::Object(Id { id: o, serial: obj.data.serial, interface: obj.interface })
                     }
                     Argument::NewId(new_id) => {
                         // An object should be created
@@ -315,6 +325,10 @@ impl BackendHandle<Backend> for Handle {
         Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
     }
 
+    fn null_id(&mut self) -> Id {
+        Id { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE }
+    }
+
     fn send_request(
         &mut self,
         id: Id,
@@ -361,10 +375,12 @@ impl BackendHandle<Backend> for Handle {
                 Argument::NewId(_) => panic!("Request {}@{}.{} creates an object, and must be send using `send_constructor()`.", object.interface.name, id.id, message_desc.name),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
-                    let object = self.get_object(o)?;
-                    let next_interface = arg_interfaces.next().unwrap();
-                    if !same_interface(next_interface, object.interface) {
-                        panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                    if o.id != 0 {
+                        let object = self.get_object(o)?;
+                        let next_interface = arg_interfaces.next().unwrap();
+                        if !same_interface(next_interface, object.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                        }
                     }
                     Argument::Object(o.id)
                 }
@@ -504,10 +520,12 @@ impl BackendHandle<Backend> for Handle {
                 Argument::NewId(nid) => Argument::NewId(nid.id),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
-                    let object = self.get_object(o)?;
-                    let next_interface = arg_interfaces.next().unwrap();
-                    if !same_interface(next_interface, object.interface) {
-                        panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                    if o.id != 0 {
+                        let object = self.get_object(o)?;
+                        let next_interface = arg_interfaces.next().unwrap();
+                        if !same_interface(next_interface, object.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                        }
                     }
                     Argument::Object(o.id)
                 }

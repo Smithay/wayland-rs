@@ -74,8 +74,12 @@ pub trait ClientData<B: ServerBackend>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<B> where B: ServerBackend);
 
+pub trait ObjecttId: Clone + Send + std::fmt::Debug {
+    fn is_null(&self) -> bool;
+}
+
 pub trait ServerBackend: Sized {
-    type ObjectId: Clone + Send + std::fmt::Debug;
+    type ObjectId: ObjecttId;
     type ClientId: Clone + Send + std::fmt::Debug;
     type GlobalId: Clone + Send + std::fmt::Debug;
     type Handle: BackendHandle<Self>;
@@ -167,6 +171,11 @@ pub trait BackendHandle<B: ServerBackend> {
         version: u32,
         data: Arc<dyn ObjectData<B>>,
     ) -> Result<B::ObjectId, InvalidId>;
+
+    /// Create a null id, to be used with `send_request()` or `send_constructor()`
+    ///
+    /// To be used to represent an optional object that is absent.
+    fn null_id(&mut self) -> B::ObjectId;
 
     /// Send an event to a client
     fn send_event(

@@ -30,7 +30,7 @@ pub trait ObjectData<B: ClientBackend>: downcast_rs::DowncastSync {
 downcast_rs::impl_downcast!(sync ObjectData<B> where B: ClientBackend);
 
 pub trait ClientBackend: Sized {
-    type ObjectId: Clone + Send + std::fmt::Debug;
+    type ObjectId: ObjecttId;
     type Handle: BackendHandle<Self>;
     type InitError: std::error::Error;
 
@@ -52,6 +52,10 @@ pub trait ClientBackend: Sized {
 
     /// Access the handle for protocol interaction with this backend.
     fn handle(&mut self) -> &mut Self::Handle;
+}
+
+pub trait ObjecttId: Clone + Send + std::fmt::Debug {
+    fn is_null(&self) -> bool;
 }
 
 pub trait BackendHandle<B: ClientBackend> {
@@ -82,6 +86,11 @@ pub trait BackendHandle<B: ClientBackend> {
     /// If they are provided, they will be checked against the ones derived from the protocol
     /// specification by a `debug_assert!()`.
     fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> B::ObjectId;
+
+    /// Create a null id, to be used with `send_request()` or `send_constructor()`
+    ///
+    /// To be used to represent an optional object that is absent.
+    fn null_id(&mut self) -> B::ObjectId;
 
     /// Send a request creating a new object
     ///

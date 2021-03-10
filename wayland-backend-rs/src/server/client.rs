@@ -157,10 +157,12 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                     Argument::Object(o.id)
                 },
                 Argument::Object(o) => {
-                    let object = self.get_object(o)?;
-                    let next_interface = arg_interfaces.next().unwrap();
-                    if !same_interface(next_interface, object.interface) {
-                        panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
+                    if o.id != 0 {
+                        let object = self.get_object(o)?;
+                        let next_interface = arg_interfaces.next().unwrap();
+                        if !same_interface(next_interface, object.interface) {
+                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
+                        }
                     }
                     Argument::Object(o.id)
                 }
@@ -441,34 +443,38 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                 Argument::Fixed(f) => Argument::Fixed(f),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
-                    // Lookup the object to make the appropriate Id
-                    let obj = match self.map.find(o) {
-                        Some(o) => o,
-                        None => {
-                            self.post_display_error(
-                                DisplayError::InvalidObject,
-                                CString::new(format!("Unknown id: {}.", o)).unwrap()
-                            );
-                            return None;
+                    if o != 0 {
+                        // Lookup the object to make the appropriate Id
+                        let obj = match self.map.find(o) {
+                            Some(o) => o,
+                            None => {
+                                self.post_display_error(
+                                    DisplayError::InvalidObject,
+                                    CString::new(format!("Unknown id: {}.", o)).unwrap()
+                                );
+                                return None;
+                            }
+                        };
+                        if let Some(next_interface) = arg_interfaces.next() {
+                            if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
+                                self.post_display_error(
+                                    DisplayError::InvalidObject,
+                                    CString::new(format!(
+                                        "Invalid object {} in request {}.{}: expected {} but got {}.",
+                                        o,
+                                        object.interface.name,
+                                        message_desc.name,
+                                        next_interface.name,
+                                        obj.interface.name,
+                                    )).unwrap()
+                                );
+                                return None;
+                            }
                         }
-                    };
-                    if let Some(next_interface) = arg_interfaces.next() {
-                        if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
-                            self.post_display_error(
-                                DisplayError::InvalidObject,
-                                CString::new(format!(
-                                    "Invalid object {} in request {}.{}: expected {} but got {}.",
-                                    o,
-                                    object.interface.name,
-                                    message_desc.name,
-                                    next_interface.name,
-                                    obj.interface.name,
-                                )).unwrap()
-                            );
-                            return None;
-                        }
+                        Argument::Object(ObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface })
+                    } else {
+                        Argument::Object(ObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE })
                     }
-                    Argument::Object(ObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface })
                 }
                 Argument::NewId(new_id) => {
                     // An object should be created
