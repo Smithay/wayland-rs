@@ -16,3 +16,4 @@ downcast-rs = "1.1"
 proc-macro2 = "1.0.11"
 quote = "1.0"
 xml-rs = "0.8"
+wayland-sys = { version = "0.28.5", path = "../wayland-sys" }
