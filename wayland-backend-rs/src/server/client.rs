@@ -18,7 +18,6 @@ use wayland_commons::{
 use smallvec::SmallVec;
 
 use crate::{
-    client::Backend,
     map::{Object, ObjectMap},
     same_interface,
     socket::{BufferedSocket, Socket},
@@ -364,12 +363,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         }
     }
 
-    pub(crate) fn handle_registry_request(
-        &mut self,
-        registry_object: ObjectId,
-        message: Message,
-        registry: &mut Registry<B>,
-    ) {
+    pub(crate) fn handle_registry_request(&mut self, message: Message, registry: &mut Registry<B>) {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {

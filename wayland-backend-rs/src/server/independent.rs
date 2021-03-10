@@ -41,6 +41,8 @@ impl ServerBackend for IndependentServerBackend {
 
 impl IndependentBackend for IndependentServerBackend {
     fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {
-        self.handle.dispatch_events_for(client_id)
+        let ret = self.handle.dispatch_events_for(client_id);
+        self.handle.cleanup();
+        ret
     }
 }

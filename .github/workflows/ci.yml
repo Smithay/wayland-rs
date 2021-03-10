@@ -70,8 +70,5 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt --all -- --check
       
-      - name: Clippy rust impl
-        run: cargo clippy --all --exclude wayland-egl --exclude wayland-cursor -- -D warnings
-      
-      - name: Clippy native lib
-        run: cargo clippy --all --features "both_native" -- -D warnings
+      - name: Clippy
+        run: cargo clippy --all --exclude wayland-egl --exclude wayland-cursor --exclude wayland-client --exclude wayland-server --exclude wayland-protocols

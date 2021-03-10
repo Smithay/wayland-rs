@@ -129,6 +129,8 @@ impl CommonPollBackend for CommonPollServerBackend {
             }
         }
 
+        self.handle.cleanup();
+
         Ok(dispatched)
     }
 
@@ -164,6 +166,8 @@ impl CommonPollBackend for CommonPollServerBackend {
                 }
             }
         }
+
+        self.handle.cleanup();
 
         Ok(dispatched)
     }
