@@ -104,20 +104,6 @@ impl<Data: Clone> ObjectMap<Data> {
         }
     }
 
-    /// Mutably access all objects of the map in sequence
-    pub fn with_all<F: FnMut(u32, &mut Object<Data>)>(&mut self, mut f: F) {
-        for (id, place) in self.client_objects.iter_mut().enumerate() {
-            if let Some(ref mut obj) = *place {
-                f(id as u32 + 1, obj);
-            }
-        }
-        for (id, place) in self.server_objects.iter_mut().enumerate() {
-            if let Some(ref mut obj) = *place {
-                f(id as u32 + SERVER_ID_LIMIT, obj);
-            }
-        }
-    }
-
     pub fn all_objects<'a>(&'a self) -> impl Iterator<Item = (u32, &'a Object<Data>)> {
         let client_side_iter =
             self.client_objects.iter().enumerate().flat_map(|(idx, obj)| match obj {

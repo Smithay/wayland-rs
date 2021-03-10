@@ -9,7 +9,7 @@ use std::{
 
 use smallvec::SmallVec;
 use wayland_commons::{
-    client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
+    client::{BackendHandle, ClientBackend, InvalidId, ObjectData, WaylandError},
     core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE},
     Argument, Interface, Never, ObjectInfo, ProtocolError,
 };

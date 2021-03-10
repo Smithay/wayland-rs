@@ -1,22 +1,17 @@
-use std::{ffi::CString, io::ErrorKind, sync::Arc};
+use std::{ffi::CString, sync::Arc};
 
-use smallvec::SmallVec;
 use wayland_commons::{
-    core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
+    core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     server::{
-        BackendHandle, ClientData, CommonPollBackend, DisconnectReason, GlobalHandler, GlobalInfo,
-        IndependentBackend, InvalidId, NoWaylandLib, ObjectData, ServerBackend,
+        BackendHandle, ClientData, DisconnectReason, GlobalHandler, GlobalInfo, InvalidId,
+        ObjectData, ServerBackend,
     },
-    Argument, ArgumentType, Interface, ObjectInfo, ProtocolError,
+    Argument, Interface, ObjectInfo,
 };
 
 use crate::same_interface;
 
-use super::{
-    client::{Client, ClientStore},
-    registry::Registry,
-    ClientId, GlobalId, ObjectId,
-};
+use super::{client::ClientStore, registry::Registry, ClientId, GlobalId, ObjectId};
 
 pub struct Handle<B> {
     pub(crate) clients: ClientStore<B>,
@@ -35,10 +30,9 @@ where
         Handle { clients: ClientStore::new(debug), registry: Registry::new() }
     }
 
-    pub(crate) fn cleanup(&mut self) -> SmallVec<[ClientId; 1]> {
+    pub(crate) fn cleanup(&mut self) {
         let dead_clients = self.clients.cleanup();
         self.registry.cleanup(&dead_clients);
-        dead_clients
     }
 
     pub(crate) fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {
@@ -62,16 +56,7 @@ where
                         client.handle_display_request(message, &mut self.registry);
                         continue;
                     } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
-                        client.handle_registry_request(
-                            ObjectId {
-                                id: message.sender_id,
-                                serial: object.data.serial,
-                                interface: &WL_REGISTRY_INTERFACE,
-                                client_id: client.id,
-                            },
-                            message,
-                            &mut self.registry,
-                        );
+                        client.handle_registry_request(message, &mut self.registry);
                         continue;
                     } else {
                         let object_id = ObjectId {
