@@ -2,14 +2,13 @@ use std::{ffi::CString, sync::Arc};
 
 use wayland_commons::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
+    same_interface,
     server::{
         BackendHandle, ClientData, DisconnectReason, GlobalHandler, GlobalInfo, InvalidId,
         ObjectData, ServerBackend,
     },
     Argument, Interface, ObjectInfo,
 };
-
-use crate::same_interface;
 
 use super::{client::ClientStore, registry::Registry, ClientId, GlobalId, ObjectId};
 

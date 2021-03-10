@@ -1,8 +1,11 @@
 //! Various types and functions that are used by both the client and the server
 //! libraries.
 
-use std::os::raw::{c_char, c_int, c_void};
 use std::os::unix::io::RawFd;
+use std::{
+    fmt,
+    os::raw::{c_char, c_int, c_void},
+};
 
 #[repr(C)]
 pub struct wl_message {
@@ -20,6 +23,15 @@ pub struct wl_interface {
     pub event_count: c_int,
     pub events: *const wl_message,
 }
+
+impl fmt::Debug for wl_interface {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "wl_interface@{:p}", self)
+    }
+}
+
+unsafe impl Send for wl_interface {}
+unsafe impl Sync for wl_interface {}
 
 #[repr(C)]
 pub struct wl_list {

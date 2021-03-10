@@ -1,8 +1,6 @@
 use std::{fmt, sync::Arc};
 
-use wayland_commons::{server::ObjectData, Interface};
-
-use crate::same_interface;
+use wayland_commons::{same_interface, server::ObjectData, Interface};
 
 mod client;
 mod common_poll;

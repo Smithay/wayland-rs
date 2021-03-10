@@ -4,11 +4,7 @@
 //! These interfaces are frozen in the protocol and can never change. They are the only interfaces
 //! which the backends need to be aware of in particular.
 
-use super::{ArgumentType, Interface, MessageDesc};
-
-/// Special interface representing an anonymous object
-pub static ANONYMOUS_INTERFACE: Interface =
-    Interface { name: "<anonymous>", version: 0, requests: &[], events: &[] };
+use crate::{ArgumentType, Interface, MessageDesc, ANONYMOUS_INTERFACE};
 
 /// Interface `wl_display`
 pub static WL_DISPLAY_INTERFACE: Interface = Interface {
@@ -50,6 +46,7 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             arg_interfaces: &[],
         },
     ],
+    c_ptr: None,
 };
 
 /// Interface `wl_registry`
@@ -87,6 +84,7 @@ pub static WL_REGISTRY_INTERFACE: Interface = Interface {
             arg_interfaces: &[],
         },
     ],
+    c_ptr: None,
 };
 
 /// Interface `wl_callback`
@@ -102,4 +100,5 @@ pub static WL_CALLBACK_INTERFACE: Interface = Interface {
         child_interface: None,
         arg_interfaces: &[],
     }],
+    c_ptr: None,
 };

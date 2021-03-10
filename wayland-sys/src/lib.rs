@@ -36,14 +36,6 @@
 #[macro_use]
 extern crate dlib;
 
-/// Magic static for wayland objects managed by wayland-client or wayland-server
-///
-/// This static serves no purpose other than existing at a stable address.
-///
-/// It is used internally by wayland-client, wayland-server and wayland-scanner to ensure safety
-/// regarding wayland objects that are created by other libraries.
-pub static RUST_MANAGED: u8 = 42;
-
 pub mod common;
 
 pub mod client;

@@ -8,20 +8,19 @@ use std::{
 };
 
 use wayland_commons::{
-    core_interfaces::{
-        ANONYMOUS_INTERFACE, WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE,
-    },
+    check_for_signature,
+    core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
+    same_interface,
     server::{ClientData, DisconnectReason, InvalidId, ObjectData, ServerBackend},
-    Argument, Interface, ObjectInfo, ProtocolError,
+    Argument, Interface, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
 };
 
 use smallvec::SmallVec;
 
 use crate::{
     map::{Object, ObjectMap},
-    same_interface,
     socket::{BufferedSocket, Socket},
-    wire::{check_for_signature, Message, MessageParseError, INLINE_ARGS},
+    wire::{Message, MessageParseError, INLINE_ARGS},
 };
 
 use super::{registry::Registry, ClientId, Data, GlobalId, ObjectId};
