@@ -299,18 +299,6 @@ pub fn dup_fd_cloexec(fd: RawFd) -> IoResult<RawFd> {
     }
 }
 
-pub fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {
-    if signature.len() != args.len() {
-        return false;
-    }
-    for (typ, arg) in signature.iter().copied().zip(args.iter()) {
-        if arg.get_type() != typ {
-            return false;
-        }
-    }
-    true
-}
-
 /*
  * utility struct that closes every FD it contains on drop
  */

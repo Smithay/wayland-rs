@@ -16,6 +16,8 @@ use wayland_backend_rs::{
     server::IndependentServerBackend as server_independent_rs,
 };
 
+use wayland_backend_sys::client::Backend as client_sys;
+
 macro_rules! expand_test {
     ($test_name:ident) => {
         expand_test!(__list_expand, __no_panic, $test_name);
@@ -26,6 +28,7 @@ macro_rules! expand_test {
     (__list_expand, $panic:tt, $test_name:ident) => {
         expand_test!(__expand, $panic, $test_name, client_rs, server_independent_rs);
         expand_test!(__expand, $panic, $test_name, client_rs, server_common_rs);
+        expand_test!(__expand, $panic, $test_name, client_sys, server_independent_rs);
     };
     (__expand, __panic, $test_name: ident, $client_backend: ty, $server_backend: ty) => {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {

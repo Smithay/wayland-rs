@@ -4,6 +4,7 @@ use wayland_commons::scanner;
 
 use syn::{parse_macro_input, LitStr};
 
+mod c_interfaces;
 mod interfaces;
 
 #[proc_macro]
@@ -21,7 +22,7 @@ pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::Token
         Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
     };
     let protocol = scanner::parse(file);
-    interfaces::generate(&protocol).into()
+    interfaces::generate(&protocol, true).into()
 }
 
 #[cfg(test)]

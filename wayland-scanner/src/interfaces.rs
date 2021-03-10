@@ -4,12 +4,21 @@ use wayland_commons::scanner::{Interface, Message, Protocol, Type};
 
 use quote::quote;
 
-pub fn generate(protocol: &Protocol) -> TokenStream {
-    let interfaces = protocol.interfaces.iter().map(generate_interface);
-    quote!( #(#interfaces)* )
+pub fn generate(protocol: &Protocol, with_c_interfaces: bool) -> TokenStream {
+    let interfaces =
+        protocol.interfaces.iter().map(|iface| generate_interface(iface, with_c_interfaces));
+    if with_c_interfaces {
+        let prefix = super::c_interfaces::generate_interfaces_prefix(protocol);
+        quote!(
+            #prefix
+            #(#interfaces)*
+        )
+    } else {
+        quote!( #(#interfaces)* )
+    }
 }
 
-fn generate_interface(interface: &Interface) -> TokenStream {
+fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
     let const_name = Ident::new(
         &format!("{}_INTERFACE", interface.name.to_ascii_uppercase()),
         Span::call_site(),
@@ -19,14 +28,32 @@ fn generate_interface(interface: &Interface) -> TokenStream {
     let requests = build_messagedesc_list(&interface.requests, &interface.name);
     let events = build_messagedesc_list(&interface.events, &interface.name);
 
-    quote!(
-        pub static #const_name: wayland_commons::Interface = wayland_commons::Interface {
-            name: #iface_name,
-            version: #iface_version,
-            requests: #requests,
-            events: #events,
-        };
-    )
+    let c_name = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
+
+    if with_c {
+        let c_iface = super::c_interfaces::generate_interface(interface);
+        quote!(
+            pub static #const_name: wayland_commons::Interface = wayland_commons::Interface {
+                name: #iface_name,
+                version: #iface_version,
+                requests: #requests,
+                events: #events,
+                c_ptr: Some(unsafe { & #c_name }),
+            };
+
+            #c_iface
+        )
+    } else {
+        quote!(
+            pub static #const_name: wayland_commons::Interface = wayland_commons::Interface {
+                name: #iface_name,
+                version: #iface_version,
+                requests: #requests,
+                events: #events,
+                c_ptr: None,
+            };
+        )
+    }
 }
 
 fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
@@ -72,7 +99,7 @@ fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
                     quote!( &#target_iface )
                 }
                 None => {
-                    quote!(&wayland_commons::core_interfaces::ANONYMOUS_INTERFACE)
+                    quote!(&wayland_commons::ANONYMOUS_INTERFACE)
                 }
             }
         });
@@ -102,7 +129,7 @@ mod tests {
         let protocol_file =
             std::fs::File::open("../tests/scanner_assets/test-protocol.xml").unwrap();
         let protocol_parsed = wayland_commons::scanner::parse(protocol_file);
-        let generated: String = super::generate(&protocol_parsed).to_string();
+        let generated: String = super::generate(&protocol_parsed, true).to_string();
         let generated = crate::format_rust_code(&generated);
 
         let reference =

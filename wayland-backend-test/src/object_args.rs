@@ -1,5 +1,5 @@
 use std::{
-    ffi::{CStr, CString},
+    ffi::CString,
     sync::atomic::{AtomicBool, Ordering},
 };
 
