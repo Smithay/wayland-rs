@@ -1,6 +1,6 @@
-use wayland_commons::Interface;
-
+#[cfg(feature = "client")]
 pub mod client;
+#[cfg(feature = "server")]
 pub mod server;
 
 mod debug;

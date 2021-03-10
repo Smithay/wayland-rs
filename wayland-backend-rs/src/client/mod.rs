@@ -9,16 +9,16 @@ use std::{
 
 use smallvec::SmallVec;
 use wayland_commons::{
+    check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, ObjectData, WaylandError},
-    core_interfaces::{ANONYMOUS_INTERFACE, WL_DISPLAY_INTERFACE},
-    Argument, Interface, Never, ObjectInfo, ProtocolError,
+    core_interfaces::WL_DISPLAY_INTERFACE,
+    same_interface, Argument, Interface, Never, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
 };
 
 use crate::{
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
-    same_interface,
     socket::{BufferedSocket, Socket},
-    wire::{check_for_signature, Message, MessageParseError, INLINE_ARGS},
+    wire::{Message, MessageParseError, INLINE_ARGS},
 };
 
 #[derive(Clone)]

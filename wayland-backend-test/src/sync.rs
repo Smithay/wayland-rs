@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use wayland_commons::{client::ObjectData, core_interfaces::WL_REGISTRY_INTERFACE};
+use wayland_commons::client::ObjectData;
 
 use crate::*;
 struct SyncData(AtomicBool);

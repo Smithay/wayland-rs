@@ -17,6 +17,10 @@
 
 use std::{ffi::CString, os::unix::io::RawFd};
 
+use wayland_sys::common::wl_interface;
+
+pub use wayland_sys as sys;
+
 pub mod client;
 pub mod core_interfaces;
 pub mod scanner;
@@ -118,6 +122,7 @@ pub struct Interface {
     pub version: u32,
     pub requests: &'static [MessageDesc],
     pub events: &'static [MessageDesc],
+    pub c_ptr: Option<&'static wl_interface>,
 }
 
 /// Wire metadata of a given message
@@ -176,3 +181,24 @@ impl std::fmt::Display for Never {
         match *self {}
     }
 }
+
+pub fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {
+    if signature.len() != args.len() {
+        return false;
+    }
+    for (typ, arg) in signature.iter().copied().zip(args.iter()) {
+        if arg.get_type() != typ {
+            return false;
+        }
+    }
+    true
+}
+
+#[inline]
+pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
+    a as *const Interface == b as *const Interface || a.name == b.name
+}
+
+/// Special interface representing an anonymous object
+pub static ANONYMOUS_INTERFACE: Interface =
+    Interface { name: "<anonymous>", version: 0, requests: &[], events: &[], c_ptr: None };
