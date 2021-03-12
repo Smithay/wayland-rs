@@ -48,7 +48,57 @@ impl<S: ServerBackend> GlobalHandler<S> for ServerData {
         self
     }
 
-    fn bind(&self, _: S::ClientId, _: S::GlobalId, _: S::ObjectId) {}
+    fn bind(&self, handle: &mut S::Handle, _: S::ClientId, _: S::GlobalId, object_id: S::ObjectId) {
+        handle
+            .send_event(
+                object_id,
+                0,
+                &[
+                    Argument::Uint(1337),
+                    Argument::Int(-53),
+                    Argument::Fixed(9823),
+                    Argument::Array(Box::new(vec![10, 20, 30, 40, 50, 60, 70, 80, 90])),
+                    Argument::Str(Box::new(CString::new("I want cake".as_bytes()).unwrap())),
+                    Argument::Fd(1), // stdout
+                ],
+            )
+            .unwrap();
+    }
+}
+
+struct ClientData(AtomicBool);
+
+impl<C: ClientBackend> ClientObjectData<C> for ClientData {
+    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
+        unreachable!()
+    }
+    fn event(
+        &self,
+        handle: &mut C::Handle,
+        object_id: C::ObjectId,
+        opcode: u16,
+        arguments: &[Argument<C::ObjectId>],
+    ) {
+        assert_eq!(opcode, 0);
+        if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
+            arguments
+        {
+            assert_eq!(*u, 1337);
+            assert_eq!(*i, -53);
+            assert_eq!(*f, 9823);
+            assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
+            assert_eq!(&***s, CStr::from_bytes_with_nul(b"I want cake\0").unwrap());
+            // compare the fd to stdout
+            let stat1 = ::nix::sys::stat::fstat(*fd).unwrap();
+            let stat2 = ::nix::sys::stat::fstat(1).unwrap();
+            assert_eq!(stat1.st_dev, stat2.st_dev);
+            assert_eq!(stat1.st_ino, stat2.st_ino);
+        } else {
+            panic!("Bad argument list !")
+        }
+        self.0.store(true, Ordering::SeqCst);
+    }
+    fn destroyed(&self, object_id: C::ObjectId) {}
 }
 
 // create a global and send the many_args method
@@ -56,6 +106,7 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
     let mut test = TestPair::<C, S>::init();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
+    let client_data = Arc::new(ClientData(AtomicBool::new(false)));
 
     // Prepare a global
     test.server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 1, server_data.clone());
@@ -91,9 +142,17 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
                 Argument::Uint(1),
                 Argument::NewId(placeholder),
             ],
-            None,
+            Some(client_data.clone()),
         )
         .unwrap();
+
+    test.client_flush().unwrap();
+    test.server_dispatch().unwrap();
+    test.server_flush().unwrap();
+    test.client_dispatch().unwrap();
+
+    assert!(client_data.0.load(Ordering::SeqCst));
+
     // send the many_args request
     test.client
         .handle()

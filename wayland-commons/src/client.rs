@@ -30,7 +30,7 @@ pub trait ObjectData<B: ClientBackend>: downcast_rs::DowncastSync {
 downcast_rs::impl_downcast!(sync ObjectData<B> where B: ClientBackend);
 
 pub trait ClientBackend: Sized {
-    type ObjectId: ObjecttId;
+    type ObjectId: ObjectId;
     type Handle: BackendHandle<Self>;
     type InitError: std::error::Error;
 
@@ -54,7 +54,7 @@ pub trait ClientBackend: Sized {
     fn handle(&mut self) -> &mut Self::Handle;
 }
 
-pub trait ObjecttId: Clone + Send + std::fmt::Debug {
+pub trait ObjectId: Clone + Send + std::fmt::Debug {
     fn is_null(&self) -> bool;
 }
 

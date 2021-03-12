@@ -11,8 +11,8 @@ use wayland_commons::{
     check_for_signature,
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     same_interface,
-    server::{ClientData, DisconnectReason, InvalidId, ObjectData, ServerBackend},
-    Argument, Interface, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+    server::{ClientData, DisconnectReason, GlobalHandler, InvalidId, ObjectData, ServerBackend},
+    AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
 };
 
 use smallvec::SmallVec;
@@ -137,7 +137,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
 
         let mut msg_args = SmallVec::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in args.iter().cloned() {
+        for (i, arg) in args.iter().cloned().enumerate() {
             msg_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
                 Argument::Int(i) => Argument::Int(i),
@@ -146,13 +146,19 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                 Argument::Fixed(f) => Argument::Fixed(f),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::NewId(o) => {
-                    let object = self.get_object(o)?;
-                    let child_interface = match message_desc.child_interface {
-                        Some(iface) => iface,
-                        None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object_id.interface.name, object_id.id, message_desc.name),
-                    };
-                    if !same_interface(child_interface, object.interface) {
-                        panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
+                    if !o.id == 0 {
+                        let object = self.get_object(o)?;
+                        let child_interface = match message_desc.child_interface {
+                            Some(iface) => iface,
+                            None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object_id.interface.name, object_id.id, message_desc.name),
+                        };
+                        if !same_interface(child_interface, object.interface) {
+                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
+                        }
+                    } else {
+                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
+                            panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
+                        }
                     }
                     Argument::Object(o.id)
                 },
@@ -364,7 +370,11 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         }
     }
 
-    pub(crate) fn handle_registry_request(&mut self, message: Message, registry: &mut Registry<B>) {
+    pub(crate) fn handle_registry_request(
+        &mut self,
+        message: Message,
+        registry: &mut Registry<B>,
+    ) -> Option<(ClientId, GlobalId, ObjectId, Arc<dyn GlobalHandler<B>>)> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
@@ -387,13 +397,14 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                                 DisplayError::InvalidObject,
                                 CString::new(format!("Invalid new_id: {}.", new_id)).unwrap(),
                             );
-                            return;
+                            return None;
                         }
-                        handler.bind(
+                        Some((
                             self.id,
                             global_id,
                             ObjectId { id: new_id, client_id: self.id, interface, serial },
-                        );
+                            handler.clone(),
+                        ))
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
@@ -404,7 +415,8 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                                 name
                             ))
                             .unwrap(),
-                        )
+                        );
+                        None
                     }
                 } else {
                     unreachable!()
@@ -420,6 +432,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                     ))
                     .unwrap(),
                 );
+                None
             }
         }
     }
@@ -434,7 +447,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         let mut new_args =
             SmallVec::<[Argument<ObjectId>; INLINE_ARGS]>::with_capacity(message.args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in message.args.into_iter() {
+        for (i, arg) in message.args.into_iter().enumerate() {
             new_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
                 Argument::Int(i) => Argument::Int(i),
@@ -472,8 +485,18 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                             }
                         }
                         Argument::Object(ObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface })
-                    } else {
+                    } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                         Argument::Object(ObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE })
+                    } else {
+                        self.post_display_error(
+                            DisplayError::InvalidObject,
+                            CString::new(format!(
+                                "Invalid null object in request {}.{}.",
+                                object.interface.name,
+                                message_desc.name,
+                            )).unwrap()
+                        );
+                        return None;
                     }
                 }
                 Argument::NewId(new_id) => {

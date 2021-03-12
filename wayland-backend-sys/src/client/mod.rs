@@ -14,7 +14,7 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, Argument, ArgumentType, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
+    same_interface, AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
@@ -33,7 +33,7 @@ pub struct Id {
 
 unsafe impl Send for Id {}
 
-impl wayland_commons::client::ObjecttId for Id {
+impl wayland_commons::client::ObjectId for Id {
     fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
@@ -236,7 +236,7 @@ impl BackendHandle<Backend> for Handle {
         // check that all input objects are valid and create the [wl_argument]
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in args {
+        for (i, arg) in args.iter().enumerate() {
             match *arg {
                 Argument::Uint(u) => argument_list.push(wl_argument { u }),
                 Argument::Int(i) => argument_list.push(wl_argument { i }),
@@ -261,6 +261,14 @@ impl BackendHandle<Backend> for Handle {
                         if !same_interface(next_interface, o.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
                         }
+                    } else if !matches!(
+                        message_desc.signature[i],
+                        ArgumentType::Object(AllowNull::Yes)
+                    ) {
+                        panic!(
+                            "Request {}@{}.{} expects an non-null object argument.",
+                            id.interface.name, id.id, message_desc.name
+                        );
                     }
                     argument_list.push(wl_argument { o: o.ptr as *const _ })
                 }
@@ -381,7 +389,7 @@ impl BackendHandle<Backend> for Handle {
         // check that all input objects are valid and create the [wl_argument]
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in args {
+        for (i, arg) in args.iter().enumerate() {
             match *arg {
                 Argument::Uint(u) => argument_list.push(wl_argument { u }),
                 Argument::Int(i) => argument_list.push(wl_argument { i }),
@@ -406,6 +414,14 @@ impl BackendHandle<Backend> for Handle {
                         if !same_interface(next_interface, o.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
                         }
+                    } else if !matches!(
+                        message_desc.signature[i],
+                        ArgumentType::Object(AllowNull::Yes)
+                    ) {
+                        panic!(
+                            "Request {}@{}.{} expects an non-null object argument.",
+                            id.interface.name, id.id, message_desc.name
+                        );
                     }
                     argument_list.push(wl_argument { o: o.ptr as *const _ })
                 }
@@ -546,17 +562,17 @@ unsafe extern "C" fn dispatcher_func(
             ArgumentType::Int => parsed_args.push(Argument::Int((*args.offset(i as isize)).i)),
             ArgumentType::Fixed => parsed_args.push(Argument::Fixed((*args.offset(i as isize)).f)),
             ArgumentType::Fd => parsed_args.push(Argument::Fd((*args.offset(i as isize)).h)),
-            ArgumentType::Array => {
+            ArgumentType::Array(_) => {
                 let array = &*((*args.offset(i as isize)).a);
                 let content = std::slice::from_raw_parts(array.data as *mut u8, array.size);
                 parsed_args.push(Argument::Array(Box::new(content.into())));
             }
-            ArgumentType::Str => {
+            ArgumentType::Str(_) => {
                 let ptr = (*args.offset(i as isize)).s;
                 let cstr = std::ffi::CStr::from_ptr(ptr);
                 parsed_args.push(Argument::Str(Box::new(cstr.into())));
             }
-            ArgumentType::Object => {
+            ArgumentType::Object(allow_null) => {
                 let obj = (*args.offset(i as isize)).o as *mut wl_proxy;
                 if !obj.is_null() {
                     // retrieve the object relevant info
@@ -591,51 +607,67 @@ unsafe extern "C" fn dispatcher_func(
                             interface: next_interface,
                         }));
                     }
-                } else {
+                } else if *allow_null == AllowNull::Yes {
                     parsed_args.push(Argument::Object(Id {
                         alive: None,
                         id: 0,
                         ptr: std::ptr::null_mut(),
                         interface: &ANONYMOUS_INTERFACE,
                     }))
+                } else {
+                    eprintln!(
+                        "[wayland-backlend-sys] Received null object in {}.{} but is not nullable.",
+                        interface.name, message_desc.name,
+                    );
+                    nix::libc::abort();
                 }
             }
-            ArgumentType::NewId => {
+            ArgumentType::NewId(_) => {
                 let obj = (*args.offset(i as isize)).o as *mut wl_proxy;
-                // this is a newid, it needw to be initialized
-                let child_interface = message_desc.child_interface.unwrap_or_else(|| {
-                    eprintln!(
-                        "[wayland-backend-rs] Warn: event {}.{} creates an anonymous object.",
-                        interface.name, opcode
-                    );
-                    &ANONYMOUS_INTERFACE
-                });
-                let child_alive = Arc::new(AtomicBool::new(true));
-                let child_id = Id {
-                    ptr: obj,
-                    alive: Some(child_alive.clone()),
-                    id: ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj),
-                    interface: child_interface,
-                };
-                let child_version = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, obj);
-                let child_udata = Box::new(ProxyUserData {
-                    alive: child_alive,
-                    data: udata.data.clone().make_child(&ObjectInfo {
-                        id: child_id.id,
+                // this is a newid, it needs to be initialized
+                if !obj.is_null() {
+                    let child_interface = message_desc.child_interface.unwrap_or_else(|| {
+                        eprintln!(
+                            "[wayland-backend-rs] Warn: event {}.{} creates an anonymous object.",
+                            interface.name, opcode
+                        );
+                        &ANONYMOUS_INTERFACE
+                    });
+                    let child_alive = Arc::new(AtomicBool::new(true));
+                    let child_id = Id {
+                        ptr: obj,
+                        alive: Some(child_alive.clone()),
+                        id: ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj),
                         interface: child_interface,
-                        version: child_version,
-                    }),
-                    interface: child_interface,
-                });
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_proxy_add_dispatcher,
-                    obj,
-                    dispatcher_func,
-                    &RUST_MANAGED as *const u8 as *const c_void,
-                    Box::into_raw(child_udata) as *mut c_void
-                );
-                parsed_args.push(Argument::NewId(child_id));
+                    };
+                    let child_version =
+                        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, obj);
+                    let child_udata = Box::new(ProxyUserData {
+                        alive: child_alive,
+                        data: udata.data.clone().make_child(&ObjectInfo {
+                            id: child_id.id,
+                            interface: child_interface,
+                            version: child_version,
+                        }),
+                        interface: child_interface,
+                    });
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_add_dispatcher,
+                        obj,
+                        dispatcher_func,
+                        &RUST_MANAGED as *const u8 as *const c_void,
+                        Box::into_raw(child_udata) as *mut c_void
+                    );
+                    parsed_args.push(Argument::NewId(child_id));
+                } else {
+                    parsed_args.push(Argument::NewId(Id {
+                        id: 0,
+                        ptr: std::ptr::null_mut(),
+                        alive: None,
+                        interface: &ANONYMOUS_INTERFACE,
+                    }))
+                }
             }
         }
     }
@@ -665,7 +697,7 @@ unsafe extern "C" fn dispatcher_func(
 
 unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
     for (typ, arg) in signature.iter().zip(arglist.iter()) {
-        if let ArgumentType::Array = typ {
+        if let ArgumentType::Array(_) = typ {
             let _ = Box::from_raw(arg.a as *mut wl_array);
         }
     }

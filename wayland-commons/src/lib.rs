@@ -36,6 +36,13 @@ pub struct ObjectInfo {
     /// The version
     pub version: u32,
 }
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum AllowNull {
+    Yes,
+    No,
+}
+
 /// Enum of possible argument types as recognized by the wire
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ArgumentType {
@@ -46,15 +53,21 @@ pub enum ArgumentType {
     /// fixed point, 1/256 precision
     Fixed,
     /// CString
-    Str,
+    Str(AllowNull),
     /// id of a wayland object
-    Object,
+    Object(AllowNull),
     /// id of a newly created wayland object
-    NewId,
+    NewId(AllowNull),
     /// Vec<u8>
-    Array,
+    Array(AllowNull),
     /// RawFd
     Fd,
+}
+
+impl ArgumentType {
+    pub fn same_type(self, other: Self) -> bool {
+        std::mem::discriminant(&self) == std::mem::discriminant(&other)
+    }
 }
 
 /// Enum of possible argument of the protocol
@@ -92,10 +105,10 @@ impl<Id> Argument<Id> {
             Argument::Int(_) => ArgumentType::Int,
             Argument::Uint(_) => ArgumentType::Uint,
             Argument::Fixed(_) => ArgumentType::Fixed,
-            Argument::Str(_) => ArgumentType::Str,
-            Argument::Object(_) => ArgumentType::Object,
-            Argument::NewId(_) => ArgumentType::NewId,
-            Argument::Array(_) => ArgumentType::Array,
+            Argument::Str(_) => ArgumentType::Str(AllowNull::Yes),
+            Argument::Object(_) => ArgumentType::Object(AllowNull::Yes),
+            Argument::NewId(_) => ArgumentType::NewId(AllowNull::Yes),
+            Argument::Array(_) => ArgumentType::Array(AllowNull::Yes),
             Argument::Fd(_) => ArgumentType::Fd,
         }
     }
@@ -187,7 +200,7 @@ pub fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]
         return false;
     }
     for (typ, arg) in signature.iter().copied().zip(args.iter()) {
-        if arg.get_type() != typ {
+        if !arg.get_type().same_type(typ) {
             return false;
         }
     }

@@ -58,7 +58,13 @@ pub trait GlobalHandler<B: ServerBackend>: downcast_rs::DowncastSync {
     /// A global has been bound
     ///
     /// Given client bound given global, creating given object.
-    fn bind(&self, client_id: B::ClientId, global_id: B::GlobalId, object_id: B::ObjectId);
+    fn bind(
+        &self,
+        handle: &mut B::Handle,
+        client_id: B::ClientId,
+        global_id: B::GlobalId,
+        object_id: B::ObjectId,
+    );
 }
 
 downcast_rs::impl_downcast!(sync GlobalHandler<B> where B: ServerBackend);
@@ -74,12 +80,12 @@ pub trait ClientData<B: ServerBackend>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<B> where B: ServerBackend);
 
-pub trait ObjecttId: Clone + Send + std::fmt::Debug {
+pub trait ObjectId: Clone + Send + std::fmt::Debug {
     fn is_null(&self) -> bool;
 }
 
 pub trait ServerBackend: Sized {
-    type ObjectId: ObjecttId;
+    type ObjectId: ObjectId;
     type ClientId: Clone + Send + std::fmt::Debug;
     type GlobalId: Clone + Send + std::fmt::Debug;
     type Handle: BackendHandle<Self>;

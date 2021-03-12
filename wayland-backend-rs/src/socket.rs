@@ -342,7 +342,7 @@ impl<T: Copy + Default> Buffer<T> {
 mod tests {
     use super::*;
     use crate::wire::Message;
-    use wayland_commons::{Argument, ArgumentType};
+    use wayland_commons::{AllowNull, Argument, ArgumentType};
 
     use std::ffi::CString;
 
@@ -397,10 +397,10 @@ mod tests {
         static SIGNATURE: &'static [ArgumentType] = &[
             ArgumentType::Uint,
             ArgumentType::Fixed,
-            ArgumentType::Str,
-            ArgumentType::Array,
-            ArgumentType::Object,
-            ArgumentType::NewId,
+            ArgumentType::Str(AllowNull::No),
+            ArgumentType::Array(AllowNull::No),
+            ArgumentType::Object(AllowNull::No),
+            ArgumentType::NewId(AllowNull::No),
             ArgumentType::Int,
         ];
 
@@ -485,7 +485,7 @@ mod tests {
         ];
 
         static SIGNATURES: &'static [&'static [ArgumentType]] = &[
-            &[ArgumentType::Int, ArgumentType::Str],
+            &[ArgumentType::Int, ArgumentType::Str(AllowNull::No)],
             &[ArgumentType::Fd, ArgumentType::Fd],
             &[ArgumentType::Uint, ArgumentType::Fd],
         ];
@@ -537,7 +537,7 @@ mod tests {
         client.flush().unwrap();
 
         static SIGNATURE: &'static [ArgumentType] =
-            &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint];
+            &[ArgumentType::Uint, ArgumentType::Str(AllowNull::No), ArgumentType::Uint];
 
         server.fill_incoming_buffers().unwrap();
 
