@@ -6,7 +6,8 @@ use wayland_commons::{
     client::{BackendHandle as ClientHandle, ClientBackend, ObjectData as ClientObjectData},
     server::{
         BackendHandle as ServerHandle, ClientData, CommonPollBackend, DisconnectReason,
-        GlobalHandler, IndependentBackend, ObjectData as ServerObjectData, ServerBackend,
+        GlobalHandler, IndependentBackend, ObjectData as ServerObjectData,
+        ObjectId as ServerObjectId, ServerBackend,
     },
     Argument, ObjectInfo,
 };
@@ -128,7 +129,7 @@ impl<S: ServerBackend> GlobalHandler<S> for DoNothingData {
         self
     }
 
-    fn bind(&self, _: S::ClientId, _: S::GlobalId, _: S::ObjectId) {}
+    fn bind(&self, _: &mut S::Handle, _: S::ClientId, _: S::GlobalId, _: S::ObjectId) {}
 }
 
 impl<S: ServerBackend> ServerObjectData<S> for DoNothingData {

@@ -25,8 +25,8 @@ fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
     );
     let iface_name = &interface.name;
     let iface_version = interface.version;
-    let requests = build_messagedesc_list(&interface.requests, &interface.name);
-    let events = build_messagedesc_list(&interface.events, &interface.name);
+    let requests = build_messagedesc_list(&interface.requests);
+    let events = build_messagedesc_list(&interface.events);
 
     let c_name = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
 
@@ -56,7 +56,7 @@ fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
     }
 }
 
-fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
+fn build_messagedesc_list(list: &[Message]) -> TokenStream {
     let desc_list = list.iter().map(|message| {
         let name = &message.name;
         let since = message.since;
@@ -65,13 +65,21 @@ fn build_messagedesc_list(list: &[Message], iface: &str) -> TokenStream {
             if arg.typ == Type::NewId && arg.interface.is_none() {
                 // this is a special generic message, it expands to multiple arguments
                 quote!(
-                    wayland_commons::ArgumentType::Str,
+                    wayland_commons::ArgumentType::Str(wayland_commons::AllowNull::No),
                     wayland_commons::ArgumentType::Uint,
-                    wayland_commons::ArgumentType::NewId
+                    wayland_commons::ArgumentType::NewId(wayland_commons::AllowNull::No)
                 )
             } else {
                 let typ = arg.typ.common_type();
-                quote!(wayland_commons::ArgumentType::#typ)
+                if arg.typ.nullable() {
+                    if arg.allow_null {
+                        quote!(wayland_commons::ArgumentType::#typ(wayland_commons::AllowNull::Yes))
+                    } else {
+                        quote!(wayland_commons::ArgumentType::#typ(wayland_commons::AllowNull::No))
+                    }
+                } else {
+                    quote!(wayland_commons::ArgumentType::#typ)
+                }
             }
         });
         let child_interface = match message

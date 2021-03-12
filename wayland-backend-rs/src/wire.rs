@@ -238,7 +238,7 @@ impl Message {
                         ArgumentType::Int => Ok(Argument::Int(front as i32)),
                         ArgumentType::Uint => Ok(Argument::Uint(front)),
                         ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
-                        ArgumentType::Str => read_array_from_payload(front as usize, tail)
+                        ArgumentType::Str(_) => read_array_from_payload(front as usize, tail)
                             .and_then(|(v, rest)| {
                                 tail = rest;
                                 match CStr::from_bytes_with_nul(v) {
@@ -246,14 +246,13 @@ impl Message {
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
                             }),
-                        ArgumentType::Object => Ok(Argument::Object(front)),
-                        ArgumentType::NewId => Ok(Argument::NewId(front)),
-                        ArgumentType::Array => {
-                            read_array_from_payload(front as usize, tail).map(|(v, rest)| {
+                        ArgumentType::Object(_) => Ok(Argument::Object(front)),
+                        ArgumentType::NewId(_) => Ok(Argument::NewId(front)),
+                        ArgumentType::Array(_) => read_array_from_payload(front as usize, tail)
+                            .map(|(v, rest)| {
                                 tail = rest;
                                 Argument::Array(Box::new(v.into()))
-                            })
-                        }
+                            }),
                         ArgumentType::Fd => unreachable!(),
                     };
                     payload = tail;
@@ -334,6 +333,7 @@ mod tests {
     use super::*;
     use smallvec::smallvec;
     use std::ffi::CString;
+    use wayland_commons::AllowNull;
 
     #[test]
     fn into_from_raw_cycle() {
@@ -361,10 +361,10 @@ mod tests {
             &[
                 ArgumentType::Uint,
                 ArgumentType::Fixed,
-                ArgumentType::Str,
-                ArgumentType::Array,
-                ArgumentType::Object,
-                ArgumentType::NewId,
+                ArgumentType::Str(AllowNull::No),
+                ArgumentType::Array(AllowNull::No),
+                ArgumentType::Object(AllowNull::No),
+                ArgumentType::NewId(AllowNull::No),
                 ArgumentType::Int,
             ],
             &fd_buffer[..],
