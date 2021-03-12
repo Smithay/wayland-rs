@@ -193,9 +193,24 @@
     <request name="link" since="3">
       <description summary="link a secondary and a tertiary"></description>
       <arg name="sec" type="object" interface="secondary" />
-      <arg name="ter" type="object" interface="tertiary" />
+      <arg name="ter" type="object" interface="tertiary" allow-null="true" />
       <arg name="time" type="uint" />
     </request>
+
+    <event name="many_args_evt">
+      <description summary="an event with every possible non-object arg"></description>
+      <arg name="unsigned_int" type="uint" summary="an unsigned int" />
+      <arg name="signed_int" type="int" summary="a singed int" />
+      <arg name="fixed_point" type="fixed" summary="a fixed point number" />
+      <arg name="number_array" type="array" summary="an array" />
+      <arg name="some_text" type="string" summary="some text" />
+      <arg name="file_descriptor" type="fd" summary="a file descriptor" />
+    </event>
+
+    <event name="ack_secondary">
+      <description summary="acking the creation of a secondary"></description>
+      <arg name="sec" type="object" interface="secondary" />
+    </event>
   </interface>
 
   <interface name="secondary" version="3">

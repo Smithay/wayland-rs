@@ -20,7 +20,7 @@ pub struct ObjectId {
     interface: &'static Interface,
 }
 
-impl wayland_commons::server::ObjecttId for ObjectId {
+impl wayland_commons::server::ObjectId for ObjectId {
     fn is_null(&self) -> bool {
         self.id == 0
     }

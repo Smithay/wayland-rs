@@ -1,5 +1,6 @@
 use std::{ffi::CString, sync::Arc};
 
+use smallvec::SmallVec;
 use wayland_commons::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     same_interface,
@@ -10,11 +11,28 @@ use wayland_commons::{
     Argument, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
-use super::{client::ClientStore, registry::Registry, ClientId, GlobalId, ObjectId};
+use super::{client::ClientStore, registry::Registry, ClientId, Data, GlobalId, ObjectId};
+use crate::map::Object;
 
 pub struct Handle<B> {
     pub(crate) clients: ClientStore<B>,
     pub(crate) registry: Registry<B>,
+}
+
+enum DispatchAction<B: ServerBackend> {
+    Request {
+        object: Object<Data<B>>,
+        object_id: B::ObjectId,
+        opcode: u16,
+        arguments: SmallVec<[Argument<B::ObjectId>; 4]>,
+        is_destructor: bool,
+    },
+    Bind {
+        object: B::ObjectId,
+        client: B::ClientId,
+        global: B::GlobalId,
+        handler: Arc<dyn GlobalHandler<B>>,
+    },
 }
 
 impl<B> Handle<B>
@@ -37,53 +55,64 @@ where
     pub(crate) fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
-            let (object, object_id, opcode, arguments, is_destructor) =
-                if let Ok(client) = self.clients.get_client_mut(client_id) {
-                    let (message, object) = match client.next_request() {
-                        Ok(v) => v,
-                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                            if dispatched > 0 {
-                                break;
-                            } else {
-                                return Err(e);
-                            }
+            let action = if let Ok(client) = self.clients.get_client_mut(client_id) {
+                let (message, object) = match client.next_request() {
+                    Ok(v) => v,
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        if dispatched > 0 {
+                            break;
+                        } else {
+                            return Err(e);
                         }
-                        Err(e) => return Err(e),
-                    };
-                    dispatched += 1;
-                    if same_interface(object.interface, &WL_DISPLAY_INTERFACE) {
-                        client.handle_display_request(message, &mut self.registry);
-                        continue;
-                    } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
-                        client.handle_registry_request(message, &mut self.registry);
-                        continue;
+                    }
+                    Err(e) => return Err(e),
+                };
+                dispatched += 1;
+                if same_interface(object.interface, &WL_DISPLAY_INTERFACE) {
+                    client.handle_display_request(message, &mut self.registry);
+                    continue;
+                } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
+                    if let Some((client, global, object, handler)) =
+                        client.handle_registry_request(message, &mut self.registry)
+                    {
+                        DispatchAction::Bind { client, global, object, handler }
                     } else {
-                        let object_id = ObjectId {
-                            id: message.sender_id,
-                            serial: object.data.serial,
-                            interface: object.interface,
-                            client_id: client.id,
-                        };
-                        let opcode = message.opcode;
-                        let (arguments, is_destructor) =
-                            match client.process_request(&object, message) {
-                                Some(args) => args,
-                                None => continue,
-                            };
-                        // Return the whole set to invoke the callback while handle is not borrower via client
-                        (object, object_id, opcode, arguments, is_destructor)
+                        continue;
                     }
                 } else {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "Invalid client ID",
-                    ));
-                };
-            object.data.user_data.request(self, client_id, object_id, opcode, &arguments);
-            if is_destructor {
-                object.data.user_data.destroyed(client_id, object_id);
-                if let Ok(client) = self.clients.get_client_mut(client_id) {
-                    client.send_delete_id(object_id);
+                    let object_id = ObjectId {
+                        id: message.sender_id,
+                        serial: object.data.serial,
+                        interface: object.interface,
+                        client_id: client.id,
+                    };
+                    let opcode = message.opcode;
+                    let (arguments, is_destructor) = match client.process_request(&object, message)
+                    {
+                        Some(args) => args,
+                        None => continue,
+                    };
+                    // Return the whole set to invoke the callback while handle is not borrower via client
+                    DispatchAction::Request { object, object_id, opcode, arguments, is_destructor }
+                }
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid client ID",
+                ));
+            };
+            match action {
+                DispatchAction::Request { object, object_id, opcode, arguments, is_destructor } => {
+                    object.data.user_data.request(self, client_id, object_id, opcode, &arguments);
+                    if is_destructor {
+                        object.data.user_data.destroyed(client_id, object_id);
+                        if let Ok(client) = self.clients.get_client_mut(client_id) {
+                            client.send_delete_id(object_id);
+                        }
+                    }
+                }
+                DispatchAction::Bind { object, client, global, handler } => {
+                    handler.bind(self, client, global, object);
                 }
             }
         }

@@ -4,7 +4,7 @@
 //! These interfaces are frozen in the protocol and can never change. They are the only interfaces
 //! which the backends need to be aware of in particular.
 
-use crate::{ArgumentType, Interface, MessageDesc, ANONYMOUS_INTERFACE};
+use crate::{AllowNull, ArgumentType, Interface, MessageDesc, ANONYMOUS_INTERFACE};
 
 /// Interface `wl_display`
 pub static WL_DISPLAY_INTERFACE: Interface = Interface {
@@ -15,7 +15,7 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             name: "sync",
             since: 1,
             is_destructor: false,
-            signature: &[ArgumentType::NewId],
+            signature: &[ArgumentType::NewId(AllowNull::No)],
             child_interface: Some(&WL_CALLBACK_INTERFACE),
             arg_interfaces: &[],
         },
@@ -23,7 +23,7 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             name: "get_registry",
             since: 1,
             is_destructor: false,
-            signature: &[ArgumentType::NewId],
+            signature: &[ArgumentType::NewId(AllowNull::No)],
             child_interface: Some(&WL_REGISTRY_INTERFACE),
             arg_interfaces: &[],
         },
@@ -33,7 +33,11 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             name: "error",
             since: 1,
             is_destructor: false,
-            signature: &[ArgumentType::Object, ArgumentType::Uint, ArgumentType::Str],
+            signature: &[
+                ArgumentType::Object(AllowNull::No),
+                ArgumentType::Uint,
+                ArgumentType::Str(AllowNull::No),
+            ],
             child_interface: None,
             arg_interfaces: &[&ANONYMOUS_INTERFACE],
         },
@@ -59,9 +63,9 @@ pub static WL_REGISTRY_INTERFACE: Interface = Interface {
         is_destructor: false,
         signature: &[
             ArgumentType::Uint,
-            ArgumentType::Str,
+            ArgumentType::Str(AllowNull::No),
             ArgumentType::Uint,
-            ArgumentType::NewId,
+            ArgumentType::NewId(AllowNull::No),
         ],
         child_interface: None,
         arg_interfaces: &[],
@@ -71,7 +75,7 @@ pub static WL_REGISTRY_INTERFACE: Interface = Interface {
             name: "global",
             since: 1,
             is_destructor: false,
-            signature: &[ArgumentType::Uint, ArgumentType::Str, ArgumentType::Uint],
+            signature: &[ArgumentType::Uint, ArgumentType::Str(AllowNull::No), ArgumentType::Uint],
             child_interface: None,
             arg_interfaces: &[],
         },

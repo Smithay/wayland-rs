@@ -12,7 +12,8 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, Argument, Interface, Never, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+    same_interface, AllowNull, Argument, ArgumentType, Interface, Never, ObjectInfo, ProtocolError,
+    ANONYMOUS_INTERFACE,
 };
 
 use crate::{
@@ -42,7 +43,7 @@ impl fmt::Display for Id {
     }
 }
 
-impl wayland_commons::client::ObjecttId for Id {
+impl wayland_commons::client::ObjectId for Id {
     fn is_null(&self) -> bool {
         self.id == 0
     }
@@ -365,7 +366,7 @@ impl BackendHandle<Backend> for Handle {
 
         let mut msg_args = SmallVec::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in args.iter().cloned() {
+        for (i, arg) in args.iter().cloned().enumerate() {
             msg_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
                 Argument::Int(i) => Argument::Int(i),
@@ -380,6 +381,10 @@ impl BackendHandle<Backend> for Handle {
                         let next_interface = arg_interfaces.next().unwrap();
                         if !same_interface(next_interface, object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                        }
+                    } else {
+                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
+                            panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);
                         }
                     }
                     Argument::Object(o.id)
@@ -510,7 +515,7 @@ impl BackendHandle<Backend> for Handle {
 
         let mut msg_args = SmallVec::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for arg in args.into_iter() {
+        for (i, arg) in args.into_iter().enumerate() {
             msg_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
                 Argument::Int(i) => Argument::Int(i),
@@ -526,6 +531,8 @@ impl BackendHandle<Backend> for Handle {
                         if !same_interface(next_interface, object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
                         }
+                    } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
+                        panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);
                     }
                     Argument::Object(o.id)
                 }
