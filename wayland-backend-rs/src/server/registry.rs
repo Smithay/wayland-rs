@@ -18,21 +18,23 @@ use super::{
     we must subtract 1 to it before indexing the vec
 */
 
-struct Global<B> {
+struct Global<D, B> {
     id: GlobalId,
     interface: &'static Interface,
     version: u32,
-    handler: Arc<dyn GlobalHandler<B>>,
+    handler: Arc<dyn GlobalHandler<D, B>>,
     disabled: bool,
 }
 
-pub struct Registry<B> {
-    globals: Vec<Option<Global<B>>>,
+pub struct Registry<D, B> {
+    globals: Vec<Option<Global<D, B>>>,
     known_registries: Vec<ObjectId>,
     last_serial: u32,
 }
 
-impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = ObjectId>> Registry<B> {
+impl<D, B: ServerBackend<D, ClientId = ClientId, GlobalId = GlobalId, ObjectId = ObjectId>>
+    Registry<D, B>
+{
     pub(crate) fn new() -> Self {
         Registry { globals: Vec::new(), known_registries: Vec::new(), last_serial: 0 }
     }
@@ -46,8 +48,8 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         &mut self,
         interface: &'static Interface,
         version: u32,
-        handler: Arc<dyn GlobalHandler<B>>,
-        clients: &mut ClientStore<B>,
+        handler: Arc<dyn GlobalHandler<D, B>>,
+        clients: &mut ClientStore<D, B>,
     ) -> GlobalId {
         let serial = self.next_serial();
         let (id, place) = match self.globals.iter_mut().enumerate().find(|(_, g)| g.is_none()) {
@@ -67,7 +69,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         id
     }
 
-    fn get_global(&self, id: GlobalId) -> Result<&Global<B>, InvalidId> {
+    fn get_global(&self, id: GlobalId) -> Result<&Global<D, B>, InvalidId> {
         self.globals
             .get(id.id as usize - 1)
             .and_then(|o| o.as_ref())
@@ -84,7 +86,10 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         })
     }
 
-    pub(crate) fn get_handler(&self, id: GlobalId) -> Result<Arc<dyn GlobalHandler<B>>, InvalidId> {
+    pub(crate) fn get_handler(
+        &self,
+        id: GlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D, B>>, InvalidId> {
         let global = self.get_global(id)?;
         Ok(global.handler.clone())
     }
@@ -95,7 +100,8 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         name: u32,
         interface_name: &CStr,
         version: u32,
-    ) -> Option<(&'static Interface, GlobalId, Arc<dyn GlobalHandler<B>>)> {
+        data: &mut D,
+    ) -> Option<(&'static Interface, GlobalId, Arc<dyn GlobalHandler<D, B>>)> {
         if name == 0 {
             return None;
         }
@@ -106,7 +112,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         if target_global.version < version {
             return None;
         }
-        if !target_global.handler.can_view(client, target_global.id) {
+        if !target_global.handler.can_view(data, client, target_global.id) {
             return None;
         }
 
@@ -117,7 +123,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         self.known_registries.retain(|obj_id| !dead_clients.contains(&obj_id.client_id))
     }
 
-    pub(crate) fn disable_global(&mut self, id: GlobalId, clients: &mut ClientStore<B>) {
+    pub(crate) fn disable_global(&mut self, id: GlobalId, clients: &mut ClientStore<D, B>) {
         let global = match self.globals.get_mut(id.id as usize - 1) {
             Some(&mut Some(ref mut g)) if g.id == id => g,
             _ => return,
@@ -135,7 +141,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
         }
     }
 
-    pub(crate) fn remove_global(&mut self, id: GlobalId, clients: &mut ClientStore<B>) {
+    pub(crate) fn remove_global(&mut self, id: GlobalId, clients: &mut ClientStore<D, B>) {
         // disable the global if not already disabled
         self.disable_global(id, clients);
         // now remove it if the id is still valid
@@ -149,10 +155,11 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
     pub(crate) fn send_all_globals_to(
         &self,
         registry: ObjectId,
-        client: &mut Client<B>,
+        client: &mut Client<D, B>,
+        data: &mut D,
     ) -> Result<(), InvalidId> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
-            if !global.disabled && global.handler.can_view(client.id, global.id) {
+            if !global.disabled && global.handler.can_view(data, client.id, global.id) {
                 // fail the whole send on error, there is no point in trying further on a failing client
                 send_global_to(client, global, registry)?;
             }
@@ -163,7 +170,7 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
     pub(crate) fn send_global_to_all(
         &self,
         global_id: GlobalId,
-        clients: &mut ClientStore<B>,
+        clients: &mut ClientStore<D, B>,
     ) -> Result<(), InvalidId> {
         let global = self.get_global(global_id)?;
         if global.disabled {
@@ -180,13 +187,13 @@ impl<B: ServerBackend<ClientId = ClientId, GlobalId = GlobalId, ObjectId = Objec
 }
 
 #[inline]
-fn send_global_to<B>(
-    client: &mut Client<B>,
-    global: &Global<B>,
+fn send_global_to<D, B>(
+    client: &mut Client<D, B>,
+    global: &Global<D, B>,
     registry: ObjectId,
 ) -> Result<(), InvalidId>
 where
-    B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
+    B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
 {
     client.send_event(
         registry,
@@ -200,13 +207,13 @@ where
 }
 
 #[inline]
-fn send_global_remove_to<B>(
-    client: &mut Client<B>,
-    global: &Global<B>,
+fn send_global_remove_to<D, B>(
+    client: &mut Client<D, B>,
+    global: &Global<D, B>,
     registry: ObjectId,
 ) -> Result<(), InvalidId>
 where
-    B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
+    B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
 {
     client.send_event(
         registry,

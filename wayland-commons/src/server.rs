@@ -23,13 +23,18 @@ pub struct GlobalInfo {
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData<B: ServerBackend>: downcast_rs::DowncastSync {
+pub trait ObjectData<D, B: ServerBackend<D>>: downcast_rs::DowncastSync {
     /// Create a new object data from the parent data
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData<B>>;
+    fn make_child(
+        self: Arc<Self>,
+        data: &mut D,
+        child_info: &ObjectInfo,
+    ) -> Arc<dyn ObjectData<D, B>>;
     /// Dispatch a request for the associated object
     fn request(
         &self,
         handle: &mut B::Handle,
+        data: &mut D,
         client_id: B::ClientId,
         object_id: B::ObjectId,
         opcode: u16,
@@ -39,10 +44,10 @@ pub trait ObjectData<B: ServerBackend>: downcast_rs::DowncastSync {
     fn destroyed(&self, client_id: B::ClientId, object_id: B::ObjectId);
 }
 
-downcast_rs::impl_downcast!(sync ObjectData<B> where B: ServerBackend);
+downcast_rs::impl_downcast!(sync ObjectData<D, B> where B: ServerBackend<D>);
 
 /// A trait representing the handling of new bound globals
-pub trait GlobalHandler<B: ServerBackend>: downcast_rs::DowncastSync {
+pub trait GlobalHandler<D, B: ServerBackend<D>>: downcast_rs::DowncastSync {
     /// Check if given client is allowed to interact with given global
     ///
     /// If this function returns false, the client will not be notified of the existence
@@ -50,27 +55,28 @@ pub trait GlobalHandler<B: ServerBackend>: downcast_rs::DowncastSync {
     /// the global did not exist.
     ///
     /// Default implementation always return true.
-    fn can_view(&self, client_id: B::ClientId, global_id: B::GlobalId) -> bool {
+    fn can_view(&self, data: &mut D, client_id: B::ClientId, global_id: B::GlobalId) -> bool {
         true
     }
     /// Create the ObjectData for a future bound global
-    fn make_data(self: Arc<Self>, info: &ObjectInfo) -> Arc<dyn ObjectData<B>>;
+    fn make_data(self: Arc<Self>, data: &mut D, info: &ObjectInfo) -> Arc<dyn ObjectData<D, B>>;
     /// A global has been bound
     ///
     /// Given client bound given global, creating given object.
     fn bind(
         &self,
         handle: &mut B::Handle,
+        data: &mut D,
         client_id: B::ClientId,
         global_id: B::GlobalId,
         object_id: B::ObjectId,
     );
 }
 
-downcast_rs::impl_downcast!(sync GlobalHandler<B> where B: ServerBackend);
+downcast_rs::impl_downcast!(sync GlobalHandler<D, B> where B: ServerBackend<D>);
 
 /// A trait representing your data associated to a clientObjectData
-pub trait ClientData<B: ServerBackend>: downcast_rs::DowncastSync {
+pub trait ClientData<D, B: ServerBackend<D>>: downcast_rs::DowncastSync {
     /// Notification that a client was initialized
     fn initialized(&self, client_id: B::ClientId);
 
@@ -78,17 +84,17 @@ pub trait ClientData<B: ServerBackend>: downcast_rs::DowncastSync {
     fn disconnected(&self, client_id: B::ClientId, reason: DisconnectReason);
 }
 
-downcast_rs::impl_downcast!(sync ClientData<B> where B: ServerBackend);
+downcast_rs::impl_downcast!(sync ClientData<D, B> where B: ServerBackend<D>);
 
 pub trait ObjectId: Clone + Send + std::fmt::Debug {
     fn is_null(&self) -> bool;
 }
 
-pub trait ServerBackend: Sized {
+pub trait ServerBackend<D>: Sized {
     type ObjectId: ObjectId;
     type ClientId: Clone + Send + std::fmt::Debug;
     type GlobalId: Clone + Send + std::fmt::Debug;
-    type Handle: BackendHandle<Self>;
+    type Handle: BackendHandle<D, Self>;
     type InitError: std::error::Error;
 
     /// Initialize the backend
@@ -98,7 +104,7 @@ pub trait ServerBackend: Sized {
     fn insert_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<Self>>,
+        data: Arc<dyn ClientData<D, Self>>,
     ) -> std::io::Result<Self::ClientId>;
 
     /// Flush the internal outgoing buffers to clients
@@ -116,7 +122,7 @@ pub trait ServerBackend: Sized {
 /// This backend presents the set of clients as a whole, and gives you a single file
 /// descriptor for monitoring it. It maintains an internal epoll-like instance and
 /// client FDs are added to it when you invoke `insert_client`.
-pub trait CommonPollBackend: ServerBackend {
+pub trait CommonPollBackend<D>: ServerBackend<D> {
     /// Get an FD for monitoring using epoll or equivalent
     fn poll_fd(&self) -> RawFd;
 
@@ -125,7 +131,7 @@ pub trait CommonPollBackend: ServerBackend {
     /// This function never blocks. If new events are available, they are read
     /// from the socket and the `event()` method of the `ObjectData` associated
     /// to their target object is invoked, sequentially.
-    fn dispatch_events(&mut self) -> std::io::Result<usize>;
+    fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize>;
 }
 
 /// Trait representing a server backends that keeps clients independent
@@ -135,7 +141,7 @@ pub trait CommonPollBackend: ServerBackend {
 ///
 /// It can be used for setups when you want to implement priority mechanisms between
 /// clients, for example.
-pub trait IndependentBackend: ServerBackend {
+pub trait IndependentBackend<D>: ServerBackend<D> {
     /// Read and dispatch incoming requests for a single client
     ///
     /// This function never blocks. If new events are available, they are read
@@ -143,11 +149,12 @@ pub trait IndependentBackend: ServerBackend {
     /// to their target object is invoked, sequentially.
     fn dispatch_events_for(
         &mut self,
-        client_id: <Self as ServerBackend>::ClientId,
+        data: &mut D,
+        client_id: <Self as ServerBackend<D>>::ClientId,
     ) -> std::io::Result<usize>;
 }
 
-pub trait BackendHandle<B: ServerBackend> {
+pub trait BackendHandle<D, B: ServerBackend<D>> {
     /// Get the object info associated to given object
     fn object_info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId>;
 
@@ -155,7 +162,7 @@ pub trait BackendHandle<B: ServerBackend> {
     fn get_client(&self, id: B::ObjectId) -> Result<B::ClientId, InvalidId>;
 
     /// Access the `ObjectData` associated with a given object id
-    fn get_client_data(&self, id: B::ClientId) -> Result<Arc<dyn ClientData<B>>, InvalidId>;
+    fn get_client_data(&self, id: B::ClientId) -> Result<Arc<dyn ClientData<D, B>>, InvalidId>;
 
     /// An iterator over all known clients
     fn all_clients<'a>(&'a self) -> Box<dyn Iterator<Item = B::ClientId> + 'a>;
@@ -175,7 +182,7 @@ pub trait BackendHandle<B: ServerBackend> {
         client: B::ClientId,
         interface: &'static Interface,
         version: u32,
-        data: Arc<dyn ObjectData<B>>,
+        data: Arc<dyn ObjectData<D, B>>,
     ) -> Result<B::ObjectId, InvalidId>;
 
     /// Create a null id, to be used with `send_request()` or `send_constructor()`
@@ -192,7 +199,7 @@ pub trait BackendHandle<B: ServerBackend> {
     ) -> Result<(), InvalidId>;
 
     /// Access the `ObjectData` associated with a given object id
-    fn get_object_data(&self, id: B::ObjectId) -> Result<Arc<dyn ObjectData<B>>, InvalidId>;
+    fn get_object_data(&self, id: B::ObjectId) -> Result<Arc<dyn ObjectData<D, B>>, InvalidId>;
 
     /// Trigger a protocol error on given object
     ///
@@ -210,7 +217,7 @@ pub trait BackendHandle<B: ServerBackend> {
         &mut self,
         interface: &'static Interface,
         version: u32,
-        handler: Arc<dyn GlobalHandler<B>>,
+        handler: Arc<dyn GlobalHandler<D, B>>,
     ) -> B::GlobalId;
 
     fn disable_global(&mut self, id: B::GlobalId);
@@ -219,7 +226,10 @@ pub trait BackendHandle<B: ServerBackend> {
 
     fn global_info(&self, id: B::GlobalId) -> Result<GlobalInfo, InvalidId>;
 
-    fn get_global_handler(&self, id: B::GlobalId) -> Result<Arc<dyn GlobalHandler<B>>, InvalidId>;
+    fn get_global_handler(
+        &self,
+        id: B::GlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D, B>>, InvalidId>;
 }
 
 /// An error type representing the failure to load libwayland

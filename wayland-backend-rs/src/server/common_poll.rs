@@ -25,16 +25,16 @@ use crate::nix_to_io;
 
 use super::{ClientId, GlobalId, Handle, ObjectId};
 
-pub struct CommonPollServerBackend {
-    handle: Handle<CommonPollServerBackend>,
+pub struct CommonPollServerBackend<D> {
+    handle: Handle<D, CommonPollServerBackend<D>>,
     poll_fd: RawFd,
 }
 
-impl ServerBackend for CommonPollServerBackend {
+impl<D> ServerBackend<D> for CommonPollServerBackend<D> {
     type ObjectId = ObjectId;
     type ClientId = ClientId;
     type GlobalId = GlobalId;
-    type Handle = Handle<CommonPollServerBackend>;
+    type Handle = Handle<D, CommonPollServerBackend<D>>;
     type InitError = std::io::Error;
 
     fn new() -> Result<Self, std::io::Error> {
@@ -55,7 +55,7 @@ impl ServerBackend for CommonPollServerBackend {
     fn insert_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<Self>>,
+        data: Arc<dyn ClientData<D, Self>>,
     ) -> std::io::Result<Self::ClientId> {
         let client_fd = stream.as_raw_fd();
         let id = self.handle.clients.create_client(stream, data);
@@ -104,13 +104,13 @@ impl ServerBackend for CommonPollServerBackend {
     }
 }
 
-impl CommonPollBackend for CommonPollServerBackend {
+impl<D> CommonPollBackend<D> for CommonPollServerBackend<D> {
     fn poll_fd(&self) -> RawFd {
         self.poll_fd
     }
 
     #[cfg(target_os = "linux")]
-    fn dispatch_events(&mut self) -> std::io::Result<usize> {
+    fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [EpollEvent::empty(); 32];
@@ -123,7 +123,7 @@ impl CommonPollBackend for CommonPollServerBackend {
             for event in events.iter().take(nevents) {
                 let id = ClientId::from_u64(event.data());
                 // remove the cb while we call it, to gracefully handle reentrancy
-                if let Ok(count) = self.handle.dispatch_events_for(id) {
+                if let Ok(count) = self.handle.dispatch_events_for(data, id) {
                     dispatched += count;
                 }
             }
@@ -140,7 +140,7 @@ impl CommonPollBackend for CommonPollServerBackend {
         target_os = "netbsd",
         target_os = "openbsd"
     ))]
-    fn dispatch_events(&mut self) -> std::io::Result<usize> {
+    fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [KEvent::new(
@@ -161,7 +161,7 @@ impl CommonPollBackend for CommonPollServerBackend {
             for event in events.iter().take(nevents) {
                 let id = ClientId::from_u64(event.udata() as u64);
                 // remove the cb while we call it, to gracefully handle reentrancy
-                if let Ok(count) = self.handle.dispatch_events_for(id) {
+                if let Ok(count) = self.handle.dispatch_events_for(data, id) {
                     dispatched += count;
                 }
             }

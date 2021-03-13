@@ -25,8 +25,8 @@ impl<B: ClientBackend> ObjectData<B> for SyncData {
 }
 
 // send a wl_display.sync request and receive the response
-fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     // send the request
     let client_display = test.client.handle().display_id();
@@ -48,7 +48,7 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
     test.server_flush().unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -62,8 +62,8 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
 
 expand_test!(test);
 
-fn test_bad_placeholder<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test_bad_placeholder<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     // send the request
     let client_display = test.client.handle().display_id();
@@ -85,7 +85,7 @@ fn test_bad_placeholder<C: ClientBackend, S: ServerBackend + ServerPolling<S>>()
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
     test.server_flush().unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -99,8 +99,8 @@ fn test_bad_placeholder<C: ClientBackend, S: ServerBackend + ServerPolling<S>>()
 
 expand_test!(panic test_bad_placeholder);
 
-fn test_bad_signature<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test_bad_signature<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     // send the request
     let client_display = test.client.handle().display_id();
@@ -115,7 +115,7 @@ fn test_bad_signature<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
     test.server_flush().unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));
