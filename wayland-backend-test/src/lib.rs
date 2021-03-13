@@ -116,6 +116,7 @@ impl<D> ServerPolling<D, server_common_rs<D>> for server_common_rs<D> {
 // the tests, one module for each
 mod many_args;
 mod object_args;
+mod server_created_objects;
 mod sync;
 
 // some helpers

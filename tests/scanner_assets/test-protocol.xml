@@ -211,6 +211,12 @@
       <description summary="acking the creation of a secondary"></description>
       <arg name="sec" type="object" interface="secondary" />
     </event>
+
+    <event name="cycle_quad">
+      <description summary="create a new quad optionally replacing a previous one"></description>
+      <arg name="new_quad" type="new_id" interface="quad" />
+      <arg name="old_quad" type="object" interface="quad" allow-null="true" />
+    </event>
   </interface>
 
   <interface name="secondary" version="3">
@@ -219,6 +225,11 @@
   </interface>
 
   <interface name="tertiary" version="3">
+    <request name="destroy" type="destructor" since="3">
+    </request>
+  </interface>
+
+  <interface name="quad" version="3">
     <request name="destroy" type="destructor" since="3">
     </request>
   </interface>
