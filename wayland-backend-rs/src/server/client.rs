@@ -10,7 +10,7 @@ use std::{
 use wayland_commons::{
     check_for_signature,
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    same_interface,
+    same_interface, same_interface_or_anonymous,
     server::{ClientData, DisconnectReason, GlobalHandler, InvalidId, ObjectData, ServerBackend},
     AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
 };
@@ -148,18 +148,18 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                 Argument::Fixed(f) => Argument::Fixed(f),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::NewId(o) => {
-                    if !o.id == 0 {
+                    if o.id != 0 {
                         let object = self.get_object(o)?;
                         let child_interface = match message_desc.child_interface {
                             Some(iface) => iface,
                             None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object_id.interface.name, object_id.id, message_desc.name),
                         };
                         if !same_interface(child_interface, object.interface) {
-                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
+                            panic!("Event {}@{}.{} expects a newid argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
                         }
                     } else {
-                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                            panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
+                        if !matches!(message_desc.signature[i], ArgumentType::NewId(AllowNull::Yes)) {
+                            panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
                         }
                     }
                     Argument::Object(o.id)
@@ -168,8 +168,12 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                     if o.id != 0 {
                         let object = self.get_object(o)?;
                         let next_interface = arg_interfaces.next().unwrap();
-                        if !same_interface(next_interface, object.interface) {
-                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
+                        if !same_interface_or_anonymous(next_interface, object.interface) {
+                            panic!("Event {}@{}.{} expects an object argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
+                        }
+                    } else {
+                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
+                            panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
                         }
                     }
                     Argument::Object(o.id)
@@ -476,7 +480,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                             }
                         };
                         if let Some(next_interface) = arg_interfaces.next() {
-                            if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
+                            if !same_interface_or_anonymous(next_interface, obj.interface) {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
                                     CString::new(format!(

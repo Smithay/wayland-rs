@@ -12,8 +12,8 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, AllowNull, Argument, ArgumentType, Interface, Never, ObjectInfo, ProtocolError,
-    ANONYMOUS_INTERFACE,
+    same_interface, same_interface_or_anonymous, AllowNull, Argument, ArgumentType, Interface,
+    Never, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
 };
 
 use crate::{
@@ -183,7 +183,7 @@ impl ClientBackend for Backend {
                                 }
                             };
                             if let Some(next_interface) = arg_interfaces.next() {
-                                if !same_interface(next_interface, obj.interface) && !same_interface(next_interface, &ANONYMOUS_INTERFACE){
+                                if !same_interface_or_anonymous(next_interface, obj.interface) {
                                     self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
                                         code: 0,
                                         object_id: 0,
@@ -462,7 +462,7 @@ impl BackendHandle<Backend> for Handle {
                     if o.id != 0 {
                         let object = self.get_object(o)?;
                         let next_interface = arg_interfaces.next().unwrap();
-                        if !same_interface(next_interface, object.interface) {
+                        if !same_interface_or_anonymous(next_interface, object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
                         }
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
