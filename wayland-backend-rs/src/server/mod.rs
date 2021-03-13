@@ -68,13 +68,13 @@ pub struct GlobalId {
     serial: u32,
 }
 
-pub(crate) struct Data<B> {
-    user_data: Arc<dyn ObjectData<B>>,
+pub(crate) struct Data<D, B> {
+    user_data: Arc<dyn ObjectData<D, B>>,
     serial: u32,
 }
 
-impl<B> Clone for Data<B> {
-    fn clone(&self) -> Data<B> {
+impl<D, B> Clone for Data<D, B> {
+    fn clone(&self) -> Data<D, B> {
         Data { user_data: self.user_data.clone(), serial: self.serial }
     }
 }

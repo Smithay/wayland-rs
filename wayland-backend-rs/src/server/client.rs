@@ -33,29 +33,31 @@ pub(crate) enum DisplayError {
     Implementation = 3,
 }
 
-pub(crate) struct Client<B> {
+pub(crate) struct Client<D, B> {
     socket: BufferedSocket,
-    map: ObjectMap<Data<B>>,
+    map: ObjectMap<Data<D, B>>,
     debug: bool,
     last_serial: u32,
     pub(crate) id: ClientId,
     pub(crate) killed: bool,
-    pub(crate) data: Arc<dyn ClientData<B>>,
+    pub(crate) data: Arc<dyn ClientData<D, B>>,
 }
 
-impl<B> Client<B> {
+impl<D, B> Client<D, B> {
     fn next_serial(&mut self) -> u32 {
         self.last_serial = self.last_serial.wrapping_add(1);
         self.last_serial
     }
 }
 
-impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>> Client<B> {
+impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>>
+    Client<D, B>
+{
     pub(crate) fn new(
         stream: UnixStream,
         id: ClientId,
         debug: bool,
-        data: Arc<dyn ClientData<B>>,
+        data: Arc<dyn ClientData<D, B>>,
     ) -> Self {
         let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
         let mut map = ObjectMap::new();
@@ -78,7 +80,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         &mut self,
         interface: &'static Interface,
         version: u32,
-        user_data: Arc<dyn ObjectData<B>>,
+        user_data: Arc<dyn ObjectData<D, B>>,
     ) -> ObjectId {
         let serial = self.next_serial();
         let id = self.map.server_insert_new(Object {
@@ -205,7 +207,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
     pub(crate) fn get_object_data(
         &self,
         id: ObjectId,
-    ) -> Result<Arc<dyn ObjectData<B>>, InvalidId> {
+    ) -> Result<Arc<dyn ObjectData<D, B>>, InvalidId> {
         let object = self.get_object(id)?;
         Ok(object.data.user_data)
     }
@@ -258,7 +260,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         })
     }
 
-    pub(crate) fn next_request(&mut self) -> std::io::Result<(Message, Object<Data<B>>)> {
+    pub(crate) fn next_request(&mut self) -> std::io::Result<(Message, Object<Data<D, B>>)> {
         if self.killed {
             return Err(nix::errno::Errno::EPIPE.into());
         }
@@ -291,7 +293,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         }
     }
 
-    fn get_object(&self, id: ObjectId) -> Result<Object<Data<B>>, InvalidId> {
+    fn get_object(&self, id: ObjectId) -> Result<Object<Data<D, B>>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
             return Err(InvalidId);
@@ -299,7 +301,12 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
         Ok(object)
     }
 
-    pub(crate) fn handle_display_request(&mut self, message: Message, registry: &mut Registry<B>) {
+    pub(crate) fn handle_display_request(
+        &mut self,
+        message: Message,
+        registry: &mut Registry<D, B>,
+        data: &mut D,
+    ) {
         match message.opcode {
             // wl_display.sync(new id wl_callback)
             0 => {
@@ -351,7 +358,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                         );
                         return;
                     }
-                    let _ = registry.send_all_globals_to(registry_id, self);
+                    let _ = registry.send_all_globals_to(registry_id, self, data);
                 } else {
                     unreachable!()
                 }
@@ -373,8 +380,9 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
     pub(crate) fn handle_registry_request(
         &mut self,
         message: Message,
-        registry: &mut Registry<B>,
-    ) -> Option<(ClientId, GlobalId, ObjectId, Arc<dyn GlobalHandler<B>>)> {
+        registry: &mut Registry<D, B>,
+        data: &mut D,
+    ) -> Option<(ClientId, GlobalId, ObjectId, Arc<dyn GlobalHandler<D, B>>)> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
@@ -382,13 +390,11 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                     &message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
-                        registry.check_bind(self.id, name, interface_name, version)
+                        registry.check_bind(self.id, name, interface_name, version, data)
                     {
-                        let user_data = handler.clone().make_data(&ObjectInfo {
-                            id: new_id,
-                            interface,
-                            version,
-                        });
+                        let user_data = handler
+                            .clone()
+                            .make_data(data, &ObjectInfo { id: new_id, interface, version });
                         let serial = self.next_serial();
                         let object =
                             Object { interface, version, data: Data { serial, user_data } };
@@ -439,8 +445,9 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
 
     pub(crate) fn process_request(
         &mut self,
-        object: &Object<Data<B>>,
+        object: &Object<Data<D, B>>,
         message: Message,
+        data: &mut D,
     ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
@@ -506,7 +513,7 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
                         None => panic!("Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object.interface.name, message.sender_id, message_desc.name),
                     };
 
-                    let child_udata = object.data.user_data.clone().make_child(&ObjectInfo {
+                    let child_udata = object.data.user_data.clone().make_child(data, &ObjectInfo {
                         id: new_id,
                         interface: child_interface,
                         version: object.version
@@ -543,14 +550,19 @@ impl<B: ServerBackend<ObjectId = ObjectId, ClientId = ClientId, GlobalId = Globa
 
 struct DumbObjectData;
 
-impl<B: ServerBackend> ObjectData<B> for DumbObjectData {
-    fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ObjectData<B>> {
+impl<D, B: ServerBackend<D>> ObjectData<D, B> for DumbObjectData {
+    fn make_child(
+        self: Arc<Self>,
+        _data: &mut D,
+        _child_info: &ObjectInfo,
+    ) -> Arc<dyn ObjectData<D, B>> {
         unreachable!()
     }
 
     fn request(
         &self,
         _handle: &mut B::Handle,
+        _data: &mut D,
         _client_id: B::ClientId,
         _object_id: B::ObjectId,
         _opcode: u16,
@@ -562,14 +574,14 @@ impl<B: ServerBackend> ObjectData<B> for DumbObjectData {
     fn destroyed(&self, _client_id: B::ClientId, _object_id: B::ObjectId) {}
 }
 
-pub(crate) struct ClientStore<B> {
-    clients: Vec<Option<Client<B>>>,
+pub(crate) struct ClientStore<D, B> {
+    clients: Vec<Option<Client<D, B>>>,
     last_serial: u32,
     debug: bool,
 }
 
-impl<B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = GlobalId>>
-    ClientStore<B>
+impl<D, B: ServerBackend<D, ClientId = ClientId, ObjectId = ObjectId, GlobalId = GlobalId>>
+    ClientStore<D, B>
 {
     pub(crate) fn new(debug: bool) -> Self {
         ClientStore { clients: Vec::new(), last_serial: 0, debug }
@@ -578,7 +590,7 @@ impl<B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = Globa
     pub(crate) fn create_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<B>>,
+        data: Arc<dyn ClientData<D, B>>,
     ) -> ClientId {
         let serial = self.next_serial();
         // Find the next free place
@@ -597,14 +609,14 @@ impl<B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = Globa
         id
     }
 
-    pub(crate) fn get_client(&self, id: ClientId) -> Result<&Client<B>, InvalidId> {
+    pub(crate) fn get_client(&self, id: ClientId) -> Result<&Client<D, B>, InvalidId> {
         match self.clients.get(id.id as usize) {
             Some(&Some(ref client)) if client.id == id => Ok(client),
             _ => Err(InvalidId),
         }
     }
 
-    pub(crate) fn get_client_mut(&mut self, id: ClientId) -> Result<&mut Client<B>, InvalidId> {
+    pub(crate) fn get_client_mut(&mut self, id: ClientId) -> Result<&mut Client<D, B>, InvalidId> {
         match self.clients.get_mut(id.id as usize) {
             Some(&mut Some(ref mut client)) if client.id == id => Ok(client),
             _ => Err(InvalidId),
@@ -629,7 +641,7 @@ impl<B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = Globa
         self.last_serial
     }
 
-    pub(crate) fn clients_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut Client<B>> {
+    pub(crate) fn clients_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut Client<D, B>> {
         self.clients.iter_mut().flat_map(|o| o.as_mut()).filter(|c| !c.killed)
     }
 

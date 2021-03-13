@@ -7,14 +7,15 @@ use crate::*;
 
 struct ServerData(AtomicBool);
 
-impl<S: ServerBackend> ServerObjectData<S> for ServerData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ServerObjectData<S>> {
+impl<S: ServerBackend<()>> ServerObjectData<(), S> for ServerData {
+    fn make_child(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn ServerObjectData<(), S>> {
         self
     }
 
     fn request(
         &self,
         handle: &mut S::Handle,
+        _: &mut (),
         _: S::ClientId,
         object: S::ObjectId,
         opcode: u16,
@@ -54,12 +55,12 @@ impl<S: ServerBackend> ServerObjectData<S> for ServerData {
     fn destroyed(&self, _: S::ClientId, _: S::ObjectId) {}
 }
 
-impl<S: ServerBackend> GlobalHandler<S> for ServerData {
-    fn make_data(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ServerObjectData<S>> {
+impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
+    fn make_data(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn ServerObjectData<(), S>> {
         self
     }
 
-    fn bind(&self, _: &mut S::Handle, _: S::ClientId, _: S::GlobalId, _: S::ObjectId) {}
+    fn bind(&self, _: &mut S::Handle, _: &mut (), _: S::ClientId, _: S::GlobalId, _: S::ObjectId) {}
 }
 
 struct ClientData(AtomicBool);
@@ -89,8 +90,8 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
 }
 
 // create a global and create objects
-fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
     let client_data = Arc::new(ClientData(AtomicBool::new(false)));
@@ -169,7 +170,7 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
         .unwrap();
 
     test.client_flush().unwrap();
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
     test.server_flush().unwrap();
     test.client_dispatch().unwrap();
 
@@ -179,8 +180,8 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
 
 expand_test!(test);
 
-fn test_bad_interface<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
@@ -246,8 +247,8 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
 }
 expand_test!(panic test_bad_interface);
 
-fn test_double_null<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test_double_null<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 

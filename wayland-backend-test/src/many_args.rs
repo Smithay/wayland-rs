@@ -7,14 +7,15 @@ use crate::*;
 
 struct ServerData(AtomicBool);
 
-impl<S: ServerBackend> ServerObjectData<S> for ServerData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ServerObjectData<S>> {
+impl<S: ServerBackend<()>> ServerObjectData<(), S> for ServerData {
+    fn make_child(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn ServerObjectData<(), S>> {
         self
     }
 
     fn request(
         &self,
         _: &mut S::Handle,
+        _: &mut (),
         _: S::ClientId,
         _: S::ObjectId,
         opcode: u16,
@@ -43,12 +44,19 @@ impl<S: ServerBackend> ServerObjectData<S> for ServerData {
     fn destroyed(&self, _: S::ClientId, _: S::ObjectId) {}
 }
 
-impl<S: ServerBackend> GlobalHandler<S> for ServerData {
-    fn make_data(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ServerObjectData<S>> {
+impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
+    fn make_data(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn ServerObjectData<(), S>> {
         self
     }
 
-    fn bind(&self, handle: &mut S::Handle, _: S::ClientId, _: S::GlobalId, object_id: S::ObjectId) {
+    fn bind(
+        &self,
+        handle: &mut S::Handle,
+        _: &mut (),
+        _: S::ClientId,
+        _: S::GlobalId,
+        object_id: S::ObjectId,
+    ) {
         handle
             .send_event(
                 object_id,
@@ -102,8 +110,8 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
 }
 
 // create a global and send the many_args method
-fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
-    let mut test = TestPair::<C, S>::init();
+fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
+    let mut test = TestPair::<(), C, S>::init();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
     let client_data = Arc::new(ClientData(AtomicBool::new(false)));
@@ -147,7 +155,7 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
         .unwrap();
 
     test.client_flush().unwrap();
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
     test.server_flush().unwrap();
     test.client_dispatch().unwrap();
 
@@ -171,7 +179,7 @@ fn test<C: ClientBackend, S: ServerBackend + ServerPolling<S>>() {
         .unwrap();
     test.client_flush().unwrap();
 
-    test.server_dispatch().unwrap();
+    test.server_dispatch(&mut ()).unwrap();
 
     assert!(server_data.0.load(Ordering::SeqCst));
 }
