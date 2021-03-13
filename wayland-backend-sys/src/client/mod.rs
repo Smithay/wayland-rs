@@ -584,7 +584,7 @@ unsafe extern "C" fn dispatcher_func(
     };
 
     HANDLE.with(|handle| {
-        udata.data.event(*handle.borrow_mut(), id.clone(), opcode as u16, &parsed_args);
+        udata.data.event(&mut **handle.borrow_mut(), id.clone(), opcode as u16, &parsed_args);
     });
 
     if message_desc.is_destructor {
