@@ -66,13 +66,13 @@ impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
 struct ClientData(AtomicBool);
 
 impl<C: ClientBackend> ClientObjectData<C> for ClientData {
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
+    fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
         self
     }
     fn event(
         &self,
         handle: &mut C::Handle,
-        object_id: C::ObjectId,
+        _object_id: C::ObjectId,
         opcode: u16,
         arguments: &[Argument<C::ObjectId>],
     ) {
@@ -86,7 +86,7 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
         }
         self.0.store(true, Ordering::SeqCst);
     }
-    fn destroyed(&self, object_id: C::ObjectId) {}
+    fn destroyed(&self, _object_id: C::ObjectId) {}
 }
 
 // create a global and create objects
@@ -106,7 +106,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let registry_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             client_display,
             1,
             &[Argument::NewId(placeholder)],
@@ -119,7 +119,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let test_global_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             registry_id,
             0,
             &[
@@ -138,13 +138,13 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let secondary_id = test
         .client
         .handle()
-        .send_constructor(test_global_id.clone(), 1, &[Argument::NewId(placeholder)], None)
+        .send_request(test_global_id.clone(), 1, &[Argument::NewId(placeholder)], None)
         .unwrap();
     let placeholder = test.client.handle().placeholder_id(None);
     let tertiary_id = test
         .client
         .handle()
-        .send_constructor(test_global_id.clone(), 2, &[Argument::NewId(placeholder)], None)
+        .send_request(test_global_id.clone(), 2, &[Argument::NewId(placeholder)], None)
         .unwrap();
     // link them
     let null_obj = test.client.handle().null_id();
@@ -158,6 +158,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
                 Argument::Object(null_obj),
                 Argument::Uint(1),
             ],
+            None,
         )
         .unwrap();
     test.client
@@ -166,6 +167,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
             test_global_id.clone(),
             3,
             &[Argument::Object(secondary_id), Argument::Object(tertiary_id), Argument::Uint(2)],
+            None,
         )
         .unwrap();
 
@@ -195,7 +197,7 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
     let registry_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             client_display,
             1,
             &[Argument::NewId(placeholder)],
@@ -208,7 +210,7 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
     let test_global_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             registry_id,
             0,
             &[
@@ -227,13 +229,13 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
     let secondary_id = test
         .client
         .handle()
-        .send_constructor(test_global_id.clone(), 1, &[Argument::NewId(placeholder)], None)
+        .send_request(test_global_id.clone(), 1, &[Argument::NewId(placeholder)], None)
         .unwrap();
     let placeholder = test.client.handle().placeholder_id(None);
     let tertiary_id = test
         .client
         .handle()
-        .send_constructor(test_global_id.clone(), 2, &[Argument::NewId(placeholder)], None)
+        .send_request(test_global_id.clone(), 2, &[Argument::NewId(placeholder)], None)
         .unwrap();
     // link them, argument order is wrong, should panic
     test.client
@@ -242,6 +244,7 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
             test_global_id.clone(),
             3,
             &[Argument::Object(tertiary_id), Argument::Object(secondary_id), Argument::Uint(42)],
+            None,
         )
         .unwrap();
 }
@@ -262,7 +265,7 @@ fn test_double_null<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S
     let registry_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             client_display,
             1,
             &[Argument::NewId(placeholder)],
@@ -275,7 +278,7 @@ fn test_double_null<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S
     let test_global_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             registry_id,
             0,
             &[
@@ -290,15 +293,15 @@ fn test_double_null<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S
         )
         .unwrap();
     // create the two objects
-    let placeholder = test.client.handle().placeholder_id(None);
     let null_obj = test.client.handle().null_id();
-    // link them, argument order is wrong, should panic
+    // link them, first object cannot be null, shoudl panic
     test.client
         .handle()
         .send_request(
             test_global_id.clone(),
             3,
             &[Argument::Object(null_obj.clone()), Argument::Object(null_obj), Argument::Uint(42)],
+            None,
         )
         .unwrap();
 }

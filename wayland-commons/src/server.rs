@@ -185,7 +185,7 @@ pub trait BackendHandle<D, B: ServerBackend<D>> {
         data: Arc<dyn ObjectData<D, B>>,
     ) -> Result<B::ObjectId, InvalidId>;
 
-    /// Create a null id, to be used with `send_request()` or `send_constructor()`
+    /// Create a null id, to be used with `send_event()`
     ///
     /// To be used to represent an optional object that is absent.
     fn null_id(&mut self) -> B::ObjectId;

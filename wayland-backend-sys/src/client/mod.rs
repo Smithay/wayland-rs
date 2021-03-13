@@ -207,119 +207,6 @@ impl BackendHandle<Backend> for Handle {
         Id { ptr: std::ptr::null_mut(), interface: &ANONYMOUS_INTERFACE, id: 0, alive: None }
     }
 
-    fn send_request(
-        &mut self,
-        id: Id,
-        opcode: u16,
-        args: &[Argument<Id>],
-    ) -> Result<(), InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
-            && !id.ptr.is_null()
-        {
-            return Err(InvalidId);
-        }
-
-        // check that the argument list is valid
-        let message_desc = match id.interface.requests.get(opcode as usize) {
-            Some(msg) => msg,
-            None => {
-                panic!("Unknown opcode {} for object {}@{}.", opcode, id.interface.name, id.id);
-            }
-        };
-        if !check_for_signature(message_desc.signature, args) {
-            panic!(
-                "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
-                id.interface.name, id.id, message_desc.name, message_desc.signature, args
-            );
-        }
-
-        // check that all input objects are valid and create the [wl_argument]
-        let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
-        let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().enumerate() {
-            match *arg {
-                Argument::Uint(u) => argument_list.push(wl_argument { u }),
-                Argument::Int(i) => argument_list.push(wl_argument { i }),
-                Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h }),
-                Argument::Array(ref a) => {
-                    let a = Box::new(wl_array {
-                        size: a.len(),
-                        alloc: a.len(),
-                        data: a.as_ptr() as *mut _,
-                    });
-                    argument_list.push(wl_argument { a: Box::into_raw(a) })
-                }
-                Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
-                Argument::Object(ref o) => {
-                    if !o.ptr.is_null() {
-                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
-                            unsafe { free_arrays(message_desc.signature, &argument_list) };
-                            return Err(InvalidId);
-                        }
-                        let next_interface = arg_interfaces.next().unwrap();
-                        if !same_interface(next_interface, o.interface) {
-                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
-                        }
-                    } else if !matches!(
-                        message_desc.signature[i],
-                        ArgumentType::Object(AllowNull::Yes)
-                    ) {
-                        panic!(
-                            "Request {}@{}.{} expects an non-null object argument.",
-                            id.interface.name, id.id, message_desc.name
-                        );
-                    }
-                    argument_list.push(wl_argument { o: o.ptr as *const _ })
-                }
-                Argument::NewId(_) => {
-                    panic!("Request {}@{}.{} creates an object, and must be send using `send_constructor()`.", id.interface.name, id.id, message_desc.name);
-                }
-            }
-        }
-
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_marshal_array,
-                id.ptr,
-                opcode as u32,
-                argument_list.as_mut_ptr()
-            );
-        }
-
-        unsafe {
-            free_arrays(message_desc.signature, &argument_list);
-        }
-
-        if message_desc.is_destructor {
-            if let Some(ref alive) = id.alive {
-                let udata = unsafe {
-                    Box::from_raw(ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_get_user_data,
-                        id.ptr
-                    ) as *mut ProxyUserData)
-                };
-                unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_set_user_data,
-                        id.ptr,
-                        std::ptr::null_mut()
-                    );
-                }
-                alive.store(false, Ordering::Release);
-                udata.data.destroyed(id.clone());
-            }
-            unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, id.ptr);
-            }
-        }
-
-        Ok(())
-    }
-
     fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> Id {
         self.pending_placeholder = spec;
         Id {
@@ -330,7 +217,7 @@ impl BackendHandle<Backend> for Handle {
         }
     }
 
-    fn send_constructor(
+    fn send_request(
         &mut self,
         id: Id,
         opcode: u16,
@@ -362,29 +249,40 @@ impl BackendHandle<Backend> for Handle {
         }
 
         // Prepare the child object data
-        let (child_interface, child_version) = if let Some((iface, version)) =
-            self.pending_placeholder.take()
+        let child_spec = if message_desc
+            .signature
+            .iter()
+            .any(|arg| matches!(arg, ArgumentType::NewId(_)))
         {
-            if let Some(child_interface) = message_desc.child_interface {
-                if !same_interface(child_interface, iface) {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", id.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+            if let Some((iface, version)) = self.pending_placeholder.take() {
+                if let Some(child_interface) = message_desc.child_interface {
+                    if !same_interface(child_interface, iface) {
+                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", id.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+                    }
+                    if !(version == parent_version) {
+                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", id.interface.name, id.id, message_desc.name, parent_version, version);
+                    }
                 }
-                if !(version == parent_version) {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", id.interface.name, id.id, message_desc.name, parent_version, version);
-                }
-            }
-            (iface, version)
-        } else {
-            if let Some(child_interface) = message_desc.child_interface {
-                (child_interface, parent_version)
+                Some((iface, version))
             } else {
-                panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", id.interface.name, id.id, message_desc.name);
+                if let Some(child_interface) = message_desc.child_interface {
+                    Some((child_interface, parent_version))
+                } else {
+                    panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", id.interface.name, id.id, message_desc.name);
+                }
             }
+        } else {
+            None
         };
 
-        let child_interface_ptr = child_interface
-            .c_ptr
-            .expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let child_interface_ptr = child_spec
+            .as_ref()
+            .map(|(i, _)| {
+                i.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!")
+                    as *const _
+            })
+            .unwrap_or(std::ptr::null());
+        let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
 
         // check that all input objects are valid and create the [wl_argument]
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
@@ -445,50 +343,55 @@ impl BackendHandle<Backend> for Handle {
             free_arrays(message_desc.signature, &argument_list);
         }
 
-        if ret.is_null() {
+        if ret.is_null() && child_spec.is_some() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
 
         // initialize the proxy
-        let child_alive = Arc::new(AtomicBool::new(true));
-        let child_id = Id {
-            ptr: ret,
-            alive: Some(child_alive.clone()),
-            id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
-            interface: child_interface,
-        };
-        let child_data = if id.alive.is_some() {
-            let udata = unsafe {
-                &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
-                    as *mut ProxyUserData)
+        let child_id = if let Some((child_interface, child_version)) = child_spec {
+            let child_alive = Arc::new(AtomicBool::new(true));
+            let child_id = Id {
+                ptr: ret,
+                alive: Some(child_alive.clone()),
+                id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
+                interface: child_interface,
             };
-            data.unwrap_or_else(|| {
-                udata.data.clone().make_child(&ObjectInfo {
-                    id: child_id.id,
-                    interface: child_interface,
-                    version: child_version,
+            let child_data = if id.alive.is_some() {
+                let udata = unsafe {
+                    &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
+                        as *mut ProxyUserData)
+                };
+                data.unwrap_or_else(|| {
+                    udata.data.clone().make_child(&ObjectInfo {
+                        id: child_id.id,
+                        interface: child_interface,
+                        version: child_version,
+                    })
                 })
-            })
+            } else {
+                data.expect(
+                    "ObjectData must be provided when creating an object from an external proxy.",
+                )
+            };
+            let child_udata = Box::new(ProxyUserData {
+                alive: child_alive,
+                data: child_data,
+                interface: child_interface,
+            });
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_add_dispatcher,
+                    ret,
+                    dispatcher_func,
+                    &RUST_MANAGED as *const u8 as *const c_void,
+                    Box::into_raw(child_udata) as *mut c_void
+                );
+            }
+            child_id
         } else {
-            data.expect(
-                "ObjectData must be provided when creating an object from an external proxy.",
-            )
+            self.null_id()
         };
-        let child_udata = Box::new(ProxyUserData {
-            alive: child_alive,
-            data: child_data,
-            interface: child_interface,
-        });
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_add_dispatcher,
-                ret,
-                dispatcher_func,
-                &RUST_MANAGED as *const u8 as *const c_void,
-                Box::into_raw(child_udata) as *mut c_void
-            );
-        }
 
         if message_desc.is_destructor {
             if let Some(ref alive) = id.alive {
