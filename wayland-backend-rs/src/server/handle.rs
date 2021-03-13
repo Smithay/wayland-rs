@@ -14,14 +14,14 @@ use wayland_commons::{
 use super::{client::ClientStore, registry::Registry, ClientId, Data, GlobalId, ObjectId};
 use crate::map::Object;
 
-pub struct Handle<B> {
-    pub(crate) clients: ClientStore<B>,
-    pub(crate) registry: Registry<B>,
+pub struct Handle<D, B> {
+    pub(crate) clients: ClientStore<D, B>,
+    pub(crate) registry: Registry<D, B>,
 }
 
-enum DispatchAction<B: ServerBackend> {
+enum DispatchAction<D, B: ServerBackend<D>> {
     Request {
-        object: Object<Data<B>>,
+        object: Object<Data<D, B>>,
         object_id: B::ObjectId,
         opcode: u16,
         arguments: SmallVec<[Argument<B::ObjectId>; 4]>,
@@ -31,13 +31,19 @@ enum DispatchAction<B: ServerBackend> {
         object: B::ObjectId,
         client: B::ClientId,
         global: B::GlobalId,
-        handler: Arc<dyn GlobalHandler<B>>,
+        handler: Arc<dyn GlobalHandler<D, B>>,
     },
 }
 
-impl<B> Handle<B>
+impl<D, B> Handle<D, B>
 where
-    B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = GlobalId, Handle = Self>,
+    B: ServerBackend<
+        D,
+        ClientId = ClientId,
+        ObjectId = ObjectId,
+        GlobalId = GlobalId,
+        Handle = Self,
+    >,
 {
     pub(crate) fn new() -> Self {
         let debug = match std::env::var_os("WAYLAND_DEBUG") {
@@ -52,7 +58,11 @@ where
         self.registry.cleanup(&dead_clients);
     }
 
-    pub(crate) fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {
+    pub(crate) fn dispatch_events_for(
+        &mut self,
+        data: &mut D,
+        client_id: ClientId,
+    ) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let action = if let Ok(client) = self.clients.get_client_mut(client_id) {
@@ -69,11 +79,11 @@ where
                 };
                 dispatched += 1;
                 if same_interface(object.interface, &WL_DISPLAY_INTERFACE) {
-                    client.handle_display_request(message, &mut self.registry);
+                    client.handle_display_request(message, &mut self.registry, data);
                     continue;
                 } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
                     if let Some((client, global, object, handler)) =
-                        client.handle_registry_request(message, &mut self.registry)
+                        client.handle_registry_request(message, &mut self.registry, data)
                     {
                         DispatchAction::Bind { client, global, object, handler }
                     } else {
@@ -87,11 +97,11 @@ where
                         client_id: client.id,
                     };
                     let opcode = message.opcode;
-                    let (arguments, is_destructor) = match client.process_request(&object, message)
-                    {
-                        Some(args) => args,
-                        None => continue,
-                    };
+                    let (arguments, is_destructor) =
+                        match client.process_request(&object, message, data) {
+                            Some(args) => args,
+                            None => continue,
+                        };
                     // Return the whole set to invoke the callback while handle is not borrower via client
                     DispatchAction::Request { object, object_id, opcode, arguments, is_destructor }
                 }
@@ -103,7 +113,10 @@ where
             };
             match action {
                 DispatchAction::Request { object, object_id, opcode, arguments, is_destructor } => {
-                    object.data.user_data.request(self, client_id, object_id, opcode, &arguments);
+                    object
+                        .data
+                        .user_data
+                        .request(self, data, client_id, object_id, opcode, &arguments);
                     if is_destructor {
                         object.data.user_data.destroyed(client_id, object_id);
                         if let Ok(client) = self.clients.get_client_mut(client_id) {
@@ -112,7 +125,7 @@ where
                     }
                 }
                 DispatchAction::Bind { object, client, global, handler } => {
-                    handler.bind(self, client, global, object);
+                    handler.bind(self, data, client, global, object);
                 }
             }
         }
@@ -134,9 +147,9 @@ where
     }
 }
 
-impl<B> BackendHandle<B> for Handle<B>
+impl<D, B> BackendHandle<D, B> for Handle<D, B>
 where
-    B: ServerBackend<ClientId = ClientId, ObjectId = ObjectId, GlobalId = GlobalId>,
+    B: ServerBackend<D, ClientId = ClientId, ObjectId = ObjectId, GlobalId = GlobalId>,
 {
     fn object_info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.clients.get_client(id.client_id)?.object_info(id)
@@ -150,7 +163,7 @@ where
         }
     }
 
-    fn get_client_data(&self, id: B::ClientId) -> Result<Arc<dyn ClientData<B>>, InvalidId> {
+    fn get_client_data(&self, id: B::ClientId) -> Result<Arc<dyn ClientData<D, B>>, InvalidId> {
         let client = self.clients.get_client(id)?;
         Ok(client.data.clone())
     }
@@ -172,7 +185,7 @@ where
         client_id: ClientId,
         interface: &'static Interface,
         version: u32,
-        data: Arc<dyn ObjectData<B>>,
+        data: Arc<dyn ObjectData<D, B>>,
     ) -> Result<ObjectId, InvalidId> {
         let client = self.clients.get_client_mut(client_id)?;
         Ok(client.create_object(interface, version, data))
@@ -196,7 +209,7 @@ where
         self.clients.get_client_mut(object_id.client_id)?.send_event(object_id, opcode, args)
     }
 
-    fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<B>>, InvalidId> {
+    fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D, B>>, InvalidId> {
         self.clients.get_client(id.client_id)?.get_object_data(id)
     }
 
@@ -216,7 +229,7 @@ where
         &mut self,
         interface: &'static Interface,
         version: u32,
-        handler: Arc<dyn GlobalHandler<B>>,
+        handler: Arc<dyn GlobalHandler<D, B>>,
     ) -> GlobalId {
         self.registry.create_global(interface, version, handler, &mut self.clients)
     }
@@ -233,7 +246,10 @@ where
         self.registry.get_info(id)
     }
 
-    fn get_global_handler(&self, id: B::GlobalId) -> Result<Arc<dyn GlobalHandler<B>>, InvalidId> {
+    fn get_global_handler(
+        &self,
+        id: B::GlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D, B>>, InvalidId> {
         self.registry.get_handler(id)
     }
 }

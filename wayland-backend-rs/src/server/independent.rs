@@ -7,15 +7,15 @@ use wayland_commons::{
 
 use super::{ClientId, GlobalId, Handle, ObjectId};
 
-pub struct IndependentServerBackend {
-    handle: Handle<IndependentServerBackend>,
+pub struct IndependentServerBackend<D> {
+    handle: Handle<D, IndependentServerBackend<D>>,
 }
 
-impl ServerBackend for IndependentServerBackend {
+impl<D> ServerBackend<D> for IndependentServerBackend<D> {
     type ObjectId = ObjectId;
     type ClientId = ClientId;
     type GlobalId = GlobalId;
-    type Handle = Handle<IndependentServerBackend>;
+    type Handle = Handle<D, IndependentServerBackend<D>>;
     type InitError = Never;
 
     fn new() -> Result<Self, Never> {
@@ -25,7 +25,7 @@ impl ServerBackend for IndependentServerBackend {
     fn insert_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<Self>>,
+        data: Arc<dyn ClientData<D, Self>>,
     ) -> std::io::Result<Self::ClientId> {
         Ok(self.handle.clients.create_client(stream, data))
     }
@@ -39,9 +39,9 @@ impl ServerBackend for IndependentServerBackend {
     }
 }
 
-impl IndependentBackend for IndependentServerBackend {
-    fn dispatch_events_for(&mut self, client_id: ClientId) -> std::io::Result<usize> {
-        let ret = self.handle.dispatch_events_for(client_id);
+impl<D> IndependentBackend<D> for IndependentServerBackend<D> {
+    fn dispatch_events_for(&mut self, data: &mut D, client_id: ClientId) -> std::io::Result<usize> {
+        let ret = self.handle.dispatch_events_for(data, client_id);
         self.handle.cleanup();
         ret
     }
