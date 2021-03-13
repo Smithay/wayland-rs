@@ -258,6 +258,17 @@ pub static TEST_GLOBAL_INTERFACE: wayland_commons::Interface = wayland_commons::
         child_interface: None,
         arg_interfaces: &[&SECONDARY_INTERFACE],
     },
+    wayland_commons::MessageDesc {
+        name: "cycle_quad",
+        signature: &[
+            wayland_commons::ArgumentType::NewId(wayland_commons::AllowNull::No),
+            wayland_commons::ArgumentType::Object(wayland_commons::AllowNull::Yes),
+        ],
+        since: 1u32,
+        is_destructor: false,
+        child_interface: Some(&QUAD_INTERFACE),
+        arg_interfaces: &[&QUAD_INTERFACE],
+    },
 ],
     c_ptr: Some(unsafe { &test_global_interface }),
 };
@@ -297,7 +308,12 @@ pub static mut test_global_requests: [wayland_commons::sys::common::wl_message; 
 static mut test_global_events_ack_secondary_types:
     [*const wayland_commons::sys::common::wl_interface; 1] =
     [unsafe { &secondary_interface as *const wayland_commons::sys::common::wl_interface }];
-pub static mut test_global_events: [wayland_commons::sys::common::wl_message; 2] = [
+static mut test_global_events_cycle_quad_types:
+    [*const wayland_commons::sys::common::wl_interface; 2] =
+    [unsafe { &quad_interface as *const wayland_commons::sys::common::wl_interface }, unsafe {
+        &quad_interface as *const wayland_commons::sys::common::wl_interface
+    }];
+pub static mut test_global_events: [wayland_commons::sys::common::wl_message; 3] = [
     wayland_commons::sys::common::wl_message {
         name: b"many_args_evt\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
@@ -308,6 +324,11 @@ pub static mut test_global_events: [wayland_commons::sys::common::wl_message; 2]
         signature: b"o\0" as *const u8 as *const std::os::raw::c_char,
         types: unsafe { &test_global_events_ack_secondary_types as *const _ },
     },
+    wayland_commons::sys::common::wl_message {
+        name: b"cycle_quad\0" as *const u8 as *const std::os::raw::c_char,
+        signature: b"n?o\0" as *const u8 as *const std::os::raw::c_char,
+        types: unsafe { &test_global_events_cycle_quad_types as *const _ },
+    },
 ];
 pub static mut test_global_interface: wayland_commons::sys::common::wl_interface =
     wayland_commons::sys::common::wl_interface {
@@ -315,7 +336,7 @@ pub static mut test_global_interface: wayland_commons::sys::common::wl_interface
         version: 3,
         request_count: 4,
         requests: unsafe { &test_global_requests as *const _ },
-        event_count: 2,
+        event_count: 3,
         events: unsafe { &test_global_events as *const _ },
     };
 pub static SECONDARY_INTERFACE: wayland_commons::Interface = wayland_commons::Interface {
@@ -376,3 +397,32 @@ pub static mut tertiary_interface: wayland_commons::sys::common::wl_interface =
         event_count: 0,
         events: NULLPTR as *const wayland_commons::sys::common::wl_message,
     };
+    pub static QUAD_INTERFACE: wayland_commons::Interface = wayland_commons::Interface {
+        name: "quad",
+        version: 3u32,
+        requests: &[wayland_commons::MessageDesc {
+            name: "destroy",
+            signature: &[],
+            since: 3u32,
+            is_destructor: true,
+            child_interface: None,
+            arg_interfaces: &[],
+        }],
+        events: &[],
+        c_ptr: Some(unsafe { &quad_interface }),
+    };
+    pub static mut quad_requests: [wayland_commons::sys::common::wl_message; 1] =
+        [wayland_commons::sys::common::wl_message {
+            name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
+            signature: b"3\0" as *const u8 as *const std::os::raw::c_char,
+            types: unsafe { &types_null as *const _ },
+        }];
+    pub static mut quad_interface: wayland_commons::sys::common::wl_interface =
+        wayland_commons::sys::common::wl_interface {
+            name: b"quad\0" as *const u8 as *const std::os::raw::c_char,
+            version: 3,
+            request_count: 1,
+            requests: unsafe { &quad_requests as *const _ },
+            event_count: 0,
+            events: NULLPTR as *const wayland_commons::sys::common::wl_message,
+        };

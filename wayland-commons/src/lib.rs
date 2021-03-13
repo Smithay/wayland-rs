@@ -212,6 +212,11 @@ pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
     a as *const Interface == b as *const Interface || a.name == b.name
 }
 
+#[inline]
+pub fn same_interface_or_anonymous(a: &'static Interface, b: &'static Interface) -> bool {
+    same_interface(a, b) || same_interface(a, &ANONYMOUS_INTERFACE)
+}
+
 /// Special interface representing an anonymous object
 pub static ANONYMOUS_INTERFACE: Interface =
     Interface { name: "<anonymous>", version: 0, requests: &[], events: &[], c_ptr: None };
