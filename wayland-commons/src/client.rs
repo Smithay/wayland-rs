@@ -68,19 +68,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// Get the object info associated to given object
     fn info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId>;
 
-    /// Send a request to the server
-    ///
-    /// This method does not handle requests that create new objects, as such the provided
-    /// arguments cannot contain an `NewId`. If a `NewId` argument is provided the method
-    /// will panic.
-    fn send_request(
-        &mut self,
-        id: B::ObjectId,
-        opcode: u16,
-        args: &[Argument<B::ObjectId>],
-    ) -> Result<(), InvalidId>;
-
-    /// Create a placeholder id, to be used with `send_contructor()`.
+    /// Create a placeholder id, to be used with `send_request()`.
     ///
     /// Optionnaly the expected interface and version of the to-be-created object can be provided.
     /// If they are provided, they will be checked against the ones derived from the protocol
@@ -92,10 +80,11 @@ pub trait BackendHandle<B: ClientBackend> {
     /// To be used to represent an optional object that is absent.
     fn null_id(&mut self) -> B::ObjectId;
 
-    /// Send a request creating a new object
+    /// Send a request possibly creating a new object
     ///
-    /// The id of the newly created object is returned. The provided arguments must contain exactly
-    /// one `NewId`, filled with a placeholed id created from `placeholder_id()`.
+    /// The id of the newly created object is returned, or a `null_id()` if the request does not
+    /// create an object. The provided arguments must contain at most one `NewId`, filled with a
+    /// placeholder id created from `placeholder_id()`.
     ///
     /// If the interface and version of the created object cannot be derived from the protocol
     /// specification (notable example being `wl_registry.bind`), then they must have been given to
@@ -105,7 +94,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// the `ObjectData` will instead be used by invoking `ObjectData::make_chikd()` on the parent
     /// data. If the parent object is the `wl_display`, then some `ObjectData` *must* be provided.
     /// Failing to do so will cause a panic.
-    fn send_constructor(
+    fn send_request(
         &mut self,
         id: B::ObjectId,
         opcode: u16,

@@ -36,12 +36,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let sync_id = test
         .client
         .handle()
-        .send_constructor(
-            client_display,
-            0,
-            &[Argument::NewId(placeholder)],
-            Some(sync_data.clone()),
-        )
+        .send_request(client_display, 0, &[Argument::NewId(placeholder)], Some(sync_data.clone()))
         .unwrap();
     test.client_flush().unwrap();
 
@@ -73,12 +68,7 @@ fn test_bad_placeholder<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(
     let sync_id = test
         .client
         .handle()
-        .send_constructor(
-            client_display,
-            0,
-            &[Argument::NewId(placeholder)],
-            Some(sync_data.clone()),
-        )
+        .send_request(client_display, 0, &[Argument::NewId(placeholder)], Some(sync_data.clone()))
         .unwrap();
     test.client_flush().unwrap();
 
@@ -108,7 +98,7 @@ fn test_bad_signature<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
     let sync_id = test
         .client
         .handle()
-        .send_constructor(client_display, 0, &[Argument::Uint(1)], Some(sync_data.clone()))
+        .send_request(client_display, 0, &[Argument::Uint(1)], Some(sync_data.clone()))
         .unwrap();
     test.client_flush().unwrap();
 

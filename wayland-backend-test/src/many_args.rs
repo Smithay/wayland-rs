@@ -77,13 +77,13 @@ impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
 struct ClientData(AtomicBool);
 
 impl<C: ClientBackend> ClientObjectData<C> for ClientData {
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
+    fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
         unreachable!()
     }
     fn event(
         &self,
-        handle: &mut C::Handle,
-        object_id: C::ObjectId,
+        _handle: &mut C::Handle,
+        _object_id: C::ObjectId,
         opcode: u16,
         arguments: &[Argument<C::ObjectId>],
     ) {
@@ -106,7 +106,7 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
         }
         self.0.store(true, Ordering::SeqCst);
     }
-    fn destroyed(&self, object_id: C::ObjectId) {}
+    fn destroyed(&self, _object_id: C::ObjectId) {}
 }
 
 // create a global and send the many_args method
@@ -126,7 +126,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let registry_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             client_display,
             1,
             &[Argument::NewId(placeholder)],
@@ -139,7 +139,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let test_global_id = test
         .client
         .handle()
-        .send_constructor(
+        .send_request(
             registry_id,
             0,
             &[
@@ -175,6 +175,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
                 Argument::Str(Box::new(CString::new("I like trains".as_bytes()).unwrap())),
                 Argument::Fd(0), // stdin
             ],
+            None,
         )
         .unwrap();
     test.client_flush().unwrap();
