@@ -330,93 +330,12 @@ impl BackendHandle<Backend> for Handle {
         Id { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE }
     }
 
-    fn send_request(
-        &mut self,
-        id: Id,
-        opcode: u16,
-        args: &[Argument<Id>],
-    ) -> Result<(), InvalidId> {
-        let object = self.get_object(id)?;
-        if object.data.client_destroyed {
-            return Err(InvalidId);
-        }
-
-        let message_desc = match object.interface.requests.get(opcode as usize) {
-            Some(msg) => msg,
-            None => {
-                panic!("Unknown opcode {} for object {}@{}.", opcode, object.interface.name, id.id);
-            }
-        };
-
-        if !check_for_signature(message_desc.signature, args) {
-            panic!(
-                "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
-                object.interface.name, id.id, message_desc.name, message_desc.signature, args
-            );
-        }
-
-        if self.debug {
-            crate::debug::print_send_message(
-                object.interface.name,
-                id.id,
-                message_desc.name,
-                &args,
-            );
-        }
-
-        let mut msg_args = SmallVec::with_capacity(args.len());
-        let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().cloned().enumerate() {
-            msg_args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::NewId(_) => panic!("Request {}@{}.{} creates an object, and must be send using `send_constructor()`.", object.interface.name, id.id, message_desc.name),
-                Argument::Fd(f) => Argument::Fd(f),
-                Argument::Object(o) => {
-                    if o.id != 0 {
-                        let object = self.get_object(o)?;
-                        let next_interface = arg_interfaces.next().unwrap();
-                        if !same_interface(next_interface, object.interface) {
-                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
-                        }
-                    } else {
-                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                            panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);
-                        }
-                    }
-                    Argument::Object(o.id)
-                }
-            });
-        }
-
-        let msg = Message { sender_id: id.id, opcode, args: msg_args };
-
-        if let Err(err) = self.socket.write_message(&msg) {
-            self.last_error = Some(WaylandError::Io(err));
-        }
-
-        // Handle destruction if relevant
-        if message_desc.is_destructor {
-            self.map
-                .with(id.id, |obj| {
-                    obj.data.client_destroyed = true;
-                })
-                .unwrap();
-            object.data.user_data.destroyed(id);
-        }
-
-        Ok(())
-    }
-
     fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> Id {
         self.pending_placeholder = spec;
         Id { serial: 0, id: 0, interface: spec.map(|(i, _)| i).unwrap_or(&ANONYMOUS_INTERFACE) }
     }
 
-    fn send_constructor(
+    fn send_request(
         &mut self,
         id: Id,
         opcode: u16,
@@ -443,52 +362,63 @@ impl BackendHandle<Backend> for Handle {
         }
 
         // Prepare the child object
-        let (child_interface, child_version) = if let Some((iface, version)) =
-            self.pending_placeholder.take()
+        let child_spec = if message_desc
+            .signature
+            .iter()
+            .any(|arg| matches!(arg, ArgumentType::NewId(_)))
         {
-            if let Some(child_interface) = message_desc.child_interface {
-                if !same_interface(child_interface, iface) {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", object.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+            if let Some((iface, version)) = self.pending_placeholder.take() {
+                if let Some(child_interface) = message_desc.child_interface {
+                    if !same_interface(child_interface, iface) {
+                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", object.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+                    }
+                    if !(version == object.version) {
+                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", object.interface.name, id.id, message_desc.name, object.version, version);
+                    }
                 }
-                if !(version == object.version) {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", object.interface.name, id.id, message_desc.name, object.version, version);
-                }
-            }
-            (iface, version)
-        } else {
-            if let Some(child_interface) = message_desc.child_interface {
-                (child_interface, object.version)
+                Some((iface, version))
             } else {
-                panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", object.interface.name, id.id, message_desc.name);
+                if let Some(child_interface) = message_desc.child_interface {
+                    Some((child_interface, object.version))
+                } else {
+                    panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", object.interface.name, id.id, message_desc.name);
+                }
             }
+        } else {
+            None
         };
 
-        let child_serial = self.next_serial();
+        let child = if let Some((child_interface, child_version)) = child_spec {
+            let child_serial = self.next_serial();
 
-        let child = Object {
-            interface: child_interface,
-            version: child_version,
-            data: Data {
-                client_destroyed: false,
-                server_destroyed: false,
-                user_data: Arc::new(DumbObjectData),
-                serial: child_serial,
-            },
-        };
+            let child = Object {
+                interface: child_interface,
+                version: child_version,
+                data: Data {
+                    client_destroyed: false,
+                    server_destroyed: false,
+                    user_data: Arc::new(DumbObjectData),
+                    serial: child_serial,
+                },
+            };
 
-        let child_id = self.map.client_insert_new(child);
+            let child_id = self.map.client_insert_new(child);
 
-        self.map
-            .with(child_id, |obj| {
-                obj.data.user_data = data.unwrap_or_else(|| {
-                    object.data.user_data.clone().make_child(&ObjectInfo {
-                        interface: child_interface,
-                        version: child_version,
-                        id: child_id,
+            self.map
+                .with(child_id, |obj| {
+                    obj.data.user_data = data.unwrap_or_else(|| {
+                        object.data.user_data.clone().make_child(&ObjectInfo {
+                            interface: child_interface,
+                            version: child_version,
+                            id: child_id,
+                        })
                     })
                 })
-            })
-            .unwrap();
+                .unwrap();
+            Some((child_id, child_serial, child_interface))
+        } else {
+            None
+        };
 
         // Prepare the message in a debug-compatible way
         let args = args.iter().cloned().map(|arg| {
@@ -496,7 +426,11 @@ impl BackendHandle<Backend> for Handle {
                 if !p.id == 0 {
                     panic!("The newid provided when sending request {}@{}.{} is not a placeholder.", object.interface.name, id.id, message_desc.name);
                 }
-                Argument::NewId(Id { id: child_id, serial: child_serial, interface: child_interface})
+                if let Some((child_id, child_serial, child_interface)) = child {
+                    Argument::NewId(Id { id: child_id, serial: child_serial, interface: child_interface})
+                } else {
+                    unreachable!();
+                }
             } else {
                 arg
             }
@@ -554,8 +488,11 @@ impl BackendHandle<Backend> for Handle {
                 .unwrap();
             object.data.user_data.destroyed(id);
         }
-
-        Ok(Id { id: child_id, serial: child_serial, interface: child_interface })
+        if let Some((child_id, child_serial, child_interface)) = child {
+            Ok(Id { id: child_id, serial: child_serial, interface: child_interface })
+        } else {
+            Ok(self.null_id())
+        }
     }
 
     fn get_data(&self, id: Id) -> Result<Arc<dyn ObjectData<Backend>>, InvalidId> {
@@ -624,7 +561,7 @@ struct DumbObjectData;
 
 impl ObjectData<Backend> for DumbObjectData {
     fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ObjectData<Backend>> {
-        unreachable!()
+        panic!("You must provide an ObjectData when creating an object from the wl_display.")
     }
 
     fn event(
