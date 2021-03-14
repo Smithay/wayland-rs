@@ -55,7 +55,7 @@ pub trait GlobalHandler<D, B: ServerBackend<D>>: downcast_rs::DowncastSync {
     /// the global did not exist.
     ///
     /// Default implementation always return true.
-    fn can_view(&self, data: &mut D, client_id: B::ClientId, global_id: B::GlobalId) -> bool {
+    fn can_view(&self, client_id: B::ClientId, global_id: B::GlobalId) -> bool {
         true
     }
     /// Create the ObjectData for a future bound global

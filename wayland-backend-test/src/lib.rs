@@ -17,7 +17,7 @@ use wayland_backend_rs::{
     server::IndependentServerBackend as server_independent_rs,
 };
 
-use wayland_backend_sys::client::Backend as client_sys;
+use wayland_backend_sys::{client::Backend as client_sys, server::Backend as server_sys};
 
 macro_rules! expand_test {
     ($test_name:ident) => {
@@ -30,6 +30,8 @@ macro_rules! expand_test {
         expand_test!(__expand, $panic, $test_name, client_rs, server_independent_rs, $data);
         expand_test!(__expand, $panic, $test_name, client_rs, server_common_rs, $data);
         expand_test!(__expand, $panic, $test_name, client_sys, server_independent_rs, $data);
+        expand_test!(__expand, $panic, $test_name, client_rs, server_sys, $data);
+        expand_test!(__expand, $panic, $test_name, client_sys, server_sys, $data);
     };
     (__expand, __panic, $test_name: ident, $client_backend: ty, $server_backend: ident, $data: ty) => {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {
@@ -108,6 +110,16 @@ impl<D> ServerPolling<D, server_common_rs<D>> for server_common_rs<D> {
         &mut self,
         data: &mut D,
         _: <server_independent_rs<D> as ServerBackend<D>>::ClientId,
+    ) -> std::io::Result<usize> {
+        self.dispatch_events(data)
+    }
+}
+
+impl<D> ServerPolling<D, server_sys<D>> for server_sys<D> {
+    fn poll_client(
+        &mut self,
+        data: &mut D,
+        _: <server_sys<D> as ServerBackend<D>>::ClientId,
     ) -> std::io::Result<usize> {
         self.dispatch_events(data)
     }

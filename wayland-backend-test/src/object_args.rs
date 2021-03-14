@@ -127,7 +127,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
                 Argument::Str(Box::new(
                     CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                 )),
-                Argument::Uint(1),
+                Argument::Uint(3),
                 Argument::NewId(placeholder),
             ],
             Some(client_data.clone()),
@@ -218,7 +218,7 @@ fn test_bad_interface<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
                 Argument::Str(Box::new(
                     CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                 )),
-                Argument::Uint(1),
+                Argument::Uint(3),
                 Argument::NewId(placeholder),
             ],
             None,
@@ -286,7 +286,7 @@ fn test_double_null<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S
                 Argument::Str(Box::new(
                     CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                 )),
-                Argument::Uint(1),
+                Argument::Uint(3),
                 Argument::NewId(placeholder),
             ],
             None,

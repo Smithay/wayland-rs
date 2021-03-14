@@ -12,12 +12,12 @@ readme = "README.md"
 
 [dependencies]
 wayland-commons = { path = "../wayland-commons" }
-wayland-sys = { path = "../wayland-sys", features = ["client", "server"] }
+wayland-sys = { path = "../wayland-sys" }
 nix = "0.20"
 smallvec = "1.0"
 scoped-tls = "1.0"
 
 [features]
-client = []
-server = []
+client = ["wayland-sys/client"]
+server = ["wayland-sys/server"]
 dlopen = ["wayland-sys/dlopen"]
