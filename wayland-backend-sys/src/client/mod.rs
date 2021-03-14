@@ -19,7 +19,7 @@ use wayland_commons::{
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
 
-use crate::RUST_MANAGED;
+use crate::{free_arrays, RUST_MANAGED};
 
 scoped_thread_local!(static HANDLE: RefCell<&mut Handle>);
 
@@ -188,19 +188,14 @@ impl BackendHandle<Backend> for Handle {
     }
 
     fn info(&self, id: Id) -> Result<ObjectInfo, InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
-            && !id.ptr.is_null()
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
             return Err(InvalidId);
         }
 
         let version = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, id.ptr) };
-        let udata = unsafe {
-            &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
-                as *mut ProxyUserData)
-        };
 
-        Ok(ObjectInfo { id: id.id, interface: udata.interface, version })
+        Ok(ObjectInfo { id: id.id, interface: id.interface, version })
     }
 
     fn null_id(&mut self) -> Id {
@@ -224,8 +219,7 @@ impl BackendHandle<Backend> for Handle {
         args: &[Argument<Id>],
         data: Option<Arc<dyn ObjectData<Backend>>>,
     ) -> Result<Id, InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true)
-            && !id.ptr.is_null()
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
             return Err(InvalidId);
         }
@@ -510,19 +504,14 @@ unsafe extern "C" fn dispatcher_func(
                             interface: next_interface,
                         }));
                     }
-                } else if *allow_null == AllowNull::Yes {
+                } else {
+                    // libwayland-client.so checks nulls for us
                     parsed_args.push(Argument::Object(Id {
                         alive: None,
                         id: 0,
                         ptr: std::ptr::null_mut(),
                         interface: &ANONYMOUS_INTERFACE,
                     }))
-                } else {
-                    eprintln!(
-                        "[wayland-backlend-sys] Received null object in {}.{} but is not nullable.",
-                        interface.name, message_desc.name,
-                    );
-                    nix::libc::abort();
                 }
             }
             ArgumentType::NewId(_) => {
@@ -596,14 +585,6 @@ unsafe extern "C" fn dispatcher_func(
     }
 
     return 0;
-}
-
-unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
-    for (typ, arg) in signature.iter().zip(arglist.iter()) {
-        if let ArgumentType::Array(_) = typ {
-            let _ = Box::from_raw(arg.a as *mut wl_array);
-        }
-    }
 }
 
 impl Drop for Backend {
