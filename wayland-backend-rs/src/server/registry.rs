@@ -100,7 +100,6 @@ impl<D, B: ServerBackend<D, ClientId = ClientId, GlobalId = GlobalId, ObjectId =
         name: u32,
         interface_name: &CStr,
         version: u32,
-        data: &mut D,
     ) -> Option<(&'static Interface, GlobalId, Arc<dyn GlobalHandler<D, B>>)> {
         if name == 0 {
             return None;
@@ -112,7 +111,7 @@ impl<D, B: ServerBackend<D, ClientId = ClientId, GlobalId = GlobalId, ObjectId =
         if target_global.version < version {
             return None;
         }
-        if !target_global.handler.can_view(data, client, target_global.id) {
+        if !target_global.handler.can_view(client, target_global.id) {
             return None;
         }
 
@@ -156,10 +155,9 @@ impl<D, B: ServerBackend<D, ClientId = ClientId, GlobalId = GlobalId, ObjectId =
         &self,
         registry: ObjectId,
         client: &mut Client<D, B>,
-        data: &mut D,
     ) -> Result<(), InvalidId> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
-            if !global.disabled && global.handler.can_view(data, client.id, global.id) {
+            if !global.disabled && global.handler.can_view(client.id, global.id) {
                 // fail the whole send on error, there is no point in trying further on a failing client
                 send_global_to(client, global, registry)?;
             }
@@ -178,8 +176,10 @@ impl<D, B: ServerBackend<D, ClientId = ClientId, GlobalId = GlobalId, ObjectId =
         }
         for registry in self.known_registries.iter().copied() {
             if let Ok(client) = clients.get_client_mut(registry.client_id) {
-                // don't fail the whole send for a single erroring client
-                let _ = send_global_to(client, global, registry);
+                if !global.disabled && global.handler.can_view(client.id, global.id) {
+                    // don't fail the whole send for a single erroring client
+                    let _ = send_global_to(client, global, registry);
+                }
             }
         }
         Ok(())

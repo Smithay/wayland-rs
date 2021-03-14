@@ -149,6 +149,9 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::NewId(o) => {
                     if o.id != 0 {
+                        if o.client_id != self.id {
+                            panic!("Attempting to send an event with objects from wrong client.")
+                        }
                         let object = self.get_object(o)?;
                         let child_interface = match message_desc.child_interface {
                             Some(iface) => iface,
@@ -166,6 +169,9 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                 },
                 Argument::Object(o) => {
                     if o.id != 0 {
+                        if o.client_id != self.id {
+                            panic!("Attempting to send an event with objects from wrong client.")
+                        }
                         let object = self.get_object(o)?;
                         let next_interface = arg_interfaces.next().unwrap();
                         if !same_interface_or_anonymous(next_interface, object.interface) {
@@ -362,7 +368,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                         );
                         return;
                     }
-                    let _ = registry.send_all_globals_to(registry_id, self, data);
+                    let _ = registry.send_all_globals_to(registry_id, self);
                 } else {
                     unreachable!()
                 }
@@ -394,7 +400,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                     &message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
-                        registry.check_bind(self.id, name, interface_name, version, data)
+                        registry.check_bind(self.id, name, interface_name, version)
                     {
                         let user_data = handler
                             .clone()
