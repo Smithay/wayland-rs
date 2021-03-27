@@ -171,6 +171,8 @@ fn main() {
         }
     });
 
+    surface.commit();
+
     event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
 
     surface.attach(Some(&buffer), 0, 0);
