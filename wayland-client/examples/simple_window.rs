@@ -2,8 +2,13 @@
 // are reasonable variable names in this domain.
 #![allow(clippy::many_single_char_names)]
 
-use std::process::exit;
-use std::{cmp::min, io::Write, os::unix::io::AsRawFd};
+use std::{
+    cmp::min,
+    io::{BufWriter, Write},
+    os::unix::io::AsRawFd,
+    process::exit,
+    time::Instant,
+};
 
 use wayland_client::{
     event_enum,
@@ -20,6 +25,8 @@ event_enum!(
 );
 
 fn main() {
+    let now = Instant::now();
+
     let display = Display::connect_to_env().unwrap();
 
     let mut event_queue = display.create_event_queue();
@@ -44,17 +51,30 @@ fn main() {
 
     // create a tempfile to write the contents of the window on
     let mut tmp = tempfile::tempfile().expect("Unable to create a tempfile.");
+
     // write the contents to it, lets put a nice color gradient
-    for i in 0..(buf_x * buf_y) {
-        let x = i % buf_x;
-        let y = i / buf_x;
-        let a = 0xFF;
-        let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-        let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-        tmp.write_all(&((a << 24) + (r << 16) + (g << 8) + b).to_ne_bytes()).unwrap();
+    {
+        let now = Instant::now();
+
+        let mut buf = BufWriter::new(&mut tmp);
+        for y in 0..buf_y {
+            for x in 0..buf_x {
+                let a = 0xFF;
+                let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+                let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+                let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+
+                let color = (a << 24) + (r << 16) + (g << 8) + b;
+                buf.write_all(&color.to_ne_bytes()).unwrap();
+            }
+        }
+        buf.flush().unwrap();
+
+        println!(
+            "Time used to create the nice color gradient: {:?}",
+            Instant::now().duration_since(now)
+        );
     }
-    let _ = tmp.flush();
 
     /*
      * Init wayland objects
@@ -177,6 +197,8 @@ fn main() {
 
     surface.attach(Some(&buffer), 0, 0);
     surface.commit();
+
+    println!("Time used before enter in the main loop: {:?}", Instant::now().duration_since(now));
 
     loop {
         event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
