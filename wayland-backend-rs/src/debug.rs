@@ -19,9 +19,7 @@ pub fn print_dispatched_message<Id: Display>(
     // Add timestamp to output.
     print_timestamp();
 
-    eprint!(" <- {}@{}.{}", interface, id, msg_name);
-
-    print_args(args);
+    eprint!(" <- {}@{}.{}, ({})", interface, id, msg_name, DisplaySlice(args));
 
     // Add a new line.
     eprintln!();
@@ -39,31 +37,25 @@ pub fn print_send_message<Id: Display>(
     // Add timestamp to output.
     print_timestamp();
 
-    eprint!(" -> {}@{}.{}", interface, id, msg_name);
-
-    print_args(args);
+    eprint!(" -> {}@{}.{} ({})", interface, id, msg_name, DisplaySlice(args));
 
     // Add a new line.
     eprintln!();
 }
 
-/// Print arguments with opening/closing bracket.
-fn print_args<Id: Display>(args: &[Argument<Id>]) {
-    let num_args = args.len();
+pub(crate) struct DisplaySlice<'a, D>(pub &'a [D]);
 
-    eprint!("(");
-
-    if num_args > 0 {
-        // Explicitly handle first argument to handle one arg functions nicely.
-        eprint!("{}", args[0]);
-
-        // Handle the rest.
-        for arg in args.iter().take(num_args).skip(1) {
-            eprint!(", {}", arg);
+impl<'a, D: Display> Display for DisplaySlice<'a, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut it = self.0.iter();
+        if let Some(val) = it.next() {
+            write!(f, "{}", val)?;
         }
+        for val in it {
+            write!(f, ", {}", val)?;
+        }
+        Ok(())
     }
-
-    eprint!(")")
 }
 
 /// Print timestamp in seconds.microseconds format.

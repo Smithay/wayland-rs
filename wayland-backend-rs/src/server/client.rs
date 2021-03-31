@@ -246,7 +246,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
         self.kill(DisconnectReason::ProtocolError(ProtocolError {
             code: error_code,
             object_id: object_id.id,
-            object_interface: object_id.interface.name,
+            object_interface: object_id.interface.name.into(),
             message: converted_message,
         }));
     }

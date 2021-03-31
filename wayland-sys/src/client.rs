@@ -30,7 +30,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_display_dispatch_pending(*mut wl_display) -> c_int,
     // error handling
         fn wl_display_get_error(*mut wl_display) -> c_int,
-        fn wl_display_get_protocol_error(*mut wl_display, *mut *mut wl_interface, *mut u32) -> u32,
+        fn wl_display_get_protocol_error(*mut wl_display, *mut *const wl_interface, *mut u32) -> u32,
     // requests handling
         fn wl_display_flush(*mut wl_display) -> c_int,
 
@@ -99,10 +99,7 @@ lazy_static::lazy_static!(
                 Ok(h) => return Some(h),
                 Err(::dlib::DlError::CantOpen(_)) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
-                    if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
-                        // only print debug messages if WAYLAND_RS_DEBUG is set
-                        eprintln!("[wayland-client] Found library {} cannot be used: symbol {} is missing.", ver, s);
-                    }
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
                     return None;
                 }
             }

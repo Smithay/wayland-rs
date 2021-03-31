@@ -3,7 +3,9 @@
 use std::sync::Arc;
 
 use wayland_commons::{
-    client::{BackendHandle as ClientHandle, ClientBackend, ObjectData as ClientObjectData},
+    client::{
+        BackendHandle as ClientHandle, ClientBackend, ObjectData as ClientObjectData, WaylandError,
+    },
     server::{
         BackendHandle as ServerHandle, ClientData, CommonPollBackend, DisconnectReason,
         GlobalHandler, IndependentBackend, ObjectData as ServerObjectData,
@@ -38,6 +40,7 @@ macro_rules! expand_test {
             #[test]
             #[should_panic]
             fn fn_name() {
+                let _ = env_logger::builder().is_test(true).try_init();
                 $test_name::<$client_backend,$server_backend<$data>>();
             }
         });
@@ -46,6 +49,7 @@ macro_rules! expand_test {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {
             #[test]
             fn fn_name() {
+                let _ = env_logger::builder().is_test(true).try_init();
                 $test_name::<$client_backend,$server_backend<$data>>();
             }
         });
@@ -71,11 +75,11 @@ impl<D, C: ClientBackend, S: ServerBackend<D> + ServerPolling<D, S>> TestPair<D,
         TestPair { client, server, client_id }
     }
 
-    fn client_dispatch(&mut self) -> std::io::Result<usize> {
+    fn client_dispatch(&mut self) -> Result<usize, WaylandError> {
         self.client.dispatch_events()
     }
 
-    fn client_flush(&mut self) -> std::io::Result<()> {
+    fn client_flush(&mut self) -> Result<(), WaylandError> {
         self.client.flush()
     }
 
@@ -128,6 +132,7 @@ impl<D> ServerPolling<D, server_sys<D>> for server_sys<D> {
 // the tests, one module for each
 mod many_args;
 mod object_args;
+mod protocol_error;
 mod server_created_objects;
 mod sync;
 
