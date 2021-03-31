@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    os::raw::{c_int, c_void},
+    os::raw::{c_char, c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,7 +14,8 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
+    same_interface, AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ProtocolError,
+    ANONYMOUS_INTERFACE,
 };
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
@@ -72,6 +73,14 @@ impl ClientBackend for Backend {
         if display.is_null() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
+        // set the log trampoline
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_log_set_handler_client,
+                wl_log_trampoline_to_rust_client
+            );
+        }
         let display_alive = Arc::new(AtomicBool::new(true));
         Ok(Self {
             handle: Handle {
@@ -93,21 +102,21 @@ impl ClientBackend for Backend {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.handle.display) }
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn flush(&mut self) -> Result<(), WaylandError> {
+        self.handle.no_last_error()?;
         let ret =
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.handle.display) };
         if ret < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.kind() != std::io::ErrorKind::WouldBlock {
-                self.handle.last_error = Some(WaylandError::Io(std::io::Error::last_os_error()));
-            }
-            Err(err)
+            Err(self
+                .handle
+                .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             Ok(())
         }
     }
 
-    fn dispatch_events(&mut self) -> std::io::Result<usize> {
+    fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
+        self.handle.no_last_error()?;
         self.handle.try_read()?;
         self.handle.dispatch_pending()
     }
@@ -118,7 +127,62 @@ impl ClientBackend for Backend {
 }
 
 impl Handle {
-    fn dispatch_pending(&mut self) -> std::io::Result<usize> {
+    #[inline]
+    fn no_last_error(&self) -> Result<(), WaylandError> {
+        if let Some(ref err) = self.last_error {
+            Err(err.clone())
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn store_and_return_error(&mut self, err: std::io::Error) -> WaylandError {
+        // check if it was actually a protocol error
+        let err = if err.raw_os_error() == Some(nix::errno::Errno::EPROTO as i32) {
+            let mut object_id = 0;
+            let mut interface = std::ptr::null();
+            let code = unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_get_protocol_error,
+                    self.display,
+                    &mut interface,
+                    &mut object_id
+                )
+            };
+            let object_interface = unsafe {
+                if interface.is_null() {
+                    String::new()
+                } else {
+                    let cstr = std::ffi::CStr::from_ptr((*interface).name);
+                    cstr.to_string_lossy().into()
+                }
+            };
+            WaylandError::Protocol(ProtocolError {
+                code,
+                object_id,
+                object_interface,
+                message: String::new(),
+            })
+        } else {
+            WaylandError::Io(err)
+        };
+        log::error!("{}", err);
+        self.last_error = Some(err.clone());
+        err
+    }
+
+    #[inline]
+    fn store_if_not_wouldblock_and_return_error(&mut self, e: std::io::Error) -> WaylandError {
+        if e.kind() != std::io::ErrorKind::WouldBlock {
+            self.store_and_return_error(e)
+        } else {
+            e.into()
+        }
+    }
+
+    fn dispatch_pending(&mut self) -> Result<usize, WaylandError> {
         let display = self.display;
         let evq = self.evq;
 
@@ -138,17 +202,13 @@ impl Handle {
                 }
             });
         if ret < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.kind() != std::io::ErrorKind::WouldBlock {
-                self.last_error = Some(WaylandError::Io(std::io::Error::last_os_error()));
-            }
-            Err(err)
+            Err(self.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             Ok(ret as usize)
         }
     }
 
-    fn try_read(&mut self) -> std::io::Result<()> {
+    fn try_read(&mut self) -> Result<(), WaylandError> {
         let ret = unsafe {
             if self.evq.is_null() {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.display)
@@ -167,11 +227,7 @@ impl Handle {
         let ret =
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
         if ret < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.kind() != std::io::ErrorKind::WouldBlock {
-                self.last_error = Some(WaylandError::Io(std::io::Error::last_os_error()));
-            }
-            Err(err)
+            Err(self.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             Ok(())
         }
@@ -183,8 +239,8 @@ impl BackendHandle<Backend> for Handle {
         self.display_id.clone()
     }
 
-    fn last_error(&self) -> Option<&WaylandError> {
-        self.last_error.as_ref()
+    fn last_error(&self) -> Option<WaylandError> {
+        self.last_error.clone()
     }
 
     fn info(&self, id: Id) -> Result<ObjectInfo, InvalidId> {
@@ -442,11 +498,8 @@ unsafe extern "C" fn dispatcher_func(
     let message_desc = match interface.events.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            eprintln!(
-                "[wayland-backend-sys] Unknown event opcode {} for interface {}.",
-                opcode, interface.name
-            );
-            nix::libc::abort();
+            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            return -1;
         }
     };
 
@@ -482,13 +535,15 @@ unsafe extern "C" fn dispatcher_func(
                             &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, obj)
                                 as *mut ProxyUserData);
                         if !same_interface(next_interface, obj_udata.interface) {
-                            eprintln!(
-                                "[wayland-backlend-sys] Received object {}@{} in {}.{} but expected interface {}.",
-                                obj_udata.interface.name, obj_id,
-                                interface.name, message_desc.name,
+                            log::error!(
+                                "Received object {}@{} in {}.{} but expected interface {}.",
+                                obj_udata.interface.name,
+                                obj_id,
+                                interface.name,
+                                message_desc.name,
                                 next_interface.name,
                             );
-                            nix::libc::abort();
+                            return -1;
                         }
                         parsed_args.push(Argument::Object(Id {
                             alive: Some(obj_udata.alive.clone()),
@@ -519,9 +574,10 @@ unsafe extern "C" fn dispatcher_func(
                 // this is a newid, it needs to be initialized
                 if !obj.is_null() {
                     let child_interface = message_desc.child_interface.unwrap_or_else(|| {
-                        eprintln!(
-                            "[wayland-backend-rs] Warn: event {}.{} creates an anonymous object.",
-                            interface.name, opcode
+                        log::warn!(
+                            "Event {}.{} creates an anonymous object.",
+                            interface.name,
+                            opcode
                         );
                         &ANONYMOUS_INTERFACE
                     });
@@ -587,6 +643,17 @@ unsafe extern "C" fn dispatcher_func(
     return 0;
 }
 
+extern "C" {
+    fn wl_log_trampoline_to_rust_client(fmt: *const c_char, list: *const c_void);
+}
+
+#[no_mangle]
+pub extern "C" fn wl_log_rust_logger_client(msg: *const c_char) {
+    let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
+    let text = cstr.to_string_lossy();
+    log::error!("{}", text);
+}
+
 impl Drop for Backend {
     fn drop(&mut self) {
         if self.handle.evq.is_null() {
@@ -597,6 +664,7 @@ impl Drop for Backend {
         }
     }
 }
+
 struct DumbObjectData;
 
 impl ObjectData<Backend> for DumbObjectData {

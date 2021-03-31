@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     ffi::{CStr, CString},
-    os::raw::{c_int, c_void},
+    os::raw::{c_char, c_int, c_void},
     os::unix::{
         io::{IntoRawFd, RawFd},
         net::UnixStream,
@@ -110,6 +110,14 @@ impl<D> ServerBackend<D> for Backend<D> {
         if display.is_null() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
+
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_log_set_handler_server,
+                wl_log_trampoline_to_rust_server
+            )
+        };
 
         unsafe {
             ffi_dispatch!(
@@ -748,11 +756,8 @@ unsafe extern "C" fn resource_dispatcher<D>(
     let message_desc = match interface.requests.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            eprintln!(
-                "[wayland-backend-sys] Unknown event opcode {} for interface {}.",
-                opcode, interface.name
-            );
-            nix::libc::abort();
+            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            return -1;
         }
     };
 
@@ -919,6 +924,17 @@ unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {
         };
         udata.data.destroyed(client_id, object_id);
     } else {
-        eprintln!("[wayland-backend-sys] Destroying an object whose client is invalid... ?");
+        log::error!("Destroying an object whose client is invalid... ?");
     }
+}
+
+extern "C" {
+    fn wl_log_trampoline_to_rust_server(fmt: *const c_char, list: *const c_void);
+}
+
+#[no_mangle]
+pub extern "C" fn wl_log_rust_logger_server(msg: *const c_char) {
+    let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
+    let text = cstr.to_string_lossy();
+    log::error!("{}", text);
 }

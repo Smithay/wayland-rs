@@ -41,14 +41,14 @@ pub trait ClientBackend: Sized {
     fn connection_fd(&self) -> RawFd;
 
     /// Flush the internal outgoing buffers to the server
-    fn flush(&mut self) -> std::io::Result<()>;
+    fn flush(&mut self) -> Result<(), WaylandError>;
 
     /// Try to read and dispatch incoming events
     ///
     /// This function never blocks. If new events are available, they are read
     /// from the socket and the `event()` method of the `ObjectData` associated
     /// to their target object is invoked, sequentially.
-    fn dispatch_events(&mut self) -> std::io::Result<usize>;
+    fn dispatch_events(&mut self) -> Result<usize, WaylandError>;
 
     /// Access the handle for protocol interaction with this backend.
     fn handle(&mut self) -> &mut Self::Handle;
@@ -63,7 +63,7 @@ pub trait BackendHandle<B: ClientBackend> {
     fn display_id(&self) -> B::ObjectId;
 
     /// Retrieve the last error that occured if the connection is in an error state
-    fn last_error(&self) -> Option<&WaylandError>;
+    fn last_error(&self) -> Option<WaylandError>;
 
     /// Get the object info associated to given object
     fn info(&self, id: B::ObjectId) -> Result<ObjectInfo, InvalidId>;
@@ -142,6 +142,33 @@ impl std::fmt::Display for WaylandError {
             WaylandError::Io(e) => write!(f, "Io error: {}", e),
             WaylandError::Protocol(e) => std::fmt::Display::fmt(e, f),
         }
+    }
+}
+
+impl Clone for WaylandError {
+    fn clone(&self) -> WaylandError {
+        match self {
+            WaylandError::Protocol(e) => WaylandError::Protocol(e.clone()),
+            WaylandError::Io(e) => {
+                if let Some(code) = e.raw_os_error() {
+                    WaylandError::Io(std::io::Error::from_raw_os_error(code))
+                } else {
+                    WaylandError::Io(std::io::Error::new(e.kind(), ""))
+                }
+            }
+        }
+    }
+}
+
+impl From<super::ProtocolError> for WaylandError {
+    fn from(err: super::ProtocolError) -> WaylandError {
+        WaylandError::Protocol(err)
+    }
+}
+
+impl From<std::io::Error> for WaylandError {
+    fn from(err: std::io::Error) -> WaylandError {
+        WaylandError::Io(err)
     }
 }
 
