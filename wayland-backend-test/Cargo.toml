@@ -14,3 +14,4 @@ wayland-backend-sys = { path = "../wayland-backend-sys", features = ["client", "
 wayland-scanner = { path = "../wayland-scanner" }
 concat-idents = "1.1"
 nix = "0.20"
+env_logger = "0.8"

@@ -17,6 +17,7 @@ use wayland_commons::{
 };
 
 use crate::{
+    debug::DisplaySlice,
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
     socket::{BufferedSocket, Socket},
     wire::{Message, MessageParseError, INLINE_ARGS},
@@ -106,11 +107,16 @@ impl ClientBackend for Backend {
         self.handle.socket.as_raw_fd()
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.handle.socket.flush()
+    fn flush(&mut self) -> Result<(), WaylandError> {
+        self.handle.no_last_error()?;
+        if let Err(e) = self.handle.socket.flush() {
+            return Err(self.handle.store_if_not_wouldblock_and_return_error(e));
+        }
+        Ok(())
     }
 
-    fn dispatch_events(&mut self) -> std::io::Result<usize> {
+    fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
+        self.handle.no_last_error()?;
         let mut dispatched = 0;
         loop {
             // Attempt to read a message
@@ -125,7 +131,7 @@ impl ClientBackend for Backend {
                     // need to read more data
                     if let Err(e) = self.handle.socket.fill_incoming_buffers() {
                         if e.kind() != std::io::ErrorKind::WouldBlock || dispatched == 0 {
-                            return Err(e);
+                            return Err(self.handle.store_and_return_error(e));
                         } else {
                             break;
                         }
@@ -134,13 +140,13 @@ impl ClientBackend for Backend {
                 }
                 Err(MessageParseError::Malformed) => {
                     // malformed error, protocol error
-                    self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                    let err = WaylandError::Protocol(ProtocolError {
                         code: 0,
                         object_id: 0,
-                        object_interface: "",
+                        object_interface: "".into(),
                         message: "Malformed Wayland message.".into(),
-                    }));
-                    return Err(nix::errno::Errno::EPROTO.into());
+                    });
+                    return Err(self.handle.store_and_return_error(err));
                 }
             };
 
@@ -151,7 +157,7 @@ impl ClientBackend for Backend {
 
             // Short-circuit display-associated events
             if message.sender_id == 1 {
-                self.handle.handle_display_event(message);
+                self.handle.handle_display_event(message)?;
                 continue;
             }
 
@@ -173,27 +179,27 @@ impl ClientBackend for Backend {
                             let obj = match self.handle.map.find(o) {
                                 Some(o) => o,
                                 None => {
-                                    self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                                    let err = WaylandError::Protocol(ProtocolError {
                                         code: 0,
                                         object_id: 0,
-                                        object_interface: "",
+                                        object_interface: "".into(),
                                         message: format!("Unknown object {}.", o),
-                                    }));
-                                    return Err(nix::errno::Errno::EPROTO.into())
+                                    });
+                                    return Err(self.handle.store_and_return_error(err));
                                 }
                             };
                             if let Some(next_interface) = arg_interfaces.next() {
                                 if !same_interface_or_anonymous(next_interface, obj.interface) {
-                                    self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                                    let err = WaylandError::Protocol(ProtocolError {
                                         code: 0,
                                         object_id: 0,
-                                        object_interface: "",
+                                        object_interface: "".into(),
                                         message: format!(
                                             "Protocol error: server sent object {} for interface {}, but it has interface {}.",
                                             o, next_interface.name, obj.interface.name
                                         ),
-                                    }));
-                                    return Err(nix::errno::Errno::EPROTO.into())
+                                    });
+                                    return Err(self.handle.store_and_return_error(err));
                                 }
                             }
                             Argument::Object(Id { id: o, serial: obj.data.serial, interface: obj.interface })
@@ -236,17 +242,17 @@ impl ClientBackend for Backend {
 
                         if let Err(()) = self.handle.map.insert_at(new_id, child_obj) {
                             // abort parsing, this is an unrecoverable error
-                            self.handle.last_error = Some(WaylandError::Protocol(ProtocolError {
+                            let err = WaylandError::Protocol(ProtocolError {
                                 code: 0,
                                 object_id: 0,
-                                object_interface: "",
+                                object_interface: "".into(),
                                 message: format!(
                                     "Protocol error: server tried to create \
                                     an object \"{}\" with invalid id {}.",
                                     child_interface.name, new_id
                                 ),
-                            }));
-                            return Err(nix::errno::Errno::EPROTO.into())
+                            });
+                            return Err(self.handle.store_and_return_error(err));
                         }
 
                         Argument::NewId(child_id)
@@ -291,16 +297,13 @@ impl ClientBackend for Backend {
             }
 
             // At this point, we invoke the user callback
-            receiver.data.user_data.event(
-                &mut self.handle,
-                Id {
-                    id: message.sender_id,
-                    serial: receiver.data.serial,
-                    interface: receiver.interface,
-                },
-                message.opcode,
-                &args,
-            );
+            let id = Id {
+                id: message.sender_id,
+                serial: receiver.data.serial,
+                interface: receiver.interface,
+            };
+            log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
+            receiver.data.user_data.event(&mut self.handle, id, message.opcode, &args);
 
             dispatched += 1;
         }
@@ -317,8 +320,8 @@ impl BackendHandle<Backend> for Handle {
         Id { serial: 0, id: 1, interface: &WL_DISPLAY_INTERFACE }
     }
 
-    fn last_error(&self) -> Option<&WaylandError> {
-        self.last_error.as_ref()
+    fn last_error(&self) -> Option<WaylandError> {
+        self.last_error.clone()
     }
 
     fn info(&self, id: Id) -> Result<ObjectInfo, InvalidId> {
@@ -444,6 +447,7 @@ impl BackendHandle<Backend> for Handle {
                 &args,
             );
         }
+        log::debug!("Sending {}.{} ({})", id, message_desc.name, DisplaySlice(&args));
 
         // Send the message
 
@@ -507,6 +511,32 @@ impl Handle {
         self.last_serial
     }
 
+    #[inline]
+    fn no_last_error(&self) -> Result<(), WaylandError> {
+        if let Some(ref err) = self.last_error {
+            Err(err.clone())
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn store_and_return_error(&mut self, err: impl Into<WaylandError>) -> WaylandError {
+        let err = err.into();
+        log::error!("{}", err);
+        self.last_error = Some(err.clone());
+        err
+    }
+
+    #[inline]
+    fn store_if_not_wouldblock_and_return_error(&mut self, e: std::io::Error) -> WaylandError {
+        if e.kind() != std::io::ErrorKind::WouldBlock {
+            self.store_and_return_error(e)
+        } else {
+            e.into()
+        }
+    }
+
     fn get_object(&self, id: Id) -> Result<Object<Data>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
@@ -515,7 +545,7 @@ impl Handle {
         Ok(object)
     }
 
-    fn handle_display_event(&mut self, message: Message) {
+    fn handle_display_event(&mut self, message: Message) -> Result<(), WaylandError> {
         match message.opcode {
             0 => {
                 // wl_display.error
@@ -523,14 +553,16 @@ impl Handle {
                     &message.args[..]
                 {
                     let object = self.map.find(obj);
-                    self.last_error = Some(WaylandError::Protocol(ProtocolError {
+                    let err = WaylandError::Protocol(ProtocolError {
                         code,
                         object_id: obj,
                         object_interface: object
                             .map(|obj| obj.interface.name)
-                            .unwrap_or("<unknown>"),
+                            .unwrap_or("<unknown>")
+                            .into(),
                         message: message.to_string_lossy().into(),
-                    }))
+                    });
+                    return Err(self.store_and_return_error(err));
                 } else {
                     unreachable!()
                 }
@@ -554,6 +586,7 @@ impl Handle {
             }
             _ => unreachable!(),
         }
+        Ok(())
     }
 }
 

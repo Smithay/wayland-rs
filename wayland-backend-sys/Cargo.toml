@@ -9,6 +9,7 @@ license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland"]
 readme = "README.md"
+build = "build.rs"
 
 [dependencies]
 wayland-commons = { path = "../wayland-commons" }
@@ -16,6 +17,10 @@ wayland-sys = { path = "../wayland-sys" }
 nix = "0.20"
 smallvec = "1.0"
 scoped-tls = "1.0"
+log = "0.4"
+
+[build-dependencies]
+cc = "1.0"
 
 [features]
 client = ["wayland-sys/client"]

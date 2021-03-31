@@ -85,4 +85,5 @@ pub type wl_dispatcher_func_t = unsafe extern "C" fn(
     *const wl_message,
     *const wl_argument,
 ) -> c_int;
-pub type wl_log_func_t = unsafe extern "C" fn(*const c_char, ...);
+
+pub type wl_log_func_t = unsafe extern "C" fn(*const c_char, *const c_void);

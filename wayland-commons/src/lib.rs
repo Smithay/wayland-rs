@@ -167,7 +167,7 @@ pub struct ProtocolError {
     /// The id of the object that caused the error
     pub object_id: u32,
     /// The interface of the object that caused the error
-    pub object_interface: &'static str,
+    pub object_interface: String,
     /// The message sent by the server describing the error
     pub message: String,
 }
