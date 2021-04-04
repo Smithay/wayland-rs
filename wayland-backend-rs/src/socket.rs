@@ -5,11 +5,9 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 
 use nix::sys::{socket, uio};
 
-use wayland_commons::ArgumentType;
+use wayland_commons::{ArgumentType, Message};
 
-use crate::{
-    wire::{Message, MessageParseError, MessageWriteError},
-};
+use crate::wire::{parse_message, write_to_buffers, MessageParseError, MessageWriteError};
 
 /// Maximum number of FD that can be sent in a single socket message
 pub const MAX_FDS_OUT: usize = 28;
@@ -175,8 +173,9 @@ impl BufferedSocket {
     //
     // if false is returned, it means there is not enough space
     // in the buffer
-    fn attempt_write_message(&mut self, msg: &Message) -> IoResult<bool> {
-        match msg.write_to_buffers(
+    fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
+        match write_to_buffers(
+            &msg,
             self.out_data.get_writable_storage(),
             self.out_fds.get_writable_storage(),
         ) {
@@ -196,7 +195,7 @@ impl BufferedSocket {
     ///
     /// If the message is too big to fit in the buffer, the error `Error::Sys(E2BIG)`
     /// will be returned.
-    pub fn write_message(&mut self, msg: &Message) -> IoResult<()> {
+    pub fn write_message(&mut self, msg: &Message<u32>) -> IoResult<()> {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
@@ -240,7 +239,10 @@ impl BufferedSocket {
     /// This method requires one closure that given an object id and an opcode,
     /// must provide the signature of the associated request/event, in the form of
     /// a `&'static [ArgumentType]`.
-    pub fn read_one_message<F>(&mut self, mut signature: F) -> Result<Message, MessageParseError>
+    pub fn read_one_message<F>(
+        &mut self,
+        mut signature: F,
+    ) -> Result<Message<u32>, MessageParseError>
     where
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {
@@ -253,7 +255,7 @@ impl BufferedSocket {
             let object_id = data[0];
             let opcode = (data[1] & 0x0000_FFFF) as u16;
             if let Some(sig) = signature(object_id, opcode) {
-                match Message::from_raw(data, sig, fds) {
+                match parse_message(data, sig, fds) {
                     Ok((msg, rest_data, rest_fds)) => {
                         (msg, data.len() - rest_data.len(), fds.len() - rest_fds.len())
                     }
@@ -341,8 +343,7 @@ impl<T: Copy + Default> Buffer<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::Message;
-    use wayland_commons::{AllowNull, Argument, ArgumentType};
+    use wayland_commons::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
 
@@ -358,7 +359,7 @@ mod tests {
     //
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
-    fn assert_eq_msgs(msg1: &Message, msg2: &Message) {
+    fn assert_eq_msgs(msg1: &Message<u32>, msg2: &Message<u32>) {
         assert_eq!(msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());

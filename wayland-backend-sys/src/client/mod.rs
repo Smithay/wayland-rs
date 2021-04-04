@@ -14,8 +14,8 @@ use wayland_commons::{
     check_for_signature,
     client::{BackendHandle, ClientBackend, InvalidId, NoWaylandLib, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
-    same_interface, AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ProtocolError,
-    ANONYMOUS_INTERFACE,
+    same_interface, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
+    ProtocolError, ANONYMOUS_INTERFACE,
 };
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
@@ -270,9 +270,7 @@ impl BackendHandle<Backend> for Handle {
 
     fn send_request(
         &mut self,
-        id: Id,
-        opcode: u16,
-        args: &[Argument<Id>],
+        Message { sender_id: id, opcode, args }: Message<Id>,
         data: Option<Arc<dyn ObjectData<Backend>>>,
     ) -> Result<Id, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
@@ -291,7 +289,7 @@ impl BackendHandle<Backend> for Handle {
                 panic!("Unknown opcode {} for object {}@{}.", opcode, id.interface.name, id.id);
             }
         };
-        if !check_for_signature(message_desc.signature, args) {
+        if !check_for_signature(message_desc.signature, &args) {
             panic!(
                 "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
                 id.interface.name, id.id, message_desc.name, message_desc.signature, args
@@ -629,7 +627,10 @@ unsafe extern "C" fn dispatcher_func(
     };
 
     HANDLE.with(|handle| {
-        udata.data.event(&mut **handle.borrow_mut(), id.clone(), opcode as u16, &parsed_args);
+        udata.data.event(
+            &mut **handle.borrow_mut(),
+            Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
+        );
     });
 
     if message_desc.is_destructor {
@@ -672,13 +673,7 @@ impl ObjectData<Backend> for DumbObjectData {
         unreachable!()
     }
 
-    fn event(
-        &self,
-        _handle: &mut Handle,
-        _object_id: Id,
-        _opcode: u16,
-        _arguments: &[Argument<Id>],
-    ) {
+    fn event(&self, _handle: &mut Handle, _msg: Message<Id>) {
         unreachable!()
     }
 

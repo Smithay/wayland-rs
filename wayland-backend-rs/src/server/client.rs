@@ -10,9 +10,10 @@ use std::{
 use wayland_commons::{
     check_for_signature,
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    same_interface, same_interface_or_anonymous,
+    message, same_interface, same_interface_or_anonymous,
     server::{ClientData, DisconnectReason, GlobalHandler, InvalidId, ObjectData, ServerBackend},
-    AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+    AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo, ProtocolError,
+    ANONYMOUS_INTERFACE, INLINE_ARGS,
 };
 
 use smallvec::SmallVec;
@@ -20,7 +21,7 @@ use smallvec::SmallVec;
 use crate::{
     map::{Object, ObjectMap},
     socket::{BufferedSocket, Socket},
-    wire::{Message, MessageParseError, INLINE_ARGS},
+    wire::MessageParseError,
 };
 
 use super::{registry::Registry, ClientId, Data, GlobalId, ObjectId};
@@ -98,9 +99,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
 
     pub(crate) fn send_event(
         &mut self,
-        object_id: ObjectId,
-        opcode: u16,
-        args: &[Argument<ObjectId>],
+        Message { sender_id: object_id, opcode, args }: Message<B::ObjectId>,
     ) -> Result<(), InvalidId> {
         if self.killed {
             return Ok(());
@@ -117,7 +116,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
             }
         };
 
-        if !check_for_signature(message_desc.signature, args) {
+        if !check_for_signature(message_desc.signature, &args) {
             panic!(
                 "Unexpected signature for event {}@{}.{}: expected {:?}, got {:?}.",
                 object.interface.name,
@@ -139,7 +138,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
 
         let mut msg_args = SmallVec::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().cloned().enumerate() {
+        for (i, arg) in args.into_iter().enumerate() {
             msg_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
                 Argument::Int(i) => Argument::Int(i),
@@ -204,11 +203,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
     }
 
     pub(crate) fn send_delete_id(&mut self, object_id: ObjectId) {
-        let msg = Message {
-            sender_id: 1,
-            opcode: 1,
-            args: smallvec::smallvec![Argument::Uint(object_id.id)],
-        };
+        let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
         if let Err(_) = self.socket.write_message(&msg) {
             self.kill(DisconnectReason::ConnectionClosed);
         }
@@ -233,15 +228,15 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
     pub(crate) fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
-        let _ = self.send_event(
+        let _ = self.send_event(message!(
             ObjectId { id: 1, interface: &WL_DISPLAY_INTERFACE, client_id: self.id, serial: 0 },
             0, // wl_display.error
-            &[
+            [
                 Argument::Object(object_id),
                 Argument::Uint(error_code),
                 Argument::Str(Box::new(message)),
             ],
-        );
+        ));
         let _ = self.flush();
         self.kill(DisconnectReason::ProtocolError(ProtocolError {
             code: error_code,
@@ -270,7 +265,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
         })
     }
 
-    pub(crate) fn next_request(&mut self) -> std::io::Result<(Message, Object<Data<D, B>>)> {
+    pub(crate) fn next_request(&mut self) -> std::io::Result<(Message<u32>, Object<Data<D, B>>)> {
         if self.killed {
             return Err(nix::errno::Errno::EPIPE.into());
         }
@@ -313,7 +308,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
 
     pub(crate) fn handle_display_request(
         &mut self,
-        message: Message,
+        message: Message<u32>,
         registry: &mut Registry<D, B>,
         data: &mut D,
     ) {
@@ -341,7 +336,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
                         interface: &WL_CALLBACK_INTERFACE,
                     };
                     // send wl_callback.done(0)
-                    self.send_event(cb_id, 0, &[Argument::Uint(0)]).unwrap();
+                    self.send_event(message!(cb_id, 0, [Argument::Uint(0)])).unwrap();
                 } else {
                     unreachable!()
                 }
@@ -389,7 +384,7 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
 
     pub(crate) fn handle_registry_request(
         &mut self,
-        message: Message,
+        message: Message<u32>,
         registry: &mut Registry<D, B>,
         data: &mut D,
     ) -> Option<(ClientId, GlobalId, ObjectId, Arc<dyn GlobalHandler<D, B>>)> {
@@ -456,13 +451,12 @@ impl<D, B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId =
     pub(crate) fn process_request(
         &mut self,
         object: &Object<Data<D, B>>,
-        message: Message,
+        message: Message<u32>,
         data: &mut D,
     ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
-        let mut new_args =
-            SmallVec::<[Argument<ObjectId>; INLINE_ARGS]>::with_capacity(message.args.len());
+        let mut new_args = SmallVec::with_capacity(message.args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in message.args.into_iter().enumerate() {
             new_args.push(match arg {
@@ -574,9 +568,7 @@ impl<D, B: ServerBackend<D>> ObjectData<D, B> for DumbObjectData {
         _handle: &mut B::Handle,
         _data: &mut D,
         _client_id: B::ClientId,
-        _object_id: B::ObjectId,
-        _opcode: u16,
-        _arguments: &[Argument<B::ObjectId>],
+        _msg: Message<B::ObjectId>,
     ) {
         unreachable!()
     }

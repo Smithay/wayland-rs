@@ -8,7 +8,7 @@ use wayland_commons::{
         BackendHandle, ClientData, DisconnectReason, GlobalHandler, GlobalInfo, InvalidId,
         ObjectData, ServerBackend,
     },
-    Argument, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
+    Argument, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
 use super::{client::ClientStore, registry::Registry, ClientId, Data, GlobalId, ObjectId};
@@ -113,10 +113,12 @@ where
             };
             match action {
                 DispatchAction::Request { object, object_id, opcode, arguments, is_destructor } => {
-                    object
-                        .data
-                        .user_data
-                        .request(self, data, client_id, object_id, opcode, &arguments);
+                    object.data.user_data.request(
+                        self,
+                        data,
+                        client_id,
+                        Message { sender_id: object_id, opcode, args: arguments },
+                    );
                     if is_destructor {
                         object.data.user_data.destroyed(client_id, object_id);
                         if let Ok(client) = self.clients.get_client_mut(client_id) {
@@ -200,13 +202,8 @@ where
         }
     }
 
-    fn send_event(
-        &mut self,
-        object_id: ObjectId,
-        opcode: u16,
-        args: &[Argument<ObjectId>],
-    ) -> Result<(), InvalidId> {
-        self.clients.get_client_mut(object_id.client_id)?.send_event(object_id, opcode, args)
+    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+        self.clients.get_client_mut(msg.sender_id.client_id)?.send_event(msg)
     }
 
     fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D, B>>, InvalidId> {

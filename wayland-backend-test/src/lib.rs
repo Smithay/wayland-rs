@@ -11,7 +11,7 @@ use wayland_commons::{
         GlobalHandler, IndependentBackend, ObjectData as ServerObjectData,
         ObjectId as ServerObjectId, ServerBackend,
     },
-    Argument, ObjectInfo,
+    Argument, Message, ObjectInfo,
 };
 
 use wayland_backend_rs::{
@@ -157,16 +157,7 @@ impl<D, S: ServerBackend<D>> ServerObjectData<D, S> for DoNothingData {
         self
     }
 
-    fn request(
-        &self,
-        _: &mut S::Handle,
-        _: &mut D,
-        _: S::ClientId,
-        _: S::ObjectId,
-        _: u16,
-        _: &[Argument<S::ObjectId>],
-    ) {
-    }
+    fn request(&self, _: &mut S::Handle, _: &mut D, _: S::ClientId, _: Message<S::ObjectId>) {}
 
     fn destroyed(&self, _: S::ClientId, _: S::ObjectId) {}
 }
@@ -176,7 +167,7 @@ impl<C: ClientBackend> ClientObjectData<C> for DoNothingData {
         self
     }
 
-    fn event(&self, _: &mut C::Handle, _: C::ObjectId, _: u16, _: &[Argument<C::ObjectId>]) {}
+    fn event(&self, _: &mut C::Handle, _: Message<C::ObjectId>) {}
 
     fn destroyed(&self, _: C::ObjectId) {}
 }
