@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use wayland_commons::client::ObjectId;
+use wayland_commons::{client::ObjectId, message, Message};
 
 use crate::*;
 
@@ -19,9 +19,7 @@ impl<S: ServerBackend<()>> ServerObjectData<(), S> for ServerData {
         handle: &mut S::Handle,
         _: &mut (),
         _: S::ClientId,
-        object: S::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<S::ObjectId>],
+        _msg: Message<S::ObjectId>,
     ) {
     }
 
@@ -47,18 +45,22 @@ impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
             .unwrap();
         let null_id = handle.null_id();
         handle
-            .send_event(
+            .send_event(message!(
                 object_id.clone(),
                 2,
-                &[Argument::NewId(obj_1.clone()), Argument::Object(null_id)],
-            )
+                [Argument::NewId(obj_1.clone()), Argument::Object(null_id)],
+            ))
             .unwrap();
         // send the second
         let obj_2 = handle
             .create_object(client, &interfaces::QUAD_INTERFACE, 3, Arc::new(ServerData))
             .unwrap();
         handle
-            .send_event(object_id.clone(), 2, &[Argument::NewId(obj_2), Argument::Object(obj_1)])
+            .send_event(message!(
+                object_id.clone(),
+                2,
+                [Argument::NewId(obj_2), Argument::Object(obj_1)]
+            ))
             .unwrap();
     }
 }
@@ -69,16 +71,10 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
     fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
         self
     }
-    fn event(
-        &self,
-        handle: &mut C::Handle,
-        _object_id: C::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<C::ObjectId>],
-    ) {
-        assert_eq!(opcode, 2);
+    fn event(&self, handle: &mut C::Handle, msg: Message<C::ObjectId>) {
+        assert_eq!(msg.opcode, 2);
         if self.0.load(Ordering::SeqCst) == 0 {
-            if let [Argument::NewId(obj_1), Argument::Object(null_id)] = arguments {
+            if let [Argument::NewId(obj_1), Argument::Object(null_id)] = &msg.args[..] {
                 let info = handle.info(obj_1.clone()).unwrap();
                 assert_eq!(info.id, 0xFF00_0000);
                 assert_eq!(info.interface.name, "quad");
@@ -88,7 +84,7 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
             }
             self.0.store(1, Ordering::SeqCst);
         } else {
-            if let [Argument::NewId(obj_2), Argument::Object(obj_1)] = arguments {
+            if let [Argument::NewId(obj_2), Argument::Object(obj_1)] = &msg.args[..] {
                 // check obj1
                 let info = handle.info(obj_1.clone()).unwrap();
                 assert_eq!(info.id, 0xFF00_0000);
@@ -122,9 +118,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
         .client
         .handle()
         .send_request(
-            client_display,
-            1,
-            &[Argument::NewId(placeholder)],
+            message!(client_display, 1, [Argument::NewId(placeholder)],),
             Some(Arc::new(DoNothingData)),
         )
         .unwrap();
@@ -135,16 +129,18 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
         .client
         .handle()
         .send_request(
-            registry_id,
-            0,
-            &[
-                Argument::Uint(1),
-                Argument::Str(Box::new(
-                    CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                )),
-                Argument::Uint(1),
-                Argument::NewId(placeholder),
-            ],
+            message!(
+                registry_id,
+                0,
+                [
+                    Argument::Uint(1),
+                    Argument::Str(Box::new(
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                    )),
+                    Argument::Uint(1),
+                    Argument::NewId(placeholder),
+                ],
+            ),
             Some(client_data.clone()),
         )
         .unwrap();

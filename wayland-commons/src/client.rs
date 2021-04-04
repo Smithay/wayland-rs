@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use super::{Argument, Interface, ObjectInfo};
+use super::{Argument, Interface, Message, ObjectInfo};
 
 /// A trait representing your data associated to an object
 ///
@@ -16,13 +16,7 @@ pub trait ObjectData<B: ClientBackend>: downcast_rs::DowncastSync {
     /// Create a new object data from the parent data
     fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData<B>>;
     /// Dispatch an event for the associated object
-    fn event(
-        &self,
-        handle: &mut B::Handle,
-        object_id: B::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<B::ObjectId>],
-    );
+    fn event(&self, handle: &mut B::Handle, msg: Message<B::ObjectId>);
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, object_id: B::ObjectId);
 }
@@ -96,9 +90,7 @@ pub trait BackendHandle<B: ClientBackend> {
     /// Failing to do so will cause a panic.
     fn send_request(
         &mut self,
-        id: B::ObjectId,
-        opcode: u16,
-        args: &[Argument<B::ObjectId>],
+        msg: Message<B::ObjectId>,
         data: Option<Arc<dyn ObjectData<B>>>,
     ) -> Result<B::ObjectId, InvalidId>;
 

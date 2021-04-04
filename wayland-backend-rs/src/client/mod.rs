@@ -13,14 +13,14 @@ use wayland_commons::{
     client::{BackendHandle, ClientBackend, InvalidId, ObjectData, WaylandError},
     core_interfaces::WL_DISPLAY_INTERFACE,
     same_interface, same_interface_or_anonymous, AllowNull, Argument, ArgumentType, Interface,
-    Never, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+    Message, Never, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE, INLINE_ARGS,
 };
 
 use crate::{
     debug::DisplaySlice,
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
     socket::{BufferedSocket, Socket},
-    wire::{Message, MessageParseError, INLINE_ARGS},
+    wire::MessageParseError,
 };
 
 #[derive(Clone)]
@@ -162,8 +162,7 @@ impl ClientBackend for Backend {
             }
 
             // Convert the arguments and create the new object if applicable
-            let mut args =
-                SmallVec::<[Argument<Id>; INLINE_ARGS]>::with_capacity(message.args.len());
+            let mut args = SmallVec::with_capacity(message.args.len());
             let mut arg_interfaces = message_desc.arg_interfaces.iter();
             for arg in message.args.into_iter() {
                 args.push(match arg {
@@ -303,7 +302,10 @@ impl ClientBackend for Backend {
                 interface: receiver.interface,
             };
             log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
-            receiver.data.user_data.event(&mut self.handle, id, message.opcode, &args);
+            receiver
+                .data
+                .user_data
+                .event(&mut self.handle, Message { sender_id: id, opcode: message.opcode, args });
 
             dispatched += 1;
         }
@@ -340,9 +342,7 @@ impl BackendHandle<Backend> for Handle {
 
     fn send_request(
         &mut self,
-        id: Id,
-        opcode: u16,
-        args: &[Argument<Id>],
+        Message { sender_id: id, opcode, args }: Message<Id>,
         data: Option<Arc<dyn ObjectData<Backend>>>,
     ) -> Result<Id, InvalidId> {
         let object = self.get_object(id)?;
@@ -357,7 +357,7 @@ impl BackendHandle<Backend> for Handle {
             }
         };
 
-        if !check_for_signature(message_desc.signature, args) {
+        if !check_for_signature(message_desc.signature, &args) {
             panic!(
                 "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
                 object.interface.name, id.id, message_desc.name, message_desc.signature, args
@@ -424,7 +424,7 @@ impl BackendHandle<Backend> for Handle {
         };
 
         // Prepare the message in a debug-compatible way
-        let args = args.iter().cloned().map(|arg| {
+        let args = args.into_iter().map(|arg| {
             if let Argument::NewId(p) = arg {
                 if !p.id == 0 {
                     panic!("The newid provided when sending request {}@{}.{} is not a placeholder.", object.interface.name, id.id, message_desc.name);
@@ -437,7 +437,7 @@ impl BackendHandle<Backend> for Handle {
             } else {
                 arg
             }
-        }).collect::<Vec<_>>();
+        }).collect::<SmallVec<[_; INLINE_ARGS]>>();
 
         if self.debug {
             crate::debug::print_send_message(
@@ -545,7 +545,7 @@ impl Handle {
         Ok(object)
     }
 
-    fn handle_display_event(&mut self, message: Message) -> Result<(), WaylandError> {
+    fn handle_display_event(&mut self, message: Message<u32>) -> Result<(), WaylandError> {
         match message.opcode {
             0 => {
                 // wl_display.error
@@ -597,13 +597,7 @@ impl ObjectData<Backend> for DumbObjectData {
         panic!("You must provide an ObjectData when creating an object from the wl_display.")
     }
 
-    fn event(
-        &self,
-        _handle: &mut Handle,
-        _object_id: Id,
-        _opcode: u16,
-        _arguments: &[Argument<Id>],
-    ) {
+    fn event(&self, _handle: &mut Handle, _msg: Message<Id>) {
         unreachable!()
     }
 

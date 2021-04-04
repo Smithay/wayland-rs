@@ -19,6 +19,9 @@ use std::{ffi::CString, os::unix::io::RawFd};
 
 use wayland_sys::common::wl_interface;
 
+#[doc(hidden)]
+pub extern crate smallvec;
+
 pub use wayland_sys as sys;
 
 pub mod client;
@@ -170,6 +173,26 @@ pub struct ProtocolError {
     pub object_interface: String,
     /// The message sent by the server describing the error
     pub message: String,
+}
+
+pub const INLINE_ARGS: usize = 4;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Message<Id> {
+    pub sender_id: Id,
+    pub opcode: u16,
+    pub args: smallvec::SmallVec<[Argument<Id>; INLINE_ARGS]>,
+}
+
+#[macro_export]
+macro_rules! message {
+    ($sender_id: expr, $opcode: expr, [$($args: expr),* $(,)?] $(,)?) => {
+        $crate::Message {
+            sender_id: $sender_id,
+            opcode: $opcode,
+            args: $crate::smallvec::smallvec![$($args),*],
+        }
+    }
 }
 
 impl std::error::Error for ProtocolError {}

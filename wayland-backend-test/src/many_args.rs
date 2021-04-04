@@ -3,6 +3,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use wayland_commons::{message, Message};
+
 use crate::*;
 
 struct ServerData(AtomicBool);
@@ -12,18 +14,10 @@ impl<S: ServerBackend<()>> ServerObjectData<(), S> for ServerData {
         self
     }
 
-    fn request(
-        &self,
-        _: &mut S::Handle,
-        _: &mut (),
-        _: S::ClientId,
-        _: S::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<S::ObjectId>],
-    ) {
-        assert_eq!(opcode, 0);
+    fn request(&self, _: &mut S::Handle, _: &mut (), _: S::ClientId, msg: Message<S::ObjectId>) {
+        assert_eq!(msg.opcode, 0);
         if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
-            arguments
+            &msg.args[..]
         {
             assert_eq!(*u, 42);
             assert_eq!(*i, -13);
@@ -58,10 +52,10 @@ impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
         object_id: S::ObjectId,
     ) {
         handle
-            .send_event(
+            .send_event(message!(
                 object_id,
                 0,
-                &[
+                [
                     Argument::Uint(1337),
                     Argument::Int(-53),
                     Argument::Fixed(9823),
@@ -69,7 +63,7 @@ impl<S: ServerBackend<()>> GlobalHandler<(), S> for ServerData {
                     Argument::Str(Box::new(CString::new("I want cake".as_bytes()).unwrap())),
                     Argument::Fd(1), // stdout
                 ],
-            )
+            ))
             .unwrap();
     }
 }
@@ -80,16 +74,10 @@ impl<C: ClientBackend> ClientObjectData<C> for ClientData {
     fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ClientObjectData<C>> {
         unreachable!()
     }
-    fn event(
-        &self,
-        _handle: &mut C::Handle,
-        _object_id: C::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<C::ObjectId>],
-    ) {
-        assert_eq!(opcode, 0);
+    fn event(&self, _handle: &mut C::Handle, msg: Message<C::ObjectId>) {
+        assert_eq!(msg.opcode, 0);
         if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
-            arguments
+            &msg.args[..]
         {
             assert_eq!(*u, 1337);
             assert_eq!(*i, -53);
@@ -127,9 +115,7 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
         .client
         .handle()
         .send_request(
-            client_display,
-            1,
-            &[Argument::NewId(placeholder)],
+            message!(client_display, 1, [Argument::NewId(placeholder)],),
             Some(Arc::new(DoNothingData)),
         )
         .unwrap();
@@ -140,16 +126,18 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
         .client
         .handle()
         .send_request(
-            registry_id,
-            0,
-            &[
-                Argument::Uint(1),
-                Argument::Str(Box::new(
-                    CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                )),
-                Argument::Uint(1),
-                Argument::NewId(placeholder),
-            ],
+            message!(
+                registry_id,
+                0,
+                [
+                    Argument::Uint(1),
+                    Argument::Str(Box::new(
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                    )),
+                    Argument::Uint(1),
+                    Argument::NewId(placeholder),
+                ],
+            ),
             Some(client_data.clone()),
         )
         .unwrap();
@@ -165,16 +153,18 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     test.client
         .handle()
         .send_request(
-            test_global_id,
-            0,
-            &[
-                Argument::Uint(42),
-                Argument::Int(-13),
-                Argument::Fixed(4589),
-                Argument::Array(Box::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9])),
-                Argument::Str(Box::new(CString::new("I like trains".as_bytes()).unwrap())),
-                Argument::Fd(0), // stdin
-            ],
+            message!(
+                test_global_id,
+                0,
+                [
+                    Argument::Uint(42),
+                    Argument::Int(-13),
+                    Argument::Fixed(4589),
+                    Argument::Array(Box::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9])),
+                    Argument::Str(Box::new(CString::new("I like trains".as_bytes()).unwrap())),
+                    Argument::Fd(0), // stdin
+                ],
+            ),
             None,
         )
         .unwrap();

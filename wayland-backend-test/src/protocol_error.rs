@@ -1,11 +1,8 @@
 use std::{
     ffi::CString,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
 };
-use wayland_commons::client::ObjectData;
+use wayland_commons::message;
 
 use crate::*;
 
@@ -48,9 +45,7 @@ fn test<C: ClientBackend + 'static, S: ServerBackend<()> + ServerPolling<(), S> 
         .client
         .handle()
         .send_request(
-            client_display,
-            1,
-            &[Argument::NewId(placeholder)],
+            message!(client_display, 1, [Argument::NewId(placeholder)],),
             Some(Arc::new(DoNothingData)),
         )
         .unwrap();
@@ -60,16 +55,18 @@ fn test<C: ClientBackend + 'static, S: ServerBackend<()> + ServerPolling<(), S> 
     test.client
         .handle()
         .send_request(
-            registry_id,
-            0,
-            &[
-                Argument::Uint(1),
-                Argument::Str(Box::new(
-                    CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                )),
-                Argument::Uint(3),
-                Argument::NewId(placeholder),
-            ],
+            message!(
+                registry_id,
+                0,
+                [
+                    Argument::Uint(1),
+                    Argument::Str(Box::new(
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                    )),
+                    Argument::Uint(3),
+                    Argument::NewId(placeholder),
+                ],
+            ),
             Some(Arc::new(DoNothingData)),
         )
         .unwrap();
