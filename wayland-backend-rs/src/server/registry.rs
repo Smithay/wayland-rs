@@ -4,6 +4,7 @@ use std::{
 };
 
 use wayland_commons::{
+    message,
     server::{GlobalHandler, GlobalInfo, InvalidId, ServerBackend},
     Argument, Interface,
 };
@@ -195,15 +196,15 @@ fn send_global_to<D, B>(
 where
     B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
 {
-    client.send_event(
+    client.send_event(message!(
         registry,
         0, // wl_registry.global
-        &[
+        [
             Argument::Uint(global.id.id),
             Argument::Str(Box::new(CString::new(global.interface.name).unwrap())),
             Argument::Uint(global.version),
         ],
-    )
+    ))
 }
 
 #[inline]
@@ -215,9 +216,9 @@ fn send_global_remove_to<D, B>(
 where
     B: ServerBackend<D, ObjectId = ObjectId, ClientId = ClientId, GlobalId = GlobalId>,
 {
-    client.send_event(
+    client.send_event(message!(
         registry,
         1, // wl_registry.global_remove
-        &[Argument::Uint(global.id.id)],
-    )
+        [Argument::Uint(global.id.id)],
+    ))
 }

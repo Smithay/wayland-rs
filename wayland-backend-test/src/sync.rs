@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use wayland_commons::client::ObjectData;
+use wayland_commons::{client::ObjectData, message, Message};
 
 use crate::*;
 struct SyncData(AtomicBool);
@@ -9,15 +9,9 @@ impl<B: ClientBackend> ObjectData<B> for SyncData {
         unimplemented!()
     }
 
-    fn event(
-        &self,
-        _: &mut B::Handle,
-        _: B::ObjectId,
-        opcode: u16,
-        args: &[Argument<B::ObjectId>],
-    ) {
-        assert_eq!(opcode, 0);
-        assert!(matches!(args, [Argument::Uint(_)]));
+    fn event(&self, _: &mut B::Handle, msg: Message<B::ObjectId>) {
+        assert_eq!(msg.opcode, 0);
+        assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
         self.0.store(true, Ordering::SeqCst);
     }
 
@@ -36,7 +30,10 @@ fn test<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(), S>>() {
     let sync_id = test
         .client
         .handle()
-        .send_request(client_display, 0, &[Argument::NewId(placeholder)], Some(sync_data.clone()))
+        .send_request(
+            message!(client_display, 0, [Argument::NewId(placeholder)]),
+            Some(sync_data.clone()),
+        )
         .unwrap();
     test.client_flush().unwrap();
 
@@ -68,7 +65,10 @@ fn test_bad_placeholder<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(
     let sync_id = test
         .client
         .handle()
-        .send_request(client_display, 0, &[Argument::NewId(placeholder)], Some(sync_data.clone()))
+        .send_request(
+            message!(client_display, 0, [Argument::NewId(placeholder)]),
+            Some(sync_data.clone()),
+        )
         .unwrap();
     test.client_flush().unwrap();
 
@@ -98,7 +98,7 @@ fn test_bad_signature<C: ClientBackend, S: ServerBackend<()> + ServerPolling<(),
     let sync_id = test
         .client
         .handle()
-        .send_request(client_display, 0, &[Argument::Uint(1)], Some(sync_data.clone()))
+        .send_request(message!(client_display, 0, [Argument::Uint(1)]), Some(sync_data.clone()))
         .unwrap();
     test.client_flush().unwrap();
 

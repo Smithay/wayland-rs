@@ -8,7 +8,7 @@ use downcast_rs::DowncastSync;
 
 use crate::client;
 
-use super::{Argument, Interface, ObjectInfo};
+use super::{Argument, Interface, Message, ObjectInfo};
 
 pub struct GlobalInfo {
     pub interface: &'static Interface,
@@ -36,9 +36,7 @@ pub trait ObjectData<D, B: ServerBackend<D>>: downcast_rs::DowncastSync {
         handle: &mut B::Handle,
         data: &mut D,
         client_id: B::ClientId,
-        object_id: B::ObjectId,
-        opcode: u16,
-        arguments: &[Argument<B::ObjectId>],
+        msg: Message<B::ObjectId>,
     );
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, client_id: B::ClientId, object_id: B::ObjectId);
@@ -191,12 +189,7 @@ pub trait BackendHandle<D, B: ServerBackend<D>> {
     fn null_id(&mut self) -> B::ObjectId;
 
     /// Send an event to a client
-    fn send_event(
-        &mut self,
-        object_id: B::ObjectId,
-        opcode: u16,
-        args: &[Argument<B::ObjectId>],
-    ) -> Result<(), InvalidId>;
+    fn send_event(&mut self, msg: Message<B::ObjectId>) -> Result<(), InvalidId>;
 
     /// Access the `ObjectData` associated with a given object id
     fn get_object_data(&self, id: B::ObjectId) -> Result<Arc<dyn ObjectData<D, B>>, InvalidId>;

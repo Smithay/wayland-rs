@@ -23,7 +23,7 @@ use wayland_commons::{
         BackendHandle, ClientData, CommonPollBackend, DisconnectReason, GlobalHandler, GlobalInfo,
         InvalidId, NoWaylandLib, ObjectData, ServerBackend,
     },
-    AllowNull, Argument, ArgumentType, Interface, ObjectInfo, ANONYMOUS_INTERFACE,
+    AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE,
 };
 
 use wayland_sys::{common::*, ffi_dispatch, server::*};
@@ -307,9 +307,7 @@ impl<D> BackendHandle<D, Backend<D>> for Handle<D> {
 
     fn send_event(
         &mut self,
-        id: ObjectId,
-        opcode: u16,
-        args: &[Argument<ObjectId>],
+        Message { sender_id: id, opcode, args }: Message<ObjectId>,
     ) -> Result<(), InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
@@ -323,7 +321,7 @@ impl<D> BackendHandle<D, Backend<D>> for Handle<D> {
                 panic!("Unknown opcode {} for object {}@{}.", opcode, id.interface.name, id.id);
             }
         };
-        if !check_for_signature(message_desc.signature, args) {
+        if !check_for_signature(message_desc.signature, &args) {
             panic!(
                 "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
                 id.interface.name, id.id, message_desc.name, message_desc.signature, args
@@ -886,9 +884,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
             handle,
             data,
             client_id.clone(),
-            object_id.clone(),
-            opcode as u16,
-            &parsed_args,
+            Message { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
         );
     });
 
