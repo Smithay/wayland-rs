@@ -1,11 +1,12 @@
 use std::{ffi::OsString, path::PathBuf};
 
-use wayland_commons::scanner;
-
 use syn::{parse_macro_input, LitStr};
 
 mod c_interfaces;
+mod enums;
 mod interfaces;
+mod parse;
+mod protocol;
 
 #[proc_macro]
 pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -21,7 +22,7 @@ pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::Token
         Ok(file) => file,
         Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
     };
-    let protocol = scanner::parse(file);
+    let protocol = parse::parse(file);
     interfaces::generate(&protocol, true).into()
 }
 
