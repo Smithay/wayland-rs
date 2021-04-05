@@ -2,13 +2,5 @@
 members = [
     "wayland-sys",
     "wayland-scanner",
-    "wayland-client",
-    "wayland-server",
-    "wayland-protocols",
-    "wayland-commons",
-    "wayland-cursor",
-    "wayland-egl",
-    "wayland-backend-sys",
-    "wayland-backend-rs",
-    "wayland-backend-test",
+    "wayland-backend",
 ]

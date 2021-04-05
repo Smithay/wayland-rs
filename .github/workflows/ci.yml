@@ -46,7 +46,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --workspace -e wayland-client -e wayland-server -e wayland-protocols -e wayland-cursor -e wayland-egl --exclude-files 'wayland-backend-test/*,wayland-client/*,wayland-server/*,wayland-egl/*,wayland-cursor/*'
+          args: --ignore-tests --workspace 
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
@@ -71,4 +71,4 @@ jobs:
         run: cargo fmt --all -- --check
       
       - name: Clippy
-        run: cargo clippy --all --exclude wayland-egl --exclude wayland-cursor --exclude wayland-client --exclude wayland-server --exclude wayland-protocols
+        run: cargo clippy --all
