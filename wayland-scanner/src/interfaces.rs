@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 
-use wayland_commons::scanner::{Interface, Message, Protocol, Type};
+use crate::protocol::{Interface, Message, Protocol, Type};
 
 use quote::quote;
 
@@ -33,7 +33,7 @@ fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
     if with_c {
         let c_iface = super::c_interfaces::generate_interface(interface);
         quote!(
-            pub static #const_name: wayland_commons::Interface = wayland_commons::Interface {
+            pub static #const_name: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
                 name: #iface_name,
                 version: #iface_version,
                 requests: #requests,
@@ -45,7 +45,7 @@ fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
         )
     } else {
         quote!(
-            pub static #const_name: wayland_commons::Interface = wayland_commons::Interface {
+            pub static #const_name: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
                 name: #iface_name,
                 version: #iface_version,
                 requests: #requests,
@@ -65,20 +65,20 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
             if arg.typ == Type::NewId && arg.interface.is_none() {
                 // this is a special generic message, it expands to multiple arguments
                 quote!(
-                    wayland_commons::ArgumentType::Str(wayland_commons::AllowNull::No),
-                    wayland_commons::ArgumentType::Uint,
-                    wayland_commons::ArgumentType::NewId(wayland_commons::AllowNull::No)
+                    wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
+                    wayland_backend::protocol::ArgumentType::Uint,
+                    wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)
                 )
             } else {
                 let typ = arg.typ.common_type();
                 if arg.typ.nullable() {
                     if arg.allow_null {
-                        quote!(wayland_commons::ArgumentType::#typ(wayland_commons::AllowNull::Yes))
+                        quote!(wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::Yes))
                     } else {
-                        quote!(wayland_commons::ArgumentType::#typ(wayland_commons::AllowNull::No))
+                        quote!(wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::No))
                     }
                 } else {
-                    quote!(wayland_commons::ArgumentType::#typ)
+                    quote!(wayland_backend::protocol::ArgumentType::#typ)
                 }
             }
         });
@@ -107,12 +107,12 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
                     quote!( &#target_iface )
                 }
                 None => {
-                    quote!(&wayland_commons::ANONYMOUS_INTERFACE)
+                    quote!(&wayland_backend::protocol::ANONYMOUS_INTERFACE)
                 }
             }
         });
         quote!(
-            wayland_commons::MessageDesc {
+            wayland_backend::protocol::MessageDesc {
                 name: #name,
                 signature: &[ #(#signature),* ],
                 since: #since,
@@ -136,7 +136,7 @@ mod tests {
     fn interface_gen() {
         let protocol_file =
             std::fs::File::open("../tests/scanner_assets/test-protocol.xml").unwrap();
-        let protocol_parsed = wayland_commons::scanner::parse(protocol_file);
+        let protocol_parsed = crate::parse::parse(protocol_file);
         let generated: String = super::generate(&protocol_parsed, true).to_string();
         let generated = crate::format_rust_code(&generated);
 

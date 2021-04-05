@@ -1,0 +1,34 @@
+[package]
+name = "wayland-backend"
+version = "0.1.0"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+edition = "2018"
+repository = "https://github.com/smithay/wayland-rs"
+documentation = "https://smithay.github.io/wayland-rs/wayland_backend/"
+license = "MIT"
+categories = ["gui", "api-bindings"]
+keywords = ["wayland"]
+readme = "README.md"
+build = "build.rs"
+
+[dependencies]
+wayland-sys = { path = "../wayland-sys", features = [] }
+nix = "0.22"
+smallvec = "1.0"
+log = "0.4"
+scoped-tls = "1.0"
+downcast-rs = "1.2"
+
+[build-dependencies]
+cc = "1.0"
+
+[dev-dependencies]
+wayland-scanner = { path = "../wayland-scanner"}
+wayland-sys = { path = "../wayland-sys", features = ["client", "server"] }
+concat-idents = "1.1"
+env_logger = "0.8"
+
+[features]
+client_system = ["wayland-sys/client"]
+server_system = ["wayland-sys/server"]
+dlopen = ["wayland-sys/dlopen"]
