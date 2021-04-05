@@ -31,7 +31,7 @@ jobs:
           key: cargo-${{ matrix.rust }}
       
       - name: System dependencies
-        run: sudo apt-get install libwayland-client0 libwayland-server0
+        run: sudo apt-get install libwayland-dev
       
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
