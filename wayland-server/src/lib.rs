@@ -235,7 +235,7 @@ mod anonymous_object {
 #[macro_export]
 macro_rules! request_enum(
     ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),*) => {
-        $crate::request_enum!($enu | $($evt_name => $iface),* | );
+        $crate::request_enum!($(#[$attrs])? $enu | $($evt_name => $iface),* | );
     };
     ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
         $(#[$attrs])?

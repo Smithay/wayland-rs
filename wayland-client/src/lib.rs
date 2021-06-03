@@ -289,7 +289,7 @@ pub struct RawEvent {
 #[macro_export]
 macro_rules! event_enum(
     ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),*) => {
-        event_enum!($enu | $($evt_name => $iface),* | );
+        event_enum!($(#[$attrs])? $enu | $($evt_name => $iface),* | );
     };
     ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
         $(#[$attrs])?
