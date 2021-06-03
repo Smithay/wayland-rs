@@ -288,11 +288,11 @@ pub struct RawEvent {
 /// directly be provided into a `Filter<MyEnum>`.
 #[macro_export]
 macro_rules! event_enum(
-    ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),*) => {
-        event_enum!($(#[$attrs])? $enu | $($evt_name => $iface),* | );
+    ($(#[$attrs:meta])* $enu:ident | $($evt_name:ident => $iface:ty),*) => {
+        event_enum!($(#[$attrs])* $enu | $($evt_name => $iface),* | );
     };
-    ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
-        $(#[$attrs])?
+    ($(#[$attrs:meta])* $enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
+        $(#[$attrs])*
         pub enum $enu {
             $(
                 $evt_name { event: <$iface as $crate::Interface>::Event, object: $crate::Main<$iface> },
