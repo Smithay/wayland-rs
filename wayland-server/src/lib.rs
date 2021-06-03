@@ -234,10 +234,11 @@ mod anonymous_object {
 
 #[macro_export]
 macro_rules! request_enum(
-    ($enu:ident | $($evt_name:ident => $iface:ty),*) => {
+    ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),*) => {
         $crate::request_enum!($enu | $($evt_name => $iface),* | );
     };
-    ($enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
+    ($(#[$attrs:meta])? $enu:ident | $($evt_name:ident => $iface:ty),* | $($name:ident => $value:ty),*) => {
+        $(#[$attrs])?
         pub enum $enu {
             $(
                 $evt_name { request: <$iface as $crate::Interface>::Request, object: $crate::Main<$iface> },
