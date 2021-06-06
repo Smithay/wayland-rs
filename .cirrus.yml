@@ -1,3 +1,10 @@
+env:
+  # Temporary workaround for error `error: sysinfo not supported on
+  # this platform` seen on FreeBSD platforms, affecting Rustup
+  #
+  # References: https://github.com/rust-lang/rustup/issues/2774
+  RUSTUP_IO_THREADS: 1
+
 task:
   only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_PR != ''
   matrix:
