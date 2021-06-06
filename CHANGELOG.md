@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- [client] Added the possibility to handle attributes for `event_enum!` macro.
+- [server] Added the possibility to handle attributes for `request_enum!` macro.
+
 ## 0.28.5 -- 2020-02-26
 
 - [sys] Update `dlib` dependency to v0.5 to match new macro fornat. The `dlopen` feature no longer
