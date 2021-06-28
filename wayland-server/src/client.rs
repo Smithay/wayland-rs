@@ -10,7 +10,7 @@ use crate::{Interface, Main, Resource, UserDataMap};
 /// A handle to a client connected to your server
 ///
 /// There can be several handles referring to the same client.
-#[derive(Clone)]
+#[derive(Clone,PartialEq)]
 pub struct Client {
     inner: ClientInner,
 }
