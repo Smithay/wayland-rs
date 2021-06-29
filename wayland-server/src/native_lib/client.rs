@@ -166,6 +166,11 @@ impl ClientInner {
         }
     }
 }
+impl PartialEq for ClientInner {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
+    }
+}
 
 unsafe extern "C" fn client_destroy(listener: *mut wl_listener, _data: *mut c_void) {
     let internal =

@@ -8,6 +8,7 @@
   updating `wlr-layer-shell` to version 4.
 - [client] Added the possibility to handle attributes for `event_enum!` macro.
 - [server] Added the possibility to handle attributes for `request_enum!` macro.
+- [server] Added `PartialEq` implementation for `Client` structure.
 
 #### Bugfixes
 

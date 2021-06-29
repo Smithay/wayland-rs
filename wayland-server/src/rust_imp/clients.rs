@@ -340,6 +340,11 @@ impl ClientInner {
         }
     }
 }
+impl PartialEq for ClientInner {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
+    }
+}
 
 pub(crate) struct ClientManager {
     epoll_mgr: Rc<FdManager>,
