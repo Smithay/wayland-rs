@@ -31,7 +31,7 @@ pub(crate) struct EventQueueInner {
 
 impl EventQueueInner {
     pub(crate) fn new(inner: Arc<DisplayInner>, wlevq: *mut wl_event_queue) -> EventQueueInner {
-        EventQueueInner { inner, wlevq }
+        EventQueueInner { wlevq, inner }
     }
 
     pub(crate) fn dispatch<F>(&self, data: DispatchData, fallback: F) -> io::Result<u32>
