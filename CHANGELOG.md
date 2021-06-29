@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.28.6 -- 2021-06-29
+
 #### Additions
 
 - [protocols] Update `wlr-protocols` to commit `d1598e82240d6e8ca57729495a94d4e11d222033`,
@@ -14,12 +16,12 @@
 
 - [client] Allow invocations of `event_enum!` without prior imports with `use`
 
-## 0.28.5 -- 2020-02-26
+## 0.28.5 -- 2021-02-26
 
 - [sys] Update `dlib` dependency to v0.5 to match new macro fornat. The `dlopen` feature no longer
   affects other crates using `dlib`.
 
-## 0.28.4 -- 2020-02-22
+## 0.28.4 -- 2021-02-22
 
 #### Bugfixes
 
