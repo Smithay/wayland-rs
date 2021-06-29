@@ -4,6 +4,7 @@ use crate::protocol::wl_display;
 use crate::protocol::wl_registry;
 use crate::{Attached, DispatchData, Interface, Main, Proxy};
 
+#[derive(Debug)]
 struct Inner {
     list: Vec<(u32, String, u32)>,
 }
@@ -13,7 +14,7 @@ struct Inner {
 /// This utility provides an implemenation for the registry
 /// that track the list of globals for you, as well as utilities
 /// to bind them.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GlobalManager {
     inner: Arc<Mutex<Inner>>,
     registry: Main<wl_registry::WlRegistry>,
@@ -43,6 +44,7 @@ impl ::std::fmt::Display for GlobalError {
 }
 
 /// Event provided to the user callback of GlobalManager
+#[derive(Debug)]
 pub enum GlobalEvent {
     /// A new global was created
     New {

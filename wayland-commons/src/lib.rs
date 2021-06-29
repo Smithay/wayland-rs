@@ -13,7 +13,7 @@
 //! this trait is auto-implemented for closures with appropriate signature, for
 //! convenience.
 
-#![warn(missing_docs)]
+#![warn(missing_docs, missing_debug_implementations)]
 
 #[macro_use]
 extern crate nix;
@@ -81,7 +81,7 @@ pub trait MessageGroup: Sized {
     /// It can only be accessed from the provided closure, and this consumes
     /// the message.
     // -- The lint is allowed because fixing it would be a breaking change --
-    #[allow(clippy::clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention)]
     fn as_raw_c_in<F, T>(self, f: F) -> T
     where
         F: FnOnce(u32, &mut [syscom::wl_argument]) -> T;
@@ -117,6 +117,7 @@ pub trait Interface: 'static {
 }
 
 /// An empty enum representing a MessageGroup with no messages
+#[derive(Debug)]
 pub enum NoMessage {}
 
 #[cfg(not(tarpaulin_include))]
@@ -161,6 +162,7 @@ impl MessageGroup for NoMessage {
 ///
 /// If the ThreadGuard is dropped from the wrong thread,
 /// the underlying value will be leaked.
+#[derive(Debug)]
 pub struct ThreadGuard<T: ?Sized> {
     thread: std::thread::ThreadId,
     val: std::mem::ManuallyDrop<T>,

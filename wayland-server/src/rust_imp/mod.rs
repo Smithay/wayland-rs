@@ -36,6 +36,12 @@ pub struct ResourceMap {
     client: ClientInner,
 }
 
+impl std::fmt::Debug for ResourceMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ResourceMap { ... }")
+    }
+}
+
 impl ResourceMap {
     fn make(
         map: Arc<Mutex<ObjectMap<self::resources::ObjectMeta>>>,

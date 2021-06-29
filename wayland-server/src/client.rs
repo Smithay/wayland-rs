@@ -15,6 +15,12 @@ pub struct Client {
     inner: ClientInner,
 }
 
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Client { ... }")
+    }
+}
+
 impl Client {
     #[cfg(feature = "use_system_lib")]
     /// Creates a client from a pointer
