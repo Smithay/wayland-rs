@@ -66,7 +66,7 @@
 //! methods provides you with a file descriptor that can be used in a polling structure to integrate
 //! the wayland socket in an event loop.
 
-#![warn(missing_docs)]
+#![warn(missing_docs, missing_debug_implementations)]
 
 #[macro_use]
 extern crate bitflags;

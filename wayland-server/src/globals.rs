@@ -14,6 +14,12 @@ pub struct Global<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> {
     inner: GlobalInner<I>,
 }
 
+impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> std::fmt::Debug for Global<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Global { ... }")
+    }
+}
+
 impl<I: Interface + AsRef<Resource<I>> + From<Resource<I>>> Global<I> {
     pub(crate) fn create(inner: GlobalInner<I>) -> Global<I> {
         Global { inner }

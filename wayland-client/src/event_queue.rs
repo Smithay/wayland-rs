@@ -103,6 +103,12 @@ pub struct EventQueue {
     display: Display,
 }
 
+impl std::fmt::Debug for EventQueue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("EventQueue { ... }")
+    }
+}
+
 /// A token representing this event queue
 ///
 /// This token can be cloned and is meant to allow easier
@@ -112,6 +118,12 @@ pub struct EventQueue {
 #[derive(Clone)]
 pub struct QueueToken {
     pub(crate) inner: Rc<EventQueueInner>,
+}
+
+impl std::fmt::Debug for QueueToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("QueueToken { ... }")
+    }
 }
 
 impl EventQueue {
@@ -234,6 +246,12 @@ impl EventQueue {
 pub struct ReadEventsGuard {
     inner: Rc<EventQueueInner>,
     done: bool,
+}
+
+impl std::fmt::Debug for ReadEventsGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ReadEventsGuard { ... }")
+    }
 }
 
 impl ReadEventsGuard {

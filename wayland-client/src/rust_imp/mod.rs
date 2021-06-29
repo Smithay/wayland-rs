@@ -32,6 +32,12 @@ pub struct ProxyMap {
     connection: Arc<Mutex<self::connection::Connection>>,
 }
 
+impl std::fmt::Debug for ProxyMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ProxyMap { ... }")
+    }
+}
+
 impl ProxyMap {
     pub(crate) fn make(
         map: Arc<Mutex<ObjectMap<self::proxy::ObjectMeta>>>,

@@ -87,7 +87,7 @@
 //! to create a `Display` on a system that does not have this library will return a `NoWaylandLib`
 //! error.
 
-#![warn(missing_docs)]
+#![warn(missing_docs, missing_debug_implementations)]
 
 #[macro_use]
 extern crate bitflags;

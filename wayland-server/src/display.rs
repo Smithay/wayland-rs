@@ -20,6 +20,12 @@ pub struct Display {
     inner: DisplayInner,
 }
 
+impl std::fmt::Debug for Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Display { ... }")
+    }
+}
+
 impl Display {
     /// Create a new display
     ///

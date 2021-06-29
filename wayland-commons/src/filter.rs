@@ -16,6 +16,12 @@ pub struct DispatchData<'a> {
     data: &'a mut dyn std::any::Any,
 }
 
+impl<'a> std::fmt::Debug for DispatchData<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("DispatchData { ... }")
+    }
+}
+
 impl<'a> DispatchData<'a> {
     /// Access the dispatch data knowing its type
     ///
@@ -65,6 +71,12 @@ type DynInner<E> = Inner<E, dyn FnMut(E, &Filter<E>, DispatchData<'_>)>;
 /// same closure. However it is not threadsafe.
 pub struct Filter<E> {
     inner: Rc<DynInner<E>>,
+}
+
+impl<E: std::fmt::Debug> std::fmt::Debug for Filter<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Filter").field("pending", &self.inner.pending).finish()
+    }
 }
 
 impl<E> Clone for Filter<E> {

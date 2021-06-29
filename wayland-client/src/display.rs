@@ -104,6 +104,12 @@ pub struct Display {
     pub(crate) inner: Arc<DisplayInner>,
 }
 
+impl std::fmt::Debug for Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Display { ... }")
+    }
+}
+
 impl Display {
     /// Attempt to connect to a wayland server using the contents of the environment variables
     ///

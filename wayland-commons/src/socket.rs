@@ -19,6 +19,7 @@ pub const MAX_BYTES_OUT: usize = 4096;
  */
 
 /// A wayland socket
+#[derive(Debug)]
 pub struct Socket {
     fd: RawFd,
 }
@@ -103,6 +104,7 @@ impl Drop for Socket {
 
 /// An adapter around a raw Socket that directly handles buffering and
 /// conversion from/to wayland messages
+#[derive(Debug)]
 pub struct BufferedSocket {
     socket: Socket,
     in_data: Buffer<u32>,
@@ -369,7 +371,7 @@ impl BufferedSocket {
 /*
  * Buffer
  */
-
+#[derive(Debug)]
 struct Buffer<T: Copy> {
     storage: Vec<T>,
     occupied: usize,

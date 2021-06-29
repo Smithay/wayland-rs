@@ -10,10 +10,12 @@ use self::list::AppendList;
 
 /// A wrapper for user data, able to store any type, and correctly
 /// handling access from a wrong thread
+#[derive(Debug)]
 pub struct UserData {
     inner: OnceCell<UserDataInner>,
 }
 
+#[derive(Debug)]
 enum UserDataInner {
     ThreadSafe(Box<dyn Any + Send + Sync + 'static>),
     NonThreadSafe(Box<ManuallyDrop<dyn Any + 'static>>, ThreadId),
@@ -57,11 +59,11 @@ impl UserData {
     ///   is attempted from an other thread than the one it was created on
     pub fn get<T: 'static>(&self) -> Option<&T> {
         match self.inner.get() {
-            Some(&UserDataInner::ThreadSafe(ref val)) => Any::downcast_ref::<T>(&**val),
+            Some(&UserDataInner::ThreadSafe(ref val)) => <dyn Any>::downcast_ref::<T>(&**val),
             Some(&UserDataInner::NonThreadSafe(ref val, threadid)) => {
                 // only give access if we are on the right thread
                 if threadid == thread::current().id() {
-                    Any::downcast_ref::<T>(&***val)
+                    <dyn Any>::downcast_ref::<T>(&***val)
                 } else {
                     None
                 }
@@ -87,6 +89,7 @@ impl Drop for UserData {
 
 /// A storage able to store several values of `UserData`
 /// of different types. It behaves similarly to a `TypeMap`.
+#[derive(Debug)]
 pub struct UserDataMap {
     list: AppendList<UserData>,
 }

@@ -12,6 +12,7 @@ use crate::{Interface, Main, Proxy};
 /// with the rust implementation.
 ///
 /// It is an empty enum that cannot be instantiated
+#[derive(Debug)]
 pub enum ProxyMap {}
 
 impl ProxyMap {
