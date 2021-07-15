@@ -4,13 +4,24 @@ use std::env::var;
 use std::path::Path;
 use wayland_scanner::*;
 
-type StableProtocol<'a> = (&'a str, &'a [(&'a str, &'a str)]);
-type UnstableProtocol<'a> = (&'a str, &'a [(&'a str, &'a [(&'a str, &'a str)])]);
+#[rustfmt::skip]
+type StableProtocol<'a> =    (&'a str,                &'a [(&'a str, &'a str)]);
+type VersionedProtocol<'a> = (&'a str, &'a [(&'a str, &'a [(&'a str, &'a str)])]);
+//                            ^        ^         ^        ^     ^        ^
+//                            |        |         |        |     |        |
+//                            Name     |         |        |     |        Name of event to specify as
+//                                     Versions  |        |     |        destructor
+//                                               Version  |     |
+//                                                        |     Interface the event is belongs to
+//                                                        |
+//                                                        Events to specify as destructors
 
 static STABLE_PROTOCOLS: &[StableProtocol] =
     &[("presentation-time", &[]), ("viewporter", &[]), ("xdg-shell", &[])];
 
-static UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
+static STAGING_PROTOCOLS: &[VersionedProtocol] = &[("xdg-activation", &[("v1", &[])])];
+
+static UNSTABLE_PROTOCOLS: &[VersionedProtocol] = &[
     ("fullscreen-shell", &[("v1", &[])]),
     ("idle-inhibit", &[("v1", &[])]),
     ("input-method", &[("v1", &[])]),
@@ -40,7 +51,7 @@ static UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
     ("xwayland-keyboard-grab", &[("v1", &[])]),
 ];
 
-static WLR_UNSTABLE_PROTOCOLS: &[UnstableProtocol] = &[
+static WLR_UNSTABLE_PROTOCOLS: &[VersionedProtocol] = &[
     ("wlr-data-control", &[("v1", &[])]),
     ("wlr-export-dmabuf", &[("v1", &[])]),
     ("wlr-foreign-toplevel-management", &[("v1", &[])]),
@@ -104,6 +115,22 @@ fn main() {
             server,
             dest_events,
         );
+    }
+
+    if var("CARGO_FEATURE_STAGING_PROTOCOLS").ok().is_some() {
+        for &(name, versions) in STAGING_PROTOCOLS {
+            for &(version, dest_events) in versions {
+                let file = format!("{name}/{name}-{version}.xml", name = name, version = version);
+                generate_protocol(
+                    &format!("{name}-{version}", name = name, version = version),
+                    &Path::new("./protocols/staging").join(&file),
+                    out_dir,
+                    client,
+                    server,
+                    dest_events,
+                );
+            }
+        }
     }
 
     for &(name, dest_events) in MISC_PROTOCOLS {
