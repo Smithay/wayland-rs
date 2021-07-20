@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+#### Additions
+
+* [protocols] Update wayland-protocols to 1.21.
+* [protocols] Add new feature to enable staging protocols.
+* [protocols] `xdg-activation-v1` is now generated under staging protocols feature.
+
+#### Protocol changes breaking the bindings
+
+A few protocols broke in the rust bindings but not in the C-api. A few of these changes to the generated bindings due
+to the protocol now properly declaring bitsets and enums include:
+* Events and Requests now taking a bitflag struct or enum instead of a raw `u32`.
+* Bitflags now properly declared as a bitflag struct vs the old method which involved some enums and converting the enums to `u32`.
+
+Effected protocols by above changes include:
+* `fullscreen-shell`
+* `linux-dmabuf-v1`
+* `pointer-constraints-v1`
+* `pointer-gestures-v1`
+* `presentation-time`
+* `text-input-v1`
+* `text-input-v3`
+
 ## 0.28.6 -- 2021-06-29
 
 #### Additions
