@@ -19,6 +19,7 @@ The provided objects are controlled by cargo features:
 
 - the `client` and `server` cargo features respectively enable the generation of client-side
   and server-side objects
+- the `staging_protocols` enable the generation of protocols in the staging process and will soon become stable.
 - the `unstable_protocols` enable the generation of not-yet-stabilized protocols
 
 If you wish for other protocols to be integrated, please open an issue on Github. Only protocols that

@@ -22,6 +22,9 @@ extern crate bitflags;
 #[macro_use]
 mod protocol_macro;
 
+#[cfg(feature = "staging_protocols")]
+pub mod staging;
+
 #[cfg(feature = "unstable_protocols")]
 pub mod unstable;
 

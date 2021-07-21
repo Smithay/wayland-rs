@@ -1,7 +1,7 @@
 //! Unstable protocols from wayland-protocols
 //!
 //! The protocols described in this module are experimental and
-//! provide no guarantee of forward support. They may be abandonned
+//! provide no guarantee of forward support. They may be abandoned
 //! or never widely implemented.
 //!
 //! Backward compatible changes may be added together with the
