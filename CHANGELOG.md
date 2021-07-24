@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.29.0 -- 2021-07-24
+
 #### Additions
 
 * [protocols] Update wayland-protocols to 1.21.
