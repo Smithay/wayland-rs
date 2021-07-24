@@ -4,7 +4,6 @@ use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;
 use std::ptr;
 
-use nix::errno::Errno;
 use nix::{Error as NixError, Result as NixResult};
 
 use smallvec::SmallVec;
@@ -361,7 +360,7 @@ pub fn dup_fd_cloexec(fd: RawFd) -> NixResult<RawFd> {
     use nix::fcntl;
     match fcntl::fcntl(fd, fcntl::FcntlArg::F_DUPFD_CLOEXEC(0)) {
         Ok(newfd) => Ok(newfd),
-        Err(NixError::Sys(Errno::EINVAL)) => {
+        Err(NixError::EINVAL) => {
             // F_DUPFD_CLOEXEC is not recognized, kernel too old, fallback
             // to setting CLOEXEC manually
             let newfd = fcntl::fcntl(fd, fcntl::FcntlArg::F_DUPFD(0))?;

@@ -61,8 +61,7 @@ impl DisplayInner {
     pub(crate) fn flush(&self) -> io::Result<()> {
         match self.connection.lock().unwrap().flush() {
             Ok(()) => Ok(()),
-            Err(::nix::Error::Sys(errno)) => Err(errno.into()),
-            Err(_) => unreachable!(),
+            Err(errno) => Err(errno.into()),
         }
     }
 

@@ -170,7 +170,7 @@ impl Connection {
                 Err(Error::Parse(e))
             }
             // non-fatal error
-            Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => Err(Error::Nix(e)),
+            Err(e @ nix::Error::EAGAIN) => Err(Error::Nix(e)),
             // fatal errors
             Err(e) => {
                 *last_error = Some(Error::Nix(e));

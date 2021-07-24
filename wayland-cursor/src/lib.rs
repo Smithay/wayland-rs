@@ -331,10 +331,9 @@ fn create_shm_fd() -> IoResult<RawFd> {
             memfd::MemFdCreateFlag::MFD_CLOEXEC,
         ) {
             Ok(fd) => return Ok(fd),
-            Err(nix::Error::Sys(Errno::EINTR)) => continue,
-            Err(nix::Error::Sys(Errno::ENOSYS)) => break,
-            Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
-            Err(err) => unreachable!(err),
+            Err(Errno::EINTR) => continue,
+            Err(Errno::ENOSYS) => break,
+            Err(errno) => return Err(errno.into()),
         }
     }
 
@@ -355,14 +354,12 @@ fn create_shm_fd() -> IoResult<RawFd> {
         ) {
             Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
                 Ok(_) => return Ok(fd),
-                Err(nix::Error::Sys(errno)) => match unistd::close(fd) {
+                Err(errno) => match unistd::close(fd) {
                     Ok(_) => return Err(IoError::from(errno)),
-                    Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
-                    Err(err) => panic!("{}", err),
+                    Err(errno) => return Err(IoError::from(errno)),
                 },
-                Err(err) => panic!("{}", err),
             },
-            Err(nix::Error::Sys(Errno::EEXIST)) => {
+            Err(Errno::EEXIST) => {
                 // If a file with that handle exists then change the handle
                 mem_file_handle = format!(
                     "/wayland-cursor-rs-{}",
@@ -370,9 +367,8 @@ fn create_shm_fd() -> IoResult<RawFd> {
                 );
                 continue;
             }
-            Err(nix::Error::Sys(Errno::EINTR)) => continue,
-            Err(nix::Error::Sys(errno)) => return Err(IoError::from(errno)),
-            Err(err) => unreachable!(err),
+            Err(Errno::EINTR) => continue,
+            Err(errno) => return Err(IoError::from(errno)),
         }
     }
 }

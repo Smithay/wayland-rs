@@ -17,7 +17,7 @@ wayland-sys = { path = "./wayland-sys" }
 [dev-dependencies]
 difference = "2.0"
 tempfile = ">=2.0, <4.0"
-nix = "0.20"
+nix = "0.22"
 
 [workspace]
 members = [

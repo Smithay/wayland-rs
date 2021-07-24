@@ -64,27 +64,25 @@ impl EventQueueInner {
             loop {
                 match conn_lock.flush() {
                     Ok(_) => break,
-                    Err(::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
+                    Err(nix::Error::EAGAIN) => {
                         // EAGAIN, we need to wait before writing, so we poll the socket
                         let poll_ret = poll(&mut [PollFd::new(socket_fd, PollFlags::POLLOUT)], -1);
                         match poll_ret {
                             Ok(_) => continue,
-                            Err(::nix::Error::Sys(e)) => {
+                            Err(e) => {
                                 self.cancel_read();
                                 return Err(e.into());
                             }
-                            Err(_) => unreachable!(),
                         }
                     }
-                    Err(::nix::Error::Sys(e)) => {
-                        if e != ::nix::errno::Errno::EPIPE {
+                    Err(e) => {
+                        if e != nix::Error::EPIPE {
                             // don't abort on EPIPE, so we can continue reading
                             // to get the protocol error
                             self.cancel_read();
                             return Err(e.into());
                         }
                     }
-                    Err(_) => unreachable!(),
                 }
             }
         }
@@ -92,11 +90,10 @@ impl EventQueueInner {
         // wait for incoming messages to arrive
         match poll(&mut [PollFd::new(socket_fd, PollFlags::POLLIN)], -1) {
             Ok(_) => (),
-            Err(::nix::Error::Sys(e)) => {
+            Err(e) => {
                 self.cancel_read();
                 return Err(e.into());
             }
-            Err(_) => unreachable!(),
         }
         let read_ret = self.read_events();
 
@@ -256,8 +253,7 @@ impl EventQueueInner {
                 eprintln!("[wayland-client] Parse error while reading events: {}", e);
                 Err(::nix::errno::Errno::EPROTO.into())
             }
-            Err(CError::Nix(::nix::Error::Sys(errno))) => Err(errno.into()),
-            Err(CError::Nix(_)) => unreachable!(),
+            Err(CError::Nix(errno)) => Err(errno.into()),
         }
     }
 

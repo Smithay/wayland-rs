@@ -73,28 +73,23 @@ impl DisplayInner {
 
         let client_mgr = self.clients_mgr.clone();
 
-        let token = self
-            .epoll_mgr
-            .register(listener.0.as_raw_fd(), move |mut data| {
-                loop {
-                    match listener.0.accept() {
-                        Ok((stream, _)) => unsafe {
-                            client_mgr
-                                .borrow_mut()
-                                .init_client(stream.into_raw_fd(), data.reborrow());
-                        },
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            // we have exhausted all the pending connections
-                            break;
-                        }
-                        Err(e) => {
-                            // this is a legitimate error
-                            listener.eprint_error(e);
-                        }
+        let token = self.epoll_mgr.register(listener.0.as_raw_fd(), move |mut data| {
+            loop {
+                match listener.0.accept() {
+                    Ok((stream, _)) => unsafe {
+                        client_mgr.borrow_mut().init_client(stream.into_raw_fd(), data.reborrow());
+                    },
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        // we have exhausted all the pending connections
+                        break;
+                    }
+                    Err(e) => {
+                        // this is a legitimate error
+                        listener.eprint_error(e);
                     }
                 }
-            })
-            .map_err(|e| std::io::Error::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))?;
+            }
+        })?;
 
         self.listeners.push(token);
         Ok(())
@@ -156,9 +151,8 @@ impl DisplayInner {
         timeout: i32,
         data: crate::DispatchData,
     ) -> std::io::Result<()> {
-        self.epoll_mgr
-            .poll(timeout, data)
-            .map_err(|e| From::from(e.as_errno().unwrap_or(nix::errno::Errno::EINVAL)))
+        self.epoll_mgr.poll(timeout, data)?;
+        Ok(())
     }
 
     pub(crate) fn get_poll_fd(&self) -> RawFd {
