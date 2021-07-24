@@ -58,8 +58,12 @@ impl Socket {
         let mut cmsg = cmsg_space!([RawFd; MAX_FDS_OUT]);
         let iov = [uio::IoVec::from_mut_slice(buffer)];
 
-        let msg =
-            socket::recvmsg(self.fd, &iov[..], Some(&mut cmsg), socket::MsgFlags::MSG_DONTWAIT)?;
+        let msg = socket::recvmsg(
+            self.fd,
+            &iov[..],
+            Some(&mut cmsg),
+            socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_CMSG_CLOEXEC,
+        )?;
 
         let mut fd_count = 0;
         let received_fds = msg.cmsgs().flat_map(|cmsg| match cmsg {
