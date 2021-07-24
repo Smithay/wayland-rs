@@ -40,7 +40,7 @@ fn client_wrong_id() {
 
     // server should have killed us due to the error, but it might send us that error first
     let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    assert_eq!(err, Err(nix::Error::EPIPE));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn client_wrong_opcode() {
 
     // server should have killed us due to the error, but it might send us that error first
     let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    assert_eq!(err, Err(nix::Error::EPIPE));
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn client_wrong_sender() {
 
     // server should have killed us due to the error, but it might send us that error first
     let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::Sys(nix::errno::Errno::EPIPE)));
+    assert_eq!(err, Err(nix::Error::EPIPE));
 }
 
 #[test]

@@ -542,7 +542,7 @@ impl ClientImplementation {
             };
 
             let msg = match ret {
-                Ok(None) | Err(Error::Nix(::nix::Error::Sys(::nix::errno::Errno::EAGAIN))) => {
+                Ok(None) | Err(Error::Nix(::nix::Error::EAGAIN)) => {
                     // Nothing more to read.
                     return;
                 }

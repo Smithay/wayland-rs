@@ -195,7 +195,7 @@ impl BufferedSocket {
             if !self.attempt_write_message(msg)? {
                 // If this fails again, this means the message is too big
                 // to be transmitted at all
-                return Err(::nix::Error::Sys(::nix::errno::Errno::E2BIG));
+                return Err(::nix::Error::E2BIG);
             }
         }
         Ok(())
@@ -222,7 +222,7 @@ impl BufferedSocket {
         };
         if in_bytes == 0 {
             // the other end of the socket was closed
-            return Err(::nix::Error::Sys(::nix::errno::Errno::EPIPE));
+            return Err(::nix::Error::EPIPE);
         }
         // advance the storage
         self.in_data.advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
@@ -351,7 +351,7 @@ impl BufferedSocket {
             // now, try to get more data
             match self.fill_incoming_buffers() {
                 Ok(()) => (),
-                Err(e @ ::nix::Error::Sys(::nix::errno::Errno::EAGAIN)) => {
+                Err(e @ ::nix::Error::EAGAIN) => {
                     // stop looping, returning Ok() or EAGAIN depending on whether messages
                     // were dispatched
                     if dispatched == 0 {
