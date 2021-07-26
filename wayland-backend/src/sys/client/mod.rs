@@ -11,10 +11,9 @@ use std::{
 use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
     protocol::{
-        AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo, ProtocolError,
-        ANONYMOUS_INTERFACE,
+        check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
+        ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
     },
-    types::{check_for_signature, same_interface},
 };
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
@@ -58,6 +57,10 @@ unsafe impl Send for ObjectId {}
 impl ObjectId {
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
+    }
+
+    pub fn interface(&self) -> &'static Interface {
+        self.interface
     }
 }
 

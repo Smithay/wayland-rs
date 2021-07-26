@@ -1,4 +1,3 @@
-#[doc(hidden)]
 pub extern crate smallvec;
 
 #[macro_export]

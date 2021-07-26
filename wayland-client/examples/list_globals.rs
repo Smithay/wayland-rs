@@ -1,29 +1,49 @@
-extern crate wayland_client;
+use std::sync::{atomic::AtomicBool, Arc};
 
-use wayland_client::{Display, GlobalManager};
-
-// A minimal example printing the list of globals advertised by the server and
-// then exiting
+use wayland_client::{
+    backend::WaylandError,
+    convert_event,
+    protocol::{wl_callback, wl_display, wl_registry},
+    proxy_internals::ProxyData,
+    Connection,
+};
 
 fn main() {
-    // Connect to the server
-    let display = Display::connect_to_env().unwrap();
+    let cx = Connection::connect_to_env().unwrap();
 
-    let mut event_queue = display.create_event_queue();
+    let display = cx.handle().display();
 
-    let attached_display = (*display).clone().attach(event_queue.token());
+    let registry_data = Some(Arc::new(ProxyData::new(Arc::new(|_handle, msg| {
+        let (_registry, event) = convert_event!(msg; wl_registry::WlRegistry).unwrap();
+        eprintln!("{:?}", event);
+    }))));
 
-    // We use the GlobalManager convenience provided by the crate, it covers
-    // most classic use cases and avoids us the trouble to manually implement
-    // the registry
-    let globals = GlobalManager::new(&attached_display);
+    cx.handle().send_request(&display, wl_display::Request::GetRegistry {}, registry_data).unwrap();
 
-    // A roundtrip synchronization to make sure the server received our registry
-    // creation and sent us the global list
-    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
+    let done = Arc::new(AtomicBool::new(false));
+    let done2 = done.clone();
 
-    // Print the list
-    for (id, interface, version) in globals.list() {
-        println!("{}: {} (version {})", id, interface, version);
+    let callback_data = Some(Arc::new(ProxyData::new(Arc::new(move |_handle, msg| {
+        let (_callback, event) = convert_event!(msg; wl_callback::WlCallback).unwrap();
+        eprintln!("{:?}", event);
+        done2.store(true, std::sync::atomic::Ordering::SeqCst);
+    }))));
+
+    cx.handle().send_request(&display, wl_display::Request::Sync {}, callback_data).unwrap();
+
+    cx.flush().unwrap();
+
+    while !done.load(std::sync::atomic::Ordering::SeqCst) {
+        match cx.dispatch_events() {
+            Ok(_) => {}
+            Err(WaylandError::Protocol(e)) => panic!("Protocol error: {:?}", e),
+            Err(WaylandError::Io(e)) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    continue;
+                } else {
+                    panic!("IO error: {:?}", e);
+                }
+            }
+        }
     }
 }
