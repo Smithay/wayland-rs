@@ -18,7 +18,7 @@ pub fn generate(protocol: &Protocol, with_c_interfaces: bool) -> TokenStream {
     }
 }
 
-fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
+pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
     let const_name = Ident::new(
         &format!("{}_INTERFACE", interface.name.to_ascii_uppercase()),
         Span::call_site(),

@@ -1,4 +1,4 @@
-use super::Interface;
+use crate::protocol::Interface;
 
 pub struct GlobalInfo {
     pub interface: &'static Interface,

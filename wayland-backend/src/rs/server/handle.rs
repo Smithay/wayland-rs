@@ -2,11 +2,8 @@ use std::{ffi::CString, sync::Arc};
 
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    protocol::{Argument, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE},
-    types::{
-        same_interface,
-        server::{DisconnectReason, GlobalInfo, InvalidId},
-    },
+    protocol::{same_interface, Argument, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE},
+    types::server::{DisconnectReason, GlobalInfo, InvalidId},
 };
 use smallvec::SmallVec;
 
