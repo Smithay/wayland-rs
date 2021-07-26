@@ -103,6 +103,12 @@ pub struct Interface {
     pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,
 }
 
+impl std::fmt::Display for Interface {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name)
+    }
+}
+
 /// Wire metadata of a given message
 #[derive(Copy, Clone, Debug)]
 pub struct MessageDesc {
@@ -170,5 +176,52 @@ impl std::fmt::Display for ProtocolError {
             "Protocol error {} on object {}@{}: {}",
             self.code, self.object_interface, self.object_id, self.message
         )
+    }
+}
+
+#[inline]
+pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
+    a as *const Interface == b as *const Interface || a.name == b.name
+}
+
+pub(crate) fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {
+    if signature.len() != args.len() {
+        return false;
+    }
+    for (typ, arg) in signature.iter().copied().zip(args.iter()) {
+        if !arg.get_type().same_type(typ) {
+            return false;
+        }
+    }
+    true
+}
+
+#[inline]
+#[allow(dead_code)]
+pub(crate) fn same_interface_or_anonymous(a: &'static Interface, b: &'static Interface) -> bool {
+    same_interface(a, b) || same_interface(a, &ANONYMOUS_INTERFACE)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WEnum<T> {
+    Value(T),
+    Unknown(u32),
+}
+
+impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
+    fn from(v: u32) -> WEnum<T> {
+        match T::try_from(v) {
+            Ok(t) => WEnum::Value(t),
+            Err(_) => WEnum::Unknown(v),
+        }
+    }
+}
+
+impl<T: Into<u32>> From<WEnum<T>> for u32 {
+    fn from(enu: WEnum<T>) -> u32 {
+        match enu {
+            WEnum::Unknown(u) => u,
+            WEnum::Value(t) => t.into(),
+        }
     }
 }

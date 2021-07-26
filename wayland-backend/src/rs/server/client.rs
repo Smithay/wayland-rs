@@ -10,13 +10,11 @@ use std::{
 use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     protocol::{
-        AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo, ProtocolError,
-        ANONYMOUS_INTERFACE, INLINE_ARGS,
+        check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
+        ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+        INLINE_ARGS,
     },
-    types::{
-        check_for_signature, same_interface, same_interface_or_anonymous,
-        server::{DisconnectReason, InvalidId},
-    },
+    types::server::{DisconnectReason, InvalidId},
 };
 
 use smallvec::SmallVec;

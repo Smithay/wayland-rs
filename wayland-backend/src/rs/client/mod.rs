@@ -10,10 +10,10 @@ use std::{
 use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
     protocol::{
-        AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo, ProtocolError,
-        ANONYMOUS_INTERFACE, INLINE_ARGS,
+        check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
+        ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+        INLINE_ARGS,
     },
-    types::{check_for_signature, same_interface, same_interface_or_anonymous},
 };
 use smallvec::SmallVec;
 
@@ -52,7 +52,7 @@ struct Data {
     serial: u32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectId {
     serial: u32,
     id: u32,
@@ -68,6 +68,10 @@ impl fmt::Display for ObjectId {
 impl ObjectId {
     pub fn is_null(&self) -> bool {
         self.id == 0
+    }
+
+    pub fn interface(&self) -> &'static Interface {
+        self.interface
     }
 }
 
@@ -147,8 +151,10 @@ impl Backend {
                 Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
                     // need to read more data
                     if let Err(e) = self.handle.socket.fill_incoming_buffers() {
-                        if e.kind() != std::io::ErrorKind::WouldBlock || dispatched == 0 {
+                        if e.kind() != std::io::ErrorKind::WouldBlock {
                             return Err(self.handle.store_and_return_error(e));
+                        } else if dispatched == 0 {
+                            return Err(e.into());
                         } else {
                             break;
                         }
@@ -344,7 +350,7 @@ impl Handle {
     }
 
     pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        let object = self.get_object(id)?;
+        let object = self.get_object(id.clone())?;
         Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
     }
 
@@ -366,7 +372,7 @@ impl Handle {
         Message { sender_id: id, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
-        let object = self.get_object(id)?;
+        let object = self.get_object(id.clone())?;
         if object.data.client_destroyed {
             return Err(InvalidId);
         }
@@ -485,7 +491,7 @@ impl Handle {
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
                     if o.id != 0 {
-                        let object = self.get_object(o)?;
+                        let object = self.get_object(o.clone())?;
                         let next_interface = arg_interfaces.next().unwrap();
                         if !same_interface_or_anonymous(next_interface, object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);

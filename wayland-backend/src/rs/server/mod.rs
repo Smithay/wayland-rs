@@ -1,7 +1,6 @@
 use std::{fmt, sync::Arc};
 
-use crate::protocol::{Interface, Message, ObjectInfo};
-use crate::types::same_interface;
+use crate::protocol::{same_interface, Interface, Message, ObjectInfo};
 
 mod client;
 mod common_poll;
@@ -88,6 +87,10 @@ pub struct ObjectId {
 impl ObjectId {
     pub fn is_null(&self) -> bool {
         self.id == 0
+    }
+
+    pub fn interface(&self) -> &'static Interface {
+        self.interface
     }
 }
 
