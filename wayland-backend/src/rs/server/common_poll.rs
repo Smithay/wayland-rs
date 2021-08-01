@@ -153,7 +153,7 @@ impl<D> Backend<D> {
                 0,
             ); 32];
 
-            let nevents = kevent(self.poll_fd, &[], &mut events, 0).map_err(nix_to_io)?;
+            let nevents = kevent(self.poll_fd, &[], &mut events, 0)?;
 
             if nevents == 0 {
                 break;

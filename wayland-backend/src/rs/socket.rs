@@ -58,9 +58,10 @@ impl Socket {
         let iov = [uio::IoVec::from_mut_slice(buffer)];
 
         let msg = socket::recvmsg(
-            self.fd, &iov[..],
+            self.fd,
+            &iov[..],
             Some(&mut cmsg),
-            socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_CMSG_CLOEXEC
+            socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_CMSG_CLOEXEC,
         )?;
 
         let mut fd_count = 0;
