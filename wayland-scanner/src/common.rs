@@ -217,7 +217,7 @@ pub(crate) fn gen_message_enum(
                             if arg.interface.is_some() {
                                 return None;
                             } else {
-                                quote!((String, u32))
+                                quote!((&'static Interface, u32))
                             }
                         }
                         Type::NewId => {

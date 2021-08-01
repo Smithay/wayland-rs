@@ -8,7 +8,7 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, Handle, InvalidId, ObjectData, ObjectId, WaylandError},
-    protocol::Interface,
+    protocol::{Interface, ObjectInfo},
 };
 
 use nix::fcntl;
@@ -107,12 +107,13 @@ impl<'a> ConnectionHandle<'a> {
         request: I::Request,
         data: Option<Arc<ProxyData>>,
     ) -> Result<ObjectId, InvalidId> {
-        let msg = proxy.write_request(self, request);
+        let msg = proxy.write_request(self, request)?;
         self.inner.handle().send_request(msg, data.map(|arc| arc as Arc<dyn ObjectData>))
     }
 
     pub fn display(&mut self) -> crate::protocol::wl_display::WlDisplay {
-        Proxy::from_id(self.inner.handle().display_id()).unwrap()
+        let display_id = self.inner.handle().display_id();
+        Proxy::from_id(self, display_id).unwrap()
     }
 
     pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
@@ -121,6 +122,14 @@ impl<'a> ConnectionHandle<'a> {
 
     pub fn null_id(&mut self) -> ObjectId {
         self.inner.handle().null_id()
+    }
+
+    pub fn get_proxy_data(&mut self, id: ObjectId) -> Result<Arc<ProxyData>, InvalidId> {
+        self.inner.handle().get_data(id)?.downcast_arc().map_err(|_| InvalidId)
+    }
+
+    pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.inner.handle().info(id)
     }
 }
 

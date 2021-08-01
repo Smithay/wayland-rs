@@ -46,11 +46,19 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
     let parse_body = gen_parse_body(interface);
     let write_body = gen_write_body(interface);
+    let methods = gen_methods(interface);
 
     quote! {
         #mod_doc
         pub mod #mod_name {
-            use super::wayland_client::{backend::{smallvec, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}}, Proxy, ConnectionHandle};
+            use std::sync::Arc;
+
+            use super::wayland_client::{
+                backend::{smallvec, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
+                proxy_internals::ProxyData,
+                Proxy, ConnectionHandle,
+            };
+
             #enums
             #sinces
             #requests
@@ -58,7 +66,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             #[derive(Debug, Clone)]
             pub struct #iface_name {
-                id: ObjectId
+                id: ObjectId,
+                data: Option<Arc<ProxyData>>,
             }
 
             impl super::wayland_client::Proxy for #iface_name {
@@ -76,21 +85,31 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn from_id(id: ObjectId) -> Result<Self, InvalidId> {
+                fn data(&self) -> Option<&Arc<ProxyData>> {
+                    self.data.as_ref()
+                }
+
+                #[inline]
+                fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
                     if same_interface(id.interface(), Self::interface()) {
-                        Ok(#iface_name { id })
+                        let data = cx.get_proxy_data(id.clone()).ok();
+                        Ok(#iface_name { id, data })
                     } else {
                         Err(InvalidId)
                     }
                 }
 
-                fn parse_event(msg: Message<ObjectId>) -> Result<(Self, Self::Event), Message<ObjectId>> {
+                fn parse_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), Message<ObjectId>> {
                     #parse_body
                 }
 
-                fn write_request(&self, cx: &mut ConnectionHandle, request: Self::Request) -> Message<ObjectId> {
+                fn write_request(&self, cx: &mut ConnectionHandle, request: Self::Request) -> Result<Message<ObjectId>, InvalidId> {
                     #write_body
                 }
+            }
+
+            impl #iface_name {
+                #methods
             }
         }
     }
@@ -150,7 +169,7 @@ fn gen_parse_body(interface: &Interface) -> TokenStream {
                     Type::Object | Type::NewId => {
                         let create_proxy = if arg.interface.is_some() {
                             quote! {
-                                match Proxy::from_id(#arg_name.clone()) {
+                                match Proxy::from_id(cx, #arg_name.clone()) {
                                     Ok(p) => p,
                                     Err(_) => return Err(msg),
                                 }
@@ -192,7 +211,7 @@ fn gen_parse_body(interface: &Interface) -> TokenStream {
     });
 
     quote! {
-        let me = match Self::from_id(msg.sender_id.clone()) {
+        let me = match Self::from_id(cx, msg.sender_id.clone()) {
             Ok(me) => me,
             Err(_) => return Err(msg),
         };
@@ -243,22 +262,32 @@ fn gen_write_body(interface: &Interface) -> TokenStream {
                 } else {
                     quote! { Argument::Str(Box::new(std::ffi::CString::new(#arg_name).unwrap())) }
                 },
-                Type::NewId => if arg.interface.is_some() {
-                    quote! { Argument::NewId(cx.placeholder_id(None)) }
+                Type::NewId => if let Some(ref created_interface) = arg.interface {
+                    let created_iface_mod = Ident::new(created_interface, Span::call_site());
+                    let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
+                    quote! { {
+                        let my_info = cx.object_info(self.id())?;
+                        let placeholder = cx.placeholder_id(Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version)));
+                        Argument::NewId(placeholder)
+                    } }
                 } else {
-                    quote! { Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0).unwrap())), Argument::Uint(#arg_name.1), Argument::NewId(cx.placeholder_id(None)) }
+                    quote! {
+                        Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())),
+                        Argument::Uint(#arg_name.1),
+                        Argument::NewId(cx.placeholder_id(Some((#arg_name.0, #arg_name.1))))
+                    }
                 },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });
         quote! {
-            Request::#msg_name { #(#arg_names),* } => Message {
+            Request::#msg_name { #(#arg_names),* } => Ok(Message {
                 sender_id: self.id.clone(),
                 opcode: #opcode,
                 args: smallvec::smallvec![
                     #(#args),*
                 ]
-            }
+            })
         }
     });
     quote! {
@@ -266,4 +295,128 @@ fn gen_write_body(interface: &Interface) -> TokenStream {
             #(#arms),*
         }
     }
+}
+
+fn gen_methods(interface: &Interface) -> TokenStream {
+    interface.requests.iter().map(|request| {
+        let created_interface = request.args.iter().find(|arg| arg.typ == Type::NewId).map(|arg| &arg.interface);
+
+        let method_name = Ident::new(
+            &format!("{}{}", if is_keyword(&request.name) { "_" } else { "" }, request.name),
+            Span::call_site(),
+        );
+        let enum_variant = Ident::new(&snake_to_camel(&request.name), Span::call_site());
+
+        let fn_args = request.args.iter().flat_map(|arg| {
+            if arg.typ == Type::NewId {
+                if arg.interface.is_none() {
+                    // the new_id argument of a bind-like method
+                    // it shoudl expand as a (interface, type) tuple, but the type is already handled by
+                    // the prototype type parameter, so just put a version here
+                    return Some(quote! { version: u32 });
+                } else {
+                    // this is a regular new_id, skip it
+                    return None;
+                }
+            }
+
+            let arg_name = Ident::new(
+                &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                Span::call_site(),
+            );
+
+            let arg_type =  if let Some(ref enu) = arg.enum_ {
+                let enum_type = dotted_to_relname(enu);
+                quote! { WEnum<#enum_type> }
+            } else {
+                match arg.typ {
+                    Type::Uint => quote!(u32),
+                    Type::Int => quote!(i32),
+                    Type::Fixed => quote!(f64),
+                    Type::String => if arg.allow_null { quote!{ Option<String> } } else { quote!{ String } },
+                    Type::Array => if arg.allow_null { quote!{ Option<Vec<u8>> } } else { quote!{ Vec<u8> } },
+                    Type::Fd => quote!(::std::os::unix::io::RawFd),
+                    Type::Object => {
+                        let iface = arg.interface.as_ref().unwrap();
+                        let iface_mod = Ident::new(&iface, Span::call_site());
+                        let iface_type =
+                            Ident::new(&snake_to_camel(iface), Span::call_site());
+                        if arg.allow_null { quote! { Option<super::#iface_mod::#iface_type> } } else { quote! { super::#iface_mod::#iface_type } }
+                    },
+                    Type::NewId => unreachable!(),
+                    Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+                }
+            };
+
+            Some(quote! {
+                #arg_name: #arg_type
+            })
+        });
+
+        let enum_args = request.args.iter().flat_map(|arg| {
+            let arg_name = Ident::new(
+                &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
+                Span::call_site(),
+            );
+            if arg.typ == Type::NewId {
+                if arg.interface.is_none() {
+                    Some(quote! { #arg_name: (I::interface(), version) })
+                } else {
+                    None
+                }
+            } else {
+                Some(quote! { #arg_name })
+            }
+        });
+
+        match created_interface {
+            Some(Some(ref created_interface)) => {
+                // a regular creating request
+                let created_iface_mod = Ident::new(created_interface, Span::call_site());
+                let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
+                quote! {
+                    pub fn #method_name(&self, cx: &mut ConnectionHandle, #(#fn_args,)* data: Option<Arc<ProxyData>>) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                        let ret = cx.send_request(
+                            self,
+                            Request::#enum_variant {
+                                #(#enum_args),*
+                            },
+                            data
+                        )?;
+                        Proxy::from_id(cx, ret)
+                    }
+                }
+            },
+            Some(None) => {
+                // a bind-like request
+                quote! {
+                    pub fn #method_name<I: Proxy>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* data: Option<Arc<ProxyData>>) -> Result<I, InvalidId> {
+                        let placeholder = cx.placeholder_id(Some((I::interface(), version)));
+                        let ret = cx.send_request(
+                            self,
+                            Request::#enum_variant {
+                                #(#enum_args),*
+                            },
+                            data
+                        )?;
+                        Proxy::from_id(cx, ret)
+                    }
+                }
+            },
+            None => {
+                // a non-creating request
+                quote! {
+                    pub fn #method_name(&self, cx: &mut ConnectionHandle, #(#fn_args),*) {
+                        let _ = cx.send_request(
+                            self,
+                            Request::#enum_variant {
+                                #(#enum_args),*
+                            },
+                            None
+                        );
+                    }
+                }
+            }
+        }
+    }).collect()
 }

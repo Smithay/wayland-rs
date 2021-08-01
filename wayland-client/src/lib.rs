@@ -29,11 +29,34 @@ pub trait Proxy: Sized {
 
     fn id(&self) -> ObjectId;
 
-    fn from_id(id: ObjectId) -> Result<Self, InvalidId>;
+    fn data(&self) -> Option<&std::sync::Arc<proxy_internals::ProxyData>>;
 
-    fn parse_event(msg: Message<ObjectId>) -> Result<(Self, Self::Event), Message<ObjectId>>;
+    fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId>;
 
-    fn write_request(&self, cx: &mut ConnectionHandle, req: Self::Request) -> Message<ObjectId>;
+    fn parse_event(
+        cx: &mut ConnectionHandle,
+        msg: Message<ObjectId>,
+    ) -> Result<(Self, Self::Event), Message<ObjectId>>;
+
+    fn write_request(
+        &self,
+        cx: &mut ConnectionHandle,
+        req: Self::Request,
+    ) -> Result<Message<ObjectId>, InvalidId>;
+
+    #[inline]
+    fn init_user_data<T: 'static + Send + Sync>(
+        &self,
+        f: impl FnOnce() -> T,
+    ) -> Result<(), InvalidId> {
+        self.data().ok_or(InvalidId)?.init_user_data(|| Box::new(f()));
+        Ok(())
+    }
+
+    #[inline]
+    fn get_user_data<T: 'static>(&self) -> Option<&T> {
+        self.data()?.get_user_data()?.downcast_ref()
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
