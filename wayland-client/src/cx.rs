@@ -1,9 +1,13 @@
 use std::{
     env,
+    io::ErrorKind,
     os::unix::net::UnixStream,
     os::unix::prelude::FromRawFd,
     path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
 };
 
 use wayland_backend::{
@@ -11,9 +15,9 @@ use wayland_backend::{
     protocol::{Interface, ObjectInfo},
 };
 
-use nix::fcntl;
+use nix::{fcntl, Error};
 
-use crate::{proxy_internals::ProxyData, Proxy};
+use crate::{oneshot_sink, proxy_internals::ProxyData, Proxy};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -74,6 +78,68 @@ impl Connection {
 
     pub fn dispatch_events(&self) -> Result<usize, WaylandError> {
         self.backend.lock().unwrap().dispatch_events()
+    }
+
+    pub fn blocking_dispatch(&self) -> Result<usize, WaylandError> {
+        blocking_dispatch_impl(&mut self.backend.lock().unwrap())
+    }
+
+    pub fn roundtrip(&self) -> Result<usize, WaylandError> {
+        let mut backend = self.backend.lock().unwrap();
+        let done = Arc::new(AtomicBool::new(false));
+        {
+            let mut handle = ConnectionHandle::from_handle(backend.handle());
+            let display = handle.display();
+            let cb_done = done.clone();
+            let sync_data =
+                oneshot_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _| {
+                    cb_done.store(true, Ordering::Release);
+                });
+            display
+                .sync(&mut handle, Some(sync_data))
+                .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
+        }
+
+        let mut dispatched = 0;
+
+        while !done.load(Ordering::Acquire) {
+            dispatched += blocking_dispatch_impl(&mut backend)?;
+        }
+
+        Ok(dispatched)
+    }
+}
+
+fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, WaylandError> {
+    backend.flush()?;
+
+    // first, try to dispatch
+    match backend.dispatch_events() {
+        Ok(n) => return Ok(n),
+        Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => {}
+        Err(e) => return Err(e),
+    }
+
+    // there is nothing to dispatch, wait for readiness
+    loop {
+        let mut fds = [nix::poll::PollFd::new(
+            backend.connection_fd(),
+            nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
+        )];
+        match nix::poll::poll(&mut fds, -1) {
+            Ok(_) => break,
+            Err(nix::errno::Errno::EINTR) => continue,
+            Err(e) => return Err(WaylandError::Io(e.into())),
+        }
+    }
+
+    // at this point the fd is ready
+    match backend.dispatch_events() {
+        Ok(n) => Ok(n),
+        // if we are still "wouldblock", that means that there was a dispatch from an other
+        // thread with the C-based backend, spuriously return 0.
+        Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => Ok(0),
+        Err(e) => Err(e),
     }
 }
 
