@@ -52,10 +52,10 @@ impl ObjectData for ProxyData {
 macro_rules! convert_event {
     ($cx: expr, $msg:expr ; $target_iface:ty) => {{
         let msg = $msg;
-        let cx: &'_ mut $crate::ConnectionHandle = $cx;
+        let __cx: &'_ mut $crate::ConnectionHandle = $cx;
         let sender_iface = msg.sender_id.interface();
         if $crate::backend::protocol::same_interface(sender_iface, <$target_iface as $crate::Proxy>::interface()) {
-            <$target_iface as $crate::Proxy>::parse_event(cx, msg)
+            <$target_iface as $crate::Proxy>::parse_event(__cx, msg)
                     .map_err(|msg| $crate::DispatchError::BadMessage { msg, interface: sender_iface })
         } else {
             Err($crate::DispatchError::NoHandler { msg, interface: sender_iface })
@@ -63,11 +63,11 @@ macro_rules! convert_event {
     }};
     ($msg:expr ; $($target_iface:ty => $convert_closure:expr),* ,?) => {{
         let msg = $msg;
-        let sender_iface = msg.sender.interface();
+        let sender_iface = __msg.sender.interface();
         match () {
             $(
                 () if $crate::backend::protocol::same_interface(sender_iface, <$target_iface as $crate::Proxy>::interface()) => {
-                    <$target_iface as $crate::Proxy>::parse_event(cx, msg)
+                    <$target_iface as $crate::Proxy>::parse_event(__cx, msg)
                         .map($convert_closure)
                         .map_err(|msg| $crate::DispatchError::BadMessage { msg, interface: sender_iface })
                 },
@@ -75,4 +75,18 @@ macro_rules! convert_event {
             () => Err($crate::DispatchError::NoHandler { msg, interface: sender_iface })
         }
     }};
+}
+
+#[macro_export]
+macro_rules! oneshot_sink {
+    ($target_iface:ty, $callback_body:expr) => {{
+        #[inline(always)]
+        fn check_type<F: Fn(&mut $crate::ConnectionHandle, $target_iface, <$target_iface as $crate::Proxy>::Event)>(f: F) -> F { f }
+        let callback_body = check_type($callback_body);
+        $crate::proxy_internals::ProxyData::new(Arc::new(move |cx, msg| {
+            let (proxy, event) = $crate::convert_event!(&mut *cx, msg; $target_iface).expect("Unexpected event received in oneshot_sink!");
+
+            callback_body(cx, proxy, event)
+        }))
+    }}
 }
