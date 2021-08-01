@@ -10,16 +10,22 @@ use wayland_backend::{
 use crate::ConnectionHandle;
 
 #[allow(type_alias_bounds)]
-pub(crate) type EventSink = dyn for<'a> Fn(ConnectionHandle<'a>, Message<ObjectId>) + Send + Sync;
+pub(crate) type EventSink = dyn Fn(&'_ mut ConnectionHandle<'_>, Message<ObjectId>) + Send + Sync;
 
 pub struct ProxyData {
     sink: Arc<EventSink>,
     udata: OnceCell<Box<dyn Any + Send + Sync>>,
 }
 
+impl std::fmt::Debug for ProxyData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ProxyData { .. }")
+    }
+}
+
 impl ProxyData {
-    pub fn new(sink: Arc<EventSink>) -> ProxyData {
-        ProxyData { sink, udata: OnceCell::new() }
+    pub fn new(sink: Arc<EventSink>) -> Arc<ProxyData> {
+        Arc::new(ProxyData { sink, udata: OnceCell::new() })
     }
 
     pub fn init_user_data(&self, f: impl FnOnce() -> Box<dyn Any + Send + Sync>) {
@@ -33,22 +39,23 @@ impl ProxyData {
 
 impl ObjectData for ProxyData {
     fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        Arc::new(ProxyData::new(self.sink.clone()))
+        ProxyData::new(self.sink.clone())
     }
     fn event(&self, handle: &mut Handle, msg: Message<ObjectId>) {
-        let cx = ConnectionHandle::from_handle(handle);
-        (self.sink)(cx, msg)
+        let mut cx = ConnectionHandle::from_handle(handle);
+        (self.sink)(&mut cx, msg)
     }
     fn destroyed(&self, _object_id: ObjectId) {}
 }
 
 #[macro_export]
 macro_rules! convert_event {
-    ($msg:expr ; $target_iface:ty) => {{
+    ($cx: expr, $msg:expr ; $target_iface:ty) => {{
         let msg = $msg;
+        let cx: &'_ mut $crate::ConnectionHandle = $cx;
         let sender_iface = msg.sender_id.interface();
         if $crate::backend::protocol::same_interface(sender_iface, <$target_iface as $crate::Proxy>::interface()) {
-            <$target_iface as $crate::Proxy>::parse_event(msg)
+            <$target_iface as $crate::Proxy>::parse_event(cx, msg)
                     .map_err(|msg| $crate::DispatchError::BadMessage { msg, interface: sender_iface })
         } else {
             Err($crate::DispatchError::NoHandler { msg, interface: sender_iface })
@@ -60,7 +67,7 @@ macro_rules! convert_event {
         match () {
             $(
                 () if $crate::backend::protocol::same_interface(sender_iface, <$target_iface as $crate::Proxy>::interface()) => {
-                    <$target_iface as $crate::Proxy>::parse_event(msg)
+                    <$target_iface as $crate::Proxy>::parse_event(cx, msg)
                         .map($convert_closure)
                         .map_err(|msg| $crate::DispatchError::BadMessage { msg, interface: sender_iface })
                 },
