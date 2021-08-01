@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.29.1"
+version = "0.30.0-dev"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 wayland-backend = { version = "0.1", path = "../wayland-backend" }
-wayland-scanner = { version = "0.29.1", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.30.0-dev", path = "../wayland-scanner" }
 bitflags = "1.2"
 once_cell = "1.0"
 thiserror = "1.0"
