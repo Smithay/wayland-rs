@@ -98,8 +98,23 @@ fn client_credentials() {
     let server_client = server_client.lock().unwrap().take().unwrap();
     let credentials = server_client.credentials();
     assert!(credentials.is_some());
+    assert_credentials(credentials.unwrap());
+}
 
-    let credentials = credentials.unwrap();
-
+#[cfg(any(not(feature = "server_native"), not(target_os = "freebsd")))]
+fn assert_credentials(credentials: ways::Credentials) {
     assert!(credentials.pid != 0);
+}
+
+#[cfg(all(feature = "server_native", target_os = "freebsd"))]
+fn assert_credentials(_credentials: ways::Credentials) {
+    // The current implementation of wl_client_get_credentials
+    // will always return pid == 0 on freebsd
+    // On recent versions this has been fixed with a freebsd
+    // specific patch. Detecting if a patched version is used
+    // is too complicated and this assert would just test the
+    // native wayland-server library. So the assert is a no-op
+    // for now.
+    //
+    // see: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=246189
 }
