@@ -9,7 +9,7 @@ use wayland_commons::ThreadGuard;
 use wayland_sys::server::*;
 
 use super::resource::ResourceInner;
-use crate::{DispatchData, Interface, Resource, UserDataMap};
+use crate::{client::Credentials, DispatchData, Interface, Resource, UserDataMap};
 
 type BoxedDest = Box<dyn FnMut(Arc<UserDataMap>, DispatchData<'_>) + 'static>;
 
@@ -97,6 +97,26 @@ impl ClientInner {
         let _c_safety_guard = super::C_SAFETY.lock();
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_destroy, self.ptr);
+        }
+    }
+
+    pub(crate) fn credentials(&self) -> Option<Credentials> {
+        if !self.alive() {
+            return None;
+        }
+        let _c_safety_guard = super::C_SAFETY.lock();
+        unsafe {
+            let mut credentials = Credentials { pid: 0, uid: 0, gid: 0 };
+
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_client_get_credentials,
+                self.ptr,
+                &mut credentials.pid,
+                &mut credentials.uid,
+                &mut credentials.gid
+            );
+            Some(credentials)
         }
     }
 

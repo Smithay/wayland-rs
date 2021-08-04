@@ -14,7 +14,7 @@ use wayland_commons::socket::{BufferedSocket, Socket};
 use wayland_commons::wire::{Argument, ArgumentType, Message, MessageDesc, MessageParseError};
 use wayland_commons::{smallvec, ThreadGuard};
 
-use crate::{DispatchData, Interface, UserDataMap};
+use crate::{client::Credentials, DispatchData, Interface, UserDataMap};
 
 use super::event_loop_glue::{FdManager, Token};
 use super::globals::GlobalManager;
@@ -238,6 +238,18 @@ impl ClientInner {
             // call all objects destructors
             let zombies = clientconn.zombie_clients.clone();
             zombies.lock().unwrap().push(clientconn);
+        }
+    }
+
+    pub(crate) fn credentials(&self) -> Option<Credentials> {
+        if let Some(ref mut cx) = *self.data.lock().unwrap() {
+            cx.socket
+                .get_socket()
+                .opt(nix::sys::socket::sockopt::PeerCredentials)
+                .ok()
+                .map(Credentials::from)
+        } else {
+            None
         }
     }
 

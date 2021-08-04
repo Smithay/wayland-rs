@@ -71,3 +71,35 @@ fn client_user_data() {
     assert!(clients[1].data_map().get::<HasCompositor>().is_some());
     assert!(clients[1].data_map().get::<HasOutput>().is_some());
 }
+
+#[test]
+fn client_credentials() {
+    let mut server = TestServer::new();
+
+    let server_client = Arc::new(Mutex::new(None));
+
+    server.display.create_global::<wl_output::WlOutput, _>(1, {
+        let server_client = server_client.clone();
+        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
+            let client = output.as_ref().client().unwrap();
+            server_client.lock().unwrap().replace(client);
+        })
+    });
+    let mut client = TestClient::new(&server.socket_name);
+    let manager = wayc::GlobalManager::new(&client.display_proxy);
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    // Instantiate the globals
+    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+
+    roundtrip(&mut client, &mut server).unwrap();
+
+    let server_client = server_client.lock().unwrap().take().unwrap();
+    let credentials = server_client.credentials();
+    assert!(credentials.is_some());
+
+    let credentials = credentials.unwrap();
+
+    assert!(credentials.pid != 0);
+}

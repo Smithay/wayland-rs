@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* [server] Introduce `Client::credentials()` to allow retrieving the credentials of client socket (implements `wl_client_get_credentials`).
+
 ## 0.29.0 -- 2021-07-24
 
 #### Additions
