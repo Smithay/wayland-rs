@@ -79,7 +79,7 @@ mod display;
 mod globals;
 mod resource;
 
-pub use client::Client;
+pub use client::{Client, Credentials};
 pub use display::Display;
 pub use globals::Global;
 pub use resource::{Main, Resource};

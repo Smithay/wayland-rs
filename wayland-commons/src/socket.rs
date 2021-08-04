@@ -76,6 +76,11 @@ impl Socket {
         }
         Ok((msg.bytes, fd_count))
     }
+
+    /// Retrieve the current value of the requested [socket::GetSockOpt]
+    pub fn opt<O: socket::GetSockOpt>(&self, opt: O) -> NixResult<O::Val> {
+        socket::getsockopt(self.fd, opt)
+    }
 }
 
 impl FromRawFd for Socket {

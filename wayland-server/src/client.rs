@@ -7,6 +7,24 @@ use crate::imp::ClientInner;
 
 use crate::{Interface, Main, Resource, UserDataMap};
 
+/// Holds the client credentials the can be
+/// retrieved from the socket with [`Client::credentials`]
+#[derive(Debug, Clone, Copy)]
+pub struct Credentials {
+    /// pid of the client
+    pub pid: libc::pid_t,
+    /// uid of the client
+    pub uid: libc::uid_t,
+    /// gid of the client
+    pub gid: libc::gid_t,
+}
+
+impl From<nix::sys::socket::UnixCredentials> for Credentials {
+    fn from(credentials: nix::sys::socket::UnixCredentials) -> Self {
+        Self { pid: credentials.pid(), uid: credentials.uid(), gid: credentials.gid() }
+    }
+}
+
 /// A handle to a client connected to your server
 ///
 /// There can be several handles referring to the same client.
@@ -62,6 +80,20 @@ impl Client {
     /// Does nothing if the client is already dead.
     pub fn kill(&self) {
         self.inner.kill()
+    }
+
+    /// Returns the [`Credentials`] from the socket of this
+    /// client.
+    ///
+    /// The credentials come from getsockopt() with SO_PEERCRED, on the client socket fd.
+    ///
+    /// Be aware that for clients that a compositor forks and execs and then connects using
+    /// socketpair(), this function will return the credentials for the compositor.
+    /// The credentials for the socketpair are set at creation time in the compositor.
+    ///
+    /// Returns [None] if the client is already dead.
+    pub fn credentials(&self) -> Option<Credentials> {
+        self.inner.credentials()
     }
 
     /// Returns a reference to the `UserDataMap` associated with this client
