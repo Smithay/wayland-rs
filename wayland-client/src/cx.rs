@@ -17,7 +17,7 @@ use wayland_backend::{
 
 use nix::{fcntl, Error};
 
-use crate::{oneshot_sink, proxy_internals::ProxyData, Proxy};
+use crate::{quick_sink, proxy_internals::ProxyData, Proxy};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -92,7 +92,7 @@ impl Connection {
             let display = handle.display();
             let cb_done = done.clone();
             let sync_data =
-                oneshot_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _| {
+                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _| {
                     cb_done.store(true, Ordering::Release);
                 });
             display
