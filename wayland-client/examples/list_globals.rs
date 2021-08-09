@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use wayland_client::{oneshot_sink, protocol::wl_registry, Connection};
+use wayland_client::{quick_sink, protocol::wl_registry, Connection};
 
 fn main() {
     let cx = Connection::connect_to_env().unwrap();
 
     let display = cx.handle().display();
 
-    let registry_data = oneshot_sink!(wl_registry::WlRegistry, move |_cx, _registry, event| {
+    let registry_data = quick_sink!(wl_registry::WlRegistry, move |_cx, (_registry, event)| {
         eprintln!("{:?}", event);
     });
 
