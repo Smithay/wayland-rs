@@ -43,7 +43,7 @@ pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::Toke
         Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
     };
     let protocol = parse::parse(file);
-    client_gen::generate_client_objects(&protocol, true).into()
+    client_gen::generate_client_objects(&protocol).into()
 }
 
 #[cfg(test)]

@@ -56,7 +56,7 @@ pub mod gtk_primary_selection {
     //! The primary selection owner should be checking for errors during
     //! writes, merely cancelling the ongoing transfer if any happened.
 
-    wayland_protocol!("gtk-primary-selection", [(wl_seat, wl_seat_interface)], []);
+    wayland_protocol!("./misc/gtk-primary-selection.xml", []);
 }
 
 #[cfg(feature = "unstable_protocols")]
@@ -81,16 +81,7 @@ pub mod zwp_input_method_v2 {
     //! version number in the protocol and interface names are removed and the
     //! interface version number is reset.
 
-    wayland_protocol!(
-        "input-method-unstable-v2",
-        [
-            (wl_seat, wl_seat_interface),
-            (wl_surface, wl_surface_interface),
-            (wl_output, wl_output_interface),
-            (wl_keyboard, wl_keyboard_interface)
-        ],
-        [(unstable::text_input::v3, zwp_text_input_v3, zwp_text_input_v3_interface)]
-    );
+    wayland_protocol!("./misc/input-method-unstable-v2.xml", [crate::unstable::text_input::v3]);
 }
 
 pub mod server_decoration{
@@ -103,5 +94,5 @@ pub mod server_decoration{
     //! side decorations.
     //!
     //! Use in conjunction with zxdg_decoration_manager_v1 is undefined.
-    wayland_protocol!("server-decoration", [(wl_surface, wl_seat_surface)], []);
+    wayland_protocol!("./misc/server-decoration.xml", []);
 }

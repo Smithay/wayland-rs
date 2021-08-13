@@ -3,18 +3,14 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
 use crate::{
-    protocol::{Interface, Message, Protocol, Type},
+    protocol::{Interface, Protocol, Type},
     util::{dotted_to_relname, is_keyword, snake_to_camel},
     Side,
 };
 
-pub fn generate_client_objects(protocol: &Protocol, with_c_interfaces: bool) -> TokenStream {
+pub fn generate_client_objects(protocol: &Protocol) -> TokenStream {
     let tokens = protocol.interfaces.iter().map(generate_objects_for);
-    let interfaces = crate::interfaces::generate(protocol, with_c_interfaces);
     quote!(
-        pub mod __interfaces {
-            #interfaces
-        }
         #(#tokens)*
     )
 }
@@ -76,7 +72,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn interface() -> &'static Interface{
-                    &super::__interfaces::#iface_const_name
+                    &super::#iface_const_name
                 }
 
                 #[inline]
@@ -327,7 +323,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
 
             let arg_type =  if let Some(ref enu) = arg.enum_ {
                 let enum_type = dotted_to_relname(enu);
-                quote! { WEnum<#enum_type> }
+                quote! { #enum_type }
             } else {
                 match arg.typ {
                     Type::Uint => quote!(u32),
@@ -358,7 +354,9 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
                 Span::call_site(),
             );
-            if arg.typ == Type::NewId {
+            if arg.enum_.is_some() {
+                Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+            } else if arg.typ == Type::NewId {
                 if arg.interface.is_none() {
                     Some(quote! { #arg_name: (I::interface(), version) })
                 } else {
