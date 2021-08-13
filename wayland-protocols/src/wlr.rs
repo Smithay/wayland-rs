@@ -27,7 +27,12 @@ pub mod unstable {
         //! An interface to control data devices, particularly to manage the current selection and
         //! take the role of a clipboard manager.
 
-        wayland_protocol_versioned!("wlr-data-control", [v1], [(wl_seat, wl_seat_interface)], []);
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-data-control-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod export_dmabuf {
@@ -35,12 +40,12 @@ pub mod unstable {
         //!
         //! An interface to capture surfaces in an efficient way by exporting DMA-BUFs.
 
-        wayland_protocol_versioned!(
-            "wlr-export-dmabuf",
-            [v1],
-            [(wl_output, wl_output_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-export-dmabuf-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod foreign_toplevel {
@@ -48,16 +53,12 @@ pub mod unstable {
         //!
         //! Use for creating taskbars and docks.
 
-        wayland_protocol_versioned!(
-            "wlr-foreign-toplevel-management",
-            [v1],
-            [
-                (wl_seat, wl_seat_interface),
-                (wl_surface, wl_surface_interface),
-                (wl_output, wl_output_interface)
-            ],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod gamma_control {
@@ -65,29 +66,34 @@ pub mod unstable {
         //!
         //! This protocol allows a privileged client to set the gamma tables for outputs.
 
-        wayland_protocol_versioned!(
-            "wlr-gamma-control",
-            [v1],
-            [(wl_output, wl_output_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-gamma-control-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod input_inhibitor {
         //! Inhibits input events to other clients
 
-        wayland_protocol_versioned!("wlr-input-inhibitor", [v1], [], []);
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-input-inhibitor-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod layer_shell {
         //! Layered shell protocol
 
-        wayland_protocol_versioned!(
-            "wlr-layer-shell",
-            [v1],
-            [(wl_output, wl_output_interface), (wl_surface, wl_surface_interface)],
-            [(xdg_shell, xdg_popup, xdg_popup_interface)]
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-layer-shell-unstable-v1.xml",
+                [crate::xdg_shell]
+            );
+        }
     }
 
     pub mod output_management {
@@ -95,12 +101,12 @@ pub mod unstable {
         //!
         //! This protocol exposes interfaces to obtain and modify output device configuration.
 
-        wayland_protocol_versioned!(
-            "wlr-output-management",
-            [v1],
-            [(wl_output, wl_output_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-output-management-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod output_power_management {
@@ -111,12 +117,12 @@ pub mod unstable {
         //! intent is to allow special clients like desktop shells to power
         //! down outputs when the system is idle.
 
-        wayland_protocol_versioned!(
-            "wlr-output-power-management",
-            [v1],
-            [(wl_output, wl_output_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-output-power-management-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod screencopy {
@@ -125,12 +131,12 @@ pub mod unstable {
         //! This protocol allows clients to ask the compositor to copy part of the
         //! screen content to a client buffer.
 
-        wayland_protocol_versioned!(
-            "wlr-screencopy",
-            [v1],
-            [(wl_buffer, wl_buffer_interface), (wl_output, wl_output_interface), (wl_shm, wl_shm_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-screencopy-unstable-v1.xml",
+                []
+            );
+        }
     }
 
     pub mod virtual_pointer {
@@ -139,12 +145,12 @@ pub mod unstable {
         //! This protocol allows clients to emulate a physical pointer device. The
         //! requests are mostly mirror opposites of those specified in wl_pointer.
 
-        wayland_protocol_versioned!(
-            "wlr-virtual-pointer",
-            [v1],
-            [(wl_seat, wl_seat_interface), (wl_output, wl_output_interface), (wl_pointer, wl_pointer_interface)],
-            []
-        );
+        mod v1 {
+            wayland_protocol!(
+                "./wlr-protocols/unstable/wlr-virtual-pointer-unstable-v1.xml",
+                []
+            );
+        }
     }
 
 

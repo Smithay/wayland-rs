@@ -130,8 +130,6 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use proc_macro2::TokenStream;
-
     #[test]
     fn interface_gen() {
         let protocol_file =

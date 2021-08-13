@@ -19,48 +19,49 @@
 pub mod fullscreen_shell {
     //! Fullscreen shell protocol
 
-    wayland_protocol_versioned!(
-        "fullscreen-shell",
-        [v1],
-        [(wl_surface, wl_surface_interface), (wl_output, wl_output_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod idle_inhibit {
     //! Screensaver inhibition protocol
 
-    wayland_protocol_versioned!("idle-inhibit", [v1], [(wl_surface, wl_surface_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod input_method {
     //! Input method protocol
 
-    wayland_protocol_versioned!(
-        "input-method",
-        [v1],
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_output, wl_output_interface),
-            (wl_keyboard, wl_keyboard_interface)
-        ],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/input-method/input-method-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod input_timestamps {
     //! Input timestamps protocol
 
-    wayland_protocol_versioned!(
-        "input-timestamps",
-        [v1],
-        [
-            (wl_keyboard, wl_keyboard_interface),
-            (wl_pointer, wl_pointer_interface),
-            (wl_touch, wl_touch_interface)
-        ],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/input-timestamps/input-timestamps-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod keyboard_shortcuts_inhibit {
@@ -70,29 +71,37 @@ pub mod keyboard_shortcuts_inhibit {
     //! to ignore its own keyboard shortcuts for a given seat, so that all
     //! key events from that seat get forwarded to a surface.
 
-    wayland_protocol_versioned!(
-        "keyboard-shortcuts-inhibit",
-        [v1],
-        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/keyboard-shortcuts-inhibit/keyboard-shortcuts-inhibit-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod linux_dmabuf {
     //! Linux DMA-BUF protocol
 
-    wayland_protocol_versioned!("linux-dmabuf", [v1], [(wl_buffer, wl_buffer_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod linux_explicit_synchronization {
     //! Linux explicit synchronization protocol
 
-    wayland_protocol_versioned!(
-        "linux-explicit-synchronization",
-        [v1],
-        [(wl_surface, wl_surface_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/linux-explicit-synchronization/linux-explicit-synchronization-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod pointer_constraints {
@@ -108,33 +117,37 @@ pub mod pointer_constraints {
     //! client uses the request that corresponds to the type of constraint it wants
     //! to make. See wp_pointer_constraints for more details.
 
-    wayland_protocol_versioned!(
-        "pointer-constraints",
-        [v1],
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_pointer, wl_pointer_interface),
-            (wl_region, wl_region_interface)
-        ],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod pointer_gestures {
     //! Pointer gestures protocol
 
-    wayland_protocol_versioned!(
-        "pointer-gestures",
-        [v1],
-        [(wl_surface, wl_surface_interface), (wl_pointer, wl_pointer_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/pointer-gestures/pointer-gestures-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod primary_selection {
     //! Primary selection protocol
 
-    wayland_protocol_versioned!("primary-selection", [v1], [(wl_seat, wl_seat_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/primary-selection/primary-selection-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod relative_pointer {
@@ -154,7 +167,13 @@ pub mod relative_pointer {
     //! the newly created relative pointer object. See the documentation of the
     //! relative pointer interface for more details.
 
-    wayland_protocol_versioned!("relative-pointer", [v1], [(wl_pointer, wl_pointer_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod tablet {
@@ -237,23 +256,41 @@ pub mod tablet {
     //! will likely include some form of removing a tool when all tablets the
     //! tool was used on are removed.
 
-    wayland_protocol_versioned!(
-        "tablet",
-        [v1, v2],
-        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/tablet/tablet-unstable-v1.xml",
+            []
+        );
+    }
+
+    /// Unstable version 2
+    pub mod v2 {
+        wayland_protocol!(
+            "./protocols/unstable/tablet/tablet-unstable-v2.xml",
+            []
+        );
+    }
 }
 
 pub mod text_input {
     //! Text input protocol
 
-    wayland_protocol_versioned!(
-        "text-input",
-        [v1, v3],
-        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/text-input/text-input-unstable-v1.xml",
+            []
+        );
+    }
+
+    /// Unstable version 3
+    pub mod v3 {
+        wayland_protocol!(
+            "./protocols/unstable/text-input/text-input-unstable-v3.xml",
+            []
+        );
+    }
 }
 
 pub mod xdg_decoration {
@@ -271,12 +308,13 @@ pub mod xdg_decoration {
     //! decoration using this protocol, clients continue to self-decorate as they
     //! see fit.
 
-    wayland_protocol_versioned!(
-        "xdg-decoration",
-        [v1],
-        [],
-        [(xdg_shell, xdg_toplevel, xdg_toplevel_interface)]
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml",
+            [crate::xdg_shell]
+        );
+    }
 }
 
 pub mod xdg_foreign {
@@ -303,7 +341,21 @@ pub mod xdg_foreign {
     //! can show a file browser dialog and stack it above the sandboxed client's
     //! surface.
 
-    wayland_protocol_versioned!("xdg-foreign", [v1, v2], [(wl_surface, wl_surface_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-foreign/xdg-foreign-unstable-v1.xml",
+            []
+        );
+    }
+    
+    /// Unstable version 2
+    pub mod v2 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-foreign/xdg-foreign-unstable-v2.xml",
+            []
+        );
+    }
 }
 
 pub mod xdg_output {
@@ -326,7 +378,13 @@ pub mod xdg_output {
     //! concepts (such as output location within the global compositor space,
     //! the connector name and types, etc.) out of the core wl_output protocol.
 
-    wayland_protocol_versioned!("xdg-output", [v1], [(wl_output, wl_output_interface)], []);
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-output/xdg-output-unstable-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod xdg_shell {
@@ -337,16 +395,21 @@ pub mod xdg_shell {
     //! They remain here for compatibility reasons, allowing you to support older
     //! clients/server not yet implementing the new protocol.
 
-    wayland_protocol_versioned!(
-        "xdg-shell",
-        [v5, v6],
-        [
-            (wl_surface, wl_surface_interface),
-            (wl_output, wl_output_interface),
-            (wl_seat, wl_seat_interface)
-        ],
-        []
-    );
+    /// Unstable version 5
+    pub mod v5 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-shell/xdg-shell-unstable-v5.xml",
+            []
+        );
+    }
+
+    /// Unstable version 6
+    pub mod v6 {
+        wayland_protocol!(
+            "./protocols/unstable/xdg-shell/xdg-shell-unstable-v6.xml",
+            []
+        );
+    }
 }
 
 pub mod xwayland_keyboard_grab {
@@ -379,10 +442,11 @@ pub mod xwayland_keyboard_grab {
     //! Compositors are required to restrict access to this application
     //! specific protocol to Xwayland alone.
 
-    wayland_protocol_versioned!(
-        "xwayland-keyboard-grab",
-        [v1],
-        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
-        []
-    );
+    /// Unstable version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml",
+            []
+        );
+    }
 }

@@ -4,4 +4,5 @@ members = [
     "wayland-scanner",
     "wayland-backend",
     "wayland-client",
+    "wayland-protocols",
 ]

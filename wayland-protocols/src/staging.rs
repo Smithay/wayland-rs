@@ -32,10 +32,10 @@ pub mod xdg_activation {
     //! intend to activate. This can for example be used to display a visual hint
     //! about what application is being started.
 
-    wayland_protocol_versioned!(
-        "xdg-activation",
-        [v1],
-        [(wl_seat, wl_seat_interface), (wl_surface, wl_surface_interface)],
-        []
-    );
+    mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-activation/xdg-activation-v1.xml",
+            []
+        );
+    }
 }
