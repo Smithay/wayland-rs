@@ -17,7 +17,7 @@ use wayland_backend::{
 
 use nix::{fcntl, Error};
 
-use crate::{quick_sink, proxy_internals::ProxyData, Proxy};
+use crate::{proxy_internals::ProxyData, quick_sink, EventQueue, Proxy};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -91,10 +91,9 @@ impl Connection {
             let mut handle = ConnectionHandle::from_handle(backend.handle());
             let display = handle.display();
             let cb_done = done.clone();
-            let sync_data =
-                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _| {
-                    cb_done.store(true, Ordering::Release);
-                });
+            let sync_data = quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _| {
+                cb_done.store(true, Ordering::Release);
+            });
             display
                 .sync(&mut handle, Some(sync_data))
                 .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
@@ -108,9 +107,13 @@ impl Connection {
 
         Ok(dispatched)
     }
+
+    pub fn new_event_queue<Data>(&self) -> EventQueue<Data> {
+        EventQueue::new(self.backend.clone())
+    }
 }
 
-fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, WaylandError> {
+pub(crate) fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, WaylandError> {
     backend.flush()?;
 
     // first, try to dispatch

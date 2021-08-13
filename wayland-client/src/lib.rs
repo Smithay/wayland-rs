@@ -1,9 +1,10 @@
 use wayland_backend::{
-    client::{InvalidId, ObjectId},
+    client::{InvalidId, ObjectId, WaylandError},
     protocol::{Interface, Message},
 };
 
 mod cx;
+mod event_queue;
 pub mod proxy_internals;
 
 pub mod backend {
@@ -14,10 +15,17 @@ pub mod backend {
     pub use wayland_backend::smallvec;
 }
 
+pub use wayland_backend::protocol::WEnum;
+
 pub use cx::{Connection, ConnectionHandle};
+pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
 
 pub mod protocol {
+    use self::__interfaces::*;
     use crate as wayland_client;
+    pub mod __interfaces {
+        wayland_scanner::generate_interfaces!("wayland.xml");
+    }
     wayland_scanner::generate_client_code!("wayland.xml");
 }
 
@@ -71,10 +79,14 @@ pub trait FromEvent {
 impl<I: Proxy> FromEvent for I {
     type Out = (I, I::Event);
 
-    fn from_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<Self::Out, DispatchError> {
+    fn from_event(
+        cx: &mut ConnectionHandle,
+        msg: Message<ObjectId>,
+    ) -> Result<Self::Out, DispatchError> {
         let sender_iface = msg.sender_id.interface();
         if crate::backend::protocol::same_interface(sender_iface, I::interface()) {
-            I::parse_event(cx, msg).map_err(|msg| DispatchError::BadMessage { msg, interface: sender_iface })
+            I::parse_event(cx, msg)
+                .map_err(|msg| DispatchError::BadMessage { msg, interface: sender_iface })
         } else {
             Err(DispatchError::NoHandler { msg, interface: sender_iface })
         }
@@ -87,4 +99,6 @@ pub enum DispatchError {
     BadMessage { msg: Message<ObjectId>, interface: &'static Interface },
     #[error("Unexpected interface {interface} for message {msg:?}")]
     NoHandler { msg: Message<ObjectId>, interface: &'static Interface },
+    #[error("Backend error: {0}")]
+    Backend(#[from] WaylandError),
 }
