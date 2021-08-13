@@ -1,30 +1,26 @@
 [package]
 name = "wayland-protocols"
-version = "0.29.2"
+version = "0.30.0-dev"
 documentation = "https://smithay.github.io/wayland-rs/wayland_protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
 keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for the officials wayland protocol extensions"
-build = "build.rs"
 categories = ["gui", "api-bindings"]
 edition = "2018"
 readme = "README.md"
 
 [dependencies]
-wayland-commons = { version = "0.29.2", path = "../wayland-commons" }
-wayland-client = { version = "0.29.2", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.29.2", path = "../wayland-server", optional = true }
+wayland-scanner = { version = "0.30.0-dev", path = "../wayland-scanner" }
+wayland-backend = { version = "0.1.0", path = "../wayland-backend" }
+wayland-client = { version = "0.30.0-dev", path = "../wayland-client", optional = true }
+#wayland-server = { version = "0.29.0", path = "../wayland-server", optional = true }
 bitflags = "1.0"
-
-[build-dependencies]
-wayland-scanner = { version = "0.29.2", path = "../wayland-scanner" }
 
 [features]
 client = ["wayland-client"]
-server = ["wayland-server"]
-staging_protocols = []
+#server = ["wayland-server"]
 unstable_protocols = []
 
 [package.metadata.docs.rs]
