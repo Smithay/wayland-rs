@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: ['1.42.0', 'stable', 'beta']
+        rust: ['1.49.0', 'stable', 'beta']
       
     runs-on: ubuntu-latest
 
