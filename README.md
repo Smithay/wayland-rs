@@ -53,7 +53,7 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 ## Requirements
 
-Requires at least rust 1.41 to be used, and version 1.15 of the wayland system libraries if using the
+Requires at least rust 1.49 to be used, and version 1.15 of the wayland system libraries if using the
 `use_system_lib` cargo feature.
 
 ## Chat and support
