@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    ffi::CStr,
     os::raw::{c_char, c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
@@ -61,6 +62,46 @@ impl ObjectId {
 
     pub fn interface(&self) -> &'static Interface {
         self.interface
+    }
+
+    pub unsafe fn from_ptr(
+        interface: &'static Interface,
+        ptr: *mut wl_proxy,
+    ) -> Result<ObjectId, InvalidId> {
+        let ptr_iface_name =
+            CStr::from_ptr(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, ptr));
+        let provided_iface_name = CStr::from_ptr(
+            interface
+                .c_ptr
+                .expect("[wayland-backend-sys] Cannot use Interface without c_ptr!")
+                .name,
+        );
+        if ptr_iface_name != provided_iface_name {
+            return Err(InvalidId);
+        }
+
+        let id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ptr);
+
+        let is_rust_managed = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr)
+            == &RUST_MANAGED as *const u8 as *const _;
+
+        let alive = if is_rust_managed {
+            let udata = &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, ptr)
+                as *mut ProxyUserData);
+            Some(udata.alive.clone())
+        } else {
+            None
+        };
+
+        Ok(ObjectId { id, ptr, alive, interface })
+    }
+
+    pub fn as_ptr(&self) -> *mut wl_proxy {
+        if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            self.ptr
+        } else {
+            std::ptr::null_mut()
+        }
     }
 }
 
