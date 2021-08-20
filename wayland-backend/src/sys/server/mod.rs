@@ -1,5 +1,5 @@
 use std::{
-    ffi::CString,
+    ffi::{CStr, CString},
     os::raw::{c_char, c_void},
     os::unix::{
         io::{IntoRawFd, RawFd},
@@ -110,6 +110,52 @@ impl ObjectId {
     pub fn inteface(&self) -> &'static Interface {
         self.interface
     }
+
+    pub unsafe fn from_ptr(
+        interface: &'static Interface,
+        ptr: *mut wl_resource,
+    ) -> Result<ObjectId, InvalidId> {
+        let iface_c_ptr =
+            interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let ptr_iface_name =
+            CStr::from_ptr(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_class, ptr));
+        let provided_iface_name = CStr::from_ptr(iface_c_ptr.name);
+        if ptr_iface_name != provided_iface_name {
+            return Err(InvalidId);
+        }
+
+        let id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, ptr);
+
+        let is_rust_managed = ffi_dispatch!(
+            WAYLAND_SERVER_HANDLE,
+            wl_resource_instance_of,
+            ptr,
+            iface_c_ptr,
+            &RUST_MANAGED as *const u8 as *const _
+        ) != 0;
+
+        let alive = if is_rust_managed {
+            // Using () instead of the type parameter here is safe, because:
+            // 1) ResourceUserData is #[repr(C)], so its layout does not depend on D
+            // 2) we are only accessing the field `.alive`, which type is independent of D
+            //
+            let udata = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr)
+                as *mut ResourceUserData<()>;
+            Some((*udata).alive.clone())
+        } else {
+            None
+        };
+
+        Ok(ObjectId { id, ptr, alive, interface })
+    }
+
+    pub fn as_ptr(&self) -> *mut wl_resource {
+        if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            self.ptr
+        } else {
+            std::ptr::null_mut()
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +174,7 @@ pub struct GlobalId {
 
 unsafe impl Send for GlobalId {}
 
+#[repr(C)]
 struct ResourceUserData<D> {
     alive: Arc<AtomicBool>,
     data: Arc<dyn ObjectData<D>>,
