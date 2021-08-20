@@ -27,6 +27,3 @@ slotmap = "1.0"
 wayland-protocols = { version = "0.30.0-dev", path = "../wayland-protocols", features = ["client"] }
 tempfile = "3.2"
 
-[features]
-use_system_lib = ["wayland-backend/client_system"]
-dlopen = ["wayland-backend/dlopen", "use_system_lib"]

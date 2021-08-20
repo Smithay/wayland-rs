@@ -11,7 +11,7 @@
 
 use std::os::raw::c_void;
 
-use wayland_client::protocol::wl_surface::WlSurface;
+use wayland_backend::{client::InvalidId, sys::client::ObjectId};
 use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 
 /// Checks if the wayland-egl lib is available and can be used
@@ -39,8 +39,20 @@ pub struct WlEglSurface {
 
 impl WlEglSurface {
     /// Create an EGL surface from a wayland surface
-    pub fn new(surface: &WlSurface, width: i32, height: i32) -> WlEglSurface {
-        unsafe { WlEglSurface::new_from_raw(surface.as_ref().c_ptr(), width, height) }
+    ///
+    /// This method will check that the provided `ObjectId` is still alive and from the
+    /// correct interface (`wl_surface`).
+    pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<WlEglSurface, InvalidId> {
+        if surface.interface().name != "wl_surface" {
+            return Err(InvalidId);
+        }
+
+        let ptr = surface.as_ptr();
+        if ptr.is_null() {
+            Err(InvalidId)
+        } else {
+            Ok(unsafe { WlEglSurface::new_from_raw(ptr, width, height) })
+        }
     }
 
     /// Create an EGL surface from a raw pointer to a wayland surface
