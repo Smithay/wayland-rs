@@ -111,6 +111,11 @@ impl ObjectId {
         self.interface
     }
 
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid pointer to a `wl_resource` and remain valid for as
+    /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static Interface,
         ptr: *mut wl_resource,
@@ -459,8 +464,8 @@ impl<D> Handle<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if !(self.get_client(id.clone()).unwrap().ptr
-                            == self.get_client(o.clone()).unwrap().ptr)
+                        if self.get_client(id.clone()).unwrap().ptr
+                            != self.get_client(o.clone()).unwrap().ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
@@ -486,8 +491,8 @@ impl<D> Handle<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if !(self.get_client(id.clone()).unwrap().ptr
-                            == self.get_client(o.clone()).unwrap().ptr)
+                        if self.get_client(id.clone()).unwrap().ptr
+                            != self.get_client(o.clone()).unwrap().ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
@@ -717,11 +722,8 @@ unsafe fn init_client<D>(client: *mut wl_client, data: Arc<dyn ClientData<D>>) -
 }
 
 unsafe fn client_id_from_ptr<D>(client: *mut wl_client) -> Option<ClientId> {
-    if let Some(udata) = client_user_data::<D>(client) {
-        Some(ClientId { ptr: client, alive: (*udata).alive.clone() })
-    } else {
-        None
-    }
+    client_user_data::<D>(client)
+        .map(|udata| ClientId { ptr: client, alive: (*udata).alive.clone() })
 }
 
 unsafe fn client_user_data<D>(client: *mut wl_client) -> Option<*mut ClientUserData<D>> {
@@ -862,22 +864,22 @@ unsafe extern "C" fn resource_dispatcher<D>(
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
-            ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.offset(i as isize)).u)),
-            ArgumentType::Int => parsed_args.push(Argument::Int((*args.offset(i as isize)).i)),
-            ArgumentType::Fixed => parsed_args.push(Argument::Fixed((*args.offset(i as isize)).f)),
-            ArgumentType::Fd => parsed_args.push(Argument::Fd((*args.offset(i as isize)).h)),
+            ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.add(i)).u)),
+            ArgumentType::Int => parsed_args.push(Argument::Int((*args.add(i)).i)),
+            ArgumentType::Fixed => parsed_args.push(Argument::Fixed((*args.add(i)).f)),
+            ArgumentType::Fd => parsed_args.push(Argument::Fd((*args.add(i)).h)),
             ArgumentType::Array(_) => {
-                let array = &*((*args.offset(i as isize)).a);
+                let array = &*((*args.add(i)).a);
                 let content = std::slice::from_raw_parts(array.data as *mut u8, array.size);
                 parsed_args.push(Argument::Array(Box::new(content.into())));
             }
             ArgumentType::Str(_) => {
-                let ptr = (*args.offset(i as isize)).s;
+                let ptr = (*args.add(i)).s;
                 let cstr = std::ffi::CStr::from_ptr(ptr);
                 parsed_args.push(Argument::Str(Box::new(cstr.into())));
             }
             ArgumentType::Object(_) => {
-                let obj = (*args.offset(i as isize)).o as *mut wl_resource;
+                let obj = (*args.add(i)).o as *mut wl_resource;
                 if !obj.is_null() {
                     // retrieve the object relevant info
                     let obj_id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, obj);
@@ -924,7 +926,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
                 }
             }
             ArgumentType::NewId(_) => {
-                let new_id = (*args.offset(i as isize)).n;
+                let new_id = (*args.add(i)).n;
                 // create the object
                 if new_id != 0 {
                     let child_interface = match message_desc.child_interface {
@@ -998,7 +1000,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
         ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, resource);
     }
 
-    return 0;
+    0
 }
 
 unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {

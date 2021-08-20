@@ -162,10 +162,8 @@ impl<D> Client<D> {
                         if !same_interface(child_interface, object.interface) {
                             panic!("Event {}@{}.{} expects a newid argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
                         }
-                    } else {
-                        if !matches!(message_desc.signature[i], ArgumentType::NewId(AllowNull::Yes)) {
-                            panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
-                        }
+                    } else if !matches!(message_desc.signature[i], ArgumentType::NewId(AllowNull::Yes)) {
+                        panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
                     }
                     Argument::Object(o.id)
                 },
@@ -179,10 +177,8 @@ impl<D> Client<D> {
                         if !same_interface_or_anonymous(next_interface, object.interface) {
                             panic!("Event {}@{}.{} expects an object argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
                         }
-                    } else {
-                        if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
+                    } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                             panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
-                        }
                     }
                     Argument::Object(o.id)
                 }
@@ -191,7 +187,7 @@ impl<D> Client<D> {
 
         let msg = Message { sender_id: object_id.id, opcode, args: msg_args };
 
-        if let Err(_) = self.socket.write_message(&msg) {
+        if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
         }
 
@@ -207,7 +203,7 @@ impl<D> Client<D> {
 
     pub(crate) fn send_delete_id(&mut self, object_id: ObjectId) {
         let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
-        if let Err(_) = self.socket.write_message(&msg) {
+        if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
         }
     }
@@ -258,7 +254,7 @@ impl<D> Client<D> {
         self.socket.flush()
     }
 
-    pub(crate) fn all_objects<'a>(&'a self) -> impl Iterator<Item = ObjectId> + 'a {
+    pub(crate) fn all_objects(&self) -> impl Iterator<Item = ObjectId> + '_ {
         let client_id = self.id;
         self.map.all_objects().map(move |(id, obj)| ObjectId {
             id,
@@ -317,7 +313,7 @@ impl<D> Client<D> {
         match message.opcode {
             // wl_display.sync(new id wl_callback)
             0 => {
-                if let &[Argument::NewId(new_id)] = &message.args[..] {
+                if let [Argument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let callback_obj = Object {
                         interface: &WL_CALLBACK_INTERFACE,
@@ -345,7 +341,7 @@ impl<D> Client<D> {
             }
             // wl_display.get_registry(new id wl_registry)
             1 => {
-                if let &[Argument::NewId(new_id)] = &message.args[..] {
+                if let [Argument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let registry_obj = Object {
                         interface: &WL_REGISTRY_INTERFACE,
@@ -384,6 +380,7 @@ impl<D> Client<D> {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub(crate) fn handle_registry_request(
         &mut self,
         message: Message<u32>,
@@ -393,8 +390,8 @@ impl<D> Client<D> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
-                if let &[Argument::Uint(name), Argument::Str(ref interface_name), Argument::Uint(version), Argument::NewId(new_id)] =
-                    &message.args[..]
+                if let [Argument::Uint(name), Argument::Str(ref interface_name), Argument::Uint(version), Argument::NewId(new_id)] =
+                    message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
                         registry.check_bind(self.id, name, interface_name, version)
@@ -643,11 +640,11 @@ impl<D> ClientStore<D> {
         self.last_serial
     }
 
-    pub(crate) fn clients_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut Client<D>> {
+    pub(crate) fn clients_mut(&mut self) -> impl Iterator<Item = &mut Client<D>> {
         self.clients.iter_mut().flat_map(|o| o.as_mut()).filter(|c| !c.killed)
     }
 
-    pub(crate) fn all_clients_id<'a>(&'a self) -> impl Iterator<Item = ClientId> + 'a {
+    pub(crate) fn all_clients_id(&self) -> impl Iterator<Item = ClientId> + '_ {
         self.clients
             .iter()
             .flat_map(|opt| opt.as_ref().filter(|c| !c.killed).map(|client| client.id))

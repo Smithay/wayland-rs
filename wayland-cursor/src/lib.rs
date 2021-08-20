@@ -132,12 +132,8 @@ impl CursorTheme {
         // Flush to ensure the compositor has access to the buffer when it tries to map it.
         file.flush().expect("Flush on shm fd failed");
 
-        let pool = shm.create_pool(
-            cx,
-            file.as_raw_fd(),
-            INITIAL_POOL_SIZE,
-            Some(ProxyData::ignore()),
-        )?;
+        let pool =
+            shm.create_pool(cx, file.as_raw_fd(), INITIAL_POOL_SIZE, Some(ProxyData::ignore()))?;
 
         let name = String::from(name);
 
@@ -208,7 +204,13 @@ impl Cursor {
     ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
-    fn new(cx: &mut ConnectionHandle, name: &str, theme: &mut CursorTheme, images: &[XCursorImage], size: u32) -> Self {
+    fn new(
+        cx: &mut ConnectionHandle,
+        name: &str,
+        theme: &mut CursorTheme,
+        images: &[XCursorImage],
+        size: u32,
+    ) -> Self {
         let mut total_duration = 0;
         let images: Vec<CursorImageBuffer> = Cursor::nearest_images(size, images)
             .map(|image| {

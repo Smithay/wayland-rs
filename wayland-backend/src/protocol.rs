@@ -181,7 +181,7 @@ impl std::fmt::Display for ProtocolError {
 
 #[inline]
 pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
-    a as *const Interface == b as *const Interface || a.name == b.name
+    std::ptr::eq(a, b) || a.name == b.name
 }
 
 pub(crate) fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {

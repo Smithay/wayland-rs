@@ -61,18 +61,14 @@ enum QueueEvent {
     SinkDropped(DefaultKey),
 }
 
-struct QueueCallback<Data>(
-    Rc<
-        RefCell<
-            dyn FnMut(
-                &mut ConnectionHandle<'_>,
-                Message<ObjectId>,
-                &mut Data,
-                &QueueHandle<Data>,
-            ) -> Result<(), DispatchError>,
-        >,
-    >,
-);
+type InnerCallback<Data> = dyn FnMut(
+    &mut ConnectionHandle<'_>,
+    Message<ObjectId>,
+    &mut Data,
+    &QueueHandle<Data>,
+) -> Result<(), DispatchError>;
+
+struct QueueCallback<Data>(Rc<RefCell<InnerCallback<Data>>>);
 
 impl<Data> Clone for QueueCallback<Data> {
     fn clone(&self) -> Self {
@@ -206,7 +202,7 @@ struct QueueSender {
 
 impl QueueSender {
     fn send(&self, msg: Message<ObjectId>) {
-        if let Err(_) = self.tx.unbounded_send(QueueEvent::Msg(self.key, msg)) {
+        if self.tx.unbounded_send(QueueEvent::Msg(self.key, msg)).is_err() {
             log::error!("Event received for EventQueue after it was dropped.");
         }
     }

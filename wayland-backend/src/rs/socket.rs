@@ -176,7 +176,7 @@ impl BufferedSocket {
     // in the buffer
     fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
         match write_to_buffers(
-            &msg,
+            msg,
             self.out_data.get_writable_storage(),
             self.out_fds.get_writable_storage(),
         ) {
