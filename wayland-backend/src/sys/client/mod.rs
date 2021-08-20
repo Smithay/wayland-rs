@@ -64,6 +64,11 @@ impl ObjectId {
         self.interface
     }
 
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must be a valid pointer to a `wl_resource` and remain valid for as
+    /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static Interface,
         ptr: *mut wl_proxy,
@@ -156,7 +161,7 @@ impl Backend {
                 display_id: ObjectId {
                     id: 1,
                     ptr: display as *mut wl_proxy,
-                    alive: Some(display_alive.clone()),
+                    alive: Some(display_alive),
                     interface: &WL_DISPLAY_INTERFACE,
                 },
                 last_error: None,
@@ -372,19 +377,36 @@ impl Handle {
             if let Some((iface, version)) = self.pending_placeholder.take() {
                 if let Some(child_interface) = message_desc.child_interface {
                     if !same_interface(child_interface, iface) {
-                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", id.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+                        panic!(
+                            "Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}",
+                            id.interface.name,
+                            id.id,
+                            message_desc.name,
+                            child_interface.name,
+                            iface.name
+                        );
                     }
-                    if !(version == parent_version) {
-                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", id.interface.name, id.id, message_desc.name, parent_version, version);
+                    if version != parent_version {
+                        panic!(
+                            "Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}",
+                            id.interface.name,
+                            id.id,
+                            message_desc.name,
+                            parent_version,
+                            version
+                        );
                     }
                 }
                 Some((iface, version))
+            } else if let Some(child_interface) = message_desc.child_interface {
+                Some((child_interface, parent_version))
             } else {
-                if let Some(child_interface) = message_desc.child_interface {
-                    Some((child_interface, parent_version))
-                } else {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", id.interface.name, id.id, message_desc.name);
-                }
+                panic!(
+                    "Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.",
+                    id.interface.name,
+                    id.id,
+                    message_desc.name
+                );
             }
         } else {
             None
@@ -573,22 +595,22 @@ unsafe extern "C" fn dispatcher_func(
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
-            ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.offset(i as isize)).u)),
-            ArgumentType::Int => parsed_args.push(Argument::Int((*args.offset(i as isize)).i)),
-            ArgumentType::Fixed => parsed_args.push(Argument::Fixed((*args.offset(i as isize)).f)),
-            ArgumentType::Fd => parsed_args.push(Argument::Fd((*args.offset(i as isize)).h)),
+            ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.add(i)).u)),
+            ArgumentType::Int => parsed_args.push(Argument::Int((*args.add(i)).i)),
+            ArgumentType::Fixed => parsed_args.push(Argument::Fixed((*args.add(i)).f)),
+            ArgumentType::Fd => parsed_args.push(Argument::Fd((*args.add(i)).h)),
             ArgumentType::Array(_) => {
-                let array = &*((*args.offset(i as isize)).a);
+                let array = &*((*args.add(i)).a);
                 let content = std::slice::from_raw_parts(array.data as *mut u8, array.size);
                 parsed_args.push(Argument::Array(Box::new(content.into())));
             }
             ArgumentType::Str(_) => {
-                let ptr = (*args.offset(i as isize)).s;
+                let ptr = (*args.add(i)).s;
                 let cstr = std::ffi::CStr::from_ptr(ptr);
                 parsed_args.push(Argument::Str(Box::new(cstr.into())));
             }
             ArgumentType::Object(_) => {
-                let obj = (*args.offset(i as isize)).o as *mut wl_proxy;
+                let obj = (*args.add(i)).o as *mut wl_proxy;
                 if !obj.is_null() {
                     // retrieve the object relevant info
                     let obj_id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj);
@@ -635,7 +657,7 @@ unsafe extern "C" fn dispatcher_func(
                 }
             }
             ArgumentType::NewId(_) => {
-                let obj = (*args.offset(i as isize)).o as *mut wl_proxy;
+                let obj = (*args.add(i)).o as *mut wl_proxy;
                 // this is a newid, it needs to be initialized
                 if !obj.is_null() {
                     let child_interface = message_desc.child_interface.unwrap_or_else(|| {
@@ -708,7 +730,7 @@ unsafe extern "C" fn dispatcher_func(
         ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
     }
 
-    return 0;
+    0
 }
 
 extern "C" {

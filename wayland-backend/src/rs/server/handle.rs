@@ -36,10 +36,8 @@ enum DispatchAction<D> {
 
 impl<D> Handle<D> {
     pub(crate) fn new() -> Self {
-        let debug = match std::env::var_os("WAYLAND_DEBUG") {
-            Some(str) if str == "1" || str == "server" => true,
-            _ => false,
-        };
+        let debug =
+            matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
         Handle { clients: ClientStore::new(debug), registry: Registry::new() }
     }
 

@@ -4,7 +4,7 @@ use wayland_client::{
     event_enum,
     protocol::{wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_surface},
     proxy_internals::ProxyData,
-    quick_sink, Connection, ConnectionHandle, QueueHandle, WEnum,
+    Connection, ConnectionHandle, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -152,7 +152,7 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
 fn init_xdg_surface(
     cx: &mut ConnectionHandle<'_>,
     state: &mut State,
-    qhandle: &QueueHandle<State>,
+    _qhandle: &QueueHandle<State>,
 ) {
     let wm_base = state.wm_base.as_ref().unwrap();
     let base_surface = state.base_surface.as_ref().unwrap();

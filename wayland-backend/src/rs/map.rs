@@ -104,18 +104,18 @@ impl<Data: Clone> ObjectMap<Data> {
         }
     }
 
-    pub fn all_objects<'a>(&'a self) -> impl Iterator<Item = (u32, &'a Object<Data>)> {
-        let client_side_iter =
-            self.client_objects.iter().enumerate().flat_map(|(idx, obj)| match obj {
-                Some(obj) => Some((idx as u32 + 1, obj)),
-                None => None,
-            });
+    pub fn all_objects(&self) -> impl Iterator<Item = (u32, &Object<Data>)> {
+        let client_side_iter = self
+            .client_objects
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, obj)| obj.as_ref().map(|obj| (idx as u32 + 1, obj)));
 
-        let server_side_iter =
-            self.server_objects.iter().enumerate().flat_map(|(idx, obj)| match obj {
-                Some(obj) => Some((idx as u32 + SERVER_ID_LIMIT, obj)),
-                None => None,
-            });
+        let server_side_iter = self
+            .server_objects
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, obj)| obj.as_ref().map(|obj| (idx as u32 + SERVER_ID_LIMIT, obj)));
 
         client_side_iter.chain(server_side_iter)
     }
