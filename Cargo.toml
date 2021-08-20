@@ -6,4 +6,5 @@ members = [
     "wayland-client",
     "wayland-protocols",
     "wayland-egl",
+    "wayland-cursor",
 ]
