@@ -334,7 +334,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Type::Fd => quote!(::std::os::unix::io::RawFd),
                     Type::Object => {
                         let iface = arg.interface.as_ref().unwrap();
-                        let iface_mod = Ident::new(&iface, Span::call_site());
+                        let iface_mod = Ident::new(iface, Span::call_site());
                         let iface_type =
                             Ident::new(&snake_to_camel(iface), Span::call_site());
                         if arg.allow_null { quote! { Option<super::#iface_mod::#iface_type> } } else { quote! { super::#iface_mod::#iface_type } }
@@ -373,6 +373,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 let created_iface_mod = Ident::new(created_interface, Span::call_site());
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                 quote! {
+                    #[allow(clippy::too_many_arguments)]
                     pub fn #method_name(&self, cx: &mut ConnectionHandle, #(#fn_args,)* data: Option<Arc<ProxyData>>) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
                         let ret = cx.send_request(
                             self,
@@ -388,6 +389,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             Some(None) => {
                 // a bind-like request
                 quote! {
+                    #[allow(clippy::too_many_arguments)]
                     pub fn #method_name<I: Proxy>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* data: Option<Arc<ProxyData>>) -> Result<I, InvalidId> {
                         let placeholder = cx.placeholder_id(Some((I::interface(), version)));
                         let ret = cx.send_request(
@@ -404,6 +406,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             None => {
                 // a non-creating request
                 quote! {
+                    #[allow(clippy::too_many_arguments)]
                     pub fn #method_name(&self, cx: &mut ConnectionHandle, #(#fn_args),*) {
                         let _ = cx.send_request(
                             self,

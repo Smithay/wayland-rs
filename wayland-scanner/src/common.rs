@@ -199,16 +199,14 @@ pub(crate) fn gen_message_enum(
                         Type::Fd => quote!(::std::os::unix::io::RawFd),
                         Type::Object => {
                             if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(&iface, Span::call_site());
+                                let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(super::#iface_mod::#iface_type)
+                            } else if side == Side::Client {
+                                quote!(super::wayland_client::ObjectId)
                             } else {
-                                if side == Side::Client {
-                                    quote!(super::wayland_client::ObjectId)
-                                } else {
-                                    quote!(super::wayland_server::ObjectId)
-                                }
+                                quote!(super::wayland_server::ObjectId)
                             }
                         }
                         Type::NewId if !receiver && side == Side::Client => {
@@ -222,7 +220,7 @@ pub(crate) fn gen_message_enum(
                         }
                         Type::NewId => {
                             if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(&iface, Span::call_site());
+                                let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(super::#iface_mod::#iface_type)

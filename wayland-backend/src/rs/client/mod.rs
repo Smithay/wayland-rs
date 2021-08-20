@@ -107,10 +107,8 @@ impl Backend {
         )
         .unwrap();
 
-        let debug = match std::env::var_os("WAYLAND_DEBUG") {
-            Some(str) if str == "1" || str == "client" => true,
-            _ => false,
-        };
+        let debug =
+            matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client");
 
         Ok(Backend {
             handle: Handle {
@@ -400,19 +398,35 @@ impl Handle {
             if let Some((iface, version)) = self.pending_placeholder.take() {
                 if let Some(child_interface) = message_desc.child_interface {
                     if !same_interface(child_interface, iface) {
-                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}", object.interface.name, id.id, message_desc.name, child_interface.name, iface.name);
+                        panic!(
+                            "Wrong placeholder used when sending request {}@{}.{}: expected interface {} but got {}",
+                            object.interface.name,
+                            id.id,
+                            message_desc.name,
+                            child_interface.name,
+                            iface.name
+                        );
                     }
-                    if !(version == object.version) {
-                        panic!("Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}", object.interface.name, id.id, message_desc.name, object.version, version);
+                    if version != object.version {
+                        panic!(
+                            "Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}",
+                            object.interface.name,
+                            id.id, message_desc.name,
+                            object.version,
+                            version
+                        );
                     }
                 }
                 Some((iface, version))
+            } else if let Some(child_interface) = message_desc.child_interface {
+                Some((child_interface, object.version))
             } else {
-                if let Some(child_interface) = message_desc.child_interface {
-                    Some((child_interface, object.version))
-                } else {
-                    panic!("Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.", object.interface.name, id.id, message_desc.name);
-                }
+                panic!(
+                    "Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.",
+                    object.interface.name,
+                    id.id,
+                    message_desc.name
+                );
             }
         } else {
             None
@@ -576,8 +590,8 @@ impl Handle {
         match message.opcode {
             0 => {
                 // wl_display.error
-                if let &[Argument::Object(obj), Argument::Uint(code), Argument::Str(ref message)] =
-                    &message.args[..]
+                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(ref message)] =
+                    message.args[..]
                 {
                     let object = self.map.find(obj);
                     let err = WaylandError::Protocol(ProtocolError {
@@ -596,7 +610,7 @@ impl Handle {
             }
             1 => {
                 // wl_display.delete_id
-                if let &[Argument::Uint(id)] = &message.args[..] {
+                if let [Argument::Uint(id)] = message.args[..] {
                     let client_destroyed = self
                         .map
                         .with(id, |obj| {
