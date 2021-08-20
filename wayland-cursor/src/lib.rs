@@ -17,13 +17,15 @@
 //!
 //! # Example
 //!
+//! Several functions of this crate send wayland requests under the hood, requiring you to
+//!
 //! ```ignore
 //! use wayland_cursor::CursorTheme;
 //! # use std::thread::sleep;
 //! # use std::time::{Instant, Duration};
 //!
-//! let cursor_theme = CursorTheme::load(32, wl_shm);
-//! let cursor = cursor_theme.get_cursor("wait").expect("Cursor not provided by theme");
+//! let cursor_theme = CursorTheme::load(&mut connection.handle(), shm, 32);
+//! let cursor = cursor_theme.get_cursor(&mut connection.handle(), "wait").expect("Cursor not provided by theme");
 //!
 //! let start_time = Instant::now();
 //! loop {
@@ -34,8 +36,8 @@
 //!     // Here, we obtain the right cursor frame...
 //!     let buffer = cursor[fr_info.frame_index];
 //!     // and attach it to a wl_surface.
-//!     cursor_surface.attach(Some(&buffer), 0, 0);
-//!     cursor_surface.commit();
+//!     cursor_surface.attach(&mut connection.handle(), Some(&buffer), 0, 0);
+//!     cursor_surface.commit(&mut connection.handle());
 //!
 //!     sleep(fr_info.frame_duration);
 //! }
@@ -55,10 +57,12 @@ use nix::unistd;
 #[cfg(target_os = "linux")]
 use {nix::sys::memfd, std::ffi::CStr};
 
+use wayland_client::backend::InvalidId;
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{Format, WlShm};
 use wayland_client::protocol::wl_shm_pool::WlShmPool;
-use wayland_client::{Attached, Main};
+use wayland_client::proxy_internals::ProxyData;
+use wayland_client::ConnectionHandle;
 
 use xcursor::parser as xparser;
 use xcursor::CursorTheme as XCursorTheme;
@@ -70,7 +74,7 @@ pub struct CursorTheme {
     name: String,
     cursors: Vec<Cursor>,
     size: u32,
-    pool: Main<WlShmPool>,
+    pool: WlShmPool,
     pool_size: i32,
     file: File,
 }
@@ -79,8 +83,8 @@ impl CursorTheme {
     /// Load a cursor theme from system defaults.
     ///
     /// Same as calling `load_or("default", size, shm)`
-    pub fn load(size: u32, shm: &Attached<WlShm>) -> Self {
-        CursorTheme::load_or("default", size, shm)
+    pub fn load(cx: &mut ConnectionHandle, shm: WlShm, size: u32) -> Result<Self, InvalidId> {
+        CursorTheme::load_or(cx, shm, "default", size)
     }
 
     /// Load a cursor theme, using `name` as fallback.
@@ -88,7 +92,12 @@ impl CursorTheme {
     /// The theme name and cursor size are read from the `XCURSOR_THEME` and
     /// `XCURSOR_SIZE` environment variables, respectively, or from the provided variables
     /// if those are invalid.
-    pub fn load_or(name: &str, mut size: u32, shm: &Attached<WlShm>) -> Self {
+    pub fn load_or(
+        cx: &mut ConnectionHandle,
+        shm: WlShm,
+        name: &str,
+        mut size: u32,
+    ) -> Result<Self, InvalidId> {
         let name_string = String::from(name);
         let name = &env::var("XCURSOR_THEME").unwrap_or(name_string);
 
@@ -98,11 +107,16 @@ impl CursorTheme {
             }
         }
 
-        CursorTheme::load_from_name(name, size, shm)
+        CursorTheme::load_from_name(cx, shm, name, size)
     }
 
     /// Create a new cursor theme, ignoring the system defaults.
-    pub fn load_from_name(name: &str, size: u32, shm: &Attached<WlShm>) -> Self {
+    pub fn load_from_name(
+        cx: &mut ConnectionHandle,
+        shm: WlShm,
+        name: &str,
+        size: u32,
+    ) -> Result<Self, InvalidId> {
         // Set some minimal cursor size to hold it. We're not using `size` argument for that,
         // because the actual size that we'll use depends on theme sizes available on a system.
         // The minimal size covers most common minimal theme size, which is 16.
@@ -118,22 +132,34 @@ impl CursorTheme {
         // Flush to ensure the compositor has access to the buffer when it tries to map it.
         file.flush().expect("Flush on shm fd failed");
 
-        let pool = shm.create_pool(file.as_raw_fd(), INITIAL_POOL_SIZE);
+        let pool = shm.create_pool(
+            cx,
+            file.as_raw_fd(),
+            INITIAL_POOL_SIZE,
+            Some(ProxyData::ignore()),
+        )?;
 
         let name = String::from(name);
 
-        CursorTheme { name, file, size, pool, pool_size: INITIAL_POOL_SIZE, cursors: Vec::new() }
+        Ok(CursorTheme {
+            name,
+            file,
+            size,
+            pool,
+            pool_size: INITIAL_POOL_SIZE,
+            cursors: Vec::new(),
+        })
     }
 
     /// Retrieve a cursor from the theme.
     ///
     /// This method returns `None` if this cursor is not provided
     /// either by the theme, or by one of its parents.
-    pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
+    pub fn get_cursor(&mut self, cx: &mut ConnectionHandle, name: &str) -> Option<&Cursor> {
         match self.cursors.iter().position(|cursor| cursor.name == name) {
             Some(i) => Some(&self.cursors[i]),
             None => {
-                let cursor = self.load_cursor(name, self.size)?;
+                let cursor = self.load_cursor(cx, name, self.size)?;
                 self.cursors.push(cursor);
                 self.cursors.iter().last()
             }
@@ -144,7 +170,7 @@ impl CursorTheme {
     /// pushes the images onto the shm pool.
     /// Keep in mind that if the cursor is already loaded,
     /// the function will make a duplicate.
-    fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
+    fn load_cursor(&mut self, cx: &mut ConnectionHandle, name: &str, size: u32) -> Option<Cursor> {
         let icon_path = XCursorTheme::load(&self.name).load_icon(name)?;
         let mut icon_file = File::open(icon_path).ok()?;
 
@@ -154,16 +180,16 @@ impl CursorTheme {
             xparser::parse_xcursor(&buf)?
         };
 
-        Some(Cursor::new(name, self, &images, size))
+        Some(Cursor::new(cx, name, self, &images, size))
     }
 
     /// Grow the wl_shm_pool this theme is stored on.
     /// This method does nothing if the provided size is
     /// smaller or equal to the pool's current size.
-    fn grow(&mut self, size: i32) {
+    fn grow(&mut self, cx: &mut ConnectionHandle, size: i32) {
         if size > self.pool_size {
             self.file.set_len(size as u64).expect("Failed to set new buffer length");
-            self.pool.resize(size);
+            self.pool.resize(cx, size);
             self.pool_size = size;
         }
     }
@@ -182,11 +208,11 @@ impl Cursor {
     ///
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
-    fn new(name: &str, theme: &mut CursorTheme, images: &[XCursorImage], size: u32) -> Self {
+    fn new(cx: &mut ConnectionHandle, name: &str, theme: &mut CursorTheme, images: &[XCursorImage], size: u32) -> Self {
         let mut total_duration = 0;
         let images: Vec<CursorImageBuffer> = Cursor::nearest_images(size, images)
             .map(|image| {
-                let buffer = CursorImageBuffer::new(theme, image);
+                let buffer = CursorImageBuffer::new(cx, theme, image);
                 total_duration += buffer.delay;
 
                 buffer
@@ -260,27 +286,31 @@ impl CursorImageBuffer {
     ///
     /// This function appends the pixels of the image to the provided file,
     /// and constructs a wl_buffer on that data.
-    fn new(theme: &mut CursorTheme, image: &XCursorImage) -> Self {
+    fn new(cx: &mut ConnectionHandle, theme: &mut CursorTheme, image: &XCursorImage) -> Self {
         let buf = &image.pixels_rgba;
         let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
 
         // Resize memory before writing to it to handle shm correctly.
         let new_size = offset + buf.len() as u64;
-        theme.grow(new_size as i32);
+        theme.grow(cx, new_size as i32);
 
         theme.file.write_all(buf).unwrap();
 
-        let buffer = theme.pool.create_buffer(
-            offset as i32,
-            image.width as i32,
-            image.height as i32,
-            (image.width * 4) as i32,
-            Format::Argb8888,
-        );
-        buffer.quick_assign(|_, _, _| {});
+        let buffer = theme
+            .pool
+            .create_buffer(
+                cx,
+                offset as i32,
+                image.width as i32,
+                image.height as i32,
+                (image.width * 4) as i32,
+                Format::Argb8888,
+                Some(ProxyData::ignore()),
+            )
+            .unwrap();
 
         CursorImageBuffer {
-            buffer: buffer.detach(),
+            buffer,
             delay: image.delay,
             xhot: image.xhot,
             yhot: image.yhot,
