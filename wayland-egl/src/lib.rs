@@ -1,3 +1,5 @@
+#![warn(missing_docs, missing_debug_implementations)]
+
 //! EGL utilities
 //!
 //! This module contains bindings to the `libwayland-egl.so` library.
@@ -30,6 +32,7 @@ unsafe impl Sync for WlEglSurface {}
 /// to get the window pointer your OpenGL library is needing to initialize the
 /// EGL context (you'll most likely need the display ptr as well, that you can
 /// get via the `ptr` method of the `Proxy` trait on the `WlDisplay` object).
+#[derive(Debug)]
 pub struct WlEglSurface {
     ptr: *mut wl_egl_window,
 }

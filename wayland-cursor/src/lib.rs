@@ -1,3 +1,5 @@
+#![warn(missing_docs, missing_debug_implementations)]
+
 //! Wayland cursor utilities
 //!
 //! This crate aims to reimplement the functionality of the `libwayland-cursor` library in Rust.
@@ -63,6 +65,7 @@ use xcursor::CursorTheme as XCursorTheme;
 use xparser::Image as XCursorImage;
 
 /// Represents a cursor theme loaded from the system.
+#[derive(Debug)]
 pub struct CursorTheme {
     name: String,
     cursors: Vec<Cursor>,
@@ -167,7 +170,7 @@ impl CursorTheme {
 }
 
 /// A cursor from a theme. Can contain several images if animated.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Cursor {
     name: String,
     images: Vec<CursorImageBuffer>,
@@ -242,7 +245,7 @@ impl Index<usize> for Cursor {
 ///
 /// Note that this proxy will be considered as "unmanaged" by the crate, as such you should
 /// not try to act on it beyond assigning it to `wl_surface`s.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CursorImageBuffer {
     buffer: WlBuffer,
     delay: u32,
