@@ -24,6 +24,7 @@ use wayland_sys::common as syscom;
 pub mod debug;
 pub mod filter;
 pub mod map;
+#[cfg(feature = "socket")]
 pub mod socket;
 pub mod user_data;
 pub mod wire;
