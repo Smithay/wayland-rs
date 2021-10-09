@@ -1,6 +1,6 @@
 #[macro_escape]
 macro_rules! wayland_protocol(
-    ($name: expr, [$(($import: ident, $interface: ident)),*], [$(($prot_name:ident, $prot_import: ident, $prot_iface: ident)),*]) => {
+    ($name: expr, [$(($import: ident, $interface: ident)),*], [$(($prot_name:literal, $prot_import: ident, $prot_iface: ident)),*]) => {
         #[cfg(feature = "client")]
         pub use self::generated::client;
 

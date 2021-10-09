@@ -58,3 +58,34 @@ pub mod gtk_primary_selection {
 
     wayland_protocol!("gtk-primary-selection", [(wl_seat, wl_seat_interface)], []);
 }
+
+pub mod zwp_input_method_v2 {
+    //! zwp_input_method_v2
+    //! This protocol allows applications to act as input methods for compositors.
+    //!
+    //! An input method context is used to manage the state of the input method.
+    //!
+    //! Text strings are UTF-8 encoded, their indices and lengths are in bytes.
+    //!
+    //! This document adheres to the RFC 2119 when using words like "must",
+    //! "should", "may", etc.
+    //!
+    //! Warning! The protocol described in this file is experimental and
+    //! backward incompatible changes may be made. Backward compatible changes
+    //! may be added together with the corresponding interface version bump.
+    //! Backward incompatible changes are done by bumping the version number in
+    //! the protocol and interface names and resetting the interface version.
+    //! Once the protocol is to be declared stable, the 'z' prefix and the
+    //! version number in the protocol and interface names are removed and the
+    //! interface version number is reset.
+
+    wayland_protocol!(
+        "input-method-unstable-v2",
+        [
+            (wl_seat, wl_seat_interface),
+            (wl_surface, wl_surface_interface),
+            (wl_output, wl_output_interface),
+            (wl_keyboard, wl_keyboard_interface)
+        ],
+        [(text_input::v3, zwp_text_input_v3, zwp_text_input_v3_interface)]);
+}
