@@ -59,6 +59,7 @@ pub mod gtk_primary_selection {
     wayland_protocol!("gtk-primary-selection", [(wl_seat, wl_seat_interface)], []);
 }
 
+#[cfg(feature = "unstable_protocols")]
 pub mod zwp_input_method_v2 {
     //! zwp_input_method_v2
     //! This protocol allows applications to act as input methods for compositors.
@@ -87,5 +88,6 @@ pub mod zwp_input_method_v2 {
             (wl_output, wl_output_interface),
             (wl_keyboard, wl_keyboard_interface)
         ],
-        [(text_input::v3, zwp_text_input_v3, zwp_text_input_v3_interface)]);
+        [(unstable :: text_input :: v3, zwp_text_input_v3, zwp_text_input_v3_interface)]
+    );
 }
