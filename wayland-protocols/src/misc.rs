@@ -88,6 +88,6 @@ pub mod zwp_input_method_v2 {
             (wl_output, wl_output_interface),
             (wl_keyboard, wl_keyboard_interface)
         ],
-        [(unstable :: text_input :: v3, zwp_text_input_v3, zwp_text_input_v3_interface)]
+        [(unstable::text_input::v3, zwp_text_input_v3, zwp_text_input_v3_interface)]
     );
 }
