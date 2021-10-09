@@ -61,7 +61,8 @@ pub mod gtk_primary_selection {
 
 #[cfg(feature = "unstable_protocols")]
 pub mod zwp_input_method_v2 {
-    //! zwp_input_method_v2
+    //! Input method v2 unstable
+    //! 
     //! This protocol allows applications to act as input methods for compositors.
     //!
     //! An input method context is used to manage the state of the input method.
