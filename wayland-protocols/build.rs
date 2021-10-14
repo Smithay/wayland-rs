@@ -64,7 +64,8 @@ static WLR_UNSTABLE_PROTOCOLS: &[VersionedProtocol] = &[
     ("wlr-virtual-pointer", &[("v1", &[])]),
 ];
 
-static MISC_PROTOCOLS: &[StableProtocol] = &[("gtk-primary-selection", &[])];
+static MISC_PROTOCOLS: &[StableProtocol] =
+    &[("gtk-primary-selection", &[]), ("server-decoration", &[])];
 
 fn generate_protocol(
     name: &str,
