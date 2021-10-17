@@ -92,3 +92,16 @@ pub mod zwp_input_method_v2 {
         [(unstable::text_input::v3, zwp_text_input_v3, zwp_text_input_v3_interface)]
     );
 }
+
+pub mod server_decoration{
+    //! KDE server decoration protocol
+    //!
+    //! This interface allows to coordinate whether the server should create
+    //! a server-side window decoration around a wl_surface representing a
+    //! shell surface (wl_shell_surface or similar). By announcing support
+    //! for this interface the server indicates that it supports server
+    //! side decorations.
+    //!
+    //! Use in conjunction with zxdg_decoration_manager_v1 is undefined.
+    wayland_protocol!("server-decoration", [(wl_surface, wl_seat_surface)], []);
+}

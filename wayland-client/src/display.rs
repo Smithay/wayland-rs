@@ -192,8 +192,6 @@ impl Display {
     ///
     /// Will write as many pending requests as possible to the server socket. Never blocks: if not all
     /// requests could be written, will return an io error `WouldBlock`.
-    ///
-    /// This function is identical to `EventQueue::flush`
     pub fn flush(&self) -> io::Result<()> {
         self.inner.flush()
     }

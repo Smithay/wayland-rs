@@ -2,32 +2,37 @@
 
 ## Unreleased
 
-* [server] Introduce `Client::credentials()` to allow retrieving the credentials of client socket (implements `wl_client_get_credentials`).
+#### Additions
+
+- [server] Introduce `Client::credentials()` to allow retrieving the credentials of client socket (implements `wl_client_get_credentials`).
+- [protocols] KDE's `server-decoration` protocol was added to misc module.
 * [protocols] Introduce misc/input-method-unstable-v2
 
 ## 0.29.0 -- 2021-07-24
 
 #### Additions
 
-* [protocols] Update wayland-protocols to 1.21.
-* [protocols] Add new feature to enable staging protocols.
-* [protocols] `xdg-activation-v1` is now generated under staging protocols feature.
+- [protocols] Update wayland-protocols to 1.21.
+- [protocols] Add new feature to enable staging protocols.
+- [protocols] `xdg-activation-v1` is now generated under staging protocols feature.
 
 #### Protocol changes breaking the bindings
 
 A few protocols broke in the rust bindings but not in the C-api. A few of these changes to the generated bindings due
 to the protocol now properly declaring bitsets and enums include:
-* Events and Requests now taking a bitflag struct or enum instead of a raw `u32`.
-* Bitflags now properly declared as a bitflag struct vs the old method which involved some enums and converting the enums to `u32`.
+
+- Events and Requests now taking a bitflag struct or enum instead of a raw `u32`.
+- Bitflags now properly declared as a bitflag struct vs the old method which involved some enums and converting the enums to `u32`.
 
 Effected protocols by above changes include:
-* `fullscreen-shell`
-* `linux-dmabuf-v1`
-* `pointer-constraints-v1`
-* `pointer-gestures-v1`
-* `presentation-time`
-* `text-input-v1`
-* `text-input-v3`
+
+- `fullscreen-shell`
+- `linux-dmabuf-v1`
+- `pointer-constraints-v1`
+- `pointer-gestures-v1`
+- `presentation-time`
+- `text-input-v1`
+- `text-input-v3`
 
 ## 0.28.6 -- 2021-06-29
 
@@ -52,7 +57,7 @@ Effected protocols by above changes include:
 
 #### Bugfixes
 
-- [client] Unset WAYLAND\_SOCKET when we use the socket
+- [client] Unset WAYLAND_SOCKET when we use the socket
 - [client] Correctly cleanup internal state on object destruction when usin the system lib backend
 - [cursor] Fix the algorithm for choosing cursor icons to match libwayland-cursor.
 
@@ -144,7 +149,7 @@ Effected protocols by above changes include:
 
 ## 0.26.3 -- 2020-04-22
 
-*Technical release due to crates.io issues.*
+_Technical release due to crates.io issues._
 
 ## 0.26.2 -- 2020-04-22
 
@@ -189,7 +194,6 @@ Effected protocols by above changes include:
   reference instead of by value, allowing the creation of new attached/detached proxy handles without
   requiring ownership
 - [commons] Carefully handle `Drop` types in the thread-aware containers.
-
 
 #### Updates
 
