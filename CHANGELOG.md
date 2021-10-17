@@ -6,6 +6,7 @@
 
 - [server] Introduce `Client::credentials()` to allow retrieving the credentials of client socket (implements `wl_client_get_credentials`).
 - [protocols] KDE's `server-decoration` protocol was added to misc module.
+* [protocols] Introduce misc/input-method-unstable-v2
 
 ## 0.29.0 -- 2021-07-24
 

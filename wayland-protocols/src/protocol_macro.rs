@@ -1,6 +1,11 @@
 #[macro_escape]
 macro_rules! wayland_protocol(
-    ($name: expr, [$(($import: ident, $interface: ident)),*], [$(($prot_name:ident, $prot_import: ident, $prot_iface: ident)),*]) => {
+    (
+        $name: expr,
+        [$(($import: ident, $interface: ident)),*],
+        // Path declaration in prot_name is to allow importing from another class of protocols, such as unstable
+        [$(($($prot_name:ident)::+, $prot_import: ident, $prot_iface: ident)),*]
+    ) => {
         #[cfg(feature = "client")]
         pub use self::generated::client;
 
@@ -23,7 +28,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_client::protocol::{$($import),*};
                 pub(crate) use wayland_client::sys;
                 $(
-                    pub(crate) use crate::$prot_name::client::$prot_import;
+                    pub(crate) use crate::$($prot_name ::)*client::$prot_import;
                 )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_client_api.rs"));
             }
@@ -39,7 +44,7 @@ macro_rules! wayland_protocol(
                 pub(crate) use wayland_server::protocol::{$($import),*};
                 pub(crate) use wayland_server::sys;
                 $(
-                    pub(crate) use crate::$prot_name::server::$prot_import;
+                    pub(crate) use crate::$($prot_name ::)*server::$prot_import;
                 )*
                 include!(concat!(env!("OUT_DIR"), "/", $name, "_server_api.rs"));
             }
