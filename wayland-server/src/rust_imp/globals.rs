@@ -140,7 +140,7 @@ impl GlobalManager {
         client: ClientInner,
         data: DispatchData,
     ) -> Result<(), ()> {
-        if let Some(ref global_data) = self.globals.get((global_id - 1) as usize) {
+        if let Some(global_data) = self.globals.get((global_id - 1) as usize) {
             if !global_data
                 .filter
                 .as_ref()

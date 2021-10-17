@@ -241,7 +241,7 @@ impl Message {
                 Argument::Object(o) => payload = write_buf(o, old_payload)?,
                 Argument::NewId(n) => payload = write_buf(n, old_payload)?,
                 Argument::Array(ref a) => {
-                    payload = write_array_to_payload(&a, old_payload)?;
+                    payload = write_array_to_payload(a, old_payload)?;
                 }
                 Argument::Fd(fd) => {
                     let old_fds = fds;

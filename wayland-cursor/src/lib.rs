@@ -268,7 +268,7 @@ impl CursorImageBuffer {
         let new_size = offset + buf.len() as u64;
         theme.grow(new_size as i32);
 
-        theme.file.write_all(&buf).unwrap();
+        theme.file.write_all(buf).unwrap();
 
         let buffer = theme.pool.create_buffer(
             offset as i32,

@@ -67,7 +67,7 @@ static WLR_UNSTABLE_PROTOCOLS: &[VersionedProtocol] = &[
 static MISC_PROTOCOLS: &[StableProtocol] = &[
     ("gtk-primary-selection", &[]),
     ("input-method-unstable-v2", &[]),
-    ("server-decoration", &[])
+    ("server-decoration", &[]),
 ];
 
 fn generate_protocol(

@@ -208,7 +208,7 @@ pub(crate) fn gen_messagegroup(
                         Type::Fd => quote!(::std::os::unix::io::RawFd),
                         Type::Object => {
                             if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(&iface, Span::call_site());
+                                let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(super::#iface_mod::#iface_type)
@@ -232,7 +232,7 @@ pub(crate) fn gen_messagegroup(
                                 Ident::new("Main", Span::call_site())
                             };
                             if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(&iface, Span::call_site());
+                                let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
                                 quote!(#object_name<super::#iface_mod::#iface_type>)
@@ -292,7 +292,7 @@ pub(crate) fn gen_messagegroup(
     let map_type = if side == Side::Client { quote!(ProxyMap) } else { quote!(ResourceMap) };
 
     // Can't be a closure because closures are never Copy / Clone in rustc < 1.26.0, and we supports 1.21.0
-    fn map_fn((ref msg, ref name): (&Message, &Ident)) -> TokenStream {
+    fn map_fn((msg, name): (&Message, &Ident)) -> TokenStream {
         let msg_type = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
         let msg_type_qualified = quote!(#name::#msg_type);
 
@@ -785,8 +785,8 @@ pub fn method_prototype<'a>(
     let return_type = if let Some(arg) = newid {
         match arg.interface {
             Some(ref iface) => {
-                let iface_mod = Ident::new(&iface, Span::call_site());
-                let iface_type = Ident::new(&snake_to_camel(&iface), Span::call_site());
+                let iface_mod = Ident::new(iface, Span::call_site());
+                let iface_type = Ident::new(&snake_to_camel(iface), Span::call_site());
 
                 quote!(Main<super::#iface_mod::#iface_type>)
             }
@@ -827,7 +827,7 @@ pub(crate) fn gen_object_methods(name: &Ident, messages: &[Message], side: Side)
         let doc_attr = to_doc_attr(&docs);
 
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
-        let (proto, return_type) = method_prototype(name, &msg, side);
+        let (proto, return_type) = method_prototype(name, msg, side);
 
         let msg_init = if msg.args.is_empty() {
             TokenStream::new()

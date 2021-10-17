@@ -213,7 +213,7 @@ impl EventQueueInner {
         // first retrieve the display and make a wrapper for it in this event queue
         let mut display =
             ProxyInner::from_id(1, self.map.clone(), self.connection.clone()).unwrap();
-        display.attach(&self);
+        display.attach(self);
 
         let done = Rc::new(Cell::new(false));
         let cb = display.send::<WlDisplay, WlCallback>(DRequest::Sync {}, Some(1)).unwrap();
