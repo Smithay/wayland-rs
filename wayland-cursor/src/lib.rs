@@ -59,10 +59,10 @@ use {nix::sys::memfd, std::ffi::CStr};
 
 use wayland_client::backend::InvalidId;
 use wayland_client::protocol::wl_buffer::WlBuffer;
-use wayland_client::protocol::wl_shm::{Format, WlShm};
-use wayland_client::protocol::wl_shm_pool::WlShmPool;
+use wayland_client::protocol::wl_shm::{self, Format, WlShm};
+use wayland_client::protocol::wl_shm_pool::{self, WlShmPool};
 use wayland_client::proxy_internals::ProxyData;
-use wayland_client::ConnectionHandle;
+use wayland_client::{ConnectionHandle, Proxy, WEnum};
 
 use xcursor::parser as xparser;
 use xcursor::CursorTheme as XCursorTheme;
@@ -132,8 +132,12 @@ impl CursorTheme {
         // Flush to ensure the compositor has access to the buffer when it tries to map it.
         file.flush().expect("Flush on shm fd failed");
 
-        let pool =
-            shm.create_pool(cx, file.as_raw_fd(), INITIAL_POOL_SIZE, Some(ProxyData::ignore()))?;
+        let pool_id = cx.send_request(
+            &shm,
+            wl_shm::Request::CreatePool { fd: file.as_raw_fd(), size: INITIAL_POOL_SIZE },
+            Some(ProxyData::<()>::ignore()),
+        )?;
+        let pool = WlShmPool::from_id(cx, pool_id)?;
 
         let name = String::from(name);
 
@@ -298,18 +302,21 @@ impl CursorImageBuffer {
 
         theme.file.write_all(buf).unwrap();
 
-        let buffer = theme
-            .pool
-            .create_buffer(
-                cx,
-                offset as i32,
-                image.width as i32,
-                image.height as i32,
-                (image.width * 4) as i32,
-                Format::Argb8888,
-                Some(ProxyData::ignore()),
+        let buffer_id = cx
+            .send_request(
+                &theme.pool,
+                wl_shm_pool::Request::CreateBuffer {
+                    offset: offset as i32,
+                    width: image.width as i32,
+                    height: image.height as i32,
+                    stride: (image.width * 4) as i32,
+                    format: WEnum::Value(Format::Argb8888),
+                },
+                Some(ProxyData::<()>::ignore()),
             )
             .unwrap();
+
+        let buffer = WlBuffer::from_id(cx, buffer_id).unwrap();
 
         CursorImageBuffer {
             buffer,
