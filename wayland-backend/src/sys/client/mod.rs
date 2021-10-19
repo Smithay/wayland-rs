@@ -333,7 +333,12 @@ impl Handle {
             return Err(InvalidId);
         }
 
-        let version = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, id.ptr) };
+        let version = if id.id == 1 {
+            // special case the display, because libwayland returns a version of 0 for it
+            1
+        } else {
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, id.ptr) }
+        };
 
         Ok(ObjectInfo { id: id.id, interface: id.interface, version })
     }
@@ -574,6 +579,12 @@ impl Handle {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);
         }
+
+        if id.id == 1 {
+            // special case the display whose object data is not accessible
+            return Ok(Arc::new(DumbObjectData));
+        }
+
         let udata = unsafe {
             &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
                 as *mut ProxyUserData)
