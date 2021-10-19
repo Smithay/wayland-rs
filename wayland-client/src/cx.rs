@@ -92,7 +92,7 @@ impl Connection {
             let display = handle.display();
             let cb_done = done.clone();
             let sync_data =
-                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _: &()| {
+                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _, _: &()| {
                     cb_done.store(true, Ordering::Release);
                 });
             handle
