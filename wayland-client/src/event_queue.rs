@@ -11,7 +11,7 @@ use wayland_backend::{
     protocol::Message,
 };
 
-use crate::{proxy_internals::ProxyData, ConnectionHandle, DispatchError, FromEvent, Proxy};
+use crate::{proxy_internals::ProxyData, ConnectionHandle, DispatchError, Proxy};
 
 pub trait Dispatch<I: Proxy>: Sized {
     type UserData: Default + Send + Sync + 'static;
@@ -193,7 +193,7 @@ impl<D> QueueHandle<D> {
         D: Dispatch<I>,
     {
         let callback = QueueCallback::new(move |handle, msg, data: &mut D, qhandle| {
-            let (proxy, event) = I::from_event(handle, msg)?;
+            let (proxy, event) = I::parse_event(handle, msg)?;
             let pdata = proxy.data::<D>().expect("Wrong user_data value for object");
             data.event(proxy, event, &pdata.udata, handle, qhandle);
             Ok(())
