@@ -17,7 +17,7 @@ use wayland_backend::{
 
 use nix::{fcntl, Error};
 
-use crate::{proxy_internals::ProxyData, quick_sink, EventQueue, Proxy};
+use crate::{quick_sink, EventQueue, Proxy};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -91,11 +91,16 @@ impl Connection {
             let mut handle = ConnectionHandle::from_handle(backend.handle());
             let display = handle.display();
             let cb_done = done.clone();
-            let sync_data = quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _| {
-                cb_done.store(true, Ordering::Release);
-            });
-            display
-                .sync(&mut handle, Some(sync_data))
+            let sync_data =
+                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _: &()| {
+                    cb_done.store(true, Ordering::Release);
+                });
+            handle
+                .send_request(
+                    &display,
+                    crate::protocol::wl_display::Request::Sync {},
+                    Some(sync_data),
+                )
                 .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
         }
 
@@ -108,7 +113,7 @@ impl Connection {
         Ok(dispatched)
     }
 
-    pub fn new_event_queue<Data>(&self) -> EventQueue<Data> {
+    pub fn new_event_queue<D>(&self) -> EventQueue<D> {
         EventQueue::new(self.backend.clone())
     }
 }
@@ -174,10 +179,10 @@ impl<'a> ConnectionHandle<'a> {
         &mut self,
         proxy: &I,
         request: I::Request,
-        data: Option<Arc<ProxyData>>,
+        data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
         let msg = proxy.write_request(self, request)?;
-        self.inner.handle().send_request(msg, data.map(|arc| arc as Arc<dyn ObjectData>))
+        self.inner.handle().send_request(msg, data)
     }
 
     pub fn display(&mut self) -> crate::protocol::wl_display::WlDisplay {
@@ -193,8 +198,8 @@ impl<'a> ConnectionHandle<'a> {
         self.inner.handle().null_id()
     }
 
-    pub fn get_proxy_data(&mut self, id: ObjectId) -> Result<Arc<ProxyData>, InvalidId> {
-        self.inner.handle().get_data(id)?.downcast_arc().map_err(|_| InvalidId)
+    pub fn get_object_data(&mut self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+        self.inner.handle().get_data(id)
     }
 
     pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {

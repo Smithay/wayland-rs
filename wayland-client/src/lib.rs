@@ -18,7 +18,8 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use cx::{Connection, ConnectionHandle};
-pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
+pub use event_queue::{Dispatch, EventQueue, QueueHandle};
+//pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
 
 pub mod protocol {
     use self::__interfaces::*;
@@ -37,7 +38,9 @@ pub trait Proxy: Sized {
 
     fn id(&self) -> ObjectId;
 
-    fn data(&self) -> Option<&std::sync::Arc<proxy_internals::ProxyData>>;
+    fn data<D: Dispatch<Self>>(
+        &self,
+    ) -> Option<std::sync::Arc<proxy_internals::ProxyData<D::UserData>>>;
 
     fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId>;
 
@@ -51,20 +54,6 @@ pub trait Proxy: Sized {
         cx: &mut ConnectionHandle,
         req: Self::Request,
     ) -> Result<Message<ObjectId>, InvalidId>;
-
-    #[inline]
-    fn init_user_data<T: 'static + Send + Sync>(
-        &self,
-        f: impl FnOnce() -> T,
-    ) -> Result<(), InvalidId> {
-        self.data().ok_or(InvalidId)?.init_user_data(|| Box::new(f()));
-        Ok(())
-    }
-
-    #[inline]
-    fn get_user_data<T: 'static>(&self) -> Option<&T> {
-        self.data()?.get_user_data()?.downcast_ref()
-    }
 }
 
 pub trait FromEvent {

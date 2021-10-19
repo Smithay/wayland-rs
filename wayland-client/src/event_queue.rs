@@ -11,48 +11,21 @@ use wayland_backend::{
     protocol::Message,
 };
 
-use crate::{
-    proxy_internals::{EventSink, ProxyData},
-    ConnectionHandle, DispatchError, FromEvent,
-};
+use crate::{proxy_internals::ProxyData, ConnectionHandle, DispatchError, FromEvent, Proxy};
 
-#[derive(Clone)]
-pub struct Sink {
-    sink: Arc<EventSink>,
-}
+pub trait Dispatch<I: Proxy>: Sized {
+    type UserData: Default + Send + Sync + 'static;
 
-impl Sink {
-    pub fn data(&self) -> Arc<ProxyData> {
-        ProxyData::new(self.sink.clone())
-    }
-}
+    fn event(
+        &mut self,
+        proxy: I,
+        event: I::Event,
+        data: &Self::UserData,
+        cxhandle: &mut ConnectionHandle,
+        qhandle: &QueueHandle<Self>,
+    );
 
-impl std::fmt::Debug for Sink {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Sink{ .. }")
-    }
-}
-
-pub fn event_stream<E: FromEvent>() -> (UnboundedReceiver<E::Out>, Sink)
-where
-    E::Out: Send + 'static,
-{
-    let (tx, rx) = unbounded();
-
-    let sink = Arc::new(move |cx: &mut ConnectionHandle<'_>, msg| {
-        let val = match E::from_event(cx, msg) {
-            Ok(val) => val,
-            Err(e) => {
-                log::error!("Unabled to parse event in EventStream: {}", e);
-                return;
-            }
-        };
-        if tx.unbounded_send(val).is_err() {
-            log::error!("Event received in EventStream after the stream was dropped.")
-        }
-    }) as Arc<_>;
-
-    (rx, Sink { sink })
+    fn destroyed(&mut self, _proxy: I, _data: &Self::UserData) {}
 }
 
 #[derive(Debug)]
@@ -61,11 +34,11 @@ enum QueueEvent {
     SinkDropped(DefaultKey),
 }
 
-type InnerCallback<Data> = dyn FnMut(
+type InnerCallback<D> = dyn FnMut(
     &mut ConnectionHandle<'_>,
     Message<ObjectId>,
-    &mut Data,
-    &QueueHandle<Data>,
+    &mut D,
+    &QueueHandle<D>,
 ) -> Result<(), DispatchError>;
 
 struct QueueCallback<Data>(Rc<RefCell<InnerCallback<Data>>>);
@@ -76,13 +49,13 @@ impl<Data> Clone for QueueCallback<Data> {
     }
 }
 
-impl<Data> QueueCallback<Data> {
+impl<D> QueueCallback<D> {
     fn new<
         F: FnMut(
                 &mut ConnectionHandle<'_>,
                 Message<ObjectId>,
-                &mut Data,
-                &QueueHandle<Data>,
+                &mut D,
+                &QueueHandle<D>,
             ) -> Result<(), DispatchError>
             + 'static,
     >(
@@ -95,15 +68,15 @@ impl<Data> QueueCallback<Data> {
         &self,
         handle: &mut ConnectionHandle,
         msg: Message<ObjectId>,
-        data: &mut Data,
-        qhandle: &QueueHandle<Data>,
+        data: &mut D,
+        qhandle: &QueueHandle<D>,
     ) -> Result<(), DispatchError> {
         let mut guard = self.0.borrow_mut();
         (*guard)(handle, msg, data, qhandle)
     }
 }
 
-impl<Data> std::fmt::Debug for QueueCallback<Data> {
+impl<D> std::fmt::Debug for QueueCallback<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("EventQueueCallback{ .. }")
     }
@@ -214,23 +187,24 @@ impl Drop for QueueSender {
     }
 }
 
-impl<Data> QueueHandle<Data> {
-    pub fn sink<E: FromEvent, F>(&self, mut callback: F) -> Sink
+impl<D> QueueHandle<D> {
+    pub fn make_data<I: Proxy>(&self) -> Arc<ProxyData<D::UserData>>
     where
-        F: FnMut(&mut ConnectionHandle<'_>, E::Out, &mut Data, &QueueHandle<Data>) + 'static,
+        D: Dispatch<I>,
     {
-        let callback = QueueCallback::new(move |handle, msg, data, qhandle| {
-            let val = E::from_event(handle, msg)?;
-            callback(handle, val, data, qhandle);
+        let callback = QueueCallback::new(move |handle, msg, data: &mut D, qhandle| {
+            let (proxy, event) = I::from_event(handle, msg)?;
+            let pdata = proxy.data::<D>().expect("Wrong user_data value for object");
+            data.event(proxy, event, &pdata.udata, handle, qhandle);
             Ok(())
         });
 
         let key = self.callbacks.borrow_mut().insert(callback);
         let sender = QueueSender { key, tx: self.tx.clone() };
-        let sink_callback = move |_: &mut ConnectionHandle<'_>, msg| {
+        let sink_callback = move |_: &mut ConnectionHandle<'_>, msg, _: &D::UserData| {
             sender.send(msg);
         };
 
-        Sink { sink: Arc::new(sink_callback) }
+        ProxyData::new(Arc::new(sink_callback))
     }
 }
