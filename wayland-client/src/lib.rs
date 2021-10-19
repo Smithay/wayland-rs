@@ -47,39 +47,13 @@ pub trait Proxy: Sized {
     fn parse_event(
         cx: &mut ConnectionHandle,
         msg: Message<ObjectId>,
-    ) -> Result<(Self, Self::Event), Message<ObjectId>>;
+    ) -> Result<(Self, Self::Event), DispatchError>;
 
     fn write_request(
         &self,
         cx: &mut ConnectionHandle,
         req: Self::Request,
     ) -> Result<Message<ObjectId>, InvalidId>;
-}
-
-pub trait FromEvent {
-    type Out;
-
-    fn from_event(
-        cx: &mut ConnectionHandle,
-        msg: Message<ObjectId>,
-    ) -> Result<Self::Out, DispatchError>;
-}
-
-impl<I: Proxy> FromEvent for I {
-    type Out = (I, I::Event);
-
-    fn from_event(
-        cx: &mut ConnectionHandle,
-        msg: Message<ObjectId>,
-    ) -> Result<Self::Out, DispatchError> {
-        let sender_iface = msg.sender_id.interface();
-        if crate::backend::protocol::same_interface(sender_iface, I::interface()) {
-            I::parse_event(cx, msg)
-                .map_err(|msg| DispatchError::BadMessage { msg, interface: sender_iface })
-        } else {
-            Err(DispatchError::NoHandler { msg, interface: sender_iface })
-        }
-    }
 }
 
 #[derive(thiserror::Error, Debug)]

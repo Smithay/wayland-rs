@@ -47,17 +47,12 @@ impl<U: Default + Send + Sync + 'static> ObjectData for ProxyData<U> {
 }
 
 #[macro_export]
-macro_rules! convert_event {
-    ($cx: expr, $msg:expr ; $target_iface:ty) => {};
-}
-
-#[macro_export]
 macro_rules! quick_sink {
     ($target:ty, $callback_body:expr) => {{
         #[inline(always)]
         fn check_type<
             U,
-            F: Fn(&mut $crate::ConnectionHandle, <$target as $crate::FromEvent>::Out, &U),
+            F: Fn(&mut $crate::ConnectionHandle, $target, <$target as $crate::Proxy>::Event, &U),
         >(
             f: F,
         ) -> F {
@@ -65,47 +60,9 @@ macro_rules! quick_sink {
         }
         let callback_body = check_type($callback_body);
         $crate::proxy_internals::ProxyData::new(Arc::new(move |cx, msg, udata| {
-            let val = <$target as $crate::FromEvent>::from_event(cx, msg)
+            let (proxy, event) = <$target as $crate::Proxy>::parse_event(cx, msg)
                 .expect("Unexpected event received in oneshot_sink!");
-            callback_body(cx, val, udata)
+            callback_body(cx, proxy, event, udata)
         }))
     }};
-}
-
-#[macro_export]
-macro_rules! event_enum {
-    (
-        $(#[$outer:meta])*
-        $sv:vis enum $name:ident {
-            $(
-                $iface:ty => $variant:ident
-            ),*
-        }
-    ) => {
-        $(#[$outer:meta])*
-        $sv enum $name {
-            $(
-                $variant { object: $iface, event: <$iface as $crate::Proxy>::Event }
-            ),*
-        }
-
-        impl $crate::FromEvent for $name {
-            type Out = $name;
-            fn from_event(
-                cx: &mut $crate::ConnectionHandle,
-                msg: $crate::backend::protocol::Message<$crate::backend::ObjectId>
-            ) -> Result<$name, $crate::DispatchError> {
-                let sender_iface = msg.sender_id.interface();
-                match () {
-                    $(
-                        () if $crate::backend::protocol::same_interface(sender_iface, <$iface as $crate::Proxy>::interface()) => {
-                            <$iface as $crate::FromEvent>::from_event(cx, msg)
-                                .map(|(object, event)| $name::$variant { object, event })
-                        },
-                    )*
-                    () => Err($crate::DispatchError::NoHandler { msg, interface: sender_iface })
-                }
-            }
-        }
-    }
 }

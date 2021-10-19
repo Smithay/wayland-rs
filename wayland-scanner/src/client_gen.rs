@@ -52,7 +52,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use super::wayland_client::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
                 proxy_internals::ProxyData,
-                Proxy, ConnectionHandle, Dispatch, QueueHandle,
+                Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
             };
 
             #enums
@@ -95,7 +95,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     }
                 }
 
-                fn parse_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), Message<ObjectId>> {
+                fn parse_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
                     #parse_body
                 }
 
@@ -167,7 +167,7 @@ fn gen_parse_body(interface: &Interface) -> TokenStream {
                             quote! {
                                 match Proxy::from_id(cx, #arg_name.clone()) {
                                     Ok(p) => p,
-                                    Err(_) => return Err(msg),
+                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
                                 }
                             }
                         } else {
@@ -200,7 +200,7 @@ fn gen_parse_body(interface: &Interface) -> TokenStream {
                 if let [#(#args_pat),*] = &msg.args[..] {
                     Ok((me, Event::#event_name { #(#arg_names),* }))
                 } else {
-                    Err(msg)
+                    Err(DispatchError::BadMessage { msg, interface: Self::interface() })
                 }
             }
         }
@@ -209,11 +209,11 @@ fn gen_parse_body(interface: &Interface) -> TokenStream {
     quote! {
         let me = match Self::from_id(cx, msg.sender_id.clone()) {
             Ok(me) => me,
-            Err(_) => return Err(msg),
+            Err(_) => return Err(DispatchError::NoHandler { msg, interface: Self::interface() }),
         };
         match msg.opcode {
             #(#match_arms),*
-            _ => return Err(msg)
+            _ => Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
         }
     }
 }
