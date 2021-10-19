@@ -22,6 +22,7 @@ futures-channel = "0.3.16"
 futures-core = "0.3.16"
 log = "0.4"
 slotmap = "1.0"
+downcast-rs = "1.2"
 
 [dev-dependencies]
 wayland-protocols = { version = "0.30.0-dev", path = "../wayland-protocols", features = ["client"] }

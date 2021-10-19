@@ -41,6 +41,18 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     fn event(&self, handle: &mut Handle, msg: Message<ObjectId>);
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, object_id: ObjectId);
+    /// Helper for forwarding a Debug implementation of your `ObjectData` type
+    ///
+    /// By default will just print `ObjectData { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectData").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for dyn ObjectData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.debug(f)
+    }
 }
 
 downcast_rs::impl_downcast!(sync ObjectData);
