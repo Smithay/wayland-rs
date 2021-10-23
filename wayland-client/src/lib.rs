@@ -5,7 +5,6 @@ use wayland_backend::{
 
 mod cx;
 mod event_queue;
-pub mod proxy_internals;
 
 pub mod backend {
     pub use wayland_backend::client::{
@@ -18,7 +17,7 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use cx::{Connection, ConnectionHandle};
-pub use event_queue::{Dispatch, EventQueue, QueueHandle};
+pub use event_queue::{Dispatch, EventQueue, QueueHandle, QueueProxyData};
 //pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
 
 pub mod protocol {
@@ -38,9 +37,7 @@ pub trait Proxy: Sized {
 
     fn id(&self) -> ObjectId;
 
-    fn data<D: Dispatch<Self>>(
-        &self,
-    ) -> Option<std::sync::Arc<proxy_internals::ProxyData<D::UserData>>>;
+    fn data<D: Dispatch<Self> + 'static>(&self) -> Option<&<D as Dispatch<Self>>::UserData>;
 
     fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId>;
 

@@ -7,7 +7,7 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
 
     fn event(
         &mut self,
-        _: wl_registry::WlRegistry,
+        _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
