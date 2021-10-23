@@ -8,6 +8,7 @@ mod common;
 mod interfaces;
 mod parse;
 mod protocol;
+mod server_gen;
 mod util;
 
 #[proc_macro]
@@ -44,6 +45,24 @@ pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::Toke
     };
     let protocol = parse::parse(file);
     client_gen::generate_client_objects(&protocol).into()
+}
+
+#[proc_macro]
+pub fn generate_server_code(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let path: OsString = parse_macro_input!(stream as LitStr).value().into();
+    let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
+        let mut buf = PathBuf::from(manifest_dir);
+        buf.push(path);
+        buf
+    } else {
+        path.into()
+    };
+    let file = match std::fs::File::open(&path) {
+        Ok(file) => file,
+        Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
+    };
+    let protocol = parse::parse(file);
+    server_gen::generate_server_objects(&protocol).into()
 }
 
 #[cfg(test)]
