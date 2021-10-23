@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: ['1.49.0', 'stable', 'beta']
+        rust: ['1.53.0', 'stable', 'beta']
       
     runs-on: ubuntu-latest
 
@@ -46,7 +46,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --workspace 
+          args: --ignore-tests --workspace --all-features
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
