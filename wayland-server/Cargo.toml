@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.29.1"
+version = "0.30.0-dev"
 documentation = "https://smithay.github.io/wayland-rs/wayland_server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -8,24 +8,12 @@ license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "server", "compositor"]
 description = "Bindings to the standard C implementation of the wayland protocol, server side."
-build = "build.rs"
 edition = "2018"
 readme = "README.md"
 
 [dependencies]
-wayland-commons = { version = "0.29.1", path = "../wayland-commons" }
-wayland-sys = { version = "0.29.1", path = "../wayland-sys" }
-bitflags = "1.0"
-downcast-rs = "1.0.4"
-libc = "0.2"
-nix = "0.22"
-lazy_static = { version = "1.0.2", optional = true }
-parking_lot = { version = "0.11", optional = true }
-scoped-tls = { version = "1.0", optional = true }
-
-[build-dependencies]
-wayland-scanner = { version = "0.29.1", path = "../wayland-scanner" }
-
-[features]
-use_system_lib = ["wayland-sys/server", "lazy_static", "scoped-tls", "parking_lot"]
-dlopen = ["wayland-sys/dlopen", "use_system_lib"]
+wayland-backend = { version = "0.1", path = "../wayland-backend" }
+wayland-scanner = { version = "0.30.0-dev", path = "../wayland-scanner" }
+thiserror = "1.0"
+log = "0.4"
+nix = "0.23"
