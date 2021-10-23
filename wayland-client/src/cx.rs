@@ -17,7 +17,7 @@ use wayland_backend::{
 
 use nix::{fcntl, Error};
 
-use crate::{quick_sink, EventQueue, Proxy};
+use crate::{EventQueue, Proxy};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -91,10 +91,7 @@ impl Connection {
             let mut handle = ConnectionHandle::from_handle(backend.handle());
             let display = handle.display();
             let cb_done = done.clone();
-            let sync_data =
-                quick_sink!(crate::protocol::wl_callback::WlCallback, move |_, _, _, _: &()| {
-                    cb_done.store(true, Ordering::Release);
-                });
+            let sync_data = Arc::new(SyncData { done: cb_done });
             handle
                 .send_request(
                     &display,
@@ -215,4 +212,24 @@ pub enum ConnectError {
     NoCompositor,
     #[error("WAYLAND_SOCKET was set but contained garbage")]
     InvalidFd,
+}
+
+/*
+    wl_callback object data for wl_display.sync
+*/
+
+struct SyncData {
+    done: Arc<AtomicBool>,
+}
+
+impl ObjectData for SyncData {
+    fn event(&self, _handle: &mut Handle, _msg: wayland_backend::protocol::Message<ObjectId>) {
+        self.done.store(true, Ordering::Release);
+    }
+
+    fn destroyed(&self, _: ObjectId) {}
+
+    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ObjectData> {
+        unreachable!()
+    }
 }

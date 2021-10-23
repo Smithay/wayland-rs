@@ -48,6 +48,7 @@ use std::fs::File;
 use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nix::errno::Errno;
@@ -57,11 +58,10 @@ use nix::unistd;
 #[cfg(target_os = "linux")]
 use {nix::sys::memfd, std::ffi::CStr};
 
-use wayland_client::backend::InvalidId;
+use wayland_client::backend::{InvalidId, ObjectData};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{self, Format, WlShm};
 use wayland_client::protocol::wl_shm_pool::{self, WlShmPool};
-use wayland_client::proxy_internals::ProxyData;
 use wayland_client::{ConnectionHandle, Proxy, WEnum};
 
 use xcursor::parser as xparser;
@@ -135,7 +135,7 @@ impl CursorTheme {
         let pool_id = cx.send_request(
             &shm,
             wl_shm::Request::CreatePool { fd: file.as_raw_fd(), size: INITIAL_POOL_SIZE },
-            Some(ProxyData::<()>::ignore()),
+            Some(Arc::new(IgnoreObjectData)),
         )?;
         let pool = WlShmPool::from_id(cx, pool_id)?;
 
@@ -312,7 +312,7 @@ impl CursorImageBuffer {
                     stride: (image.width * 4) as i32,
                     format: WEnum::Value(Format::Argb8888),
                 },
-                Some(ProxyData::<()>::ignore()),
+                Some(Arc::new(IgnoreObjectData)),
             )
             .unwrap();
 
@@ -412,5 +412,23 @@ fn create_shm_fd() -> IoResult<RawFd> {
             Err(Errno::EINTR) => continue,
             Err(errno) => return Err(IoError::from(errno)),
         }
+    }
+}
+
+struct IgnoreObjectData;
+
+impl ObjectData for IgnoreObjectData {
+    fn event(
+        &self,
+        _: &mut wayland_client::backend::Handle,
+        _: wayland_client::backend::protocol::Message<wayland_client::backend::ObjectId>,
+    ) {
+    }
+    fn destroyed(&self, _: wayland_client::backend::ObjectId) {}
+    fn make_child(
+        self: std::sync::Arc<Self>,
+        _: &wayland_client::backend::protocol::ObjectInfo,
+    ) -> std::sync::Arc<dyn ObjectData> {
+        unreachable!()
     }
 }

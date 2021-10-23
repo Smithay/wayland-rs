@@ -49,7 +49,7 @@ impl Dispatch<wl_registry::WlRegistry> for State {
 
     fn event(
         &mut self,
-        registry: wl_registry::WlRegistry,
+        registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
         cx: &mut ConnectionHandle,
@@ -119,7 +119,7 @@ impl Dispatch<wl_compositor::WlCompositor> for State {
 
     fn event(
         &mut self,
-        _: wl_compositor::WlCompositor,
+        _: &wl_compositor::WlCompositor,
         _: wl_compositor::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
@@ -134,7 +134,7 @@ impl Dispatch<wl_surface::WlSurface> for State {
 
     fn event(
         &mut self,
-        _: wl_surface::WlSurface,
+        _: &wl_surface::WlSurface,
         _: wl_surface::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
@@ -149,7 +149,7 @@ impl Dispatch<wl_shm::WlShm> for State {
 
     fn event(
         &mut self,
-        _: wl_shm::WlShm,
+        _: &wl_shm::WlShm,
         _: wl_shm::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
@@ -164,7 +164,7 @@ impl Dispatch<wl_shm_pool::WlShmPool> for State {
 
     fn event(
         &mut self,
-        _: wl_shm_pool::WlShmPool,
+        _: &wl_shm_pool::WlShmPool,
         _: wl_shm_pool::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
@@ -179,7 +179,7 @@ impl Dispatch<wl_buffer::WlBuffer> for State {
 
     fn event(
         &mut self,
-        _: wl_buffer::WlBuffer,
+        _: &wl_buffer::WlBuffer,
         _: wl_buffer::Event,
         _: &Self::UserData,
         _: &mut ConnectionHandle,
@@ -226,7 +226,7 @@ impl Dispatch<xdg_wm_base::XdgWmBase> for State {
 
     fn event(
         &mut self,
-        wm_base: xdg_wm_base::XdgWmBase,
+        wm_base: &xdg_wm_base::XdgWmBase,
         event: xdg_wm_base::Event,
         _: &(),
         cx: &mut ConnectionHandle,
@@ -243,7 +243,7 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
 
     fn event(
         &mut self,
-        xdg_surface: xdg_surface::XdgSurface,
+        xdg_surface: &xdg_surface::XdgSurface,
         event: xdg_surface::Event,
         _: &(),
         cx: &mut ConnectionHandle,
@@ -266,7 +266,7 @@ impl Dispatch<xdg_toplevel::XdgToplevel> for State {
 
     fn event(
         &mut self,
-        _: xdg_toplevel::XdgToplevel,
+        _: &xdg_toplevel::XdgToplevel,
         event: xdg_toplevel::Event,
         _: &(),
         _: &mut ConnectionHandle,
@@ -283,7 +283,7 @@ impl Dispatch<wl_seat::WlSeat> for State {
 
     fn event(
         &mut self,
-        seat: wl_seat::WlSeat,
+        seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         _: &(),
         cx: &mut ConnectionHandle,
@@ -302,7 +302,7 @@ impl Dispatch<wl_keyboard::WlKeyboard> for State {
 
     fn event(
         &mut self,
-        _: wl_keyboard::WlKeyboard,
+        _: &wl_keyboard::WlKeyboard,
         event: wl_keyboard::Event,
         _: &(),
         _: &mut ConnectionHandle,

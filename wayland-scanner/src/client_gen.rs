@@ -51,8 +51,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             use super::wayland_client::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
-                proxy_internals::ProxyData,
-                Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
+                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
             };
 
             #enums
@@ -81,8 +80,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn data<D: Dispatch<#iface_name>>(&self) -> Option<Arc<ProxyData<D::UserData>>> {
-                    self.data.clone().and_then(|v| v.downcast_arc().ok())
+                fn data<D: Dispatch<#iface_name> + 'static>(&self) -> Option<&<D as Dispatch<#iface_name>>::UserData> {
+                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, D>>()).map(|data| &data.udata)
                 }
 
                 #[inline]
@@ -374,13 +373,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type>>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
                         let ret = cx.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data().erase())
+                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type>())
                         )?;
                         Proxy::from_id(cx, ret)
                     }
@@ -390,14 +389,14 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 // a bind-like request
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy, D: Dispatch<I>>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<I, InvalidId> {
+                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<I, InvalidId> {
                         let placeholder = cx.placeholder_id(Some((I::interface(), version)));
                         let ret = cx.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data().erase())
+                            Some(qh.make_data::<I>())
                         )?;
                         Proxy::from_id(cx, ret)
                     }
