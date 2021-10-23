@@ -53,7 +53,7 @@ impl<D> Handle<D> {
     ) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
-            let action = if let Ok(client) = self.clients.get_client_mut(client_id) {
+            let action = if let Ok(client) = self.clients.get_client_mut(client_id.clone()) {
                 let (message, object) = match client.next_request() {
                     Ok(v) => v,
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -82,7 +82,7 @@ impl<D> Handle<D> {
                         id: message.sender_id,
                         serial: object.data.serial,
                         interface: object.interface,
-                        client_id: client.id,
+                        client_id: client.id.clone(),
                     };
                     let opcode = message.opcode;
                     let (arguments, is_destructor) =
@@ -104,12 +104,12 @@ impl<D> Handle<D> {
                     object.data.user_data.request(
                         self,
                         data,
-                        client_id,
-                        Message { sender_id: object_id, opcode, args: arguments },
+                        client_id.clone(),
+                        Message { sender_id: object_id.clone(), opcode, args: arguments },
                     );
                     if is_destructor {
-                        object.data.user_data.destroyed(client_id, object_id);
-                        if let Ok(client) = self.clients.get_client_mut(client_id) {
+                        object.data.user_data.destroyed(client_id.clone(), object_id.clone());
+                        if let Ok(client) = self.clients.get_client_mut(client_id.clone()) {
                             client.send_delete_id(object_id);
                         }
                     }
@@ -139,11 +139,11 @@ impl<D> Handle<D> {
 
 impl<D> Handle<D> {
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.clients.get_client(id.client_id)?.object_info(id)
+        self.clients.get_client(id.client_id.clone())?.object_info(id)
     }
 
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
-        if self.clients.get_client(id.client_id).is_ok() {
+        if self.clients.get_client(id.client_id.clone()).is_ok() {
             Ok(id.client_id)
         } else {
             Err(InvalidId)
@@ -188,15 +188,15 @@ impl<D> Handle<D> {
     }
 
     pub fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
-        self.clients.get_client_mut(msg.sender_id.client_id)?.send_event(msg)
+        self.clients.get_client_mut(msg.sender_id.client_id.clone())?.send_event(msg)
     }
 
     pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
-        self.clients.get_client(id.client_id)?.get_object_data(id)
+        self.clients.get_client(id.client_id.clone())?.get_object_data(id)
     }
 
     pub fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {
-        if let Ok(client) = self.clients.get_client_mut(object_id.client_id) {
+        if let Ok(client) = self.clients.get_client_mut(object_id.client_id.clone()) {
             client.post_error(object_id, error_code, message)
         }
     }

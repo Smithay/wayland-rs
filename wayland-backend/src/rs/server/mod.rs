@@ -45,7 +45,12 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     /// the global did not exist.
     ///
     /// Default implementation always return true.
-    fn can_view(&self, _client_id: ClientId, _global_id: GlobalId) -> bool {
+    fn can_view(
+        &self,
+        _client_id: ClientId,
+        _client_data: &Arc<dyn ClientData<D>>,
+        _global_id: GlobalId,
+    ) -> bool {
         true
     }
     /// Create the ObjectData for a future bound global
@@ -76,7 +81,7 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ObjectId {
     id: u32,
     serial: u32,
@@ -109,14 +114,14 @@ impl PartialEq for ObjectId {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ClientId {
     id: u32,
     serial: u32,
 }
 
 impl ClientId {
-    fn as_u64(self) -> u64 {
+    fn as_u64(&self) -> u64 {
         ((self.id as u64) << 32) + self.serial as u64
     }
 
@@ -130,7 +135,7 @@ impl fmt::Display for ClientId {
         write!(f, "[{}]", self.id)
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GlobalId {
     id: u32,
     serial: u32,
