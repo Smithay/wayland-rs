@@ -112,7 +112,7 @@ impl ObjectId {
         self.ptr.is_null()
     }
 
-    pub fn inteface(&self) -> &'static Interface {
+    pub fn interface(&self) -> &'static Interface {
         self.interface
     }
 
