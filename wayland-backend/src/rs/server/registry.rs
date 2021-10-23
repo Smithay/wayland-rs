@@ -58,9 +58,9 @@ impl<D> Registry<D> {
 
         let id = GlobalId { id: id as u32 + 1, serial };
 
-        *place = Some(Global { id, interface, version, handler, disabled: false });
+        *place = Some(Global { id: id.clone(), interface, version, handler, disabled: false });
 
-        self.send_global_to_all(id, clients).unwrap();
+        self.send_global_to_all(id.clone(), clients).unwrap();
 
         id
     }
@@ -89,7 +89,7 @@ impl<D> Registry<D> {
 
     pub(crate) fn check_bind(
         &self,
-        client: ClientId,
+        client: &Client<D>,
         name: u32,
         interface_name: &CStr,
         version: u32,
@@ -104,11 +104,15 @@ impl<D> Registry<D> {
         if target_global.version < version {
             return None;
         }
-        if !target_global.handler.can_view(client, target_global.id) {
+        if !target_global.handler.can_view(
+            client.id.clone(),
+            &client.data,
+            target_global.id.clone(),
+        ) {
             return None;
         }
 
-        Some((target_global.interface, target_global.id, target_global.handler.clone()))
+        Some((target_global.interface, target_global.id.clone(), target_global.handler.clone()))
     }
 
     pub(crate) fn cleanup(&mut self, dead_clients: &[ClientId]) {
@@ -125,9 +129,9 @@ impl<D> Registry<D> {
         if !global.disabled {
             global.disabled = true;
             // send the global_remove
-            for registry in self.known_registries.iter().copied() {
-                if let Ok(client) = clients.get_client_mut(registry.client_id) {
-                    let _ = send_global_remove_to(client, global, registry);
+            for registry in self.known_registries.iter().cloned() {
+                if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
+                    let _ = send_global_remove_to(client, global, registry.clone());
                 }
             }
         }
@@ -135,7 +139,7 @@ impl<D> Registry<D> {
 
     pub(crate) fn remove_global(&mut self, id: GlobalId, clients: &mut ClientStore<D>) {
         // disable the global if not already disabled
-        self.disable_global(id, clients);
+        self.disable_global(id.clone(), clients);
         // now remove it if the id is still valid
         if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
             if place.as_ref().map(|g| g.id == id).unwrap_or(false) {
@@ -150,9 +154,11 @@ impl<D> Registry<D> {
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
-            if !global.disabled && global.handler.can_view(client.id, global.id) {
+            if !global.disabled
+                && global.handler.can_view(client.id.clone(), &client.data, global.id.clone())
+            {
                 // fail the whole send on error, there is no point in trying further on a failing client
-                send_global_to(client, global, registry)?;
+                send_global_to(client, global, registry.clone())?;
             }
         }
         Ok(())
@@ -167,11 +173,13 @@ impl<D> Registry<D> {
         if global.disabled {
             return Err(InvalidId);
         }
-        for registry in self.known_registries.iter().copied() {
-            if let Ok(client) = clients.get_client_mut(registry.client_id) {
-                if !global.disabled && global.handler.can_view(client.id, global.id) {
+        for registry in self.known_registries.iter().cloned() {
+            if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
+                if !global.disabled
+                    && global.handler.can_view(client.id.clone(), &client.data, global.id.clone())
+                {
                     // don't fail the whole send for a single erroring client
-                    let _ = send_global_to(client, global, registry);
+                    let _ = send_global_to(client, global, registry.clone());
                 }
             }
         }

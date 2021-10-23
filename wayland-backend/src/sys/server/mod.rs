@@ -61,7 +61,12 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     /// the global did not exist.
     ///
     /// Default implementation always return true.
-    fn can_view(&self, _client_id: ClientId, _global_id: GlobalId) -> bool {
+    fn can_view(
+        &self,
+        _client_id: ClientId,
+        _client_data: &Arc<dyn ClientData<D>>,
+        _global_id: GlobalId,
+    ) -> bool {
         true
     }
     /// Create the ObjectData for a future bound global
@@ -801,17 +806,19 @@ unsafe extern "C" fn global_filter<D>(
     global: *const wl_global,
     _: *mut c_void,
 ) -> bool {
-    let client_id = match client_id_from_ptr::<D>(client as *mut _) {
-        Some(id) => id,
+    let client_udata = match client_user_data::<D>(client as *mut _) {
+        Some(id) => &*id,
         None => return false,
     };
+
+    let client_id = ClientId { ptr: client as *mut _, alive: client_udata.alive.clone() };
 
     let global_udata = &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, global)
         as *mut GlobalUserData<D>);
 
     let global_id = GlobalId { ptr: global as *mut wl_global, alive: global_udata.alive.clone() };
 
-    global_udata.handler.can_view(client_id, global_id)
+    global_udata.handler.can_view(client_id, &client_udata.data, global_id)
 }
 
 unsafe fn init_resource<D>(

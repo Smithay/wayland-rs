@@ -75,7 +75,7 @@ impl<D> Client<D> {
         )
         .unwrap();
 
-        data.initialized(id);
+        data.initialized(id.clone());
 
         Client { socket, map, debug, id, killed: false, last_serial: 0, data }
     }
@@ -92,11 +92,11 @@ impl<D> Client<D> {
             version,
             data: Data { serial, user_data },
         });
-        ObjectId { id, serial, client_id: self.id, interface }
+        ObjectId { id, serial, client_id: self.id.clone(), interface }
     }
 
     pub(crate) fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        let object = self.get_object(id)?;
+        let object = self.get_object(id.clone())?;
         Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
     }
 
@@ -107,7 +107,7 @@ impl<D> Client<D> {
         if self.killed {
             return Ok(());
         }
-        let object = self.get_object(object_id)?;
+        let object = self.get_object(object_id.clone())?;
 
         let message_desc = match object.interface.events.get(opcode as usize) {
             Some(msg) => msg,
@@ -154,7 +154,7 @@ impl<D> Client<D> {
                         if o.client_id != self.id {
                             panic!("Attempting to send an event with objects from wrong client.")
                         }
-                        let object = self.get_object(o)?;
+                        let object = self.get_object(o.clone())?;
                         let child_interface = match message_desc.child_interface {
                             Some(iface) => iface,
                             None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object_id.interface.name, object_id.id, message_desc.name),
@@ -172,7 +172,7 @@ impl<D> Client<D> {
                         if o.client_id != self.id {
                             panic!("Attempting to send an event with objects from wrong client.")
                         }
-                        let object = self.get_object(o)?;
+                        let object = self.get_object(o.clone())?;
                         let next_interface = arg_interfaces.next().unwrap();
                         if !same_interface_or_anonymous(next_interface, object.interface) {
                             panic!("Event {}@{}.{} expects an object argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, object.interface.name);
@@ -194,7 +194,7 @@ impl<D> Client<D> {
         // Handle destruction if relevant
         if message_desc.is_destructor {
             self.map.remove(object_id.id);
-            object.data.user_data.destroyed(self.id, object_id);
+            object.data.user_data.destroyed(self.id.clone(), object_id.clone());
             self.send_delete_id(object_id);
         }
 
@@ -218,7 +218,12 @@ impl<D> Client<D> {
 
     pub(crate) fn post_display_error(&mut self, code: DisplayError, message: CString) {
         self.post_error(
-            ObjectId { id: 1, interface: &WL_DISPLAY_INTERFACE, client_id: self.id, serial: 0 },
+            ObjectId {
+                id: 1,
+                interface: &WL_DISPLAY_INTERFACE,
+                client_id: self.id.clone(),
+                serial: 0,
+            },
             code as u32,
             message,
         )
@@ -228,10 +233,15 @@ impl<D> Client<D> {
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(message!(
-            ObjectId { id: 1, interface: &WL_DISPLAY_INTERFACE, client_id: self.id, serial: 0 },
+            ObjectId {
+                id: 1,
+                interface: &WL_DISPLAY_INTERFACE,
+                client_id: self.id.clone(),
+                serial: 0
+            },
             0, // wl_display.error
             [
-                Argument::Object(object_id),
+                Argument::Object(object_id.clone()),
                 Argument::Uint(error_code),
                 Argument::Str(Box::new(message)),
             ],
@@ -247,7 +257,7 @@ impl<D> Client<D> {
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {
         self.killed = true;
-        self.data.disconnected(self.id, reason);
+        self.data.disconnected(self.id.clone(), reason);
     }
 
     pub(crate) fn flush(&mut self) -> std::io::Result<()> {
@@ -255,10 +265,10 @@ impl<D> Client<D> {
     }
 
     pub(crate) fn all_objects(&self) -> impl Iterator<Item = ObjectId> + '_ {
-        let client_id = self.id;
+        let client_id = self.id.clone();
         self.map.all_objects().map(move |(id, obj)| ObjectId {
             id,
-            client_id,
+            client_id: client_id.clone(),
             interface: obj.interface,
             serial: obj.data.serial,
         })
@@ -329,7 +339,7 @@ impl<D> Client<D> {
                     }
                     let cb_id = ObjectId {
                         id: new_id,
-                        client_id: self.id,
+                        client_id: self.id.clone(),
                         serial,
                         interface: &WL_CALLBACK_INTERFACE,
                     };
@@ -351,7 +361,7 @@ impl<D> Client<D> {
                     let registry_id = ObjectId {
                         id: new_id,
                         serial,
-                        client_id: self.id,
+                        client_id: self.id.clone(),
                         interface: &WL_REGISTRY_INTERFACE,
                     };
                     if let Err(()) = self.map.insert_at(new_id, registry_obj) {
@@ -394,7 +404,7 @@ impl<D> Client<D> {
                     message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
-                        registry.check_bind(self.id, name, interface_name, version)
+                        registry.check_bind(self, name, interface_name, version)
                     {
                         let user_data = handler
                             .clone()
@@ -410,9 +420,9 @@ impl<D> Client<D> {
                             return None;
                         }
                         Some((
-                            self.id,
+                            self.id.clone(),
                             global_id,
-                            ObjectId { id: new_id, client_id: self.id, interface, serial },
+                            ObjectId { id: new_id, client_id: self.id.clone(), interface, serial },
                             handler.clone(),
                         ))
                     } else {
@@ -494,9 +504,9 @@ impl<D> Client<D> {
                                 return None;
                             }
                         }
-                        Argument::Object(ObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface })
+                        Argument::Object(ObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface })
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        Argument::Object(ObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE })
+                        Argument::Object(ObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE })
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
@@ -531,7 +541,7 @@ impl<D> Client<D> {
                         }
                     };
 
-                    let child_id = ObjectId { id: new_id, client_id: self.id, serial: child_obj.data.serial, interface: child_obj.interface };
+                    let child_id = ObjectId { id: new_id, client_id: self.id.clone(), serial: child_obj.data.serial, interface: child_obj.interface };
 
                     if let Err(()) = self.map.insert_at(new_id, child_obj) {
                         // abort parsing, this is an unrecoverable error
@@ -603,7 +613,7 @@ impl<D> ClientStore<D> {
 
         let id = ClientId { id: id as u32, serial };
 
-        *place = Some(Client::new(stream, id, self.debug, data));
+        *place = Some(Client::new(stream, id.clone(), self.debug, data));
 
         id
     }
@@ -647,6 +657,6 @@ impl<D> ClientStore<D> {
     pub(crate) fn all_clients_id(&self) -> impl Iterator<Item = ClientId> + '_ {
         self.clients
             .iter()
-            .flat_map(|opt| opt.as_ref().filter(|c| !c.killed).map(|client| client.id))
+            .flat_map(|opt| opt.as_ref().filter(|c| !c.killed).map(|client| client.id.clone()))
     }
 }
