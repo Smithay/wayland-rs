@@ -1,0 +1,24 @@
+[package]
+name = "wayland-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+autotests = false
+
+[dependencies]
+wayland-backend = { path = "../wayland-backend" }
+wayland-client = { path = "../wayland-client" }
+wayland-server = { path = "../wayland-server" }
+wayland-protocols = { path = "../wayland-protocols" }
+
+[features]
+server_system = ["wayland-backend/server_system"]
+client_system = ["wayland-backend/client_system"]
+
+#[[test]]
+#name = "client_connect_to_env"
+#harness = false
+
+[[test]]
+name = "client_connect_to_socket"
+harness = false

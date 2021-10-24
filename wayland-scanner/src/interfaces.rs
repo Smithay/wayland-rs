@@ -133,13 +133,13 @@ mod tests {
     #[test]
     fn interface_gen() {
         let protocol_file =
-            std::fs::File::open("../tests/scanner_assets/test-protocol.xml").unwrap();
+            std::fs::File::open("./tests/scanner_assets/test-protocol.xml").unwrap();
         let protocol_parsed = crate::parse::parse(protocol_file);
         let generated: String = super::generate(&protocol_parsed, true).to_string();
         let generated = crate::format_rust_code(&generated);
 
         let reference =
-            std::fs::read_to_string("../tests/scanner_assets/test-interfaces.rs").unwrap();
+            std::fs::read_to_string("./tests/scanner_assets/test-interfaces.rs").unwrap();
         let reference = crate::format_rust_code(&reference);
 
         if reference != generated {
