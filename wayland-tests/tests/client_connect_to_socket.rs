@@ -20,14 +20,17 @@ fn main() {
 
     let mut client = TestClient::new_from_env();
 
-    let mut client_data = ClientData { globals: Vec::new() };
+    let mut globals = wayc::globals::GlobalList::new();
 
     client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle()).unwrap();
 
-    roundtrip(&mut client, &mut server, &mut client_data, &mut ServerData).unwrap();
+    roundtrip(&mut client, &mut server, &mut globals, &mut ServerData).unwrap();
     // check that we connected to the right compositor
-    assert!(client_data.globals.len() == 1);
-    assert_eq!(client_data.globals[0], (1, "wl_output".into(), 2));
+    assert!(globals.list().len() == 1);
+    let output = &globals.list()[0];
+    assert_eq!(output.name, 1);
+    assert_eq!(output.interface, "wl_output");
+    assert_eq!(output.version, 2);
 
     my_client.kill(
         &mut server.display.handle(),
@@ -39,7 +42,7 @@ fn main() {
         },
     );
 
-    assert!(roundtrip(&mut client, &mut server, &mut client_data, &mut ServerData).is_err());
+    assert!(roundtrip(&mut client, &mut server, &mut globals, &mut ServerData).is_err());
 }
 
 struct ServerData;
@@ -68,25 +71,5 @@ impl ways::GlobalDispatch<ServerOutput> for ServerData {
         _: &(),
         _: &(),
     ) {
-    }
-}
-
-struct ClientData {
-    globals: Vec<(u32, String, u32)>,
-}
-
-impl wayc::Dispatch<wayc::protocol::wl_registry::WlRegistry> for ClientData {
-    type UserData = ();
-    fn event(
-        &mut self,
-        _: &wayc::protocol::wl_registry::WlRegistry,
-        event: wayc::protocol::wl_registry::Event,
-        _: &(),
-        _: &mut wayc::ConnectionHandle,
-        _: &wayc::QueueHandle<Self>,
-    ) {
-        if let wayc::protocol::wl_registry::Event::Global { name, interface, version } = event {
-            self.globals.push((name, interface, version));
-        }
     }
 }
