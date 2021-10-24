@@ -5,6 +5,7 @@ use wayland_backend::{
 
 mod cx;
 mod event_queue;
+pub mod globals;
 
 pub mod backend {
     pub use wayland_backend::client::{
