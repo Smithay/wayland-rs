@@ -37,6 +37,8 @@ pub trait Proxy: Sized {
 
     fn id(&self) -> ObjectId;
 
+    fn version(&self) -> u32;
+
     fn data<D: Dispatch<Self> + 'static>(&self) -> Option<&<D as Dispatch<Self>>::UserData>;
 
     fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId>;

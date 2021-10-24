@@ -62,6 +62,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             #[derive(Debug, Clone)]
             pub struct #iface_name {
                 id: ObjectId,
+                version: u32,
                 data: Option<Arc<dyn ObjectData>>,
             }
 
@@ -80,18 +81,23 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
+                fn version(&self) -> u32 {
+                    self.version
+                }
+
+                #[inline]
                 fn data<D: Dispatch<#iface_name> + 'static>(&self) -> Option<&<D as Dispatch<#iface_name>>::UserData> {
                     self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, D>>()).map(|data| &data.udata)
                 }
 
                 #[inline]
                 fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
-                    if same_interface(id.interface(), Self::interface()) {
-                        let data = cx.get_object_data(id.clone()).ok();
-                        Ok(#iface_name { id, data })
-                    } else {
-                        Err(InvalidId)
+                    if !same_interface(id.interface(), Self::interface()) {
+                        return Err(InvalidId);
                     }
+                    let info = cx.object_info(id.clone())?;
+                    let data = cx.get_object_data(id.clone()).ok();
+                    Ok(#iface_name { id, data, version: info.version })
                 }
 
                 fn parse_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
