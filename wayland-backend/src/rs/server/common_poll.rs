@@ -128,9 +128,8 @@ impl<D> Backend<D> {
                     dispatched += count;
                 }
             }
+            self.handle.cleanup();
         }
-
-        self.handle.cleanup();
 
         Ok(dispatched)
     }
