@@ -158,7 +158,7 @@ expand_test!(server_created_object, {
         .unwrap();
 
     client.flush().unwrap();
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
     client.dispatch_events().unwrap();
 

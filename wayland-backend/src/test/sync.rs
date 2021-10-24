@@ -54,7 +54,7 @@ expand_test!(sync, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -89,7 +89,7 @@ expand_test!(panic test_bad_placeholder, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -119,7 +119,7 @@ expand_test!(panic test_bad_signature, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // process it server-side
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
 
     std::thread::sleep(std::time::Duration::from_millis(10));

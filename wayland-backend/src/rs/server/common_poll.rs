@@ -100,18 +100,14 @@ impl<D> Backend<D> {
         self.poll_fd
     }
 
-    pub fn dispatch_events_for(
-        &mut self,
-        data: &mut D,
-        client_id: ClientId,
-    ) -> std::io::Result<usize> {
+    pub fn dispatch_client(&mut self, data: &mut D, client_id: ClientId) -> std::io::Result<usize> {
         let ret = self.handle.dispatch_events_for(data, client_id);
         self.handle.cleanup();
         ret
     }
 
     #[cfg(target_os = "linux")]
-    pub fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [EpollEvent::empty(); 32];
@@ -140,7 +136,7 @@ impl<D> Backend<D> {
         target_os = "netbsd",
         target_os = "openbsd"
     ))]
-    pub fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [KEvent::new(

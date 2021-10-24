@@ -295,15 +295,15 @@ impl<D> Backend<D> {
         }
     }
 
-    pub fn dispatch_events_for(
+    pub fn dispatch_client(
         &mut self,
         data: &mut D,
         _client_id: ClientId,
     ) -> std::io::Result<usize> {
-        self.dispatch_events(data)
+        self.dispatch_all_clients(data)
     }
 
-    pub fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         let display = self.handle.display;
         let pointers = (&mut self.handle as *mut _ as *mut c_void, data as *mut _ as *mut c_void);
         let ret = HANDLE.set(&pointers, || unsafe {

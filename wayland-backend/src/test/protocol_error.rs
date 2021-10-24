@@ -96,7 +96,7 @@ expand_test!(protocol_error, {
         .unwrap();
 
     client.flush().unwrap();
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
 
     // get the object_id for the global
     let oid = object_id.lock().unwrap().clone().unwrap();

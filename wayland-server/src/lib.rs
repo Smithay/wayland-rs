@@ -11,11 +11,13 @@ mod global;
 pub use client::Client;
 pub use dispatch::Dispatch;
 pub use display::{Display, DisplayHandle};
+pub use global::GlobalDispatch;
 
 pub mod backend {
     pub use wayland_backend::protocol;
     pub use wayland_backend::server::{
-        Backend, ClientData, GlobalHandler, Handle, InitError, InvalidId, ObjectData, ObjectId,
+        Backend, ClientData, ClientId, DisconnectReason, GlobalHandler, GlobalId, Handle,
+        InitError, InvalidId, ObjectData, ObjectId,
     };
     pub use wayland_backend::smallvec;
 }
