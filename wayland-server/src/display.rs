@@ -5,7 +5,7 @@ use std::{
 
 use wayland_backend::{
     protocol::ObjectInfo,
-    server::{Backend, ClientData, GlobalId, Handle, InvalidId, ObjectData, ObjectId},
+    server::{Backend, ClientData, GlobalId, Handle, InitError, InvalidId, ObjectData, ObjectId},
 };
 
 use crate::{
@@ -19,6 +19,10 @@ pub struct Display<D> {
 }
 
 impl<D> Display<D> {
+    pub fn new() -> Result<Display<D>, InitError> {
+        Ok(Display { backend: Arc::new(Mutex::new(Backend::new()?)) })
+    }
+
     pub fn handle(&self) -> DisplayHandle<'_, D> {
         DisplayHandle { inner: HandleInner::Guard(self.backend.lock().unwrap()) }
     }
@@ -32,8 +36,12 @@ impl<D> Display<D> {
         Ok(Client { id, data: data.into_any_arc() })
     }
 
-    pub fn dispatch_events(&mut self, data: &mut D) -> std::io::Result<usize> {
-        self.backend.lock().unwrap().dispatch_events(data)
+    pub fn dispatch_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+        self.backend.lock().unwrap().dispatch_all_clients(data)
+    }
+
+    pub fn flush_clients(&mut self) -> std::io::Result<()> {
+        self.backend.lock().unwrap().flush(None)
     }
 }
 
