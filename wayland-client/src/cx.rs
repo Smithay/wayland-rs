@@ -64,6 +64,11 @@ impl Connection {
         Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
     }
 
+    pub fn from_socket(stream: UnixStream) -> Result<Connection, ConnectError> {
+        let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
+        Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
+    }
+
     pub fn from_backend(backend: Arc<Mutex<Backend>>) -> Connection {
         Connection { backend }
     }

@@ -8,4 +8,5 @@ members = [
     "wayland-protocols",
     "wayland-egl",
     "wayland-cursor",
+    "wayland-tests",
 ]
