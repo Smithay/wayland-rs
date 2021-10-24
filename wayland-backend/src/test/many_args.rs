@@ -156,7 +156,7 @@ expand_test!(many_args, {
         .unwrap();
 
     client.flush().unwrap();
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
     client.dispatch_events().unwrap();
     assert!(client_data.0.load(Ordering::SeqCst));
@@ -182,7 +182,7 @@ expand_test!(many_args, {
         .unwrap();
     client.flush().unwrap();
 
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
 
     assert!(server_data.0.load(Ordering::SeqCst));
 });

@@ -193,7 +193,7 @@ expand_test!(create_objects, {
         .unwrap();
 
     client.flush().unwrap();
-    server.dispatch_events(&mut ()).unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
     client.dispatch_events().unwrap();
 
