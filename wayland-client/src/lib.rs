@@ -18,7 +18,9 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use cx::{Connection, ConnectionHandle};
-pub use event_queue::{Dispatch, EventQueue, QueueHandle, QueueProxyData};
+pub use event_queue::{
+    DelegateDispatch, DelegateDispatchBase, Dispatch, EventQueue, QueueHandle, QueueProxyData,
+};
 //pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
 
 pub mod protocol {

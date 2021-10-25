@@ -32,18 +32,21 @@ pub trait Dispatch<I: Proxy>: Sized {
 
 #[macro_export]
 macro_rules! generate_child_from_event {
-    ($($child_iface:ty),*) => {
-        fn child_from_event(info: &$crate::backend::protocol::ObjectInfo, handle: &$crate::QueueHandle<Self>) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
+    (for $dispatch_target:ty : $($child_iface:ty),*) => {
+        fn child_from_event(info: &$crate::backend::protocol::ObjectInfo, handle: &$crate::QueueHandle<$dispatch_target>) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
             match () {
                 $(
                     () if $crate::backend::protocol::same_interface(info.interface, <$child_iface as $crate::Proxy>::interface()) => {
                         handle.make_data::<$child_iface>()
                     },
                 )*
-                _ => panic!("Attempting to create an unexpected object {:?} in event from Dispatch<{}>", info, std::any::type_name::<Self>()),
+                _ => panic!("Attempting to create an unexpected object {:?} in event from Dispatch<{}>", info, std::any::type_name::<$dispatch_target>()),
             }
         }
-    }
+    };
+    ($($child_iface:ty),*) => {
+        $crate::generate_child_from_event!(for Self : $($child_iface),*)
+    };
 }
 
 type QueueCallback<D> = fn(
@@ -222,5 +225,67 @@ impl<I: Proxy + 'static, D: Dispatch<I> + 'static> ObjectData for QueueProxyData
 
     fn destroyed(&self, object_id: ObjectId) {
         self.sender.send_destroy(object_id);
+    }
+}
+
+/*
+ * Dispatch delegation helpers
+ */
+
+pub trait DelegateDispatchBase<I: Proxy> {
+    type UserData: Default + Send + Sync + 'static;
+}
+
+pub trait DelegateDispatch<
+    I: Proxy,
+    D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
+>: Sized + DelegateDispatchBase<I>
+{
+    fn event(
+        &mut self,
+        proxy: &I,
+        event: I::Event,
+        data: &Self::UserData,
+        cxhandle: &mut ConnectionHandle,
+        qhandle: &QueueHandle<D>,
+    );
+
+    fn destroyed(&mut self, _proxy: &I, _data: &Self::UserData) {}
+
+    fn child_from_event(_: &ObjectInfo, _: &QueueHandle<D>) -> Arc<dyn ObjectData> {
+        panic!(
+            "Attempting to create an object in event from uninitialized Dispatch<{}>",
+            std::any::type_name::<I>()
+        );
+    }
+}
+
+#[macro_export]
+macro_rules! delegate_dispatch {
+    ($dispatch_from:ty => $dispatch_to:ty ; [$($interface:ty),*] => $convert:ident) => {
+        $(
+            impl $crate::Dispatch<$interface> for $dispatch_from {
+                type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
+
+                fn event(
+                    &mut self,
+                    proxy: &$interface,
+                    event: <$interface as $crate::Proxy>::Event,
+                    data: &Self::UserData,
+                    cxhandle: &mut $crate::ConnectionHandle,
+                    qhandle: &$crate::QueueHandle<Self>,
+                ) {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(&mut self.$convert(), proxy, event, data, cxhandle, qhandle)
+                }
+
+                fn destroyed(&mut self, proxy: &$interface, data: &Self::UserData) {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(&mut self.$convert(), proxy, data)
+                }
+
+                fn child_from_event(info: &$crate::backend::protocol::ObjectInfo, qh: &$crate::QueueHandle<Self>) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::child_from_event(info, qh)
+                }
+            }
+        )*
     }
 }
