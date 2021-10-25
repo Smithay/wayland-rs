@@ -55,7 +55,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             use super::wayland_server::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
-                Resource, Dispatch, DisplayHandle, DispatchError,
+                Resource, Dispatch, DisplayHandle, DispatchError, ResourceData,
             };
 
             #enums
@@ -99,8 +99,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn data<D: Dispatch<#iface_name> + 'static>(&self) -> Option<&<D as Dispatch<#iface_name>>::UserData> {
-                    //self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, D>>()).map(|data| &data.udata)
-                    unimplemented!()
+                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, D>>()).map(|data| &data.udata)
                 }
 
                 #[inline]
