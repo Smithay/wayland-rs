@@ -71,6 +71,16 @@ pub struct ObjectId {
     interface: &'static Interface,
 }
 
+impl std::cmp::PartialEq for ObjectId {
+    fn eq(&self, other: &ObjectId) -> bool {
+        self.id == other.id
+            && self.serial == other.serial
+            && same_interface(self.interface, other.interface)
+    }
+}
+
+impl std::cmp::Eq for ObjectId {}
+
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)

@@ -114,6 +114,8 @@ impl PartialEq for ObjectId {
     }
 }
 
+impl std::cmp::Eq for ObjectId {}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClientId {
     id: u32,

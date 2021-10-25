@@ -70,6 +70,14 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
             }
 
+            impl std::cmp::PartialEq for #iface_name {
+                fn eq(&self, other: &#iface_name) -> bool {
+                    self.id == other.id
+                }
+            }
+
+            impl std::cmp::Eq for #iface_name {}
+
             impl super::wayland_server::Resource for #iface_name {
                 type Request = Request;
                 type Event = Event;
