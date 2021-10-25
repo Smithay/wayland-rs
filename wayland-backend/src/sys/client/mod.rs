@@ -67,6 +67,26 @@ pub struct ObjectId {
 
 unsafe impl Send for ObjectId {}
 
+impl std::cmp::PartialEq for ObjectId {
+    fn eq(&self, other: &ObjectId) -> bool {
+        match (&self.alive, &other.alive) {
+            (Some(ref a), Some(ref b)) => {
+                // this is an object we manage
+                Arc::ptr_eq(a, b)
+            }
+            (None, None) => {
+                // this is an external objecy
+                self.ptr == other.ptr
+                    && self.id == other.id
+                    && same_interface(self.interface, other.interface)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl std::cmp::Eq for ObjectId {}
+
 impl ObjectId {
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
