@@ -33,11 +33,11 @@ impl DestructionNotify for () {}
 #[macro_export]
 macro_rules! generate_child_from_request {
     ($($child_iface:ty),*) => {
-        fn child_from_request(info: &$crate::backend::protocol::ObjectInfo) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
+        fn child_from_request(info: &$crate::backend::protocol::ObjectInfo) -> std::sync::Arc<dyn $crate::backend::ObjectData<Self>> {
             match () {
                 $(
-                    () if $crate::backend::protocol::same_interface(info.interface, <$child_iface as $crate::Proxy>::interface()) => {
-                        unimplemented!()
+                    () if $crate::backend::protocol::same_interface(info.interface, <$child_iface as $crate::Resource>::interface()) => {
+                        std::sync::Arc::new($crate::ResourceData::<$child_iface, Self>::default())
                     },
                 )*
                 _ => panic!("Attempting to create an unexpected object {:?} in event from Dispatch<{}>", info, std::any::type_name::<Self>()),
@@ -47,7 +47,7 @@ macro_rules! generate_child_from_request {
 }
 
 pub struct ResourceData<I: Resource, D: Dispatch<I>> {
-    udata: <D as Dispatch<I>>::UserData,
+    pub udata: <D as Dispatch<I>>::UserData,
 }
 
 impl<I: Resource, D: Dispatch<I>> Default for ResourceData<I, D> {

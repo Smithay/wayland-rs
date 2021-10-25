@@ -9,7 +9,7 @@ mod display;
 mod global;
 
 pub use client::Client;
-pub use dispatch::Dispatch;
+pub use dispatch::{Dispatch, ResourceData};
 pub use display::{Display, DisplayHandle};
 pub use global::GlobalDispatch;
 
