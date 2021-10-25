@@ -1,6 +1,9 @@
 use std::ops::Range;
 
-use crate::{protocol::wl_registry, ConnectionHandle, Dispatch, Proxy, QueueHandle};
+use crate::{
+    protocol::wl_registry, ConnectionHandle, DelegateDispatch, DelegateDispatchBase, Dispatch,
+    Proxy, QueueHandle,
+};
 
 pub struct GlobalDescription {
     pub name: u32,
@@ -12,15 +15,21 @@ pub struct GlobalList {
     globals: Vec<GlobalDescription>,
 }
 
-impl Dispatch<wl_registry::WlRegistry> for GlobalList {
+impl DelegateDispatchBase<wl_registry::WlRegistry> for GlobalList {
     type UserData = ();
+}
+
+impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for GlobalList
+where
+    D: Dispatch<wl_registry::WlRegistry, UserData = ()>,
+{
     fn event(
         &mut self,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
         _: &mut crate::ConnectionHandle,
-        _: &crate::QueueHandle<Self>,
+        _: &crate::QueueHandle<D>,
     ) {
         match event {
             wl_registry::Event::Global { name, interface, version } => {
@@ -30,6 +39,24 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
                 self.globals.retain(|desc| desc.name != name);
             }
         }
+    }
+}
+
+impl Dispatch<wl_registry::WlRegistry> for GlobalList {
+    type UserData = ();
+
+    #[inline]
+    fn event(
+        &mut self,
+        proxy: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        data: &Self::UserData,
+        cxhandle: &mut ConnectionHandle,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
+            self, proxy, event, data, cxhandle, qhandle,
+        )
     }
 }
 
