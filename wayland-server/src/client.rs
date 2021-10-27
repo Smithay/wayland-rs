@@ -38,7 +38,7 @@ impl Client {
             self.id.clone(),
             I::interface(),
             version,
-            Arc::new(ResourceData::<I, D>::default()),
+            Arc::new(ResourceData::<I, <D as Dispatch<I>>::UserData>::default()),
         )?;
         I::from_id(handle, id)
     }

@@ -37,7 +37,7 @@ macro_rules! generate_child_from_request {
             match () {
                 $(
                     () if $crate::backend::protocol::same_interface(info.interface, <$child_iface as $crate::Resource>::interface()) => {
-                        std::sync::Arc::new($crate::ResourceData::<$child_iface, Self>::default())
+                        std::sync::Arc::new($crate::ResourceData::<$child_iface, <Self as $crate::Dispatch<$child_iface>>::UserData>::default())
                     },
                 )*
                 _ => panic!("Attempting to create an unexpected object {:?} in event from Dispatch<{}>", info, std::any::type_name::<Self>()),
@@ -46,17 +46,23 @@ macro_rules! generate_child_from_request {
     }
 }
 
-pub struct ResourceData<I: Resource, D: Dispatch<I>> {
-    pub udata: <D as Dispatch<I>>::UserData,
+pub struct ResourceData<I, U> {
+    marker: std::marker::PhantomData<fn(I)>,
+    pub udata: U,
 }
 
-impl<I: Resource, D: Dispatch<I>> Default for ResourceData<I, D> {
+impl<I, U: Default> Default for ResourceData<I, U> {
     fn default() -> Self {
-        ResourceData { udata: Default::default() }
+        ResourceData { marker: std::marker::PhantomData, udata: Default::default() }
     }
 }
 
-impl<I: Resource + 'static, D: Dispatch<I> + 'static> ObjectData<D> for ResourceData<I, D> {
+impl<
+        I: Resource + 'static,
+        U: DestructionNotify + Send + Sync + 'static,
+        D: Dispatch<I, UserData = U>,
+    > ObjectData<D> for ResourceData<I, U>
+{
     fn make_child(self: Arc<Self>, _: &mut D, child_info: &ObjectInfo) -> Arc<dyn ObjectData<D>> {
         <D as Dispatch<I>>::child_from_request(child_info)
     }
@@ -85,7 +91,7 @@ impl<I: Resource + 'static, D: Dispatch<I> + 'static> ObjectData<D> for Resource
                 return;
             }
         };
-        let udata = resource.data::<D>().expect("Wrong user_data value for object");
+        let udata = resource.data::<U>().expect("Wrong user_data value for object");
 
         data.request(&client, &resource, request, udata, &mut &mut dhandle);
     }
