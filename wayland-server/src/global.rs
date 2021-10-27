@@ -18,7 +18,7 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
     }
 
     fn make_data(self: Arc<Self>, _: &mut D, _: &ObjectInfo) -> Arc<dyn ObjectData<D>> {
-        Arc::new(ResourceData::<I, D>::default())
+        Arc::new(ResourceData::<I, <D as Dispatch<I>>::UserData>::default())
     }
 
     fn bind(
@@ -33,7 +33,9 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
         let client = Client::from_id(&mut handle, client_id).expect("Dead client in bind ?!");
         let resource = <I as Resource>::from_id(&mut handle, object_id)
             .expect("Wrong object_id in GlobalHandler ?!");
-        let udata = resource.data::<D>().expect("Wrong user_data value for object ?!");
+        let udata = resource
+            .data::<<D as Dispatch<I>>::UserData>()
+            .expect("Wrong user_data value for object ?!");
 
         data.bind(&mut handle, &client, &resource, udata, &self.data)
     }

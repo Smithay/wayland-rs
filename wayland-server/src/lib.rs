@@ -43,7 +43,7 @@ pub trait Resource: Sized {
 
     fn version(&self) -> u32;
 
-    fn data<D: Dispatch<Self> + 'static>(&self) -> Option<&<D as Dispatch<Self>>::UserData>;
+    fn data<U: 'static>(&self) -> Option<&U>;
 
     fn from_id<D>(dh: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId>;
 

@@ -94,8 +94,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn data<D: Dispatch<#iface_name> + 'static>(&self) -> Option<&<D as Dispatch<#iface_name>>::UserData> {
-                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, D>>()).map(|data| &data.udata)
+                fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
+                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>()).map(|data| &data.udata)
                 }
 
                 #[inline]
