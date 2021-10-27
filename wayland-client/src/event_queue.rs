@@ -161,7 +161,16 @@ pub(crate) struct QueueSender<D> {
     pub(crate) handle: QueueHandle<D>,
 }
 
-impl<D> QueueSender<D> {
+pub(crate) trait ErasedQueueSender<I> {
+    fn send(&self, msg: Message<ObjectId>);
+    fn send_destroy(&self, msg: ObjectId);
+    fn make_child(&self, info: &ObjectInfo) -> Arc<dyn ObjectData>;
+}
+
+impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D>
+where
+    D: Dispatch<I>,
+{
     fn send(&self, msg: Message<ObjectId>) {
         if self.handle.tx.unbounded_send(QueueEvent::Msg(self.func, msg)).is_err() {
             log::error!("Event received for EventQueue after it was dropped.");
@@ -171,6 +180,10 @@ impl<D> QueueSender<D> {
     fn send_destroy(&self, id: ObjectId) {
         let _ = self.handle.tx.unbounded_send(QueueEvent::Destructor(self.dest, id));
     }
+
+    fn make_child(&self, info: &ObjectInfo) -> Arc<dyn ObjectData> {
+        <D as Dispatch<I>>::child_from_event(info, &self.handle)
+    }
 }
 
 impl<D: 'static> QueueHandle<D> {
@@ -178,12 +191,12 @@ impl<D: 'static> QueueHandle<D> {
     where
         D: Dispatch<I>,
     {
-        let sender = QueueSender {
+        let sender = Box::new(QueueSender {
             func: queue_callback::<I, D>,
             dest: queue_destructor::<I, D>,
             handle: self.clone(),
-        };
-        Arc::new(QueueProxyData { sender, udata: Default::default() })
+        });
+        Arc::new(QueueProxyData { sender, udata: <<D as Dispatch<I>>::UserData>::default() })
     }
 }
 
@@ -194,7 +207,8 @@ fn queue_callback<I: Proxy, D: Dispatch<I> + 'static>(
     qhandle: &QueueHandle<D>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let udata = proxy.data::<D>().expect("Wrong user_data value for object");
+    let udata =
+        proxy.data::<<D as Dispatch<I>>::UserData>().expect("Wrong user_data value for object");
     data.event(&proxy, event, udata, handle, qhandle);
     Ok(())
 }
@@ -205,18 +219,19 @@ fn queue_destructor<I: Proxy, D: Dispatch<I> + 'static>(
     data: &mut D,
 ) {
     let proxy = I::from_id(handle, id).expect("Processing destructor of invalid id ?!");
-    let udata = proxy.data::<D>().expect("Wrong user_data value for object");
+    let udata =
+        proxy.data::<<D as Dispatch<I>>::UserData>().expect("Wrong user_data value for object");
     data.destroyed(&proxy, udata)
 }
 
-pub struct QueueProxyData<I: Proxy, D: Dispatch<I>> {
-    pub(crate) sender: QueueSender<D>,
-    pub udata: <D as Dispatch<I>>::UserData,
+pub struct QueueProxyData<I: Proxy, U> {
+    pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
+    pub udata: U,
 }
 
-impl<I: Proxy + 'static, D: Dispatch<I> + 'static> ObjectData for QueueProxyData<I, D> {
+impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
     fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        D::child_from_event(child_info, &self.sender.handle)
+        self.sender.make_child(child_info)
     }
 
     fn event(&self, _: &mut Handle, msg: Message<ObjectId>) {
