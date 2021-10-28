@@ -3,13 +3,13 @@ use std::sync::{Arc, Mutex};
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use wayland_backend::{
     client::{Backend, Handle, ObjectData, ObjectId},
-    protocol::{Message, ObjectInfo},
+    protocol::{AllowNull, ArgumentType, Message, ObjectInfo},
 };
 
 use crate::{ConnectionHandle, DispatchError, Proxy};
 
 pub trait Dispatch<I: Proxy>: Sized {
-    type UserData: Default + Send + Sync + 'static;
+    type UserData: Send + Sync + 'static;
 
     fn event(
         &mut self,
@@ -18,6 +18,7 @@ pub trait Dispatch<I: Proxy>: Sized {
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
+        init: &mut DataInit<'_>,
     );
 
     fn destroyed(&mut self, _proxy: &I, _data: &Self::UserData) {}
@@ -187,7 +188,10 @@ where
 }
 
 impl<D: 'static> QueueHandle<D> {
-    pub fn make_data<I: Proxy + 'static>(&self) -> Arc<dyn ObjectData>
+    pub fn make_data<I: Proxy + 'static>(
+        &self,
+        user_data: <D as Dispatch<I>>::UserData,
+    ) -> Arc<dyn ObjectData>
     where
         D: Dispatch<I>,
     {
@@ -196,7 +200,37 @@ impl<D: 'static> QueueHandle<D> {
             dest: queue_destructor::<I, D>,
             handle: self.clone(),
         });
-        Arc::new(QueueProxyData { sender, udata: <<D as Dispatch<I>>::UserData>::default() })
+        Arc::new(QueueProxyData { sender, udata: user_data })
+    }
+}
+
+#[derive(Debug)]
+pub struct New<I> {
+    id: I,
+}
+
+impl<I> New<I> {
+    pub fn wrap(id: I) -> New<I> {
+        New { id }
+    }
+}
+
+pub struct DataInit<'a> {
+    store: &'a mut Option<(ObjectId, Arc<dyn ObjectData>)>,
+}
+
+impl<'a> DataInit<'a> {
+    pub fn init<I: Proxy + 'static, D>(
+        &mut self,
+        resource: New<I>,
+        data: <D as Dispatch<I>>::UserData,
+        qhandle: &QueueHandle<D>,
+    ) -> I
+    where
+        D: Dispatch<I> + 'static,
+    {
+        *self.store = Some((resource.id.id(), qhandle.make_data(data)));
+        resource.id
     }
 }
 
@@ -209,7 +243,11 @@ fn queue_callback<I: Proxy, D: Dispatch<I> + 'static>(
     let (proxy, event) = I::parse_event(handle, msg)?;
     let udata =
         proxy.data::<<D as Dispatch<I>>::UserData>().expect("Wrong user_data value for object");
-    data.event(&proxy, event, udata, handle, qhandle);
+    let mut new_data = None;
+    data.event(&proxy, event, udata, handle, qhandle, &mut DataInit { store: &mut new_data });
+    if let Some((id, data)) = new_data {
+        handle.inner.handle().set_data(id, data).unwrap();
+    }
     Ok(())
 }
 
@@ -230,17 +268,33 @@ pub struct QueueProxyData<I: Proxy, U> {
 }
 
 impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        self.sender.make_child(child_info)
-    }
-
-    fn event(&self, _: &mut Handle, msg: Message<ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
+        let ret = if msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId(AllowNull::No)) {
+            Some(Arc::new(TemporaryData) as Arc<dyn ObjectData>)
+        } else {
+            None
+        };
         self.sender.send(msg);
+        ret
     }
 
     fn destroyed(&self, object_id: ObjectId) {
         self.sender.send_destroy(object_id);
     }
+}
+
+struct TemporaryData;
+
+impl ObjectData for TemporaryData {
+    fn event(self: Arc<Self>, _: &mut Handle, _: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
+        unreachable!()
+    }
+
+    fn destroyed(&self, _: ObjectId) {}
 }
 
 /*
@@ -263,6 +317,7 @@ pub trait DelegateDispatch<
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<D>,
+        init: &mut DataInit<'_>,
     );
 
     fn destroyed(&mut self, _proxy: &I, _data: &Self::UserData) {}
@@ -289,8 +344,9 @@ macro_rules! delegate_dispatch {
                     data: &Self::UserData,
                     cxhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
+                    init: &mut $crate::DataInit<'_>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(&mut self.$convert(), proxy, event, data, cxhandle, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(&mut self.$convert(), proxy, event, data, cxhandle, qhandle, init)
                 }
 
                 fn destroyed(&mut self, proxy: &$interface, data: &Self::UserData) {

@@ -14,6 +14,7 @@ use crate::{
         ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
         INLINE_ARGS,
     },
+    server::UninitObjectData,
     types::server::{DisconnectReason, InvalidId},
 };
 
@@ -41,7 +42,7 @@ pub(crate) enum DisplayError {
 
 pub(crate) struct Client<D> {
     socket: BufferedSocket,
-    map: ObjectMap<Data<D>>,
+    pub(crate) map: ObjectMap<Data<D>>,
     debug: bool,
     last_serial: u32,
     pub(crate) id: ClientId,
@@ -214,6 +215,23 @@ impl<D> Client<D> {
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let object = self.get_object(id)?;
         Ok(object.data.user_data)
+    }
+
+    pub(crate) fn set_object_data(
+        &mut self,
+        id: ObjectId,
+        data: Arc<dyn ObjectData<D>>,
+    ) -> Result<(), InvalidId> {
+        self.map
+            .with(id.id, |objdata| {
+                if objdata.data.serial != id.serial {
+                    Err(InvalidId)
+                } else {
+                    objdata.data.user_data = data;
+                    Ok(())
+                }
+            })
+            .unwrap_or(Err(InvalidId))
     }
 
     pub(crate) fn post_display_error(&mut self, code: DisplayError, message: CString) {
@@ -395,7 +413,6 @@ impl<D> Client<D> {
         &mut self,
         message: Message<u32>,
         registry: &mut Registry<D>,
-        data: &mut D,
     ) -> Option<(ClientId, GlobalId, ObjectId, Arc<dyn GlobalHandler<D>>)> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
@@ -406,12 +423,12 @@ impl<D> Client<D> {
                     if let Some((interface, global_id, handler)) =
                         registry.check_bind(self, name, interface_name, version)
                     {
-                        let user_data = handler
-                            .clone()
-                            .make_data(data, &ObjectInfo { id: new_id, interface, version });
                         let serial = self.next_serial();
-                        let object =
-                            Object { interface, version, data: Data { serial, user_data } };
+                        let object = Object {
+                            interface,
+                            version,
+                            data: Data { serial, user_data: Arc::new(UninitObjectData) },
+                        };
                         if let Err(()) = self.map.insert_at(new_id, object) {
                             self.post_display_error(
                                 DisplayError::InvalidObject,
@@ -461,12 +478,12 @@ impl<D> Client<D> {
         &mut self,
         object: &Object<Data<D>>,
         message: Message<u32>,
-        data: &mut D,
-    ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool)> {
+    ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool, Option<ObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
         let mut new_args = SmallVec::with_capacity(message.args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
+        let mut created_id = None;
         for (i, arg) in message.args.into_iter().enumerate() {
             new_args.push(match arg {
                 Argument::Array(a) => Argument::Array(a),
@@ -526,11 +543,7 @@ impl<D> Client<D> {
                         None => panic!("Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object.interface.name, message.sender_id, message_desc.name),
                     };
 
-                    let child_udata = object.data.user_data.clone().make_child(data, &ObjectInfo {
-                        id: new_id,
-                        interface: child_interface,
-                        version: object.version
-                    });
+                    let child_udata = Arc::new(UninitObjectData);
 
                     let child_obj = Object {
                         interface: child_interface,
@@ -542,6 +555,7 @@ impl<D> Client<D> {
                     };
 
                     let child_id = ObjectId { id: new_id, client_id: self.id.clone(), serial: child_obj.data.serial, interface: child_obj.interface };
+                    created_id = Some(child_id.clone());
 
                     if let Err(()) = self.map.insert_at(new_id, child_obj) {
                         // abort parsing, this is an unrecoverable error
@@ -557,28 +571,20 @@ impl<D> Client<D> {
             });
         }
 
-        Some((new_args, message_desc.is_destructor))
+        Some((new_args, message_desc.is_destructor, created_id))
     }
 }
 
 struct DumbObjectData;
 
 impl<D> ObjectData<D> for DumbObjectData {
-    fn make_child(
-        self: Arc<Self>,
-        _data: &mut D,
-        _child_info: &ObjectInfo,
-    ) -> Arc<dyn ObjectData<D>> {
-        unreachable!()
-    }
-
     fn request(
-        &self,
+        self: Arc<Self>,
         _handle: &mut Handle<D>,
         _data: &mut D,
         _client_id: ClientId,
         _msg: Message<ObjectId>,
-    ) {
+    ) -> Option<Arc<dyn ObjectData<D>>> {
         unreachable!()
     }
 

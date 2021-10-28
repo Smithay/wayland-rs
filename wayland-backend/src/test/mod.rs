@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::protocol::{Argument, Message, ObjectInfo};
+use crate::protocol::{Argument, Message};
 
 use crate::rs::{client as client_rs, server as server_rs};
 use crate::sys::{client as client_sys, server as server_sys};
@@ -78,72 +78,56 @@ impl<D> server_sys::ClientData<D> for DoNothingData {
 // Server Global Handler
 
 impl<D> server_rs::GlobalHandler<D> for DoNothingData {
-    fn make_data(self: Arc<Self>, _: &mut D, _: &ObjectInfo) -> Arc<dyn server_rs::ObjectData<D>> {
-        self
-    }
-
     fn bind(
-        &self,
+        self: Arc<Self>,
         _: &mut server_rs::Handle<D>,
         _: &mut D,
         _: server_rs::ClientId,
         _: server_rs::GlobalId,
         _: server_rs::ObjectId,
-    ) {
+    ) -> Arc<dyn server_rs::ObjectData<D>> {
+        self
     }
 }
 
 impl<D> server_sys::GlobalHandler<D> for DoNothingData {
-    fn make_data(self: Arc<Self>, _: &mut D, _: &ObjectInfo) -> Arc<dyn server_sys::ObjectData<D>> {
-        self
-    }
-
     fn bind(
-        &self,
+        self: Arc<Self>,
         _: &mut server_sys::Handle<D>,
         _: &mut D,
         _: server_sys::ClientId,
         _: server_sys::GlobalId,
         _: server_sys::ObjectId,
-    ) {
+    ) -> Arc<dyn server_sys::ObjectData<D>> {
+        self
     }
 }
 
 // Server Object Data
 
 impl<D> server_rs::ObjectData<D> for DoNothingData {
-    fn make_child(self: Arc<Self>, _: &mut D, _: &ObjectInfo) -> Arc<dyn server_rs::ObjectData<D>> {
-        self
-    }
-
     fn request(
-        &self,
+        self: Arc<Self>,
         _: &mut server_rs::Handle<D>,
         _: &mut D,
         _: server_rs::ClientId,
         _: Message<server_rs::ObjectId>,
-    ) {
+    ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
+        None
     }
 
     fn destroyed(&self, _: server_rs::ClientId, _: server_rs::ObjectId) {}
 }
 
 impl<D> server_sys::ObjectData<D> for DoNothingData {
-    fn make_child(
-        self: Arc<Self>,
-        _: &mut D,
-        _: &ObjectInfo,
-    ) -> Arc<dyn server_sys::ObjectData<D>> {
-        self
-    }
-
     fn request(
-        &self,
+        self: Arc<Self>,
         _: &mut server_sys::Handle<D>,
         _: &mut D,
         _: server_sys::ClientId,
         _: Message<server_sys::ObjectId>,
-    ) {
+    ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
+        None
     }
 
     fn destroyed(&self, _: server_sys::ClientId, _: server_sys::ObjectId) {}
@@ -152,21 +136,25 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
 // Client Object Data
 
 impl client_rs::ObjectData for DoNothingData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn client_rs::ObjectData> {
-        self
+    fn event(
+        self: Arc<Self>,
+        _: &mut client_rs::Handle,
+        _: Message<client_rs::ObjectId>,
+    ) -> Option<Arc<dyn client_rs::ObjectData>> {
+        None
     }
-
-    fn event(&self, _: &mut client_rs::Handle, _: Message<client_rs::ObjectId>) {}
 
     fn destroyed(&self, _: client_rs::ObjectId) {}
 }
 
 impl client_sys::ObjectData for DoNothingData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn client_sys::ObjectData> {
-        self
+    fn event(
+        self: Arc<Self>,
+        _: &mut client_sys::Handle,
+        _: Message<client_sys::ObjectId>,
+    ) -> Option<Arc<dyn client_sys::ObjectData>> {
+        None
     }
-
-    fn event(&self, _: &mut client_sys::Handle, _: Message<client_sys::ObjectId>) {}
 
     fn destroyed(&self, _: client_sys::ObjectId) {}
 }

@@ -4,28 +4,30 @@ use super::*;
 struct SyncData(AtomicBool);
 
 impl client_rs::ObjectData for SyncData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn client_rs::ObjectData> {
-        unimplemented!()
-    }
-
-    fn event(&self, _: &mut client_rs::Handle, msg: Message<client_rs::ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _: &mut client_rs::Handle,
+        msg: Message<client_rs::ObjectId>,
+    ) -> Option<Arc<dyn client_rs::ObjectData>> {
         assert_eq!(msg.opcode, 0);
         assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
         self.0.store(true, Ordering::SeqCst);
+        None
     }
 
     fn destroyed(&self, _: client_rs::ObjectId) {}
 }
 
 impl client_sys::ObjectData for SyncData {
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn client_sys::ObjectData> {
-        unimplemented!()
-    }
-
-    fn event(&self, _: &mut client_sys::Handle, msg: Message<client_sys::ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _: &mut client_sys::Handle,
+        msg: Message<client_sys::ObjectId>,
+    ) -> Option<Arc<dyn client_sys::ObjectData>> {
         assert_eq!(msg.opcode, 0);
         assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
         self.0.store(true, Ordering::SeqCst);
+        None
     }
 
     fn destroyed(&self, _: client_sys::ObjectId) {}

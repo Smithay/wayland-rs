@@ -154,17 +154,17 @@ pub(crate) fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, Way
 }
 
 pub struct ConnectionHandle<'a> {
-    inner: HandleInner<'a>,
+    pub(crate) inner: HandleInner<'a>,
 }
 
-enum HandleInner<'a> {
+pub(crate) enum HandleInner<'a> {
     Handle(&'a mut Handle),
     Guard(MutexGuard<'a, Backend>),
 }
 
 impl<'a> HandleInner<'a> {
     #[inline]
-    fn handle(&mut self) -> &mut Handle {
+    pub(crate) fn handle(&mut self) -> &mut Handle {
         match self {
             HandleInner::Handle(handle) => handle,
             HandleInner::Guard(guard) => guard.handle(),
@@ -228,13 +228,14 @@ struct SyncData {
 }
 
 impl ObjectData for SyncData {
-    fn event(&self, _handle: &mut Handle, _msg: wayland_backend::protocol::Message<ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _handle: &mut Handle,
+        _msg: wayland_backend::protocol::Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);
+        None
     }
 
     fn destroyed(&self, _: ObjectId) {}
-
-    fn make_child(self: Arc<Self>, _: &ObjectInfo) -> Arc<dyn ObjectData> {
-        unreachable!()
-    }
 }

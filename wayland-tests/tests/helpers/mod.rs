@@ -1,7 +1,7 @@
 // This module contains helpers functions and types that
 // are not test in themselves, but are used by several tests.
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_macros)]
 
 pub extern crate wayland_client as wayc;
 pub extern crate wayland_server as ways;
@@ -9,6 +9,8 @@ pub extern crate wayland_server as ways;
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+
+use wayland_backend::client::ObjectData;
 
 pub struct TestServer<D> {
     pub display: self::ways::Display<D>,
@@ -33,6 +35,10 @@ impl<D> TestServer<D> {
         let client = self.display.insert_client(server_socket, data).unwrap();
         let test_client = TestClient::new(client_socket);
         (client, test_client)
+    }
+
+    pub fn add_client<CD>(&mut self) -> (ways::Client, TestClient<CD>) {
+        self.add_client_with_data(Arc::new(DumbClientData))
     }
 }
 
@@ -72,7 +78,7 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
         .handle()
         .send_request(
             &client.display,
-            crate::wayc::protocol::wl_display::Request::Sync {},
+            wayc::protocol::wl_display::Request::Sync {},
             Some(Arc::new(SyncData { done })),
         )
         .unwrap();
@@ -101,23 +107,17 @@ struct SyncData {
     done: Arc<AtomicBool>,
 }
 
-impl crate::wayc::backend::ObjectData for SyncData {
+impl wayc::backend::ObjectData for SyncData {
     fn event(
-        &self,
+        self: Arc<Self>,
         _handle: &mut wayc::backend::Handle,
         _msg: self::wayc::backend::protocol::Message<wayc::backend::ObjectId>,
-    ) {
+    ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);
+        None
     }
 
     fn destroyed(&self, _: wayc::backend::ObjectId) {}
-
-    fn make_child(
-        self: Arc<Self>,
-        _: &wayc::backend::protocol::ObjectInfo,
-    ) -> Arc<dyn wayc::backend::ObjectData> {
-        unreachable!()
-    }
 }
 
 pub struct DumbClientData;
@@ -125,4 +125,63 @@ pub struct DumbClientData;
 impl<D> ways::backend::ClientData<D> for DumbClientData {
     fn initialized(&self, _: ways::backend::ClientId) {}
     fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {}
+}
+
+macro_rules! client_ignore_impl {
+    ($handler:ty => [$($iface:ty),*]) => {
+        $(
+            impl $crate::helpers::wayc::Dispatch<$iface> for $handler {
+                type UserData = ();
+                fn event(
+                    &mut self,
+                    _: &$iface,
+                    _: <$iface as $crate::helpers::wayc::Proxy>::Event,
+                    _: &Self::UserData,
+                    _: &mut $crate::helpers::wayc::ConnectionHandle,
+                    _: &$crate::helpers::wayc::QueueHandle<Self>,
+                    _: &mut $crate::helpers::wayc::DataInit<'_>,
+                ) {
+                }
+            }
+        )*
+    }
+}
+
+macro_rules! server_ignore_impl {
+    ($handler:ty => [$($iface:ty),*]) => {
+        $(
+            impl $crate::helpers::ways::Dispatch<$iface> for $handler {
+                type UserData = ();
+                fn request(
+                    &mut self,
+                    _: &$crate::helpers::ways::Client,
+                    _: &$iface,
+                    _: <$iface as $crate::helpers::ways::Resource>::Request,
+                    _: &Self::UserData,
+                    _: &mut $crate::helpers::ways::DisplayHandle<'_, Self>,
+                    _: &mut $crate::helpers::ways::DataInit<'_, Self>,
+                ) {
+                }
+            }
+        )*
+    }
+}
+
+macro_rules! server_ignore_global_impl {
+    ($handler:ty => [$($iface:ty),*]) => {
+        $(
+            impl $crate::helpers::ways::GlobalDispatch<$iface> for $handler {
+                type GlobalData = ();
+
+                fn bind(
+                    &mut self,
+                    _: &mut $crate::helpers::ways::DisplayHandle<'_, Self>,
+                    _: &$crate::helpers::ways::Client,
+                    _: &$iface,
+                    _: &(),
+                ) -> () {
+                }
+            }
+        )*
+    }
 }

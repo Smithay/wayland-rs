@@ -25,6 +25,7 @@ enum DispatchAction<D> {
         opcode: u16,
         arguments: SmallVec<[Argument<ObjectId>; 4]>,
         is_destructor: bool,
+        created_id: Option<ObjectId>,
     },
     Bind {
         object: ObjectId,
@@ -71,7 +72,7 @@ impl<D> Handle<D> {
                     continue;
                 } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
                     if let Some((client, global, object, handler)) =
-                        client.handle_registry_request(message, &mut self.registry, data)
+                        client.handle_registry_request(message, &mut self.registry)
                     {
                         DispatchAction::Bind { client, global, object, handler }
                     } else {
@@ -85,13 +86,20 @@ impl<D> Handle<D> {
                         client_id: client.id.clone(),
                     };
                     let opcode = message.opcode;
-                    let (arguments, is_destructor) =
-                        match client.process_request(&object, message, data) {
+                    let (arguments, is_destructor, created_id) =
+                        match client.process_request(&object, message) {
                             Some(args) => args,
                             None => continue,
                         };
                     // Return the whole set to invoke the callback while handle is not borrower via client
-                    DispatchAction::Request { object, object_id, opcode, arguments, is_destructor }
+                    DispatchAction::Request {
+                        object,
+                        object_id,
+                        opcode,
+                        arguments,
+                        is_destructor,
+                        created_id,
+                    }
                 }
             } else {
                 return Err(std::io::Error::new(
@@ -100,8 +108,15 @@ impl<D> Handle<D> {
                 ));
             };
             match action {
-                DispatchAction::Request { object, object_id, opcode, arguments, is_destructor } => {
-                    object.data.user_data.request(
+                DispatchAction::Request {
+                    object,
+                    object_id,
+                    opcode,
+                    arguments,
+                    is_destructor,
+                    created_id,
+                } => {
+                    let ret = object.data.user_data.clone().request(
                         self,
                         data,
                         client_id.clone(),
@@ -113,9 +128,33 @@ impl<D> Handle<D> {
                             client.send_delete_id(object_id);
                         }
                     }
+                    match (created_id, ret) {
+                        (Some(child_id), Some(child_data)) => {
+                            if let Ok(client) = self.clients.get_client_mut(client_id.clone()) {
+                                client
+                                    .map
+                                    .with(child_id.id, |obj| obj.data.user_data = child_data)
+                                    .unwrap();
+                            }
+                        }
+                        (None, None) => {}
+                        (Some(child_id), None) => {
+                            panic!(
+                                "Callback creating object {} did not provide any object data.",
+                                child_id
+                            );
+                        }
+                        (None, Some(_)) => {
+                            panic!("An object data was returned from a callback not creating any object");
+                        }
+                    }
                 }
                 DispatchAction::Bind { object, client, global, handler } => {
-                    handler.bind(self, data, client, global, object);
+                    let child_data =
+                        handler.bind(self, data, client.clone(), global, object.clone());
+                    if let Ok(client) = self.clients.get_client_mut(client.clone()) {
+                        client.map.with(object.id, |obj| obj.data.user_data = child_data).unwrap();
+                    }
                 }
             }
         }
@@ -193,6 +232,14 @@ impl<D> Handle<D> {
 
     pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         self.clients.get_client(id.client_id.clone())?.get_object_data(id)
+    }
+
+    pub fn set_object_data(
+        &mut self,
+        id: ObjectId,
+        data: Arc<dyn ObjectData<D>>,
+    ) -> Result<(), InvalidId> {
+        self.clients.get_client_mut(id.client_id.clone())?.set_object_data(id, data)
     }
 
     pub fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {

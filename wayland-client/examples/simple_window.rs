@@ -5,7 +5,7 @@ use wayland_client::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
-    Connection, ConnectionHandle, Dispatch, QueueHandle, WEnum,
+    Connection, ConnectionHandle, DataInit, Dispatch, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -17,7 +17,7 @@ fn main() {
     let qhandle = event_queue.handle();
 
     let display = cx.handle().display();
-    display.get_registry(&mut cx.handle(), &qhandle).unwrap();
+    display.get_registry(&mut cx.handle(), &qhandle, ()).unwrap();
 
     let mut state = State {
         running: true,
@@ -54,13 +54,15 @@ impl Dispatch<wl_registry::WlRegistry> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let wl_registry::Event::Global { name, interface, .. } = event {
             match &interface[..] {
                 "wl_compositor" => {
-                    let compositor =
-                        registry.bind::<wl_compositor::WlCompositor, _>(cx, name, 1, qh).unwrap();
-                    let surface = compositor.create_surface(cx, qh).unwrap();
+                    let compositor = registry
+                        .bind::<wl_compositor::WlCompositor, _>(cx, name, 1, qh, ())
+                        .unwrap();
+                    let surface = compositor.create_surface(cx, qh, ()).unwrap();
                     self.base_surface = Some(surface);
 
                     if self.wm_base.is_some() && self.xdg_surface.is_none() {
@@ -68,14 +70,14 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                     }
                 }
                 "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _>(cx, name, 1, qh).unwrap();
+                    let shm = registry.bind::<wl_shm::WlShm, _>(cx, name, 1, qh, ()).unwrap();
 
                     let (init_w, init_h) = (320, 240);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
                     let pool = shm
-                        .create_pool(cx, file.as_raw_fd(), (init_w * init_h * 4) as i32, qh)
+                        .create_pool(cx, file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ())
                         .unwrap();
                     let buffer = pool
                         .create_buffer(
@@ -86,6 +88,7 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                             (init_w * 4) as i32,
                             wl_shm::Format::Argb8888,
                             qh,
+                            (),
                         )
                         .unwrap();
                     self.buffer = Some(buffer.clone());
@@ -97,11 +100,11 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                     }
                 }
                 "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _>(cx, name, 1, qh).unwrap();
+                    registry.bind::<wl_seat::WlSeat, _>(cx, name, 1, qh, ()).unwrap();
                 }
                 "xdg_wm_base" => {
                     let wm_base =
-                        registry.bind::<xdg_wm_base::XdgWmBase, _>(cx, name, 1, qh).unwrap();
+                        registry.bind::<xdg_wm_base::XdgWmBase, _>(cx, name, 1, qh, ()).unwrap();
                     self.wm_base = Some(wm_base);
 
                     if self.base_surface.is_some() && self.xdg_surface.is_none() {
@@ -124,6 +127,7 @@ impl Dispatch<wl_compositor::WlCompositor> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         // wl_compositor has no event
     }
@@ -139,6 +143,7 @@ impl Dispatch<wl_surface::WlSurface> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_surface events in this example
     }
@@ -154,6 +159,7 @@ impl Dispatch<wl_shm::WlShm> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_shm events in this example
     }
@@ -169,6 +175,7 @@ impl Dispatch<wl_shm_pool::WlShmPool> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_shm_pool events in this example
     }
@@ -184,6 +191,7 @@ impl Dispatch<wl_buffer::WlBuffer> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_buffer events in this example
     }
@@ -211,8 +219,8 @@ impl State {
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
-        let xdg_surface = wm_base.get_xdg_surface(cx, base_surface.clone(), qh).unwrap();
-        let toplevel = xdg_surface.get_toplevel(cx, qh).unwrap();
+        let xdg_surface = wm_base.get_xdg_surface(cx, base_surface.clone(), qh, ()).unwrap();
+        let toplevel = xdg_surface.get_toplevel(cx, qh, ()).unwrap();
         toplevel.set_title(cx, "A fantastic window!".into());
 
         base_surface.commit(cx);
@@ -231,6 +239,7 @@ impl Dispatch<xdg_wm_base::XdgWmBase> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let xdg_wm_base::Event::Ping { serial } = event {
             wm_base.pong(cx, serial);
@@ -248,6 +257,7 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(cx, serial);
@@ -271,6 +281,7 @@ impl Dispatch<xdg_toplevel::XdgToplevel> for State {
         _: &(),
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let xdg_toplevel::Event::Close {} = event {
             self.running = false;
@@ -288,10 +299,11 @@ impl Dispatch<wl_seat::WlSeat> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                seat.get_keyboard(cx, qh).unwrap();
+                seat.get_keyboard(cx, qh, ()).unwrap();
             }
         }
     }
@@ -307,6 +319,7 @@ impl Dispatch<wl_keyboard::WlKeyboard> for State {
         _: &(),
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
+        _: &mut DataInit<'_>,
     ) {
         if let wl_keyboard::Event::Key { key, .. } = event {
             if key == 1 {
