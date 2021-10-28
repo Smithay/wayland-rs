@@ -1,6 +1,8 @@
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use std::sync::Arc;
+
+use helpers::*;
 
 #[test]
 fn skel() {
@@ -10,13 +12,17 @@ fn skel() {
 
     // Client setup
     //
-    let mut client = TestClient::new(&server.socket_name);
+    let (_, mut client) = server.add_client();
 
     // Some message passing
     //
-    roundtrip(&mut client, &mut server);
+    roundtrip(&mut client, &mut server, &mut ClientHandler, &mut ServerHandler).unwrap();
 
     // Final asserts
     //
     assert!(true);
 }
+
+struct ServerHandler;
+
+struct ClientHandler;

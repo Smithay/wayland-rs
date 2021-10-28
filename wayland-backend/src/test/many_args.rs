@@ -12,11 +12,9 @@ struct ServerData(AtomicBool);
 macro_rules! serverdata_impls {
     ($server_backend:tt) => {
         impl $server_backend::ObjectData<()> for ServerData {
-            fn make_child(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn $server_backend::ObjectData<()>> {
-                self
-            }
-
-            fn request(&self, _: &mut $server_backend::Handle<()>, _: &mut (), _: $server_backend::ClientId, msg: Message<$server_backend::ObjectId>) {
+            fn request(self: Arc<Self>, _: &mut $server_backend::Handle<()>, _: &mut (), _: $server_backend::ClientId, msg: Message<$server_backend::ObjectId>)
+                -> Option<Arc<dyn $server_backend::ObjectData<()>>>
+            {
                 assert_eq!(msg.opcode, 0);
                 if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
                     &msg.args[..]
@@ -35,24 +33,21 @@ macro_rules! serverdata_impls {
                     panic!("Bad argument list !")
                 }
                 self.0.store(true, Ordering::SeqCst);
+                None
             }
 
             fn destroyed(&self, _: $server_backend::ClientId, _: $server_backend::ObjectId) {}
         }
 
         impl $server_backend::GlobalHandler<()> for ServerData {
-            fn make_data(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn $server_backend::ObjectData<()>> {
-                self
-            }
-
             fn bind(
-                &self,
+                self: Arc<Self>,
                 handle: &mut $server_backend::Handle<()>,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::GlobalId,
                 object_id: $server_backend::ObjectId,
-            ) {
+            ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 handle
                     .send_event(message!(
                         object_id,
@@ -67,6 +62,7 @@ macro_rules! serverdata_impls {
                         ],
                     ))
                     .unwrap();
+                self
             }
         }
     }
@@ -80,10 +76,7 @@ struct ClientData(AtomicBool);
 macro_rules! clientdata_impls {
     ($client_backend:tt) => {
         impl $client_backend::ObjectData for ClientData {
-            fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn $client_backend::ObjectData> {
-                unreachable!()
-            }
-            fn event(&self, _handle: &mut $client_backend::Handle, msg: Message<$client_backend::ObjectId>) {
+            fn event(self: Arc<Self>, _handle: &mut $client_backend::Handle, msg: Message<$client_backend::ObjectId>) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
                 if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
                     &msg.args[..]
@@ -102,6 +95,7 @@ macro_rules! clientdata_impls {
                     panic!("Bad argument list !")
                 }
                 self.0.store(true, Ordering::SeqCst);
+                None
             }
             fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
         }

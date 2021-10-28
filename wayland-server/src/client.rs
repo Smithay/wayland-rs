@@ -33,12 +33,13 @@ impl Client {
         &self,
         handle: &mut DisplayHandle<'_, D>,
         version: u32,
+        user_data: <D as Dispatch<I>>::UserData,
     ) -> Result<I, InvalidId> {
         let id = handle.inner.handle().create_object(
             self.id.clone(),
             I::interface(),
             version,
-            Arc::new(ResourceData::<I, <D as Dispatch<I>>::UserData>::default()),
+            Arc::new(ResourceData::<I, _>::new(user_data)),
         )?;
         I::from_id(handle, id)
     }

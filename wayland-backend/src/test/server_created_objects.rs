@@ -12,22 +12,14 @@ struct ServerData;
 macro_rules! impl_globalhandler {
     ($server_backend:tt) => {
         impl $server_backend::GlobalHandler<()> for ServerData {
-            fn make_data(
-                self: Arc<Self>,
-                _: &mut (),
-                _: &ObjectInfo,
-            ) -> Arc<dyn $server_backend::ObjectData<()>> {
-                Arc::new(DoNothingData)
-            }
-
             fn bind(
-                &self,
+                self: Arc<Self>,
                 handle: &mut $server_backend::Handle<()>,
                 _: &mut (),
                 client: $server_backend::ClientId,
                 _: $server_backend::GlobalId,
                 object_id: $server_backend::ObjectId,
-            ) {
+            ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 // send the first event with a newid & a null object
                 let obj_1 = handle
                     .create_object(
@@ -56,6 +48,7 @@ macro_rules! impl_globalhandler {
                         [Argument::NewId(obj_2), Argument::Object(obj_1)]
                     ))
                     .unwrap();
+                Arc::new(DoNothingData)
             }
         }
     };
@@ -69,17 +62,11 @@ struct ClientData(AtomicU32);
 macro_rules! impl_client_objectdata {
     ($client_backend:tt) => {
         impl $client_backend::ObjectData for ClientData {
-            fn make_child(
-                self: Arc<Self>,
-                _child_info: &ObjectInfo,
-            ) -> Arc<dyn $client_backend::ObjectData> {
-                self
-            }
             fn event(
-                &self,
+                self: Arc<Self>,
                 handle: &mut $client_backend::Handle,
                 msg: Message<$client_backend::ObjectId>,
-            ) {
+            ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 2);
                 if self.0.load(Ordering::SeqCst) == 0 {
                     if let [Argument::NewId(obj_1), Argument::Object(null_id)] = &msg.args[..] {
@@ -106,6 +93,7 @@ macro_rules! impl_client_objectdata {
                     }
                     self.0.store(2, Ordering::SeqCst);
                 }
+                Some(self)
             }
             fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
         }

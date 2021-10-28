@@ -35,10 +35,15 @@ scoped_thread_local!(static HANDLE: RefCell<&mut Handle>);
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
 pub trait ObjectData: downcast_rs::DowncastSync {
-    /// Create a new object data from the parent data
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData>;
     /// Dispatch an event for the associated object
-    fn event(&self, handle: &mut Handle, msg: Message<ObjectId>);
+    ///
+    /// If the event has a NewId argument, the callback must return the object data
+    /// for the newly created object
+    fn event(
+        self: Arc<Self>,
+        handle: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, object_id: ObjectId);
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
@@ -522,7 +527,7 @@ impl Handle {
         }
 
         // initialize the proxy
-        let child_id = if let Some((child_interface, child_version)) = child_spec {
+        let child_id = if let Some((child_interface, _)) = child_spec {
             let child_alive = Arc::new(AtomicBool::new(true));
             let child_id = ObjectId {
                 ptr: ret,
@@ -530,26 +535,11 @@ impl Handle {
                 id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
                 interface: child_interface,
             };
-            let child_data = if id.alive.is_some() {
-                let udata = unsafe {
-                    &*(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
-                        as *mut ProxyUserData)
-                };
-                data.unwrap_or_else(|| {
-                    udata.data.clone().make_child(&ObjectInfo {
-                        id: child_id.id,
-                        interface: child_interface,
-                        version: child_version,
-                    })
-                })
-            } else {
-                data.expect(
-                    "ObjectData must be provided when creating an object from an external proxy.",
-                )
-            };
             let child_udata = Box::new(ProxyUserData {
                 alive: child_alive,
-                data: child_data,
+                data: data.expect(
+                    "Sending a request creating an object without providing an object data.",
+                ),
                 interface: child_interface,
             });
             unsafe {
@@ -611,6 +601,26 @@ impl Handle {
         };
         Ok(udata.data.clone())
     }
+
+    pub fn set_data(&mut self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        // Cannot touch the user_data of the display
+        if id.id == 1 {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            &mut *(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_user_data, id.ptr)
+                as *mut ProxyUserData)
+        };
+
+        udata.data = data;
+
+        Ok(())
+    }
 }
 
 unsafe extern "C" fn dispatcher_func(
@@ -636,6 +646,7 @@ unsafe extern "C" fn dispatcher_func(
     let mut parsed_args =
         SmallVec::<[Argument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
+    let mut created = None;
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
             ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.add(i)).u)),
@@ -718,24 +729,19 @@ unsafe extern "C" fn dispatcher_func(
                         id: ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj),
                         interface: child_interface,
                     };
-                    let child_version =
-                        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_version, obj);
-                    let child_udata = Box::new(ProxyUserData {
+                    let child_udata = Box::into_raw(Box::new(ProxyUserData {
                         alive: child_alive,
-                        data: udata.data.clone().make_child(&ObjectInfo {
-                            id: child_id.id,
-                            interface: child_interface,
-                            version: child_version,
-                        }),
+                        data: Arc::new(UninitObjectData),
                         interface: child_interface,
-                    });
+                    }));
+                    created = Some((child_id.clone(), child_udata));
                     ffi_dispatch!(
                         WAYLAND_CLIENT_HANDLE,
                         wl_proxy_add_dispatcher,
                         obj,
                         dispatcher_func,
                         &RUST_MANAGED as *const u8 as *const c_void,
-                        Box::into_raw(child_udata) as *mut c_void
+                        child_udata as *mut c_void
                     );
                     parsed_args.push(Argument::NewId(child_id));
                 } else {
@@ -758,11 +764,11 @@ unsafe extern "C" fn dispatcher_func(
         interface: udata.interface,
     };
 
-    HANDLE.with(|handle| {
-        udata.data.event(
+    let ret = HANDLE.with(|handle| {
+        udata.data.clone().event(
             &mut **handle.borrow_mut(),
             Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
-        );
+        )
     });
 
     if message_desc.is_destructor {
@@ -771,6 +777,19 @@ unsafe extern "C" fn dispatcher_func(
         udata.alive.store(false, Ordering::Release);
         udata.data.destroyed(id);
         ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy);
+    }
+
+    match (created, ret) {
+        (Some((_, child_udata_ptr)), Some(child_data)) => {
+            (*child_udata_ptr).data = child_data;
+        }
+        (Some((child_id, _)), None) => {
+            panic!("Callback creating object {} did not provide any object data.", child_id);
+        }
+        (None, Some(_)) => {
+            panic!("An object data was returned from a callback not creating any object");
+        }
+        (None, None) => {}
     }
 
     0
@@ -794,15 +813,33 @@ impl Drop for Backend {
 struct DumbObjectData;
 
 impl ObjectData for DumbObjectData {
-    fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        unreachable!()
-    }
-
-    fn event(&self, _handle: &mut Handle, _msg: Message<ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _handle: &mut Handle,
+        _msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
 
     fn destroyed(&self, _object_id: ObjectId) {
         unreachable!()
+    }
+}
+
+struct UninitObjectData;
+
+impl ObjectData for UninitObjectData {
+    fn event(
+        self: Arc<Self>,
+        _handle: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
+        panic!("Received a message on an uninitialized object: {:?}", msg);
+    }
+
+    fn destroyed(&self, _object_id: ObjectId) {}
+
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UninitObjectData").finish()
     }
 }

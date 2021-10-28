@@ -51,7 +51,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             use super::wayland_client::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
-                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
+                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError, New
             };
 
             #enums
@@ -205,13 +205,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<super::#created_iface_mod::#created_iface_type>>::UserData) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
                         let ret = cx.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type>())
+                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type>(udata))
                         )?;
                         Proxy::from_id(cx, ret)
                     }
@@ -221,14 +221,14 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 // a bind-like request
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>) -> Result<I, InvalidId> {
+                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, cx: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<I>>::UserData) -> Result<I, InvalidId> {
                         let placeholder = cx.placeholder_id(Some((I::interface(), version)));
                         let ret = cx.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<I>())
+                            Some(qh.make_data::<I>(udata))
                         )?;
                         Proxy::from_id(cx, ret)
                     }
