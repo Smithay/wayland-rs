@@ -1,6 +1,6 @@
 use std::{fmt, sync::Arc};
 
-use crate::protocol::{same_interface, Interface, Message, ObjectInfo};
+use crate::protocol::{same_interface, Interface, Message};
 
 mod client;
 mod common_poll;
@@ -19,19 +19,25 @@ pub use handle::Handle;
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
 pub trait ObjectData<D>: downcast_rs::DowncastSync {
-    /// Create a new object data from the parent data
-    fn make_child(self: Arc<Self>, data: &mut D, child_info: &ObjectInfo)
-        -> Arc<dyn ObjectData<D>>;
     /// Dispatch a request for the associated object
+    ///
+    /// If the request has a NewId argument, the callback must return the object data
+    /// for the newly created object
     fn request(
-        &self,
+        self: Arc<Self>,
         handle: &mut Handle<D>,
         data: &mut D,
         client_id: ClientId,
         msg: Message<ObjectId>,
-    );
+    ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, client_id: ClientId, object_id: ObjectId);
+    /// Helper for forwarding a Debug implementation of your `ObjectData` type
+    ///
+    /// By default will just print `ObjectData { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectData").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync ObjectData<D>);
@@ -53,19 +59,25 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     ) -> bool {
         true
     }
-    /// Create the ObjectData for a future bound global
-    fn make_data(self: Arc<Self>, data: &mut D, info: &ObjectInfo) -> Arc<dyn ObjectData<D>>;
     /// A global has been bound
     ///
     /// Given client bound given global, creating given object.
+    ///
+    /// The method must return the object data for the newly created object.
     fn bind(
-        &self,
+        self: Arc<Self>,
         handle: &mut Handle<D>,
         data: &mut D,
         client_id: ClientId,
         global_id: GlobalId,
         object_id: ObjectId,
-    );
+    ) -> Arc<dyn ObjectData<D>>;
+    /// Helper for forwarding a Debug implementation of your `GlobalHandler` type
+    ///
+    /// By default will just print `GlobalHandler { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalHandler").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
@@ -77,6 +89,12 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
     /// Notification that a client is disconnected
     fn disconnected(&self, client_id: ClientId, reason: DisconnectReason);
+    /// Helper for forwarding a Debug implementation of your `ClientData` type
+    ///
+    /// By default will just print `GlobalHandler { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientData").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
@@ -134,7 +152,7 @@ impl ClientId {
 
 impl fmt::Display for ClientId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}]", self.id)
+        write!(f, "{}", self.id)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -151,5 +169,25 @@ pub(crate) struct Data<D> {
 impl<D> Clone for Data<D> {
     fn clone(&self) -> Data<D> {
         Data { user_data: self.user_data.clone(), serial: self.serial }
+    }
+}
+
+struct UninitObjectData;
+
+impl<D> ObjectData<D> for UninitObjectData {
+    fn request(
+        self: Arc<Self>,
+        _: &mut Handle<D>,
+        _: &mut D,
+        _: ClientId,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData<D>>> {
+        panic!("Received a message on an uninitialized object: {:?}", msg);
+    }
+
+    fn destroyed(&self, _: ClientId, _: ObjectId) {}
+
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UninitObjectData").finish()
     }
 }

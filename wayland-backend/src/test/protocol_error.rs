@@ -8,44 +8,30 @@ use super::*;
 struct ServerData<Id>(Arc<Mutex<Option<Id>>>);
 
 impl server_rs::GlobalHandler<()> for ServerData<server_rs::ObjectId> {
-    fn make_data(
-        self: Arc<Self>,
-        _: &mut (),
-        _: &ObjectInfo,
-    ) -> Arc<dyn server_rs::ObjectData<()>> {
-        Arc::new(DoNothingData)
-    }
-
     fn bind(
-        &self,
+        self: Arc<Self>,
         _: &mut server_rs::Handle<()>,
         _: &mut (),
         _: server_rs::ClientId,
         _: server_rs::GlobalId,
         object_id: server_rs::ObjectId,
-    ) {
+    ) -> Arc<dyn server_rs::ObjectData<()>> {
         *(self.0.lock().unwrap()) = Some(object_id);
+        Arc::new(DoNothingData)
     }
 }
 
 impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
-    fn make_data(
-        self: Arc<Self>,
-        _: &mut (),
-        _: &ObjectInfo,
-    ) -> Arc<dyn server_sys::ObjectData<()>> {
-        Arc::new(DoNothingData)
-    }
-
     fn bind(
-        &self,
+        self: Arc<Self>,
         _: &mut server_sys::Handle<()>,
         _: &mut (),
         _: server_sys::ClientId,
         _: server_sys::GlobalId,
         object_id: server_sys::ObjectId,
-    ) {
+    ) -> Arc<dyn server_sys::ObjectData<()>> {
         *(self.0.lock().unwrap()) = Some(object_id);
+        Arc::new(DoNothingData)
     }
 }
 

@@ -1,8 +1,9 @@
+#[macro_use]
 mod helpers;
 
 use helpers::{roundtrip, wayc, ways, DumbClientData, TestClient, TestServer};
 
-use ways::protocol::wl_output::{Request as ServerOutputRequest, WlOutput as ServerOutput};
+use ways::protocol::wl_output::WlOutput as ServerOutput;
 
 use std::os::unix::io::IntoRawFd;
 use std::sync::Arc;
@@ -22,7 +23,7 @@ fn main() {
 
     let mut globals = wayc::globals::GlobalList::new();
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle()).unwrap();
+    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut globals, &mut ServerData).unwrap();
     // check that we connected to the right compositor
@@ -47,29 +48,5 @@ fn main() {
 
 struct ServerData;
 
-impl ways::Dispatch<ServerOutput> for ServerData {
-    type UserData = ();
-    fn request(
-        &mut self,
-        _: &ways::Client,
-        _: &ServerOutput,
-        _: ServerOutputRequest,
-        _: &(),
-        _: &mut ways::DisplayHandle<'_, Self>,
-    ) {
-    }
-}
-
-impl ways::GlobalDispatch<ServerOutput> for ServerData {
-    type GlobalData = ();
-
-    fn bind(
-        &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
-        _: &ways::Client,
-        _: &ServerOutput,
-        _: &(),
-        _: &(),
-    ) {
-    }
-}
+server_ignore_impl!(ServerData => [ServerOutput]);
+server_ignore_global_impl!(ServerData => [ServerOutput]);

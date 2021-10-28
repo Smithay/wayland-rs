@@ -34,10 +34,15 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
 pub trait ObjectData: downcast_rs::DowncastSync {
-    /// Create a new object data from the parent data
-    fn make_child(self: Arc<Self>, child_info: &ObjectInfo) -> Arc<dyn ObjectData>;
     /// Dispatch an event for the associated object
-    fn event(&self, handle: &mut Handle, msg: Message<ObjectId>);
+    ///
+    /// If the event has a NewId argument, the callback must return the object data
+    /// for the newly created object
+    fn event(
+        self: Arc<Self>,
+        handle: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, object_id: ObjectId);
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
@@ -204,6 +209,8 @@ impl Backend {
                 continue;
             }
 
+            let mut created_id = None;
+
             // Convert the arguments and create the new object if applicable
             let mut args = SmallVec::with_capacity(message.args.len());
             let mut arg_interfaces = message_desc.arg_interfaces.iter();
@@ -256,11 +263,7 @@ impl Backend {
                             None => panic!("Received event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", receiver.interface.name, message.sender_id, message_desc.name),
                         };
 
-                        let child_udata = receiver.data.user_data.clone().make_child(&ObjectInfo {
-                            id: new_id,
-                            interface: child_interface,
-                            version: receiver.version
-                        });
+                        let child_udata = Arc::new(UninitObjectData);
 
                         // if this ID belonged to a now destroyed server object, we can replace it
                         if new_id >= SERVER_ID_LIMIT
@@ -281,6 +284,7 @@ impl Backend {
                         };
 
                         let child_id = ObjectId { id: new_id, serial: child_obj.data.serial, interface: child_obj.interface };
+                        created_id = Some(child_id.clone());
 
                         if let Err(()) = self.handle.map.insert_at(new_id, child_obj) {
                             // abort parsing, this is an unrecoverable error
@@ -345,10 +349,29 @@ impl Backend {
                 interface: receiver.interface,
             };
             log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
-            receiver
+            let ret = receiver
                 .data
                 .user_data
                 .event(&mut self.handle, Message { sender_id: id, opcode: message.opcode, args });
+
+            match (created_id, ret) {
+                (Some(child_id), Some(child_data)) => {
+                    self.handle
+                        .map
+                        .with(child_id.id, |obj| obj.data.user_data = child_data)
+                        .unwrap();
+                }
+                (None, None) => {}
+                (Some(child_id), None) => {
+                    panic!(
+                        "Callback creating object {} did not provide any object data.",
+                        child_id
+                    );
+                }
+                (None, Some(_)) => {
+                    panic!("An object data was returned from a callback not creating any object");
+                }
+            }
 
             dispatched += 1;
         }
@@ -472,13 +495,9 @@ impl Handle {
 
             self.map
                 .with(child_id, |obj| {
-                    obj.data.user_data = data.unwrap_or_else(|| {
-                        object.data.user_data.clone().make_child(&ObjectInfo {
-                            interface: child_interface,
-                            version: child_version,
-                            id: child_id,
-                        })
-                    })
+                    obj.data.user_data = data.expect(
+                        "Sending a request creating an object without providing an object data.",
+                    );
                 })
                 .unwrap();
             Some((child_id, child_serial, child_interface))
@@ -565,6 +584,19 @@ impl Handle {
     pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         let object = self.get_object(id)?;
         Ok(object.data.user_data)
+    }
+
+    pub fn set_data(&mut self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
+        self.map
+            .with(id.id, move |objdata| {
+                if objdata.data.serial != id.serial {
+                    Err(InvalidId)
+                } else {
+                    objdata.data.user_data = data;
+                    Ok(())
+                }
+            })
+            .unwrap_or(Err(InvalidId))
     }
 }
 
@@ -656,15 +688,33 @@ impl Handle {
 struct DumbObjectData;
 
 impl ObjectData for DumbObjectData {
-    fn make_child(self: Arc<Self>, _child_info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        panic!("You must provide an ObjectData when creating an object from the wl_display.")
-    }
-
-    fn event(&self, _handle: &mut Handle, _msg: Message<ObjectId>) {
+    fn event(
+        self: Arc<Self>,
+        _handle: &mut Handle,
+        _msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
 
     fn destroyed(&self, _object_id: ObjectId) {
         unreachable!()
+    }
+}
+
+struct UninitObjectData;
+
+impl ObjectData for UninitObjectData {
+    fn event(
+        self: Arc<Self>,
+        _handle: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
+        panic!("Received a message on an uninitialized object: {:?}", msg);
+    }
+
+    fn destroyed(&self, _object_id: ObjectId) {}
+
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UninitObjectData").finish()
     }
 }

@@ -223,7 +223,11 @@ pub(crate) fn gen_message_enum(
                                 let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
-                                quote!(super::#iface_mod::#iface_type)
+                                if receiver {
+                                    quote!(New<super::#iface_mod::#iface_type>)
+                                } else {
+                                    quote!(super::#iface_mod::#iface_type)
+                                }
                             } else {
                                 // bind-like function
                                 if side == Side::Client {
@@ -339,7 +343,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             }
                         }
                     },
-                    Type::Object | Type::NewId => {
+                    Type::Object => {
                         let create_proxy = if let Some(ref created_interface) = arg.interface {
                             let created_iface_mod = Ident::new(created_interface, Span::call_site());
                             let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
@@ -359,6 +363,29 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                         } else {
                             quote! {
                                 #arg_name: #create_proxy
+                            }
+                        }
+                    },
+                    Type::NewId => {
+                        let create_proxy = if let Some(ref created_interface) = arg.interface {
+                            let created_iface_mod = Ident::new(created_interface, Span::call_site());
+                            let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
+                            quote! {
+                                match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(cx, #arg_name.clone()) {
+                                    Ok(p) => p,
+                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
+                                }
+                            }
+                        } else {
+                            quote! { New::wrap(#arg_name.clone()) }
+                        };
+                        if arg.allow_null {
+                            quote! {
+                                #arg_name: if #arg_name.is_null() { None } else { Some(New::wrap(#create_proxy)) }
+                            }
+                        } else {
+                            quote! {
+                                #arg_name: New::wrap(#create_proxy)
                             }
                         }
                     },

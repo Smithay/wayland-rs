@@ -12,17 +12,13 @@ struct ServerData(AtomicBool);
 macro_rules! impl_server_objectdata {
     ($server_backend:tt) => {
         impl $server_backend::ObjectData<()> for ServerData {
-            fn make_child(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn $server_backend::ObjectData<()>> {
-                self
-            }
-
             fn request(
-                &self,
+                self: Arc<Self>,
                 handle: &mut $server_backend::Handle<()>,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 msg: Message<$server_backend::ObjectId>,
-            ) {
+            ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 if msg.opcode == 1 {
                     assert_eq!(
                         handle.object_info(msg.sender_id.clone()).unwrap().interface.name,
@@ -32,9 +28,12 @@ macro_rules! impl_server_objectdata {
                         handle
                             .send_event(message!(msg.sender_id, 1, [Argument::Object(secondary.clone())]))
                             .unwrap();
+                        return Some(self);
                     } else {
                         panic!("Bad argument list!");
                     }
+                } else if msg.opcode == 2{
+                    return Some(self);
                 } else if msg.opcode == 3 {
                     assert_eq!(handle.object_info(msg.sender_id).unwrap().interface.name, "test_global");
                     if let [Argument::Object(secondary), Argument::Object(tertiary), Argument::Uint(u)] =
@@ -57,17 +56,23 @@ macro_rules! impl_server_objectdata {
                         panic!("Bad argument list!");
                     }
                 }
+                None
             }
 
             fn destroyed(&self, _: $server_backend::ClientId, _: $server_backend::ObjectId) {}
         }
 
         impl $server_backend::GlobalHandler<()> for ServerData {
-            fn make_data(self: Arc<Self>, _: &mut (), _: &ObjectInfo) -> Arc<dyn $server_backend::ObjectData<()>> {
+            fn bind(
+                self: Arc<Self>,
+                _: &mut $server_backend::Handle<()>,
+                _: &mut (),
+                _: $server_backend::ClientId,
+                _: $server_backend::GlobalId,
+                _: $server_backend::ObjectId
+            ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 self
             }
-
-            fn bind(&self, _: &mut $server_backend::Handle<()>, _: &mut (), _: $server_backend::ClientId, _: $server_backend::GlobalId, _: $server_backend::ObjectId) {}
         }
     }
 }
@@ -80,17 +85,11 @@ struct ClientData(AtomicBool);
 macro_rules! impl_client_objectdata {
     ($client_backend:tt) => {
         impl $client_backend::ObjectData for ClientData {
-            fn make_child(
-                self: Arc<Self>,
-                _child_info: &ObjectInfo,
-            ) -> Arc<dyn $client_backend::ObjectData> {
-                self
-            }
             fn event(
-                &self,
+                self: Arc<Self>,
                 handle: &mut $client_backend::Handle,
                 msg: Message<$client_backend::ObjectId>,
-            ) {
+            ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 1);
                 if let [Argument::Object(secondary)] = &msg.args[..] {
                     let info = handle.info(secondary.clone()).unwrap();
@@ -100,6 +99,7 @@ macro_rules! impl_client_objectdata {
                     panic!("Bad argument list!");
                 }
                 self.0.store(true, Ordering::SeqCst);
+                None
             }
             fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
         }
@@ -156,12 +156,18 @@ expand_test!(create_objects, {
     let placeholder = client.handle().placeholder_id(None);
     let secondary_id = client
         .handle()
-        .send_request(message!(test_global_id.clone(), 1, [Argument::NewId(placeholder)]), None)
+        .send_request(
+            message!(test_global_id.clone(), 1, [Argument::NewId(placeholder)]),
+            Some(client_data.clone()),
+        )
         .unwrap();
     let placeholder = client.handle().placeholder_id(None);
     let tertiary_id = client
         .handle()
-        .send_request(message!(test_global_id.clone(), 2, [Argument::NewId(placeholder)]), None)
+        .send_request(
+            message!(test_global_id.clone(), 2, [Argument::NewId(placeholder)]),
+            Some(client_data.clone()),
+        )
         .unwrap();
     // link them
     let null_obj = client.handle().null_id();

@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use wayland_backend::{
-    protocol::ObjectInfo,
-    server::{ClientData, ClientId, GlobalHandler, GlobalId, Handle, ObjectData, ObjectId},
+use wayland_backend::server::{
+    ClientData, ClientId, GlobalHandler, GlobalId, Handle, ObjectData, ObjectId,
 };
 
 use crate::{dispatch::ResourceData, Client, Dispatch, DisplayHandle, Resource};
@@ -17,27 +16,22 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
         <D as GlobalDispatch<I>>::can_view(client, &self.data)
     }
 
-    fn make_data(self: Arc<Self>, _: &mut D, _: &ObjectInfo) -> Arc<dyn ObjectData<D>> {
-        Arc::new(ResourceData::<I, <D as Dispatch<I>>::UserData>::default())
-    }
-
     fn bind(
-        &self,
+        self: Arc<Self>,
         handle: &mut Handle<D>,
         data: &mut D,
         client_id: ClientId,
         _: GlobalId,
         object_id: ObjectId,
-    ) {
+    ) -> Arc<dyn ObjectData<D>> {
         let mut handle = DisplayHandle::from_handle(handle);
         let client = Client::from_id(&mut handle, client_id).expect("Dead client in bind ?!");
         let resource = <I as Resource>::from_id(&mut handle, object_id)
             .expect("Wrong object_id in GlobalHandler ?!");
-        let udata = resource
-            .data::<<D as Dispatch<I>>::UserData>()
-            .expect("Wrong user_data value for object ?!");
 
-        data.bind(&mut handle, &client, &resource, udata, &self.data)
+        let udata = data.bind(&mut handle, &client, &resource, &self.data);
+
+        Arc::new(ResourceData::<I, _>::new(udata))
     }
 }
 
@@ -49,9 +43,8 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
         handle: &mut DisplayHandle<'_, Self>,
         client: &Client,
         resource: &I,
-        resource_data: &<Self as Dispatch<I>>::UserData,
         global_data: &Self::GlobalData,
-    );
+    ) -> <Self as Dispatch<I>>::UserData;
 
     fn can_view(_client: Client, _global_data: &Self::GlobalData) -> bool {
         true

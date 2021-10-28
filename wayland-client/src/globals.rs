@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use crate::{
-    protocol::wl_registry, ConnectionHandle, DelegateDispatch, DelegateDispatchBase, Dispatch,
-    Proxy, QueueHandle,
+    event_queue::DataInit, protocol::wl_registry, ConnectionHandle, DelegateDispatch,
+    DelegateDispatchBase, Dispatch, Proxy, QueueHandle,
 };
 
 pub struct GlobalDescription {
@@ -30,6 +30,7 @@ where
         _: &(),
         _: &mut crate::ConnectionHandle,
         _: &crate::QueueHandle<D>,
+        _: &mut crate::DataInit<'_>,
     ) {
         match event {
             wl_registry::Event::Global { name, interface, version } => {
@@ -53,9 +54,10 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
+        init: &mut DataInit<'_>,
     ) {
         <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
-            self, proxy, event, data, cxhandle, qhandle,
+            self, proxy, event, data, cxhandle, qhandle, init,
         )
     }
 }
@@ -75,6 +77,7 @@ impl GlobalList {
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
         version: Range<u32>,
+        user_data: <D as Dispatch<I>>::UserData,
     ) -> Result<I, BindError> {
         for desc in &self.globals {
             if desc.interface != I::interface().name {
@@ -83,7 +86,7 @@ impl GlobalList {
 
             if version.contains(&desc.version) {
                 return Ok(registry
-                    .bind::<I, D>(cx, desc.name, desc.version, qh)
+                    .bind::<I, D>(cx, desc.name, desc.version, qh, user_data)
                     .expect("invalid wl_registry"));
             } else {
                 return Err(BindError::WrongVersion {

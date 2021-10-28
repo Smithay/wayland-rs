@@ -19,7 +19,8 @@ pub use wayland_backend::protocol::WEnum;
 
 pub use cx::{Connection, ConnectionHandle};
 pub use event_queue::{
-    DelegateDispatch, DelegateDispatchBase, Dispatch, EventQueue, QueueHandle, QueueProxyData,
+    DataInit, DelegateDispatch, DelegateDispatchBase, Dispatch, EventQueue, New, QueueHandle,
+    QueueProxyData,
 };
 //pub use event_queue::{event_stream, EventQueue, QueueHandle, Sink};
 

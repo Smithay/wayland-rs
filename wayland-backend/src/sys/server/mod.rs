@@ -35,19 +35,25 @@ scoped_thread_local!(static HANDLE: (*mut c_void, *mut c_void));
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
 pub trait ObjectData<D>: downcast_rs::DowncastSync {
-    /// Create a new object data from the parent data
-    fn make_child(self: Arc<Self>, data: &mut D, child_info: &ObjectInfo)
-        -> Arc<dyn ObjectData<D>>;
     /// Dispatch a request for the associated object
+    ///
+    /// If the request has a NewId argument, the callback must return the object data
+    /// for the newly created object
     fn request(
-        &self,
+        self: Arc<Self>,
         handle: &mut Handle<D>,
         data: &mut D,
         client_id: ClientId,
         msg: Message<ObjectId>,
-    );
+    ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, client_id: ClientId, object_id: ObjectId);
+    /// Helper for forwarding a Debug implementation of your `ObjectData` type
+    ///
+    /// By default will just print `ObjectData { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectData").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync ObjectData<D>);
@@ -69,19 +75,25 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     ) -> bool {
         true
     }
-    /// Create the ObjectData for a future bound global
-    fn make_data(self: Arc<Self>, data: &mut D, info: &ObjectInfo) -> Arc<dyn ObjectData<D>>;
     /// A global has been bound
     ///
     /// Given client bound given global, creating given object.
+    ///
+    /// The method must return the object data for the newly created object.
     fn bind(
-        &self,
+        self: Arc<Self>,
         handle: &mut Handle<D>,
         data: &mut D,
         client_id: ClientId,
         global_id: GlobalId,
         object_id: ObjectId,
-    );
+    ) -> Arc<dyn ObjectData<D>>;
+    /// Helper for forwarding a Debug implementation of your `GlobalHandler` type
+    ///
+    /// By default will just print `GlobalHandler { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalHandler").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
@@ -93,6 +105,12 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
     /// Notification that a client is disconnected
     fn disconnected(&self, client_id: ClientId, reason: DisconnectReason);
+    /// Helper for forwarding a Debug implementation of your `ClientData` type
+    ///
+    /// By default will just print `GlobalHandler { ... }`
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientData").finish_non_exhaustive()
+    }
 }
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
@@ -126,6 +144,12 @@ impl std::cmp::PartialEq for ObjectId {
 }
 
 impl std::cmp::Eq for ObjectId {}
+
+impl std::fmt::Display for ObjectId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}@{}", self.interface.name, self.id)
+    }
+}
 
 impl ObjectId {
     pub fn is_null(&self) -> bool {
@@ -451,7 +475,7 @@ impl<D> Handle<D> {
             )
         };
 
-        Ok(unsafe { init_resource(resource, interface, data) })
+        Ok(unsafe { init_resource(resource, interface, Some(data)).0 })
     }
 
     pub fn null_id(&mut self) -> ObjectId {
@@ -606,11 +630,30 @@ impl<D> Handle<D> {
         }
 
         let udata = unsafe {
-            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
+            &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
                 as *mut ResourceUserData<D>)
         };
 
         Ok(udata.data.clone())
+    }
+
+    pub fn set_object_data(
+        &mut self,
+        id: ObjectId,
+        data: Arc<dyn ObjectData<D>>,
+    ) -> Result<(), InvalidId> {
+        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
+                as *mut ResourceUserData<D>)
+        };
+
+        udata.data = data;
+
+        Ok(())
     }
 
     pub fn post_error(&mut self, id: ObjectId, error_code: u32, message: CString) {
@@ -828,12 +871,10 @@ unsafe extern "C" fn global_bind<D>(
             version as i32,
             id
         );
-        let object_udata = global_udata
-            .handler
-            .clone()
-            .make_data(data, &ObjectInfo { id, interface: global_udata.interface, version });
-        let object_id = init_resource(resource, global_udata.interface, object_udata);
-        global_udata.handler.bind(handle, data, client_id, global_id, object_id);
+        let (object_id, udata) = init_resource(resource, global_udata.interface, None);
+        let obj_data =
+            global_udata.handler.clone().bind(handle, data, client_id, global_id, object_id);
+        (*udata).data = obj_data;
     })
 }
 
@@ -860,10 +901,14 @@ unsafe extern "C" fn global_filter<D>(
 unsafe fn init_resource<D>(
     resource: *mut wl_resource,
     interface: &'static Interface,
-    data: Arc<dyn ObjectData<D>>,
-) -> ObjectId {
+    data: Option<Arc<dyn ObjectData<D>>>,
+) -> (ObjectId, *mut ResourceUserData<D>) {
     let alive = Arc::new(AtomicBool::new(true));
-    let udata = Box::into_raw(Box::new(ResourceUserData { data, interface, alive: alive.clone() }));
+    let udata = Box::into_raw(Box::new(ResourceUserData {
+        data: data.unwrap_or_else(|| Arc::new(UninitObjectData)),
+        interface,
+        alive: alive.clone(),
+    }));
     let id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, resource);
 
     ffi_dispatch!(
@@ -876,7 +921,7 @@ unsafe fn init_resource<D>(
         Some(resource_destructor::<D>)
     );
 
-    ObjectId { interface, alive: Some(alive), id, ptr: resource }
+    (ObjectId { interface, alive: Some(alive), id, ptr: resource }, udata)
 }
 
 unsafe extern "C" fn resource_dispatcher<D>(
@@ -905,6 +950,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
     let mut parsed_args =
         SmallVec::<[Argument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
+    let mut created = None;
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
             ArgumentType::Uint => parsed_args.push(Argument::Uint((*args.add(i)).u)),
@@ -976,8 +1022,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
                         Some(iface) => iface,
                         None => panic!("Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.", udata.interface.name, resource_id, message_desc.name),
                     };
-                    let child_id = HANDLE.with(|&(_handle_ptr, data_ptr)| {
-                        let data = &mut *(data_ptr as *mut D);
+                    let (child_id, child_data_ptr) = HANDLE.with(|&(_handle_ptr, _)| {
                         // create the object
                         let resource = ffi_dispatch!(
                             WAYLAND_SERVER_HANDLE,
@@ -987,16 +1032,9 @@ unsafe extern "C" fn resource_dispatcher<D>(
                             version,
                             new_id
                         );
-                        let object_udata = udata.data.clone().make_child(
-                            data,
-                            &ObjectInfo {
-                                id: new_id,
-                                interface: child_interface,
-                                version: version as u32,
-                            },
-                        );
-                        init_resource(resource, child_interface, object_udata)
+                        init_resource::<D>(resource, child_interface, None)
                     });
+                    created = Some((child_id.clone(), child_data_ptr));
                     parsed_args.push(Argument::NewId(child_id));
                 } else {
                     parsed_args.push(Argument::NewId(ObjectId {
@@ -1019,15 +1057,15 @@ unsafe extern "C" fn resource_dispatcher<D>(
 
     let client_id = client_id_from_ptr::<D>(client).unwrap();
 
-    HANDLE.with(|&(handle_ptr, data_ptr)| {
+    let ret = HANDLE.with(|&(handle_ptr, data_ptr)| {
         let handle = &mut *(handle_ptr as *mut Handle<D>);
         let data = &mut *(data_ptr as *mut D);
-        udata.data.request(
+        udata.data.clone().request(
             handle,
             data,
             client_id.clone(),
             Message { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
-        );
+        )
     });
 
     if message_desc.is_destructor {
@@ -1041,6 +1079,19 @@ unsafe extern "C" fn resource_dispatcher<D>(
         udata.alive.store(false, Ordering::Release);
         udata.data.destroyed(client_id, object_id);
         ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, resource);
+    }
+
+    match (created, ret) {
+        (Some((_, child_udata_ptr)), Some(child_data)) => {
+            (*child_udata_ptr).data = child_data;
+        }
+        (Some((child_id, _)), None) => {
+            panic!("Callback creating object {} did not provide any object data.", child_id);
+        }
+        (None, Some(_)) => {
+            panic!("An object data was returned from a callback not creating any object");
+        }
+        (None, None) => {}
     }
 
     0
@@ -1068,4 +1119,24 @@ unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {
 
 extern "C" {
     fn wl_log_trampoline_to_rust_server(fmt: *const c_char, list: *const c_void);
+}
+
+struct UninitObjectData;
+
+impl<D> ObjectData<D> for UninitObjectData {
+    fn request(
+        self: Arc<Self>,
+        _: &mut Handle<D>,
+        _: &mut D,
+        _: ClientId,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData<D>>> {
+        panic!("Received a message on an uninitialized object: {:?}", msg);
+    }
+
+    fn destroyed(&self, _: ClientId, _: ObjectId) {}
+
+    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UninitObjectData").finish()
+    }
 }

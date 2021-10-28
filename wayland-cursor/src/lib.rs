@@ -419,16 +419,11 @@ struct IgnoreObjectData;
 
 impl ObjectData for IgnoreObjectData {
     fn event(
-        &self,
+        self: Arc<Self>,
         _: &mut wayland_client::backend::Handle,
         _: wayland_client::backend::protocol::Message<wayland_client::backend::ObjectId>,
-    ) {
+    ) -> Option<Arc<dyn ObjectData>> {
+        None
     }
     fn destroyed(&self, _: wayland_client::backend::ObjectId) {}
-    fn make_child(
-        self: std::sync::Arc<Self>,
-        _: &wayland_client::backend::protocol::ObjectInfo,
-    ) -> std::sync::Arc<dyn ObjectData> {
-        unreachable!()
-    }
 }
