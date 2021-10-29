@@ -24,6 +24,7 @@ macro_rules! expand_test {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {
             #[test]
             #[should_panic]
+            #[allow(unused_imports)]
             fn fn_name() {
                 let _ = env_logger::builder().is_test(true).try_init();
                 use $client_backend as client_backend;
@@ -35,6 +36,7 @@ macro_rules! expand_test {
     (__expand, __no_panic, $test_name: ident, $client_backend: ty, $server_backend: ident, $test_body: tt) => {
         concat_idents::concat_idents!(fn_name = $test_name, __, $client_backend, __, $server_backend {
             #[test]
+            #[allow(unused_imports)]
             fn fn_name() {
                 let _ = env_logger::builder().is_test(true).try_init();
                 use $client_backend as client_backend;
@@ -52,6 +54,7 @@ mod interfaces {
     );
 }
 
+mod destructors;
 mod many_args;
 mod object_args;
 mod protocol_error;
