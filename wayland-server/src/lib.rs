@@ -73,7 +73,7 @@ pub trait Resource: Sized {
 #[derive(thiserror::Error, Debug)]
 pub enum DispatchError {
     #[error("Bad message for interface {interface} : {msg:?}")]
-    BadMessage { msg: Message<ObjectId>, interface: &'static Interface },
+    BadMessage { msg: Message<ObjectId>, interface: &'static str },
     #[error("Unexpected interface {interface} for message {msg:?}")]
-    NoHandler { msg: Message<ObjectId>, interface: &'static Interface },
+    NoHandler { msg: Message<ObjectId>, interface: &'static str },
 }
