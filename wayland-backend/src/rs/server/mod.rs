@@ -99,7 +99,7 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ObjectId {
     id: u32,
     serial: u32,
@@ -117,9 +117,17 @@ impl ObjectId {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}[{}]", self.interface.name, self.id, self.client_id)
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+impl fmt::Debug for ObjectId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ObjectId({}, {})", self, self.serial)
     }
 }
 
