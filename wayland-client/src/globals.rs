@@ -62,6 +62,12 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
     }
 }
 
+impl Default for GlobalList {
+    fn default() -> Self {
+        GlobalList::new()
+    }
+}
+
 impl GlobalList {
     pub fn new() -> GlobalList {
         GlobalList { globals: Vec::new() }

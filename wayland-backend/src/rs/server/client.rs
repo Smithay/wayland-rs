@@ -30,6 +30,8 @@ use super::{
     ObjectId, UninitObjectData,
 };
 
+type ArgSmallVec = SmallVec<[Argument<ObjectId>; INLINE_ARGS]>;
+
 #[repr(u32)]
 #[allow(dead_code)]
 pub(crate) enum DisplayError {
@@ -477,7 +479,7 @@ impl<D> Client<D> {
         &mut self,
         object: &Object<Data<D>>,
         message: Message<u32>,
-    ) -> Option<(SmallVec<[Argument<ObjectId>; INLINE_ARGS]>, bool, Option<ObjectId>)> {
+    ) -> Option<(ArgSmallVec, bool, Option<ObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
         let mut new_args = SmallVec::with_capacity(message.args.len());
