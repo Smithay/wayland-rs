@@ -77,18 +77,21 @@ impl Socket {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl FromRawFd for Socket {
     unsafe fn from_raw_fd(fd: RawFd) -> Socket {
         Socket { fd }
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl AsRawFd for Socket {
     fn as_raw_fd(&self) -> RawFd {
         self.fd
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl IntoRawFd for Socket {
     fn into_raw_fd(self) -> RawFd {
         self.fd
@@ -276,6 +279,7 @@ impl BufferedSocket {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl AsRawFd for BufferedSocket {
     fn as_raw_fd(&self) -> RawFd {
         self.socket.fd

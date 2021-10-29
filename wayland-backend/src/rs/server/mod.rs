@@ -150,6 +150,7 @@ impl ClientId {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ClientId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.id)
@@ -166,6 +167,7 @@ pub(crate) struct Data<D> {
     serial: u32,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<D> Clone for Data<D> {
     fn clone(&self) -> Data<D> {
         Data { user_data: self.user_data.clone(), serial: self.serial }
