@@ -333,7 +333,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             quote! {
                                 match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(cx, #arg_name.clone()) {
                                     Ok(p) => p,
-                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
+                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
                                 }
                             }
                         } else {
@@ -356,7 +356,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             quote! {
                                 match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(cx, #arg_name.clone()) {
                                     Ok(p) => p,
-                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
+                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
                                 }
                             }
                         } else {
@@ -389,7 +389,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                 if let [#(#args_pat),*] = &msg.args[..] {
                     Ok((me, #msg_type::#msg_name { #(#arg_names),* }))
                 } else {
-                    Err(DispatchError::BadMessage { msg, interface: Self::interface() })
+                    Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
                 }
             }
         }
@@ -398,11 +398,11 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
     quote! {
         let me = match Self::from_id(cx, msg.sender_id.clone()) {
             Ok(me) => me,
-            Err(_) => return Err(DispatchError::NoHandler { msg, interface: Self::interface() }),
+            Err(_) => return Err(DispatchError::NoHandler { msg, interface: Self::interface().name }),
         };
         match msg.opcode {
             #(#match_arms),*
-            _ => Err(DispatchError::BadMessage { msg, interface: Self::interface() }),
+            _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
         }
     }
 }
