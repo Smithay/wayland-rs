@@ -79,6 +79,7 @@ impl<Id> Argument<Id> {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -103,6 +104,7 @@ pub struct Interface {
     pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for Interface {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name)
