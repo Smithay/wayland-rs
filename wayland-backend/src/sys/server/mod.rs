@@ -124,6 +124,7 @@ pub struct ObjectId {
 }
 
 unsafe impl Send for ObjectId {}
+unsafe impl Sync for ObjectId {}
 
 impl std::cmp::PartialEq for ObjectId {
     fn eq(&self, other: &ObjectId) -> bool {
@@ -219,6 +220,7 @@ pub struct ClientId {
 }
 
 unsafe impl Send for ClientId {}
+unsafe impl Sync for ClientId {}
 
 impl std::cmp::PartialEq for ClientId {
     fn eq(&self, other: &ClientId) -> bool {
@@ -235,6 +237,7 @@ pub struct GlobalId {
 }
 
 unsafe impl Send for GlobalId {}
+unsafe impl Sync for GlobalId {}
 
 impl std::cmp::PartialEq for GlobalId {
     fn eq(&self, other: &GlobalId) -> bool {

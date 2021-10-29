@@ -71,6 +71,7 @@ pub struct ObjectId {
 }
 
 unsafe impl Send for ObjectId {}
+unsafe impl Sync for ObjectId {}
 
 impl std::cmp::PartialEq for ObjectId {
     fn eq(&self, other: &ObjectId) -> bool {

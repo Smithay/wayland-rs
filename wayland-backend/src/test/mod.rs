@@ -59,6 +59,40 @@ mod server_created_objects;
 mod sync;
 
 /*
+ * Assertion of Send/Sync for all relevant objects
+ */
+
+fn ensure_both<I: Send + Sync>() {}
+
+#[allow(dead_code)]
+fn send_sync_client_rs() {
+    ensure_both::<client_rs::Backend>();
+    ensure_both::<client_rs::ObjectId>();
+}
+
+#[allow(dead_code)]
+fn send_sync_client_sys() {
+    ensure_both::<client_sys::Backend>();
+    ensure_both::<client_sys::ObjectId>();
+}
+
+#[allow(dead_code)]
+fn send_sync_server_rs() {
+    ensure_both::<server_rs::Backend<()>>();
+    ensure_both::<server_rs::ObjectId>();
+    ensure_both::<server_rs::GlobalId>();
+    ensure_both::<server_rs::ClientId>();
+}
+
+#[allow(dead_code)]
+fn send_sync_server_sys() {
+    ensure_both::<server_sys::Backend<()>>();
+    ensure_both::<server_sys::ObjectId>();
+    ensure_both::<server_sys::GlobalId>();
+    ensure_both::<server_sys::ClientId>();
+}
+
+/*
  * A "do nothing" data as a helper
  */
 struct DoNothingData;
