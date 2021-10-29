@@ -4,6 +4,7 @@ pub struct NoWaylandLib;
 
 impl std::error::Error for NoWaylandLib {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for NoWaylandLib {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         f.write_str("could not load libwayland-client.so")
@@ -19,6 +20,7 @@ pub enum WaylandError {
     Protocol(crate::protocol::ProtocolError),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::error::Error for WaylandError {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
@@ -28,6 +30,7 @@ impl std::error::Error for WaylandError {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for WaylandError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
@@ -37,6 +40,7 @@ impl std::fmt::Display for WaylandError {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl Clone for WaylandError {
     fn clone(&self) -> WaylandError {
         match self {
@@ -52,12 +56,14 @@ impl Clone for WaylandError {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl From<crate::protocol::ProtocolError> for WaylandError {
     fn from(err: crate::protocol::ProtocolError) -> WaylandError {
         WaylandError::Protocol(err)
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl From<std::io::Error> for WaylandError {
     fn from(err: std::io::Error) -> WaylandError {
         WaylandError::Io(err)
@@ -70,6 +76,7 @@ pub struct InvalidId;
 
 impl std::error::Error for InvalidId {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InvalidId {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(f, "Invalid ObjectId")

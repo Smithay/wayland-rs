@@ -1,5 +1,7 @@
 //! Debugging helpers to handle `WAYLAND_DEBUG` env variable.
 
+#![cfg(not(tarpaulin_include))]
+
 use std::{
     fmt::Display,
     time::{SystemTime, UNIX_EPOCH},

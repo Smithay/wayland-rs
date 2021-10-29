@@ -13,6 +13,7 @@ pub enum InitError {
     Io(std::io::Error),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::error::Error for InitError {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
@@ -22,6 +23,7 @@ impl std::error::Error for InitError {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InitError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
@@ -37,6 +39,7 @@ pub struct InvalidId;
 
 impl std::error::Error for InvalidId {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InvalidId {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(f, "Invalid Id")

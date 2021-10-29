@@ -54,6 +54,7 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for dyn ObjectData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
@@ -148,6 +149,7 @@ impl ObjectId {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for ObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)

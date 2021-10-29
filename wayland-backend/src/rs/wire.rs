@@ -22,6 +22,7 @@ pub enum MessageWriteError {
 
 impl std::error::Error for MessageWriteError {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for MessageWriteError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
@@ -52,6 +53,7 @@ pub enum MessageParseError {
 
 impl std::error::Error for MessageParseError {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for MessageParseError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
