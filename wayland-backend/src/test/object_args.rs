@@ -190,7 +190,7 @@ expand_test!(create_objects, {
         .handle()
         .send_request(
             message!(
-                test_global_id.clone(),
+                test_global_id,
                 3,
                 [Argument::Object(secondary_id), Argument::Object(tertiary_id), Argument::Uint(2)],
             ),
@@ -216,7 +216,7 @@ expand_test!(panic bad_interface, {
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
     // Prepare a global
-    server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data.clone());
+    server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data);
 
     // get the registry client-side
     let client_display = client.handle().display_id();
@@ -265,7 +265,7 @@ expand_test!(panic bad_interface, {
         .handle()
         .send_request(
             message!(
-                test_global_id.clone(),
+                test_global_id,
                 3,
                 [Argument::Object(tertiary_id), Argument::Object(secondary_id), Argument::Uint(42)],
             ),
@@ -283,7 +283,7 @@ expand_test!(panic double_null, {
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
     // Prepare a global
-    server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data.clone());
+    server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data);
 
     // get the registry client-side
     let client_display = client.handle().display_id();
@@ -324,7 +324,7 @@ expand_test!(panic double_null, {
         .handle()
         .send_request(
             message!(
-                test_global_id.clone(),
+                test_global_id,
                 3,
                 [
                     Argument::Object(null_obj.clone()),

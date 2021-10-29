@@ -85,7 +85,7 @@ fn format_rust_code(code: &str) -> String {
         }
         if let Ok(output) = proc.wait_with_output() {
             if output.status.success() {
-                return std::str::from_utf8(&output.stdout).unwrap().to_owned().into();
+                return std::str::from_utf8(&output.stdout).unwrap().to_owned();
             }
         }
     }
