@@ -334,6 +334,20 @@ impl<D> Client<D> {
         Ok(object)
     }
 
+    fn destroy_all_objects(&mut self) {
+        for (id, obj) in self.map.all_objects() {
+            obj.data.user_data.destroyed(
+                self.id.clone(),
+                ObjectId {
+                    id,
+                    serial: obj.data.serial,
+                    client_id: self.id.clone(),
+                    interface: obj.interface,
+                },
+            );
+        }
+    }
+
     pub(crate) fn handle_display_request(
         &mut self,
         message: Message<u32>,
@@ -643,8 +657,9 @@ impl<D> ClientStore<D> {
         let mut cleaned = SmallVec::new();
         for place in &mut self.clients {
             if place.as_ref().map(|client| client.killed).unwrap_or(false) {
-                // Remove the client from the store and flush it one last time before fropping it
+                // Remove the client from the store and flush it one last time before dropping it
                 let mut client = place.take().unwrap();
+                client.destroy_all_objects();
                 let _ = client.flush();
                 cleaned.push(client.id);
             }

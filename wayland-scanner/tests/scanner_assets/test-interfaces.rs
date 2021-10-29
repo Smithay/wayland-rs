@@ -233,6 +233,14 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
             child_interface: None,
             arg_interfaces: &[&SECONDARY_INTERFACE, &TERTIARY_INTERFACE],
         },
+        wayland_backend::protocol::MessageDesc {
+            name: "destroy",
+            signature: &[],
+            since: 4u32,
+            is_destructor: true,
+            child_interface: None,
+            arg_interfaces: &[]
+        },
     ],
     events: &[
     wayland_backend::protocol::MessageDesc {
@@ -283,7 +291,7 @@ static mut test_global_requests_link_types: [*const wayland_backend::protocol::w
     unsafe { &tertiary_interface as *const wayland_backend::protocol::wl_interface },
     NULLPTR as *const wayland_backend::protocol::wl_interface,
 ];
-pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 4] = [
+pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 5] = [
     wayland_backend::protocol::wl_message {
         name: b"many_args\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
@@ -303,6 +311,11 @@ pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 4] 
         name: b"link\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"3o?ou\0" as *const u8 as *const std::os::raw::c_char,
         types: unsafe { &test_global_requests_link_types as *const _ },
+    },
+    wayland_backend::protocol::wl_message {
+        name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
+        signature: b"4\0" as *const u8 as *const std::os::raw::c_char,
+        types: unsafe { &types_null as *const _ },
     },
 ];
 static mut test_global_events_ack_secondary_types:
@@ -334,7 +347,7 @@ pub static mut test_global_interface: wayland_backend::protocol::wl_interface =
     wayland_backend::protocol::wl_interface {
         name: b"test_global\0" as *const u8 as *const std::os::raw::c_char,
         version: 3,
-        request_count: 4,
+        request_count: 5,
         requests: unsafe { &test_global_requests as *const _ },
         event_count: 3,
         events: unsafe { &test_global_events as *const _ },

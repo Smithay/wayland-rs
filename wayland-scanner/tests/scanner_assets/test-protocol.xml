@@ -197,6 +197,9 @@
       <arg name="time" type="uint" />
     </request>
 
+    <request name="destroy" type="destructor" since="4">
+    </request>
+
     <event name="many_args_evt">
       <description summary="an event with every possible non-object arg"></description>
       <arg name="unsigned_int" type="uint" summary="an unsigned int" />
