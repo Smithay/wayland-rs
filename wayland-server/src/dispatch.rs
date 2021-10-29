@@ -19,6 +19,7 @@ pub trait Dispatch<I: Resource>: Sized {
 }
 
 pub trait DestructionNotify {
+    #[cfg(not(tarpaulin_include))]
     fn object_destroyed(&self) {}
 }
 
