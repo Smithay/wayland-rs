@@ -94,12 +94,12 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
-                    if !same_interface(id.interface(), Self::interface()) {
+                    if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                         return Err(InvalidId);
                     }
-                    let info = cx.object_info(id.clone())?;
+                    let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
                     let data = cx.get_object_data(id.clone()).ok();
-                    Ok(#iface_name { id, data, version: info.version })
+                    Ok(#iface_name { id, data, version })
                 }
 
                 fn parse_event(cx: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
