@@ -1,38 +1,35 @@
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::TokenStream;
 
 use crate::protocol::{Interface, Message, Protocol, Type};
 
-use quote::quote;
+use quote::{format_ident, quote};
 
 pub fn generate(protocol: &Protocol, with_c_interfaces: bool) -> TokenStream {
     let interfaces =
         protocol.interfaces.iter().map(|iface| generate_interface(iface, with_c_interfaces));
     if with_c_interfaces {
         let prefix = super::c_interfaces::generate_interfaces_prefix(protocol);
-        quote!(
+        quote! {
             #prefix
             #(#interfaces)*
-        )
+        }
     } else {
-        quote!( #(#interfaces)* )
+        interfaces.collect()
     }
 }
 
 pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenStream {
-    let const_name = Ident::new(
-        &format!("{}_INTERFACE", interface.name.to_ascii_uppercase()),
-        Span::call_site(),
-    );
+    let const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
     let iface_name = &interface.name;
     let iface_version = interface.version;
     let requests = build_messagedesc_list(&interface.requests);
     let events = build_messagedesc_list(&interface.events);
 
-    let c_name = Ident::new(&format!("{}_interface", interface.name), Span::call_site());
+    let c_name = format_ident!("{}_interface", interface.name);
 
     if with_c {
         let c_iface = super::c_interfaces::generate_interface(interface);
-        quote!(
+        quote! {
             pub static #const_name: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
                 name: #iface_name,
                 version: #iface_version,
@@ -42,9 +39,9 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
             };
 
             #c_iface
-        )
+        }
     } else {
-        quote!(
+        quote! {
             pub static #const_name: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
                 name: #iface_name,
                 version: #iface_version,
@@ -52,7 +49,7 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
                 events: #events,
                 c_ptr: None,
             };
-        )
+        }
     }
 }
 
@@ -64,21 +61,21 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
         let signature = message.args.iter().map(|arg| {
             if arg.typ == Type::NewId && arg.interface.is_none() {
                 // this is a special generic message, it expands to multiple arguments
-                quote!(
+                quote! {
                     wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
                     wayland_backend::protocol::ArgumentType::Uint,
                     wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)
-                )
+                }
             } else {
                 let typ = arg.typ.common_type();
                 if arg.typ.nullable() {
                     if arg.allow_null {
-                        quote!(wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::Yes))
+                        quote! { wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::Yes) }
                     } else {
-                        quote!(wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::No))
+                        quote! { wayland_backend::protocol::ArgumentType::#typ(wayland_backend::protocol::AllowNull::No) }
                     }
                 } else {
-                    quote!(wayland_backend::protocol::ArgumentType::#typ)
+                    quote! { wayland_backend::protocol::ArgumentType::#typ }
                 }
             }
         });
@@ -89,29 +86,23 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
             .and_then(|arg| arg.interface.as_ref())
         {
             Some(name) => {
-                let target_iface = Ident::new(
-                    &format!("{}_INTERFACE", name.to_ascii_uppercase()),
-                    Span::call_site(),
-                );
-                quote!( Some(&#target_iface) )
+                let target_iface = format_ident!("{}_INTERFACE", name.to_ascii_uppercase());
+                quote! { Some(&#target_iface) }
             }
-            None => quote!(None),
+            None => quote! { None },
         };
         let arg_interfaces = message.args.iter().filter(|arg| arg.typ == Type::Object).map(|arg| {
             match arg.interface {
                 Some(ref name) => {
-                    let target_iface = Ident::new(
-                        &format!("{}_INTERFACE", name.to_ascii_uppercase()),
-                        Span::call_site(),
-                    );
-                    quote!( &#target_iface )
+                    let target_iface = format_ident!("{}_INTERFACE", name.to_ascii_uppercase());
+                    quote! { &#target_iface }
                 }
                 None => {
-                    quote!(&wayland_backend::protocol::ANONYMOUS_INTERFACE)
+                    quote! { &wayland_backend::protocol::ANONYMOUS_INTERFACE }
                 }
             }
         });
-        quote!(
+        quote! {
             wayland_backend::protocol::MessageDesc {
                 name: #name,
                 signature: &[ #(#signature),* ],
@@ -120,7 +111,7 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
                 child_interface: #child_interface,
                 arg_interfaces: &[ #(#arg_interfaces),* ],
             }
-        )
+        }
     });
 
     quote!(

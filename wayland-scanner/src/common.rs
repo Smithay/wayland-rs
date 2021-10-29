@@ -1,12 +1,11 @@
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 
 use crate::{protocol::*, util::*, Side};
 
 pub(crate) fn generate_enums_for(interface: &Interface) -> TokenStream {
-    let enums = interface.enums.iter();
-    quote!( #(#enums)* )
+    interface.enums.iter().map(ToTokens::into_token_stream).collect()
 }
 
 impl ToTokens for Enum {
@@ -26,10 +25,7 @@ impl ToTokens for Enum {
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
-                let ident = Ident::new(
-                    &format!("{}{}", prefix, snake_to_camel(&entry.name)),
-                    Span::call_site(),
-                );
+                let ident = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
 
                 let value = Literal::u32_unsuffixed(entry.value);
 
@@ -69,10 +65,7 @@ impl ToTokens for Enum {
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
-                let variant = Ident::new(
-                    &format!("{}{}", prefix, snake_to_camel(&entry.name)),
-                    Span::call_site(),
-                );
+                let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
 
                 let value = Literal::u32_unsuffixed(entry.value);
 
@@ -96,10 +89,7 @@ impl ToTokens for Enum {
                 let value = Literal::u32_unsuffixed(entry.value);
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
-                let variant = Ident::new(
-                    &format!("{}{}", prefix, snake_to_camel(&entry.name)),
-                    Span::call_site(),
-                );
+                let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
 
                 quote! {
                     #value => Ok(#ident::#variant)
@@ -131,8 +121,7 @@ impl ToTokens for Enum {
 
 pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> TokenStream {
     let req_constants = requests.iter().map(|msg| {
-        let cstname =
-            Ident::new(&format!("REQ_{}_SINCE", msg.name.to_ascii_uppercase()), Span::call_site());
+        let cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this request
@@ -140,8 +129,7 @@ pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> T
         }
     });
     let evt_constants = events.iter().map(|msg| {
-        let cstname =
-            Ident::new(&format!("EVT_{}_SINCE", msg.name.to_ascii_uppercase()), Span::call_site());
+        let cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
         let since = msg.since;
         quote! {
             /// The minimal object version supporting this event
@@ -182,31 +170,29 @@ pub(crate) fn gen_message_enum(
             msg_name.into_token_stream()
         } else {
             let fields = msg.args.iter().flat_map(|arg| {
-                let field_name = Ident::new(
-                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                    Span::call_site(),
-                );
+                let field_name =
+                    format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 let field_type_inner = if let Some(ref enu) = arg.enum_ {
                     let enum_type = dotted_to_relname(enu);
                     quote! { WEnum<#enum_type> }
                 } else {
                     match arg.typ {
-                        Type::Uint => quote!(u32),
-                        Type::Int => quote!(i32),
-                        Type::Fixed => quote!(f64),
-                        Type::String => quote!(String),
-                        Type::Array => quote!(Vec<u8>),
-                        Type::Fd => quote!(::std::os::unix::io::RawFd),
+                        Type::Uint => quote! { u32 },
+                        Type::Int => quote! { i32 },
+                        Type::Fixed => quote! { f64 },
+                        Type::String => quote! { String },
+                        Type::Array => quote! { Vec<u8> },
+                        Type::Fd => quote! { ::std::os::unix::io::RawFd },
                         Type::Object => {
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
-                                quote!(super::#iface_mod::#iface_type)
+                                quote! { super::#iface_mod::#iface_type }
                             } else if side == Side::Client {
-                                quote!(super::wayland_client::ObjectId)
+                                quote! { super::wayland_client::ObjectId }
                             } else {
-                                quote!(super::wayland_server::ObjectId)
+                                quote! { super::wayland_server::ObjectId }
                             }
                         }
                         Type::NewId if !receiver && side == Side::Client => {
@@ -215,7 +201,7 @@ pub(crate) fn gen_message_enum(
                             if arg.interface.is_some() {
                                 return None;
                             } else {
-                                quote!((&'static Interface, u32))
+                                quote! { (&'static Interface, u32) }
                             }
                         }
                         Type::NewId => {
@@ -224,16 +210,16 @@ pub(crate) fn gen_message_enum(
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
                                 if receiver {
-                                    quote!(New<super::#iface_mod::#iface_type>)
+                                    quote! { New<super::#iface_mod::#iface_type> }
                                 } else {
-                                    quote!(super::#iface_mod::#iface_type)
+                                    quote! { super::#iface_mod::#iface_type }
                                 }
                             } else {
                                 // bind-like function
                                 if side == Side::Client {
-                                    quote!((String, u32, super::wayland_client::ObjectId))
+                                    quote! { (String, u32, super::wayland_client::ObjectId) }
                                 } else {
-                                    quote!((String, u32, super::wayland_server::ObjectId))
+                                    quote! { (String, u32, super::wayland_server::ObjectId) }
                                 }
                             }
                         }
@@ -242,7 +228,7 @@ pub(crate) fn gen_message_enum(
                 };
 
                 let field_type = if arg.allow_null {
-                    quote!(Option<#field_type_inner>)
+                    quote! { Option<#field_type_inner> }
                 } else {
                     field_type_inner.into_token_stream()
                 };
@@ -315,10 +301,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
         });
 
         let arg_names = msg.args.iter().map(|arg| {
-            let arg_name = Ident::new(
-                &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                Span::call_site(),
-            );
+            let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
             if arg.enum_.is_some() {
                 quote! { #arg_name: From::from(*#arg_name as u32) }
             } else {
@@ -391,9 +374,9 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                     },
                     Type::Array => {
                         if arg.allow_null {
-                            quote!(if #arg_name.len() == 0 { None } else { Some(*#arg_name.clone()) })
+                            quote! { if #arg_name.len() == 0 { None } else { Some(*#arg_name.clone()) } }
                         } else {
-                            quote!(#arg_name: *#arg_name.clone())
+                            quote! { #arg_name: *#arg_name.clone() }
                         }
                     },
                     Type::Destructor => unreachable!(),
@@ -443,17 +426,11 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
             if arg.typ == Type::NewId && arg.interface.is_some() && side == Side::Client {
                 None
             } else {
-                Some(Ident::new(
-                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                    Span::call_site(),
-                ))
+                Some(format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name))
             }
         });
         let args = msg.args.iter().map(|arg| {
-            let arg_name = Ident::new(
-                &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                Span::call_site(),
-            );
+            let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
 
             match arg.typ {
                 Type::Int => if arg.enum_.is_some() { quote!{ Argument::Int(Into::<u32>::into(#arg_name) as i32) } } else { quote!{ Argument::Int(#arg_name) } },

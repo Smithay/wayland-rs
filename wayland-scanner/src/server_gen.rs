@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{
     protocol::{Interface, Protocol, Type},
@@ -9,36 +9,31 @@ use crate::{
 };
 
 pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {
-    let tokens = protocol
+    protocol
         .interfaces
         .iter()
         .filter(|iface| iface.name != "wl_display" && iface.name != "wl_registry")
-        .map(generate_objects_for);
-    quote!(
-        #(#tokens)*
-    )
+        .map(generate_objects_for)
+        .collect()
 }
 
 fn generate_objects_for(interface: &Interface) -> TokenStream {
     let mod_name = Ident::new(&interface.name, Span::call_site());
     let mod_doc = interface.description.as_ref().map(crate::util::description_to_doc_attr);
     let iface_name = Ident::new(&snake_to_camel(&interface.name), Span::call_site());
-    let iface_const_name = Ident::new(
-        &format!("{}_INTERFACE", interface.name.to_ascii_uppercase()),
-        Span::call_site(),
-    );
+    let iface_const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
 
     let enums = crate::common::generate_enums_for(interface);
     let sinces = crate::common::gen_since_constants(&interface.requests, &interface.events);
 
     let requests = crate::common::gen_message_enum(
-        &Ident::new("Request", Span::call_site()),
+        &format_ident!("Request"),
         Side::Server,
         true,
         &interface.requests,
     );
     let events = crate::common::gen_message_enum(
-        &Ident::new("Event", Span::call_site()),
+        &format_ident!("Event"),
         Side::Server,
         false,
         &interface.events,
@@ -133,26 +128,25 @@ fn gen_methods(interface: &Interface) -> TokenStream {
         .events
         .iter()
         .map(|request| {
-            let method_name = Ident::new(
-                &format!("{}{}", if is_keyword(&request.name) { "_" } else { "" }, request.name),
-                Span::call_site(),
+            let method_name = format_ident!(
+                "{}{}",
+                if is_keyword(&request.name) { "_" } else { "" },
+                request.name
             );
             let enum_variant = Ident::new(&snake_to_camel(&request.name), Span::call_site());
 
             let fn_args = request.args.iter().flat_map(|arg| {
-                let arg_name = Ident::new(
-                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                    Span::call_site(),
-                );
+                let arg_name =
+                    format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
 
                 let arg_type = if let Some(ref enu) = arg.enum_ {
                     let enum_type = dotted_to_relname(enu);
                     quote! { #enum_type }
                 } else {
                     match arg.typ {
-                        Type::Uint => quote!(u32),
-                        Type::Int => quote!(i32),
-                        Type::Fixed => quote!(f64),
+                        Type::Uint => quote! { u32 },
+                        Type::Int => quote! { i32 },
+                        Type::Fixed => quote! { f64 },
                         Type::String => {
                             if arg.allow_null {
                                 quote! { Option<String> }
@@ -167,7 +161,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                                 quote! { Vec<u8> }
                             }
                         }
-                        Type::Fd => quote!(::std::os::unix::io::RawFd),
+                        Type::Fd => quote! { ::std::os::unix::io::RawFd },
                         Type::Object | Type::NewId => {
                             let iface = arg.interface.as_ref().unwrap();
                             let iface_mod = Ident::new(iface, Span::call_site());
@@ -188,10 +182,8 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             });
 
             let enum_args = request.args.iter().flat_map(|arg| {
-                let arg_name = Ident::new(
-                    &format!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name),
-                    Span::call_site(),
-                );
+                let arg_name =
+                    format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 if arg.enum_.is_some() {
                     Some(quote! { #arg_name: WEnum::Value(#arg_name) })
                 } else {
