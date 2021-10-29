@@ -7,6 +7,7 @@ mod client;
 mod dispatch;
 mod display;
 mod global;
+pub mod socket;
 
 pub use client::Client;
 pub use dispatch::{DataInit, Dispatch, New, ResourceData};
