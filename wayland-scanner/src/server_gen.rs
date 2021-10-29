@@ -205,3 +205,25 @@ fn gen_methods(interface: &Interface) -> TokenStream {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn server_gen() {
+        let protocol_file =
+            std::fs::File::open("./tests/scanner_assets/test-protocol.xml").unwrap();
+        let protocol_parsed = crate::parse::parse(protocol_file);
+        let generated: String = super::generate_server_objects(&protocol_parsed).to_string();
+        let generated = crate::format_rust_code(&generated);
+
+        let reference =
+            std::fs::read_to_string("./tests/scanner_assets/test-server-code.rs").unwrap();
+        let reference = crate::format_rust_code(&reference);
+
+        if reference != generated {
+            let diff = similar::TextDiff::from_lines(&reference, &generated);
+            print!("{}", diff.unified_diff().context_radius(10).header("reference", "generated"));
+            panic!("Generated does not match reference!")
+        }
+    }
+}
