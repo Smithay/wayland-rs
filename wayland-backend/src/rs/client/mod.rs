@@ -70,7 +70,7 @@ struct Data {
     serial: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ObjectId {
     serial: u32,
     id: u32,
@@ -91,6 +91,13 @@ impl std::cmp::Eq for ObjectId {}
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+impl fmt::Debug for ObjectId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ObjectId({}, {})", self, self.serial)
     }
 }
 

@@ -63,7 +63,7 @@ impl std::fmt::Debug for dyn ObjectData {
 
 downcast_rs::impl_downcast!(sync ObjectData);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ObjectId {
     id: u32,
     ptr: *mut wl_proxy,
@@ -153,6 +153,13 @@ impl ObjectId {
 impl std::fmt::Display for ObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+impl std::fmt::Debug for ObjectId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ObjectId({})", self)
     }
 }
 
