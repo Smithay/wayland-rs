@@ -403,7 +403,11 @@ impl Handle {
 
     pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         let object = self.get_object(id.clone())?;
-        Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
+        if object.data.client_destroyed {
+            Err(InvalidId)
+        } else {
+            Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
+        }
     }
 
     pub fn null_id(&mut self) -> ObjectId {
