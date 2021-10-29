@@ -14,7 +14,6 @@ use crate::{
         ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
         INLINE_ARGS,
     },
-    server::UninitObjectData,
     types::server::{DisconnectReason, InvalidId},
 };
 
@@ -28,7 +27,7 @@ use crate::rs::{
 
 use super::{
     registry::Registry, ClientData, ClientId, Data, GlobalHandler, GlobalId, Handle, ObjectData,
-    ObjectId,
+    ObjectId, UninitObjectData,
 };
 
 #[repr(u32)]
