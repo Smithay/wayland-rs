@@ -169,6 +169,7 @@ pub struct Message<Id> {
 
 impl std::error::Error for ProtocolError {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for ProtocolError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(

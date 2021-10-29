@@ -58,6 +58,13 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ObjectData<D>);
 
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for dyn ObjectData<D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.debug(f)
+    }
+}
+
 /// A trait representing the handling of new bound globals
 pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     /// Check if given client is allowed to interact with given global
@@ -146,6 +153,7 @@ impl std::cmp::PartialEq for ObjectId {
 
 impl std::cmp::Eq for ObjectId {}
 
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for ObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
