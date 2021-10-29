@@ -618,25 +618,6 @@ impl<D> Handle<D> {
         }
 
         if message_desc.is_destructor {
-            if let Some(ref alive) = id.alive {
-                let udata = unsafe {
-                    Box::from_raw(ffi_dispatch!(
-                        WAYLAND_SERVER_HANDLE,
-                        wl_resource_get_user_data,
-                        id.ptr
-                    ) as *mut ResourceUserData<D>)
-                };
-                unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_SERVER_HANDLE,
-                        wl_resource_set_user_data,
-                        id.ptr,
-                        std::ptr::null_mut()
-                    );
-                }
-                alive.store(false, Ordering::Release);
-                udata.data.destroyed(self.get_client(id.clone()).unwrap(), id.clone());
-            }
             unsafe {
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, id.ptr);
             }
@@ -1090,15 +1071,6 @@ unsafe extern "C" fn resource_dispatcher<D>(
     });
 
     if message_desc.is_destructor {
-        let udata = Box::from_raw(udata_ptr);
-        ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_resource_set_user_data,
-            resource,
-            std::ptr::null_mut()
-        );
-        udata.alive.store(false, Ordering::Release);
-        udata.data.destroyed(client_id, object_id);
         ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, resource);
     }
 
@@ -1124,18 +1096,17 @@ unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {
             as *mut ResourceUserData<D>);
     let id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, resource);
     let client = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource);
-    if let Some(client_id) = client_id_from_ptr::<D>(client) {
-        udata.alive.store(false, Ordering::Release);
-        let object_id = ObjectId {
-            interface: udata.interface,
-            ptr: resource,
-            alive: Some(udata.alive.clone()),
-            id,
-        };
-        udata.data.destroyed(client_id, object_id);
-    } else {
-        log::error!("Destroying an object whose client is invalid... ?");
-    }
+    // if this destructor is invoked during cleanup, the client ptr is no longer valid
+    let client_id = client_id_from_ptr::<D>(client)
+        .unwrap_or(ClientId { ptr: std::ptr::null_mut(), alive: Arc::new(AtomicBool::new(false)) });
+    udata.alive.store(false, Ordering::Release);
+    let object_id = ObjectId {
+        interface: udata.interface,
+        ptr: resource,
+        alive: Some(udata.alive.clone()),
+        id,
+    };
+    udata.data.destroyed(client_id, object_id);
 }
 
 extern "C" {
