@@ -1,4 +1,4 @@
-//! Core interfaces of teh protocol
+//! Core interfaces of the protocol
 //!
 //! This module contains hard-coded interfaces for `wl_display`, `wl_registry` and `wl_callback`.
 //! These interfaces are frozen in the protocol and can never change. They are the only interfaces
