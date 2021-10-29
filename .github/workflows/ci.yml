@@ -46,7 +46,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --workspace --exclude-files 'wayland-tests/*''
+          args: --ignore-tests --workspace --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
