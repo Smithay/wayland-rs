@@ -274,6 +274,9 @@ pub struct Backend<D> {
     handle: Handle<D>,
 }
 
+unsafe impl<D> Send for Backend<D> {}
+unsafe impl<D> Sync for Backend<D> {}
+
 impl<D> Backend<D> {
     pub fn new() -> Result<Self, InitError> {
         if !is_lib_available() {

@@ -171,6 +171,9 @@ pub struct Backend {
     handle: Handle,
 }
 
+unsafe impl Send for Backend {}
+unsafe impl Sync for Backend {}
+
 impl Backend {
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         if !is_lib_available() {
