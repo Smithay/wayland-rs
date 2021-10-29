@@ -396,7 +396,7 @@ mod tests {
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
 
-        static SIGNATURE: &'static [ArgumentType] = &[
+        static SIGNATURE: &[ArgumentType] = &[
             ArgumentType::Uint,
             ArgumentType::Fixed,
             ArgumentType::Str(AllowNull::No),
@@ -440,7 +440,7 @@ mod tests {
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
 
-        static SIGNATURE: &'static [ArgumentType] = &[ArgumentType::Fd, ArgumentType::Fd];
+        static SIGNATURE: &[ArgumentType] = &[ArgumentType::Fd, ArgumentType::Fd];
 
         server.fill_incoming_buffers().unwrap();
 
@@ -486,7 +486,7 @@ mod tests {
             },
         ];
 
-        static SIGNATURES: &'static [&'static [ArgumentType]] = &[
+        static SIGNATURES: &[&[ArgumentType]] = &[
             &[ArgumentType::Int, ArgumentType::Str(AllowNull::No)],
             &[ArgumentType::Fd, ArgumentType::Fd],
             &[ArgumentType::Uint, ArgumentType::Fd],
@@ -538,7 +538,7 @@ mod tests {
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
 
-        static SIGNATURE: &'static [ArgumentType] =
+        static SIGNATURE: &[ArgumentType] =
             &[ArgumentType::Uint, ArgumentType::Str(AllowNull::No), ArgumentType::Uint];
 
         server.fill_incoming_buffers().unwrap();
