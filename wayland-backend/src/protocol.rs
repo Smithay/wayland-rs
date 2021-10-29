@@ -2,14 +2,14 @@ use std::{ffi::CString, os::unix::io::RawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AllowNull {
     Yes,
     No,
 }
 
 /// Enum of possible argument types as recognized by the wire
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ArgumentType {
     /// i32
     Int,
@@ -36,7 +36,7 @@ impl ArgumentType {
 }
 
 /// Enum of possible argument of the protocol
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 #[allow(clippy::box_vec)]
 pub enum Argument<Id> {
     /// i32
