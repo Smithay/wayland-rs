@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use wayland_backend::{
     client::{Backend, Handle, ObjectData, ObjectId},
-    protocol::{AllowNull, ArgumentType, Message, ObjectInfo},
+    protocol::{AllowNull, ArgumentType, Message},
 };
 
 use crate::{ConnectionHandle, DispatchError, Proxy};
@@ -20,34 +20,6 @@ pub trait Dispatch<I: Proxy>: Sized {
         qhandle: &QueueHandle<Self>,
         init: &mut DataInit<'_>,
     );
-
-    fn destroyed(&mut self, _proxy: &I, _data: &Self::UserData) {}
-
-    fn child_from_event(_: &ObjectInfo, _: &QueueHandle<Self>) -> Arc<dyn ObjectData> {
-        panic!(
-            "Attempting to create an object in event from uninitialized Dispatch<{}>",
-            std::any::type_name::<I>()
-        );
-    }
-}
-
-#[macro_export]
-macro_rules! generate_child_from_event {
-    (for $dispatch_target:ty : $($child_iface:ty),*) => {
-        fn child_from_event(info: &$crate::backend::protocol::ObjectInfo, handle: &$crate::QueueHandle<$dispatch_target>) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
-            match () {
-                $(
-                    () if $crate::backend::protocol::same_interface(info.interface, <$child_iface as $crate::Proxy>::interface()) => {
-                        handle.make_data::<$child_iface>()
-                    },
-                )*
-                _ => panic!("Attempting to create an unexpected object {:?} in event from Dispatch<{}>", info, std::any::type_name::<$dispatch_target>()),
-            }
-        }
-    };
-    ($($child_iface:ty),*) => {
-        $crate::generate_child_from_event!(for Self : $($child_iface),*)
-    };
 }
 
 type QueueCallback<D> = fn(
@@ -56,23 +28,13 @@ type QueueCallback<D> = fn(
     &mut D,
     &QueueHandle<D>,
 ) -> Result<(), DispatchError>;
-type QueueDestructor<D> = fn(&mut ConnectionHandle<'_>, ObjectId, &mut D);
 
-enum QueueEvent<D> {
-    Msg(QueueCallback<D>, Message<ObjectId>),
-    Destructor(QueueDestructor<D>, ObjectId),
-}
+struct QueueEvent<D>(QueueCallback<D>, Message<ObjectId>);
 
+#[cfg(not(tarpaulin_include))]
 impl<D> std::fmt::Debug for QueueEvent<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QueueEvent::Msg(_, ref msg) => {
-                f.debug_struct("QueueEvent::Msg").field("msg", msg).finish()
-            }
-            QueueEvent::Destructor(_, ref id) => {
-                f.debug_struct("QueueEvent::Destructor").field("id", id).finish()
-            }
-        }
+        f.debug_struct("QueueEvent").field("msg", &self.1).finish_non_exhaustive()
     }
 }
 
@@ -82,6 +44,7 @@ pub struct EventQueue<D> {
     backend: Arc<Mutex<Backend>>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<D> std::fmt::Debug for EventQueue<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EventQueue")
@@ -125,16 +88,9 @@ impl<D> EventQueue<D> {
         let mut handle = ConnectionHandle::from_handle(backend.handle());
         let mut dispatched = 0;
 
-        while let Ok(Some(evt)) = rx.try_next() {
-            match evt {
-                QueueEvent::Msg(cb, msg) => {
-                    cb(&mut handle, msg, data, qhandle)?;
-                    dispatched += 1;
-                }
-                QueueEvent::Destructor(cb, id) => {
-                    cb(&mut handle, id, data);
-                }
-            }
+        while let Ok(Some(QueueEvent(cb, msg))) = rx.try_next() {
+            cb(&mut handle, msg, data, qhandle)?;
+            dispatched += 1;
         }
         Ok(dispatched)
     }
@@ -144,6 +100,7 @@ pub struct QueueHandle<D> {
     tx: UnboundedSender<QueueEvent<D>>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl<Data> std::fmt::Debug for QueueHandle<Data> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueHandle").field("tx", &self.tx).finish()
@@ -158,14 +115,11 @@ impl<Data> Clone for QueueHandle<Data> {
 
 pub(crate) struct QueueSender<D> {
     func: QueueCallback<D>,
-    dest: QueueDestructor<D>,
     pub(crate) handle: QueueHandle<D>,
 }
 
 pub(crate) trait ErasedQueueSender<I> {
     fn send(&self, msg: Message<ObjectId>);
-    fn send_destroy(&self, msg: ObjectId);
-    fn make_child(&self, info: &ObjectInfo) -> Arc<dyn ObjectData>;
 }
 
 impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D>
@@ -173,17 +127,9 @@ where
     D: Dispatch<I>,
 {
     fn send(&self, msg: Message<ObjectId>) {
-        if self.handle.tx.unbounded_send(QueueEvent::Msg(self.func, msg)).is_err() {
+        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg)).is_err() {
             log::error!("Event received for EventQueue after it was dropped.");
         }
-    }
-
-    fn send_destroy(&self, id: ObjectId) {
-        let _ = self.handle.tx.unbounded_send(QueueEvent::Destructor(self.dest, id));
-    }
-
-    fn make_child(&self, info: &ObjectInfo) -> Arc<dyn ObjectData> {
-        <D as Dispatch<I>>::child_from_event(info, &self.handle)
     }
 }
 
@@ -195,11 +141,7 @@ impl<D: 'static> QueueHandle<D> {
     where
         D: Dispatch<I>,
     {
-        let sender = Box::new(QueueSender {
-            func: queue_callback::<I, D>,
-            dest: queue_destructor::<I, D>,
-            handle: self.clone(),
-        });
+        let sender = Box::new(QueueSender { func: queue_callback::<I, D>, handle: self.clone() });
         Arc::new(QueueProxyData { sender, udata: user_data })
     }
 }
@@ -251,17 +193,6 @@ fn queue_callback<I: Proxy, D: Dispatch<I> + 'static>(
     Ok(())
 }
 
-fn queue_destructor<I: Proxy, D: Dispatch<I> + 'static>(
-    handle: &mut ConnectionHandle<'_>,
-    id: ObjectId,
-    data: &mut D,
-) {
-    let proxy = I::from_id(handle, id).expect("Processing destructor of invalid id ?!");
-    let udata =
-        proxy.data::<<D as Dispatch<I>>::UserData>().expect("Wrong user_data value for object");
-    data.destroyed(&proxy, udata)
-}
-
 pub struct QueueProxyData<I: Proxy, U> {
     pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
     pub udata: U,
@@ -282,9 +213,7 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
         ret
     }
 
-    fn destroyed(&self, object_id: ObjectId) {
-        self.sender.send_destroy(object_id);
-    }
+    fn destroyed(&self, _: ObjectId) {}
 }
 
 struct TemporaryData;
@@ -319,15 +248,6 @@ pub trait DelegateDispatch<
         qhandle: &QueueHandle<D>,
         init: &mut DataInit<'_>,
     );
-
-    fn destroyed(&mut self, _proxy: &I, _data: &Self::UserData) {}
-
-    fn child_from_event(_: &ObjectInfo, _: &QueueHandle<D>) -> Arc<dyn ObjectData> {
-        panic!(
-            "Attempting to create an object in event from uninitialized Dispatch<{}>",
-            std::any::type_name::<I>()
-        );
-    }
 }
 
 #[macro_export]
@@ -347,14 +267,6 @@ macro_rules! delegate_dispatch {
                     init: &mut $crate::DataInit<'_>,
                 ) {
                     <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(&mut self.$convert(), proxy, event, data, cxhandle, qhandle, init)
-                }
-
-                fn destroyed(&mut self, proxy: &$interface, data: &Self::UserData) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(&mut self.$convert(), proxy, data)
-                }
-
-                fn child_from_event(info: &$crate::backend::protocol::ObjectInfo, qh: &$crate::QueueHandle<Self>) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::child_from_event(info, qh)
                 }
             }
         )*
