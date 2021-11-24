@@ -122,6 +122,7 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
 
+/// An id of an object on a wayland server.
 #[derive(Clone)]
 pub struct ObjectId {
     id: u32,
@@ -168,14 +169,17 @@ impl std::fmt::Debug for ObjectId {
 }
 
 impl ObjectId {
+    /// Returns whether this object is a null object.
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
 
+    /// Returns the interface of this object.
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
 
+    /// Creates an object from a C pointer.
     ///
     /// # Safety
     ///
@@ -219,6 +223,9 @@ impl ObjectId {
         Ok(ObjectId { id, ptr, alive, interface })
     }
 
+    /// Returns the pointer that represents this object.
+    ///
+    /// The pointer may be used to interoperate with libwayland.
     pub fn as_ptr(&self) -> *mut wl_resource {
         if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             self.ptr
@@ -228,6 +235,7 @@ impl ObjectId {
     }
 }
 
+/// An id of a client connected to the server.
 #[derive(Debug, Clone)]
 pub struct ClientId {
     ptr: *mut wl_client,
@@ -245,6 +253,7 @@ impl std::cmp::PartialEq for ClientId {
 
 impl std::cmp::Eq for ClientId {}
 
+// The id of a global advertised by the server.
 #[derive(Debug, Clone)]
 pub struct GlobalId {
     ptr: *mut wl_global,
@@ -283,11 +292,19 @@ struct GlobalUserData<D> {
     ptr: *mut wl_global,
 }
 
+/// A handle to the server side state of a wayland server.
+///
+/// This object provides access to the server side state, clients and data associated with a client and it's
+/// objects.
 pub struct Handle<D> {
     display: *mut wl_display,
     _data: std::marker::PhantomData<fn(&mut D)>,
 }
 
+/// A backend object that represents the state of a wayland server.
+///
+/// A backend is used to drive a wayland server by receiving requests, dispatching messages to the appropriate
+/// handlers and flushes requests to be sent back to the client.
 pub struct Backend<D> {
     handle: Handle<D>,
 }
@@ -327,6 +344,10 @@ impl<D> Backend<D> {
         Ok(Backend { handle: Handle { display, _data: std::marker::PhantomData } })
     }
 
+    /// Initializes a connection to a client. The `data` parameter contains data that will be associated with
+    /// the client.
+    ///
+    /// The stream must be the receiver end.
     pub fn insert_client(
         &mut self,
         stream: UnixStream,
@@ -348,6 +369,9 @@ impl<D> Backend<D> {
         Ok(unsafe { init_client::<D>(ret, data) })
     }
 
+    /// Flushes pending events destined for a client.
+    ///
+    /// If no client is specified, all pending events are flushed to all clients.
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         if let Some(client_id) = client {
             if client_id.alive.load(Ordering::Acquire) {
@@ -361,10 +385,21 @@ impl<D> Backend<D> {
         Ok(())
     }
 
+    /// Returns a handle which contains the server side state of the backend.
+    ///
+    /// The handle provides a variety of functionality, such as querying information about wayland objects,
+    /// obtaining data associated with a client and it's objects, and creating globals.
     pub fn handle(&mut self) -> &mut Handle<D> {
         &mut self.handle
     }
 
+    /// Returns the underlying file descriptor.
+    ///
+    /// The file descriptor may be monitored for activity with a polling mechanism such as epoll or kqueue.
+    /// When it becomes readable, this means there are pending messages that would be dispatched if you call
+    /// [`Backend::dispatch_all_clients`].
+    ///
+    /// The file descriptor should not be used for any other purpose than monitoring it.
     pub fn poll_fd(&self) -> RawFd {
         unsafe {
             let evl_ptr = ffi_dispatch!(
@@ -376,14 +411,33 @@ impl<D> Backend<D> {
         }
     }
 
+    /// Dispatches all pending messages from the specified client.
+    ///
+    /// This method will not block if there are no pending messages.
+    ///
+    /// The provided `data` will be provided to the handler of messages received from the client.
+    ///
+    /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
+    /// file descriptor retrieved by [`Backend::poll_fd`] and only calling this method when messages are
+    /// available.
     pub fn dispatch_client(
         &mut self,
         data: &mut D,
         _client_id: ClientId,
     ) -> std::io::Result<usize> {
+        // TODO: This dispatches for all clients.
         self.dispatch_all_clients(data)
     }
 
+    /// Dispatches all pending messages from all clients.
+    ///
+    /// This method will not block if there are no pending messages.
+    ///
+    /// The provided `data` will be provided to the handler of messages received from the clients.
+    ///
+    /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
+    /// file descriptor retrieved by [`Backend::poll_fd`] and only calling this method when messages are
+    /// available.
     pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         let display = self.handle.display;
         let pointers = (&mut self.handle as *mut _ as *mut c_void, data as *mut _ as *mut c_void);
@@ -401,6 +455,7 @@ impl<D> Backend<D> {
 }
 
 impl<D> Handle<D> {
+    /// Returns information about some object.
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return Err(InvalidId);
@@ -412,6 +467,7 @@ impl<D> Handle<D> {
         Ok(ObjectInfo { id: id.id, version, interface: id.interface })
     }
 
+    /// Returns the id of the client which created the object.
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
         if !id.alive.map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return Err(InvalidId);
@@ -423,6 +479,7 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Returns the data associated with a client.
     pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
@@ -438,6 +495,7 @@ impl<D> Handle<D> {
         Ok(data.data.clone())
     }
 
+    /// Returns an iterator over all clients connected to the server.
     pub fn all_clients<'a>(&'a self) -> Box<dyn Iterator<Item = ClientId> + 'a> {
         let mut client_list = unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_client_list, self.display)
@@ -464,6 +522,7 @@ impl<D> Handle<D> {
         }))
     }
 
+    /// Returns an iterator over all objects that have been created by a client.
     pub fn all_objects_for<'a>(
         &'a self,
         _client_id: ClientId,
@@ -499,6 +558,7 @@ impl<D> Handle<D> {
         Ok(unsafe { init_resource(resource, interface, Some(data)).0 })
     }
 
+    /// Returns an object id that represents a null object.
     pub fn null_id(&mut self) -> ObjectId {
         ObjectId { ptr: std::ptr::null_mut(), id: 0, alive: None, interface: &ANONYMOUS_INTERFACE }
     }
@@ -626,6 +686,7 @@ impl<D> Handle<D> {
         Ok(())
     }
 
+    /// Returns the data associated with an object.
     pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);
@@ -639,6 +700,7 @@ impl<D> Handle<D> {
         Ok(udata.data.clone())
     }
 
+    /// Sets the data associated with some object.
     pub fn set_object_data(
         &mut self,
         id: ObjectId,
@@ -658,6 +720,7 @@ impl<D> Handle<D> {
         Ok(())
     }
 
+    /// Posts an error on an object. This will also disconnect the client which created the object.
     pub fn post_error(&mut self, id: ObjectId, error_code: u32, message: CString) {
         if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return;
@@ -674,6 +737,10 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Kills the connection to a client.
+    ///
+    /// The disconnection reason determines whether the server should simply terminate the connection or post
+    /// an error.
     pub fn kill_client(&mut self, client_id: ClientId, reason: DisconnectReason) {
         if !client_id.alive.load(Ordering::Acquire) {
             return;
@@ -689,6 +756,9 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Creates a global of the specified interface and version and then advertises it to clients.
+    ///
+    /// The clients which the global is advertised to is determined by the implementation of the [`GlobalHandler`].
     pub fn create_global(
         &mut self,
         interface: &'static Interface,
@@ -734,6 +804,9 @@ impl<D> Handle<D> {
         GlobalId { ptr: ret, alive }
     }
 
+    /// Disables a global object that is currently active.
+    ///
+    /// The global will be removed from clients which have bound the global. New clients will not know of the global.
     pub fn disable_global(&mut self, id: GlobalId) {
         if !id.alive.load(Ordering::Acquire) {
             return;
@@ -766,6 +839,7 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Returns information about a global.
     pub fn global_info(&self, id: GlobalId) -> Result<GlobalInfo, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
@@ -782,6 +856,7 @@ impl<D> Handle<D> {
         })
     }
 
+    /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     pub fn get_global_handler(&self, id: GlobalId) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);

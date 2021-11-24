@@ -13,6 +13,10 @@ use super::{
 };
 use crate::rs::map::Object;
 
+/// A handle to the server side state of a wayland server.
+///
+/// This object provides access to the server side state, clients and data associated with a client and it's
+/// objects.
 pub struct Handle<D> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
@@ -177,10 +181,12 @@ impl<D> Handle<D> {
 }
 
 impl<D> Handle<D> {
+    /// Returns information about some object.
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.clients.get_client(id.client_id.clone())?.object_info(id)
     }
 
+    /// Returns the id of the client which created the object.
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
         if self.clients.get_client(id.client_id.clone()).is_ok() {
             Ok(id.client_id)
@@ -189,15 +195,18 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Returns the data associated with a client.
     pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
         let client = self.clients.get_client(id)?;
         Ok(client.data.clone())
     }
 
+    /// Returns an iterator over all clients connected to the server.
     pub fn all_clients<'a>(&'a self) -> Box<dyn Iterator<Item = ClientId> + 'a> {
         Box::new(self.clients.all_clients_id())
     }
 
+    /// Returns an iterator over all objects that have been created by a client.
     pub fn all_objects_for<'a>(
         &'a self,
         client_id: ClientId,
@@ -217,6 +226,7 @@ impl<D> Handle<D> {
         Ok(client.create_object(interface, version, data))
     }
 
+    /// Returns an object id that represents a null object.
     pub fn null_id(&mut self) -> ObjectId {
         ObjectId {
             id: 0,
@@ -230,10 +240,12 @@ impl<D> Handle<D> {
         self.clients.get_client_mut(msg.sender_id.client_id.clone())?.send_event(msg)
     }
 
+    /// Returns the data associated with an object.
     pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         self.clients.get_client(id.client_id.clone())?.get_object_data(id)
     }
 
+    /// Sets the data associated with some object.
     pub fn set_object_data(
         &mut self,
         id: ObjectId,
@@ -242,18 +254,26 @@ impl<D> Handle<D> {
         self.clients.get_client_mut(id.client_id.clone())?.set_object_data(id, data)
     }
 
+    /// Posts an error on an object. This will also disconnect the client which created the object.
     pub fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {
         if let Ok(client) = self.clients.get_client_mut(object_id.client_id.clone()) {
             client.post_error(object_id, error_code, message)
         }
     }
 
+    /// Kills the connection to a client.
+    ///
+    /// The disconnection reason determines whether the server should simply terminate the connection or post
+    /// an error.
     pub fn kill_client(&mut self, client_id: ClientId, reason: DisconnectReason) {
         if let Ok(client) = self.clients.get_client_mut(client_id) {
             client.kill(reason)
         }
     }
 
+    /// Creates a global of the specified interface and version and then advertises it to clients.
+    ///
+    /// The clients which the global is advertised to is determined by the implementation of the [`GlobalHandler`].
     pub fn create_global(
         &mut self,
         interface: &'static Interface,
@@ -263,6 +283,9 @@ impl<D> Handle<D> {
         self.registry.create_global(interface, version, handler, &mut self.clients)
     }
 
+    /// Disables a global object that is currently active.
+    ///
+    /// The global will be removed from clients which have bound the global. New clients will not know of the global.
     pub fn disable_global(&mut self, id: GlobalId) {
         self.registry.disable_global(id, &mut self.clients)
     }
@@ -271,10 +294,12 @@ impl<D> Handle<D> {
         self.registry.remove_global(id, &mut self.clients)
     }
 
+    /// Returns information about a global.
     pub fn global_info(&self, id: GlobalId) -> Result<GlobalInfo, InvalidId> {
         self.registry.get_info(id)
     }
 
+    /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     pub fn get_global_handler(&self, id: GlobalId) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         self.registry.get_handler(id)
     }

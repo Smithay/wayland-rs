@@ -99,6 +99,7 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 
 downcast_rs::impl_downcast!(sync ClientData<D>);
 
+/// An id of an object on a wayland server.
 #[derive(Clone)]
 pub struct ObjectId {
     id: u32,
@@ -108,10 +109,12 @@ pub struct ObjectId {
 }
 
 impl ObjectId {
+    /// Returns whether this object is a null object.
     pub fn is_null(&self) -> bool {
         self.id == 0
     }
 
+    /// Returns the interface of this object.
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
@@ -142,6 +145,7 @@ impl PartialEq for ObjectId {
 
 impl std::cmp::Eq for ObjectId {}
 
+/// An id of a client connected to the server.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClientId {
     id: u32,
@@ -164,6 +168,8 @@ impl fmt::Display for ClientId {
         write!(f, "{}", self.id)
     }
 }
+
+// The id of a global advertised by the server.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlobalId {
     id: u32,

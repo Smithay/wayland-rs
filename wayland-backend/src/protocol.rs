@@ -2,34 +2,38 @@ use std::{ffi::CString, os::unix::io::RawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
 
+/// Describes whether an argument may have a null value.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AllowNull {
+    /// Null values are allowed.
     Yes,
+    /// Null values are forbidden.
     No,
 }
 
 /// Enum of possible argument types as recognized by the wire
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ArgumentType {
-    /// i32
+    /// An integer argument. Represented by a [`i32`].
     Int,
-    /// u32
+    /// An unsigned integer argument. Represented by a [`u32`].
     Uint,
-    /// fixed point, 1/256 precision
+    /// A fixed point, 1/256 precision signed floating point number.
     Fixed,
-    /// CString
+    /// A string. This is represented as a [`CString`] in a message.
     Str(AllowNull),
-    /// id of a wayland object
+    /// Id of a wayland object
     Object(AllowNull),
-    /// id of a newly created wayland object
+    /// Id of a newly created wayland object
     NewId(AllowNull),
     /// Vec<u8>
     Array(AllowNull),
-    /// RawFd
+    /// A file descriptor argument. Represented by a [`RawFd`].
     Fd,
 }
 
 impl ArgumentType {
+    /// Returns true if the type of the argument is the same.
     pub fn same_type(self, other: Self) -> bool {
         std::mem::discriminant(&self) == std::mem::discriminant(&other)
     }
@@ -39,27 +43,27 @@ impl ArgumentType {
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[allow(clippy::box_vec)]
 pub enum Argument<Id> {
-    /// i32
+    /// An integer argument. Represented by a [`i32`].
     Int(i32),
-    /// u32
+    /// An unsigned integer argument. Represented by a [`u32`].
     Uint(u32),
-    /// fixed point, 1/256 precision
+    /// A fixed point, 1/256 precision signed floating point number.
     Fixed(i32),
     /// CString
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
     Str(Box<CString>),
-    /// id of a wayland object
+    /// Id of a wayland object
     Object(Id),
-    /// id of a newly created wayland object
+    /// Id of a newly created wayland object
     NewId(Id),
     /// Vec<u8>
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
     Array(Box<Vec<u8>>),
-    /// RawFd
+    /// A file descriptor argument. Represented by a [`RawFd`].
     Fd(RawFd),
 }
 
@@ -95,12 +99,21 @@ impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
     }
 }
 
+/// Description of wayland interface.
+///
+/// An interface describes the possible requests and events that a wayland client and compositor use to
+/// communicate.
 #[derive(Debug)]
 pub struct Interface {
+    /// The name of the interface.
     pub name: &'static str,
+    /// The maximum supported version of the interface.
     pub version: u32,
+    /// A list that describes every request this interface supports.
     pub requests: &'static [MessageDesc],
+    /// A list that describes every event this request supports.
     pub events: &'static [MessageDesc],
+    /// A C representation of this interface that may be used to interoperate with libwayland.
     pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,
 }
 
@@ -122,7 +135,11 @@ pub struct MessageDesc {
     pub since: u32,
     /// Whether this message is a destructor
     pub is_destructor: bool,
+    /// The child interface created from this message.
+    ///
+    /// In the wayland xml format, this corresponds to the `new_id` type.
     pub child_interface: Option<&'static Interface>,
+    /// The interfaces passed into this message as arguments.
     pub arg_interfaces: &'static [&'static Interface],
 }
 
@@ -162,10 +179,14 @@ pub struct ProtocolError {
 
 pub const INLINE_ARGS: usize = 4;
 
+/// Represents a message that has been sent from some object.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message<Id> {
+    /// The id of the object that sent the message.
     pub sender_id: Id,
+    /// The opcode of the message.
     pub opcode: u16,
+    /// The arguments of the message.
     pub args: smallvec::SmallVec<[Argument<Id>; INLINE_ARGS]>,
 }
 
@@ -182,6 +203,7 @@ impl std::fmt::Display for ProtocolError {
     }
 }
 
+/// Returns true if the two interfaces are the same.
 #[inline]
 pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
     std::ptr::eq(a, b) || a.name == b.name
@@ -205,6 +227,7 @@ pub(crate) fn same_interface_or_anonymous(a: &'static Interface, b: &'static Int
     same_interface(a, b) || same_interface(a, &ANONYMOUS_INTERFACE)
 }
 
+/// An enum value in the protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WEnum<T> {
     Value(T),
@@ -212,6 +235,7 @@ pub enum WEnum<T> {
 }
 
 impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
+    /// Constructs an enum from the integer format used by the wayland protocol.
     fn from(v: u32) -> WEnum<T> {
         match T::try_from(v) {
             Ok(t) => WEnum::Value(t),
@@ -221,6 +245,7 @@ impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
 }
 
 impl<T: Into<u32>> From<WEnum<T>> for u32 {
+    /// Converts an enum into a numerical form used by the wayland protocol.
     fn from(enu: WEnum<T>) -> u32 {
         match enu {
             WEnum::Unknown(u) => u,
