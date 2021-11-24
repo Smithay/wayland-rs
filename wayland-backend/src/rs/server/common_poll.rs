@@ -49,10 +49,9 @@ impl<D> Backend<D> {
         Ok(Backend { handle: Handle::new(), poll_fd })
     }
 
-    /// Initializes a connection to a client. The `data` parameter contains data that will be associated with
-    /// the client.
+    /// Initializes a connection to a client.
     ///
-    /// The stream must be the receiver end.
+    /// The `data` parameter contains data that will be associated with the client.
     pub fn insert_client(
         &mut self,
         stream: UnixStream,
@@ -103,7 +102,7 @@ impl<D> Backend<D> {
         self.handle.flush(client)
     }
 
-    /// Returns a handle which contains the server side state of the backend.
+    /// Returns a handle which represents the server side state of the backend.
     ///
     /// The handle provides a variety of functionality, such as querying information about wayland objects,
     /// obtaining data associated with a client and it's objects, and creating globals.
@@ -129,8 +128,7 @@ impl<D> Backend<D> {
     /// The provided `data` will be provided to the handler of messages received from the client.
     ///
     /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
-    /// file descriptor retrieved by [`Backend::poll_fd`] and only calling this method when messages are
-    /// available.
+    /// file descriptor associated with the client and only calling this method when messages are available.
     pub fn dispatch_client(&mut self, data: &mut D, client_id: ClientId) -> std::io::Result<usize> {
         let ret = self.handle.dispatch_events_for(data, client_id);
         self.handle.cleanup();

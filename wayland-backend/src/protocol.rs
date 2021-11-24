@@ -18,7 +18,7 @@ pub enum ArgumentType {
     Int,
     /// An unsigned integer argument. Represented by a [`u32`].
     Uint,
-    /// A fixed point, 1/256 precision signed floating point number.
+    /// A signed fixed point number with 1/256 precision
     Fixed,
     /// A string. This is represented as a [`CString`] in a message.
     Str(AllowNull),
@@ -47,7 +47,7 @@ pub enum Argument<Id> {
     Int(i32),
     /// An unsigned integer argument. Represented by a [`u32`].
     Uint(u32),
-    /// A fixed point, 1/256 precision signed floating point number.
+    /// A signed fixed point number with 1/256 precision
     Fixed(i32),
     /// CString
     ///
@@ -111,7 +111,7 @@ pub struct Interface {
     pub version: u32,
     /// A list that describes every request this interface supports.
     pub requests: &'static [MessageDesc],
-    /// A list that describes every event this request supports.
+    /// A list that describes every event this interface supports.
     pub events: &'static [MessageDesc],
     /// A C representation of this interface that may be used to interoperate with libwayland.
     pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,

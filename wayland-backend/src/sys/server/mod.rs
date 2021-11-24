@@ -344,10 +344,9 @@ impl<D> Backend<D> {
         Ok(Backend { handle: Handle { display, _data: std::marker::PhantomData } })
     }
 
-    /// Initializes a connection to a client. The `data` parameter contains data that will be associated with
-    /// the client.
+    /// Initializes a connection to a client.
     ///
-    /// The stream must be the receiver end.
+    /// The `data` parameter contains data that will be associated with the client.
     pub fn insert_client(
         &mut self,
         stream: UnixStream,
@@ -385,7 +384,7 @@ impl<D> Backend<D> {
         Ok(())
     }
 
-    /// Returns a handle which contains the server side state of the backend.
+    /// Returns a handle which represents the server side state of the backend.
     ///
     /// The handle provides a variety of functionality, such as querying information about wayland objects,
     /// obtaining data associated with a client and it's objects, and creating globals.
@@ -418,14 +417,16 @@ impl<D> Backend<D> {
     /// The provided `data` will be provided to the handler of messages received from the client.
     ///
     /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
-    /// file descriptor retrieved by [`Backend::poll_fd`] and only calling this method when messages are
-    /// available.
+    /// file descriptor associated with the client and only calling this method when messages are available.
+    ///
+    /// # Backend specific
+    ///
+    /// The `sys` backend may also dispatch other clients than the client being dispatched.
     pub fn dispatch_client(
         &mut self,
         data: &mut D,
         _client_id: ClientId,
     ) -> std::io::Result<usize> {
-        // TODO: This dispatches for all clients.
         self.dispatch_all_clients(data)
     }
 
@@ -467,7 +468,7 @@ impl<D> Handle<D> {
         Ok(ObjectInfo { id: id.id, version, interface: id.interface })
     }
 
-    /// Returns the id of the client which created the object.
+    /// Returns the id of the client which owns the object.
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
         if !id.alive.map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return Err(InvalidId);
@@ -522,7 +523,7 @@ impl<D> Handle<D> {
         }))
     }
 
-    /// Returns an iterator over all objects that have been created by a client.
+    /// Returns an iterator over all objects owned by a client.
     pub fn all_objects_for<'a>(
         &'a self,
         _client_id: ClientId,
@@ -739,8 +740,7 @@ impl<D> Handle<D> {
 
     /// Kills the connection to a client.
     ///
-    /// The disconnection reason determines whether the server should simply terminate the connection or post
-    /// an error.
+    /// The disconnection reason determines the error message that is sent to the client (if any).
     pub fn kill_client(&mut self, client_id: ClientId, reason: DisconnectReason) {
         if !client_id.alive.load(Ordering::Acquire) {
             return;
@@ -806,7 +806,7 @@ impl<D> Handle<D> {
 
     /// Disables a global object that is currently active.
     ///
-    /// The global will be removed from clients which have bound the global. New clients will not know of the global.
+    /// The global removal will be signaled to all currently connected clients. New clients will not know of the global.
     pub fn disable_global(&mut self, id: GlobalId) {
         if !id.alive.load(Ordering::Acquire) {
             return;

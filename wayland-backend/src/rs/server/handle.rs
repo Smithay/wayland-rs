@@ -186,7 +186,7 @@ impl<D> Handle<D> {
         self.clients.get_client(id.client_id.clone())?.object_info(id)
     }
 
-    /// Returns the id of the client which created the object.
+    /// Returns the id of the client which owns the object.
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
         if self.clients.get_client(id.client_id.clone()).is_ok() {
             Ok(id.client_id)
@@ -206,7 +206,7 @@ impl<D> Handle<D> {
         Box::new(self.clients.all_clients_id())
     }
 
-    /// Returns an iterator over all objects that have been created by a client.
+    /// Returns an iterator over all objects owned by a client.
     pub fn all_objects_for<'a>(
         &'a self,
         client_id: ClientId,
@@ -263,8 +263,7 @@ impl<D> Handle<D> {
 
     /// Kills the connection to a client.
     ///
-    /// The disconnection reason determines whether the server should simply terminate the connection or post
-    /// an error.
+    /// The disconnection reason determines the error message that is sent to the client (if any).
     pub fn kill_client(&mut self, client_id: ClientId, reason: DisconnectReason) {
         if let Ok(client) = self.clients.get_client_mut(client_id) {
             client.kill(reason)
@@ -285,7 +284,7 @@ impl<D> Handle<D> {
 
     /// Disables a global object that is currently active.
     ///
-    /// The global will be removed from clients which have bound the global. New clients will not know of the global.
+    /// The global removal will be signaled to all currently connected clients. New clients will not know of the global.
     pub fn disable_global(&mut self, id: GlobalId) {
         self.registry.disable_global(id, &mut self.clients)
     }
