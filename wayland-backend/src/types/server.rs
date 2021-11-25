@@ -1,8 +1,13 @@
 use crate::protocol::Interface;
 
+/// Description of a global advertised to some clients.
+#[derive(Debug)]
 pub struct GlobalInfo {
+    /// The interface of the global.
     pub interface: &'static Interface,
+    /// The version of the global that is advertised to clients.
     pub version: u32,
+    /// Whether the global is disabled.
     pub disabled: bool,
 }
 
@@ -46,7 +51,11 @@ impl std::fmt::Display for InvalidId {
     }
 }
 
+/// Describes why a client has been disconnected from the server.
+#[derive(Debug)]
 pub enum DisconnectReason {
+    /// The connection has been closed by the server or client.
     ConnectionClosed,
+    /// The server has sent the client a protocol error, terminating the connection.
     ProtocolError(crate::protocol::ProtocolError),
 }
