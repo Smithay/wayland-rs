@@ -103,6 +103,13 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for dyn GlobalHandler<D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.debug(f)
+    }
+}
+
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
 
 /// A trait representing your data associated to a clientObjectData
@@ -117,6 +124,13 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
     /// By default will just print `GlobalHandler { ... }`
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClientData").finish_non_exhaustive()
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for dyn ClientData<D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.debug(f)
     }
 }
 
@@ -296,6 +310,7 @@ struct GlobalUserData<D> {
 ///
 /// This object provides access to the server side state, clients and data associated with a client and it's
 /// objects.
+#[derive(Debug)]
 pub struct Handle<D> {
     display: *mut wl_display,
     _data: std::marker::PhantomData<fn(&mut D)>,
@@ -305,6 +320,7 @@ pub struct Handle<D> {
 ///
 /// A backend is used to drive a wayland server by receiving requests, dispatching messages to the appropriate
 /// handlers and flushes requests to be sent back to the client.
+#[derive(Debug)]
 pub struct Backend<D> {
     handle: Handle<D>,
 }

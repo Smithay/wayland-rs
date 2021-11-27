@@ -25,6 +25,7 @@ pub trait DestructionNotify {
 
 impl DestructionNotify for () {}
 
+#[derive(Debug)]
 pub struct ResourceData<I, U> {
     marker: std::marker::PhantomData<fn(I)>,
     pub udata: U,
@@ -41,6 +42,7 @@ impl<I> New<I> {
     }
 }
 
+#[derive(Debug)]
 pub struct DataInit<'a, D> {
     store: &'a mut Option<Arc<dyn ObjectData<D>>>,
 }

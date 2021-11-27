@@ -169,6 +169,7 @@ struct ProxyUserData {
     interface: &'static Interface,
 }
 
+#[derive(Debug)]
 pub struct Handle {
     display: *mut wl_display,
     evq: *mut wl_event_queue,
@@ -177,6 +178,7 @@ pub struct Handle {
     pending_placeholder: Option<(&'static Interface, u32)>,
 }
 
+#[derive(Debug)]
 pub struct Backend {
     handle: Handle,
 }

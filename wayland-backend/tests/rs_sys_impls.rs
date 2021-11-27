@@ -112,12 +112,12 @@ mod server {
 
         // GlobalHandler
         assert_impl!(
-            dyn server::GlobalHandler<()>: downcast_rs::DowncastSync
+            dyn server::GlobalHandler<()>: std::fmt::Debug, downcast_rs::DowncastSync
         );
 
         // ClientData
         assert_impl!(
-            dyn server::ClientData<()>: downcast_rs::DowncastSync
+            dyn server::ClientData<()>: std::fmt::Debug, downcast_rs::DowncastSync
         );
 
         // ObjectId
@@ -138,8 +138,7 @@ mod server {
         assert_impl!(server::GlobalId: std::fmt::Debug, Clone, Send, Sync, PartialEq, Eq);
 
         // Handle
-        // TODO: Debug?
-        //assert_impl!(server::Handle<()>: std::fmt::Debug);
+        assert_impl!(server::Handle<()>: std::fmt::Debug);
 
         // Backend
         assert_impl!(server::Backend<()>: Send, Sync);
@@ -166,8 +165,7 @@ mod client {
         );
 
         // Handle
-        // TODO: Debug?
-        //assert_impl!(client::Handle: std::fmt::Debug);
+        assert_impl!(client::Handle: std::fmt::Debug);
 
         // Backend
         assert_impl!(client::Backend: Send, Sync);

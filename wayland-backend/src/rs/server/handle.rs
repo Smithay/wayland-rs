@@ -17,6 +17,7 @@ use crate::rs::map::Object;
 ///
 /// This object provides access to the server side state, clients and data associated with a client and it's
 /// objects.
+#[derive(Debug)]
 pub struct Handle<D> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,

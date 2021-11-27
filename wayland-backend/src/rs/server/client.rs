@@ -41,6 +41,7 @@ pub(crate) enum DisplayError {
     Implementation = 3,
 }
 
+#[derive(Debug)]
 pub(crate) struct Client<D> {
     socket: BufferedSocket,
     pub(crate) map: ObjectMap<Data<D>>,
@@ -606,6 +607,7 @@ impl<D> ObjectData<D> for DumbObjectData {
     fn destroyed(&self, _client_id: ClientId, _object_id: ObjectId) {}
 }
 
+#[derive(Debug)]
 pub(crate) struct ClientStore<D> {
     clients: Vec<Option<Client<D>>>,
     last_serial: u32,

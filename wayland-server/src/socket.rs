@@ -16,6 +16,7 @@ use nix::{
     unistd::unlink,
 };
 
+#[derive(Debug)]
 pub struct ListeningSocket {
     listener: UnixListener,
     _lock: File,

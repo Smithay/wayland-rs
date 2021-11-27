@@ -1,3 +1,5 @@
+#![warn(missing_debug_implementations)]
+
 use wayland_backend::{
     protocol::{Interface, Message},
     server::{InvalidId, ObjectId},
