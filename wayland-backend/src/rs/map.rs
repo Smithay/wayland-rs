@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 pub const SERVER_ID_LIMIT: u32 = 0xFF00_0000;
 
 /// The representation of a protocol object
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Object<Data> {
     /// Interface name of this object
     pub interface: &'static Interface,
@@ -22,7 +22,7 @@ pub struct Object<Data> {
 ///
 /// Keeps track of which object id is associated to which
 /// interface object, and which is currently unused.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ObjectMap<Data> {
     client_objects: Vec<Option<Object<Data>>>,
     server_objects: Vec<Option<Object<Data>>>,

@@ -5,12 +5,14 @@ use crate::{
     DelegateDispatchBase, Dispatch, Proxy, QueueHandle,
 };
 
+#[derive(Debug)]
 pub struct GlobalDescription {
     pub name: u32,
     pub interface: String,
     pub version: u32,
 }
 
+#[derive(Debug)]
 pub struct GlobalList {
     globals: Vec<GlobalDescription>,
 }

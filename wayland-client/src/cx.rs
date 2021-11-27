@@ -19,7 +19,7 @@ use nix::{fcntl, Error};
 
 use crate::{EventQueue, Proxy};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Connection {
     backend: Arc<Mutex<Backend>>,
 }
@@ -153,10 +153,12 @@ pub(crate) fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, Way
     }
 }
 
+#[derive(Debug)]
 pub struct ConnectionHandle<'a> {
     pub(crate) inner: HandleInner<'a>,
 }
 
+#[derive(Debug)]
 pub(crate) enum HandleInner<'a> {
     Handle(&'a mut Handle),
     Guard(MutexGuard<'a, Backend>),

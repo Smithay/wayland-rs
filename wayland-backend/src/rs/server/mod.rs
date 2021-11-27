@@ -87,6 +87,13 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for dyn GlobalHandler<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.debug(f)
+    }
+}
+
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
 
 /// A trait representing your data associated to a clientObjectData
@@ -101,6 +108,13 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
     /// By default will just print `GlobalHandler { ... }`
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClientData").finish_non_exhaustive()
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for dyn ClientData<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.debug(f)
     }
 }
 
@@ -183,6 +197,7 @@ pub struct GlobalId {
     serial: u32,
 }
 
+#[derive(Debug)]
 pub(crate) struct Data<D> {
     user_data: Arc<dyn ObjectData<D>>,
     serial: u32,
