@@ -26,6 +26,7 @@ use super::{ClientId, Handle};
 ///
 /// A backend is used to drive a wayland server by receiving requests, dispatching messages to the appropriate
 /// handlers and flushes requests to be sent back to the client.
+#[derive(Debug)]
 pub struct Backend<D> {
     handle: Handle<D>,
     poll_fd: RawFd,

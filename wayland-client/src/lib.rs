@@ -1,3 +1,5 @@
+#![warn(missing_debug_implementations)]
+
 use wayland_backend::{
     client::{InvalidId, ObjectId, WaylandError},
     protocol::{Interface, Message},

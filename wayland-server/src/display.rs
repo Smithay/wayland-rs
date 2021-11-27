@@ -13,7 +13,7 @@ use crate::{
     Client, Resource,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Display<D> {
     backend: Arc<Mutex<Backend<D>>>,
 }
@@ -45,10 +45,12 @@ impl<D> Display<D> {
     }
 }
 
+#[derive(Debug)]
 pub struct DisplayHandle<'a, D> {
     pub(crate) inner: HandleInner<'a, D>,
 }
 
+#[derive(Debug)]
 pub(crate) enum HandleInner<'a, D> {
     Handle(&'a mut Handle<D>),
     Guard(MutexGuard<'a, Backend<D>>),

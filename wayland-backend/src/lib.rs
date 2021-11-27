@@ -1,3 +1,5 @@
+#![warn(missing_debug_implementations)]
+
 pub extern crate smallvec;
 
 #[macro_export]
