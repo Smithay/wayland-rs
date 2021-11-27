@@ -238,10 +238,54 @@ impl ObjectData for TemporaryData {
  * Dispatch delegation helpers
  */
 
+/// The base trait used to define a delegate type to handle some type of proxy.
 pub trait DelegateDispatchBase<I: Proxy> {
+    /// The type of user data the delegate holds
     type UserData: Send + Sync + 'static;
 }
 
+/// A trait which defines a delegate type to handle some type of proxy.
+///
+/// This trait is useful for building composable handlers of proxies.
+///
+/// ## Usage
+///
+/// To explain the trait, let's implement a delegate for handling the events from [`WlRegistry`](crate::protocol::wl_registry::WlRegistry).
+///
+/// ```
+/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
+/// use wayland_client::{protocol::wl_registry, DelegateDispatch, DelegateDispatchBase, Dispatch};
+///
+/// /// The type we want to delegate to
+/// struct DelegateToMe;
+///
+/// // Now implement DelegateDispatchBase.
+/// impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
+///     /// The type of user data associated with the delegation of events from a registry is defined here.
+///     ///
+///     /// If you don't need user data, the unit type, `()`, may be used.
+///     type UserData = ();
+/// }
+///
+/// // Now implement DelegateDispatch.
+/// impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// where
+///     // `D` is the type which has delegated to this type.
+///     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// {
+///     fn event(
+///         &mut self,
+///         _proxy: &wl_registry::WlRegistry,
+///         _event: wl_registry::Event,
+///         _data: &Self::UserData,
+///         _cxhandle: &mut wayland_client::ConnectionHandle,
+///         _qhandle: &wayland_client::QueueHandle<D>,
+///         _init: &mut wayland_client::DataInit<'_>,
+///     ) {
+///         // Here the delegate may handle incoming events as it pleases.
+///     }
+/// }
+/// ```
 pub trait DelegateDispatch<
     I: Proxy,
     D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
@@ -258,9 +302,129 @@ pub trait DelegateDispatch<
     );
 }
 
+/// A helper macro which delegates a set of [`Dispatch`] implementations for a proxy to some other type which
+/// implements [`DelegateDispatch`] for each proxy.
+///
+/// This macro allows more easily delegating smaller parts of the protocol an application may wish to handle
+/// in a modular fashion.
+///
+/// # Usage
+///
+/// For example, say you want to delegate events for [`WlRegistry`](crate::protocol::wl_registry::WlRegistry)
+/// to some other type.
+///
+/// For brevity, we will use the example in the documentation for [`DelegateDispatch`], `DelegateToMe`.
+///
+/// ```
+/// use wayland_client::{delegate_dispatch, protocol::wl_registry};
+/// #
+/// # use wayland_client::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// #
+/// # struct DelegateToMe;
+/// #
+/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
+/// #     type UserData = ();
+/// # }
+/// #
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// # where
+/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// # {
+/// #     fn event(
+/// #         &mut self,
+/// #         _proxy: &wl_registry::WlRegistry,
+/// #         _event: wl_registry::Event,
+/// #         _data: &Self::UserData,
+/// #         _cxhandle: &mut wayland_client::ConnectionHandle,
+/// #         _qhandle: &wayland_client::QueueHandle<D>,
+/// #         _init: &mut wayland_client::DataInit<'_>,
+/// #     ) {
+/// #     }
+/// # }
+///
+/// // ExampleApp is the type events will be dispatched to.
+///
+/// /// The application state
+/// struct ExampleApp {
+///     /// The delegate for handling wl_registry events.
+///     delegate: DelegateToMe,
+/// }
+///
+/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe ; |app| {
+///     // Return an `&mut` reference to the field the Dispatch implementation provided by the macro should
+///     // forward events to.
+///     // You may also use a function to get the delegate since this is like a closure.
+///     &mut app.delegate
+/// });
+///
+/// // To explain the macro above, you may read it as the following:
+/// //
+/// // For ExampleApp, delegate WlRegistry to DelegateToMe and use the closure to get an `&mut` reference to
+/// // the delegate.
+///
+/// // Assert ExampleApp can Dispatch events for wl_registry
+/// fn assert_is_registry_delegate<T>()
+/// where
+///     T: Dispatch<wl_registry::WlRegistry, UserData = ()>,
+/// {
+/// }
+///
+/// assert_is_registry_delegate::<ExampleApp>();
+/// ```
+///
+/// You may also delegate multiple proxies to a single type. This is especially useful for handling multiple
+/// related protocols in the same modular component.
+///
+/// For example, a type which can dispatch both the `wl_output` and `xdg_output` protocols may be used as a
+/// delegate:
+///
+/// ```ignore
+/// # // This is not tested because xdg_output is in wayland-protocols.
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate ; |app| {
+///     &mut app.output_delegate
+/// });
+/// ```
+///
+/// If your delegate contains a lifetime, you will need to explicitly declare the user data type and
+/// use the anonymous lifetime.
+///
+/// ```
+/// use std::marker::PhantomData;
+///
+/// use wayland_client::{delegate_dispatch, DelegateDispatch, DelegateDispatchBase, Dispatch, protocol::wl_registry};
+///
+/// struct ExampleApp;
+///
+/// struct DelegateWithLifetime<'a>(PhantomData<&'a mut ()>);
+///
+/// // ... DelegateDispatch impl here...
+/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateWithLifetime<'_> {
+/// #     type UserData = ();
+/// # }
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateWithLifetime<'_>
+/// # where
+/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// # {
+/// #     fn event(
+/// #         &mut self,
+/// #         _proxy: &wl_registry::WlRegistry,
+/// #         _event: wl_registry::Event,
+/// #         _data: &Self::UserData,
+/// #         _cxhandle: &mut wayland_client::ConnectionHandle,
+/// #         _qhandle: &wayland_client::QueueHandle<D>,
+/// #         _init: &mut wayland_client::DataInit<'_>,
+/// #     ) {
+/// #     }
+/// # }
+///
+/// delegate_dispatch!(ExampleApp: <UserData = ()> [wl_registry::WlRegistry] => DelegateWithLifetime<'_> ; |_app| {
+///     &mut DelegateWithLifetime(PhantomData)
+/// });
+/// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from:ty => $dispatch_to:ty ; [$($interface:ty),*] => $convert:ident) => {
+    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
         $(
             impl $crate::Dispatch<$interface> for $dispatch_from {
                 type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
@@ -274,9 +438,34 @@ macro_rules! delegate_dispatch {
                     qhandle: &$crate::QueueHandle<Self>,
                     init: &mut $crate::DataInit<'_>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(&mut self.$convert(), proxy, event, data, cxhandle, qhandle, init)
+                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
+                    let delegate: &mut $dispatch_to = { $closure };
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle, init)
                 }
             }
         )*
-    }
+    };
+
+    // Explicitly specify the UserData if there is a lifetime.
+    ($dispatch_from: ty: <UserData = $user_data: ty> [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
+        $(
+            impl $crate::Dispatch<$interface> for $dispatch_from {
+                type UserData = $user_data;
+
+                fn event(
+                    &mut self,
+                    proxy: &$interface,
+                    event: <$interface as $crate::Proxy>::Event,
+                    data: &Self::UserData,
+                    cxhandle: &mut $crate::ConnectionHandle,
+                    qhandle: &$crate::QueueHandle<Self>,
+                    init: &mut $crate::DataInit<'_>,
+                ) {
+                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
+                    let delegate: &mut $dispatch_to = { $closure };
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle, init)
+                }
+            }
+        )*
+    };
 }
