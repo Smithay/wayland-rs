@@ -16,6 +16,7 @@ use super::{
     we must subtract 1 to it before indexing the vec
 */
 
+#[derive(Debug)]
 struct Global<D> {
     id: GlobalId,
     interface: &'static Interface,
@@ -23,6 +24,8 @@ struct Global<D> {
     handler: Arc<dyn GlobalHandler<D>>,
     disabled: bool,
 }
+
+#[derive(Debug)]
 
 pub struct Registry<D> {
     globals: Vec<Option<Global<D>>>,

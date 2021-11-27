@@ -157,6 +157,7 @@ impl<I> New<I> {
     }
 }
 
+#[derive(Debug)]
 pub struct DataInit<'a> {
     store: &'a mut Option<(ObjectId, Arc<dyn ObjectData>)>,
 }
@@ -214,6 +215,13 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
     }
 
     fn destroyed(&self, _: ObjectId) {}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
+    }
 }
 
 struct TemporaryData;

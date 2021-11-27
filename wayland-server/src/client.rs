@@ -7,6 +7,7 @@ use wayland_backend::{
 
 use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
 
+#[derive(Debug)]
 pub struct Client {
     pub(crate) id: ClientId,
     pub(crate) data: Arc<dyn std::any::Any + Send + Sync>,

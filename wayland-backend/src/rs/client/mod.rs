@@ -62,7 +62,7 @@ impl std::fmt::Debug for dyn ObjectData {
 
 downcast_rs::impl_downcast!(sync ObjectData);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Data {
     client_destroyed: bool,
     server_destroyed: bool,
@@ -111,6 +111,7 @@ impl ObjectId {
     }
 }
 
+#[derive(Debug)]
 pub struct Handle {
     socket: BufferedSocket,
     map: ObjectMap<Data>,
@@ -120,6 +121,7 @@ pub struct Handle {
     debug: bool,
 }
 
+#[derive(Debug)]
 pub struct Backend {
     handle: Handle,
 }
