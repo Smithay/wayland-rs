@@ -1,5 +1,5 @@
 //! This crate provides bindings to the official wayland protocol extensions
-//! provided in https://cgit.freedesktop.org/wayland/wayland-protocols
+//! provided in <https://gitlab.freedesktop.org/wayland/wayland-protocols>
 //!
 //! These bindings are built on top of the crates wayland-client and wayland-server.
 //!
