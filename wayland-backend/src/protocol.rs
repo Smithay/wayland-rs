@@ -41,7 +41,7 @@ impl ArgumentType {
 
 /// Enum of possible argument of the protocol
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[allow(clippy::box_vec)]
+#[allow(clippy::box_collection)]
 pub enum Argument<Id> {
     /// An integer argument. Represented by a [`i32`].
     Int(i32),
