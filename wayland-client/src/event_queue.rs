@@ -239,7 +239,7 @@ impl ObjectData for TemporaryData {
  */
 
 pub trait DelegateDispatchBase<I: Proxy> {
-    type UserData: Default + Send + Sync + 'static;
+    type UserData: Send + Sync + 'static;
 }
 
 pub trait DelegateDispatch<
