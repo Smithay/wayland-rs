@@ -171,7 +171,7 @@ impl Display {
     /// `XDG_RUNTIME_DIR`.
     ///
     /// If a name is provided, it is used. Otherwise, if `WAYLAND_DISPLAY` environment
-    /// variable is set, its contents are used as socket name. Otherwise, `wayland-0` is used.
+    /// variable is set, its contents are used as socket name. Otherwise, `wayland-1` is used.
     ///
     /// Errors if `name` contains an interior null, or if `XDG_RUNTIME_DIR` is not set,
     /// or if specified could not be bound (either it is already used or the compositor
@@ -189,7 +189,7 @@ impl Display {
     ///
     /// Socket will be created in the directory specified by the environment variable
     /// `XDG_RUNTIME_DIR`. The directory is scanned for any name in the form `wayland-$d` with
-    /// `0 <= $d < 32` and the first available one is used.
+    /// `1 <= $d < 32` and the first available one is used.
     ///
     /// Errors if `XDG_RUNTIME_DIR` is not set, or all 32 names are already in use.
     pub fn add_socket_auto(&mut self) -> IoResult<OsString> {

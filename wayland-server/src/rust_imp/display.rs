@@ -112,7 +112,7 @@ impl DisplayInner {
                 path.push(name_path);
             }
         } else {
-            path.push("wayland-0");
+            path.push("wayland-1");
         }
 
         let listener = UnixListener::bind(path)?;
@@ -121,7 +121,7 @@ impl DisplayInner {
     }
 
     pub(crate) fn add_socket_auto(&mut self) -> io::Result<OsString> {
-        for i in 0..32 {
+        for i in 1..32 {
             let name = format!("wayland-{}", i);
             match self.add_socket(Some(&name)) {
                 Ok(()) => return Ok(name.into()),
@@ -130,7 +130,7 @@ impl DisplayInner {
         }
         Err(io::Error::new(
             io::ErrorKind::AddrInUse,
-            "All sockets from wayland-0 to wayland-31 are already in use.",
+            "All sockets from wayland-1 to wayland-31 are already in use.",
         ))
     }
 

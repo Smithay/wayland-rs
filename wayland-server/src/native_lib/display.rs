@@ -156,7 +156,7 @@ impl DisplayInner {
             let mut socket_name = get_runtime_dir()?;
             match name {
                 Some(s) => socket_name.push(s.as_ref()),
-                None => socket_name.push("wayland-0"),
+                None => socket_name.push("wayland-1"),
             }
             Err(IoError::new(
                 ErrorKind::PermissionDenied,
