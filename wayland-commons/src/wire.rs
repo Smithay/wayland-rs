@@ -52,7 +52,7 @@ pub enum ArgumentType {
 
 /// Enum of possible argument as recognized by the wire, including values
 #[derive(Clone, PartialEq, Debug)]
-#[allow(clippy::box_vec)]
+#[allow(clippy::box_collection)]
 pub enum Argument {
     /// i32
     Int(i32),
