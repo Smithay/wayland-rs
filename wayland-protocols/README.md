@@ -1,4 +1,4 @@
-[![crates.io](http://meritbadge.herokuapp.com/wayland-protocols)](https://crates.io/crates/wayland-protocols)
+[![crates.io](https://img.shields.io/crates/v/wayland-protocols.svg)](https://crates.io/crates/wayland-protocols)
 [![docs.rs](https://docs.rs/wayland-protocols/badge.svg)](https://docs.rs/wayland-protocols)
 [![Continuous Integration](https://github.com/Smithay/wayland-rs/workflows/Continuous%20Integration/badge.svg)](https://github.com/Smithay/wayland-rs/actions?query=workflow%3A%22Continuous+Integration%22)
 [![codecov](https://codecov.io/gh/Smithay/wayland-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/Smithay/wayland-rs)
