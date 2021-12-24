@@ -4,9 +4,17 @@ use wayland_backend::server::ObjectData;
 
 use crate::{Client, DisplayHandle, Resource};
 
+/// A trait which provides an implementation for handling a client's requests from a resource with some type
+/// of associated user data.
 pub trait Dispatch<I: Resource>: Sized {
+    /// The user data associated with the type of resource.
     type UserData: DestructionNotify + Send + Sync + 'static;
 
+    /// Called when a request from a client is processed.
+    ///
+    /// The implementation of this function will vary depending on what protocol is being implemented. Typically
+    /// the server may respond to clients by sending events to the resource, or some other resource stored in
+    /// the user data.
     fn request(
         &mut self,
         client: &Client,
@@ -18,7 +26,14 @@ pub trait Dispatch<I: Resource>: Sized {
     );
 }
 
+/// A trait to be implemented on user data, which indicates when an object has been destroyed by a client.
 pub trait DestructionNotify {
+    /// Called when the object this user data is associated with has been destroyed.
+    ///
+    /// Note this type only provides an immutable reference, you will need to use interior mutability to change
+    /// the inside of the object.
+    ///
+    /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
     #[cfg(not(tarpaulin_include))]
     fn object_destroyed(&self) {}
 }
@@ -59,6 +74,40 @@ impl<'a, D> DataInit<'a, D> {
         *self.store = Some(Arc::new(ResourceData::<I, _>::new(data)));
         resource.id
     }
+}
+
+/*
+ * Dispatch delegation helpers.
+ */
+
+/// The base trait used to define a delegate type to hand some type of resource.
+pub trait DelegateDispatchBase<I: Resource> {
+    /// The type of user data the delegate holds.
+    type UserData: DestructionNotify + Send + Sync + 'static;
+}
+
+/// A trait which defines a delegate to handle some type of resource.
+///
+/// This trait is useful for building modular handlers of resources.
+pub trait DelegateDispatch<
+    I: Resource,
+    D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
+>: Sized + DelegateDispatchBase<I>
+{
+    /// Called when a request from a client is processed.
+    ///
+    /// The implementation of this function will vary depending on what protocol is being implemented. Typically
+    /// the server may respond to clients by sending events to the resource, or some other resource stored in
+    /// the user data.
+    fn request(
+        &mut self,
+        client: &Client,
+        resource: &I,
+        request: I::Request,
+        data: &Self::UserData,
+        dhandle: &mut DisplayHandle<D>,
+        data_init: &mut DataInit<'_, D>,
+    );
 }
 
 impl<I, U> ResourceData<I, U> {
