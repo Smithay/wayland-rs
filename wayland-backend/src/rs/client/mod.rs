@@ -337,6 +337,19 @@ impl Backend {
                 continue;
             }
 
+            // Invoke the user callback
+            let id = ObjectId {
+                id: message.sender_id,
+                serial: receiver.data.serial,
+                interface: receiver.interface,
+            };
+            log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
+            let ret = receiver
+                .data
+                .user_data
+                .clone()
+                .event(&mut self.handle, Message { sender_id: id, opcode: message.opcode, args });
+
             // If this event is a destructor, destroy the object
             if message_desc.is_destructor {
                 self.handle
@@ -352,18 +365,6 @@ impl Backend {
                     interface: receiver.interface,
                 });
             }
-
-            // At this point, we invoke the user callback
-            let id = ObjectId {
-                id: message.sender_id,
-                serial: receiver.data.serial,
-                interface: receiver.interface,
-            };
-            log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
-            let ret = receiver
-                .data
-                .user_data
-                .event(&mut self.handle, Message { sender_id: id, opcode: message.opcode, args });
 
             match (created_id, ret) {
                 (Some(child_id), Some(child_data)) => {
