@@ -8,9 +8,16 @@ use wayland_backend::{
 
 use crate::{ConnectionHandle, DispatchError, Proxy};
 
+/// A trait which provides an implementation for handling events from the server on a proxy with some type of
+/// associated user data.
 pub trait Dispatch<I: Proxy>: Sized {
+    /// The user data associated with the type of proxy.
     type UserData: Send + Sync + 'static;
 
+    /// Called when an event from the server is processed.
+    ///
+    /// The implementation of this function may vary depending on protocol requirements. Typically the client
+    /// will respond to the server by sending requests to the proxy.
     fn event(
         &mut self,
         proxy: &I,
@@ -246,7 +253,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 
 /// A trait which defines a delegate type to handle some type of proxy.
 ///
-/// This trait is useful for building composable handlers of proxies.
+/// This trait is useful for building modular handlers of proxies.
 ///
 /// ## Usage
 ///
@@ -291,6 +298,10 @@ pub trait DelegateDispatch<
     D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
 >: Sized + DelegateDispatchBase<I>
 {
+    /// Called when an event from the server is processed.
+    ///
+    /// The implementation of this function may vary depending on protocol requirements. Typically the client
+    /// will respond to the server by sending requests to the proxy.
     fn event(
         &mut self,
         proxy: &I,
