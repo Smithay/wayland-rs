@@ -21,7 +21,7 @@ where
     // it's safe as it'll only last until the end of this function call anyway
     let fb = unsafe { std::mem::transmute(&mut fb as &mut dyn FnMut(_, _, _)) };
     let data = unsafe { std::mem::transmute(data) };
-    DISPATCH_METADATA.set(&RefCell::new((fb, data)), || f())
+    DISPATCH_METADATA.set(&RefCell::new((fb, data)), f)
 }
 
 pub(crate) struct EventQueueInner {
