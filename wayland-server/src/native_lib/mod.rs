@@ -52,5 +52,5 @@ where
     // We erase the lifetime of the callback to be able to store it in the tls,
     // it's safe as it'll only last until the end of this function call anyway
     let data = unsafe { std::mem::transmute(data) };
-    DISPATCH_DATA.set(&RefCell::new(data), || f())
+    DISPATCH_DATA.set(&RefCell::new(data), f)
 }
