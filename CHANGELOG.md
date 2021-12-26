@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- [client] Fix a case of possible dereferencing of nullptr
+
 ## 0.29.1 -- 2021-10-17
 
 #### Additions

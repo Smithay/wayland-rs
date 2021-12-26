@@ -90,11 +90,17 @@ impl DisplayInner {
                     &mut id
                 )
             };
-            let interface_name = unsafe { ::std::ffi::CStr::from_ptr((*interface).name) };
+            let interface_name = if !interface.is_null() {
+                unsafe { ::std::ffi::CStr::from_ptr((*interface).name) }
+                    .to_str()
+                    .unwrap_or("<unknown>")
+            } else {
+                "<unknown>"
+            };
             Some(crate::ProtocolError {
                 code,
                 object_id: id,
-                object_interface: interface_name.to_str().unwrap_or("<unknown>"),
+                object_interface: interface_name,
                 message: String::new(),
             })
         } else {
