@@ -49,3 +49,9 @@ impl Client {
         handle.inner.handle().kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }
 }
+
+impl PartialEq for Client {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && Arc::ptr_eq(&self.data, &other.data)
+    }
+}
