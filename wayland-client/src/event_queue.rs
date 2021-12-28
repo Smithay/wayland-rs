@@ -33,10 +33,11 @@ type QueueCallback<D> = fn(
     &mut ConnectionHandle<'_>,
     Message<ObjectId>,
     &mut D,
+    Arc<dyn ObjectData>,
     &QueueHandle<D>,
 ) -> Result<(), DispatchError>;
 
-struct QueueEvent<D>(QueueCallback<D>, Message<ObjectId>);
+struct QueueEvent<D>(QueueCallback<D>, Message<ObjectId>, Arc<dyn ObjectData>);
 
 #[cfg(not(tarpaulin_include))]
 impl<D> std::fmt::Debug for QueueEvent<D> {
@@ -104,8 +105,8 @@ impl<D> EventQueue<D> {
         let mut handle = ConnectionHandle::from_handle(backend.handle());
         let mut dispatched = 0;
 
-        while let Ok(Some(QueueEvent(cb, msg))) = rx.try_next() {
-            cb(&mut handle, msg, data, qhandle)?;
+        while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
+            cb(&mut handle, msg, data, odata, qhandle)?;
             dispatched += 1;
         }
         Ok(dispatched)
@@ -135,15 +136,15 @@ pub(crate) struct QueueSender<D> {
 }
 
 pub(crate) trait ErasedQueueSender<I> {
-    fn send(&self, msg: Message<ObjectId>);
+    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>);
 }
 
 impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D>
 where
     D: Dispatch<I>,
 {
-    fn send(&self, msg: Message<ObjectId>) {
-        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg)).is_err() {
+    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
+        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
             log::error!("Event received for EventQueue after it was dropped.");
         }
     }
@@ -193,17 +194,26 @@ impl<'a> DataInit<'a> {
     }
 }
 
-fn queue_callback<I: Proxy, D: Dispatch<I> + 'static>(
+fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
     handle: &mut ConnectionHandle<'_>,
     msg: Message<ObjectId>,
     data: &mut D,
+    odata: Arc<dyn ObjectData>,
     qhandle: &QueueHandle<D>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let udata =
-        proxy.data::<<D as Dispatch<I>>::UserData>().expect("Wrong user_data value for object");
+    let proxy_data = (&*odata)
+        .downcast_ref::<QueueProxyData<I, <D as Dispatch<I>>::UserData>>()
+        .expect("Wrong user_data value for object");
     let mut new_data = None;
-    data.event(&proxy, event, udata, handle, qhandle, &mut DataInit { store: &mut new_data });
+    data.event(
+        &proxy,
+        event,
+        &proxy_data.udata,
+        handle,
+        qhandle,
+        &mut DataInit { store: &mut new_data },
+    );
     if let Some((id, data)) = new_data {
         handle.inner.handle().set_data(id, data).unwrap();
     }
@@ -226,7 +236,7 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
         } else {
             None
         };
-        self.sender.send(msg);
+        self.sender.send(msg, self.clone());
         ret
     }
 
