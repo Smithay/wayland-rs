@@ -95,7 +95,7 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
         client.event_queue.dispatch_pending(client_ddata).unwrap();
-        let e = client.cx.dispatch_events();
+        let e = client.cx.prepare_read().and_then(|guard| guard.read());
         // even if read_events returns an error, some messages may need dispatching
         client.event_queue.dispatch_pending(client_ddata).unwrap();
         e?;

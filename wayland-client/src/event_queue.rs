@@ -76,13 +76,22 @@ impl<D> EventQueue<D> {
     }
 
     pub fn blocking_dispatch(&mut self, data: &mut D) -> Result<usize, DispatchError> {
-        let mut backend = self.backend.lock().unwrap();
-        let dispatched = Self::dispatching_impl(&mut backend, &mut self.rx, &self.handle, data)?;
+        let dispatched = Self::dispatching_impl(
+            &mut self.backend.lock().unwrap(),
+            &mut self.rx,
+            &self.handle,
+            data,
+        )?;
         if dispatched > 0 {
             Ok(dispatched)
         } else {
-            crate::cx::blocking_dispatch_impl(&mut backend)?;
-            Self::dispatching_impl(&mut backend, &mut self.rx, &self.handle, data)
+            crate::cx::blocking_dispatch_impl(self.backend.clone())?;
+            Self::dispatching_impl(
+                &mut self.backend.lock().unwrap(),
+                &mut self.rx,
+                &self.handle,
+                data,
+            )
         }
     }
 
