@@ -1,6 +1,4 @@
-use wayland_client::{
-    protocol::wl_registry, Connection, ConnectionHandle, DataInit, Dispatch, QueueHandle,
-};
+use wayland_client::{protocol::wl_registry, Connection, ConnectionHandle, Dispatch, QueueHandle};
 
 struct AppData;
 
@@ -14,7 +12,6 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<AppData>,
-        _: &mut DataInit<'_>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
             eprintln!("[{}] {} (v{})", name, interface, version);

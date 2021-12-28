@@ -66,12 +66,7 @@ pub mod wl_callback {
             cx: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
@@ -207,12 +202,7 @@ pub mod test_global {
             cx: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
@@ -493,12 +483,7 @@ pub mod secondary {
             cx: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {
@@ -587,12 +572,7 @@ pub mod tertiary {
             cx: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {
@@ -681,12 +661,7 @@ pub mod quad {
             cx: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {

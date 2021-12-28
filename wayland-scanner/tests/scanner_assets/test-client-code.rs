@@ -5,7 +5,7 @@ pub mod wl_display {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
@@ -110,12 +110,7 @@ pub mod wl_display {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Object(object_id), Argument::Uint(code), Argument::Str(message)] =
@@ -214,7 +209,7 @@ pub mod wl_registry {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -284,12 +279,7 @@ pub mod wl_registry {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(name), Argument::Str(interface), Argument::Uint(version)] =
@@ -364,7 +354,7 @@ pub mod wl_callback {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
@@ -425,12 +415,7 @@ pub mod wl_callback {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(callback_data)] = &msg.args[..] {
@@ -458,7 +443,7 @@ pub mod test_global {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -513,7 +498,7 @@ pub mod test_global {
         #[doc = "acking the creation of a secondary"]
         AckSecondary { sec: super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
-        CycleQuad { new_quad: New<super::quad::Quad>, old_quad: Option<super::quad::Quad> },
+        CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
     }
     #[derive(Debug, Clone)]
     pub struct TestGlobal {
@@ -562,12 +547,7 @@ pub mod test_global {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
@@ -617,20 +597,18 @@ pub mod test_global {
                         Ok((
                             me,
                             Event::CycleQuad {
-                                new_quad: New::wrap(
-                                    match <super::quad::Quad as Proxy>::from_id(
-                                        cx,
-                                        new_quad.clone(),
-                                    ) {
-                                        Ok(p) => p,
-                                        Err(_) => {
-                                            return Err(DispatchError::BadMessage {
-                                                msg,
-                                                interface: Self::interface().name,
-                                            })
-                                        }
-                                    },
-                                ),
+                                new_quad: match <super::quad::Quad as Proxy>::from_id(
+                                    cx,
+                                    new_quad.clone(),
+                                ) {
+                                    Ok(p) => p,
+                                    Err(_) => {
+                                        return Err(DispatchError::BadMessage {
+                                            msg,
+                                            interface: Self::interface().name,
+                                        })
+                                    }
+                                },
                                 old_quad: if old_quad.is_null() {
                                     None
                                 } else {
@@ -803,7 +781,7 @@ pub mod secondary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -864,12 +842,7 @@ pub mod secondary {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
@@ -901,7 +874,7 @@ pub mod tertiary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -962,12 +935,7 @@ pub mod tertiary {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
@@ -999,7 +967,7 @@ pub mod quad {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId,
         },
-        ConnectionHandle, Dispatch, DispatchError, New, Proxy, QueueHandle, QueueProxyData,
+        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -1060,12 +1028,7 @@ pub mod quad {
             cx: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = match Self::from_id(cx, msg.sender_id.clone()) {
-                Ok(me) => me,
-                Err(_) => {
-                    return Err(DispatchError::NoHandler { msg, interface: Self::interface().name })
-                }
-            };
+            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }

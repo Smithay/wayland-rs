@@ -209,7 +209,7 @@ pub(crate) fn gen_message_enum(
                                 let iface_mod = Ident::new(iface, Span::call_site());
                                 let iface_type =
                                     Ident::new(&snake_to_camel(iface), Span::call_site());
-                                if receiver {
+                                if receiver && side == Side::Server {
                                     quote! { New<super::#iface_mod::#iface_type> }
                                 } else {
                                     quote! { super::#iface_mod::#iface_type }
@@ -360,15 +360,31 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                                 }
                             }
                         } else {
-                            quote! { New::wrap(#arg_name.clone()) }
+                            if side == Side::Server {
+                                quote! { New::wrap(#arg_name.clone()) }
+                            } else {
+                                quote! { #arg_name.clone() }
+                            }
                         };
                         if arg.allow_null {
-                            quote! {
-                                #arg_name: if #arg_name.is_null() { None } else { Some(New::wrap(#create_proxy)) }
+                            if side == Side::Server {
+                                quote! {
+                                    #arg_name: if #arg_name.is_null() { None } else { Some(New::wrap(#create_proxy)) }
+                                }
+                            } else {
+                                quote! {
+                                    #arg_name: if #arg_name.is_null() { None } else { Some(#create_proxy) }
+                                }
                             }
                         } else {
-                            quote! {
-                                #arg_name: New::wrap(#create_proxy)
+                            if side == Side::Server {
+                                quote! {
+                                    #arg_name: New::wrap(#create_proxy)
+                                }
+                            } else  {
+                                quote! {
+                                    #arg_name: #create_proxy
+                                }
                             }
                         }
                     },
@@ -396,10 +412,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
     });
 
     quote! {
-        let me = match Self::from_id(cx, msg.sender_id.clone()) {
-            Ok(me) => me,
-            Err(_) => return Err(DispatchError::NoHandler { msg, interface: Self::interface().name }),
-        };
+        let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
         match msg.opcode {
             #(#match_arms),*
             _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),

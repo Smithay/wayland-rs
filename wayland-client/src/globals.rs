@@ -1,17 +1,29 @@
+//! Helpers for listing and bindings globals
+
 use std::ops::Range;
 
 use crate::{
-    event_queue::DataInit, protocol::wl_registry, ConnectionHandle, DelegateDispatch,
-    DelegateDispatchBase, Dispatch, Proxy, QueueHandle,
+    protocol::wl_registry, ConnectionHandle, DelegateDispatch, DelegateDispatchBase, Dispatch,
+    Proxy, QueueHandle,
 };
 
+/// Descritpion of an advertized global
 #[derive(Debug)]
 pub struct GlobalDescription {
+    /// identifier of this global
     pub name: u32,
+    /// interface name
     pub interface: String,
+    /// advertized version
     pub version: u32,
 }
 
+/// A helper to retrieve a list of globals and bind them
+///
+/// The `GlobalList` can be used as a [`Dispatch`](crate::Dispatch) target for the `wl_registry`. It
+/// maintains a list of globals advertized by the compositor, and provides a way to bind according to
+/// specified verison requirements. It is an easy way to ensure at startup that the server advertized
+/// all the globals your app needs, and bind them all at once.
 #[derive(Debug)]
 pub struct GlobalList {
     globals: Vec<GlobalDescription>,
@@ -32,7 +44,6 @@ where
         _: &(),
         _: &mut crate::ConnectionHandle,
         _: &crate::QueueHandle<D>,
-        _: &mut crate::DataInit<'_>,
     ) {
         match event {
             wl_registry::Event::Global { name, interface, version } => {
@@ -56,10 +67,9 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
-        init: &mut DataInit<'_>,
     ) {
         <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
-            self, proxy, event, data, cxhandle, qhandle, init,
+            self, proxy, event, data, cxhandle, qhandle,
         )
     }
 }
@@ -71,14 +81,20 @@ impl Default for GlobalList {
 }
 
 impl GlobalList {
+    /// Create a new `GLobalList`
     pub fn new() -> GlobalList {
         GlobalList { globals: Vec::new() }
     }
 
+    /// Access the list of currently advertized globals
     pub fn list(&self) -> &[GlobalDescription] {
         &self.globals
     }
 
+    /// Bind a global
+    ///
+    /// You can specify the requested interface as type parameter, and the version range. You
+    /// also need to provide the user data value that will be set for the newly created object.
     pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
         &self,
         cx: &mut ConnectionHandle<'_>,
@@ -109,10 +125,23 @@ impl GlobalList {
     }
 }
 
+/// Error when trying to bind a global
 #[derive(Debug, thiserror::Error)]
 pub enum BindError {
+    /// The requested global was not advertized by the server
     #[error("Requested global was not advertized by the server: {interface}")]
-    MissingGlobal { interface: &'static str },
+    MissingGlobal {
+        /// The requested interface
+        interface: &'static str,
+    },
+    /// The version advertized by the server did not fit in the requested range
     #[error("Global {interface} has version {got}, which is outside of the requested range ({requested:?})")]
-    WrongVersion { interface: &'static str, requested: Range<u32>, got: u32 },
+    WrongVersion {
+        /// The requested interface
+        interface: &'static str,
+        /// The requested version range
+        requested: Range<u32>,
+        /// The advertized version
+        got: u32,
+    },
 }

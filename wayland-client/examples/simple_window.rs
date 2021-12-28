@@ -5,7 +5,7 @@ use wayland_client::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
-    Connection, ConnectionHandle, DataInit, Dispatch, QueueHandle, WEnum,
+    Connection, ConnectionHandle, Dispatch, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -54,7 +54,6 @@ impl Dispatch<wl_registry::WlRegistry> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let wl_registry::Event::Global { name, interface, .. } = event {
             match &interface[..] {
@@ -127,7 +126,6 @@ impl Dispatch<wl_compositor::WlCompositor> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         // wl_compositor has no event
     }
@@ -143,7 +141,6 @@ impl Dispatch<wl_surface::WlSurface> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_surface events in this example
     }
@@ -159,7 +156,6 @@ impl Dispatch<wl_shm::WlShm> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_shm events in this example
     }
@@ -175,7 +171,6 @@ impl Dispatch<wl_shm_pool::WlShmPool> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_shm_pool events in this example
     }
@@ -191,7 +186,6 @@ impl Dispatch<wl_buffer::WlBuffer> for State {
         _: &Self::UserData,
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         // we ignore wl_buffer events in this example
     }
@@ -239,7 +233,6 @@ impl Dispatch<xdg_wm_base::XdgWmBase> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let xdg_wm_base::Event::Ping { serial } = event {
             wm_base.pong(cx, serial);
@@ -257,7 +250,6 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(cx, serial);
@@ -281,7 +273,6 @@ impl Dispatch<xdg_toplevel::XdgToplevel> for State {
         _: &(),
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let xdg_toplevel::Event::Close {} = event {
             self.running = false;
@@ -299,7 +290,6 @@ impl Dispatch<wl_seat::WlSeat> for State {
         _: &(),
         cx: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
@@ -319,7 +309,6 @@ impl Dispatch<wl_keyboard::WlKeyboard> for State {
         _: &(),
         _: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
-        _: &mut DataInit<'_>,
     ) {
         if let wl_keyboard::Event::Key { key, .. } = event {
             if key == 1 {
