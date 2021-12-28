@@ -11,7 +11,7 @@ use std::{
 };
 
 use wayland_backend::{
-    client::{Backend, Handle, InvalidId, ObjectData, ObjectId, WaylandError},
+    client::{Backend, Handle, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::{Interface, ObjectInfo},
 };
 
@@ -81,18 +81,18 @@ impl Connection {
         self.backend.lock().unwrap().flush()
     }
 
-    pub fn dispatch_events(&self) -> Result<usize, WaylandError> {
-        self.backend.lock().unwrap().dispatch_events()
+    pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
+        ReadEventsGuard::try_new(self.backend.clone())
     }
 
     pub fn blocking_dispatch(&self) -> Result<usize, WaylandError> {
-        blocking_dispatch_impl(&mut self.backend.lock().unwrap())
+        blocking_dispatch_impl(self.backend.clone())
     }
 
     pub fn roundtrip(&self) -> Result<usize, WaylandError> {
-        let mut backend = self.backend.lock().unwrap();
         let done = Arc::new(AtomicBool::new(false));
         {
+            let mut backend = self.backend.lock().unwrap();
             let mut handle = ConnectionHandle::from_handle(backend.handle());
             let display = handle.display();
             let cb_done = done.clone();
@@ -109,7 +109,7 @@ impl Connection {
         let mut dispatched = 0;
 
         while !done.load(Ordering::Acquire) {
-            dispatched += blocking_dispatch_impl(&mut backend)?;
+            dispatched += blocking_dispatch_impl(self.backend.clone())?;
         }
 
         Ok(dispatched)
@@ -120,20 +120,16 @@ impl Connection {
     }
 }
 
-pub(crate) fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, WaylandError> {
-    backend.flush()?;
+pub(crate) fn blocking_dispatch_impl(backend: Arc<Mutex<Backend>>) -> Result<usize, WaylandError> {
+    backend.lock().unwrap().flush()?;
 
-    // first, try to dispatch
-    match backend.dispatch_events() {
-        Ok(n) => return Ok(n),
-        Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => {}
-        Err(e) => return Err(e),
-    }
+    // first, prepare the read
+    let guard = ReadEventsGuard::try_new(backend)?;
 
     // there is nothing to dispatch, wait for readiness
     loop {
         let mut fds = [nix::poll::PollFd::new(
-            backend.connection_fd(),
+            guard.connection_fd(),
             nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
         )];
         match nix::poll::poll(&mut fds, -1) {
@@ -144,7 +140,7 @@ pub(crate) fn blocking_dispatch_impl(backend: &mut Backend) -> Result<usize, Way
     }
 
     // at this point the fd is ready
-    match backend.dispatch_events() {
+    match guard.read() {
         Ok(n) => Ok(n),
         // if we are still "wouldblock", that means that there was a dispatch from an other
         // thread with the C-based backend, spuriously return 0.

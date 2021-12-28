@@ -5,7 +5,7 @@ use std::{
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 
@@ -222,10 +222,6 @@ impl Backend {
         })
     }
 
-    pub fn connection_fd(&self) -> RawFd {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.handle.display) }
-    }
-
     pub fn flush(&mut self) -> Result<(), WaylandError> {
         self.handle.no_last_error()?;
         let ret =
@@ -239,6 +235,8 @@ impl Backend {
         }
     }
 
+    /// **Note:** this function should only be used if you know that you are the only thread
+    /// reading events from the wayland socket. If this may not be the case, see `ReadEventsGuard`
     pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
         self.handle.no_last_error()?;
         self.handle.try_read()?;
@@ -354,6 +352,79 @@ impl Handle {
             Err(self.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             Ok(())
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReadEventsGuard {
+    backend: Arc<Mutex<Backend>>,
+    display: *mut wl_display,
+    done: bool,
+}
+
+impl ReadEventsGuard {
+    pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
+        let mut backend_guard = backend.lock().unwrap();
+        let display = backend_guard.handle.display;
+        let evq = backend_guard.handle.evq;
+
+        // do the prepare_read() and dispatch as necessary
+        loop {
+            let ret = unsafe {
+                if evq.is_null() {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, display)
+                } else {
+                    ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_display_prepare_read_queue,
+                        display,
+                        evq
+                    )
+                }
+            };
+            if ret < 0 {
+                backend_guard.handle.dispatch_pending()?;
+            } else {
+                break;
+            }
+        }
+
+        std::mem::drop(backend_guard);
+
+        // prepare_read is done, we are ready
+        Ok(ReadEventsGuard { backend, display, done: false })
+    }
+
+    pub fn connection_fd(&self) -> RawFd {
+        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
+    }
+
+    pub fn read(mut self) -> Result<usize, WaylandError> {
+        self.done = true;
+        let ret =
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
+        if ret < 0 {
+            // we have done the reading, and there is an error
+            Err(self
+                .backend
+                .lock()
+                .unwrap()
+                .handle
+                .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
+        } else {
+            // the read occured, dispatch pending events
+            self.backend.lock().unwrap().handle.dispatch_pending()
+        }
+    }
+}
+
+impl Drop for ReadEventsGuard {
+    fn drop(&mut self) {
+        if !self.done {
+            unsafe {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_cancel_read, self.display);
+            }
         }
     }
 }

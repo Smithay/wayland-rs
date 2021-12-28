@@ -4,7 +4,7 @@ use std::{
         io::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
         net::UnixStream,
     },
-    sync::Arc,
+    sync::{Arc, Condvar, Mutex},
 };
 
 use crate::{
@@ -124,6 +124,9 @@ pub struct Handle {
 #[derive(Debug)]
 pub struct Backend {
     handle: Handle,
+    prepared_reads: usize,
+    read_condvar: Arc<Condvar>,
+    read_serial: usize,
 }
 
 impl Backend {
@@ -157,11 +160,10 @@ impl Backend {
                 pending_placeholder: None,
                 debug,
             },
+            prepared_reads: 0,
+            read_condvar: Arc::new(Condvar::new()),
+            read_serial: 0,
         })
-    }
-
-    pub fn connection_fd(&self) -> RawFd {
-        self.handle.socket.as_raw_fd()
     }
 
     pub fn flush(&mut self) -> Result<(), WaylandError> {
@@ -172,6 +174,8 @@ impl Backend {
         Ok(())
     }
 
+    /// **Note:** this function should only be used if you know that you are the only thread
+    /// reading events from the wayland socket. If this may not be the case, see `ReadEventsGuard`
     pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
         self.handle.no_last_error()?;
         let mut dispatched = 0;
@@ -392,6 +396,59 @@ impl Backend {
 
     pub fn handle(&mut self) -> &mut Handle {
         &mut self.handle
+    }
+}
+
+#[derive(Debug)]
+pub struct ReadEventsGuard {
+    backend: Arc<Mutex<Backend>>,
+    done: bool,
+}
+
+impl ReadEventsGuard {
+    pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
+        backend.lock().unwrap().prepared_reads += 1;
+        Ok(ReadEventsGuard { backend, done: false })
+    }
+
+    pub fn connection_fd(&self) -> RawFd {
+        self.backend.lock().unwrap().handle.socket.as_raw_fd()
+    }
+
+    pub fn read(mut self) -> Result<usize, WaylandError> {
+        let mut backend = self.backend.lock().unwrap();
+        backend.prepared_reads -= 1;
+        self.done = true;
+        if backend.prepared_reads == 0 {
+            // We should be the one reading
+            let ret = backend.dispatch_events();
+            // wake up other threads
+            backend.read_serial = backend.read_serial.wrapping_add(1);
+            backend.read_condvar.notify_all();
+            // forward the return value
+            ret
+        } else {
+            // We should wait for an other thread to read (or cancel)
+            let serial = backend.read_serial;
+            let condvar = backend.read_condvar.clone();
+            backend = condvar.wait_while(backend, |backend| serial == backend.read_serial).unwrap();
+            backend.handle.no_last_error()?;
+            Ok(0)
+        }
+    }
+}
+
+impl Drop for ReadEventsGuard {
+    fn drop(&mut self) {
+        if !self.done {
+            let mut backend = self.backend.lock().unwrap();
+            backend.prepared_reads -= 1;
+            if backend.prepared_reads == 0 {
+                // Cancel the read
+                backend.read_serial = backend.read_serial.wrapping_add(1);
+                backend.read_condvar.notify_all();
+            }
+        }
     }
 }
 
