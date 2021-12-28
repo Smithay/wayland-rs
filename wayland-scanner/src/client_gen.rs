@@ -45,7 +45,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             use super::wayland_client::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
-                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError, New
+                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
             };
 
             #enums

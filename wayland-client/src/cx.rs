@@ -19,16 +19,25 @@ use nix::{fcntl, Error};
 
 use crate::{EventQueue, Proxy};
 
+/// The Wayland connection
+///
+/// This is the main type representing your connection to the Wayland server. Most operations require
+/// access to either this type or the [`ConnectionHandle`], which can be accessed through the
+/// [`handle()`](Connection::handle) method, and is given to you in most callbacks.
 #[derive(Debug, Clone)]
 pub struct Connection {
     backend: Arc<Mutex<Backend>>,
 }
 
 impl Connection {
+    /// Access the connection handle
     pub fn handle(&self) -> ConnectionHandle {
         ConnectionHandle { inner: HandleInner::Guard(self.backend.lock().unwrap()) }
     }
 
+    /// Try to connect to the Wayland server following the environment
+    ///
+    /// This is the standard way to initialize a Wayland connection.
     pub fn connect_to_env() -> Result<Connection, ConnectError> {
         let stream = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
@@ -64,31 +73,58 @@ impl Connection {
         Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
     }
 
+    /// Initialize a Wayland connection from an already existing Unix stream
     pub fn from_socket(stream: UnixStream) -> Result<Connection, ConnectError> {
         let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
         Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
     }
 
+    /// Wrap an existing [`Backend`] into a Connection
     pub fn from_backend(backend: Arc<Mutex<Backend>>) -> Connection {
         Connection { backend }
     }
 
+    /// Get the [`Backend`] underlying this Connection
     pub fn backend(&self) -> Arc<Mutex<Backend>> {
         self.backend.clone()
     }
 
+    /// Flush pending outgoing events to the server
+    ///
+    /// This needs to be done regularly to ensure the server receives all your requests.
     pub fn flush(&self) -> Result<(), WaylandError> {
         self.backend.lock().unwrap().flush()
     }
 
+    /// Start a synchronized read from the socket
+    ///
+    /// This is needed if you plan to wait on readiness of the Wayland socket using an event
+    /// loop. See [`ReadEventsGuard`] for details. Once the events are received, you'll then
+    /// need to dispatch them from the event queue using
+    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
+    ///
+    /// If you don't need to manage multiple event sources, see
+    /// [`blocking_dispatch()`](Connection::blocking_dispatch) for a simpler mechanism.
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
         ReadEventsGuard::try_new(self.backend.clone())
     }
 
+    /// Block until events are received from the server
+    ///
+    /// This will flush the outgoing socket, and then block until events are received from the
+    /// server and read them. You'll then need to invoke
+    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending) to dispatch them on
+    /// their respective event queues. Alternatively,
+    /// [`EventQueue::blocking_dispatch()`](EventQueue::blocking_dispatch) does both.
     pub fn blocking_dispatch(&self) -> Result<usize, WaylandError> {
         blocking_dispatch_impl(self.backend.clone())
     }
 
+    /// Do a roundtrip to the server
+    ///
+    /// This method will block until the Wayland server has processed and answered all your
+    /// preceding requests. This is notably useful during the initial setup of an app, to wait for
+    /// the initial state from the server.
     pub fn roundtrip(&self) -> Result<usize, WaylandError> {
         let done = Arc::new(AtomicBool::new(false));
         {
@@ -115,6 +151,7 @@ impl Connection {
         Ok(dispatched)
     }
 
+    /// Create a new event queue
     pub fn new_event_queue<D>(&self) -> EventQueue<D> {
         EventQueue::new(self.backend.clone())
     }
@@ -149,6 +186,7 @@ pub(crate) fn blocking_dispatch_impl(backend: Arc<Mutex<Backend>>) -> Result<usi
     }
 }
 
+/// A handle to the Wayland connection
 #[derive(Debug)]
 pub struct ConnectionHandle<'a> {
     pub(crate) inner: HandleInner<'a>,
@@ -175,6 +213,16 @@ impl<'a> ConnectionHandle<'a> {
         ConnectionHandle { inner: HandleInner::Handle(handle) }
     }
 
+    /// Get the `WlDisplay` associated with this connection
+    pub fn display(&mut self) -> crate::protocol::wl_display::WlDisplay {
+        let display_id = self.inner.handle().display_id();
+        Proxy::from_id(self, display_id).unwrap()
+    }
+
+    /// Send a request associated with the provided object
+    ///
+    /// This is a low-level interface for sending requests, you will likely instead use
+    /// the methods of the types representing each interface.
     pub fn send_request<I: Proxy>(
         &mut self,
         proxy: &I,
@@ -185,23 +233,31 @@ impl<'a> ConnectionHandle<'a> {
         self.inner.handle().send_request(msg, data)
     }
 
-    pub fn display(&mut self) -> crate::protocol::wl_display::WlDisplay {
-        let display_id = self.inner.handle().display_id();
-        Proxy::from_id(self, display_id).unwrap()
-    }
-
+    /// Create a placeholder id for request serialization
+    ///
+    /// This is a low-level interface for sending requests, you don't need to use it if you
+    /// are using the methods of the types representing each interface.
     pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
         self.inner.handle().placeholder_id(spec)
     }
 
+    /// Create a null id for request serialization
+    ///
+    /// This is a low-level interface for sending requests, you don't need to use it if you
+    /// are using the methods of the types representing each interface.
     pub fn null_id(&mut self) -> ObjectId {
         self.inner.handle().null_id()
     }
 
+    /// Get the object data for a given object ID
+    ///
+    /// This is a low-level interface, a higher-level interface for manipulating object data
+    /// is given as [`Proxy::data()`](crate::Proxy::data).
     pub fn get_object_data(&mut self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         self.inner.handle().get_data(id)
     }
 
+    /// Get the protocol information related to given object ID
     pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.inner.handle().info(id)
     }

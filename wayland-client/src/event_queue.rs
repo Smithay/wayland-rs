@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use wayland_backend::{
     client::{Backend, Handle, ObjectData, ObjectId},
-    protocol::{AllowNull, ArgumentType, Message},
+    protocol::Message,
 };
 
 use crate::{ConnectionHandle, DispatchError, Proxy};
@@ -25,8 +25,71 @@ pub trait Dispatch<I: Proxy>: Sized {
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
-        init: &mut DataInit<'_>,
     );
+
+    /// Method used to initialize the user-data of objects created by events
+    ///
+    /// If the interface does not have any such event, you can ignore it. If not, the
+    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<Self>) -> Arc<dyn ObjectData> {
+        panic!(
+            "Missing event_created_child specialization for event opcode {} of {}",
+            opcode,
+            I::interface().name
+        );
+    }
+}
+
+/// Macro used to override [`Dispatch::event_created_child()`](Dispatch::event_created_child)
+///
+/// Use this macro inside the [`Dispatch`] implementation to override this method, to implement the
+/// initialization of the user data for event-created objects. The usage syntax is as follow:
+///
+/// ```ignore
+/// impl Dispatch<WlFoo> for MyState {
+///     type UserData = FooUserData;
+///
+///     fn event(
+///         &mut self,
+///         proxy: &WlFoo,
+///         event: FooEvent,
+///         data: &FooUserData,
+///         cxhandle: &mut ConnectionHandle,
+///         qhandle: &QueueHandle<MyState>
+///     ) {
+///         /* ... */
+///     }
+///
+///     event_created_child!(MyState, WlFoo, [
+///     // there can be multiple lines if this interface has multiple object-creating event
+///         2 => (WlBar, BarUserData::new()),
+///     //  ~     ~~~~~  ~~~~~~~~~~~~~~~~~~
+///     //  |       |       |
+///     //  |       |       +-- an expression whose evaluation produces the user data value
+///     //  |       +-- the type of the newly created objecy
+///     //  +-- the opcode of the event that creates a new object
+///     ]);
+/// }
+/// ```
+#[macro_export]
+macro_rules! event_created_child {
+    ($selftype:ty, $iface:ty, [$($opcode:expr => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+        fn event_created_child(
+            opcode: u16,
+            qhandle: &$crate::QueueHandle<Self>
+        ) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
+            match opcode {
+                $(
+                    $opcode => {
+                        qhandle.make_data::<$child_iface>({$child_udata})
+                    },
+                )*
+                _ => {
+                    panic!("Missing event_created_child specialization for event opcode {} of {}", opcode, <$iface as $crate::Proxy>::interface().name);
+                },
+            }
+        }
+    }
 }
 
 type QueueCallback<D> = fn(
@@ -46,6 +109,16 @@ impl<D> std::fmt::Debug for QueueEvent<D> {
     }
 }
 
+/// An event queue
+///
+/// This is an abstraction for handling event dispatching, that allows you to ensure
+/// access to some common state `&mut D` to your event handlers.
+///
+/// Event queues are created through [`Connection::new_event_queue()`](crate::Connection::new_event_queue).
+/// Upon creation, a wayland object is assigned to an event queue by passing the associated [`QueueHandle`]
+/// as argument to the method creating it. All event received by that object will be processed by that event
+/// queue, when [`dispatch_pending()`](EventQueue::dispatch_pending) or
+/// [`blocking_dispatch()`](EventQueue::blocking_dispatch) is invoked.
 pub struct EventQueue<D> {
     rx: UnboundedReceiver<QueueEvent<D>>,
     handle: QueueHandle<D>,
@@ -68,14 +141,27 @@ impl<D> EventQueue<D> {
         EventQueue { rx, handle: QueueHandle { tx }, backend }
     }
 
+    /// Get a [`QueueHandle`] for this event queue
     pub fn handle(&self) -> QueueHandle<D> {
         self.handle.clone()
     }
 
+    /// Dispatch pending events
+    ///
+    /// Events are accumulated in the event queue internal buffer when the Wayland socket is read using
+    /// the read APIs on [`Connection`](crate::Connection), or when reading is done from an other thread.
+    /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
+    /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
     pub fn dispatch_pending(&mut self, data: &mut D) -> Result<usize, DispatchError> {
         Self::dispatching_impl(&mut self.backend.lock().unwrap(), &mut self.rx, &self.handle, data)
     }
 
+    /// Block waiting for events and dispatch them
+    ///
+    /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending), but if there are no
+    /// pending events it will also block waiting for the Wayland server to send an event.
+    ///
+    /// A simple app event loop can consist in invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut D) -> Result<usize, DispatchError> {
         let dispatched = Self::dispatching_impl(
             &mut self.backend.lock().unwrap(),
@@ -113,6 +199,7 @@ impl<D> EventQueue<D> {
     }
 }
 
+/// A handle representing an [`EventQueue`], used to assign objects upon creation.
 pub struct QueueHandle<D> {
     tx: UnboundedSender<QueueEvent<D>>,
 }
@@ -151,6 +238,11 @@ where
 }
 
 impl<D: 'static> QueueHandle<D> {
+    /// Create an object data associated with this event queue
+    ///
+    /// This creates an implementation of [`ObjectData`] fitting for direct use with `wayland-backend` APIs
+    /// that forwards all events to the event queue associated with this token, integrating the object into
+    /// the [`Dispatch`]-based logic of `wayland-client`.
     pub fn make_data<I: Proxy + 'static>(
         &self,
         user_data: <D as Dispatch<I>>::UserData,
@@ -159,38 +251,19 @@ impl<D: 'static> QueueHandle<D> {
         D: Dispatch<I>,
     {
         let sender = Box::new(QueueSender { func: queue_callback::<I, D>, handle: self.clone() });
-        Arc::new(QueueProxyData { sender, udata: user_data })
-    }
-}
 
-#[derive(Debug)]
-pub struct New<I> {
-    id: I,
-}
+        let has_creating_event =
+            I::interface().events.iter().any(|desc| desc.child_interface.is_some());
 
-impl<I> New<I> {
-    pub fn wrap(id: I) -> New<I> {
-        New { id }
-    }
-}
-
-#[derive(Debug)]
-pub struct DataInit<'a> {
-    store: &'a mut Option<(ObjectId, Arc<dyn ObjectData>)>,
-}
-
-impl<'a> DataInit<'a> {
-    pub fn init<I: Proxy + 'static, D>(
-        &mut self,
-        resource: New<I>,
-        data: <D as Dispatch<I>>::UserData,
-        qhandle: &QueueHandle<D>,
-    ) -> I
-    where
-        D: Dispatch<I> + 'static,
-    {
-        *self.store = Some((resource.id.id(), qhandle.make_data(data)));
-        resource.id
+        let odata_maker = if has_creating_event {
+            let qhandle = self.clone();
+            Box::new(move |msg: &Message<ObjectId>| {
+                Some(<D as Dispatch<I>>::event_created_child(msg.opcode, &qhandle))
+            }) as Box<_>
+        } else {
+            Box::new(|_: &Message<ObjectId>| None) as Box<_>
+        };
+        Arc::new(QueueProxyData { sender, odata_maker, udata: user_data })
     }
 }
 
@@ -205,23 +278,15 @@ fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
     let proxy_data = (&*odata)
         .downcast_ref::<QueueProxyData<I, <D as Dispatch<I>>::UserData>>()
         .expect("Wrong user_data value for object");
-    let mut new_data = None;
-    data.event(
-        &proxy,
-        event,
-        &proxy_data.udata,
-        handle,
-        qhandle,
-        &mut DataInit { store: &mut new_data },
-    );
-    if let Some((id, data)) = new_data {
-        handle.inner.handle().set_data(id, data).unwrap();
-    }
+    data.event(&proxy, event, &proxy_data.udata, handle, qhandle);
     Ok(())
 }
 
+/// The [`ObjectData`] implementation used by Wayland proxies, intergating with [`Dispatch`]
 pub struct QueueProxyData<I: Proxy, U> {
     pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
+    odata_maker: Box<dyn Fn(&Message<ObjectId>) -> Option<Arc<dyn ObjectData>> + Send + Sync>,
+    /// The user data associated with this object
     pub udata: U,
 }
 
@@ -231,11 +296,7 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
         _: &mut Handle,
         msg: Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
-        let ret = if msg.args.iter().any(|a| a.get_type() == ArgumentType::NewId(AllowNull::No)) {
-            Some(Arc::new(TemporaryData) as Arc<dyn ObjectData>)
-        } else {
-            None
-        };
+        let ret = (self.odata_maker)(&msg);
         self.sender.send(msg, self.clone());
         ret
     }
@@ -306,7 +367,6 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///         _data: &Self::UserData,
 ///         _cxhandle: &mut wayland_client::ConnectionHandle,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
-///         _init: &mut wayland_client::DataInit<'_>,
 ///     ) {
 ///         // Here the delegate may handle incoming events as it pleases.
 ///     }
@@ -328,7 +388,6 @@ pub trait DelegateDispatch<
         data: &Self::UserData,
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<D>,
-        init: &mut DataInit<'_>,
     );
 }
 
@@ -367,7 +426,6 @@ pub trait DelegateDispatch<
 /// #         _data: &Self::UserData,
 /// #         _cxhandle: &mut wayland_client::ConnectionHandle,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
-/// #         _init: &mut wayland_client::DataInit<'_>,
 /// #     ) {
 /// #     }
 /// # }
@@ -443,7 +501,6 @@ pub trait DelegateDispatch<
 /// #         _data: &Self::UserData,
 /// #         _cxhandle: &mut wayland_client::ConnectionHandle,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
-/// #         _init: &mut wayland_client::DataInit<'_>,
 /// #     ) {
 /// #     }
 /// # }
@@ -466,11 +523,10 @@ macro_rules! delegate_dispatch {
                     data: &Self::UserData,
                     cxhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
-                    init: &mut $crate::DataInit<'_>,
                 ) {
                     let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
                     let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle, init)
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
                 }
             }
         )*
@@ -489,11 +545,10 @@ macro_rules! delegate_dispatch {
                     data: &Self::UserData,
                     cxhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
-                    init: &mut $crate::DataInit<'_>,
                 ) {
                     let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
                     let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle, init)
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
                 }
             }
         )*
