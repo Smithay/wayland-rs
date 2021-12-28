@@ -13,10 +13,12 @@ use super::{
 };
 use crate::rs::map::Object;
 
-/// A handle to the server side state of a wayland server.
+/// Main handle of a backend to the Wayland protocol
 ///
-/// This object provides access to the server side state, clients and data associated with a client and it's
-/// objects.
+/// This type hosts most of the protocol-related functionality of the backend, and is the
+/// main entry point for manipulating Wayland objects. It can be retrieved both from
+/// the backend via [`Backend::handle()`](super::Backend::handle), and is given to you as argument
+/// in most event callbacks.
 #[derive(Debug)]
 pub struct Handle<D> {
     pub(crate) clients: ClientStore<D>,
@@ -216,6 +218,10 @@ impl<D> Handle<D> {
         Ok(Box::new(client.all_objects()))
     }
 
+    /// Create a new object for given client
+    ///
+    /// To ensure state coherence of the protocol, the created object should be immediately
+    /// sent as a "New ID" argument in an event to the client.
     pub fn create_object(
         &mut self,
         client_id: ClientId,
@@ -237,6 +243,17 @@ impl<D> Handle<D> {
         }
     }
 
+    /// Send an event to the client
+    ///
+    /// Returns an error if the sender ID of the provided message is no longer valid.
+    ///
+    /// **Panic:**
+    ///
+    /// Checks against the protocol specification are done, and this method will panic if they do
+    /// not pass:
+    ///
+    /// - the message opcode must be valid for the sender interface
+    /// - the argument list must match the prototype for the message associated with this opcode
     pub fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.clients.get_client_mut(msg.sender_id.client_id.clone())?.send_event(msg)
     }
@@ -285,11 +302,21 @@ impl<D> Handle<D> {
 
     /// Disables a global object that is currently active.
     ///
-    /// The global removal will be signaled to all currently connected clients. New clients will not know of the global.
+    /// The global removal will be signaled to all currently connected clients. New clients will not know of the global,
+    /// but the associated state and callbacks will not be freed. As such, clients that still try to bind the global
+    /// afterwards (because they have not yet realized it was removed) will succeed.
     pub fn disable_global(&mut self, id: GlobalId) {
         self.registry.disable_global(id, &mut self.clients)
     }
 
+    /// Removes a global object and free its ressources.
+    ///
+    /// The global object will no longer be considered valid by the server, clients trying to bind it will be killed,
+    /// and the global ID is freed for re-use.
+    ///
+    /// It is advised to firts disable a global and wait some amount of time before removing it, to ensure all clients
+    /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
+    /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
     pub fn remove_global(&mut self, id: GlobalId) {
         self.registry.remove_global(id, &mut self.clients)
     }

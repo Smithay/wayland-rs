@@ -1,3 +1,5 @@
+//! Rust implementations of the Wayland backends
+
 pub mod client;
 pub mod server;
 

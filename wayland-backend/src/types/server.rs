@@ -11,10 +11,12 @@ pub struct GlobalInfo {
     pub disabled: bool,
 }
 
-/// An error type representing the failure to load libwayland
+/// An error type representing the failure to initialize a backend
 #[derive(Debug)]
 pub enum InitError {
+    /// The wayland system libary could not be loaded
     NoWaylandLib,
+    /// Initializaed failed due to an underlying I/O error
     Io(std::io::Error),
 }
 

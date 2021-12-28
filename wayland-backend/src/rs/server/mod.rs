@@ -1,3 +1,5 @@
+//! Server-side rust implementation of a Wayland protocol backend
+
 use std::{fmt, sync::Arc};
 
 use crate::protocol::{same_interface, Interface, Message};
@@ -190,7 +192,7 @@ impl fmt::Display for ClientId {
     }
 }
 
-// The id of a global advertised by the server.
+/// The ID of a global
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GlobalId {
     id: u32,

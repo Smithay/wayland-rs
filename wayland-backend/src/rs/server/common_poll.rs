@@ -33,6 +33,7 @@ pub struct Backend<D> {
 }
 
 impl<D> Backend<D> {
+    /// Initialize a new Wayland backend
     pub fn new() -> Result<Self, InitError> {
         #[cfg(target_os = "linux")]
         let poll_fd = epoll_create1(EpollCreateFlags::EPOLL_CLOEXEC)
