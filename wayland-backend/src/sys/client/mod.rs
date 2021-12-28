@@ -1,3 +1,5 @@
+//! Client-side implementation of a Wayland protocol backend using `lbwayland`
+
 use std::{
     cell::RefCell,
     ffi::CStr,
@@ -63,6 +65,7 @@ impl std::fmt::Debug for dyn ObjectData {
 
 downcast_rs::impl_downcast!(sync ObjectData);
 
+/// An ID representing a Wayland object
 #[derive(Clone)]
 pub struct ObjectId {
     id: u32,
@@ -95,10 +98,12 @@ impl std::cmp::PartialEq for ObjectId {
 impl std::cmp::Eq for ObjectId {}
 
 impl ObjectId {
+    /// Check if this is the null ID
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
 
+    /// Interface of the represented object
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
@@ -140,6 +145,7 @@ impl ObjectId {
         Ok(ObjectId { id, ptr, alive, interface })
     }
 
+    /// Get the underlying libwayland pointer for this object
     pub fn as_ptr(&self) -> *mut wl_proxy {
         if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             self.ptr
@@ -169,6 +175,12 @@ struct ProxyUserData {
     interface: &'static Interface,
 }
 
+/// Main handle of a backend to the Wayland protocol
+///
+/// This type hosts most of the protocol-related functionality of the backend, and is the
+/// main entry point for manipulating Wayland objects. It can be retrieved both from
+/// the backend via [`Backend::handle()`](Backend::handle), and is given to you as argument
+/// in most event callbacks.
 #[derive(Debug)]
 pub struct Handle {
     display: *mut wl_display,
@@ -178,6 +190,11 @@ pub struct Handle {
     pending_placeholder: Option<(&'static Interface, u32)>,
 }
 
+/// A pure rust implementation of a Wayland client backend
+///
+/// This type hosts the plumbing functionalities for interacting with the wayland protocol,
+/// and most of the protocol-level interactions are made through the [`Handle`] type, accessed
+/// via the [`handle()`](Backend::handle) method.
 #[derive(Debug)]
 pub struct Backend {
     handle: Handle,
@@ -187,6 +204,10 @@ unsafe impl Send for Backend {}
 unsafe impl Sync for Backend {}
 
 impl Backend {
+    /// Try to initialize a Wayland backend on the provided unix stream
+    ///
+    /// The provided stream should correspond to an already established unix connection with
+    /// the Wayland server. This function fails if the system `libwayland` could not be loaded.
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         if !is_lib_available() {
             return Err(NoWaylandLib);
@@ -222,6 +243,7 @@ impl Backend {
         })
     }
 
+    /// Flush all pending outgoing requests to the server
     pub fn flush(&mut self) -> Result<(), WaylandError> {
         self.handle.no_last_error()?;
         let ret =
@@ -235,14 +257,20 @@ impl Backend {
         }
     }
 
+    /// Read events from the wayland socket if available, and invoke the associated callbacks
+    ///
+    /// This function will never block, and returns an I/O `WouldBlock` error if no event is available
+    /// to read.
+    ///
     /// **Note:** this function should only be used if you know that you are the only thread
-    /// reading events from the wayland socket. If this may not be the case, see `ReadEventsGuard`
+    /// reading events from the wayland socket. If this may not be the case, see [`ReadEventsGuard`]
     pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
         self.handle.no_last_error()?;
         self.handle.try_read()?;
         self.handle.dispatch_pending()
     }
 
+    /// Access the [`Handle`] associated with this backend
     pub fn handle(&mut self) -> &mut Handle {
         &mut self.handle
     }
@@ -356,6 +384,22 @@ impl Handle {
     }
 }
 
+/// Guard for synchronizing event reading accross multiple threads
+///
+/// If multiple threads need to read events from the Wayland socket conccurently,
+/// it is necessary to synchronize their access. Failing to do so may cause some of the
+/// threads to not be notified of new events, and sleep much longer than appropriate.
+///
+/// To correctly synchronize access, this type should be used. The guard is created using
+/// the [`try_new()`](ReadEventsGuard::try_new) method. And the event reading is triggered by consuming
+/// the guard using the [`read()`](ReadEventsGuard::read) method.
+///
+/// If you plan to poll the Wayland socket for readiness, the file descriptor can be retrieved via
+/// the [`connection_fd`](ReadEventsGuard::connection_fd) method. Note that for the synchronization to
+/// correctly occur, you must *always* create the `ReadEventsGuard` *before* polling the socket.
+///
+/// This synchronization is compatible with the "prepare_read" mechanism of the system libwayland,
+/// and will correctly synchronize with other C libraries using the same Wayland socket.
 #[derive(Debug)]
 pub struct ReadEventsGuard {
     backend: Arc<Mutex<Backend>>,
@@ -364,6 +408,10 @@ pub struct ReadEventsGuard {
 }
 
 impl ReadEventsGuard {
+    /// Create a new reading guard
+    ///
+    /// This call will not block, but event callbacks may be invoked in the process
+    /// of preparing the guard.
     pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
         let mut backend_guard = backend.lock().unwrap();
         let display = backend_guard.handle.display;
@@ -396,10 +444,20 @@ impl ReadEventsGuard {
         Ok(ReadEventsGuard { backend, display, done: false })
     }
 
+    /// Access the Wayland socket FD for polling
     pub fn connection_fd(&self) -> RawFd {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
     }
 
+    /// Attempt to read events from the Wayland socket
+    ///
+    /// If multiple threads have a live reading guard, this method will block until all of them
+    /// are either dropped or have their `read()` method invoked, at which point on of the threads
+    /// will read events from the socket and invoke the callbacks for the received events. All
+    /// threads will then resume their execution.
+    ///
+    /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
+    /// If no events are available to read from the socket, this returns a `WoudlBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
         self.done = true;
         let ret =
@@ -430,14 +488,21 @@ impl Drop for ReadEventsGuard {
 }
 
 impl Handle {
+    /// Get the object ID for the `wl_display`
     pub fn display_id(&self) -> ObjectId {
         self.display_id.clone()
     }
 
+    /// Get the last error that occured on this backend
+    ///
+    /// If this returns an error, your Wayland connection is already dead.
     pub fn last_error(&self) -> Option<WaylandError> {
         self.last_error.clone()
     }
 
+    /// Get the detailed information about a wayland object
+    ///
+    /// Returns an error if the provided object ID is no longer valid.
     pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
@@ -454,10 +519,22 @@ impl Handle {
         Ok(ObjectInfo { id: id.id, interface: id.interface, version })
     }
 
+    /// Create a null object ID
+    ///
+    /// This object ID is always invalid, and can be used as placeholder.
     pub fn null_id(&mut self) -> ObjectId {
         ObjectId { ptr: std::ptr::null_mut(), interface: &ANONYMOUS_INTERFACE, id: 0, alive: None }
     }
 
+    /// Create a placehold ID for object creation
+    ///
+    /// This ID needs to be created beforehand and given as argument to a request creating a
+    /// new object ID. A specification must be specified if the interface and version cannot
+    /// be inferred from the protocol (for example object creation from the `wl_registry`).
+    ///
+    /// If a specification is provided it'll be checked against what can be deduced from the
+    /// protocol specification, and [`send_request`](Handle::send_request) will panic if they
+    /// do not match.
     pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
         self.pending_placeholder = spec;
         ObjectId {
@@ -468,6 +545,23 @@ impl Handle {
         }
     }
 
+    /// Sends a request to the server
+    ///
+    /// Returns an error if the sender ID of the provided message is no longer valid.
+    ///
+    /// **Panic:**
+    ///
+    /// Several checks against the protocol specification are done, and this method will panic if they do
+    /// not pass:
+    ///
+    /// - the message opcode must be valid for the sender interface
+    /// - the argument list must match the prototype for the message associated with this opcode
+    /// - if the method creates a new object, a [`placeholder_id()`](Handle::placeholder_id) must be given
+    ///   in the argument list, either without a specification, or with a specification that matches the
+    ///   interface and version deduced from the protocol rules
+    ///
+    /// When using the system libwayland backend, the Wayland interfaces must have been generated with the C-ptr
+    /// support.
     pub fn send_request(
         &mut self,
         Message { sender_id: id, opcode, args }: Message<ObjectId>,
@@ -671,6 +765,11 @@ impl Handle {
         Ok(child_id)
     }
 
+    /// Access the object data associated with a given object ID
+    ///
+    /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
+    /// object that is not managed by this backend (when multiple libraries share the same Wayland
+    /// socket via `libwayland`).
     pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);
@@ -688,6 +787,11 @@ impl Handle {
         Ok(udata.data.clone())
     }
 
+    /// Set the object data associated with a given object ID
+    ///
+    /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
+    /// object that is not managed by this backend (when multiple libraries share the same Wayland
+    /// socket via `libwayland`).
     pub fn set_data(&mut self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);

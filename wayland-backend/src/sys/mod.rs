@@ -1,3 +1,5 @@
+//! Implementations of the Wayland backends using the system `libwayland`
+
 use crate::protocol::ArgumentType;
 use wayland_sys::common::{wl_argument, wl_array};
 

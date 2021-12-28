@@ -1,7 +1,11 @@
-#![warn(missing_debug_implementations)]
+//! Backend API for wayland crates
+
+#![warn(missing_docs, missing_debug_implementations)]
+#![forbid(improper_ctypes)]
 
 pub extern crate smallvec;
 
+/// Helper macro for quickly making a [`Message`](crate::protocol::Message)
 #[macro_export]
 macro_rules! message {
     ($sender_id: expr, $opcode: expr, [$($args: expr),* $(,)?] $(,)?) => {

@@ -1,3 +1,5 @@
+//! Types and utilities for manipulating the Wayland protocol
+
 use std::{ffi::CString, os::unix::io::RawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
@@ -177,6 +179,10 @@ pub struct ProtocolError {
     pub message: String,
 }
 
+/// Number of arguments that are stocked inline in a `Message` before allocating
+///
+/// This is a ad-hoc number trying to reach a good balance between avoiding too many allocations
+/// and keeping the stack size of `Message` small.
 pub const INLINE_ARGS: usize = 4;
 
 /// Represents a message that has been sent from some object.
@@ -230,7 +236,9 @@ pub(crate) fn same_interface_or_anonymous(a: &'static Interface, b: &'static Int
 /// An enum value in the protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WEnum<T> {
+    /// The interpreted value
     Value(T),
+    /// The stored value does not match one defined by the protocol file
     Unknown(u32),
 }
 
