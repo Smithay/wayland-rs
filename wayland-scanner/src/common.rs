@@ -359,12 +359,10 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                                     Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
                                 }
                             }
+                        } else if side == Side::Server {
+                            quote! { New::wrap(#arg_name.clone()) }
                         } else {
-                            if side == Side::Server {
-                                quote! { New::wrap(#arg_name.clone()) }
-                            } else {
-                                quote! { #arg_name.clone() }
-                            }
+                            quote! { #arg_name.clone() }
                         };
                         if arg.allow_null {
                             if side == Side::Server {
@@ -376,15 +374,13 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                                     #arg_name: if #arg_name.is_null() { None } else { Some(#create_proxy) }
                                 }
                             }
-                        } else {
-                            if side == Side::Server {
-                                quote! {
-                                    #arg_name: New::wrap(#create_proxy)
-                                }
-                            } else  {
-                                quote! {
-                                    #arg_name: #create_proxy
-                                }
+                        } else if side == Side::Server {
+                            quote! {
+                                #arg_name: New::wrap(#create_proxy)
+                            }
+                        } else  {
+                            quote! {
+                                #arg_name: #create_proxy
                             }
                         }
                     },
