@@ -356,15 +356,15 @@ pub mod test_global {
                 Event::AckSecondary { sec } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 1u16,
-                    args: smallvec::smallvec![Argument::Object(sec.id())],
+                    args: smallvec::smallvec![Argument::Object(Resource::id(&sec))],
                 }),
                 Event::CycleQuad { new_quad, old_quad } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 2u16,
                     args: smallvec::smallvec![
-                        Argument::NewId(new_quad.id()),
+                        Argument::NewId(Resource::id(&new_quad)),
                         if let Some(obj) = old_quad {
-                            Argument::Object(obj.id())
+                            Argument::Object(Resource::id(&obj))
                         } else {
                             Argument::Object(cx.null_id())
                         }

@@ -447,9 +447,15 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Fd => quote!{ Argument::Fd(#arg_name) },
                 Type::Fixed => quote! { Argument::Fixed((#arg_name * 256.) as i32) },
                 Type::Object => if arg.allow_null {
-                    quote! { if let Some(obj) = #arg_name { Argument::Object(obj.id()) } else { Argument::Object(cx.null_id()) } }
+                    if side == Side::Server {
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(cx.null_id()) } }
+                    } else {
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(cx.null_id()) } }
+                    }
+                } else if side == Side::Server {
+                    quote!{ Argument::Object(Resource::id(&#arg_name)) }
                 } else {
-                    quote!{ Argument::Object(#arg_name.id()) }
+                    quote!{ Argument::Object(Proxy::id(&#arg_name)) }
                 },
                 Type::Array => if arg.allow_null {
                     quote! { if let Some(array) = #arg_name { Argument::Array(Box::new(array)) } else { Argument::Array(Box::new(Vec::new()))}}
@@ -462,7 +468,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     quote! { Argument::Str(Box::new(std::ffi::CString::new(#arg_name).unwrap())) }
                 },
                 Type::NewId => if side == Side::Client {
-                        if let Some(ref created_interface) = arg.interface {
+                    if let Some(ref created_interface) = arg.interface {
                         let created_iface_mod = Ident::new(created_interface, Span::call_site());
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                         quote! { {
@@ -480,9 +486,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        quote! { if let Some(obj) = #arg_name { Argument::NewId(obj.id()) } else { Argument::NewId(cx.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(cx.null_id()) } }
                     } else {
-                        quote!{ Argument::NewId(#arg_name.id()) }
+                        quote!{ Argument::NewId(Resource::id(&#arg_name)) }
                     }
                 },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),

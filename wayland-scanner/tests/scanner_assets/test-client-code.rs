@@ -689,9 +689,9 @@ pub mod test_global {
                     sender_id: self.id.clone(),
                     opcode: 3u16,
                     args: smallvec::smallvec![
-                        Argument::Object(sec.id()),
+                        Argument::Object(Proxy::id(&sec)),
                         if let Some(obj) = ter {
-                            Argument::Object(obj.id())
+                            Argument::Object(Proxy::id(&obj))
                         } else {
                             Argument::Object(cx.null_id())
                         },

@@ -27,7 +27,7 @@ macro_rules! wayland_protocol(
 
                 wayland_scanner::generate_client_code!($path);
             }
-            /*
+
             #[cfg(feature = "server")]
             pub mod server {
                 //! Server-side API of this protocol
@@ -44,7 +44,6 @@ macro_rules! wayland_protocol(
 
                 wayland_scanner::generate_server_code!($path);
             }
-            */
         }
     }
 );
