@@ -27,7 +27,7 @@ pub mod unstable {
         //! An interface to control data devices, particularly to manage the current selection and
         //! take the role of a clipboard manager.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-data-control-unstable-v1.xml",
                 []
@@ -40,7 +40,7 @@ pub mod unstable {
         //!
         //! An interface to capture surfaces in an efficient way by exporting DMA-BUFs.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-export-dmabuf-unstable-v1.xml",
                 []
@@ -53,7 +53,7 @@ pub mod unstable {
         //!
         //! Use for creating taskbars and docks.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-foreign-toplevel-management-unstable-v1.xml",
                 []
@@ -66,7 +66,7 @@ pub mod unstable {
         //!
         //! This protocol allows a privileged client to set the gamma tables for outputs.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-gamma-control-unstable-v1.xml",
                 []
@@ -77,7 +77,7 @@ pub mod unstable {
     pub mod input_inhibitor {
         //! Inhibits input events to other clients
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-input-inhibitor-unstable-v1.xml",
                 []
@@ -88,7 +88,7 @@ pub mod unstable {
     pub mod layer_shell {
         //! Layered shell protocol
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-layer-shell-unstable-v1.xml",
                 [crate::xdg_shell]
@@ -101,7 +101,7 @@ pub mod unstable {
         //!
         //! This protocol exposes interfaces to obtain and modify output device configuration.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-output-management-unstable-v1.xml",
                 []
@@ -117,7 +117,7 @@ pub mod unstable {
         //! intent is to allow special clients like desktop shells to power
         //! down outputs when the system is idle.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-output-power-management-unstable-v1.xml",
                 []
@@ -131,7 +131,7 @@ pub mod unstable {
         //! This protocol allows clients to ask the compositor to copy part of the
         //! screen content to a client buffer.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-screencopy-unstable-v1.xml",
                 []
@@ -145,7 +145,7 @@ pub mod unstable {
         //! This protocol allows clients to emulate a physical pointer device. The
         //! requests are mostly mirror opposites of those specified in wl_pointer.
 
-        mod v1 {
+        pub mod v1 {
             wayland_protocol!(
                 "./wlr-protocols/unstable/wlr-virtual-pointer-unstable-v1.xml",
                 []
