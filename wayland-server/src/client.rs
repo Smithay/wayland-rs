@@ -52,6 +52,6 @@ impl Client {
 
 impl PartialEq for Client {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id && Arc::ptr_eq(&self.data, &other.data)
+        self.id == other.id
     }
 }
