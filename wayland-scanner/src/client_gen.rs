@@ -156,7 +156,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                         let iface_mod = Ident::new(iface, Span::call_site());
                         let iface_type =
                             Ident::new(&snake_to_camel(iface), Span::call_site());
-                        if arg.allow_null { quote! { Option<super::#iface_mod::#iface_type> } } else { quote! { super::#iface_mod::#iface_type } }
+                        if arg.allow_null { quote! { Option<&super::#iface_mod::#iface_type> } } else { quote! { &super::#iface_mod::#iface_type } }
                     },
                     Type::NewId => unreachable!(),
                     Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
@@ -177,6 +177,12 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Some(quote! { #arg_name: (I::interface(), version) })
                 } else {
                     None
+                }
+            } else if arg.typ == Type::Object {
+                if arg.allow_null {
+                    Some(quote! { #arg_name: #arg_name.cloned() })
+                } else {
+                    Some(quote! { #arg_name: #arg_name.clone() })
                 }
             } else {
                 Some(quote! { #arg_name })

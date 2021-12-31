@@ -94,7 +94,7 @@ impl Dispatch<wl_registry::WlRegistry> for State {
 
                     if self.configured {
                         let surface = self.base_surface.as_ref().unwrap();
-                        surface.attach(cx, Some(buffer), 0, 0);
+                        surface.attach(cx, Some(&buffer), 0, 0);
                         surface.commit(cx);
                     }
                 }
@@ -213,7 +213,7 @@ impl State {
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
-        let xdg_surface = wm_base.get_xdg_surface(cx, base_surface.clone(), qh, ()).unwrap();
+        let xdg_surface = wm_base.get_xdg_surface(cx, base_surface, qh, ()).unwrap();
         let toplevel = xdg_surface.get_toplevel(cx, qh, ()).unwrap();
         toplevel.set_title(cx, "A fantastic window!".into());
 
@@ -256,7 +256,7 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
             self.configured = true;
             let surface = self.base_surface.as_ref().unwrap();
             if let Some(ref buffer) = self.buffer {
-                surface.attach(cx, Some(buffer.clone()), 0, 0);
+                surface.attach(cx, Some(buffer), 0, 0);
                 surface.commit(cx);
             }
         }

@@ -38,7 +38,7 @@
 //!     // Here, we obtain the right cursor frame...
 //!     let buffer = &cursor[fr_info.frame_index];
 //!     // and attach it to a wl_surface.
-//!     cursor_surface.attach(&mut connection.handle(), Some(buffer.deref().clone()), 0, 0);
+//!     cursor_surface.attach(&mut connection.handle(), Some(&buffer), 0, 0);
 //!     cursor_surface.commit(&mut connection.handle());
 //!
 //!     sleep(Duration::from_millis(fr_info.frame_duration as u64));

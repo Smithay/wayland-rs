@@ -401,18 +401,18 @@ pub mod test_global {
         pub fn ack_secondary<D>(
             &self,
             cx: &mut DisplayHandle<D>,
-            sec: super::secondary::Secondary,
+            sec: &super::secondary::Secondary,
         ) {
-            let _ = cx.send_event(self, Event::AckSecondary { sec });
+            let _ = cx.send_event(self, Event::AckSecondary { sec: sec.clone() });
         }
         #[allow(clippy::too_many_arguments)]
         pub fn cycle_quad<D>(
             &self,
             cx: &mut DisplayHandle<D>,
-            new_quad: super::quad::Quad,
-            old_quad: Option<super::quad::Quad>,
+            new_quad: &super::quad::Quad,
+            old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = cx.send_event(self, Event::CycleQuad { new_quad, old_quad });
+            let _ = cx.send_event(self, Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
         }
     }
 }

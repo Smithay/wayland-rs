@@ -763,11 +763,11 @@ pub mod test_global {
         pub fn link(
             &self,
             cx: &mut ConnectionHandle,
-            sec: super::secondary::Secondary,
-            ter: Option<super::tertiary::Tertiary>,
+            sec: &super::secondary::Secondary,
+            ter: Option<&super::tertiary::Tertiary>,
             time: u32,
         ) {
-            let _ = cx.send_request(self, Request::Link { sec, ter, time }, None);
+            let _ = cx.send_request(self, Request::Link { sec: sec.clone(), ter: ter.cloned(), time }, None);
         }
         #[allow(clippy::too_many_arguments)]
         pub fn destroy(&self, cx: &mut ConnectionHandle) {
