@@ -6,7 +6,7 @@ use wayland_backend::server::{
 
 use crate::{
     dispatch::{DelegateDispatch, DelegateDispatchBase, ResourceData},
-    Client, Dispatch, DisplayHandle, Resource,
+    Client, DataInit, Dispatch, DisplayHandle, New, Resource,
 };
 
 pub(crate) struct GlobalData<I: Resource, D: GlobalDispatch<I>> {
@@ -32,9 +32,23 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
         let resource = <I as Resource>::from_id(&mut handle, object_id)
             .expect("Wrong object_id in GlobalHandler ?!");
 
-        let udata = data.bind(&mut handle, &client, &resource, &self.data);
+        let mut new_data = None;
 
-        Arc::new(ResourceData::<I, _>::new(udata))
+        data.bind(
+            &mut handle,
+            &client,
+            New::wrap(resource),
+            &self.data,
+            &mut DataInit { store: &mut new_data },
+        );
+
+        match new_data {
+            Some(data) => data,
+            None => panic!(
+                "Bind callback for interface {} did not init new instance.",
+                I::interface().name
+            ),
+        }
     }
 }
 
@@ -52,9 +66,10 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
         &mut self,
         handle: &mut DisplayHandle<'_, Self>,
         client: &Client,
-        resource: &I,
+        resource: New<I>,
         global_data: &Self::GlobalData,
-    ) -> <Self as Dispatch<I>>::UserData;
+        data_init: &mut DataInit<'_, Self>,
+    );
 
     /// Checks if the global should be advertised to some client.
     ///

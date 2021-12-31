@@ -1,6 +1,7 @@
 #![warn(missing_debug_implementations)]
 
 use wayland_backend::{
+    client::ObjectData,
     protocol::{Interface, Message},
     server::{InvalidId, ObjectId},
 };
@@ -70,6 +71,12 @@ pub trait Resource: Sized {
     ) {
         dh.post_error(self, code.into(), error.into())
     }
+
+    #[doc(hidden)]
+    fn __set_object_data(
+        &mut self,
+        odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+    );
 }
 
 #[derive(thiserror::Error, Debug)]

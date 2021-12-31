@@ -114,6 +114,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 fn write_event<D>(&self, cx: &mut DisplayHandle<D>, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
                     #write_body
                 }
+
+                fn __set_object_data(&mut self, odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>) {
+                    self.data = Some(odata);
+                }
             }
 
             impl #iface_name {

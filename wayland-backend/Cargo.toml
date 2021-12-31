@@ -32,4 +32,3 @@ env_logger = "0.9"
 client_system = ["wayland-sys/client"]
 server_system = ["wayland-sys/server"]
 dlopen = ["wayland-sys/dlopen"]
-default = ["client_system", "server_system"]

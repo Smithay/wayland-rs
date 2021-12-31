@@ -84,6 +84,12 @@ pub mod wl_callback {
                 }),
             }
         }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
+        }
     }
     impl WlCallback {
         #[allow(clippy::too_many_arguments)]
@@ -372,6 +378,12 @@ pub mod test_global {
                 }),
             }
         }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
+        }
     }
     impl TestGlobal {
         #[allow(clippy::too_many_arguments)]
@@ -502,6 +514,12 @@ pub mod secondary {
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
         }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
+        }
     }
     impl Secondary {}
 }
@@ -591,6 +609,12 @@ pub mod tertiary {
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
         }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
+        }
     }
     impl Tertiary {}
 }
@@ -679,6 +703,12 @@ pub mod quad {
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
+        }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
         }
     }
     impl Quad {}

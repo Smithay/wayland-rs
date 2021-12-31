@@ -209,6 +209,7 @@ impl<D> Client<D> {
         if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
         }
+        self.map.remove(object_id.id);
     }
 
     pub(crate) fn get_object_data(
