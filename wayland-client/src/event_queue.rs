@@ -284,7 +284,7 @@ fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
 
 type ObjectDataFactory = dyn Fn(&Message<ObjectId>) -> Option<Arc<dyn ObjectData>> + Send + Sync;
 
-/// The [`ObjectData`] implementation used by Wayland proxies, intergating with [`Dispatch`]
+/// The [`ObjectData`] implementation used by Wayland proxies, integrating with [`Dispatch`]
 pub struct QueueProxyData<I: Proxy, U> {
     pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
     odata_maker: Box<ObjectDataFactory>,

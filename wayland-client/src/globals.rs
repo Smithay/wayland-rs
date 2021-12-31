@@ -7,7 +7,7 @@ use crate::{
     Proxy, QueueHandle,
 };
 
-/// Descritpion of an advertized global
+/// Description of an advertized global
 #[derive(Debug)]
 pub struct GlobalDescription {
     /// identifier of this global
@@ -22,7 +22,7 @@ pub struct GlobalDescription {
 ///
 /// The `GlobalList` can be used as a [`Dispatch`](crate::Dispatch) target for the `wl_registry`. It
 /// maintains a list of globals advertized by the compositor, and provides a way to bind according to
-/// specified verison requirements. It is an easy way to ensure at startup that the server advertized
+/// specified version requirements. It is an easy way to ensure at startup that the server advertized
 /// all the globals your app needs, and bind them all at once.
 #[derive(Debug)]
 pub struct GlobalList {
