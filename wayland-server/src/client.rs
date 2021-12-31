@@ -45,6 +45,19 @@ impl Client {
         I::from_id(handle, id)
     }
 
+    pub fn object_from_protocol_id<I: Resource + 'static, D: 'static>(
+        &self,
+        handle: &mut DisplayHandle<'_, D>,
+        protocol_id: u32,
+    ) -> Result<I, InvalidId> {
+        let object_id = handle.inner.handle().object_for_protocol_id(
+            self.id.clone(),
+            I::interface(),
+            protocol_id,
+        )?;
+        I::from_id(handle, object_id)
+    }
+
     pub fn kill<D>(&self, handle: &mut DisplayHandle<'_, D>, error: ProtocolError) {
         handle.inner.handle().kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }

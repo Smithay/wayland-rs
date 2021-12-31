@@ -335,6 +335,16 @@ impl<D> Client<D> {
         Ok(object)
     }
 
+    pub(crate) fn object_for_protocol_id(&self, pid: u32) -> Result<ObjectId, InvalidId> {
+        let object = self.map.find(pid).ok_or(InvalidId)?;
+        Ok(ObjectId {
+            id: pid,
+            client_id: self.id.clone(),
+            serial: object.data.serial,
+            interface: object.interface,
+        })
+    }
+
     fn destroy_all_objects(&mut self) {
         for (id, obj) in self.map.all_objects() {
             obj.data.user_data.destroyed(

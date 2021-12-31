@@ -79,6 +79,11 @@ impl<'a, D> DisplayHandle<'a, D> {
         self.inner.handle().object_info(id)
     }
 
+    pub fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
+        let client_id = self.inner.handle().get_client(id)?;
+        Client::from_id(self, client_id)
+    }
+
     pub fn null_id(&mut self) -> ObjectId {
         self.inner.handle().null_id()
     }

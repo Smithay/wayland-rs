@@ -218,6 +218,22 @@ impl<D> Handle<D> {
         Ok(Box::new(client.all_objects()))
     }
 
+    /// Retrieve the `ObjectId` for a wayland object given its protocol numerical ID
+    pub fn object_for_protocol_id(
+        &self,
+        client_id: ClientId,
+        interface: &'static Interface,
+        protocol_id: u32,
+    ) -> Result<ObjectId, InvalidId> {
+        let client = self.clients.get_client(client_id)?;
+        let object = client.object_for_protocol_id(protocol_id)?;
+        if same_interface(interface, object.interface) {
+            Ok(object)
+        } else {
+            Err(InvalidId)
+        }
+    }
+
     /// Create a new object for given client
     ///
     /// To ensure state coherence of the protocol, the created object should be immediately

@@ -141,6 +141,14 @@ impl ObjectId {
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
+
+    /// Check if two object IDs are associated with the same client
+    ///
+    /// *Note:* This may spuriously return `false` if one (or both) of the objects to compare
+    /// is no longer valid.
+    pub fn same_client_as(&self, other: &ObjectId) -> bool {
+        self.client_id == other.client_id
+    }
 }
 
 #[cfg(not(tarpaulin_include))]

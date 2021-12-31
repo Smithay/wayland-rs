@@ -195,6 +195,27 @@ impl ObjectId {
         self.interface
     }
 
+    /// Check if two object IDs are associated with the same client
+    ///
+    /// *Note:* This may spuriously return `false` if one (or both) of the objects to compare
+    /// is no longer valid.
+    pub fn same_client_as(&self, other: &ObjectId) -> bool {
+        let my_client_ptr = match self.alive {
+            Some(ref alive) if !alive.load(Ordering::Acquire) => {
+                return false;
+            }
+            _ => unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr) },
+        };
+        let other_client_ptr = match other.alive {
+            Some(ref alive) if !alive.load(Ordering::Acquire) => {
+                return false;
+            }
+            _ => unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr) },
+        };
+
+        my_client_ptr == other_client_ptr
+    }
+
     /// Creates an object from a C pointer.
     ///
     /// # Errors
@@ -555,6 +576,26 @@ impl<D> Handle<D> {
         _client_id: ClientId,
     ) -> Result<Box<dyn Iterator<Item = ObjectId> + 'a>, InvalidId> {
         todo!()
+    }
+
+    /// Retrieve the `ObjectId` for a wayland object given its protocol numerical ID
+    pub fn object_for_protocol_id(
+        &self,
+        client_id: ClientId,
+        interface: &'static Interface,
+        protocol_id: u32,
+    ) -> Result<ObjectId, InvalidId> {
+        if !client_id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+        let resource = unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_object, client_id.ptr, protocol_id)
+        };
+        if resource.is_null() {
+            Err(InvalidId)
+        } else {
+            unsafe { ObjectId::from_ptr(interface, resource) }
+        }
     }
 
     /// Create a new object for given client
