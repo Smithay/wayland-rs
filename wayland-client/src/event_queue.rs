@@ -547,7 +547,7 @@ macro_rules! delegate_dispatch {
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
                 }
             }
         )*
@@ -576,7 +576,7 @@ macro_rules! delegate_dispatch {
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
                 }
             }
         )*
