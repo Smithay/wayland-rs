@@ -41,7 +41,7 @@ mod types;
 
 /*
  * These trampoline functions need to always be here because the build script cannot
- * conditionnaly buil their C counterparts on whether the crate is tested or not...
+ * conditionally build their C counterparts on whether the crate is tested or not...
  * They'll be optimized out when unused.
  */
 

@@ -314,7 +314,7 @@ impl<D> Handle<D> {
     /// The global object will no longer be considered valid by the server, clients trying to bind it will be killed,
     /// and the global ID is freed for re-use.
     ///
-    /// It is advised to firts disable a global and wait some amount of time before removing it, to ensure all clients
+    /// It is advised to first disable a global and wait some amount of time before removing it, to ensure all clients
     /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
     /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
     pub fn remove_global(&mut self, id: GlobalId) {

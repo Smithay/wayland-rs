@@ -426,9 +426,9 @@ impl Backend {
     }
 }
 
-/// Guard for synchronizing event reading accross multiple threads
+/// Guard for synchronizing event reading across multiple threads
 ///
-/// If multiple threads need to read events from the Wayland socket conccurently,
+/// If multiple threads need to read events from the Wayland socket concurrently,
 /// it is necessary to synchronize their access. Failing to do so may cause some of the
 /// threads to not be notified of new events, and sleep much longer than appropriate.
 ///
@@ -468,7 +468,7 @@ impl ReadEventsGuard {
     /// threads will then resume their execution.
     ///
     /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a `WoudlBlock` IO error.
+    /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
         let mut backend = self.backend.lock().unwrap();
         backend.prepared_reads -= 1;
@@ -512,7 +512,7 @@ impl Handle {
         ObjectId { serial: 0, id: 1, interface: &WL_DISPLAY_INTERFACE }
     }
 
-    /// Get the last error that occured on this backend
+    /// Get the last error that occurred on this backend
     ///
     /// If this returns an error, your Wayland connection is already dead.
     pub fn last_error(&self) -> Option<WaylandError> {
@@ -538,7 +538,7 @@ impl Handle {
         ObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE }
     }
 
-    /// Create a placehold ID for object creation
+    /// Create a placeholder ID for object creation
     ///
     /// This ID needs to be created beforehand and given as argument to a request creating a
     /// new object ID. A specification must be specified if the interface and version cannot

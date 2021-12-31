@@ -1,4 +1,4 @@
-//! Client-side implementation of a Wayland protocol backend using `lbwayland`
+//! Server-side implementation of a Wayland protocol backend using `libwayland`
 
 use std::{
     ffi::{CStr, CString},
@@ -158,7 +158,7 @@ impl std::cmp::PartialEq for ObjectId {
                 Arc::ptr_eq(a, b)
             }
             (None, None) => {
-                // this is an external objecy
+                // this is an external object
                 self.ptr == other.ptr
                     && self.id == other.id
                     && same_interface(self.interface, other.interface)
@@ -196,6 +196,11 @@ impl ObjectId {
     }
 
     /// Creates an object from a C pointer.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an [`InvalidId`] error if the interface of the resource does not match the
+    /// provided interface.
     ///
     /// # Safety
     ///
@@ -861,12 +866,12 @@ impl<D> Handle<D> {
         }
     }
 
-    /// Removes a global object and free its ressources.
+    /// Removes a global object and free its resources.
     ///
     /// The global object will no longer be considered valid by the server, clients trying to bind it will be killed,
     /// and the global ID is freed for re-use.
     ///
-    /// It is advised to firts disable a global and wait some amount of time before removing it, to ensure all clients
+    /// It is advised to first disable a global and wait some amount of time before removing it, to ensure all clients
     /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
     /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
     pub fn remove_global(&mut self, id: GlobalId) {
