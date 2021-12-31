@@ -50,6 +50,12 @@ impl<D> Registry<D> {
         handler: Arc<dyn GlobalHandler<D>>,
         clients: &mut ClientStore<D>,
     ) -> GlobalId {
+        if version > interface.version {
+            panic!(
+                "Cannot create global {} version {}: maximum supported version is {}",
+                interface.name, version, interface.version
+            );
+        }
         let serial = self.next_serial();
         let (id, place) = match self.globals.iter_mut().enumerate().find(|(_, g)| g.is_none()) {
             Some((id, place)) => (id, place),
@@ -97,7 +103,7 @@ impl<D> Registry<D> {
         interface_name: &CStr,
         version: u32,
     ) -> Option<(&'static Interface, GlobalId, Arc<dyn GlobalHandler<D>>)> {
-        if name == 0 {
+        if name == 0 || version == 0 {
             return None;
         }
         let target_global = self.globals.get((name - 1) as usize).and_then(|o| o.as_ref())?;
@@ -149,6 +155,16 @@ impl<D> Registry<D> {
                 *place = None;
             }
         }
+    }
+
+    pub(crate) fn new_registry(
+        &mut self,
+        registry: ObjectId,
+        client: &mut Client<D>,
+    ) -> Result<(), InvalidId> {
+        self.send_all_globals_to(registry.clone(), client)?;
+        self.known_registries.push(registry);
+        Ok(())
     }
 
     pub(crate) fn send_all_globals_to(

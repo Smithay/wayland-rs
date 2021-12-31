@@ -5,7 +5,7 @@ use wayland_backend::server::{
 };
 
 use crate::{
-    dispatch::{DelegateDispatch, DelegateDispatchBase, ResourceData},
+    dispatch::{DelegateDispatch, DelegateDispatchBase},
     Client, DataInit, Dispatch, DisplayHandle, New, Resource,
 };
 

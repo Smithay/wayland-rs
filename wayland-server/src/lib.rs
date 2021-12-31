@@ -1,7 +1,6 @@
 #![warn(missing_debug_implementations)]
 
 use wayland_backend::{
-    client::ObjectData,
     protocol::{Interface, Message},
     server::{InvalidId, ObjectId},
 };

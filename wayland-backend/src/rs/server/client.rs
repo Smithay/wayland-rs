@@ -416,7 +416,7 @@ impl<D> Client<D> {
                         );
                         return;
                     }
-                    let _ = registry.send_all_globals_to(registry_id, self);
+                    let _ = registry.new_registry(registry_id, self);
                 } else {
                     unreachable!()
                 }
