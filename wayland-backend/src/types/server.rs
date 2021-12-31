@@ -14,9 +14,9 @@ pub struct GlobalInfo {
 /// An error type representing the failure to initialize a backend
 #[derive(Debug)]
 pub enum InitError {
-    /// The wayland system libary could not be loaded
+    /// The wayland system library could not be loaded
     NoWaylandLib,
-    /// Initializaed failed due to an underlying I/O error
+    /// Initialized failed due to an underlying I/O error
     Io(std::io::Error),
 }
 

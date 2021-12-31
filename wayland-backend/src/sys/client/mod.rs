@@ -1,4 +1,4 @@
-//! Client-side implementation of a Wayland protocol backend using `lbwayland`
+//! Client-side implementation of a Wayland protocol backend using `libwayland`
 
 use std::{
     cell::RefCell,
@@ -85,7 +85,7 @@ impl std::cmp::PartialEq for ObjectId {
                 Arc::ptr_eq(a, b)
             }
             (None, None) => {
-                // this is an external objecy
+                // this is an external (un-managed) object
                 self.ptr == other.ptr
                     && self.id == other.id
                     && same_interface(self.interface, other.interface)
@@ -108,6 +108,12 @@ impl ObjectId {
         self.interface
     }
 
+    /// Creates an object id from a libwayland-client pointer.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an [`InvalidId`] error if the interface of the proxy does not match the provided
+    /// interface.
     ///
     /// # Safety
     ///
@@ -131,6 +137,7 @@ impl ObjectId {
 
         let id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ptr);
 
+        // Test if the proxy is managed by us.
         let is_rust_managed = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_listener, ptr)
             == &RUST_MANAGED as *const u8 as *const _;
 
@@ -384,9 +391,9 @@ impl Handle {
     }
 }
 
-/// Guard for synchronizing event reading accross multiple threads
+/// Guard for synchronizing event reading across multiple threads
 ///
-/// If multiple threads need to read events from the Wayland socket conccurently,
+/// If multiple threads need to read events from the Wayland socket concurrently,
 /// it is necessary to synchronize their access. Failing to do so may cause some of the
 /// threads to not be notified of new events, and sleep much longer than appropriate.
 ///
@@ -457,7 +464,7 @@ impl ReadEventsGuard {
     /// threads will then resume their execution.
     ///
     /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a `WoudlBlock` IO error.
+    /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
         self.done = true;
         let ret =
@@ -493,7 +500,7 @@ impl Handle {
         self.display_id.clone()
     }
 
-    /// Get the last error that occured on this backend
+    /// Get the last error that occurred on this backend
     ///
     /// If this returns an error, your Wayland connection is already dead.
     pub fn last_error(&self) -> Option<WaylandError> {
@@ -526,7 +533,7 @@ impl Handle {
         ObjectId { ptr: std::ptr::null_mut(), interface: &ANONYMOUS_INTERFACE, id: 0, alive: None }
     }
 
-    /// Create a placehold ID for object creation
+    /// Create a placeholder ID for object creation
     ///
     /// This ID needs to be created beforehand and given as argument to a request creating a
     /// new object ID. A specification must be specified if the interface and version cannot
@@ -992,7 +999,7 @@ extern "C" {
 impl Drop for Backend {
     fn drop(&mut self) {
         if self.handle.evq.is_null() {
-            // we are owning the connection, clone it
+            // we are own the connection, clone it
             unsafe {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.handle.display)
             }
