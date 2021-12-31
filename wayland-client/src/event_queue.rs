@@ -391,6 +391,18 @@ pub trait DelegateDispatch<
         cxhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<D>,
     );
+
+    /// Method used to initialize the user-data of objects created by events
+    ///
+    /// If the interface does not have any such event, you can ignore it. If not, the
+    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<D>) -> Arc<dyn ObjectData> {
+        panic!(
+            "Missing event_created_child specialization for event opcode {} of {}",
+            opcode,
+            I::interface().name
+        );
+    }
 }
 
 /// A helper macro which delegates a set of [`Dispatch`] implementations for a proxy to some other type which
@@ -530,6 +542,13 @@ macro_rules! delegate_dispatch {
                     let delegate: &mut $dispatch_to = { $closure };
                     $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
                 }
+
+                fn event_created_child(
+                    opcode: u16,
+                    qhandle: &$crate::QueueHandle<Self>
+                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to>::event_created_child(opcode, qhandle)
+                }
             }
         )*
     };
@@ -551,6 +570,13 @@ macro_rules! delegate_dispatch {
                     let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
                     let delegate: &mut $dispatch_to = { $closure };
                     $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
+                }
+
+                fn event_created_child(
+                    opcode: u16,
+                    qhandle: &$crate::QueueHandle<Self>
+                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to>::event_created_child(opcode, qhandle)
                 }
             }
         )*
