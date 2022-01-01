@@ -118,9 +118,6 @@ jobs:
       
     runs-on: ubuntu-latest
 
-    env:
-      XDG_RUNTIME_DIR: ${{ env.RUNNER_TEMP }}/runtime
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -147,7 +144,9 @@ jobs:
           profile: minimal
 
       - name: Runtime directory
-        run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
+        run: |
+          mkdir -p $(pwd)/.runtime
+          echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
@@ -165,9 +164,6 @@ jobs:
       - clippy-check
       
     runs-on: ubuntu-latest
-
-    env:
-      XDG_RUNTIME_DIR: ${{ env.RUNNER_TEMP }}/runtime
 
     strategy:
       fail-fast: false
@@ -201,7 +197,9 @@ jobs:
           profile: minimal
 
       - name: Runtime directory
-        run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
+        run: |
+          mkdir -p $(pwd)/.runtime
+          echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
