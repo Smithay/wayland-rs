@@ -21,6 +21,6 @@ futures-channel = "0.3.16"
 log = "0.4"
 
 [dev-dependencies]
-wayland-protocols = { version = "0.30.0-alpha1", path = "../wayland-protocols", features = ["client"] }
+wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 tempfile = "3.2"
 
