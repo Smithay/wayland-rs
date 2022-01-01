@@ -3,7 +3,6 @@ use std::{
     os::unix::{
         io::{FromRawFd, IntoRawFd},
         net::UnixStream,
-        prelude::AsRawFd,
     },
     sync::Arc,
 };
@@ -279,6 +278,7 @@ impl<D> Client<D> {
 
     #[cfg(target_os = "linux")]
     pub(crate) fn get_credentials(&self) -> Credentials {
+        use std::os::unix::io::AsRawFd;
         let creds = nix::sys::socket::getsockopt(
             self.socket.as_raw_fd(),
             nix::sys::socket::sockopt::PeerCredentials,

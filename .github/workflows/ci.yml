@@ -209,5 +209,5 @@ jobs:
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          flags: test-${{ matrix.client_feature }}-${{ matrix.server-system }}
+          flags: test-${{ matrix.client_feature }}-${{ matrix.server_feature }}
  

@@ -82,7 +82,7 @@ fn assert_credentials(credentials: ways::backend::Credentials) {
 }
 
 #[cfg(all(feature = "server_system", target_os = "freebsd"))]
-fn assert_credentials(_credentials: ways::backend::ways::Credentials) {
+fn assert_credentials(_credentials: ways::backend::Credentials) {
     // The current implementation of wl_client_get_credentials
     // will always return pid == 0 on freebsd
     // On recent versions this has been fixed with a freebsd
