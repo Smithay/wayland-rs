@@ -1,131 +1,86 @@
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
-
-extern crate nix;
-extern crate wayland_commons as wc;
-
-use wc::smallvec;
-use wc::socket::{BufferedSocket, Socket};
-use wc::wire::{Argument, Message};
-
-use std::cell::RefCell;
-use std::env;
-use std::os::unix::io::{FromRawFd, IntoRawFd};
-use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
-use std::rc::Rc;
+use helpers::{roundtrip, wayc, ways, TestServer};
+use ways::Resource;
 
 #[test]
-fn client_wrong_id() {
+fn client_receive_generic_error() {
     let mut server = TestServer::new();
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
 
-    let mut socket: PathBuf = env::var_os("XDG_RUNTIME_DIR").unwrap().into();
-    socket.push(&server.socket_name);
-    let socket = UnixStream::connect(socket).unwrap();
+    let (s_client, mut client) = server.add_client();
 
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(socket.into_raw_fd()) });
-    socket
-        .write_message(&Message {
-            sender_id: 1, // wl_display
-            opcode: 1,    // wl_registry
-            args: smallvec![
-                Argument::NewId(3), // should be 2
-            ],
-        })
+    let mut client_ddata = ClientHandler::new();
+
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
         .unwrap();
-    socket.flush().unwrap();
 
-    server.answer();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
-    // server should have killed us due to the error, but it might send us that error first
-    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::EPIPE));
-}
-
-#[test]
-fn client_wrong_opcode() {
-    let mut server = TestServer::new();
-
-    let mut socket: PathBuf = env::var_os("XDG_RUNTIME_DIR").unwrap().into();
-    socket.push(&server.socket_name);
-    let socket = UnixStream::connect(socket).unwrap();
-
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(socket.into_raw_fd()) });
-    socket
-        .write_message(&Message {
-            sender_id: 1, // wl_display
-            opcode: 42,   // inexistant
-            args: smallvec![],
-        })
+    // Instantiate the globals
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
         .unwrap();
-    socket.flush().unwrap();
 
-    server.answer();
-
-    // server should have killed us due to the error, but it might send us that error first
-    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::EPIPE));
-}
-
-#[test]
-fn client_wrong_sender() {
-    let mut server = TestServer::new();
-
-    let mut socket: PathBuf = env::var_os("XDG_RUNTIME_DIR").unwrap().into();
-    socket.push(&server.socket_name);
-    let socket = UnixStream::connect(socket).unwrap();
-
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(socket.into_raw_fd()) });
-    socket
-        .write_message(&Message {
-            sender_id: 54, // wl_display
-            opcode: 0,     // inexistant
-            args: smallvec![],
-        })
-        .unwrap();
-    socket.flush().unwrap();
-
-    server.answer();
-
-    // server should have killed us due to the error, but it might send us that error first
-    let err = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
-    assert_eq!(err, Err(nix::Error::EPIPE));
-}
-
-#[test]
-fn client_receive_error() {
-    let mut server = TestServer::new();
-    let server_output = Rc::new(RefCell::new(None));
-    let my_server_output = server_output.clone();
-    server.display.create_global::<ways::protocol::wl_output::WlOutput, _>(
-        3,
-        ways::Filter::new(move |(output, _), _, _| *my_server_output.borrow_mut() = Some(output)),
-    );
-
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    manager.instantiate_exact::<wayc::protocol::wl_output::WlOutput>(3).unwrap();
-
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
     // the server sends a protocol error
-    server_output.borrow().as_ref().unwrap().as_ref().post_error(42, "I don't like you!".into());
+    let compositor = s_client
+        .object_from_protocol_id::<ways::protocol::wl_compositor::WlCompositor, _>(
+            &mut server.display.handle(),
+            3,
+        )
+        .unwrap();
+    compositor.post_error(&mut server.display.handle(), 42u32, "I don't like you!");
 
     // the error has not yet reached the client
-    assert!(client.display.protocol_error().is_none());
+    assert!(client.cx.protocol_error().is_none());
 
-    assert!(roundtrip(&mut client, &mut server).is_err());
-    let error = client.display.protocol_error().unwrap();
+    assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
+    let error = client.cx.protocol_error().unwrap();
     assert_eq!(error.code, 42);
     assert_eq!(error.object_id, 3);
-    assert_eq!(error.object_interface, "wl_output");
+    assert_eq!(error.object_interface, "wl_compositor");
     // native lib can't give us the message
-    #[cfg(not(feature = "client_native"))]
+    #[cfg(not(feature = "client_system"))]
     {
         assert_eq!(error.message, "I don't like you!");
     }
 }
+
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+}
+
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default() }
+    }
+}
+
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
+
+client_ignore_impl!(ClientHandler => [
+    wayc::protocol::wl_compositor::WlCompositor
+]);
+
+struct ServerHandler;
+
+server_ignore_impl!(ServerHandler => [
+    ways::protocol::wl_compositor::WlCompositor
+]);
+server_ignore_global_impl!(ServerHandler => [
+    ways::protocol::wl_compositor::WlCompositor
+]);

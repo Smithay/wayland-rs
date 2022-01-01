@@ -5,5 +5,5 @@ pub mod server;
 
 mod debug;
 mod map;
-mod socket;
+pub(crate) mod socket;
 mod wire;

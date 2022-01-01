@@ -1,27 +1,49 @@
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, roundtrip_with_ddata, wayc, ways, TestClient, TestServer};
+use helpers::{roundtrip, wayc, ways, TestServer};
 
-use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
-use ways::protocol::wl_output::WlOutput as ServerOutput;
+use ways::Resource;
 
-use wayc::protocol::wl_compositor;
-use wayc::protocol::wl_output;
 use wayc::Proxy;
 
 #[test]
 fn proxy_equals() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    let mut server_ddata = ServerHandler { output: None };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let compositor1 = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    let compositor2 = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
+    let compositor1 = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            0,
+        )
+        .unwrap();
+
+    let compositor2 = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            0,
+        )
+        .unwrap();
 
     let compositor3 = compositor1.clone();
 
@@ -33,223 +55,236 @@ fn proxy_equals() {
 #[test]
 fn proxy_user_data() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    let mut server_ddata = ServerHandler { output: None };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let compositor1 = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let compositor1 = compositor1.as_ref();
-    compositor1.user_data().set(|| 0xDEADBEEFusize);
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    let compositor2 = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let compositor2 = compositor2.as_ref();
-    compositor2.user_data().set(|| 0xBADC0FFEusize);
+    let compositor1 = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            0xDEADBEEFusize,
+        )
+        .unwrap();
+
+    let compositor2 = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            0xBADC0FFEusize,
+        )
+        .unwrap();
 
     let compositor3 = compositor1.clone();
 
-    assert!(compositor1.user_data().get::<usize>() == Some(&0xDEADBEEF));
-    assert!(compositor2.user_data().get::<usize>() == Some(&0xBADC0FFE));
-    assert!(compositor3.user_data().get::<usize>() == Some(&0xDEADBEEF));
-    assert!(compositor1.user_data().get::<u32>() == None);
-}
-
-#[test]
-fn proxy_user_data_wrong_thread() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
-
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let compositor = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let compositor: Proxy<_> = (**compositor).clone().into();
-    compositor.user_data().set(|| 0xDEADBEEFusize);
-
-    // we can access on the right thread
-    assert!(compositor.user_data().get::<usize>().is_some());
-
-    // but not in a new one
-    ::std::thread::spawn(move || {
-        assert!(compositor.user_data().get::<usize>().is_none());
-    })
-    .join()
-    .unwrap();
-}
-
-#[test]
-fn proxy_wrapper() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
-
-    let mut client = TestClient::new(&server.socket_name);
-
-    let mut event_queue_2 = client.display.create_event_queue();
-    let manager =
-        wayc::GlobalManager::new(&(**client.display).clone().attach(event_queue_2.token()));
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    // event_queue_2 has not been dispatched
-    assert!(manager.list().len() == 0);
-
-    event_queue_2.dispatch_pending(&mut (), |_, _, _| unreachable!()).unwrap();
-
-    assert!(manager.list().len() == 1);
-}
-
-#[test]
-fn proxy_create_unattached() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
-
-    let mut client = TestClient::new(&server.socket_name);
-
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let compositor = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let compositor = (**compositor).clone();
-
-    let ret = ::std::thread::spawn(move || {
-        compositor.create_surface(); // should panic
-    })
-    .join();
-
-    // the child thread should have panicked
-    assert!(ret.is_err())
-}
-
-#[test]
-fn proxy_create_attached() {
-    let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor, _>(1, ways::Filter::new(|_: (_, _), _, _| {}));
-
-    let mut client = TestClient::new(&server.socket_name);
-
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let compositor = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let compositor = (**compositor).clone();
-
-    let display2 = client.display.clone();
-
-    ::std::thread::spawn(move || {
-        let evq2 = display2.create_event_queue();
-        let compositor_wrapper = compositor.as_ref().clone().attach(evq2.token());
-        compositor_wrapper.create_surface(); // should not panic
-    })
-    .join()
-    .unwrap();
+    assert!(compositor1.data::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor2.data::<usize>() == Some(&0xBADC0FFE));
+    assert!(compositor3.data::<usize>() == Some(&0xDEADBEEF));
+    assert!(compositor1.data::<u32>() == None);
 }
 
 #[test]
 fn dead_proxies() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(3, ways::Filter::new(|_: (_, _), _, _| {}));
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { output: None };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let output = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let output2 = output.clone();
 
     assert!(output == output2);
-    assert!(output.as_ref().is_alive());
-    assert!(output2.as_ref().is_alive());
+    assert!(client.cx.handle().object_info(output.id()).is_ok());
+    assert!(client.cx.handle().object_info(output2.id()).is_ok());
 
     // kill the output
-    output.release();
+    output.release(&mut client.cx.handle());
 
-    // dead proxies are never equal
-    assert!(output != output2);
-    assert!(!output.as_ref().is_alive());
-    assert!(!output2.as_ref().is_alive());
-}
-
-#[test]
-fn dead_connection() {
-    fn get_output() -> wl_output::WlOutput {
-        let mut server = TestServer::new();
-        server.display.create_global::<ServerOutput, _>(3, ways::Filter::new(|_: (_, _), _, _| {}));
-
-        let mut client = TestClient::new(&server.socket_name);
-        let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-        roundtrip(&mut client, &mut server).unwrap();
-
-        let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
-        return output.detach();
-    }
-
-    let output = get_output();
-    // At this point the client connection is already freed, calling this request should be a no-op
-    // and not a crash into freed memory
-    output.release();
+    // dead proxies are still equal
+    assert!(output == output2);
+    assert!(client.cx.handle().object_info(output.id()).is_err());
+    assert!(client.cx.handle().object_info(output2.id()).is_err());
 }
 
 #[test]
 fn dead_object_argument() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(
-        3,
-        ways::Filter::new(|(output, _): (ways::Main<ServerOutput>, u32), _, mut ddata| {
-            let opt = ddata.get::<Option<ServerOutput>>().unwrap();
-            output.quick_assign(|_, _, _| {});
-            *opt = Some((*output).clone());
-        }),
-    );
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { output: None };
 
-    // Send a wl_surface.enter() as soon as the surface is created.
-    server.display.create_global::<ServerCompositor, _>(
-        1,
-        ways::Filter::new(|(comp, _): (ways::Main<ServerCompositor>, u32), _, _| {
-            comp.quick_assign(|_, req, mut ddata| {
-                if let ways::protocol::wl_compositor::Request::CreateSurface { id } = req {
-                    id.quick_assign(|_, _, _| {});
-                    let output = ddata.get::<Option<ServerOutput>>().unwrap().as_ref().unwrap();
-                    assert!(output.as_ref().is_alive());
-                    id.enter(output);
-                }
-            });
-        }),
-    );
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let output = manager.instantiate_exact::<wl_output::WlOutput>(3).unwrap();
-    let comp = manager.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let surface = comp.create_surface();
-    surface.quick_assign(|_, evt, mut ddata| {
-        if let wayc::protocol::wl_surface::Event::Enter { output } = evt {
-            assert!(!output.as_ref().is_alive());
-            *ddata.get::<bool>().unwrap() = true;
-        } else {
-            panic!("Unexpected event.");
-        }
-    });
-
-    output.release();
-
-    let mut server_output = None::<ServerOutput>;
-    let mut client_entered = false;
-    roundtrip_with_ddata(&mut client, &mut server, &mut client_entered, &mut server_output)
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
-    assert!(client_entered);
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+
+    let output = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+    let compositor = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            0,
+        )
+        .unwrap();
+
+    compositor.create_surface(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    output.release(&mut client.cx.handle());
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+
+    assert!(client_ddata.entered);
 }
+
+struct ServerHandler {
+    output: Option<ways::protocol::wl_output::WlOutput>,
+}
+
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        output: ways::New<ways::protocol::wl_output::WlOutput>,
+        _: &(),
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        let output = data_init.init(output, ());
+        self.output = Some(output);
+    }
+}
+
+impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandler {
+    type UserData = ();
+    fn request(
+        &mut self,
+        _: &ways::Client,
+        _: &ways::protocol::wl_compositor::WlCompositor,
+        request: ways::protocol::wl_compositor::Request,
+        _: &(),
+        dhandle: &mut ways::DisplayHandle<'_, Self>,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        if let ways::protocol::wl_compositor::Request::CreateSurface { id } = request {
+            let surface = data_init.init(id, ());
+            let output = self.output.clone().unwrap();
+            assert!(dhandle.object_info(output.id()).is_ok());
+            surface.enter(dhandle, &output);
+        }
+    }
+}
+
+server_ignore_impl!(ServerHandler => [
+    ways::protocol::wl_output::WlOutput,
+    ways::protocol::wl_surface::WlSurface
+]);
+
+server_ignore_global_impl!(ServerHandler => [
+    ways::protocol::wl_compositor::WlCompositor
+]);
+
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+    entered: bool,
+}
+
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default(), entered: false }
+    }
+}
+
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
+
+impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor> for ClientHandler {
+    type UserData = usize;
+
+    fn event(
+        &mut self,
+        _: &wayc::protocol::wl_compositor::WlCompositor,
+        _: wayc::protocol::wl_compositor::Event,
+        _: &usize,
+        _: &mut wayc::ConnectionHandle,
+        _: &wayc::QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface> for ClientHandler {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wayc::protocol::wl_surface::WlSurface,
+        event: wayc::protocol::wl_surface::Event,
+        _: &(),
+        cxhandle: &mut wayc::ConnectionHandle,
+        _: &wayc::QueueHandle<Self>,
+    ) {
+        if let wayc::protocol::wl_surface::Event::Enter { output } = event {
+            assert!(cxhandle.get_object_data(output.id()).is_err());
+            self.entered = true;
+        } else {
+            panic!("Unexpected event: {:?}", event);
+        }
+    }
+}
+
+client_ignore_impl!(ClientHandler => [
+    wayc::protocol::wl_output::WlOutput
+]);

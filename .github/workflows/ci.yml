@@ -7,11 +7,104 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          components: rustfmt
+          default: true
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy-check:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         rust: ['1.53.0', 'stable', 'beta']
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          components: clippy
+          default: true
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+      - name: Build cache
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-build-rust_stable-check-${{ hashFiles('**/Cargo.toml') }}
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all --all-features --all-targets -- -D warnings
+
+  check-minimal:
+    env:
+      RUSTFLAGS: "-D warnings"
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+          default: true
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-rust_nightly-${{ hashFiles('**/Cargo.toml') }}
+      - name: Downgrade to minimal dependencies
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -Z minimal-versions
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all
+  
+  coverage-main:
+    needs:
+      - format
+      - clippy-check
       
     runs-on: ubuntu-latest
 
@@ -25,10 +118,12 @@ jobs:
           submodules: recursive
       
       - name: Cargo cache
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
-          path: ~/.cargo
-          key: cargo-${{ matrix.rust }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
       
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
@@ -36,9 +131,10 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           override: true
-          components: rustfmt
+          default: true
+          profile: minimal
 
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
@@ -46,32 +142,64 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests --workspace --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
+          args: --ignore-tests --workspace --exclude 'wayland-tests' --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
- 
-  lint:
+        with:
+          flags: main
+  
+  coverage-tests:
+    needs:
+      - format
+      - clippy-check
+      
     runs-on: ubuntu-latest
+
+    env:
+      XDG_RUNTIME_DIR: ~/.runtime
+
+    strategy:
+      fail-fast: false
+      matrix:
+        client_feature: ["", "client_system"]
+        server_feature: ["", "server_system"]
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
+      
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+      
+      - name: System dependencies
+        run: sudo apt-get install libwayland-dev
+      
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-          components: rustfmt, clippy
+          default: true
+          profile: minimal
 
-      - name: System dependencies
-        run: sudo apt-get install libwayland-dev 
+      - name: Runtime directory
+        run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
 
-      - name: Cargo fmt
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy
-        run: cargo clippy --all -- -D warnings
+      - name: Coverage
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          args: --ignore-tests -p wayland_tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}" --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          flags: test-${{ matrix.client_feature }}-${{ matrix.server-system }}
+ 

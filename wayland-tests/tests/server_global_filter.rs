@@ -2,157 +2,205 @@
 #[macro_use]
 extern crate wayland_sys;
 
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use helpers::{roundtrip, wayc, ways, TestServer};
 
 use ways::protocol::{wl_compositor, wl_output, wl_shm};
 
-struct Privileged;
+use std::sync::Arc;
 
 #[test]
 fn global_filter() {
-    use std::os::unix::io::IntoRawFd;
-
     let mut server = TestServer::new();
+    // everyone can see compositor and shm
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server.display.handle().create_global::<ways::protocol::wl_shm::WlShm>(1, ());
+    // only privileged can see output
+    let privileged_output =
+        server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(1, ());
+    let mut server_ddata = ServerHandler;
 
-    // everyone see the compositor
-    server.display.create_global::<wl_compositor::WlCompositor, _>(
-        1,
-        ways::Filter::new(|_: (_, _), _, _| {}),
-    );
+    let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
+    let mut client_ddata = ClientHandler::new();
 
-    // everyone see the shm
-    server.display.create_global_with_filter::<wl_shm::WlShm, _, _>(
-        1,
-        ways::Filter::new(|_: (_, _), _, _| {}),
-        |_| true,
-    );
+    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
 
-    // only privileged clients see the output
-    let privileged_output = server.display.create_global_with_filter::<wl_output::WlOutput, _, _>(
-        1,
-        ways::Filter::new(|_: (_, _), _, _| {}),
-        |client| client.data_map().get::<Privileged>().is_some(),
-    );
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    // normal client only sees two globals
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    assert_eq!(client_ddata.globals.list().len(), 2);
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let (_, mut priv_client) =
+        server.add_client_with_data(Arc::new(MyClientData { privileged: true }));
+    let mut priv_client_ddata = ClientHandler::new();
 
-    assert_eq!(manager.list().len(), 2);
+    priv_client
+        .display
+        .get_registry(&mut priv_client.cx.handle(), &priv_client.event_queue.handle(), ())
+        .unwrap();
 
-    let (server_cx, client_cx) = ::std::os::unix::net::UnixStream::pair().unwrap();
+    roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
-    let priv_client = unsafe { server.display.create_client(server_cx.into_raw_fd(), &mut ()) };
-    priv_client.data_map().insert_if_missing(|| Privileged);
-
-    let mut client2 = unsafe { TestClient::from_fd(client_cx.into_raw_fd()) };
-    let manager2 = wayc::GlobalManager::new(&client2.display_proxy);
-
-    roundtrip(&mut client2, &mut server).unwrap();
-
-    assert_eq!(manager2.list().len(), 3);
+    assert_eq!(priv_client_ddata.globals.list().len(), 3);
 
     // now destroy the privileged global
     // only privileged clients will receive the destroy event
     // if a regular client received it, it would panic as the server destroyed an
     // unknown global
 
-    privileged_output.destroy();
+    server.display.handle().remove_global(privileged_output);
 
-    roundtrip(&mut client, &mut server).unwrap();
-    roundtrip(&mut client2, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+    roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
-    assert_eq!(manager.list().len(), 2);
-    assert_eq!(manager2.list().len(), 2);
+    assert_eq!(client_ddata.globals.list().len(), 2);
+    assert_eq!(priv_client_ddata.globals.list().len(), 2);
 }
 
 #[test]
 fn global_filter_try_force() {
-    use wayc::protocol::wl_output::WlOutput;
-
-    use std::os::unix::io::IntoRawFd;
-
     let mut server = TestServer::new();
-
-    // only privileged clients see the output
-    server.display.create_global_with_filter::<wl_output::WlOutput, _, _>(
-        1,
-        ways::Filter::new(|_: (_, _), _, _| {}),
-        |client| client.data_map().get::<Privileged>().is_some(),
-    );
+    // only privileged can see output
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(1, ());
+    let mut server_ddata = ServerHandler;
 
     // normal client that cannot bind the privileged global
-    let mut client = TestClient::new(&server.socket_name);
+    let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
+    let mut client_ddata = ClientHandler::new();
 
     // privileged client that can
-    let (server_cx, client_cx) = ::std::os::unix::net::UnixStream::pair().unwrap();
-
-    let priv_client = unsafe { server.display.create_client(server_cx.into_raw_fd(), &mut ()) };
-    priv_client.data_map().insert_if_missing(|| Privileged);
-
-    let mut client2 = unsafe { TestClient::from_fd(client_cx.into_raw_fd()) };
+    let (_, mut priv_client) =
+        server.add_client_with_data(Arc::new(MyClientData { privileged: true }));
+    let mut priv_client_ddata = ClientHandler::new();
 
     // privileged client can bind it
 
-    let registry2 = client2.display_proxy.get_registry();
-    registry2.bind::<WlOutput>(1, 1);
-
-    roundtrip(&mut client2, &mut server).unwrap();
+    let priv_registry = priv_client
+        .display
+        .get_registry(&mut priv_client.cx.handle(), &priv_client.event_queue.handle(), ())
+        .unwrap();
+    priv_registry
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut priv_client.cx.handle(),
+            1,
+            1,
+            &priv_client.event_queue.handle(),
+            (),
+        )
+        .unwrap();
+    roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
     // unprivileged client cannot
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
+    registry
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            1,
+            1,
+            &client.event_queue.handle(),
+            (),
+        )
+        .unwrap();
 
-    let registry = client.display_proxy.get_registry();
-    registry.bind::<WlOutput>(1, 1);
-
-    assert!(roundtrip(&mut client, &mut server).is_err());
+    assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).is_err());
 }
 
-#[cfg(feature = "server_native")]
-#[test]
-fn external_globals() {
-    use std::os::raw::c_void;
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+}
 
-    use helpers::ways::Interface;
-    use wayland_sys::server::*;
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default() }
+    }
+}
 
-    let mut server = TestServer::new();
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
 
-    extern "C" fn dummy_global_bind(
-        _client: *mut wl_client,
-        _data: *mut c_void,
-        _version: u32,
-        _id: u32,
+client_ignore_impl!(ClientHandler => [
+    wayc::protocol::wl_compositor::WlCompositor,
+    wayc::protocol::wl_shm::WlShm,
+    wayc::protocol::wl_output::WlOutput
+]);
+
+struct ServerHandler;
+
+impl ways::GlobalDispatch<wl_compositor::WlCompositor> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        resource: ways::New<wl_compositor::WlCompositor>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(resource, ());
+    }
+
+    fn can_view(_: ways::Client, _: &Self::GlobalData) -> bool {
+        true
+    }
+}
+
+impl ways::GlobalDispatch<wl_shm::WlShm> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        resource: ways::New<wl_shm::WlShm>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(resource, ());
+    }
+
+    fn can_view(_: ways::Client, _: &Self::GlobalData) -> bool {
+        true
+    }
+}
+
+impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        resource: ways::New<wl_output::WlOutput>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(resource, ());
+    }
+
+    fn can_view(client: ways::Client, _: &Self::GlobalData) -> bool {
+        client.get_data::<MyClientData>().unwrap().privileged
+    }
+}
+
+struct MyClientData {
+    privileged: bool,
+}
+
+impl ways::backend::ClientData<ServerHandler> for MyClientData {
+    fn initialized(&self, _: wayland_backend::server::ClientId) {}
+    fn disconnected(
+        &self,
+        _: wayland_backend::server::ClientId,
+        _: wayland_backend::server::DisconnectReason,
     ) {
     }
-
-    // everyone see the compositor
-    server.display.create_global::<wl_compositor::WlCompositor, _>(
-        1,
-        ways::Filter::new(|_: (_, _), _, _| {}),
-    );
-
-    // create a global via the C API, it'll not be initialized like a rust one
-    unsafe {
-        ffi_dispatch!(
-            WAYLAND_SERVER_HANDLE,
-            wl_global_create,
-            server.display.c_ptr(),
-            wl_shm::WlShm::c_interface(),
-            1,
-            ::std::ptr::null_mut(),
-            dummy_global_bind
-        );
-    }
-
-    // normal client only sees the two globals
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    assert_eq!(manager.list().len(), 2);
 }
+
+server_ignore_impl!(ServerHandler => [
+    ways::protocol::wl_compositor::WlCompositor,
+    ways::protocol::wl_shm::WlShm,
+    ways::protocol::wl_output::WlOutput
+]);

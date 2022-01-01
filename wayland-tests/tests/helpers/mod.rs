@@ -139,7 +139,6 @@ macro_rules! client_ignore_impl {
                     _: &Self::UserData,
                     _: &mut $crate::helpers::wayc::ConnectionHandle,
                     _: &$crate::helpers::wayc::QueueHandle<Self>,
-                    _: &mut $crate::helpers::wayc::DataInit<'_>,
                 ) {
                 }
             }
@@ -177,9 +176,11 @@ macro_rules! server_ignore_global_impl {
                     &mut self,
                     _: &mut $crate::helpers::ways::DisplayHandle<'_, Self>,
                     _: &$crate::helpers::ways::Client,
-                    _: &$iface,
+                    new_id: $crate::helpers::ways::New<$iface>,
                     _: &(),
-                ) -> () {
+                    data_init: &mut $crate::helpers::ways::DataInit<'_, Self>,
+                ) {
+                    data_init.init(new_id, ());
                 }
             }
         )*

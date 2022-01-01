@@ -1,7 +1,10 @@
 use std::{
     ffi::CString,
+    os::unix::prelude::{FromRawFd, IntoRawFd},
     sync::{Arc, Mutex},
 };
+
+use crate::rs::socket::{BufferedSocket, Socket};
 
 use super::*;
 
@@ -107,4 +110,78 @@ expand_test!(protocol_error, {
         }
         _ => panic!("Bad ret: {:?}", ret),
     }
+});
+
+expand_test!(client_wrong_id, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+
+    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+
+    socket
+        .write_message(&Message {
+            sender_id: 1, // wl_display
+            opcode: 1,    // wl_registry
+            args: smallvec::smallvec![
+                Argument::NewId(3), // should be 2
+            ],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+    server.flush(None).unwrap();
+
+    // server should have killed us due to the error, but it might send us that error first
+    let ret = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert!(ret.is_err());
+});
+
+expand_test!(client_wrong_opcode, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+
+    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+
+    socket
+        .write_message(&Message {
+            sender_id: 1, // wl_display
+            opcode: 42,   // inexistant
+            args: smallvec::smallvec![],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+    server.flush(None).unwrap();
+
+    // server should have killed us due to the error, but it might send us that error first
+    let ret = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert!(ret.is_err());
+});
+
+expand_test!(client_wrong_sender, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+
+    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+
+    socket
+        .write_message(&Message {
+            sender_id: 2, // inexistant
+            opcode: 0,    //
+            args: smallvec::smallvec![],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+    server.flush(None).unwrap();
+
+    // server should have killed us due to the error, but it might send us that error first
+    let ret = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert!(ret.is_err());
 });

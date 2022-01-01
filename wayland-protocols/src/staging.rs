@@ -32,6 +32,7 @@ pub mod xdg_activation {
     //! intend to activate. This can for example be used to display a visual hint
     //! about what application is being started.
 
+    #[allow(missing_docs)]
     pub mod v1 {
         wayland_protocol!(
             "./protocols/staging/xdg-activation/xdg-activation-v1.xml",

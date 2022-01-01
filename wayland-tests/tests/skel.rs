@@ -1,7 +1,5 @@
 mod helpers;
 
-use std::sync::Arc;
-
 use helpers::*;
 
 #[test]

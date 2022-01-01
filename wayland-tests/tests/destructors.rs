@@ -1,109 +1,193 @@
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use helpers::{roundtrip, wayc, ways, TestServer};
 
-use ways::protocol::wl_output::WlOutput as ServerOutput;
-
-use wayc::protocol::wl_output::WlOutput;
-
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 #[test]
 fn resource_destructor_request() {
-    let destructor_called = Arc::new(Mutex::new(false));
-    let destructor_called_global = destructor_called.clone();
-
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(
-        3,
-        ways::Filter::new(move |(newo, _): (ways::Main<ServerOutput>, _), _, _| {
-            let destructor_called_resource = destructor_called_global.clone();
-            newo.quick_assign(|_, _, _| {});
-            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _, _| {
-                *destructor_called_resource.lock().unwrap() = true;
-            }));
-        }),
-    );
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let output = manager.instantiate_exact::<WlOutput>(3).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let output = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    output.release();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    output.release(&mut client.cx.handle());
 
-    assert!(*destructor_called.lock().unwrap());
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+
+    assert!(server_ddata.destructor_called.load(Ordering::Acquire));
 }
 
 #[test]
 fn resource_destructor_cleanup() {
-    let destructor_called = Arc::new(Mutex::new(false));
-    let destructor_called_global = destructor_called.clone();
-
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(
-        3,
-        ways::Filter::new(move |(newo, _): (ways::Main<ServerOutput>, _), _, _| {
-            let destructor_called_resource = destructor_called_global.clone();
-            newo.assign_destructor(ways::Filter::new(move |_: ways::Resource<_>, _, _| {
-                *destructor_called_resource.lock().unwrap() = true;
-            }));
-        }),
-    );
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    manager.instantiate_exact::<WlOutput>(3).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    ::std::mem::drop(manager);
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+
     ::std::mem::drop(client);
 
-    server.answer();
+    server.answer(&mut server_ddata);
 
-    assert!(*destructor_called.lock().unwrap());
+    assert!(server_ddata.destructor_called.load(Ordering::Acquire));
 }
 
 #[test]
 fn client_destructor_cleanup() {
-    let destructor_called = Arc::new(Mutex::new(false));
-    let destructor_called_global = destructor_called.clone();
-
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput, _>(
-        3,
-        ways::Filter::new(move |(output, _): (ways::Main<ServerOutput>, _), _, _| {
-            let destructor_called_resource = destructor_called_global.clone();
-            let client = output.as_ref().client().unwrap();
-            client.add_destructor(ways::Filter::new(move |_, _, _| {
-                *destructor_called_resource.lock().unwrap() = true;
-            }));
-        }),
-    );
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let destructor_called = Arc::new(AtomicBool::new(false));
 
-    roundtrip(&mut client, &mut server).unwrap();
+    let (_, mut client) =
+        server.add_client_with_data(Arc::new(DestructorClientData(destructor_called.clone())));
+    let mut client_ddata = ClientHandler::new();
 
-    manager.instantiate_exact::<WlOutput>(3).unwrap();
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    ::std::mem::drop(manager);
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
+
     ::std::mem::drop(client);
 
-    server.answer();
+    server.answer(&mut server_ddata);
 
-    assert!(*destructor_called.lock().unwrap());
+    assert!(destructor_called.load(Ordering::Acquire));
 }
+
+struct DestructorClientData(Arc<AtomicBool>);
+
+impl ways::backend::ClientData<ServerHandler> for DestructorClientData {
+    fn initialized(&self, _: wayland_backend::server::ClientId) {}
+
+    fn disconnected(
+        &self,
+        _: wayland_backend::server::ClientId,
+        _: wayland_backend::server::DisconnectReason,
+    ) {
+        self.0.store(true, Ordering::Release)
+    }
+}
+
+struct ServerHandler {
+    destructor_called: Arc<AtomicBool>,
+}
+
+struct ServerUData(Arc<AtomicBool>);
+
+impl ways::DestructionNotify for ServerUData {
+    fn object_destroyed(&self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
+    type GlobalData = ();
+
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        output: ways::New<ways::protocol::wl_output::WlOutput>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(output, ServerUData(self.destructor_called.clone()));
+    }
+}
+
+impl ways::Dispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
+    type UserData = ServerUData;
+    fn request(
+        &mut self,
+        _: &ways::Client,
+        _: &ways::protocol::wl_output::WlOutput,
+        _: ways::protocol::wl_output::Request,
+        _: &ServerUData,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DataInit<'_, Self>,
+    ) {
+    }
+}
+
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+}
+
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default() }
+    }
+}
+
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
+
+client_ignore_impl!(ClientHandler => [
+    wayc::protocol::wl_output::WlOutput
+]);

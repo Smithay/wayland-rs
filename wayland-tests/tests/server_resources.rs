@@ -1,157 +1,261 @@
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
+use helpers::{roundtrip, wayc, ways, TestServer};
 
-use ways::protocol::{wl_compositor, wl_output};
+use ways::{
+    protocol::{wl_compositor, wl_output},
+    DestructionNotify, Resource,
+};
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
-
-use std::sync::{Arc, Mutex};
 
 #[test]
 fn resource_equals() {
     let mut server = TestServer::new();
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
-    let outputs = Arc::new(Mutex::new(Vec::new()));
-    let outputs2 = outputs.clone();
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    server.display.create_global::<wl_output::WlOutput, _>(
-        1,
-        ways::Filter::new(move |(newo, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            outputs2.lock().unwrap().push(newo);
-        }),
-    );
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     // create two outputs
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    let outputs_lock = outputs.lock().unwrap();
-    assert!(outputs_lock.len() == 2);
-    assert!(outputs_lock[0] != outputs_lock[1]);
+    assert!(server_ddata.outputs.len() == 2);
+    assert!(server_ddata.outputs[0] != server_ddata.outputs[1]);
 
-    let cloned = outputs_lock[0].clone();
-    assert!(outputs_lock[0] == cloned);
+    let cloned = server_ddata.outputs[0].clone();
+    assert!(server_ddata.outputs[0] == cloned);
 
-    assert!(outputs_lock[0].as_ref().same_client_as(outputs_lock[1].as_ref()));
+    assert!(server_ddata.outputs[0].id().same_client_as(&server_ddata.outputs[1].id()));
 }
 
 #[test]
 fn resource_user_data() {
     let mut server = TestServer::new();
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
-    let outputs = Arc::new(Mutex::new(Vec::new()));
-    let outputs2 = outputs.clone();
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    server.display.create_global::<wl_output::WlOutput, _>(
-        1,
-        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            let mut guard = outputs2.lock().unwrap();
-            output.as_ref().user_data().set(|| 1000 + guard.len());
-            guard.push(output);
-        }),
-    );
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     // create two outputs
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    let outputs_lock = outputs.lock().unwrap();
-    assert!(outputs_lock[0].as_ref().user_data().get::<usize>() == Some(&1000));
-    assert!(outputs_lock[1].as_ref().user_data().get::<usize>() == Some(&1001));
-    let cloned = outputs_lock[0].clone();
-    assert!(cloned.as_ref().user_data().get::<usize>() == Some(&1000));
+    assert_eq!(server_ddata.outputs[0].data::<UData>().unwrap().0, 1000);
+    assert_eq!(server_ddata.outputs[1].data::<UData>().unwrap().0, 1001);
+    let cloned = server_ddata.outputs[0].clone();
+    assert_eq!(cloned.data::<UData>().unwrap().0, 1000);
 }
 
 #[test]
 fn dead_resources() {
     let mut server = TestServer::new();
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
-    let outputs = Arc::new(Mutex::new(Vec::new()));
-    let outputs2 = outputs.clone();
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    server.display.create_global::<wl_output::WlOutput, _>(
-        3,
-        ways::Filter::new(move |(newo, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            newo.quick_assign(|_, _, _| {});
-            outputs2.lock().unwrap().push(newo);
-        }),
-    );
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    // create two outputs
+    let client_output_1 = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    let client_output1 = manager.instantiate_exact::<ClientOutput>(3).unwrap();
-    manager.instantiate_exact::<ClientOutput>(3).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    assert!(server.display.handle().get_object_data(server_ddata.outputs[0].id()).is_ok());
+    assert!(server.display.handle().get_object_data(server_ddata.outputs[1].id()).is_ok());
 
-    let cloned = {
-        let outputs_lock = outputs.lock().unwrap();
-        assert!(outputs_lock[0].as_ref().is_alive());
-        assert!(outputs_lock[1].as_ref().is_alive());
-        outputs_lock[0].clone()
-    };
+    let cloned = server_ddata.outputs[0].clone();
 
-    client_output1.release();
+    client_output_1.release(&mut client.cx.handle());
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    {
-        let outputs_lock = outputs.lock().unwrap();
-        assert!(!outputs_lock[0].as_ref().is_alive());
-        assert!(outputs_lock[1].as_ref().is_alive());
-        assert!(!cloned.as_ref().is_alive());
-    }
+    assert!(server.display.handle().get_object_data(server_ddata.outputs[0].id()).is_err());
+    assert!(server.display.handle().get_object_data(server_ddata.outputs[1].id()).is_ok());
+    assert!(server.display.handle().get_object_data(cloned.id()).is_err());
 }
 
 #[test]
 fn get_resource() {
     let mut server = TestServer::new();
-    let clients = Arc::new(Mutex::new(Vec::new()));
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
-    server.display.create_global::<wl_output::WlOutput, _>(1, {
-        let clients = clients.clone();
-        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            // retrieve and store the client
-            let client = output.as_ref().client().unwrap();
-            clients.lock().unwrap().push(client);
-        })
-    });
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::new();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    // Instantiate a global
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+    // create an outputs
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            3..4,
+            (),
+        )
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     // try to retrieve the resource
     // its id should be 3 (1 is wl_display and 2 is wl_registry)
-    let clients = clients.lock().unwrap();
+    let client = server.display.handle().get_client(server_ddata.outputs[0].id()).unwrap();
     // wrong interface fails
-    assert!(clients[0].get_resource::<wl_compositor::WlCompositor>(3).is_none());
+    assert!(client
+        .object_from_protocol_id::<wl_compositor::WlCompositor, _>(&mut server.display.handle(), 3)
+        .is_err());
     // wrong id fails
-    assert!(clients[0].get_resource::<wl_output::WlOutput>(4).is_none());
+    assert!(client
+        .object_from_protocol_id::<wl_output::WlOutput, _>(&mut server.display.handle(), 4)
+        .is_err());
     // but this suceeds
-    assert!(clients[0].get_resource::<wl_output::WlOutput>(3).is_some());
+    assert!(client
+        .object_from_protocol_id::<wl_output::WlOutput, _>(&mut server.display.handle(), 3)
+        .is_ok());
+}
+
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+}
+
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default() }
+    }
+}
+
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
+
+client_ignore_impl!(ClientHandler => [ClientOutput]);
+
+struct ServerHandler {
+    outputs: Vec<wl_output::WlOutput>,
+}
+
+impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &ways::Client,
+        output: ways::New<ways::protocol::wl_output::WlOutput>,
+        _: &(),
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        let output = data_init.init(output, UData(1000 + self.outputs.len()));
+        self.outputs.push(output);
+    }
+}
+
+struct UData(usize);
+
+impl DestructionNotify for UData {}
+
+impl ways::Dispatch<wl_output::WlOutput> for ServerHandler {
+    type UserData = UData;
+
+    fn request(
+        &mut self,
+        _: &ways::Client,
+        _: &wl_output::WlOutput,
+        _: wl_output::Request,
+        _: &Self::UserData,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DataInit<'_, Self>,
+    ) {
+    }
 }

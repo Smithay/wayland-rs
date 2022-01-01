@@ -1,113 +1,88 @@
+#[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestClient, TestServer};
-
-use ways::protocol::{wl_compositor, wl_output};
-
-use wayc::protocol::wl_compositor::WlCompositor as ClientCompositor;
-use wayc::protocol::wl_output::WlOutput as ClientOutput;
+use helpers::{roundtrip, wayc, ways, TestServer};
 
 use std::sync::{Arc, Mutex};
 
 #[test]
 fn client_user_data() {
     let mut server = TestServer::new();
-    let clients = Arc::new(Mutex::new(Vec::new()));
+    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(1, ());
+    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    let mut server_ddata = ServerHandler {};
 
-    struct HasOutput;
-    struct HasCompositor;
+    let (s_client, mut client) = server.add_client_with_data(Arc::new(Mutex::new(MyClientData {
+        has_compositor: false,
+        has_output: false,
+    })));
+    let mut client_ddata = ClientHandler::new();
 
-    server.display.create_global::<wl_output::WlOutput, _>(1, {
-        let clients = clients.clone();
-        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            let client = output.as_ref().client().unwrap();
-            let ret = client.data_map().insert_if_missing(|| HasOutput);
-            // the data should not be already here
-            assert!(ret);
-            clients.lock().unwrap().push(client);
-        })
-    });
-    server.display.create_global::<wl_compositor::WlCompositor, _>(1, {
-        let clients = clients.clone();
-        ways::Filter::new(
-            move |(compositor, _): (ways::Main<wl_compositor::WlCompositor>, u32), _, _| {
-                let client = compositor.as_ref().client().unwrap();
-                let ret = client.data_map().insert_if_missing(|| HasCompositor);
-                // the data should not be already here
-                assert!(ret);
-                clients.lock().unwrap().push(client);
-            },
-        )
-    });
+    let registry = client
+        .display
+        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     // Instantiate the globals
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     {
-        let clients = clients.lock().unwrap();
-
-        assert!(clients.len() == 1);
-        assert!(clients[0].data_map().get::<HasOutput>().is_some());
-        assert!(clients[0].data_map().get::<HasCompositor>().is_none());
+        let guard = s_client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap();
+        assert!(guard.has_output);
+        assert!(!guard.has_compositor);
     }
 
-    manager.instantiate_exact::<ClientCompositor>(1).unwrap();
+    client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+            &mut client.cx.handle(),
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
+        .unwrap();
 
-    roundtrip(&mut client, &mut server).unwrap();
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    let clients = clients.lock().unwrap();
-
-    assert!(clients.len() == 2);
-    assert!(clients[0].equals(&clients[1]));
-    assert!(clients[0].data_map().get::<HasCompositor>().is_some());
-    assert!(clients[0].data_map().get::<HasOutput>().is_some());
-    assert!(clients[1].data_map().get::<HasCompositor>().is_some());
-    assert!(clients[1].data_map().get::<HasOutput>().is_some());
+    {
+        let guard = s_client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap();
+        assert!(guard.has_output);
+        assert!(guard.has_compositor);
+    }
 }
 
 #[test]
 fn client_credentials() {
-    let mut server = TestServer::new();
+    let mut server = TestServer::<()>::new();
 
-    let server_client = Arc::new(Mutex::new(None));
+    let (s_client, _) = server.add_client::<()>();
 
-    server.display.create_global::<wl_output::WlOutput, _>(1, {
-        let server_client = server_client.clone();
-        ways::Filter::new(move |(output, _): (ways::Main<wl_output::WlOutput>, u32), _, _| {
-            let client = output.as_ref().client().unwrap();
-            server_client.lock().unwrap().replace(client);
-        })
-    });
-    let mut client = TestClient::new(&server.socket_name);
-    let manager = wayc::GlobalManager::new(&client.display_proxy);
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    // Instantiate the globals
-    manager.instantiate_exact::<ClientOutput>(1).unwrap();
-
-    roundtrip(&mut client, &mut server).unwrap();
-
-    let server_client = server_client.lock().unwrap().take().unwrap();
-    let credentials = server_client.credentials();
-    assert!(credentials.is_some());
+    let credentials = s_client.get_credentials(&mut server.display.handle());
+    assert!(credentials.is_ok());
     assert_credentials(credentials.unwrap());
 }
 
-#[cfg(any(not(feature = "server_native"), not(target_os = "freebsd")))]
-fn assert_credentials(credentials: ways::Credentials) {
+#[cfg(any(not(feature = "server_system"), not(target_os = "freebsd")))]
+fn assert_credentials(credentials: ways::backend::Credentials) {
     assert!(credentials.pid != 0);
 }
 
-#[cfg(all(feature = "server_native", target_os = "freebsd"))]
-fn assert_credentials(_credentials: ways::Credentials) {
+#[cfg(all(feature = "server_system", target_os = "freebsd"))]
+fn assert_credentials(_credentials: ways::backend::ways::Credentials) {
     // The current implementation of wl_client_get_credentials
     // will always return pid == 0 on freebsd
     // On recent versions this has been fixed with a freebsd
@@ -117,4 +92,75 @@ fn assert_credentials(_credentials: ways::Credentials) {
     // for now.
     //
     // see: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=246189
+}
+
+struct ClientHandler {
+    globals: wayc::globals::GlobalList,
+}
+
+impl ClientHandler {
+    fn new() -> ClientHandler {
+        ClientHandler { globals: Default::default() }
+    }
+}
+
+wayc::delegate_dispatch!(ClientHandler:
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+);
+
+client_ignore_impl!(ClientHandler => [
+    wayc::protocol::wl_output::WlOutput,
+    wayc::protocol::wl_compositor::WlCompositor
+]);
+
+struct ServerHandler;
+
+struct MyClientData {
+    has_compositor: bool,
+    has_output: bool,
+}
+
+impl ways::backend::ClientData<ServerHandler> for Mutex<MyClientData> {
+    fn initialized(&self, _: wayland_backend::server::ClientId) {}
+    fn disconnected(
+        &self,
+        _: wayland_backend::server::ClientId,
+        _: wayland_backend::server::DisconnectReason,
+    ) {
+    }
+}
+
+server_ignore_impl!(ServerHandler => [
+    ways::protocol::wl_output::WlOutput,
+    ways::protocol::wl_compositor::WlCompositor
+]);
+
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        client: &ways::Client,
+        resource: ways::New<ways::protocol::wl_output::WlOutput>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(resource, ());
+        client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap().has_output = true;
+    }
+}
+
+impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandler {
+    type GlobalData = ();
+    fn bind(
+        &mut self,
+        _: &mut ways::DisplayHandle<'_, Self>,
+        client: &ways::Client,
+        resource: ways::New<ways::protocol::wl_compositor::WlCompositor>,
+        _: &Self::GlobalData,
+        data_init: &mut ways::DataInit<'_, Self>,
+    ) {
+        data_init.init(resource, ());
+        client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap().has_compositor = true;
+    }
 }
