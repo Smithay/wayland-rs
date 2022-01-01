@@ -8,6 +8,7 @@ documentation = "https://smithay.github.io/wayland-rs/wayland_backend/"
 license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland"]
+description = "Low-level bindings to the Wayland protocol"
 readme = "README.md"
 build = "build.rs"
 
