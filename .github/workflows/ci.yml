@@ -206,7 +206,7 @@ jobs:
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: --ignore-tests -p wayland_tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}" --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
+          args: --ignore-tests -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}" --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
