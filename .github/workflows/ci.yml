@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -42,6 +44,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -78,6 +82,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
