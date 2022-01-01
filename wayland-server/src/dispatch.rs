@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wayland_backend::server::ObjectData;
+use wayland_backend::server::{ClientId, ObjectData, ObjectId};
 
 use crate::{Client, DisplayHandle, Resource};
 
@@ -34,8 +34,11 @@ pub trait DestructionNotify {
     /// the inside of the object.
     ///
     /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
+    ///
+    /// You are given the [`ObjectId`] and [`ClientId`] associated with the destroyed object for cleanup
+    /// convenience.
     #[cfg(not(tarpaulin_include))]
-    fn object_destroyed(&self) {}
+    fn object_destroyed(&self, _client_id: ClientId, _object_id: ObjectId) {}
 }
 
 impl DestructionNotify for () {}
@@ -169,9 +172,9 @@ impl<
 
     fn destroyed(
         &self,
-        _: wayland_backend::server::ClientId,
-        _: wayland_backend::server::ObjectId,
+        cid: wayland_backend::server::ClientId,
+        oid: wayland_backend::server::ObjectId,
     ) {
-        self.udata.object_destroyed()
+        self.udata.object_destroyed(cid, oid)
     }
 }

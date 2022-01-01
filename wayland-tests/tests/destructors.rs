@@ -140,7 +140,7 @@ struct ServerHandler {
 struct ServerUData(Arc<AtomicBool>);
 
 impl ways::DestructionNotify for ServerUData {
-    fn object_destroyed(&self) {
+    fn object_destroyed(&self, _: ways::backend::ClientId, _: ways::backend::ObjectId) {
         self.0.store(true, Ordering::Release);
     }
 }
