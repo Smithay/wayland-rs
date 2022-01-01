@@ -277,6 +277,7 @@ impl<D> Client<D> {
         }));
     }
 
+    #[cfg(target_os = "linux")]
     pub(crate) fn get_credentials(&self) -> Credentials {
         let creds = nix::sys::socket::getsockopt(
             self.socket.as_raw_fd(),
@@ -284,6 +285,12 @@ impl<D> Client<D> {
         )
         .expect("getsockopt failed!?");
         Credentials { pid: creds.pid(), uid: creds.uid(), gid: creds.gid() }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    // for now this only works on linux
+    pub(crate) fn get_credentials(&self) -> Credentials {
+        Credentials { pid: 0, uid: 0, gid: 0 }
     }
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {
