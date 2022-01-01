@@ -62,6 +62,8 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-build-rust_stable-check-${{ hashFiles('**/Cargo.toml') }}
+      - name: System dependencies
+        run: sudo apt-get install libwayland-dev
       - name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
@@ -90,6 +92,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-rust_nightly-${{ hashFiles('**/Cargo.toml') }}
+      - name: System dependencies
+        run: sudo apt-get install libwayland-dev
       - name: Downgrade to minimal dependencies
         uses: actions-rs/cargo@v1
         with:
