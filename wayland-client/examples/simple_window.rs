@@ -11,13 +11,13 @@ use wayland_client::{
 use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
 fn main() {
-    let cx = Connection::connect_to_env().unwrap();
+    let conn = Connection::connect_to_env().unwrap();
 
-    let mut event_queue = cx.new_event_queue();
+    let mut event_queue = conn.new_event_queue();
     let qhandle = event_queue.handle();
 
-    let display = cx.handle().display();
-    display.get_registry(&mut cx.handle(), &qhandle, ()).unwrap();
+    let display = conn.handle().display();
+    display.get_registry(&mut conn.handle(), &qhandle, ()).unwrap();
 
     let mut state = State {
         running: true,
@@ -52,35 +52,35 @@ impl Dispatch<wl_registry::WlRegistry> for State {
         registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
-        cx: &mut ConnectionHandle,
+        conn: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
     ) {
         if let wl_registry::Event::Global { name, interface, .. } = event {
             match &interface[..] {
                 "wl_compositor" => {
                     let compositor = registry
-                        .bind::<wl_compositor::WlCompositor, _>(cx, name, 1, qh, ())
+                        .bind::<wl_compositor::WlCompositor, _>(conn, name, 1, qh, ())
                         .unwrap();
-                    let surface = compositor.create_surface(cx, qh, ()).unwrap();
+                    let surface = compositor.create_surface(conn, qh, ()).unwrap();
                     self.base_surface = Some(surface);
 
                     if self.wm_base.is_some() && self.xdg_surface.is_none() {
-                        self.init_xdg_surface(cx, qh);
+                        self.init_xdg_surface(conn, qh);
                     }
                 }
                 "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _>(cx, name, 1, qh, ()).unwrap();
+                    let shm = registry.bind::<wl_shm::WlShm, _>(conn, name, 1, qh, ()).unwrap();
 
                     let (init_w, init_h) = (320, 240);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
                     let pool = shm
-                        .create_pool(cx, file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ())
+                        .create_pool(conn, file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ())
                         .unwrap();
                     let buffer = pool
                         .create_buffer(
-                            cx,
+                            conn,
                             0,
                             init_w as i32,
                             init_h as i32,
@@ -94,20 +94,20 @@ impl Dispatch<wl_registry::WlRegistry> for State {
 
                     if self.configured {
                         let surface = self.base_surface.as_ref().unwrap();
-                        surface.attach(cx, Some(&buffer), 0, 0);
-                        surface.commit(cx);
+                        surface.attach(conn, Some(&buffer), 0, 0);
+                        surface.commit(conn);
                     }
                 }
                 "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _>(cx, name, 1, qh, ()).unwrap();
+                    registry.bind::<wl_seat::WlSeat, _>(conn, name, 1, qh, ()).unwrap();
                 }
                 "xdg_wm_base" => {
                     let wm_base =
-                        registry.bind::<xdg_wm_base::XdgWmBase, _>(cx, name, 1, qh, ()).unwrap();
+                        registry.bind::<xdg_wm_base::XdgWmBase, _>(conn, name, 1, qh, ()).unwrap();
                     self.wm_base = Some(wm_base);
 
                     if self.base_surface.is_some() && self.xdg_surface.is_none() {
-                        self.init_xdg_surface(cx, qh);
+                        self.init_xdg_surface(conn, qh);
                     }
                 }
                 _ => {}
@@ -209,15 +209,15 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
 }
 
 impl State {
-    fn init_xdg_surface(&mut self, cx: &mut ConnectionHandle<'_>, qh: &QueueHandle<State>) {
+    fn init_xdg_surface(&mut self, conn: &mut ConnectionHandle<'_>, qh: &QueueHandle<State>) {
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
-        let xdg_surface = wm_base.get_xdg_surface(cx, base_surface, qh, ()).unwrap();
-        let toplevel = xdg_surface.get_toplevel(cx, qh, ()).unwrap();
-        toplevel.set_title(cx, "A fantastic window!".into());
+        let xdg_surface = wm_base.get_xdg_surface(conn, base_surface, qh, ()).unwrap();
+        let toplevel = xdg_surface.get_toplevel(conn, qh, ()).unwrap();
+        toplevel.set_title(conn, "A fantastic window!".into());
 
-        base_surface.commit(cx);
+        base_surface.commit(conn);
 
         self.xdg_surface = Some((xdg_surface, toplevel));
     }
@@ -231,11 +231,11 @@ impl Dispatch<xdg_wm_base::XdgWmBase> for State {
         wm_base: &xdg_wm_base::XdgWmBase,
         event: xdg_wm_base::Event,
         _: &(),
-        cx: &mut ConnectionHandle,
+        conn: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
     ) {
         if let xdg_wm_base::Event::Ping { serial } = event {
-            wm_base.pong(cx, serial);
+            wm_base.pong(conn, serial);
         }
     }
 }
@@ -248,16 +248,16 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
         xdg_surface: &xdg_surface::XdgSurface,
         event: xdg_surface::Event,
         _: &(),
-        cx: &mut ConnectionHandle,
+        conn: &mut ConnectionHandle,
         _: &QueueHandle<Self>,
     ) {
         if let xdg_surface::Event::Configure { serial, .. } = event {
-            xdg_surface.ack_configure(cx, serial);
+            xdg_surface.ack_configure(conn, serial);
             self.configured = true;
             let surface = self.base_surface.as_ref().unwrap();
             if let Some(ref buffer) = self.buffer {
-                surface.attach(cx, Some(buffer), 0, 0);
-                surface.commit(cx);
+                surface.attach(conn, Some(buffer), 0, 0);
+                surface.commit(conn);
             }
         }
     }
@@ -288,12 +288,12 @@ impl Dispatch<wl_seat::WlSeat> for State {
         seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         _: &(),
-        cx: &mut ConnectionHandle,
+        conn: &mut ConnectionHandle,
         qh: &QueueHandle<Self>,
     ) {
         if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                seat.get_keyboard(cx, qh, ()).unwrap();
+                seat.get_keyboard(conn, qh, ()).unwrap();
             }
         }
     }

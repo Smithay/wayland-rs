@@ -29,7 +29,7 @@ fn data_offer() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -37,7 +37,7 @@ fn data_offer() {
     let seat = client_ddata
         .globals
         .bind::<ClientSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -47,7 +47,7 @@ fn data_offer() {
     let ddmgr = client_ddata
         .globals
         .bind::<ClientDDMgr, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -56,7 +56,7 @@ fn data_offer() {
         .unwrap();
 
     ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -88,7 +88,7 @@ fn server_id_reuse() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -96,7 +96,7 @@ fn server_id_reuse() {
     let seat = client_ddata
         .globals
         .bind::<ClientSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -106,7 +106,7 @@ fn server_id_reuse() {
     let ddmgr = client_ddata
         .globals
         .bind::<ClientDDMgr, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -115,7 +115,7 @@ fn server_id_reuse() {
         .unwrap();
 
     ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -144,7 +144,7 @@ fn server_id_reuse() {
 
     // now the client destroys the offer
 
-    client_offer.destroy(&mut client.cx.handle());
+    client_offer.destroy(&mut client.conn.handle());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -174,7 +174,7 @@ fn server_created_race() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -182,7 +182,7 @@ fn server_created_race() {
     let seat = client_ddata
         .globals
         .bind::<ClientSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -192,7 +192,7 @@ fn server_created_race() {
     let ddmgr = client_ddata
         .globals
         .bind::<ClientDDMgr, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -201,7 +201,7 @@ fn server_created_race() {
         .unwrap();
 
     ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -228,7 +228,7 @@ fn server_created_race() {
 
     offer.offer(&mut server.display.handle(), "utf8".into());
     let client_do = client_ddata.data_offer.take().unwrap();
-    client_do.destroy(&mut client.cx.handle());
+    client_do.destroy(&mut client.conn.handle());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -250,7 +250,7 @@ fn creation_destruction_race() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -258,7 +258,7 @@ fn creation_destruction_race() {
     let seat = client_ddata
         .globals
         .bind::<ClientSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -268,7 +268,7 @@ fn creation_destruction_race() {
     let ddmgr = client_ddata
         .globals
         .bind::<ClientDDMgr, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -279,19 +279,19 @@ fn creation_destruction_race() {
     // client creates two data devices
 
     let client_dd1 = ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     let s_dd1 = server_ddata.data_device.take().unwrap();
 
     ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     let s_dd2 = server_ddata.data_device.take().unwrap();
 
     // server sends a newid event to dd1 while dd1 gets destroyed
-    client_dd1.release(&mut client.cx.handle());
+    client_dd1.release(&mut client.conn.handle());
 
     let s_client = server.display.handle().get_client(s_dd1.id()).unwrap();
     // Send a first NewID
@@ -332,7 +332,7 @@ fn creation_destruction_queue_dispatch_race() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -340,7 +340,7 @@ fn creation_destruction_queue_dispatch_race() {
     let seat = client_ddata
         .globals
         .bind::<ClientSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -350,7 +350,7 @@ fn creation_destruction_queue_dispatch_race() {
     let ddmgr = client_ddata
         .globals
         .bind::<ClientDDMgr, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -359,7 +359,7 @@ fn creation_destruction_queue_dispatch_race() {
         .unwrap();
 
     let client_dd = ddmgr
-        .get_data_device(&mut client.cx.handle(), &seat, &client.event_queue.handle(), ())
+        .get_data_device(&mut client.conn.handle(), &seat, &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -381,9 +381,9 @@ fn creation_destruction_queue_dispatch_race() {
     // Manually dispatch to cause the race
     server.display.flush_clients().unwrap();
 
-    client.cx.prepare_read().unwrap().read().unwrap();
+    client.conn.prepare_read().unwrap().read().unwrap();
 
-    client_dd.release(&mut client.cx.handle());
+    client_dd.release(&mut client.conn.handle());
 
     client.event_queue.dispatch_pending(&mut client_ddata).unwrap();
 

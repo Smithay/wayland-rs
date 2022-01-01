@@ -23,7 +23,7 @@ pub trait Dispatch<I: Proxy>: Sized {
         proxy: &I,
         event: I::Event,
         data: &Self::UserData,
-        cxhandle: &mut ConnectionHandle,
+        connhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
     );
 
@@ -54,7 +54,7 @@ pub trait Dispatch<I: Proxy>: Sized {
 ///         proxy: &WlFoo,
 ///         event: FooEvent,
 ///         data: &FooUserData,
-///         cxhandle: &mut ConnectionHandle,
+///         connhandle: &mut ConnectionHandle,
 ///         qhandle: &QueueHandle<MyState>
 ///     ) {
 ///         /* ... */
@@ -172,7 +172,7 @@ impl<D> EventQueue<D> {
         if dispatched > 0 {
             Ok(dispatched)
         } else {
-            crate::cx::blocking_dispatch_impl(self.backend.clone())?;
+            crate::conn::blocking_dispatch_impl(self.backend.clone())?;
             Self::dispatching_impl(
                 &mut self.backend.lock().unwrap(),
                 &mut self.rx,
@@ -367,7 +367,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
 ///         _data: &Self::UserData,
-///         _cxhandle: &mut wayland_client::ConnectionHandle,
+///         _connhandle: &mut wayland_client::ConnectionHandle,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
 ///     ) {
 ///         // Here the delegate may handle incoming events as it pleases.
@@ -388,7 +388,7 @@ pub trait DelegateDispatch<
         proxy: &I,
         event: I::Event,
         data: &Self::UserData,
-        cxhandle: &mut ConnectionHandle,
+        connhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<D>,
     );
 
@@ -438,7 +438,7 @@ pub trait DelegateDispatch<
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
 /// #         _data: &Self::UserData,
-/// #         _cxhandle: &mut wayland_client::ConnectionHandle,
+/// #         _connhandle: &mut wayland_client::ConnectionHandle,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
 /// #     }
@@ -513,7 +513,7 @@ pub trait DelegateDispatch<
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
 /// #         _data: &Self::UserData,
-/// #         _cxhandle: &mut wayland_client::ConnectionHandle,
+/// #         _connhandle: &mut wayland_client::ConnectionHandle,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
 /// #     }
@@ -535,12 +535,12 @@ macro_rules! delegate_dispatch {
                     proxy: &$interface,
                     event: <$interface as $crate::Proxy>::Event,
                     data: &Self::UserData,
-                    cxhandle: &mut $crate::ConnectionHandle,
+                    connhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
                     let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
                     let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
                 }
 
                 fn event_created_child(
@@ -564,12 +564,12 @@ macro_rules! delegate_dispatch {
                     proxy: &$interface,
                     event: <$interface as $crate::Proxy>::Event,
                     data: &Self::UserData,
-                    cxhandle: &mut $crate::ConnectionHandle,
+                    connhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
                     let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
                     let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, cxhandle, qhandle)
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
                 }
 
                 fn event_created_child(

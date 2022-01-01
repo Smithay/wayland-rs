@@ -20,7 +20,7 @@ fn client_user_data() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -29,7 +29,7 @@ fn client_user_data() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -48,7 +48,7 @@ fn client_user_data() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,

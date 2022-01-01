@@ -21,7 +21,7 @@ fn resource_equals() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -30,7 +30,7 @@ fn resource_equals() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -40,7 +40,7 @@ fn resource_equals() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -70,7 +70,7 @@ fn resource_user_data() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -79,7 +79,7 @@ fn resource_user_data() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -89,7 +89,7 @@ fn resource_user_data() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -116,7 +116,7 @@ fn dead_resources() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -125,7 +125,7 @@ fn dead_resources() {
     let client_output_1 = client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -135,7 +135,7 @@ fn dead_resources() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -150,7 +150,7 @@ fn dead_resources() {
 
     let cloned = server_ddata.outputs[0].clone();
 
-    client_output_1.release(&mut client.cx.handle());
+    client_output_1.release(&mut client.conn.handle());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -170,7 +170,7 @@ fn get_resource() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -179,7 +179,7 @@ fn get_resource() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,

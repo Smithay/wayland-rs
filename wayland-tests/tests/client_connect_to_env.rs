@@ -23,7 +23,10 @@ fn main() {
     // connect the client
     let mut client = TestClient::new_from_env();
     let mut globals = wayc::globals::GlobalList::new();
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     // setup server-side
     let client_stream = listening.accept().unwrap().unwrap();

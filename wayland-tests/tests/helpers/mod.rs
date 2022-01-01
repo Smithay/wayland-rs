@@ -43,24 +43,25 @@ impl<D> TestServer<D> {
 }
 
 pub struct TestClient<D> {
-    pub cx: self::wayc::Connection,
+    pub conn: self::wayc::Connection,
     pub display: self::wayc::protocol::wl_display::WlDisplay,
     pub event_queue: self::wayc::EventQueue<D>,
 }
 
 impl<D> TestClient<D> {
     pub fn new(socket: UnixStream) -> TestClient<D> {
-        let cx = self::wayc::Connection::from_socket(socket).expect("Failed to connect to server.");
-        let event_queue = cx.new_event_queue();
-        let display = cx.handle().display();
-        TestClient { cx, display, event_queue }
+        let conn =
+            self::wayc::Connection::from_socket(socket).expect("Failed to connect to server.");
+        let event_queue = conn.new_event_queue();
+        let display = conn.handle().display();
+        TestClient { conn, display, event_queue }
     }
 
     pub fn new_from_env() -> TestClient<D> {
-        let cx = self::wayc::Connection::connect_to_env().expect("Failed to connect to server.");
-        let event_queue = cx.new_event_queue();
-        let display = cx.handle().display();
-        TestClient { cx, display, event_queue }
+        let conn = self::wayc::Connection::connect_to_env().expect("Failed to connect to server.");
+        let event_queue = conn.new_event_queue();
+        let display = conn.handle().display();
+        TestClient { conn, display, event_queue }
     }
 }
 
@@ -74,7 +75,7 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
     let done = Arc::new(AtomicBool::new(false));
     let done2 = done.clone();
     client
-        .cx
+        .conn
         .handle()
         .send_request(
             &client.display,
@@ -83,7 +84,7 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
         )
         .unwrap();
     while !done2.load(Ordering::Acquire) {
-        match client.cx.flush() {
+        match client.conn.flush() {
             Ok(_) => {}
             Err(wayc::backend::WaylandError::Io(e))
                 if e.kind() == ::std::io::ErrorKind::BrokenPipe => {}
@@ -95,7 +96,7 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
         ::std::thread::sleep(::std::time::Duration::from_millis(100));
         // dispatch all client-side
         client.event_queue.dispatch_pending(client_ddata).unwrap();
-        let e = client.cx.prepare_read().and_then(|guard| guard.read());
+        let e = client.conn.prepare_read().and_then(|guard| guard.read());
         // even if read_events returns an error, some messages may need dispatching
         client.event_queue.dispatch_pending(client_ddata).unwrap();
         e?;

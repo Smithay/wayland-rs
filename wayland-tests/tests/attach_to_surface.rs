@@ -28,7 +28,7 @@ fn attach_null() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // Initial sync
@@ -37,7 +37,7 @@ fn attach_null() {
     let compositor = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -45,9 +45,9 @@ fn attach_null() {
         )
         .unwrap();
     let surface = compositor
-        .create_surface(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .create_surface(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
-    surface.attach(&mut client.cx.handle(), None, 0, 0);
+    surface.attach(&mut client.conn.handle(), None, 0, 0);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -70,7 +70,7 @@ fn attach_buffer() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // Initial sync
@@ -79,7 +79,7 @@ fn attach_buffer() {
     let shm = client_ddata
         .globals
         .bind::<wayc::protocol::wl_shm::WlShm, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -92,7 +92,7 @@ fn attach_buffer() {
     file.flush().unwrap();
     let pool = shm
         .create_pool(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             file.as_raw_fd(),
             42,
             &client.event_queue.handle(),
@@ -101,7 +101,7 @@ fn attach_buffer() {
         .unwrap();
     let buffer = pool
         .create_buffer(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             0,
             0,
             0,
@@ -115,7 +115,7 @@ fn attach_buffer() {
     let compositor = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -123,9 +123,9 @@ fn attach_buffer() {
         )
         .unwrap();
     let surface = compositor
-        .create_surface(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .create_surface(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
-    surface.attach(&mut client.cx.handle(), Some(&buffer), 0, 0);
+    surface.attach(&mut client.conn.handle(), Some(&buffer), 0, 0);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 

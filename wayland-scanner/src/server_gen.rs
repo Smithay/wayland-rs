@@ -98,20 +98,20 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+                fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null(){
                         return Err(InvalidId)
                     }
-                    let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-                    let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+                    let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+                    let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
                     Ok(#iface_name { id, data, version })
                 }
 
-                fn parse_request<D>(cx: &mut DisplayHandle<D>, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
+                fn parse_request<D>(conn: &mut DisplayHandle<D>, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }
 
-                fn write_event<D>(&self, cx: &mut DisplayHandle<D>, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
+                fn write_event<D>(&self, conn: &mut DisplayHandle<D>, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
                     #write_body
                 }
 
@@ -203,8 +203,8 @@ fn gen_methods(interface: &Interface) -> TokenStream {
 
             quote! {
                 #[allow(clippy::too_many_arguments)]
-                pub fn #method_name<D>(&self, cx: &mut DisplayHandle<D>, #(#fn_args),*) {
-                    let _ = cx.send_event(
+                pub fn #method_name<D>(&self, conn: &mut DisplayHandle<D>, #(#fn_args),*) {
+                    let _ = conn.send_event(
                         self,
                         Event::#enum_variant {
                             #(#enum_args),*

@@ -14,7 +14,7 @@ fn constructor_dead() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -22,7 +22,7 @@ fn constructor_dead() {
     let seat = client_ddata
         .globals
         .bind::<wayc::protocol::wl_seat::WlSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -30,9 +30,9 @@ fn constructor_dead() {
         )
         .unwrap();
 
-    seat.release(&mut client.cx.handle());
+    seat.release(&mut client.conn.handle());
 
-    assert!(seat.get_pointer(&mut client.cx.handle(), &client.event_queue.handle(), ()).is_err());
+    assert!(seat.get_pointer(&mut client.conn.handle(), &client.event_queue.handle(), ()).is_err());
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn send_constructor_wrong_type() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -53,7 +53,7 @@ fn send_constructor_wrong_type() {
     let seat = client_ddata
         .globals
         .bind::<wayc::protocol::wl_seat::WlSeat, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -62,7 +62,7 @@ fn send_constructor_wrong_type() {
         .unwrap();
 
     let id = client
-        .cx
+        .conn
         .handle()
         .send_request(
             &seat,
@@ -77,7 +77,7 @@ fn send_constructor_wrong_type() {
         .unwrap();
 
     // The ID points to a wl_pointer, so trying to make a wl_keyboard from it should fail
-    assert!(wayc::protocol::wl_keyboard::WlKeyboard::from_id(&mut client.cx.handle(), id).is_err())
+    assert!(wayc::protocol::wl_keyboard::WlKeyboard::from_id(&mut client.conn.handle(), id).is_err())
 }
 
 /*

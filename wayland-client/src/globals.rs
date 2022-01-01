@@ -65,11 +65,11 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
         proxy: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         data: &Self::UserData,
-        cxhandle: &mut ConnectionHandle,
+        connhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<Self>,
     ) {
         <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
-            self, proxy, event, data, cxhandle, qhandle,
+            self, proxy, event, data, connhandle, qhandle,
         )
     }
 }
@@ -97,7 +97,7 @@ impl GlobalList {
     /// also need to provide the user data value that will be set for the newly created object.
     pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
         &self,
-        cx: &mut ConnectionHandle<'_>,
+        conn: &mut ConnectionHandle<'_>,
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
         version: Range<u32>,
@@ -110,7 +110,7 @@ impl GlobalList {
 
             if version.contains(&desc.version) {
                 return Ok(registry
-                    .bind::<I, D>(cx, desc.name, desc.version, qh, user_data)
+                    .bind::<I, D>(conn, desc.name, desc.version, qh, user_data)
                     .expect("invalid wl_registry"));
             } else {
                 return Err(BindError::WrongVersion {

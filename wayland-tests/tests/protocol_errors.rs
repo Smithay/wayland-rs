@@ -15,7 +15,7 @@ fn client_receive_generic_error() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -24,7 +24,7 @@ fn client_receive_generic_error() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -44,10 +44,10 @@ fn client_receive_generic_error() {
     compositor.post_error(&mut server.display.handle(), 42u32, "I don't like you!");
 
     // the error has not yet reached the client
-    assert!(client.cx.protocol_error().is_none());
+    assert!(client.conn.protocol_error().is_none());
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
-    let error = client.cx.protocol_error().unwrap();
+    let error = client.conn.protocol_error().unwrap();
     assert_eq!(error.code, 42);
     assert_eq!(error.object_id, 3);
     assert_eq!(error.object_interface, "wl_compositor");

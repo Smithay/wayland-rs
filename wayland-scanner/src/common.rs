@@ -331,7 +331,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             let created_iface_mod = Ident::new(created_interface, Span::call_site());
                             let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                             quote! {
-                                match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(cx, #arg_name.clone()) {
+                                match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(conn, #arg_name.clone()) {
                                     Ok(p) => p,
                                     Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
                                 }
@@ -354,7 +354,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             let created_iface_mod = Ident::new(created_interface, Span::call_site());
                             let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                             quote! {
-                                match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(cx, #arg_name.clone()) {
+                                match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(conn, #arg_name.clone()) {
                                     Ok(p) => p,
                                     Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
                                 }
@@ -408,7 +408,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
     });
 
     quote! {
-        let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+        let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
         match msg.opcode {
             #(#match_arms),*
             _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
@@ -448,9 +448,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Fixed => quote! { Argument::Fixed((#arg_name * 256.) as i32) },
                 Type::Object => if arg.allow_null {
                     if side == Side::Server {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(cx.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(conn.null_id()) } }
                     } else {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(cx.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(conn.null_id()) } }
                     }
                 } else if side == Side::Server {
                     quote!{ Argument::Object(Resource::id(&#arg_name)) }
@@ -472,21 +472,21 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         let created_iface_mod = Ident::new(created_interface, Span::call_site());
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                         quote! { {
-                            let my_info = cx.object_info(self.id())?;
-                            let placeholder = cx.placeholder_id(Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version)));
+                            let my_info = conn.object_info(self.id())?;
+                            let placeholder = conn.placeholder_id(Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version)));
                             Argument::NewId(placeholder)
                         } }
                     } else {
                         quote! {
                             Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())),
                             Argument::Uint(#arg_name.1),
-                            Argument::NewId(cx.placeholder_id(Some((#arg_name.0, #arg_name.1))))
+                            Argument::NewId(conn.placeholder_id(Some((#arg_name.0, #arg_name.1))))
                         }
                     }
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(cx.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(conn.null_id()) } }
                     } else {
                         quote!{ Argument::NewId(Resource::id(&#arg_name)) }
                     }

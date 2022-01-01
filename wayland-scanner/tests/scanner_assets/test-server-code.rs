@@ -54,26 +54,26 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
             Ok(WlCallback { id, data, version })
         }
         fn parse_request<D>(
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
         fn write_event<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -93,8 +93,8 @@ pub mod wl_callback {
     }
     impl WlCallback {
         #[allow(clippy::too_many_arguments)]
-        pub fn done<D>(&self, cx: &mut DisplayHandle<D>, callback_data: u32) {
-            let _ = cx.send_event(self, Event::Done { callback_data });
+        pub fn done<D>(&self, conn: &mut DisplayHandle<D>, callback_data: u32) {
+            let _ = conn.send_event(self, Event::Done { callback_data });
         }
     }
 }
@@ -196,19 +196,19 @@ pub mod test_global {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
             Ok(TestGlobal { id, data, version })
         }
         fn parse_request<D>(
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
@@ -237,7 +237,7 @@ pub mod test_global {
                             Request::GetSecondary {
                                 sec: New::wrap(
                                     match <super::secondary::Secondary as Resource>::from_id(
-                                        cx,
+                                        conn,
                                         sec.clone(),
                                     ) {
                                         Ok(p) => p,
@@ -262,7 +262,7 @@ pub mod test_global {
                             Request::GetTertiary {
                                 ter: New::wrap(
                                     match <super::tertiary::Tertiary as Resource>::from_id(
-                                        cx,
+                                        conn,
                                         ter.clone(),
                                     ) {
                                         Ok(p) => p,
@@ -288,7 +288,7 @@ pub mod test_global {
                             me,
                             Request::Link {
                                 sec: match <super::secondary::Secondary as Resource>::from_id(
-                                    cx,
+                                    conn,
                                     sec.clone(),
                                 ) {
                                     Ok(p) => p,
@@ -304,7 +304,7 @@ pub mod test_global {
                                 } else {
                                     Some(
                                         match <super::tertiary::Tertiary as Resource>::from_id(
-                                            cx,
+                                            conn,
                                             ter.clone(),
                                         ) {
                                             Ok(p) => p,
@@ -336,7 +336,7 @@ pub mod test_global {
         }
         fn write_event<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -372,7 +372,7 @@ pub mod test_global {
                         if let Some(obj) = old_quad {
                             Argument::Object(Resource::id(&obj))
                         } else {
-                            Argument::Object(cx.null_id())
+                            Argument::Object(conn.null_id())
                         }
                     ],
                 }),
@@ -389,7 +389,7 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn many_args_evt<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
@@ -397,7 +397,7 @@ pub mod test_global {
             some_text: String,
             file_descriptor: ::std::os::unix::io::RawFd,
         ) {
-            let _ = cx.send_event(
+            let _ = conn.send_event(
                 self,
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -412,19 +412,19 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn ack_secondary<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             sec: &super::secondary::Secondary,
         ) {
-            let _ = cx.send_event(self, Event::AckSecondary { sec: sec.clone() });
+            let _ = conn.send_event(self, Event::AckSecondary { sec: sec.clone() });
         }
         #[allow(clippy::too_many_arguments)]
         pub fn cycle_quad<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = cx.send_event(self, Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
+            let _ = conn.send_event(self, Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
         }
     }
 }
@@ -483,19 +483,19 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
             Ok(Secondary { id, data, version })
         }
         fn parse_request<D>(
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {
@@ -509,7 +509,7 @@ pub mod secondary {
         }
         fn write_event<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -578,19 +578,19 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
             Ok(Tertiary { id, data, version })
         }
         fn parse_request<D>(
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {
@@ -604,7 +604,7 @@ pub mod tertiary {
         }
         fn write_event<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -673,19 +673,19 @@ pub mod quad {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(cx: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
             Ok(Quad { id, data, version })
         }
         fn parse_request<D>(
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [] = &msg.args[..] {
@@ -699,7 +699,7 @@ pub mod quad {
         }
         fn write_event<D>(
             &self,
-            cx: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle<D>,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}

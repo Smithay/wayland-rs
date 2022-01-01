@@ -20,14 +20,14 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
 }
 
 fn main() {
-    let cx = Connection::connect_to_env().unwrap();
+    let conn = Connection::connect_to_env().unwrap();
 
-    let display = cx.handle().display();
+    let display = conn.handle().display();
 
-    let mut event_queue = cx.new_event_queue();
+    let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
 
-    let _registry = display.get_registry(&mut cx.handle(), &qh, ()).unwrap();
+    let _registry = display.get_registry(&mut conn.handle(), &qh, ()).unwrap();
 
     eprintln!("Advertized globals:");
 

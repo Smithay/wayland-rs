@@ -23,7 +23,10 @@ fn main() {
 
     let mut globals = wayc::globals::GlobalList::new();
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut globals, &mut ServerData).unwrap();
     // check that we connected to the right compositor

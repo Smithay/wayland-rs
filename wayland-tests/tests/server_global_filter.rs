@@ -25,7 +25,10 @@ fn global_filter() {
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
     let mut client_ddata = ClientHandler::new();
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -37,7 +40,7 @@ fn global_filter() {
 
     priv_client
         .display
-        .get_registry(&mut priv_client.cx.handle(), &priv_client.event_queue.handle(), ())
+        .get_registry(&mut priv_client.conn.handle(), &priv_client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
@@ -78,11 +81,11 @@ fn global_filter_try_force() {
 
     let priv_registry = priv_client
         .display
-        .get_registry(&mut priv_client.cx.handle(), &priv_client.event_queue.handle(), ())
+        .get_registry(&mut priv_client.conn.handle(), &priv_client.event_queue.handle(), ())
         .unwrap();
     priv_registry
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut priv_client.cx.handle(),
+            &mut priv_client.conn.handle(),
             1,
             1,
             &priv_client.event_queue.handle(),
@@ -94,11 +97,11 @@ fn global_filter_try_force() {
     // unprivileged client cannot
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
     registry
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             1,
             1,
             &client.event_queue.handle(),

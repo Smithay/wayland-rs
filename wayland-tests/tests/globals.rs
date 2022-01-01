@@ -17,7 +17,10 @@ fn simple_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -39,7 +42,10 @@ fn multi_versions() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -61,7 +67,10 @@ fn dynamic_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
 
-    client.display.get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ()).unwrap();
+    client
+        .display
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 1);
@@ -98,7 +107,7 @@ fn range_instantiate() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -106,7 +115,7 @@ fn range_instantiate() {
     let compositor = client_ddata
         .globals
         .bind::<WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..5,
@@ -117,7 +126,7 @@ fn range_instantiate() {
     let shell = client_ddata
         .globals
         .bind::<WlShell, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..3,
@@ -128,7 +137,7 @@ fn range_instantiate() {
 
     assert!(matches!(
         client_ddata.globals.bind::<WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             5..6,
@@ -142,7 +151,7 @@ fn range_instantiate() {
     ));
     assert!(matches!(
         client_ddata.globals.bind::<WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..4,
@@ -171,14 +180,14 @@ fn wrong_global() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
     registry
-        .bind::<WlOutput, _>(&mut client.cx.handle(), 1, 1, &client.event_queue.handle(), ())
+        .bind::<WlOutput, _>(&mut client.conn.handle(), 1, 1, &client.event_queue.handle(), ())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
@@ -196,13 +205,13 @@ fn wrong_global_version() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // instantiate a global with wrong version, this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(&mut client.cx.handle(), 1, 2, &client.event_queue.handle(), ())
+        .bind::<WlCompositor, _>(&mut client.conn.handle(), 1, 2, &client.event_queue.handle(), ())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
@@ -220,13 +229,13 @@ fn invalid_global_version() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(&mut client.cx.handle(), 1, 0, &client.event_queue.handle(), ())
+        .bind::<WlCompositor, _>(&mut client.conn.handle(), 1, 0, &client.event_queue.handle(), ())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
@@ -244,13 +253,13 @@ fn wrong_global_id() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
     registry
-        .bind::<WlCompositor, _>(&mut client.cx.handle(), 3, 1, &client.event_queue.handle(), ())
+        .bind::<WlCompositor, _>(&mut client.conn.handle(), 3, 1, &client.event_queue.handle(), ())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
@@ -268,7 +277,7 @@ fn two_step_binding() {
 
     let registry = client
         .display
-        .get_registry(&mut client.cx.handle(), &client.event_queue.handle(), ())
+        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -281,7 +290,7 @@ fn two_step_binding() {
     client_ddata
         .globals
         .bind::<WlCompositor, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -292,7 +301,7 @@ fn two_step_binding() {
     client_ddata
         .globals
         .bind::<WlOutput, _>(
-            &mut client.cx.handle(),
+            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,

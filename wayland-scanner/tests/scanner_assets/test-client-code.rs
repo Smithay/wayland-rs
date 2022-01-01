@@ -98,19 +98,19 @@ pub mod wl_display {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(WlDisplay { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Object(object_id), Argument::Uint(code), Argument::Str(message)] =
@@ -140,7 +140,7 @@ pub mod wl_display {
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -148,8 +148,8 @@ pub mod wl_display {
                     sender_id: self.id.clone(),
                     opcode: 0u16,
                     args: smallvec::smallvec![{
-                        let my_info = cx.object_info(self.id())?;
-                        let placeholder = cx.placeholder_id(Some((
+                        let my_info = conn.object_info(self.id())?;
+                        let placeholder = conn.placeholder_id(Some((
                             super::wl_callback::WlCallback::interface(),
                             my_info.version,
                         )));
@@ -160,8 +160,8 @@ pub mod wl_display {
                     sender_id: self.id.clone(),
                     opcode: 1u16,
                     args: smallvec::smallvec![{
-                        let my_info = cx.object_info(self.id())?;
-                        let placeholder = cx.placeholder_id(Some((
+                        let my_info = conn.object_info(self.id())?;
+                        let placeholder = conn.placeholder_id(Some((
                             super::wl_registry::WlRegistry::interface(),
                             my_info.version,
                         )));
@@ -175,30 +175,30 @@ pub mod wl_display {
         #[allow(clippy::too_many_arguments)]
         pub fn sync<D: Dispatch<super::wl_callback::WlCallback> + 'static>(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::wl_callback::WlCallback>>::UserData,
         ) -> Result<super::wl_callback::WlCallback, InvalidId> {
-            let ret = cx.send_request(
+            let ret = conn.send_request(
                 self,
                 Request::Sync {},
                 Some(qh.make_data::<super::wl_callback::WlCallback>(udata)),
             )?;
-            Proxy::from_id(cx, ret)
+            Proxy::from_id(conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_registry<D: Dispatch<super::wl_registry::WlRegistry> + 'static>(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::wl_registry::WlRegistry>>::UserData,
         ) -> Result<super::wl_registry::WlRegistry, InvalidId> {
-            let ret = cx.send_request(
+            let ret = conn.send_request(
                 self,
                 Request::GetRegistry {},
                 Some(qh.make_data::<super::wl_registry::WlRegistry>(udata)),
             )?;
-            Proxy::from_id(cx, ret)
+            Proxy::from_id(conn, ret)
         }
     }
 }
@@ -267,19 +267,19 @@ pub mod wl_registry {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(WlRegistry { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(name), Argument::Str(interface), Argument::Uint(version)] =
@@ -310,7 +310,7 @@ pub mod wl_registry {
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -321,7 +321,7 @@ pub mod wl_registry {
                         Argument::Uint(name),
                         Argument::Str(Box::new(std::ffi::CString::new(id.0.name).unwrap())),
                         Argument::Uint(id.1),
-                        Argument::NewId(cx.placeholder_id(Some((id.0, id.1))))
+                        Argument::NewId(conn.placeholder_id(Some((id.0, id.1))))
                     ],
                 }),
             }
@@ -331,19 +331,19 @@ pub mod wl_registry {
         #[allow(clippy::too_many_arguments)]
         pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             name: u32,
             version: u32,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<I>>::UserData,
         ) -> Result<I, InvalidId> {
-            let placeholder = cx.placeholder_id(Some((I::interface(), version)));
-            let ret = cx.send_request(
+            let placeholder = conn.placeholder_id(Some((I::interface(), version)));
+            let ret = conn.send_request(
                 self,
                 Request::Bind { name, id: (I::interface(), version) },
                 Some(qh.make_data::<I>(udata)),
             )?;
-            Proxy::from_id(cx, ret)
+            Proxy::from_id(conn, ret)
         }
     }
 }
@@ -403,19 +403,19 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(WlCallback { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(callback_data)] = &msg.args[..] {
@@ -429,7 +429,7 @@ pub mod wl_callback {
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -535,19 +535,19 @@ pub mod test_global {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(TestGlobal { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
                     if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
@@ -575,7 +575,7 @@ pub mod test_global {
                             me,
                             Event::AckSecondary {
                                 sec: match <super::secondary::Secondary as Proxy>::from_id(
-                                    cx,
+                                    conn,
                                     sec.clone(),
                                 ) {
                                     Ok(p) => p,
@@ -598,7 +598,7 @@ pub mod test_global {
                             me,
                             Event::CycleQuad {
                                 new_quad: match <super::quad::Quad as Proxy>::from_id(
-                                    cx,
+                                    conn,
                                     new_quad.clone(),
                                 ) {
                                     Ok(p) => p,
@@ -614,7 +614,7 @@ pub mod test_global {
                                 } else {
                                     Some(
                                         match <super::quad::Quad as Proxy>::from_id(
-                                            cx,
+                                            conn,
                                             old_quad.clone(),
                                         ) {
                                             Ok(p) => p,
@@ -638,7 +638,7 @@ pub mod test_global {
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -665,8 +665,8 @@ pub mod test_global {
                     sender_id: self.id.clone(),
                     opcode: 1u16,
                     args: smallvec::smallvec![{
-                        let my_info = cx.object_info(self.id())?;
-                        let placeholder = cx.placeholder_id(Some((
+                        let my_info = conn.object_info(self.id())?;
+                        let placeholder = conn.placeholder_id(Some((
                             super::secondary::Secondary::interface(),
                             my_info.version,
                         )));
@@ -677,8 +677,8 @@ pub mod test_global {
                     sender_id: self.id.clone(),
                     opcode: 2u16,
                     args: smallvec::smallvec![{
-                        let my_info = cx.object_info(self.id())?;
-                        let placeholder = cx.placeholder_id(Some((
+                        let my_info = conn.object_info(self.id())?;
+                        let placeholder = conn.placeholder_id(Some((
                             super::tertiary::Tertiary::interface(),
                             my_info.version,
                         )));
@@ -693,7 +693,7 @@ pub mod test_global {
                         if let Some(obj) = ter {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(cx.null_id())
+                            Argument::Object(conn.null_id())
                         },
                         Argument::Uint(time)
                     ],
@@ -710,7 +710,7 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn many_args(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
@@ -718,7 +718,7 @@ pub mod test_global {
             some_text: String,
             file_descriptor: ::std::os::unix::io::RawFd,
         ) {
-            let _ = cx.send_request(
+            let _ = conn.send_request(
                 self,
                 Request::ManyArgs {
                     unsigned_int,
@@ -734,44 +734,44 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn get_secondary<D: Dispatch<super::secondary::Secondary> + 'static>(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::secondary::Secondary>>::UserData,
         ) -> Result<super::secondary::Secondary, InvalidId> {
-            let ret = cx.send_request(
+            let ret = conn.send_request(
                 self,
                 Request::GetSecondary {},
                 Some(qh.make_data::<super::secondary::Secondary>(udata)),
             )?;
-            Proxy::from_id(cx, ret)
+            Proxy::from_id(conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_tertiary<D: Dispatch<super::tertiary::Tertiary> + 'static>(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::tertiary::Tertiary>>::UserData,
         ) -> Result<super::tertiary::Tertiary, InvalidId> {
-            let ret = cx.send_request(
+            let ret = conn.send_request(
                 self,
                 Request::GetTertiary {},
                 Some(qh.make_data::<super::tertiary::Tertiary>(udata)),
             )?;
-            Proxy::from_id(cx, ret)
+            Proxy::from_id(conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn link(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             sec: &super::secondary::Secondary,
             ter: Option<&super::tertiary::Tertiary>,
             time: u32,
         ) {
-            let _ = cx.send_request(self, Request::Link { sec: sec.clone(), ter: ter.cloned(), time }, None);
+            let _ = conn.send_request(self, Request::Link { sec: sec.clone(), ter: ter.cloned(), time }, None);
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, cx: &mut ConnectionHandle) {
-            let _ = cx.send_request(self, Request::Destroy {}, None);
+        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+            let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
 }
@@ -830,26 +830,26 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Secondary { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -863,8 +863,8 @@ pub mod secondary {
     }
     impl Secondary {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, cx: &mut ConnectionHandle) {
-            let _ = cx.send_request(self, Request::Destroy {}, None);
+        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+            let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
 }
@@ -923,26 +923,26 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Tertiary { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -956,8 +956,8 @@ pub mod tertiary {
     }
     impl Tertiary {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, cx: &mut ConnectionHandle) {
-            let _ = cx.send_request(self, Request::Destroy {}, None);
+        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+            let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
 }
@@ -1016,26 +1016,26 @@ pub mod quad {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(cx: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = cx.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = cx.get_object_data(id.clone()).ok();
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Quad { id, data, version })
         }
         fn parse_event(
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
-            let me = Self::from_id(cx, msg.sender_id.clone()).unwrap();
+            let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
         fn write_request(
             &self,
-            cx: &mut ConnectionHandle,
+            conn: &mut ConnectionHandle,
             msg: Self::Request,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -1049,8 +1049,8 @@ pub mod quad {
     }
     impl Quad {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, cx: &mut ConnectionHandle) {
-            let _ = cx.send_request(self, Request::Destroy {}, None);
+        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+            let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
 }

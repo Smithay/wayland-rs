@@ -24,7 +24,7 @@ fn client_roundtrip() {
         }
     });
 
-    client.cx.roundtrip().unwrap();
+    client.conn.roundtrip().unwrap();
 
     kill_switch.store(true, Ordering::Release);
 
