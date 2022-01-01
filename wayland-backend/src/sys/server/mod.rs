@@ -216,6 +216,14 @@ impl ObjectId {
         my_client_ptr == other_client_ptr
     }
 
+    /// Return the protocol-level numerical ID of this object
+    ///
+    /// Protocol IDs are reused after object destruction, so this should not be used as a
+    /// unique identifier,
+    pub fn protocol_id(&self) -> u32 {
+        self.id
+    }
+
     /// Creates an object from a C pointer.
     ///
     /// # Errors

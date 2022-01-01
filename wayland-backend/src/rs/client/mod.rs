@@ -114,6 +114,14 @@ impl ObjectId {
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
+
+    /// Return the protocol-level numerical ID of this object
+    ///
+    /// Protocol IDs are reused after object destruction, so this should not be used as a
+    /// unique identifier,
+    pub fn protocol_id(&self) -> u32 {
+        self.id
+    }
 }
 
 /// Main handle of a backend to the Wayland protocol

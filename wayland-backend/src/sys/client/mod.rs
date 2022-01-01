@@ -108,6 +108,14 @@ impl ObjectId {
         self.interface
     }
 
+    /// Return the protocol-level numerical ID of this object
+    ///
+    /// Protocol IDs are reused after object destruction, so this should not be used as a
+    /// unique identifier,
+    pub fn protocol_id(&self) -> u32 {
+        self.id
+    }
+
     /// Creates an object id from a libwayland-client pointer.
     ///
     /// # Errors

@@ -149,6 +149,14 @@ impl ObjectId {
     pub fn same_client_as(&self, other: &ObjectId) -> bool {
         self.client_id == other.client_id
     }
+
+    /// Return the protocol-level numerical ID of this object
+    ///
+    /// Protocol IDs are reused after object destruction, so this should not be used as a
+    /// unique identifier,
+    pub fn protocol_id(&self) -> u32 {
+        self.id
+    }
 }
 
 #[cfg(not(tarpaulin_include))]
