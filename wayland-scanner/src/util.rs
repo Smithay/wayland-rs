@@ -1,24 +1,79 @@
-use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::ToTokens;
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, ToTokens};
+
+pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
+    let text = text.lines().map(str::trim).collect::<Vec<_>>().join("\n");
+    let text = text.trim();
+
+    quote!(#[doc = #text])
+}
+
+pub(crate) fn description_to_doc_attr(&(ref short, ref long): &(String, String)) -> TokenStream {
+    to_doc_attr(&format!("{}\n\n{}", short, long))
+}
 
 pub fn is_keyword(txt: &str) -> bool {
-    match txt {
-        "abstract" | "alignof" | "as" | "become" | "box" | "break" | "const" | "continue"
-        | "crate" | "do" | "else" | "enum" | "extern" | "false" | "final" | "fn" | "for" | "if"
-        | "impl" | "in" | "let" | "loop" | "macro" | "match" | "mod" | "move" | "mut"
-        | "offsetof" | "override" | "priv" | "proc" | "pub" | "pure" | "ref" | "return"
-        | "Self" | "self" | "sizeof" | "static" | "struct" | "super" | "trait" | "true"
-        | "type" | "typeof" | "unsafe" | "unsized" | "use" | "virtual" | "where" | "while"
-        | "yield" | "__handler" | "__object" => true,
-        _ => false,
-    }
+    matches!(
+        txt,
+        "abstract"
+            | "alignof"
+            | "as"
+            | "become"
+            | "box"
+            | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "do"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "final"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "macro"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "offsetof"
+            | "override"
+            | "priv"
+            | "proc"
+            | "pub"
+            | "pure"
+            | "ref"
+            | "return"
+            | "Self"
+            | "self"
+            | "sizeof"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "typeof"
+            | "unsafe"
+            | "unsized"
+            | "use"
+            | "virtual"
+            | "where"
+            | "while"
+            | "yield"
+            | "__handler"
+            | "__object"
+    )
 }
 
 pub fn is_camel_keyword(txt: &str) -> bool {
-    match txt {
-        "Self" => true,
-        _ => false,
-    }
+    matches!(txt, "Self")
 }
 
 pub fn snake_to_camel(input: &str) -> String {
@@ -57,12 +112,4 @@ pub fn dotted_to_relname(input: &str) -> TokenStream {
         }
         _ => unreachable!(),
     }
-}
-
-pub fn null_terminated_byte_string_literal(string: &str) -> Literal {
-    let mut val = Vec::with_capacity(string.len() + 1);
-    val.extend_from_slice(string.as_bytes());
-    val.push(0);
-
-    Literal::byte_string(&val)
 }

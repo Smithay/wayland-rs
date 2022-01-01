@@ -1,283 +1,584 @@
-use std::{io, rc::Rc};
+use std::sync::{Arc, Mutex};
 
-use crate::imp::EventQueueInner;
-use crate::{AnonymousObject, DispatchData, Display, Main, RawEvent};
+use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use wayland_backend::{
+    client::{Backend, Handle, ObjectData, ObjectId},
+    protocol::Message,
+};
 
-/// An event queue for protocol messages
+use crate::{ConnectionHandle, DispatchError, Proxy};
+
+/// A trait which provides an implementation for handling events from the server on a proxy with some type of
+/// associated user data.
+pub trait Dispatch<I: Proxy>: Sized {
+    /// The user data associated with the type of proxy.
+    type UserData: Send + Sync + 'static;
+
+    /// Called when an event from the server is processed.
+    ///
+    /// The implementation of this function may vary depending on protocol requirements. Typically the client
+    /// will respond to the server by sending requests to the proxy.
+    fn event(
+        &mut self,
+        proxy: &I,
+        event: I::Event,
+        data: &Self::UserData,
+        connhandle: &mut ConnectionHandle,
+        qhandle: &QueueHandle<Self>,
+    );
+
+    /// Method used to initialize the user-data of objects created by events
+    ///
+    /// If the interface does not have any such event, you can ignore it. If not, the
+    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<Self>) -> Arc<dyn ObjectData> {
+        panic!(
+            "Missing event_created_child specialization for event opcode {} of {}",
+            opcode,
+            I::interface().name
+        );
+    }
+}
+
+/// Macro used to override [`Dispatch::event_created_child()`](Dispatch::event_created_child)
 ///
-/// Event dispatching in wayland is made on a queue basis, allowing you
-/// to organize your objects into different queues that can be dispatched
-/// independently, for example from different threads.
+/// Use this macro inside the [`Dispatch`] implementation to override this method, to implement the
+/// initialization of the user data for event-created objects. The usage syntax is as follow:
 ///
-/// An `EventQueue` is not `Send`, and thus must stay on the thread on which
-/// it was created. However the `Display` object is `Send + Sync`, allowing
-/// you to create the queues directly on the threads that host them.
+/// ```ignore
+/// impl Dispatch<WlFoo> for MyState {
+///     type UserData = FooUserData;
 ///
-/// When a queue is dispatched (via the `dispatch(..)` or `dispatch_pending(..)` methods)
-/// all the incoming messages from the server designated to objects associated with
-/// the queue are processed sequentially, and the appropriate implementation for each
-/// is invoked. When all messages have been processed these methods return.
-///
-/// There are two main ways to driving an event queue forward. The first way is the
-/// simplest and generally sufficient for single-threaded apps that only process events
-/// from wayland. It consists of using the `EventQueue::dispatch(..)` method, which will
-/// take care of sending pending requests to the server, block until some events are
-/// available, read them, and call the associated handlers:
-///
-/// ```no_run
-/// # extern crate wayland_client;
-/// # use wayland_client::{Display};
-/// # let display = Display::connect_to_env().unwrap();
-/// # let mut event_queue = display.create_event_queue();
-/// loop {
-///     // The dispatch() method returns once it has received some events to dispatch
-///     // and have emptied the wayland socket from its pending messages, so it needs
-///     // to be called in a loop. If this method returns an error, your connection to
-///     // the wayland server is very likely dead. See its documentation for more details.
-///     event_queue.dispatch(&mut (), |_,_,_| {
-///         /* This closure will be called for every event received by an object not
-///            assigned to any Filter. If you plan to assign all your objects to Filter,
-///            the simplest thing to do is to assert this is never called. */
-///         unreachable!();
-///     }).expect("An error occurred during event dispatching!");
-/// }
-/// ```
-///
-/// The second way is more appropriate for apps that are either multithreaded (and need to process
-/// wayland events from different threads conccurently) or need to react to events from different
-/// sources and can't affort to just block on the wayland socket. It centers around three methods:
-/// `Display::flush()`, `EventQueue::read_events()` and `EventQueue::dispatch_pending()`:
-///
-/// ```no_run
-/// # extern crate wayland_client;
-/// # use wayland_client::Display;
-/// # let display = Display::connect_to_env().unwrap();
-/// # let mut event_queue = display.create_event_queue();
-/// loop {
-///     // The first method, called on the Display, is flush(). It writes all pending
-///     // requests to the socket. Calling it ensures that the server will indeed
-///     // receive your requests (so it can react to them).
-///     if let Err(e) = display.flush() {
-///         if e.kind() != ::std::io::ErrorKind::WouldBlock {
-///             // if you are sending a realy large number of request, it might fill
-///             // the internal buffers of the socket, in which case you should just
-///             // retry flushing later. Other errors are a problem though.
-///             eprintln!("Error while trying to flush the wayland socket: {:?}", e);
-///         }
+///     fn event(
+///         &mut self,
+///         proxy: &WlFoo,
+///         event: FooEvent,
+///         data: &FooUserData,
+///         connhandle: &mut ConnectionHandle,
+///         qhandle: &QueueHandle<MyState>
+///     ) {
+///         /* ... */
 ///     }
 ///
-///     // The second method will try to read events from the socket. It is done in two
-///     // steps, first the read is prepared, and then it is actually executed. This allows
-///     // lower contention when different threads are trying to trigger a read of events
-///     // concurently
-///     if let Some(guard) = event_queue.prepare_read() {
-///         // prepare_read() returns None if there are already events pending in this
-///         // event queue, in which case there is no need to try to read from the socket
-///         if let Err(e) = guard.read_events() {
-///             if e.kind() != ::std::io::ErrorKind::WouldBlock {
-///                 // if read_events() returns Err(WouldBlock), this just means that no new
-///                 // messages are available to be read
-///                 eprintln!("Error while trying to read from the wayland socket: {:?}", e);
-///             }
-///         }
-///     }
-///
-///     // Then, once events have been read from the socket and stored in the internal
-///     // queues, they need to be dispatched to their handler. Note that while flush()
-///     // and read_events() are global and will affect the whole connection, this last
-///     // method will only affect the event queue it is being called on. This method
-///     // cannot error unless there is a bug in the server or a previous read of events
-///     // already errored.
-///     event_queue.dispatch_pending(&mut (), |_,_,_| {}).expect("Failed to dispatch all messages.");
-///
-///     // Note that none of these methods are blocking, as such they should not be used
-///     // as a loop as-is if there are no other sources of events your program is waiting on.
-///
-///     // The wayland socket can also be integrated in a poll-like mechanism by using
-///     // the file descriptor provided by the `get_connection_fd()` method.
+///     event_created_child!(MyState, WlFoo, [
+///     // there can be multiple lines if this interface has multiple object-creating event
+///         2 => (WlBar, BarUserData::new()),
+///     //  ~     ~~~~~  ~~~~~~~~~~~~~~~~~~
+///     //  |       |       |
+///     //  |       |       +-- an expression whose evaluation produces the user data value
+///     //  |       +-- the type of the newly created objecy
+///     //  +-- the opcode of the event that creates a new object
+///     ]);
 /// }
 /// ```
-pub struct EventQueue {
-    // EventQueue is *not* Send
-    pub(crate) inner: Rc<EventQueueInner>,
-    display: Display,
-}
-
-impl std::fmt::Debug for EventQueue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("EventQueue { ... }")
+#[macro_export]
+macro_rules! event_created_child {
+    ($selftype:ty, $iface:ty, [$($opcode:expr => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+        fn event_created_child(
+            opcode: u16,
+            qhandle: &$crate::QueueHandle<Self>
+        ) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
+            match opcode {
+                $(
+                    $opcode => {
+                        qhandle.make_data::<$child_iface>({$child_udata})
+                    },
+                )*
+                _ => {
+                    panic!("Missing event_created_child specialization for event opcode {} of {}", opcode, <$iface as $crate::Proxy>::interface().name);
+                },
+            }
+        }
     }
 }
 
-/// A token representing this event queue
+type QueueCallback<D> = fn(
+    &mut ConnectionHandle<'_>,
+    Message<ObjectId>,
+    &mut D,
+    Arc<dyn ObjectData>,
+    &QueueHandle<D>,
+) -> Result<(), DispatchError>;
+
+struct QueueEvent<D>(QueueCallback<D>, Message<ObjectId>, Arc<dyn ObjectData>);
+
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for QueueEvent<D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueueEvent").field("msg", &self.1).finish_non_exhaustive()
+    }
+}
+
+/// An event queue
 ///
-/// This token can be cloned and is meant to allow easier
-/// interaction with other functions in the library that
-/// require the specification of an event queue, like
-/// `Proxy::assign`.
-#[derive(Clone)]
-pub struct QueueToken {
-    pub(crate) inner: Rc<EventQueueInner>,
+/// This is an abstraction for handling event dispatching, that allows you to ensure
+/// access to some common state `&mut D` to your event handlers.
+///
+/// Event queues are created through [`Connection::new_event_queue()`](crate::Connection::new_event_queue).
+/// Upon creation, a wayland object is assigned to an event queue by passing the associated [`QueueHandle`]
+/// as argument to the method creating it. All event received by that object will be processed by that event
+/// queue, when [`dispatch_pending()`](EventQueue::dispatch_pending) or
+/// [`blocking_dispatch()`](EventQueue::blocking_dispatch) is invoked.
+pub struct EventQueue<D> {
+    rx: UnboundedReceiver<QueueEvent<D>>,
+    handle: QueueHandle<D>,
+    backend: Arc<Mutex<Backend>>,
 }
 
-impl std::fmt::Debug for QueueToken {
+#[cfg(not(tarpaulin_include))]
+impl<D> std::fmt::Debug for EventQueue<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("QueueToken { ... }")
+        f.debug_struct("EventQueue")
+            .field("rx", &self.rx)
+            .field("handle", &self.handle)
+            .finish_non_exhaustive()
     }
 }
 
-impl EventQueue {
-    pub(crate) fn new(inner: EventQueueInner, display: Display) -> EventQueue {
-        EventQueue { inner: Rc::new(inner), display }
-    }
-    /// Dispatches events from the internal buffer.
-    ///
-    /// Dispatches all events to their appropriate filters.
-    /// If no events were in the internal buffer, will block until
-    /// some events are read and dispatch them.
-    /// This process can insert events in the internal buffers of
-    /// other event queues.
-    ///
-    /// The provided `data` will be mutably accessible from all the callbacks, via the
-    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
-    /// can just provide a `&mut ()` there.
-    ///
-    /// If an error is returned, your connection with the wayland compositor is probably lost.
-    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch<T: std::any::Any, F>(&mut self, data: &mut T, fallback: F) -> io::Result<u32>
-    where
-        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
-    {
-        let mut data = DispatchData::wrap(data);
-        self.inner.dispatch(data.reborrow(), fallback)
+impl<D> EventQueue<D> {
+    pub(crate) fn new(backend: Arc<Mutex<Backend>>) -> Self {
+        let (tx, rx) = unbounded();
+        EventQueue { rx, handle: QueueHandle { tx }, backend }
     }
 
-    /// Dispatches pending events from the internal buffer.
-    ///
-    /// Dispatches all events to their appropriate callbacks.
-    /// Never blocks, if no events were pending, simply returns
-    /// `Ok(0)`.
-    ///
-    /// The provided `data` will be mutably accessible from all the callbacks, via the
-    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
-    /// can just provide a `&mut ()` there.
-    ///
-    /// If an error is returned, your connection with the wayland compositor is probably lost.
-    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn dispatch_pending<T: std::any::Any, F>(
-        &mut self,
-        data: &mut T,
-        fallback: F,
-    ) -> io::Result<u32>
-    where
-        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
-    {
-        let mut data = DispatchData::wrap(data);
-        self.inner.dispatch_pending(data.reborrow(), fallback)
+    /// Get a [`QueueHandle`] for this event queue
+    pub fn handle(&self) -> QueueHandle<D> {
+        self.handle.clone()
     }
 
-    /// Synchronous roundtrip
+    /// Dispatch pending events
     ///
-    /// This call will cause a synchronous roundtrip with the wayland server. It will block until all
-    /// pending requests of this queue are sent to the server and it has processed all of them and
-    /// send the appropriate events.
-    ///
-    /// Handlers are called as a consequence.
-    ///
-    /// The provided `data` will be mutably accessible from all the callbacks, via the
-    /// [`DispatchData`](struct.DispatchData.html) mechanism. If you don't need global data, you
-    /// can just provide a `&mut ()` there.
-    ///
-    /// On success returns the number of dispatched events.
-    /// If an error is returned, your connection with the wayland compositor is probably lost.
-    /// You may want to check `Display::protocol_error()` to see if it was caused by a protocol error.
-    pub fn sync_roundtrip<T: std::any::Any, F>(
-        &mut self,
-        data: &mut T,
-        fallback: F,
-    ) -> io::Result<u32>
-    where
-        F: FnMut(RawEvent, Main<AnonymousObject>, DispatchData<'_>),
-    {
-        let mut data = DispatchData::wrap(data);
-        self.inner.sync_roundtrip(data.reborrow(), fallback)
+    /// Events are accumulated in the event queue internal buffer when the Wayland socket is read using
+    /// the read APIs on [`Connection`](crate::Connection), or when reading is done from an other thread.
+    /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
+    /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
+    pub fn dispatch_pending(&mut self, data: &mut D) -> Result<usize, DispatchError> {
+        Self::dispatching_impl(&mut self.backend.lock().unwrap(), &mut self.rx, &self.handle, data)
     }
 
-    /// Create a new token associated with this event queue
+    /// Block waiting for events and dispatch them
     ///
-    /// See `QueueToken` documentation for its use.
-    pub fn token(&self) -> QueueToken {
-        QueueToken { inner: self.inner.clone() }
-    }
-
-    /// Prepare an concurrent read
+    /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending), but if there are no
+    /// pending events it will also block waiting for the Wayland server to send an event.
     ///
-    /// Will declare your intention to read events from the server socket.
-    ///
-    /// Will return `None` if there are still some events awaiting dispatch on this EventIterator.
-    /// In this case, you need to call `dispatch_pending()` before calling this method again.
-    ///
-    /// The guard can then be used by two means:
-    ///
-    ///  - Calling its `cancel()` method (or letting it go out of scope): the read intention will
-    ///    be cancelled
-    ///  - Calling its `read_events()` method: will block until all existing guards are destroyed
-    ///    by one of these methods, then events will be read and all blocked `read_events()` calls
-    ///    will return.
-    ///
-    /// This call will otherwise not block on the server socket if it is empty, and return
-    /// an io error `WouldBlock` in such cases.
-    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
-        match self.inner.prepare_read() {
-            Ok(()) => Some(ReadEventsGuard { inner: self.inner.clone(), done: false }),
-            Err(()) => None,
+    /// A simple app event loop can consist in invoking this method in a loop.
+    pub fn blocking_dispatch(&mut self, data: &mut D) -> Result<usize, DispatchError> {
+        let dispatched = Self::dispatching_impl(
+            &mut self.backend.lock().unwrap(),
+            &mut self.rx,
+            &self.handle,
+            data,
+        )?;
+        if dispatched > 0 {
+            Ok(dispatched)
+        } else {
+            crate::conn::blocking_dispatch_impl(self.backend.clone())?;
+            Self::dispatching_impl(
+                &mut self.backend.lock().unwrap(),
+                &mut self.rx,
+                &self.handle,
+                data,
+            )
         }
     }
 
-    /// Access the `Display` of the connection
-    pub fn display(&self) -> &Display {
-        &self.display
+    fn dispatching_impl(
+        backend: &mut Backend,
+        rx: &mut UnboundedReceiver<QueueEvent<D>>,
+        qhandle: &QueueHandle<D>,
+        data: &mut D,
+    ) -> Result<usize, DispatchError> {
+        let mut handle = ConnectionHandle::from_handle(backend.handle());
+        let mut dispatched = 0;
+
+        while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
+            cb(&mut handle, msg, data, odata, qhandle)?;
+            dispatched += 1;
+        }
+        Ok(dispatched)
     }
 }
 
-/// A guard over a read intention.
-///
-/// See `EventQueue::prepare_read()` for details about its use.
-pub struct ReadEventsGuard {
-    inner: Rc<EventQueueInner>,
-    done: bool,
+/// A handle representing an [`EventQueue`], used to assign objects upon creation.
+pub struct QueueHandle<D> {
+    tx: UnboundedSender<QueueEvent<D>>,
 }
 
-impl std::fmt::Debug for ReadEventsGuard {
+#[cfg(not(tarpaulin_include))]
+impl<Data> std::fmt::Debug for QueueHandle<Data> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("ReadEventsGuard { ... }")
+        f.debug_struct("QueueHandle").field("tx", &self.tx).finish()
     }
 }
 
-impl ReadEventsGuard {
-    /// Read events
-    ///
-    /// Reads events from the server socket. If other `ReadEventsGuard` exists, will block
-    /// until they are all consumed or destroyed.
-    pub fn read_events(mut self) -> io::Result<()> {
-        self.done = true;
-        self.inner.read_events()
-    }
-
-    /// Cancel the read
-    ///
-    /// Will cancel the read intention associated with this guard. Never blocks.
-    ///
-    /// Has the same effect as letting the guard go out of scope.
-    pub fn cancel(self) {
-        // just run the destructor
+impl<Data> Clone for QueueHandle<Data> {
+    fn clone(&self) -> Self {
+        QueueHandle { tx: self.tx.clone() }
     }
 }
 
-impl Drop for ReadEventsGuard {
-    fn drop(&mut self) {
-        if !self.done {
-            self.inner.cancel_read();
+pub(crate) struct QueueSender<D> {
+    func: QueueCallback<D>,
+    pub(crate) handle: QueueHandle<D>,
+}
+
+pub(crate) trait ErasedQueueSender<I> {
+    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>);
+}
+
+impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D>
+where
+    D: Dispatch<I>,
+{
+    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
+        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
+            log::error!("Event received for EventQueue after it was dropped.");
         }
     }
+}
+
+impl<D: 'static> QueueHandle<D> {
+    /// Create an object data associated with this event queue
+    ///
+    /// This creates an implementation of [`ObjectData`] fitting for direct use with `wayland-backend` APIs
+    /// that forwards all events to the event queue associated with this token, integrating the object into
+    /// the [`Dispatch`]-based logic of `wayland-client`.
+    pub fn make_data<I: Proxy + 'static>(
+        &self,
+        user_data: <D as Dispatch<I>>::UserData,
+    ) -> Arc<dyn ObjectData>
+    where
+        D: Dispatch<I>,
+    {
+        let sender = Box::new(QueueSender { func: queue_callback::<I, D>, handle: self.clone() });
+
+        let has_creating_event =
+            I::interface().events.iter().any(|desc| desc.child_interface.is_some());
+
+        let odata_maker = if has_creating_event {
+            let qhandle = self.clone();
+            Box::new(move |msg: &Message<ObjectId>| {
+                Some(<D as Dispatch<I>>::event_created_child(msg.opcode, &qhandle))
+            }) as Box<_>
+        } else {
+            Box::new(|_: &Message<ObjectId>| None) as Box<_>
+        };
+        Arc::new(QueueProxyData { sender, odata_maker, udata: user_data })
+    }
+}
+
+fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
+    handle: &mut ConnectionHandle<'_>,
+    msg: Message<ObjectId>,
+    data: &mut D,
+    odata: Arc<dyn ObjectData>,
+    qhandle: &QueueHandle<D>,
+) -> Result<(), DispatchError> {
+    let (proxy, event) = I::parse_event(handle, msg)?;
+    let proxy_data = (&*odata)
+        .downcast_ref::<QueueProxyData<I, <D as Dispatch<I>>::UserData>>()
+        .expect("Wrong user_data value for object");
+    data.event(&proxy, event, &proxy_data.udata, handle, qhandle);
+    Ok(())
+}
+
+type ObjectDataFactory = dyn Fn(&Message<ObjectId>) -> Option<Arc<dyn ObjectData>> + Send + Sync;
+
+/// The [`ObjectData`] implementation used by Wayland proxies, integrating with [`Dispatch`]
+pub struct QueueProxyData<I: Proxy, U> {
+    pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
+    odata_maker: Box<ObjectDataFactory>,
+    /// The user data associated with this object
+    pub udata: U,
+}
+
+impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
+    fn event(
+        self: Arc<Self>,
+        _: &mut Handle,
+        msg: Message<ObjectId>,
+    ) -> Option<Arc<dyn ObjectData>> {
+        let ret = (self.odata_maker)(&msg);
+        self.sender.send(msg, self.clone());
+        ret
+    }
+
+    fn destroyed(&self, _: ObjectId) {}
+}
+
+#[cfg(not(tarpaulin_include))]
+impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
+    }
+}
+
+struct TemporaryData;
+
+impl ObjectData for TemporaryData {
+    fn event(self: Arc<Self>, _: &mut Handle, _: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
+        unreachable!()
+    }
+
+    fn destroyed(&self, _: ObjectId) {}
+}
+
+/*
+ * Dispatch delegation helpers
+ */
+
+/// The base trait used to define a delegate type to handle some type of proxy.
+pub trait DelegateDispatchBase<I: Proxy> {
+    /// The type of user data the delegate holds
+    type UserData: Send + Sync + 'static;
+}
+
+/// A trait which defines a delegate type to handle some type of proxy.
+///
+/// This trait is useful for building modular handlers of proxies.
+///
+/// ## Usage
+///
+/// To explain the trait, let's implement a delegate for handling the events from [`WlRegistry`](crate::protocol::wl_registry::WlRegistry).
+///
+/// ```
+/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
+/// use wayland_client::{protocol::wl_registry, DelegateDispatch, DelegateDispatchBase, Dispatch};
+///
+/// /// The type we want to delegate to
+/// struct DelegateToMe;
+///
+/// // Now implement DelegateDispatchBase.
+/// impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
+///     /// The type of user data associated with the delegation of events from a registry is defined here.
+///     ///
+///     /// If you don't need user data, the unit type, `()`, may be used.
+///     type UserData = ();
+/// }
+///
+/// // Now implement DelegateDispatch.
+/// impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// where
+///     // `D` is the type which has delegated to this type.
+///     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// {
+///     fn event(
+///         &mut self,
+///         _proxy: &wl_registry::WlRegistry,
+///         _event: wl_registry::Event,
+///         _data: &Self::UserData,
+///         _connhandle: &mut wayland_client::ConnectionHandle,
+///         _qhandle: &wayland_client::QueueHandle<D>,
+///     ) {
+///         // Here the delegate may handle incoming events as it pleases.
+///     }
+/// }
+/// ```
+pub trait DelegateDispatch<
+    I: Proxy,
+    D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
+>: Sized + DelegateDispatchBase<I>
+{
+    /// Called when an event from the server is processed.
+    ///
+    /// The implementation of this function may vary depending on protocol requirements. Typically the client
+    /// will respond to the server by sending requests to the proxy.
+    fn event(
+        &mut self,
+        proxy: &I,
+        event: I::Event,
+        data: &Self::UserData,
+        connhandle: &mut ConnectionHandle,
+        qhandle: &QueueHandle<D>,
+    );
+
+    /// Method used to initialize the user-data of objects created by events
+    ///
+    /// If the interface does not have any such event, you can ignore it. If not, the
+    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<D>) -> Arc<dyn ObjectData> {
+        panic!(
+            "Missing event_created_child specialization for event opcode {} of {}",
+            opcode,
+            I::interface().name
+        );
+    }
+}
+
+/// A helper macro which delegates a set of [`Dispatch`] implementations for a proxy to some other type which
+/// implements [`DelegateDispatch`] for each proxy.
+///
+/// This macro allows more easily delegating smaller parts of the protocol an application may wish to handle
+/// in a modular fashion.
+///
+/// # Usage
+///
+/// For example, say you want to delegate events for [`WlRegistry`](crate::protocol::wl_registry::WlRegistry)
+/// to some other type.
+///
+/// For brevity, we will use the example in the documentation for [`DelegateDispatch`], `DelegateToMe`.
+///
+/// ```
+/// use wayland_client::{delegate_dispatch, protocol::wl_registry};
+/// #
+/// # use wayland_client::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// #
+/// # struct DelegateToMe;
+/// #
+/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
+/// #     type UserData = ();
+/// # }
+/// #
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// # where
+/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// # {
+/// #     fn event(
+/// #         &mut self,
+/// #         _proxy: &wl_registry::WlRegistry,
+/// #         _event: wl_registry::Event,
+/// #         _data: &Self::UserData,
+/// #         _connhandle: &mut wayland_client::ConnectionHandle,
+/// #         _qhandle: &wayland_client::QueueHandle<D>,
+/// #     ) {
+/// #     }
+/// # }
+///
+/// // ExampleApp is the type events will be dispatched to.
+///
+/// /// The application state
+/// struct ExampleApp {
+///     /// The delegate for handling wl_registry events.
+///     delegate: DelegateToMe,
+/// }
+///
+/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe ; |app| {
+///     // Return an `&mut` reference to the field the Dispatch implementation provided by the macro should
+///     // forward events to.
+///     // You may also use a function to get the delegate since this is like a closure.
+///     &mut app.delegate
+/// });
+///
+/// // To explain the macro above, you may read it as the following:
+/// //
+/// // For ExampleApp, delegate WlRegistry to DelegateToMe and use the closure to get an `&mut` reference to
+/// // the delegate.
+///
+/// // Assert ExampleApp can Dispatch events for wl_registry
+/// fn assert_is_registry_delegate<T>()
+/// where
+///     T: Dispatch<wl_registry::WlRegistry, UserData = ()>,
+/// {
+/// }
+///
+/// assert_is_registry_delegate::<ExampleApp>();
+/// ```
+///
+/// You may also delegate multiple proxies to a single type. This is especially useful for handling multiple
+/// related protocols in the same modular component.
+///
+/// For example, a type which can dispatch both the `wl_output` and `xdg_output` protocols may be used as a
+/// delegate:
+///
+/// ```ignore
+/// # // This is not tested because xdg_output is in wayland-protocols.
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate ; |app| {
+///     &mut app.output_delegate
+/// });
+/// ```
+///
+/// If your delegate contains a lifetime, you will need to explicitly declare the user data type and
+/// use the anonymous lifetime.
+///
+/// ```
+/// use std::marker::PhantomData;
+///
+/// use wayland_client::{delegate_dispatch, DelegateDispatch, DelegateDispatchBase, Dispatch, protocol::wl_registry};
+///
+/// struct ExampleApp;
+///
+/// struct DelegateWithLifetime<'a>(PhantomData<&'a mut ()>);
+///
+/// // ... DelegateDispatch impl here...
+/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateWithLifetime<'_> {
+/// #     type UserData = ();
+/// # }
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateWithLifetime<'_>
+/// # where
+/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// # {
+/// #     fn event(
+/// #         &mut self,
+/// #         _proxy: &wl_registry::WlRegistry,
+/// #         _event: wl_registry::Event,
+/// #         _data: &Self::UserData,
+/// #         _connhandle: &mut wayland_client::ConnectionHandle,
+/// #         _qhandle: &wayland_client::QueueHandle<D>,
+/// #     ) {
+/// #     }
+/// # }
+///
+/// delegate_dispatch!(ExampleApp: <UserData = ()> [wl_registry::WlRegistry] => DelegateWithLifetime<'_> ; |_app| {
+///     &mut DelegateWithLifetime(PhantomData)
+/// });
+/// ```
+#[macro_export]
+macro_rules! delegate_dispatch {
+    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
+        $(
+            impl $crate::Dispatch<$interface> for $dispatch_from {
+                type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
+
+                fn event(
+                    &mut self,
+                    proxy: &$interface,
+                    event: <$interface as $crate::Proxy>::Event,
+                    data: &Self::UserData,
+                    connhandle: &mut $crate::ConnectionHandle,
+                    qhandle: &$crate::QueueHandle<Self>,
+                ) {
+                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
+                    let delegate: &mut $dispatch_to = { $closure };
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
+                }
+
+                fn event_created_child(
+                    opcode: u16,
+                    qhandle: &$crate::QueueHandle<Self>
+                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
+                }
+            }
+        )*
+    };
+
+    // Explicitly specify the UserData if there is a lifetime.
+    ($dispatch_from: ty: <UserData = $user_data: ty> [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
+        $(
+            impl $crate::Dispatch<$interface> for $dispatch_from {
+                type UserData = $user_data;
+
+                fn event(
+                    &mut self,
+                    proxy: &$interface,
+                    event: <$interface as $crate::Proxy>::Event,
+                    data: &Self::UserData,
+                    connhandle: &mut $crate::ConnectionHandle,
+                    qhandle: &$crate::QueueHandle<Self>,
+                ) {
+                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
+                    let delegate: &mut $dispatch_to = { $closure };
+                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
+                }
+
+                fn event_created_child(
+                    opcode: u16,
+                    qhandle: &$crate::QueueHandle<Self>
+                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
+                }
+            }
+        )*
+    };
 }

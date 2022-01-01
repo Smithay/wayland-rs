@@ -1,6 +1,6 @@
 [package]
 name = "wayland-scanner"
-version = "0.29.2"
+version = "0.30.0-dev"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://smithay.github.io/wayland-rs/wayland_scanner/"
@@ -11,7 +11,13 @@ keywords = ["wayland", "codegen"]
 edition = "2018"
 readme = "README.md"
 
+[lib]
+proc-macro = true
+
 [dependencies]
 proc-macro2 = "1.0.11"
 quote = "1.0"
-xml-rs = ">=0.7, <0.9"
+syn = "1.0"
+xml-rs = "0.8"
+[dev-dependencies]
+similar = "2"

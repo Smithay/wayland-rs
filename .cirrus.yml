@@ -18,10 +18,12 @@ task:
   setup_script:
     - fetch https://sh.rustup.rs -o rustup.sh
     - sh rustup.sh -y --default-toolchain stable
-    - pkg install -y git wayland
+    - pkg install -y git wayland pkgconf
     - git submodule update --init --recursive
   test_script:
     - . $HOME/.cargo/env
     - mkdir -p $HOME/sockets
     - export XDG_RUNTIME_DIR="$HOME/sockets"
-    - cargo test --features "both_native" --all
+    - cargo test --workspace --exclude wayland-tests
+    - cd wayland-tests
+    - cargo test --features "client_system server_system"

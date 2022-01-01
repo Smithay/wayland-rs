@@ -55,10 +55,7 @@ lazy_static::lazy_static!(
                 Ok(h) => return Some(h),
                 Err(::dlib::DlError::CantOpen(_)) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
-                    if ::std::env::var_os("WAYLAND_RS_DEBUG").is_some() {
-                        // only print debug messages if WAYLAND_RS_DEBUG is set
-                        eprintln!("[wayland-client] Found library {} cannot be used: symbol {} is missing.", ver, s);
-                    }
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
                     return None;
                 }
             }

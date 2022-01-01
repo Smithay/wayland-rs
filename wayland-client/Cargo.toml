@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.29.2"
+version = "0.30.0-dev"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -9,25 +9,18 @@ edition = "2018"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "client"]
 description = "Bindings to the standard C implementation of the wayland protocol, client side."
-build = "build.rs"
 readme = "README.md"
 
 [dependencies]
-wayland-commons = { version = "0.29.2", path = "../wayland-commons" }
-wayland-sys = { version = "0.29.2", path = "../wayland-sys" }
-nix = "0.22"
-downcast-rs = "1.0"
-bitflags = "1.0"
-libc = "0.2"
-scoped-tls = { version = "1.0", optional = true }
-
-[build-dependencies]
-wayland-scanner = { version = "0.29.2", path = "../wayland-scanner" }
+wayland-backend = { version = "0.1", path = "../wayland-backend" }
+wayland-scanner = { version = "0.30.0-dev", path = "../wayland-scanner" }
+bitflags = "1.2"
+thiserror = "1.0.2"
+nix = "0.23"
+futures-channel = "0.3.16"
+log = "0.4"
 
 [dev-dependencies]
-tempfile = ">=2.0, <4.0"
-wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
+wayland-protocols = { version = "0.30.0-dev", path = "../wayland-protocols", features = ["client"] }
+tempfile = "3.2"
 
-[features]
-use_system_lib = ["wayland-sys/client", "scoped-tls"]
-dlopen = ["wayland-sys/dlopen", "use_system_lib"]

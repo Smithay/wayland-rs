@@ -1,206 +1,320 @@
-// Allow single character names so clippy doesn't lint on x, y, r, g, b, which
-// are reasonable variable names in this domain.
-#![allow(clippy::many_single_char_names)]
-
-use std::{
-    cmp::min,
-    io::{BufWriter, Write},
-    os::unix::io::AsRawFd,
-    process::exit,
-    time::Instant,
-};
+use std::{fs::File, os::unix::prelude::AsRawFd};
 
 use wayland_client::{
-    event_enum,
-    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat, wl_shm},
-    Display, Filter, GlobalManager,
+    protocol::{
+        wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
+        wl_surface,
+    },
+    Connection, ConnectionHandle, Dispatch, QueueHandle, WEnum,
 };
+
 use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
-// declare an event enum containing the events we want to receive in the iterator
-event_enum!(
-    Events |
-    Pointer => wl_pointer::WlPointer,
-    Keyboard => wl_keyboard::WlKeyboard
-);
-
 fn main() {
-    let now = Instant::now();
+    let conn = Connection::connect_to_env().unwrap();
 
-    let display = Display::connect_to_env().unwrap();
+    let mut event_queue = conn.new_event_queue();
+    let qhandle = event_queue.handle();
 
-    let mut event_queue = display.create_event_queue();
+    let display = conn.handle().display();
+    display.get_registry(&mut conn.handle(), &qhandle, ()).unwrap();
 
-    let attached_display = (*display).clone().attach(event_queue.token());
+    let mut state = State {
+        running: true,
+        base_surface: None,
+        buffer: None,
+        wm_base: None,
+        xdg_surface: None,
+        configured: false,
+    };
 
-    let globals = GlobalManager::new(&attached_display);
+    println!("Starting the example window app, press <ESC> to quit.");
 
-    // Make a synchronized roundtrip to the wayland server.
-    //
-    // When this returns it must be true that the server has already
-    // sent us all available globals.
-    event_queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()).unwrap();
-
-    /*
-     * Create a buffer with window contents
-     */
-
-    // buffer (and window) width and height
-    let buf_x: u32 = 320;
-    let buf_y: u32 = 240;
-
-    // create a tempfile to write the contents of the window on
-    let mut tmp = tempfile::tempfile().expect("Unable to create a tempfile.");
-
-    // write the contents to it, lets put a nice color gradient
-    {
-        let now = Instant::now();
-
-        let mut buf = BufWriter::new(&mut tmp);
-        for y in 0..buf_y {
-            for x in 0..buf_x {
-                let a = 0xFF;
-                let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-                let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-                let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-
-                let color = (a << 24) + (r << 16) + (g << 8) + b;
-                buf.write_all(&color.to_ne_bytes()).unwrap();
-            }
-        }
-        buf.flush().unwrap();
-
-        println!(
-            "Time used to create the nice color gradient: {:?}",
-            Instant::now().duration_since(now)
-        );
+    while state.running {
+        event_queue.blocking_dispatch(&mut state).unwrap();
     }
+}
 
-    /*
-     * Init wayland objects
-     */
+struct State {
+    running: bool,
+    base_surface: Option<wl_surface::WlSurface>,
+    buffer: Option<wl_buffer::WlBuffer>,
+    wm_base: Option<xdg_wm_base::XdgWmBase>,
+    xdg_surface: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
+    configured: bool,
+}
 
-    // The compositor allows us to creates surfaces
-    let compositor = globals.instantiate_exact::<wl_compositor::WlCompositor>(1).unwrap();
-    let surface = compositor.create_surface();
+impl Dispatch<wl_registry::WlRegistry> for State {
+    type UserData = ();
 
-    // The SHM allows us to share memory with the server, and create buffers
-    // on this shared memory to paint our surfaces
-    let shm = globals.instantiate_exact::<wl_shm::WlShm>(1).unwrap();
-    let pool = shm.create_pool(
-        tmp.as_raw_fd(),            // RawFd to the tempfile serving as shared memory
-        (buf_x * buf_y * 4) as i32, // size in bytes of the shared memory (4 bytes per pixel)
-    );
-    let buffer = pool.create_buffer(
-        0,                        // Start of the buffer in the pool
-        buf_x as i32,             // width of the buffer in pixels
-        buf_y as i32,             // height of the buffer in pixels
-        (buf_x * 4) as i32,       // number of bytes between the beginning of two consecutive lines
-        wl_shm::Format::Argb8888, // chosen encoding for the data
-    );
+    fn event(
+        &mut self,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        conn: &mut ConnectionHandle,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global { name, interface, .. } = event {
+            match &interface[..] {
+                "wl_compositor" => {
+                    let compositor = registry
+                        .bind::<wl_compositor::WlCompositor, _>(conn, name, 1, qh, ())
+                        .unwrap();
+                    let surface = compositor.create_surface(conn, qh, ()).unwrap();
+                    self.base_surface = Some(surface);
 
-    let xdg_wm_base = globals
-        .instantiate_exact::<xdg_wm_base::XdgWmBase>(2)
-        .expect("Compositor does not support xdg_shell");
+                    if self.wm_base.is_some() && self.xdg_surface.is_none() {
+                        self.init_xdg_surface(conn, qh);
+                    }
+                }
+                "wl_shm" => {
+                    let shm = registry.bind::<wl_shm::WlShm, _>(conn, name, 1, qh, ()).unwrap();
 
-    xdg_wm_base.quick_assign(|xdg_wm_base, event, _| {
+                    let (init_w, init_h) = (320, 240);
+
+                    let mut file = tempfile::tempfile().unwrap();
+                    draw(&mut file, (init_w, init_h));
+                    let pool = shm
+                        .create_pool(conn, file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ())
+                        .unwrap();
+                    let buffer = pool
+                        .create_buffer(
+                            conn,
+                            0,
+                            init_w as i32,
+                            init_h as i32,
+                            (init_w * 4) as i32,
+                            wl_shm::Format::Argb8888,
+                            qh,
+                            (),
+                        )
+                        .unwrap();
+                    self.buffer = Some(buffer.clone());
+
+                    if self.configured {
+                        let surface = self.base_surface.as_ref().unwrap();
+                        surface.attach(conn, Some(&buffer), 0, 0);
+                        surface.commit(conn);
+                    }
+                }
+                "wl_seat" => {
+                    registry.bind::<wl_seat::WlSeat, _>(conn, name, 1, qh, ()).unwrap();
+                }
+                "xdg_wm_base" => {
+                    let wm_base =
+                        registry.bind::<xdg_wm_base::XdgWmBase, _>(conn, name, 1, qh, ()).unwrap();
+                    self.wm_base = Some(wm_base);
+
+                    if self.base_surface.is_some() && self.xdg_surface.is_none() {
+                        self.init_xdg_surface(conn, qh);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl Dispatch<wl_compositor::WlCompositor> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_compositor::WlCompositor,
+        _: wl_compositor::Event,
+        _: &Self::UserData,
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        // wl_compositor has no event
+    }
+}
+
+impl Dispatch<wl_surface::WlSurface> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_surface::WlSurface,
+        _: wl_surface::Event,
+        _: &Self::UserData,
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        // we ignore wl_surface events in this example
+    }
+}
+
+impl Dispatch<wl_shm::WlShm> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_shm::WlShm,
+        _: wl_shm::Event,
+        _: &Self::UserData,
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        // we ignore wl_shm events in this example
+    }
+}
+
+impl Dispatch<wl_shm_pool::WlShmPool> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_shm_pool::WlShmPool,
+        _: wl_shm_pool::Event,
+        _: &Self::UserData,
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        // we ignore wl_shm_pool events in this example
+    }
+}
+
+impl Dispatch<wl_buffer::WlBuffer> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_buffer::WlBuffer,
+        _: wl_buffer::Event,
+        _: &Self::UserData,
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        // we ignore wl_buffer events in this example
+    }
+}
+
+fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
+    use std::{cmp::min, io::Write};
+    let mut buf = std::io::BufWriter::new(tmp);
+    for y in 0..buf_y {
+        for x in 0..buf_x {
+            let a = 0xFF;
+            let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+            let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+            let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+
+            let color = (a << 24) + (r << 16) + (g << 8) + b;
+            buf.write_all(&color.to_ne_bytes()).unwrap();
+        }
+    }
+    buf.flush().unwrap();
+}
+
+impl State {
+    fn init_xdg_surface(&mut self, conn: &mut ConnectionHandle<'_>, qh: &QueueHandle<State>) {
+        let wm_base = self.wm_base.as_ref().unwrap();
+        let base_surface = self.base_surface.as_ref().unwrap();
+
+        let xdg_surface = wm_base.get_xdg_surface(conn, base_surface, qh, ()).unwrap();
+        let toplevel = xdg_surface.get_toplevel(conn, qh, ()).unwrap();
+        toplevel.set_title(conn, "A fantastic window!".into());
+
+        base_surface.commit(conn);
+
+        self.xdg_surface = Some((xdg_surface, toplevel));
+    }
+}
+
+impl Dispatch<xdg_wm_base::XdgWmBase> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        wm_base: &xdg_wm_base::XdgWmBase,
+        event: xdg_wm_base::Event,
+        _: &(),
+        conn: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
         if let xdg_wm_base::Event::Ping { serial } = event {
-            xdg_wm_base.pong(serial);
-        };
-    });
-
-    let xdg_surface = xdg_wm_base.get_xdg_surface(&surface);
-    xdg_surface.quick_assign(move |xdg_surface, event, _| match event {
-        xdg_surface::Event::Configure { serial } => {
-            println!("xdg_surface (Configure)");
-            xdg_surface.ack_configure(serial);
+            wm_base.pong(conn, serial);
         }
-        _ => unreachable!(),
-    });
+    }
+}
 
-    let xdg_toplevel = xdg_surface.get_toplevel();
-    xdg_toplevel.quick_assign(move |_, event, _| match event {
-        xdg_toplevel::Event::Close => {
-            exit(0);
-        }
-        xdg_toplevel::Event::Configure { width, height, states } => {
-            println!(
-                "xdg_toplevel (Configure) width: {}, height: {}, states: {:?}",
-                width, height, states
-            );
-        }
-        _ => unreachable!(),
-    });
-    xdg_toplevel.set_title("Simple Window".to_string());
+impl Dispatch<xdg_surface::XdgSurface> for State {
+    type UserData = ();
 
-    // initialize a seat to retrieve pointer & keyboard events
-    //
-    // example of using a common filter to handle both pointer & keyboard events
-    let common_filter = Filter::new(move |event, _, _| match event {
-        Events::Pointer { event, .. } => match event {
-            wl_pointer::Event::Enter { surface_x, surface_y, .. } => {
-                println!("Pointer entered at ({}, {}).", surface_x, surface_y);
-            }
-            wl_pointer::Event::Leave { .. } => {
-                println!("Pointer left.");
-            }
-            wl_pointer::Event::Motion { surface_x, surface_y, .. } => {
-                println!("Pointer moved to ({}, {}).", surface_x, surface_y);
-            }
-            wl_pointer::Event::Button { button, state, .. } => {
-                println!("Button {} was {:?}.", button, state);
-            }
-            _ => {}
-        },
-        Events::Keyboard { event, .. } => match event {
-            wl_keyboard::Event::Enter { .. } => {
-                println!("Gained keyboard focus.");
-            }
-            wl_keyboard::Event::Leave { .. } => {
-                println!("Lost keyboard focus.");
-            }
-            wl_keyboard::Event::Key { key, state, .. } => {
-                println!("Key with id {} was {:?}.", key, state);
-            }
-            _ => (),
-        },
-    });
-    // to be handled properly this should be more dynamic, as more
-    // than one seat can exist (and they can be created and destroyed
-    // dynamically), however most "traditional" setups have a single
-    // seat, so we'll keep it simple here
-    let mut pointer_created = false;
-    let mut keyboard_created = false;
-    globals.instantiate_exact::<wl_seat::WlSeat>(1).unwrap().quick_assign(move |seat, event, _| {
-        // The capabilities of a seat are known at runtime and we retrieve
-        // them via an events. 3 capabilities exists: pointer, keyboard, and touch
-        // we are only interested in pointer & keyboard here
-        use wayland_client::protocol::wl_seat::{Capability, Event as SeatEvent};
-
-        if let SeatEvent::Capabilities { capabilities } = event {
-            if !pointer_created && capabilities.contains(Capability::Pointer) {
-                // create the pointer only once
-                pointer_created = true;
-                seat.get_pointer().assign(common_filter.clone());
-            }
-            if !keyboard_created && capabilities.contains(Capability::Keyboard) {
-                // create the keyboard only once
-                keyboard_created = true;
-                seat.get_keyboard().assign(common_filter.clone());
+    fn event(
+        &mut self,
+        xdg_surface: &xdg_surface::XdgSurface,
+        event: xdg_surface::Event,
+        _: &(),
+        conn: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        if let xdg_surface::Event::Configure { serial, .. } = event {
+            xdg_surface.ack_configure(conn, serial);
+            self.configured = true;
+            let surface = self.base_surface.as_ref().unwrap();
+            if let Some(ref buffer) = self.buffer {
+                surface.attach(conn, Some(buffer), 0, 0);
+                surface.commit(conn);
             }
         }
-    });
+    }
+}
 
-    surface.commit();
+impl Dispatch<xdg_toplevel::XdgToplevel> for State {
+    type UserData = ();
 
-    event_queue.sync_roundtrip(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
+    fn event(
+        &mut self,
+        _: &xdg_toplevel::XdgToplevel,
+        event: xdg_toplevel::Event,
+        _: &(),
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        if let xdg_toplevel::Event::Close {} = event {
+            self.running = false;
+        }
+    }
+}
 
-    surface.attach(Some(&buffer), 0, 0);
-    surface.commit();
+impl Dispatch<wl_seat::WlSeat> for State {
+    type UserData = ();
 
-    println!("Time used before enter in the main loop: {:?}", Instant::now().duration_since(now));
+    fn event(
+        &mut self,
+        seat: &wl_seat::WlSeat,
+        event: wl_seat::Event,
+        _: &(),
+        conn: &mut ConnectionHandle,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
+            if capabilities.contains(wl_seat::Capability::Keyboard) {
+                seat.get_keyboard(conn, qh, ()).unwrap();
+            }
+        }
+    }
+}
 
-    loop {
-        event_queue.dispatch(&mut (), |_, _, _| { /* we ignore unfiltered messages */ }).unwrap();
+impl Dispatch<wl_keyboard::WlKeyboard> for State {
+    type UserData = ();
+
+    fn event(
+        &mut self,
+        _: &wl_keyboard::WlKeyboard,
+        event: wl_keyboard::Event,
+        _: &(),
+        _: &mut ConnectionHandle,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_keyboard::Event::Key { key, .. } = event {
+            if key == 1 {
+                // ESC key
+                self.running = false;
+            }
+        }
     }
 }

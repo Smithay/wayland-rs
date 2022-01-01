@@ -1,150 +1,77 @@
 use std::sync::Arc;
 
-#[cfg(feature = "use_system_lib")]
-use wayland_sys::server::wl_client;
+use wayland_backend::{
+    protocol::ProtocolError,
+    server::{ClientId, DisconnectReason, InvalidId},
+};
 
-use crate::imp::ClientInner;
+use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
 
-use crate::{Interface, Main, Resource, UserDataMap};
-
-/// Holds the client credentials the can be
-/// retrieved from the socket with [`Client::credentials`]
-#[derive(Debug, Clone, Copy)]
-pub struct Credentials {
-    /// pid of the client
-    pub pid: libc::pid_t,
-    /// uid of the client
-    pub uid: libc::uid_t,
-    /// gid of the client
-    pub gid: libc::gid_t,
-}
-
-impl From<nix::sys::socket::UnixCredentials> for Credentials {
-    fn from(credentials: nix::sys::socket::UnixCredentials) -> Self {
-        Self { pid: credentials.pid(), uid: credentials.uid(), gid: credentials.gid() }
-    }
-}
-
-/// A handle to a client connected to your server
-///
-/// There can be several handles referring to the same client.
-#[derive(Clone, PartialEq)]
+#[derive(Debug)]
 pub struct Client {
-    inner: ClientInner,
-}
-
-impl std::fmt::Debug for Client {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Client { ... }")
-    }
+    pub(crate) id: ClientId,
+    pub(crate) data: Arc<dyn std::any::Any + Send + Sync>,
 }
 
 impl Client {
-    #[cfg(feature = "use_system_lib")]
-    /// Creates a client from a pointer
-    ///
-    /// # Safety
-    ///
-    /// The provided pointer must be a valid pointer from `libwayland-server`.
-    pub unsafe fn from_ptr(ptr: *mut wl_client) -> Client {
-        Client { inner: ClientInner::from_ptr(ptr) }
+    pub(crate) fn from_id<D>(
+        handle: &mut DisplayHandle<'_, D>,
+        id: ClientId,
+    ) -> Result<Client, InvalidId> {
+        let data = handle.inner.handle().get_client_data(id.clone())?.into_any_arc();
+        Ok(Client { id, data })
     }
 
-    #[cfg(feature = "use_system_lib")]
-    /// Returns a pointer to the underlying `wl_client` of `libwayland-server`
-    pub fn c_ptr(&self) -> *mut wl_client {
-        self.inner.ptr()
+    pub fn id(&self) -> ClientId {
+        self.id.clone()
     }
 
-    pub(crate) fn make(inner: ClientInner) -> Client {
-        Client { inner }
+    pub fn get_data<Data: 'static>(&self) -> Option<&Data> {
+        (&*self.data).downcast_ref()
     }
 
-    /// Checks whether this client is still connected to the server
-    pub fn alive(&self) -> bool {
-        self.inner.alive()
-    }
-
-    /// Checks whether `self` and `other` refer to the same client
-    pub fn equals(&self, other: &Client) -> bool {
-        self.inner.equals(&other.inner)
-    }
-
-    /// Flushes the pending events to this client
-    pub fn flush(&self) {
-        self.inner.flush()
-    }
-
-    /// Kills this client
-    ///
-    /// Does nothing if the client is already dead.
-    pub fn kill(&self) {
-        self.inner.kill()
-    }
-
-    /// Returns the [`Credentials`] from the socket of this
-    /// client.
-    ///
-    /// The credentials come from getsockopt() with SO_PEERCRED, on the client socket fd.
-    ///
-    /// Be aware that for clients that a compositor forks and execs and then connects using
-    /// socketpair(), this function will return the credentials for the compositor.
-    /// The credentials for the socketpair are set at creation time in the compositor.
-    ///
-    /// Returns [None] if the client is already dead.
-    pub fn credentials(&self) -> Option<Credentials> {
-        self.inner.credentials()
-    }
-
-    /// Returns a reference to the `UserDataMap` associated with this client
-    ///
-    /// See `UserDataMap` documentation for details about its use.
-    pub fn data_map(&self) -> &UserDataMap {
-        self.inner.user_data_map()
-    }
-
-    /// Adds a destructor for this client
-    ///
-    /// This filter will be called when the client disconnects or is killed.
-    /// It has access to the `UserDataMap` associated with this client.
-    ///
-    /// You can add several destructors which will all be called sequentially. Note
-    /// that if you accidentally add two copies of the same closure, it will be called
-    /// twice.
-    ///
-    /// The destructors will be executed on the thread containing the wayland event loop.
-    ///
-    /// **Panics**: This function will panic if called from an other thread than the one
-    /// hosting the Display.
-    pub fn add_destructor(&self, destructor: crate::Filter<Arc<UserDataMap>>) {
-        self.inner.add_destructor(move |ud, data| destructor.send(ud, data));
-    }
-
-    /// Creates a new resource for this client
-    ///
-    /// To ensure the state coherence between client and server, this
-    /// resource should immediately be assigned to a filter and sent to the client
-    /// through an appropriate event. Failure to do so will likely cause
-    /// protocol errors.
-    ///
-    /// **Panics**: This function will panic if called from an other thread than the one
-    /// hosting the Display.
-    pub fn create_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+    pub fn get_credentials<D>(
         &self,
+        handle: &mut DisplayHandle<'_, D>,
+    ) -> Result<crate::backend::Credentials, InvalidId> {
+        handle.inner.handle().get_client_credentials(self.id.clone())
+    }
+
+    pub fn create_resource<I: Resource + 'static, D: Dispatch<I> + 'static>(
+        &self,
+        handle: &mut DisplayHandle<'_, D>,
         version: u32,
-    ) -> Option<Main<I>> {
-        self.inner.create_resource::<I>(version).map(Main::wrap)
+        user_data: <D as Dispatch<I>>::UserData,
+    ) -> Result<I, InvalidId> {
+        let id = handle.inner.handle().create_object(
+            self.id.clone(),
+            I::interface(),
+            version,
+            Arc::new(ResourceData::<I, _>::new(user_data)),
+        )?;
+        I::from_id(handle, id)
     }
 
-    /// Retrieve a resource of this client for a given id
-    ///
-    /// You need to know in advance which is the interface of this object. If the given id does
-    /// not correspond to an existing object or the existing object is not of the requested
-    /// interface, this call returns `None`.
-    pub fn get_resource<I: Interface + From<Resource<I>> + AsRef<Resource<I>>>(
+    pub fn object_from_protocol_id<I: Resource + 'static, D: 'static>(
         &self,
-        id: u32,
-    ) -> Option<I> {
-        self.inner.get_resource::<I>(id).map(|obj| Resource::wrap(obj).into())
+        handle: &mut DisplayHandle<'_, D>,
+        protocol_id: u32,
+    ) -> Result<I, InvalidId> {
+        let object_id = handle.inner.handle().object_for_protocol_id(
+            self.id.clone(),
+            I::interface(),
+            protocol_id,
+        )?;
+        I::from_id(handle, object_id)
+    }
+
+    pub fn kill<D>(&self, handle: &mut DisplayHandle<'_, D>, error: ProtocolError) {
+        handle.inner.handle().kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
+    }
+}
+
+impl PartialEq for Client {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
