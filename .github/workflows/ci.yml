@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      XDG_RUNTIME_DIR: ~/.runtime
+      XDG_RUNTIME_DIR: ${{ env.RUNNER_TEMP }}/runtime
 
     steps:
       - name: Checkout sources
@@ -167,7 +167,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      XDG_RUNTIME_DIR: ~/.runtime
+      XDG_RUNTIME_DIR: ${{ env.RUNNER_TEMP }}/runtime
 
     strategy:
       fail-fast: false
