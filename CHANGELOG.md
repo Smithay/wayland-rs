@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.29.2 -- 2022-01-01
+
 #### Bugfixes
 
 - [client] Fix a case of possible dereferencing of nullptr
