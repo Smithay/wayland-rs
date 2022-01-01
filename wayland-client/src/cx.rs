@@ -12,7 +12,7 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, Handle, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
-    protocol::{Interface, ObjectInfo},
+    protocol::{Interface, ObjectInfo, ProtocolError},
 };
 
 use nix::{fcntl, Error};
@@ -154,6 +154,14 @@ impl Connection {
     /// Create a new event queue
     pub fn new_event_queue<D>(&self) -> EventQueue<D> {
         EventQueue::new(self.backend.clone())
+    }
+
+    /// Retrive the protocol error that occured on the socket (if any)
+    pub fn protocol_error(&self) -> Option<ProtocolError> {
+        match dbg!(self.backend.lock().unwrap().handle().last_error())? {
+            WaylandError::Protocol(err) => Some(err),
+            WaylandError::Io(_) => None,
+        }
     }
 }
 
