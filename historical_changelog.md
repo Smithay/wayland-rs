@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+Starting from 0.30.0 and onwards, the crate versions are no longer fixed together. Each crate now has its own changelog in their respective directories.
 
 ## 0.29.2 -- 2022-01-01
 

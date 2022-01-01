@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.30.0-dev"
+version = "0.30.0-alpha1"
 documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -12,8 +12,8 @@ description = "Bindings to the standard C implementation of the wayland protocol
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.1", path = "../wayland-backend" }
-wayland-scanner = { version = "0.30.0-dev", path = "../wayland-scanner" }
+wayland-backend = { version = "0.1.0-alpha1", path = "../wayland-backend" }
+wayland-scanner = { version = "0.30.0-alpha1", path = "../wayland-scanner" }
 bitflags = "1.2"
 thiserror = "1.0.2"
 nix = "0.23"
@@ -21,6 +21,6 @@ futures-channel = "0.3.16"
 log = "0.4"
 
 [dev-dependencies]
-wayland-protocols = { version = "0.30.0-dev", path = "../wayland-protocols", features = ["client"] }
+wayland-protocols = { version = "0.30.0-alpha1", path = "../wayland-protocols", features = ["client"] }
 tempfile = "3.2"
 
