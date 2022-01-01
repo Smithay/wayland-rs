@@ -3,6 +3,7 @@ use std::{
     os::unix::{
         io::{FromRawFd, IntoRawFd},
         net::UnixStream,
+        prelude::AsRawFd,
     },
     sync::Arc,
 };
@@ -26,8 +27,8 @@ use crate::rs::{
 };
 
 use super::{
-    registry::Registry, ClientData, ClientId, Data, GlobalHandler, GlobalId, Handle, ObjectData,
-    ObjectId, UninitObjectData,
+    registry::Registry, ClientData, ClientId, Credentials, Data, GlobalHandler, GlobalId, Handle,
+    ObjectData, ObjectId, UninitObjectData,
 };
 
 type ArgSmallVec = SmallVec<[Argument<ObjectId>; INLINE_ARGS]>;
@@ -274,6 +275,15 @@ impl<D> Client<D> {
             object_interface: object_id.interface.name.into(),
             message: converted_message,
         }));
+    }
+
+    pub(crate) fn get_credentials(&self) -> Credentials {
+        let creds = nix::sys::socket::getsockopt(
+            self.socket.as_raw_fd(),
+            nix::sys::socket::sockopt::PeerCredentials,
+        )
+        .expect("getsockopt failed!?");
+        Credentials { pid: creds.pid(), uid: creds.uid(), gid: creds.gid() }
     }
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {

@@ -61,3 +61,14 @@ pub enum DisconnectReason {
     /// The server has sent the client a protocol error, terminating the connection.
     ProtocolError(crate::protocol::ProtocolError),
 }
+
+/// Holds the client credentials
+#[derive(Debug, Clone, Copy)]
+pub struct Credentials {
+    /// pid of the client
+    pub pid: nix::libc::pid_t,
+    /// uid of the client
+    pub uid: nix::libc::uid_t,
+    /// gid of the client
+    pub gid: nix::libc::gid_t,
+}

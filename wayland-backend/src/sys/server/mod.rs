@@ -24,7 +24,7 @@ use wayland_sys::{common::*, ffi_dispatch, server::*};
 
 use super::{free_arrays, RUST_MANAGED};
 
-pub use crate::types::server::{DisconnectReason, GlobalInfo, InitError, InvalidId};
+pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 
 // First pointer is &mut Handle<D>, and second pointer is &mut D
 scoped_thread_local!(static HANDLE: (*mut c_void, *mut c_void));
@@ -549,6 +549,28 @@ impl<D> Handle<D> {
         };
 
         Ok(data.data.clone())
+    }
+
+    /// Retrive the [`Credentials`] of a client
+    pub fn get_client_credentials(&self, id: ClientId) -> Result<Credentials, InvalidId> {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let mut creds = Credentials { pid: 0, uid: 0, gid: 0 };
+
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_client_get_credentials,
+                id.ptr,
+                &mut creds.pid,
+                &mut creds.uid,
+                &mut creds.gid
+            );
+        }
+
+        Ok(creds)
     }
 
     /// Returns an iterator over all clients connected to the server.

@@ -8,8 +8,8 @@ use crate::{
 use smallvec::SmallVec;
 
 use super::{
-    client::ClientStore, registry::Registry, ClientData, ClientId, Data, GlobalHandler, GlobalId,
-    ObjectData, ObjectId,
+    client::ClientStore, registry::Registry, ClientData, ClientId, Credentials, Data,
+    GlobalHandler, GlobalId, ObjectData, ObjectId,
 };
 use crate::rs::map::Object;
 
@@ -202,6 +202,12 @@ impl<D> Handle<D> {
     pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
         let client = self.clients.get_client(id)?;
         Ok(client.data.clone())
+    }
+
+    /// Retrive the [`Credentials`] of a client
+    pub fn get_client_credentials(&self, id: ClientId) -> Result<Credentials, InvalidId> {
+        let client = self.clients.get_client(id)?;
+        Ok(client.get_credentials())
     }
 
     /// Returns an iterator over all clients connected to the server.

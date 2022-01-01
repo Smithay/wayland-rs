@@ -30,6 +30,13 @@ impl Client {
         (&*self.data).downcast_ref()
     }
 
+    pub fn get_credentials<D>(
+        &self,
+        handle: &mut DisplayHandle<'_, D>,
+    ) -> Result<crate::backend::Credentials, InvalidId> {
+        handle.inner.handle().get_client_credentials(self.id.clone())
+    }
+
     pub fn create_resource<I: Resource + 'static, D: Dispatch<I> + 'static>(
         &self,
         handle: &mut DisplayHandle<'_, D>,

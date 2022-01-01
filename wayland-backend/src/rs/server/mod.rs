@@ -9,7 +9,7 @@ mod common_poll;
 mod handle;
 mod registry;
 
-pub use crate::types::server::{DisconnectReason, GlobalInfo, InitError, InvalidId};
+pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 pub use common_poll::Backend;
 pub use handle::Handle;
 

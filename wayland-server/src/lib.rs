@@ -19,8 +19,8 @@ pub use global::GlobalDispatch;
 pub mod backend {
     pub use wayland_backend::protocol;
     pub use wayland_backend::server::{
-        Backend, ClientData, ClientId, DisconnectReason, GlobalHandler, GlobalId, Handle,
-        InitError, InvalidId, ObjectData, ObjectId,
+        Backend, ClientData, ClientId, Credentials, DisconnectReason, GlobalHandler, GlobalId,
+        Handle, InitError, InvalidId, ObjectData, ObjectId,
     };
     pub use wayland_backend::smallvec;
 }
