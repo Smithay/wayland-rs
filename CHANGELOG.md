@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.29.3 -- 2022-01-03
+
 #### Changes
 
 - [client/server] Update `wayland.xml` to version 1.20
