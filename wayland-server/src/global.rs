@@ -110,11 +110,12 @@ pub trait DelegateGlobalDispatch<
     /// The return value of this function should contain user data to associate the object created by the
     /// client.
     fn bind(
-        &mut self,
+        state: &mut D,
         handle: &mut DisplayHandle<'_, D>,
         client: &Client,
-        resource: &I,
+        resource: New<I>,
         global_data: &Self::GlobalData,
+        data_init: &mut DataInit<'_, Self>,
     ) -> D::UserData;
 
     /// Checks if the global should be advertised to some client.
@@ -130,4 +131,30 @@ pub trait DelegateGlobalDispatch<
     fn can_view(_client: Client, _global_data: &Self::GlobalData) -> bool {
         true
     }
+}
+
+#[macro_export]
+macro_rules! delegate_global_dispatch {
+    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
+        $(
+            impl $crate::GlobalDispatch<$interface> for $dispatch_from {
+                type GlobalData = <$dispatch_to as $crate::DelegateGlobalDispatchBase<$interface>>::GlobalData;
+
+                fn bind(
+                    &mut self,
+                    dhandle: &mut $crate::DisplayHandle<'_, Self>,
+                    client: &$crate::Client,
+                    resource: $crate::New<&$interface>,
+                    global_data: &Self::GlobalData,
+                    data_init: &mut $crate::DataInit<'_, Self>,
+                ) {
+                    <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
+                }
+
+                fn can_view(client: Client, global_data: &Self::GlobalData) -> bool {
+                    <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::can_view(client, global_data)
+                }
+            }
+        )*
+    };
 }

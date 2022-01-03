@@ -108,7 +108,7 @@ pub trait DelegateDispatch<
     /// the server may respond to clients by sending events to the resource, or some other resource stored in
     /// the user data.
     fn request(
-        &mut self,
+        state: &mut D,
         client: &Client,
         resource: &I,
         request: I::Request,
@@ -177,4 +177,96 @@ impl<
     ) {
         self.udata.object_destroyed(cid, oid)
     }
+}
+
+/// A helper macro which delegates a set of [`Dispatch`] implementations for a resource to some other type which
+/// implements [`DelegateDispatch`] for each resource.
+///
+/// This macro allows more easily delegating smaller parts of the protocol a compositor may wish to handle
+/// in a modular fashion.
+///
+/// # Usage
+///
+/// For example, say you want to delegate events for [`WlOutput`](crate::protocol::wl_output::WlOutput)
+/// to some other type.
+///
+/// For brevity, we will use the example in the documentation for [`DelegateDispatch`], `DelegateToMe`.
+///
+/// ```
+/// use wayland_server::{delegate_dispatch, protocol::wl_output};
+/// #
+/// # use wayland_server::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// #
+/// # struct DelegateToMe;
+/// #
+/// # impl DelegateDispatchBase<wl_output::WlOutput> for DelegateToMe {
+/// #     type UserData = ();
+/// # }
+/// #
+/// # impl<D> DelegateDispatch<wl_output::WlOutput, D> for DelegateToMe
+/// # where
+/// #     D: Dispatch<wl_output::WlOutput, UserData = Self::UserData> + AsMut<DelegateToMe>,
+/// # {
+/// #     fn request(
+/// #         _state: &mut D,
+/// #         _client: &wayland_server::Client,
+/// #         _resource: &wl_output::WlOutput,
+/// #         _request: wl_output::Request,
+/// #         _data: &Self::UserData,
+/// #         _dhandle: &mut wayland_server::DisplayHandle<D>,
+/// #         _data_init: &mut wayland_server::DataInit<'_, D>,
+/// #     ) {
+/// #     }
+/// # }
+///
+/// // ExampleApp is the type events will be dispatched to.
+///
+/// /// The application state
+/// struct ExampleApp {
+///     /// The delegate for handling wl_registry events.
+///     delegate: DelegateToMe,
+/// }
+///
+/// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput> for ExampleApp.
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
+///
+/// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
+/// impl AsMut<DelegateToMe> for ExampleApp {
+///     fn as_mut(&mut self) -> &mut DelegateToMe {
+///         &mut self.delegate
+///     }
+/// }
+/// ```
+///
+/// You may also delegate multiple proxies to a single type. This is especially useful for handling multiple
+/// related protocols in the same modular component.
+///
+/// For example, a type which can dispatch both the `wl_output` and `xdg_output` protocols may be used as a
+/// delegate:
+///
+/// ```ignore
+/// # // This is not tested because xdg_output is in wayland-protocols.
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate);
+/// ```
+#[macro_export]
+macro_rules! delegate_dispatch {
+    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
+        $(
+            impl $crate::Dispatch<$interface> for $dispatch_from {
+                type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
+
+                fn request(
+                    &mut self,
+                    client: &$crate::Client,
+                    resource: &$interface,
+                    request: <$interface as $crate::Resource>::Request,
+                    data: &Self::UserData,
+                    dhandle: &mut $crate::DisplayHandle<'_, Self>,
+                    data_init: &mut $crate::DataInit<'_, Self>,
+                ) {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
+                }
+            }
+        )*
+    };
 }
