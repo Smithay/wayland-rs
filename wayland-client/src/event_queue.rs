@@ -361,16 +361,24 @@ pub trait DelegateDispatchBase<I: Proxy> {
 /// where
 ///     // `D` is the type which has delegated to this type.
 ///     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+///     // If your delegate type has some internal state, it'll need to access it, and you can
+///     // require it via an AsMut<_> implementation for example
+///     D: AsMut<DelegateToMe>,
 /// {
 ///     fn event(
-///         &mut self,
+///         data: &mut D,
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
-///         _data: &Self::UserData,
+///         _udata: &Self::UserData,
 ///         _connhandle: &mut wayland_client::ConnectionHandle,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
 ///     ) {
 ///         // Here the delegate may handle incoming events as it pleases.
+///
+///         // For example, it retrives its state and does some processing with it
+///         let me: &mut DelegateToMe = data.as_mut();
+///         // do something with `me` ...
+/// #       std::mem::drop(me) // use `me` to avoid a warning
 ///     }
 /// }
 /// ```
@@ -384,10 +392,10 @@ pub trait DelegateDispatch<
     /// The implementation of this function may vary depending on protocol requirements. Typically the client
     /// will respond to the server by sending requests to the proxy.
     fn event(
-        &mut self,
+        data: &mut D,
         proxy: &I,
         event: I::Event,
-        data: &Self::UserData,
+        udata: &Self::UserData,
         connhandle: &mut ConnectionHandle,
         qhandle: &QueueHandle<D>,
     );
@@ -431,13 +439,13 @@ pub trait DelegateDispatch<
 /// #
 /// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
 /// # where
-/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData> + AsMut<DelegateToMe>,
 /// # {
 /// #     fn event(
-/// #         &mut self,
+/// #         _data: &mut D,
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
-/// #         _data: &Self::UserData,
+/// #         _udata: &Self::UserData,
 /// #         _connhandle: &mut wayland_client::ConnectionHandle,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
@@ -453,12 +461,14 @@ pub trait DelegateDispatch<
 /// }
 ///
 /// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe ; |app| {
-///     // Return an `&mut` reference to the field the Dispatch implementation provided by the macro should
-///     // forward events to.
-///     // You may also use a function to get the delegate since this is like a closure.
-///     &mut app.delegate
-/// });
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe);
+///
+/// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
+/// impl AsMut<DelegateToMe> for ExampleApp {
+///     fn as_mut(&mut self) -> &mut DelegateToMe {
+///         &mut self.delegate
+///     }
+/// }
 ///
 /// // To explain the macro above, you may read it as the following:
 /// //
@@ -483,49 +493,11 @@ pub trait DelegateDispatch<
 ///
 /// ```ignore
 /// # // This is not tested because xdg_output is in wayland-protocols.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate ; |app| {
-///     &mut app.output_delegate
-/// });
-/// ```
-///
-/// If your delegate contains a lifetime, you will need to explicitly declare the user data type and
-/// use the anonymous lifetime.
-///
-/// ```
-/// use std::marker::PhantomData;
-///
-/// use wayland_client::{delegate_dispatch, DelegateDispatch, DelegateDispatchBase, Dispatch, protocol::wl_registry};
-///
-/// struct ExampleApp;
-///
-/// struct DelegateWithLifetime<'a>(PhantomData<&'a mut ()>);
-///
-/// // ... DelegateDispatch impl here...
-/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateWithLifetime<'_> {
-/// #     type UserData = ();
-/// # }
-/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateWithLifetime<'_>
-/// # where
-/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
-/// # {
-/// #     fn event(
-/// #         &mut self,
-/// #         _proxy: &wl_registry::WlRegistry,
-/// #         _event: wl_registry::Event,
-/// #         _data: &Self::UserData,
-/// #         _connhandle: &mut wayland_client::ConnectionHandle,
-/// #         _qhandle: &wayland_client::QueueHandle<D>,
-/// #     ) {
-/// #     }
-/// # }
-///
-/// delegate_dispatch!(ExampleApp: <UserData = ()> [wl_registry::WlRegistry] => DelegateWithLifetime<'_> ; |_app| {
-///     &mut DelegateWithLifetime(PhantomData)
-/// });
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate);
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
+    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
         $(
             impl $crate::Dispatch<$interface> for $dispatch_from {
                 type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
@@ -538,45 +510,14 @@ macro_rules! delegate_dispatch {
                     connhandle: &mut $crate::ConnectionHandle,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
-                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
-                    let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(self, proxy, event, data, connhandle, qhandle)
                 }
 
                 fn event_created_child(
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
-                }
-            }
-        )*
-    };
-
-    // Explicitly specify the UserData if there is a lifetime.
-    ($dispatch_from: ty: <UserData = $user_data: ty> [$($interface: ty),*] => $dispatch_to: ty ; |$dispatcher: ident| $closure: block) => {
-        $(
-            impl $crate::Dispatch<$interface> for $dispatch_from {
-                type UserData = $user_data;
-
-                fn event(
-                    &mut self,
-                    proxy: &$interface,
-                    event: <$interface as $crate::Proxy>::Event,
-                    data: &Self::UserData,
-                    connhandle: &mut $crate::ConnectionHandle,
-                    qhandle: &$crate::QueueHandle<Self>,
-                ) {
-                    let $dispatcher = self; // We need to do this so the closure can see the dispatcher field.
-                    let delegate: &mut $dispatch_to = { $closure };
-                    $crate::DelegateDispatch::<$interface, _>::event(delegate, proxy, event, data, connhandle, qhandle)
-                }
-
-                fn event_created_child(
-                    opcode: u16,
-                    qhandle: &$crate::QueueHandle<Self>
-                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, _>>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event_created_child(opcode, qhandle)
                 }
             }
         )*

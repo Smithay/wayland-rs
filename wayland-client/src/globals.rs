@@ -35,24 +35,31 @@ impl DelegateDispatchBase<wl_registry::WlRegistry> for GlobalList {
 
 impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for GlobalList
 where
-    D: Dispatch<wl_registry::WlRegistry, UserData = ()>,
+    D: Dispatch<wl_registry::WlRegistry, UserData = ()> + AsMut<GlobalList>,
 {
     fn event(
-        &mut self,
+        handle: &mut D,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
         _: &mut crate::ConnectionHandle,
         _: &crate::QueueHandle<D>,
     ) {
+        let me = handle.as_mut();
         match event {
             wl_registry::Event::Global { name, interface, version } => {
-                self.globals.push(GlobalDescription { name, interface, version });
+                me.globals.push(GlobalDescription { name, interface, version });
             }
             wl_registry::Event::GlobalRemove { name } => {
-                self.globals.retain(|desc| desc.name != name);
+                me.globals.retain(|desc| desc.name != name);
             }
         }
+    }
+}
+
+impl AsMut<GlobalList> for GlobalList {
+    fn as_mut(&mut self) -> &mut GlobalList {
+        self
     }
 }
 

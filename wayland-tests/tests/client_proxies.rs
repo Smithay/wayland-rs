@@ -247,8 +247,14 @@ impl ClientHandler {
     }
 }
 
+impl AsMut<wayc::globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+        &mut self.globals
+    }
+}
+
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
 );
 
 impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor> for ClientHandler {

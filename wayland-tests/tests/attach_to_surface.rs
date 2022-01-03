@@ -249,8 +249,14 @@ struct ClientHandler {
     globals: wayc::globals::GlobalList,
 }
 
+impl AsMut<wayc::globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+        &mut self.globals
+    }
+}
+
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList ; |me| { &mut me.globals }
+    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

@@ -12,9 +12,12 @@ mod global;
 pub mod socket;
 
 pub use client::Client;
-pub use dispatch::{DataInit, DestructionNotify, Dispatch, New, ResourceData};
+pub use dispatch::{
+    DataInit, DelegateDispatch, DelegateDispatchBase, DestructionNotify, Dispatch, New,
+    ResourceData,
+};
 pub use display::{Display, DisplayHandle};
-pub use global::GlobalDispatch;
+pub use global::{DelegateGlobalDispatch, DelegateGlobalDispatchBase, GlobalDispatch};
 
 pub mod backend {
     pub use wayland_backend::protocol;
