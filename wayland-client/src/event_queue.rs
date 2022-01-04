@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use wayland_backend::{
-    client::{Backend, Handle, ObjectData, ObjectId},
+    client::{Backend, Handle, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::Message,
 };
 
@@ -180,6 +180,26 @@ impl<D> EventQueue<D> {
                 data,
             )
         }
+    }
+
+    /// Start a synchronized read from the socket
+    ///
+    /// This is needed if you plan to wait on readiness of the Wayland socket using an event
+    /// loop. See [`ReadEventsGuard`] for details. Once the events are received, you'll then
+    /// need to dispatch them from the event queue using
+    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
+    ///
+    /// If you don't need to manage multiple event sources, see
+    /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
+    pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
+        ReadEventsGuard::try_new(self.backend.clone())
+    }
+
+    /// Flush pending outgoing events to the server
+    ///
+    /// This needs to be done regularly to ensure the server receives all your requests.
+    pub fn flush(&self) -> Result<(), WaylandError> {
+        self.backend.lock().unwrap().flush()
     }
 
     fn dispatching_impl(
