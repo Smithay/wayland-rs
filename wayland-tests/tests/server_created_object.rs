@@ -20,8 +20,8 @@ use wayc::Proxy;
 #[test]
 fn data_offer() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerSeat>(1, ());
-    server.display.handle().create_global::<ServerDDMgr>(3, ());
+    server.display.create_global::<ServerSeat>(1, ());
+    server.display.create_global::<ServerDDMgr>(3, ());
     let mut server_ddata = ServerHandler { data_device: None };
 
     let (_, mut client) = server.add_client();
@@ -64,7 +64,11 @@ fn data_offer() {
     let server_dd = server_ddata.data_device.take().unwrap();
     let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     assert_eq!(offer.id().protocol_id(), 0xFF000000);
     server_dd.data_offer(&mut server.display.handle(), &offer);
@@ -79,8 +83,8 @@ fn data_offer() {
 #[test]
 fn server_id_reuse() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerSeat>(1, ());
-    server.display.handle().create_global::<ServerDDMgr>(3, ());
+    server.display.create_global::<ServerSeat>(1, ());
+    server.display.create_global::<ServerDDMgr>(3, ());
     let mut server_ddata = ServerHandler { data_device: None };
 
     let (_, mut client) = server.add_client();
@@ -124,7 +128,11 @@ fn server_id_reuse() {
     let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     // Send a first data offer, ID should be 0xFF000000
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     assert_eq!(offer.id().protocol_id(), 0xFF000000);
     server_dd.data_offer(&mut server.display.handle(), &offer);
@@ -135,7 +143,11 @@ fn server_id_reuse() {
 
     // Send a second data offer, ID should be 0xFF000001
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     assert_eq!(offer.id().protocol_id(), 0xFF000001);
     server_dd.data_offer(&mut server.display.handle(), &offer);
@@ -150,7 +162,11 @@ fn server_id_reuse() {
 
     // Send a third data offer, server shoudl reuse id 0xFF000000
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     assert_eq!(offer.id().protocol_id(), 0xFF000000);
     server_dd.data_offer(&mut server.display.handle(), &offer);
@@ -165,8 +181,8 @@ fn server_id_reuse() {
 #[test]
 fn server_created_race() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerSeat>(1, ());
-    server.display.handle().create_global::<ServerDDMgr>(3, ());
+    server.display.create_global::<ServerSeat>(1, ());
+    server.display.create_global::<ServerDDMgr>(3, ());
     let mut server_ddata = ServerHandler { data_device: None };
 
     let (_, mut client) = server.add_client();
@@ -210,7 +226,11 @@ fn server_created_race() {
     let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     // Send a first data offer, ID should be 0xFF000000
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     assert_eq!(offer.id().protocol_id(), 0xFF000000);
     server_dd.data_offer(&mut server.display.handle(), &offer);
@@ -241,8 +261,8 @@ fn server_created_race() {
 #[test]
 fn creation_destruction_race() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerSeat>(1, ());
-    server.display.handle().create_global::<ServerDDMgr>(3, ());
+    server.display.create_global::<ServerSeat>(1, ());
+    server.display.create_global::<ServerDDMgr>(3, ());
     let mut server_ddata = ServerHandler { data_device: None };
 
     let (_, mut client) = server.add_client();
@@ -296,7 +316,11 @@ fn creation_destruction_race() {
     let s_client = server.display.handle().get_client(s_dd1.id()).unwrap();
     // Send a first NewID
     let offer1 = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), s_dd1.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            s_dd1.version(),
+            (),
+        )
         .unwrap();
     s_dd1.data_offer(&mut server.display.handle(), &offer1);
     // this message should not crash the client, even though it is send to
@@ -309,7 +333,11 @@ fn creation_destruction_race() {
 
     // server sends an other unrelated newid event
     let offer2 = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), s_dd1.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            s_dd1.version(),
+            (),
+        )
         .unwrap();
     s_dd2.data_offer(&mut server.display.handle(), &offer2);
 
@@ -323,8 +351,8 @@ fn creation_destruction_race() {
 #[test]
 fn creation_destruction_queue_dispatch_race() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerSeat>(1, ());
-    server.display.handle().create_global::<ServerDDMgr>(3, ());
+    server.display.create_global::<ServerSeat>(1, ());
+    server.display.create_global::<ServerDDMgr>(3, ());
     let mut server_ddata = ServerHandler { data_device: None };
 
     let (_, mut client) = server.add_client();
@@ -374,7 +402,11 @@ fn creation_destruction_queue_dispatch_race() {
 
     let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     let offer = s_client
-        .create_resource::<ServerDO, _>(&mut server.display.handle(), server_dd.version(), ())
+        .create_resource::<ServerDO, ServerHandler>(
+            &mut server.display.handle(),
+            server_dd.version(),
+            (),
+        )
         .unwrap();
     server_dd.data_offer(&mut server.display.handle(), &offer);
 
@@ -492,7 +524,7 @@ impl ways::Dispatch<ServerDDMgr> for ServerHandler {
         _: &ServerDDMgr,
         request: SDDMReq,
         _: &Self::UserData,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         match request {

@@ -64,7 +64,7 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
     /// client.
     fn bind(
         &mut self,
-        handle: &mut DisplayHandle<'_, Self>,
+        handle: &mut DisplayHandle<'_>,
         client: &Client,
         resource: New<I>,
         global_data: &Self::GlobalData,
@@ -111,7 +111,7 @@ pub trait DelegateGlobalDispatch<
     /// client.
     fn bind(
         state: &mut D,
-        handle: &mut DisplayHandle<'_, D>,
+        handle: &mut DisplayHandle<'_>,
         client: &Client,
         resource: New<I>,
         global_data: &Self::GlobalData,

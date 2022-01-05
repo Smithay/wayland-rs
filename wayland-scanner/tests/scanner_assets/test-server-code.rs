@@ -57,16 +57,16 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(WlCallback { id, data, version })
         }
-        fn parse_request<D>(
-            conn: &mut DisplayHandle<D>,
+        fn parse_request(
+            conn: &mut DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -74,9 +74,9 @@ pub mod wl_callback {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
-        fn write_event<D>(
+        fn write_event(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -96,7 +96,7 @@ pub mod wl_callback {
     }
     impl WlCallback {
         #[allow(clippy::too_many_arguments)]
-        pub fn done<D>(&self, conn: &mut DisplayHandle<D>, callback_data: u32) {
+        pub fn done(&self, conn: &mut DisplayHandle, callback_data: u32) {
             let _ = conn.send_event(self, Event::Done { callback_data });
         }
     }
@@ -217,16 +217,16 @@ pub mod test_global {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(TestGlobal { id, data, version })
         }
-        fn parse_request<D>(
-            conn: &mut DisplayHandle<D>,
+        fn parse_request(
+            conn: &mut DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -355,9 +355,9 @@ pub mod test_global {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
-        fn write_event<D>(
+        fn write_event(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -408,9 +408,9 @@ pub mod test_global {
     }
     impl TestGlobal {
         #[allow(clippy::too_many_arguments)]
-        pub fn many_args_evt<D>(
+        pub fn many_args_evt(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
@@ -431,17 +431,17 @@ pub mod test_global {
             );
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn ack_secondary<D>(
+        pub fn ack_secondary(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             sec: &super::secondary::Secondary,
         ) {
             let _ = conn.send_event(self, Event::AckSecondary { sec: sec.clone() });
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn cycle_quad<D>(
+        pub fn cycle_quad(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
@@ -504,16 +504,16 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Secondary { id, data, version })
         }
-        fn parse_request<D>(
-            conn: &mut DisplayHandle<D>,
+        fn parse_request(
+            conn: &mut DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -528,9 +528,9 @@ pub mod secondary {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
-        fn write_event<D>(
+        fn write_event(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -599,16 +599,16 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Tertiary { id, data, version })
         }
-        fn parse_request<D>(
-            conn: &mut DisplayHandle<D>,
+        fn parse_request(
+            conn: &mut DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -623,9 +623,9 @@ pub mod tertiary {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
-        fn write_event<D>(
+        fn write_event(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -694,16 +694,16 @@ pub mod quad {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+            let data = conn.get_object_data(id.clone()).ok();
             Ok(Quad { id, data, version })
         }
-        fn parse_request<D>(
-            conn: &mut DisplayHandle<D>,
+        fn parse_request(
+            conn: &mut DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -718,9 +718,9 @@ pub mod quad {
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
-        fn write_event<D>(
+        fn write_event(
             &self,
-            conn: &mut DisplayHandle<D>,
+            conn: &mut DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}

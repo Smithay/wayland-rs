@@ -18,7 +18,7 @@ fn attach_null() {
     // Server setup
     //
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
     let mut server_ddata = ServerHandler { buffer_found: None, fd_found: None };
 
     // Client setup
@@ -59,8 +59,8 @@ fn attach_buffer() {
     // Server setup
     //
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
-    server.display.handle().create_global::<ways::protocol::wl_shm::WlShm>(1, ());
+    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server.display.create_global::<ways::protocol::wl_shm::WlShm>(1, ());
     let mut server_ddata = ServerHandler { buffer_found: None, fd_found: None };
 
     // Client setup
@@ -158,7 +158,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandl
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
         _: &(),
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_compositor::Request::CreateSurface { id } = request {
@@ -177,7 +177,7 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface> for ServerHandler {
         _: &ways::protocol::wl_surface::WlSurface,
         request: ways::protocol::wl_surface::Request,
         _: &(),
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_surface::Request::Attach { buffer, x, y } = request {
@@ -199,7 +199,7 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm> for ServerHandler {
         _: &ways::protocol::wl_shm::WlShm,
         request: ways::protocol::wl_shm::Request,
         _: &(),
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_shm::Request::CreatePool { fd, size, id } = request {
@@ -222,7 +222,7 @@ impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool> for ServerHandler {
         _: &ways::protocol::wl_shm_pool::WlShmPool,
         request: ways::protocol::wl_shm_pool::Request,
         _: &(),
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_shm_pool::Request::CreateBuffer { id, .. } = request {
