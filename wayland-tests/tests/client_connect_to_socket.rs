@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerOutput>(2, ());
+    server.display.create_global::<ServerOutput>(2, ());
 
     let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
 

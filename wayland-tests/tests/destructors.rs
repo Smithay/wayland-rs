@@ -11,7 +11,7 @@ use std::sync::{
 #[test]
 fn resource_destructor_request() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
@@ -47,7 +47,7 @@ fn resource_destructor_request() {
 #[test]
 fn resource_destructor_cleanup() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
@@ -83,7 +83,7 @@ fn resource_destructor_cleanup() {
 #[test]
 fn client_destructor_cleanup() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let destructor_called = Arc::new(AtomicBool::new(false));
@@ -150,7 +150,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler
 
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &Self::GlobalData,
@@ -168,7 +168,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
         _: &ways::protocol::wl_output::WlOutput,
         _: ways::protocol::wl_output::Request,
         _: &ServerUData,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &mut ways::DataInit<'_, Self>,
     ) {
     }

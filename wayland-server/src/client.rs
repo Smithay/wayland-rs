@@ -14,11 +14,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub(crate) fn from_id<D>(
-        handle: &mut DisplayHandle<'_, D>,
+    pub(crate) fn from_id(
+        handle: &mut DisplayHandle<'_>,
         id: ClientId,
     ) -> Result<Client, InvalidId> {
-        let data = handle.inner.handle().get_client_data(id.clone())?.into_any_arc();
+        let data = handle.inner.handle().get_client_data(id.clone())?;
         Ok(Client { id, data })
     }
 
@@ -30,31 +30,35 @@ impl Client {
         (&*self.data).downcast_ref()
     }
 
-    pub fn get_credentials<D>(
+    pub fn get_credentials(
         &self,
-        handle: &mut DisplayHandle<'_, D>,
+        handle: &mut DisplayHandle<'_>,
     ) -> Result<crate::backend::Credentials, InvalidId> {
         handle.inner.handle().get_client_credentials(self.id.clone())
     }
 
     pub fn create_resource<I: Resource + 'static, D: Dispatch<I> + 'static>(
         &self,
-        handle: &mut DisplayHandle<'_, D>,
+        handle: &mut DisplayHandle<'_>,
         version: u32,
         user_data: <D as Dispatch<I>>::UserData,
     ) -> Result<I, InvalidId> {
-        let id = handle.inner.handle().create_object(
-            self.id.clone(),
-            I::interface(),
-            version,
-            Arc::new(ResourceData::<I, _>::new(user_data)),
-        )?;
+        let id = handle
+            .inner
+            .typed_handle::<D>()
+            .expect("Wrong D type passed to Client::create_ressource")
+            .create_object(
+                self.id.clone(),
+                I::interface(),
+                version,
+                Arc::new(ResourceData::<I, _>::new(user_data)),
+            )?;
         I::from_id(handle, id)
     }
 
-    pub fn object_from_protocol_id<I: Resource + 'static, D: 'static>(
+    pub fn object_from_protocol_id<I: Resource + 'static>(
         &self,
-        handle: &mut DisplayHandle<'_, D>,
+        handle: &mut DisplayHandle<'_>,
         protocol_id: u32,
     ) -> Result<I, InvalidId> {
         let object_id = handle.inner.handle().object_for_protocol_id(
@@ -65,7 +69,7 @@ impl Client {
         I::from_id(handle, object_id)
     }
 
-    pub fn kill<D>(&self, handle: &mut DisplayHandle<'_, D>, error: ProtocolError) {
+    pub fn kill(&self, handle: &mut DisplayHandle<'_>, error: ProtocolError) {
         handle.inner.handle().kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }
 }

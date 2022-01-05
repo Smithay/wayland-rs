@@ -51,26 +51,21 @@ pub trait Resource: Sized {
 
     fn data<U: 'static>(&self) -> Option<&U>;
 
-    fn from_id<D>(dh: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId>;
+    fn from_id(dh: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId>;
 
-    fn parse_request<D>(
-        dh: &mut DisplayHandle<D>,
+    fn parse_request(
+        dh: &mut DisplayHandle,
         msg: Message<ObjectId>,
     ) -> Result<(Self, Self::Request), DispatchError>;
 
-    fn write_event<D>(
+    fn write_event(
         &self,
-        dh: &mut DisplayHandle<D>,
+        dh: &mut DisplayHandle,
         req: Self::Event,
     ) -> Result<Message<ObjectId>, InvalidId>;
 
     #[inline]
-    fn post_error<D>(
-        &self,
-        dh: &mut DisplayHandle<D>,
-        code: impl Into<u32>,
-        error: impl Into<String>,
-    ) {
+    fn post_error(&self, dh: &mut DisplayHandle, code: impl Into<u32>, error: impl Into<String>) {
         dh.post_error(self, code.into(), error.into())
     }
 

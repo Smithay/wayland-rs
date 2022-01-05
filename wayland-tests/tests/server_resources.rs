@@ -13,7 +13,7 @@ use wayc::protocol::wl_output::WlOutput as ClientOutput;
 #[test]
 fn resource_equals() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -62,7 +62,7 @@ fn resource_equals() {
 #[test]
 fn resource_user_data() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -108,7 +108,7 @@ fn resource_user_data() {
 #[test]
 fn dead_resources() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -162,7 +162,7 @@ fn dead_resources() {
 #[test]
 fn get_resource() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -194,15 +194,15 @@ fn get_resource() {
     let client = server.display.handle().get_client(server_ddata.outputs[0].id()).unwrap();
     // wrong interface fails
     assert!(client
-        .object_from_protocol_id::<wl_compositor::WlCompositor, _>(&mut server.display.handle(), 3)
+        .object_from_protocol_id::<wl_compositor::WlCompositor>(&mut server.display.handle(), 3)
         .is_err());
     // wrong id fails
     assert!(client
-        .object_from_protocol_id::<wl_output::WlOutput, _>(&mut server.display.handle(), 4)
+        .object_from_protocol_id::<wl_output::WlOutput>(&mut server.display.handle(), 4)
         .is_err());
     // but this suceeds
     assert!(client
-        .object_from_protocol_id::<wl_output::WlOutput, _>(&mut server.display.handle(), 3)
+        .object_from_protocol_id::<wl_output::WlOutput>(&mut server.display.handle(), 3)
         .is_ok());
 }
 
@@ -236,7 +236,7 @@ impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
@@ -260,7 +260,7 @@ impl ways::Dispatch<wl_output::WlOutput> for ServerHandler {
         _: &wl_output::WlOutput,
         _: wl_output::Request,
         _: &Self::UserData,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &mut ways::DataInit<'_, Self>,
     ) {
     }

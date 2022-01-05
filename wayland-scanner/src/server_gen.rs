@@ -98,20 +98,20 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn from_id<D>(conn: &mut DisplayHandle<D>, id: ObjectId) -> Result<Self, InvalidId> {
+                fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null(){
                         return Err(InvalidId)
                     }
                     let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-                    let data = conn.get_object_data(id.clone()).ok().map(|udata| udata.into_any_arc());
+                    let data = conn.get_object_data(id.clone()).ok();
                     Ok(#iface_name { id, data, version })
                 }
 
-                fn parse_request<D>(conn: &mut DisplayHandle<D>, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
+                fn parse_request(conn: &mut DisplayHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }
 
-                fn write_event<D>(&self, conn: &mut DisplayHandle<D>, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
+                fn write_event(&self, conn: &mut DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
                     #write_body
                 }
 
@@ -203,7 +203,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
 
             quote! {
                 #[allow(clippy::too_many_arguments)]
-                pub fn #method_name<D>(&self, conn: &mut DisplayHandle<D>, #(#fn_args),*) {
+                pub fn #method_name(&self, conn: &mut DisplayHandle, #(#fn_args),*) {
                     let _ = conn.send_event(
                         self,
                         Event::#enum_variant {

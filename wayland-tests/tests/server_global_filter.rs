@@ -15,11 +15,11 @@ use std::sync::Arc;
 fn global_filter() {
     let mut server = TestServer::new();
     // everyone can see compositor and shm
-    server.display.handle().create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
-    server.display.handle().create_global::<ways::protocol::wl_shm::WlShm>(1, ());
+    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server.display.create_global::<ways::protocol::wl_shm::WlShm>(1, ());
     // only privileged can see output
     let privileged_output =
-        server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(1, ());
+        server.display.create_global::<ways::protocol::wl_output::WlOutput>(1, ());
     let mut server_ddata = ServerHandler;
 
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
@@ -52,7 +52,7 @@ fn global_filter() {
     // if a regular client received it, it would panic as the server destroyed an
     // unknown global
 
-    server.display.handle().remove_global(privileged_output);
+    server.display.remove_global(privileged_output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
@@ -65,7 +65,7 @@ fn global_filter() {
 fn global_filter_try_force() {
     let mut server = TestServer::new();
     // only privileged can see output
-    server.display.handle().create_global::<ways::protocol::wl_output::WlOutput>(1, ());
+    server.display.create_global::<ways::protocol::wl_output::WlOutput>(1, ());
     let mut server_ddata = ServerHandler;
 
     // normal client that cannot bind the privileged global
@@ -144,7 +144,7 @@ impl ways::GlobalDispatch<wl_compositor::WlCompositor> for ServerHandler {
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &ways::Client,
         resource: ways::New<wl_compositor::WlCompositor>,
         _: &Self::GlobalData,
@@ -162,7 +162,7 @@ impl ways::GlobalDispatch<wl_shm::WlShm> for ServerHandler {
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &ways::Client,
         resource: ways::New<wl_shm::WlShm>,
         _: &Self::GlobalData,
@@ -180,7 +180,7 @@ impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_, Self>,
+        _: &mut ways::DisplayHandle<'_>,
         _: &ways::Client,
         resource: ways::New<wl_output::WlOutput>,
         _: &Self::GlobalData,

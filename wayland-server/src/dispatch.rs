@@ -21,7 +21,7 @@ pub trait Dispatch<I: Resource>: Sized {
         resource: &I,
         request: I::Request,
         data: &Self::UserData,
-        dhandle: &mut DisplayHandle<'_, Self>,
+        dhandle: &mut DisplayHandle<'_>,
         data_init: &mut DataInit<'_, Self>,
     );
 }
@@ -74,7 +74,7 @@ impl<'a, D> DataInit<'a, D> {
         data: <D as Dispatch<I>>::UserData,
     ) -> I
     where
-        D: Dispatch<I>,
+        D: Dispatch<I> + 'static,
     {
         let arc = Arc::new(ResourceData::<I, _>::new(data));
         *self.store = Some(arc.clone());
@@ -113,7 +113,7 @@ pub trait DelegateDispatch<
         resource: &I,
         request: I::Request,
         data: &Self::UserData,
-        dhandle: &mut DisplayHandle<D>,
+        dhandle: &mut DisplayHandle<'_>,
         data_init: &mut DataInit<'_, D>,
     );
 }
@@ -127,7 +127,7 @@ impl<I, U> ResourceData<I, U> {
 impl<
         I: Resource + 'static,
         U: DestructionNotify + Send + Sync + 'static,
-        D: Dispatch<I, UserData = U>,
+        D: Dispatch<I, UserData = U> + 'static,
     > ObjectData<D> for ResourceData<I, U>
 {
     fn request(
@@ -213,7 +213,7 @@ impl<
 /// #         _resource: &wl_output::WlOutput,
 /// #         _request: wl_output::Request,
 /// #         _data: &Self::UserData,
-/// #         _dhandle: &mut wayland_server::DisplayHandle<D>,
+/// #         _dhandle: &mut wayland_server::DisplayHandle,
 /// #         _data_init: &mut wayland_server::DataInit<'_, D>,
 /// #     ) {
 /// #     }
@@ -261,7 +261,7 @@ macro_rules! delegate_dispatch {
                     resource: &$interface,
                     request: <$interface as $crate::Resource>::Request,
                     data: &Self::UserData,
-                    dhandle: &mut $crate::DisplayHandle<'_, Self>,
+                    dhandle: &mut $crate::DisplayHandle<'_>,
                     data_init: &mut $crate::DataInit<'_, Self>,
                 ) {
                     <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
