@@ -17,7 +17,10 @@ pub mod wl_callback {
     #[non_exhaustive]
     pub enum Event {
         #[doc = "done event\n\nNotify the client when the related request is done.\n\nThis is a destructor, once sent this object cannot be used any longer."]
-        Done { callback_data: u32 },
+        Done {
+            #[doc = "request-specific data for the callback"]
+            callback_data: u32
+        },
     }
     #[derive(Debug, Clone)]
     pub struct WlCallback {
@@ -128,17 +131,29 @@ pub mod test_global {
     pub enum Request {
         #[doc = "a request with every possible non-object arg"]
         ManyArgs {
+            #[doc = "an unsigned int"]
             unsigned_int: u32,
+            #[doc = "a singed int"]
             signed_int: i32,
+            #[doc = "a fixed point number"]
             fixed_point: f64,
+            #[doc = "an array"]
             number_array: Vec<u8>,
+            #[doc = "some text"]
             some_text: String,
+            #[doc = "a file descriptor"]
             file_descriptor: ::std::os::unix::io::RawFd,
         },
         #[doc = "Only available since version 2 of the interface"]
-        GetSecondary { sec: New<super::secondary::Secondary> },
+        GetSecondary {
+            #[doc = "create a secondary"]
+            sec: New<super::secondary::Secondary>,
+        },
         #[doc = "Only available since version 3 of the interface"]
-        GetTertiary { ter: New<super::tertiary::Tertiary> },
+        GetTertiary {
+            #[doc = "create a tertiary"]
+            ter: New<super::tertiary::Tertiary>,
+        },
         #[doc = "link a secondary and a tertiary\n\n\n\nOnly available since version 3 of the interface"]
         Link { sec: super::secondary::Secondary, ter: Option<super::tertiary::Tertiary>, time: u32 },
         #[doc = "This is a destructor, once received this object cannot be used any longer.\nOnly available since version 4 of the interface"]
@@ -149,11 +164,17 @@ pub mod test_global {
     pub enum Event {
         #[doc = "an event with every possible non-object arg"]
         ManyArgsEvt {
+            #[doc = "an unsigned int"]
             unsigned_int: u32,
+            #[doc = "a singed int"]
             signed_int: i32,
+            #[doc = "a fixed point number"]
             fixed_point: f64,
+            #[doc = "an array"]
             number_array: Vec<u8>,
+            #[doc = "some text"]
             some_text: String,
+            #[doc = "a file descriptor"]
             file_descriptor: ::std::os::unix::io::RawFd,
         },
         #[doc = "acking the creation of a secondary"]
