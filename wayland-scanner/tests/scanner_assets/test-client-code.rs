@@ -59,9 +59,19 @@ pub mod wl_display {
     #[non_exhaustive]
     pub enum Event {
         #[doc = "fatal error event\n\nThe error event is sent out when a fatal (non-recoverable)\nerror has occurred.  The object_id argument is the object\nwhere the error occurred, most often in response to a request\nto that object.  The code identifies the error and is defined\nby the object interface.  As such, each interface defines its\nown set of error codes.  The message is a brief description\nof the error, for (debugging) convenience."]
-        Error { object_id: super::wayland_client::ObjectId, code: u32, message: String },
+        Error {
+            #[doc = "object where the error occurred"]
+            object_id: super::wayland_client::ObjectId,
+            #[doc = "error code"]
+            code: u32,
+            #[doc = "error description"]
+            message: String,
+        },
         #[doc = "acknowledge object ID deletion\n\nThis event is used internally by the object ID management\nlogic. When a client deletes an object that it had created,\nthe server will send this event to acknowledge that it has\nseen the delete request. When the client receives this event,\nit will know that it can safely reuse the object ID."]
-        DeleteId { id: u32 },
+        DeleteId {
+            #[doc = "deleted object ID"]
+            id: u32,
+        },
     }
     #[derive(Debug, Clone)]
     pub struct WlDisplay {
@@ -222,15 +232,30 @@ pub mod wl_registry {
     #[non_exhaustive]
     pub enum Request {
         #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
-        Bind { name: u32, id: (&'static Interface, u32) },
+        Bind {
+            #[doc = "unique numeric name of the object"]
+            name: u32,
+            #[doc = "bounded object"]
+            id: (&'static Interface, u32)
+        },
     }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
         #[doc = "announce global object\n\nNotify the client of global objects.\n\nThe event notifies the client that a global object with\nthe given name is now available, and it implements the\ngiven version of the given interface."]
-        Global { name: u32, interface: String, version: u32 },
+        Global {
+            #[doc = "numeric name of the global object"]
+            name: u32,
+            #[doc = "interface implemented by the object"]
+            interface: String,
+            #[doc = "interface version"]
+            version: u32,
+        },
         #[doc = "announce removal of global object\n\nNotify the client of removed global objects.\n\nThis event notifies the client that the global identified\nby name is no longer available.  If the client bound to\nthe global using the bind request, the client should now\ndestroy that object.\n\nThe object remains valid and requests to the object will be\nignored until the client destroys it, to avoid races between\nthe global going away and a client sending a request to it."]
-        GlobalRemove { name: u32 },
+        GlobalRemove {
+            #[doc = "numeric name of the global object"]
+            name: u32,
+        },
     }
     #[derive(Debug, Clone)]
     pub struct WlRegistry {
@@ -366,7 +391,10 @@ pub mod wl_callback {
     #[non_exhaustive]
     pub enum Event {
         #[doc = "done event\n\nNotify the client when the related request is done.\n\nThis is a destructor, once received this object cannot be used any longer."]
-        Done { callback_data: u32 },
+        Done {
+            #[doc = "request-specific data for the callback"]
+            callback_data: u32,
+        },
     }
     #[derive(Debug, Clone)]
     pub struct WlCallback {
@@ -467,11 +495,17 @@ pub mod test_global {
     pub enum Request {
         #[doc = "a request with every possible non-object arg"]
         ManyArgs {
+            #[doc = "an unsigned int"]
             unsigned_int: u32,
+            #[doc = "a singed int"]
             signed_int: i32,
+            #[doc = "a fixed point number"]
             fixed_point: f64,
+            #[doc = "an array"]
             number_array: Vec<u8>,
+            #[doc = "some text"]
             some_text: String,
+            #[doc = "a file descriptor"]
             file_descriptor: ::std::os::unix::io::RawFd,
         },
         #[doc = "Only available since version 2 of the interface"]
@@ -488,11 +522,17 @@ pub mod test_global {
     pub enum Event {
         #[doc = "an event with every possible non-object arg"]
         ManyArgsEvt {
+            #[doc = "an unsigned int"]
             unsigned_int: u32,
+            #[doc = "a singed int"]
             signed_int: i32,
+            #[doc = "a fixed point number"]
             fixed_point: f64,
+            #[doc = "an array"]
             number_array: Vec<u8>,
+            #[doc = "some text"]
             some_text: String,
+            #[doc = "a file descriptor"]
             file_descriptor: ::std::os::unix::io::RawFd,
         },
         #[doc = "acking the creation of a secondary"]
