@@ -232,7 +232,15 @@ pub(crate) fn gen_message_enum(
                 } else {
                     field_type_inner.into_token_stream()
                 };
+
+                let doc_attr = arg
+                    .description
+                    .as_ref()
+                    .map(description_to_doc_attr)
+                    .or_else(|| arg.summary.as_ref().map(|s| to_doc_attr(s)));
+
                 Some(quote! {
+                    #doc_attr
                     #field_name: #field_type
                 })
             });
