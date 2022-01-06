@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.29.4 -- 2022-01-06
+
 #### Bugfixes
 
 - [scanner] Fix a CString dropped to early in generated code
