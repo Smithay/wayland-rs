@@ -115,8 +115,8 @@ pub trait DelegateGlobalDispatch<
         client: &Client,
         resource: New<I>,
         global_data: &Self::GlobalData,
-        data_init: &mut DataInit<'_, Self>,
-    ) -> D::UserData;
+        data_init: &mut DataInit<'_, D>,
+    );
 
     /// Checks if the global should be advertised to some client.
     ///
@@ -144,14 +144,14 @@ macro_rules! delegate_global_dispatch {
                     &mut self,
                     dhandle: &mut $crate::DisplayHandle<'_, Self>,
                     client: &$crate::Client,
-                    resource: $crate::New<&$interface>,
+                    resource: $crate::New<$interface>,
                     global_data: &Self::GlobalData,
                     data_init: &mut $crate::DataInit<'_, Self>,
                 ) {
                     <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
                 }
 
-                fn can_view(client: Client, global_data: &Self::GlobalData) -> bool {
+                fn can_view(client: $crate::Client, global_data: &Self::GlobalData) -> bool {
                     <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::can_view(client, global_data)
                 }
             }
