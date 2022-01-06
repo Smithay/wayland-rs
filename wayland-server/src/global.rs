@@ -142,7 +142,7 @@ macro_rules! delegate_global_dispatch {
 
                 fn bind(
                     &mut self,
-                    dhandle: &mut $crate::DisplayHandle<'_, Self>,
+                    dhandle: &mut $crate::DisplayHandle<'_>,
                     client: &$crate::Client,
                     resource: $crate::New<$interface>,
                     global_data: &Self::GlobalData,
