@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- [scanner] Fix a CString dropped to early in generated code
+
 ## 0.29.3 -- 2022-01-03
 
 #### Changes

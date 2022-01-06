@@ -414,7 +414,7 @@ fn messagegroup_c_addon(
                             quote! {
                                 let #arg_variable = #arg_name.map(|s| ::std::ffi::CString::new(s).unwrap());
                                 _args_array[#idx].s =
-                                    #arg_variable.map(|s| s.as_ptr()).unwrap_or(::std::ptr::null());
+                                    (&#arg_variable).as_ref().map(|s| s.as_ptr()).unwrap_or(::std::ptr::null());
                             }
                         } else {
                             quote! {
