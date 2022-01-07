@@ -1,4 +1,4 @@
-# CHANGELOG: wayland-server
+# CHANGELOG: wayland-protocols
 
 ## Unreleased
 
