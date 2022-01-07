@@ -76,7 +76,7 @@ macro_rules! event_created_child {
     ($selftype:ty, $iface:ty, [$($opcode:expr => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
-            qhandle: &$crate::QueueHandle<Self>
+            qhandle: &$crate::QueueHandle<$selftype>
         ) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
             match opcode {
                 $(
