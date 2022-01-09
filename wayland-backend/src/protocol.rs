@@ -242,6 +242,43 @@ pub enum WEnum<T> {
     Unknown(u32),
 }
 
+/// Error representing an unknown numeric variant for a [`WEnum`]
+#[derive(Debug, Copy, Clone)]
+pub struct WEnumError {
+    typ: &'static str,
+    value: u32,
+}
+
+impl std::error::Error for WEnumError {}
+
+impl std::fmt::Display for WEnumError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown numeric value {} for enum {}", self.value, self.typ)
+    }
+}
+
+impl<T> WEnum<T> {
+    /// Convert this [`WEnum`] into a result
+    ///
+    /// This can be used to take advantage of the numerous helper methods on [`Result`] if you
+    /// don't plan to handle the unknown case of this enum.
+    ///
+    /// You can also use the [`From`] and [`Into`] traits to perform the same conversion.
+    #[inline]
+    pub fn into_result(self) -> Result<T, WEnumError> {
+        match self {
+            WEnum::Value(v) => Ok(v),
+            WEnum::Unknown(value) => Err(WEnumError { typ: std::any::type_name::<T>(), value }),
+        }
+    }
+}
+
+impl<T> From<WEnum<T>> for Result<T, WEnumError> {
+    fn from(me: WEnum<T>) -> Self {
+        me.into_result()
+    }
+}
+
 impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
     /// Constructs an enum from the integer format used by the wayland protocol.
     fn from(v: u32) -> WEnum<T> {
