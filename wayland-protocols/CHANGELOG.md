@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- Update wlr-protocols
+  - `wlr-output-management-unstable-v1` now marks `finished` event as destructor.
+  - `wlr-foreign-toplevel-management-unstable-v1` now marks `finished` event as destructor.
+
 ### Additions
 
 - Bump wayland-protocols to 1.24
