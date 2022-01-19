@@ -72,7 +72,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all --all-features --all-targets -- -D warnings
+          args: --all --all-features --all-targets -- -D warnings -A clippy::non-send-fields-in-send-ty
 
   check-minimal:
     env:
