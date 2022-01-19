@@ -40,3 +40,39 @@ pub mod xdg_activation {
         );
     }
 }
+
+pub mod drm_lease {
+    //! This protocol is used by Wayland compositors which act as Direct
+    //! Renderering Manager (DRM) masters to lease DRM resources to Wayland
+    //! clients.
+    //!
+    //! The compositor will advertise one wp_drm_lease_device_v1 global for each
+    //! DRM node. Some time after a client binds to the wp_drm_lease_device_v1
+    //! global, the compositor will send a drm_fd event followed by zero, one or
+    //! more connector events. After all currently available connectors have been
+    //! sent, the compositor will send a wp_drm_lease_device_v1.done event.
+    //!
+    //! When the list of connectors available for lease changes the compositor
+    //! will send wp_drm_lease_device_v1.connector events for added connectors and
+    //! wp_drm_lease_connector_v1.withdrawn events for removed connectors,
+    //! followed by a wp_drm_lease_device_v1.done event.
+    //!
+    //! The compositor will indicate when a device is gone by removing the global
+    //! via a wl_registry.global_remove event. Upon receiving this event, the
+    //! client should destroy any matching wp_drm_lease_device_v1 object.
+    //!
+    //! To destroy a wp_drm_lease_device_v1 object, the client must first issue
+    //! a release request. Upon receiving this request, the compositor will
+    //! immediately send a released event and destroy the object. The client must
+    //! continue to process and discard drm_fd and connector events until it
+    //! receives the released event. Upon receiving the released event, the
+    //! client can safely cleanup any client-side resources.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/drm-lease/drm-lease-v1.xml",
+            []
+        );
+    }
+}
