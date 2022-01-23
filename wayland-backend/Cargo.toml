@@ -1,6 +1,6 @@
 [package]
 name = "wayland-backend"
-version = "0.1.0-alpha2"
+version = "0.1.0-alpha3"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 edition = "2018"
 repository = "https://github.com/smithay/wayland-rs"
@@ -13,7 +13,7 @@ readme = "README.md"
 build = "build.rs"
 
 [dependencies]
-wayland-sys = { version = "0.30.0-alpha2", path = "../wayland-sys", features = [] }
+wayland-sys = { version = "0.30.0-alpha3", path = "../wayland-sys", features = [] }
 nix = "0.23"
 smallvec = "1.4"
 log = "0.4"

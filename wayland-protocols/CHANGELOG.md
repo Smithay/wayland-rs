@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-alpha3
+
 ### Breaking changes
 
 - Update wlr-protocols

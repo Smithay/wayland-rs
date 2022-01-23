@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-alpha3
+
 #### Additions
 
 - Introduce `WEnum::into_result` as a convenience method.
