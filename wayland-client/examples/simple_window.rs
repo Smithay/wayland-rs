@@ -71,7 +71,7 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                 "wl_shm" => {
                     let shm = registry.bind::<wl_shm::WlShm, _>(conn, name, 1, qh, ()).unwrap();
 
-                    let (init_w, init_h) = (320, 240);
+                    let (init_w, init_h) = (600, 700);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
