@@ -271,12 +271,18 @@ impl<'a> ConnectionHandle<'a> {
     }
 }
 
+/// An error when trying to establish a Wayland connection.
 #[derive(thiserror::Error, Debug)]
 pub enum ConnectError {
+    /// The wayland library could not be loaded.
     #[error("The wayland library could not be loaded")]
     NoWaylandLib,
+
+    /// Could not find wayland compositor
     #[error("Could not find wayland compositor")]
     NoCompositor,
+
+    /// `WAYLAND_SOCKET` was set but contained garbage
     #[error("WAYLAND_SOCKET was set but contained garbage")]
     InvalidFd,
 }
