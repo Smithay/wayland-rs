@@ -106,6 +106,7 @@ impl<D> Client<D> {
     pub(crate) fn send_event(
         &mut self,
         Message { sender_id: object_id, opcode, args }: Message<ObjectId>,
+        pending_destructors: Option<&mut Vec<super::handle::PendingDestructor<D>>>,
     ) -> Result<(), InvalidId> {
         if self.killed {
             return Ok(());
@@ -197,7 +198,9 @@ impl<D> Client<D> {
         // Handle destruction if relevant
         if message_desc.is_destructor {
             self.map.remove(object_id.id);
-            object.data.user_data.destroyed(self.id.clone(), object_id.clone());
+            if let Some(vec) = pending_destructors {
+                vec.push((object.data.user_data.clone(), self.id.clone(), object_id.clone()));
+            }
             self.send_delete_id(object_id);
         }
 
@@ -253,20 +256,24 @@ impl<D> Client<D> {
     pub(crate) fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
-        let _ = self.send_event(message!(
-            ObjectId {
-                id: 1,
-                interface: &WL_DISPLAY_INTERFACE,
-                client_id: self.id.clone(),
-                serial: 0
-            },
-            0, // wl_display.error
-            [
-                Argument::Object(object_id.clone()),
-                Argument::Uint(error_code),
-                Argument::Str(Box::new(message)),
-            ],
-        ));
+        let _ = self.send_event(
+            message!(
+                ObjectId {
+                    id: 1,
+                    interface: &WL_DISPLAY_INTERFACE,
+                    client_id: self.id.clone(),
+                    serial: 0
+                },
+                0, // wl_display.error
+                [
+                    Argument::Object(object_id.clone()),
+                    Argument::Uint(error_code),
+                    Argument::Str(Box::new(message)),
+                ],
+            ),
+            // wl_display.error is not a destructor, this argument will not be used
+            None,
+        );
         let _ = self.flush();
         self.kill(DisconnectReason::ProtocolError(ProtocolError {
             code: error_code,
@@ -363,9 +370,10 @@ impl<D> Client<D> {
         })
     }
 
-    fn destroy_all_objects(&mut self) {
+    fn destroy_all_objects(&mut self, data: &mut D) {
         for (id, obj) in self.map.all_objects() {
             obj.data.user_data.destroyed(
+                data,
                 self.id.clone(),
                 ObjectId {
                     id,
@@ -405,8 +413,8 @@ impl<D> Client<D> {
                         serial,
                         interface: &WL_CALLBACK_INTERFACE,
                     };
-                    // send wl_callback.done(0)
-                    self.send_event(message!(cb_id, 0, [Argument::Uint(0)])).unwrap();
+                    // send wl_callback.done(0) this callback does not have any meaningful destructor to run, we can ignore it
+                    self.send_event(message!(cb_id, 0, [Argument::Uint(0)]), None).unwrap();
                 } else {
                     unreachable!()
                 }
@@ -632,7 +640,7 @@ impl<D> ObjectData<D> for DumbObjectData {
         unreachable!()
     }
 
-    fn destroyed(&self, _client_id: ClientId, _object_id: ObjectId) {}
+    fn destroyed(&self, _: &mut D, _client_id: ClientId, _object_id: ObjectId) {}
 }
 
 #[derive(Debug)]
@@ -683,13 +691,13 @@ impl<D> ClientStore<D> {
         }
     }
 
-    pub(crate) fn cleanup(&mut self) -> SmallVec<[ClientId; 1]> {
+    pub(crate) fn cleanup(&mut self, data: &mut D) -> SmallVec<[ClientId; 1]> {
         let mut cleaned = SmallVec::new();
         for place in &mut self.clients {
             if place.as_ref().map(|client| client.killed).unwrap_or(false) {
                 // Remove the client from the store and flush it one last time before dropping it
                 let mut client = place.take().unwrap();
-                client.destroy_all_objects();
+                client.destroy_all_objects(data);
                 let _ = client.flush();
                 cleaned.push(client.id);
             }

@@ -33,7 +33,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
         msg: Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, client_id: ClientId, object_id: ObjectId);
+    fn destroyed(&self, data: &mut D, client_id: ClientId, object_id: ObjectId);
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
@@ -241,7 +241,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }
 
-    fn destroyed(&self, _: ClientId, _: ObjectId) {}
+    fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
 
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()

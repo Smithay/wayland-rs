@@ -139,12 +139,6 @@ struct ServerHandler {
 
 struct ServerUData(Arc<AtomicBool>);
 
-impl ways::DestructionNotify for ServerUData {
-    fn object_destroyed(&self, _: ways::backend::ClientId, _: ways::backend::ObjectId) {
-        self.0.store(true, Ordering::Release);
-    }
-}
-
 impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
     type GlobalData = ();
 
@@ -171,6 +165,15 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
         _: &mut ways::DisplayHandle<'_>,
         _: &mut ways::DataInit<'_, Self>,
     ) {
+    }
+
+    fn destroyed(
+        &mut self,
+        _client: wayland_backend::server::ClientId,
+        _resource: wayland_backend::server::ObjectId,
+        data: &Self::UserData,
+    ) {
+        data.0.store(true, Ordering::Release);
     }
 }
 
