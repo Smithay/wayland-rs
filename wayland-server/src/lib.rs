@@ -12,10 +12,7 @@ mod global;
 pub mod socket;
 
 pub use client::Client;
-pub use dispatch::{
-    DataInit, DelegateDispatch, DelegateDispatchBase, DestructionNotify, Dispatch, New,
-    ResourceData,
-};
+pub use dispatch::{DataInit, DelegateDispatch, DelegateDispatchBase, Dispatch, New, ResourceData};
 pub use display::{Display, DisplayHandle};
 pub use global::{DelegateGlobalDispatch, DelegateGlobalDispatchBase, GlobalDispatch};
 

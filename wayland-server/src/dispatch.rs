@@ -8,7 +8,7 @@ use crate::{Client, DisplayHandle, Resource};
 /// of associated user data.
 pub trait Dispatch<I: Resource>: Sized {
     /// The user data associated with the type of resource.
-    type UserData: DestructionNotify + Send + Sync + 'static;
+    type UserData: Send + Sync + 'static;
 
     /// Called when a request from a client is processed.
     ///
@@ -24,24 +24,20 @@ pub trait Dispatch<I: Resource>: Sized {
         dhandle: &mut DisplayHandle<'_>,
         data_init: &mut DataInit<'_, Self>,
     );
-}
 
-/// A trait to be implemented on user data, which indicates when an object has been destroyed by a client.
-pub trait DestructionNotify {
     /// Called when the object this user data is associated with has been destroyed.
     ///
-    /// Note this type only provides an immutable reference, you will need to use interior mutability to change
-    /// the inside of the object.
+    /// Note this type only provides an immutable reference to the user data, you will need to use
+    /// interior mutability to change it.
     ///
     /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
     ///
     /// You are given the [`ObjectId`] and [`ClientId`] associated with the destroyed object for cleanup
     /// convenience.
-    #[cfg(not(tarpaulin_include))]
-    fn object_destroyed(&self, _client_id: ClientId, _object_id: ObjectId) {}
+    ///
+    /// By default this method does nothing.
+    fn destroyed(&mut self, _client: ClientId, _resource: ObjectId, _data: &Self::UserData) {}
 }
-
-impl DestructionNotify for () {}
 
 #[derive(Debug)]
 pub struct ResourceData<I, U> {
@@ -91,7 +87,7 @@ impl<'a, D> DataInit<'a, D> {
 /// The base trait used to define a delegate type to hand some type of resource.
 pub trait DelegateDispatchBase<I: Resource> {
     /// The type of user data the delegate holds.
-    type UserData: DestructionNotify + Send + Sync + 'static;
+    type UserData: Send + Sync + 'static;
 }
 
 /// A trait which defines a delegate to handle some type of resource.
@@ -124,11 +120,8 @@ impl<I, U> ResourceData<I, U> {
     }
 }
 
-impl<
-        I: Resource + 'static,
-        U: DestructionNotify + Send + Sync + 'static,
-        D: Dispatch<I, UserData = U> + 'static,
-    > ObjectData<D> for ResourceData<I, U>
+impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = U> + 'static>
+    ObjectData<D> for ResourceData<I, U>
 {
     fn request(
         self: Arc<Self>,
@@ -172,10 +165,11 @@ impl<
 
     fn destroyed(
         &self,
-        cid: wayland_backend::server::ClientId,
-        oid: wayland_backend::server::ObjectId,
+        data: &mut D,
+        client_id: wayland_backend::server::ClientId,
+        object_id: wayland_backend::server::ObjectId,
     ) {
-        self.udata.object_destroyed(cid, oid)
+        data.destroyed(client_id, object_id, &self.udata)
     }
 }
 

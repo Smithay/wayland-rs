@@ -5,7 +5,7 @@ use helpers::{roundtrip, wayc, ways, TestServer};
 
 use ways::{
     protocol::{wl_compositor, wl_output},
-    DestructionNotify, Resource,
+    Resource,
 };
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
@@ -248,8 +248,6 @@ impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
 }
 
 struct UData(usize);
-
-impl DestructionNotify for UData {}
 
 impl ways::Dispatch<wl_output::WlOutput> for ServerHandler {
     type UserData = UData;

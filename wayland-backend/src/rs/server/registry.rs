@@ -212,15 +212,19 @@ fn send_global_to<D>(
     global: &Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
-    client.send_event(message!(
-        registry,
-        0, // wl_registry.global
-        [
-            Argument::Uint(global.id.id),
-            Argument::Str(Box::new(CString::new(global.interface.name).unwrap())),
-            Argument::Uint(global.version),
-        ],
-    ))
+    client.send_event(
+        message!(
+            registry,
+            0, // wl_registry.global
+            [
+                Argument::Uint(global.id.id),
+                Argument::Str(Box::new(CString::new(global.interface.name).unwrap())),
+                Argument::Uint(global.version),
+            ],
+        ),
+        // This is not a destructor event
+        None,
+    )
 }
 
 #[inline]
@@ -229,9 +233,13 @@ fn send_global_remove_to<D>(
     global: &Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
-    client.send_event(message!(
-        registry,
-        1, // wl_registry.global_remove
-        [Argument::Uint(global.id.id)],
-    ))
+    client.send_event(
+        message!(
+            registry,
+            1, // wl_registry.global_remove
+            [Argument::Uint(global.id.id)],
+        ),
+        // This is not a destructor event
+        None,
+    )
 }

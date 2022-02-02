@@ -13,6 +13,8 @@ use super::{
 };
 use crate::rs::map::Object;
 
+pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, ClientId, ObjectId);
+
 /// Main handle of a backend to the Wayland protocol
 ///
 /// This type hosts most of the protocol-related functionality of the backend, and is the
@@ -23,6 +25,7 @@ use crate::rs::map::Object;
 pub struct Handle<D> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
+    pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
 }
 
 enum DispatchAction<D> {
@@ -46,12 +49,20 @@ impl<D> Handle<D> {
     pub(crate) fn new() -> Self {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
-        Handle { clients: ClientStore::new(debug), registry: Registry::new() }
+        Handle {
+            clients: ClientStore::new(debug),
+            registry: Registry::new(),
+            pending_destructors: Vec::new(),
+        }
     }
 
-    pub(crate) fn cleanup(&mut self) {
-        let dead_clients = self.clients.cleanup();
+    pub(crate) fn cleanup(&mut self, data: &mut D) {
+        let dead_clients = self.clients.cleanup(data);
         self.registry.cleanup(&dead_clients);
+        // invoke all pending destructors if relevant
+        for (object_data, client_id, object_id) in self.pending_destructors.drain(..) {
+            object_data.destroyed(data, client_id, object_id);
+        }
     }
 
     pub(crate) fn dispatch_events_for(
@@ -130,7 +141,7 @@ impl<D> Handle<D> {
                         Message { sender_id: object_id.clone(), opcode, args: arguments },
                     );
                     if is_destructor {
-                        object.data.user_data.destroyed(client_id.clone(), object_id.clone());
+                        object.data.user_data.destroyed(data, client_id.clone(), object_id.clone());
                         if let Ok(client) = self.clients.get_client_mut(client_id.clone()) {
                             client.send_delete_id(object_id);
                         }
@@ -277,7 +288,9 @@ impl<D> Handle<D> {
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
     pub fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
-        self.clients.get_client_mut(msg.sender_id.client_id.clone())?.send_event(msg)
+        self.clients
+            .get_client_mut(msg.sender_id.client_id.clone())?
+            .send_event(msg, Some(&mut self.pending_destructors))
     }
 
     /// Returns the data associated with an object.

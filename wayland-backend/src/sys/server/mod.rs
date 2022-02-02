@@ -29,6 +29,11 @@ pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitEr
 // First pointer is &mut Handle<D>, and second pointer is &mut D
 scoped_thread_local!(static HANDLE: (*mut c_void, *mut c_void));
 
+type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, ClientId, ObjectId);
+
+// Pointer is &mut Vec<PendingDestructor<D>>
+scoped_thread_local!(static PENDING_DESTRUCTORS: *mut c_void);
+
 /// A trait representing your data associated to an object
 ///
 /// You will only be given access to it as a `&` reference, so you
@@ -49,7 +54,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
         msg: Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, client_id: ClientId, object_id: ObjectId);
+    fn destroyed(&self, _: &mut D, client_id: ClientId, object_id: ObjectId);
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
@@ -351,6 +356,7 @@ struct GlobalUserData<D> {
 #[derive(Debug)]
 pub struct Handle<D> {
     display: *mut wl_display,
+    pending_destructors: Vec<PendingDestructor<D>>,
     _data: std::marker::PhantomData<fn(&mut D)>,
 }
 
@@ -396,7 +402,13 @@ impl<D> Backend<D> {
             );
         }
 
-        Ok(Backend { handle: Handle { display, _data: std::marker::PhantomData } })
+        Ok(Backend {
+            handle: Handle {
+                display,
+                pending_destructors: Vec::new(),
+                _data: std::marker::PhantomData,
+            },
+        })
     }
 
     /// Initializes a connection to a client.
@@ -429,12 +441,20 @@ impl<D> Backend<D> {
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         if let Some(client_id) = client {
             if client_id.alive.load(Ordering::Acquire) {
-                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, client_id.ptr) };
+                unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, client_id.ptr) }
             }
         } else {
-            unsafe {
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, self.handle.display);
-            }
+            // wl_display_flush_clients might invoke destructors
+            PENDING_DESTRUCTORS.set(
+                &(&mut self.handle.pending_destructors as *mut _ as *mut _),
+                || unsafe {
+                    ffi_dispatch!(
+                        WAYLAND_SERVER_HANDLE,
+                        wl_display_flush_clients,
+                        self.handle.display
+                    );
+                },
+            );
         }
         Ok(())
     }
@@ -501,6 +521,10 @@ impl<D> Backend<D> {
             let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, display);
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0)
         });
+
+        for (object, client_id, object_id) in self.handle.pending_destructors.drain(..) {
+            object.destroyed(data, client_id, object_id);
+        }
 
         if ret < 0 {
             Err(std::io::Error::last_os_error())
@@ -791,9 +815,13 @@ impl<D> Handle<D> {
         }
 
         if message_desc.is_destructor {
-            unsafe {
-                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, id.ptr);
-            }
+            // wl_resource_destroy invokes a destructor
+            PENDING_DESTRUCTORS.set(
+                &(&mut self.pending_destructors as *mut _ as *mut _),
+                || unsafe {
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_destroy, id.ptr);
+                },
+            );
         }
 
         Ok(())
@@ -1303,7 +1331,17 @@ unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {
         alive: Some(udata.alive.clone()),
         id,
     };
-    udata.data.destroyed(client_id, object_id);
+    if HANDLE.is_set() {
+        HANDLE.with(|&(_, data_ptr)| {
+            let data = &mut *(data_ptr as *mut D);
+            udata.data.destroyed(data, client_id, object_id);
+        });
+    } else {
+        PENDING_DESTRUCTORS.with(|&pending_ptr| {
+            let pending = &mut *(pending_ptr as *mut Vec<PendingDestructor<D>>);
+            pending.push((udata.data.clone(), client_id, object_id));
+        })
+    }
 }
 
 extern "C" {
@@ -1323,7 +1361,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }
 
-    fn destroyed(&self, _: ClientId, _: ObjectId) {}
+    fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
 
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()

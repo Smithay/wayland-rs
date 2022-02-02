@@ -133,7 +133,7 @@ impl<D> Backend<D> {
     /// file descriptor associated with the client and only calling this method when messages are available.
     pub fn dispatch_client(&mut self, data: &mut D, client_id: ClientId) -> std::io::Result<usize> {
         let ret = self.handle.dispatch_events_for(data, client_id);
-        self.handle.cleanup();
+        self.handle.cleanup(data);
         ret
     }
 
@@ -164,7 +164,7 @@ impl<D> Backend<D> {
                     dispatched += count;
                 }
             }
-            self.handle.cleanup();
+            self.handle.cleanup(data);
         }
 
         Ok(dispatched)
@@ -210,7 +210,7 @@ impl<D> Backend<D> {
                     dispatched += count;
                 }
             }
-            self.handle.cleanup();
+            self.handle.cleanup(data);
         }
 
         Ok(dispatched)
