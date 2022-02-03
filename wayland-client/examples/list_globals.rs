@@ -14,7 +14,7 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
         _: &QueueHandle<AppData>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
-            eprintln!("[{}] {} (v{})", name, interface, version);
+            println!("[{}] {} (v{})", name, interface, version);
         }
     }
 }
@@ -29,7 +29,7 @@ fn main() {
 
     let _registry = display.get_registry(&mut conn.handle(), &qh, ()).unwrap();
 
-    eprintln!("Advertized globals:");
+    println!("Advertized globals:");
 
     event_queue.blocking_dispatch(&mut AppData).unwrap();
 }
