@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-alpha4
+
 #### Breaking changes
 
 - The trait `DestructionNotify` is removed, and replaced by a `Dispatch::destroyed()` method.

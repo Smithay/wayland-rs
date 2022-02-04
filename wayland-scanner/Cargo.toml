@@ -1,6 +1,6 @@
 [package]
 name = "wayland-scanner"
-version = "0.30.0-alpha3"
+version = "0.30.0-alpha4"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://smithay.github.io/wayland-rs/wayland_scanner/"

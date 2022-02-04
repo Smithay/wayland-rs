@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-alpha4
+
 #### Breaking changes
 
 - Server-side `ObjectData::destroyed()` now has access to the `&mut D` server-wide data.
