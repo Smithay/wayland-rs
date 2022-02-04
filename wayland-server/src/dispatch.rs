@@ -112,6 +112,19 @@ pub trait DelegateDispatch<
         dhandle: &mut DisplayHandle<'_>,
         data_init: &mut DataInit<'_, D>,
     );
+
+    /// Called when the object this user data is associated with has been destroyed.
+    ///
+    /// Note this type only provides an immutable reference to the user data, you will need to use
+    /// interior mutability to change it.
+    ///
+    /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
+    ///
+    /// You are given the [`ObjectId`] and [`ClientId`] associated with the destroyed object for cleanup
+    /// convenience.
+    ///
+    /// By default this method does nothing.
+    fn destroyed(_state: &mut D, _client: ClientId, _resource: ObjectId, _data: &Self::UserData) {}
 }
 
 impl<I, U> ResourceData<I, U> {
@@ -259,6 +272,10 @@ macro_rules! delegate_dispatch {
                     data_init: &mut $crate::DataInit<'_, Self>,
                 ) {
                     <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
+                }
+
+                fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &Self::UserData) {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(self, client, resource, data)
                 }
             }
         )*
