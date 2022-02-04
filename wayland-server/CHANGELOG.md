@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.30.0-alpha5
+
+- Introduce `Display::backend()`
+
 ## 0.30.0-alpha4
 
 #### Breaking changes

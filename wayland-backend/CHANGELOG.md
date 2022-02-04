@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0-alpha5
+
+- Expose `wl_display` pointer on system server backend
+
 ## 0.1.0-alpha4
 
 #### Breaking changes
