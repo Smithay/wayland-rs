@@ -73,6 +73,10 @@ impl<D: 'static> Display<D> {
     pub fn remove_global(&self, id: GlobalId) {
         self.backend.lock().unwrap().handle().remove_global(id)
     }
+
+    pub fn backend(&self) -> &Arc<Mutex<Backend<D>>> {
+        &self.backend
+    }
 }
 
 pub struct DisplayHandle<'a> {

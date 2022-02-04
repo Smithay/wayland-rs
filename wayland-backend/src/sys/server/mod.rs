@@ -532,6 +532,11 @@ impl<D> Backend<D> {
             Ok(ret as usize)
         }
     }
+
+    /// Access the underlying `*mut wl_display` pointer
+    pub fn display_ptr(&self) -> *mut wl_display {
+        self.handle.display
+    }
 }
 
 impl<D> Handle<D> {
