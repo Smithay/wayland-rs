@@ -539,6 +539,28 @@ impl<D> Backend<D> {
     }
 }
 
+impl<D> Drop for Backend<D> {
+    fn drop(&mut self) {
+        // wl_display_destroy_clients may result in the destruction of some wayland objects. Pending
+        // destructors are queued up inside the PENDING_DESTRUCTORS scoped global. We need to set the scoped
+        // global in order for destructors to be queued up properly.
+        PENDING_DESTRUCTORS.set(
+            &(&mut self.handle.pending_destructors as *mut _ as *mut _),
+            || unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_display_destroy_clients,
+                    self.handle.display
+                );
+            },
+        );
+
+        unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.handle.display);
+        }
+    }
+}
+
 impl<D> Handle<D> {
     /// Returns information about some object.
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
