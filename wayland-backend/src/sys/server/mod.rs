@@ -768,6 +768,7 @@ impl<D> Handle<D> {
                 }
                 Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Object(ref o) => {
+                    let next_interface = arg_interfaces.next().unwrap();
                     if !o.ptr.is_null() {
                         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
@@ -779,7 +780,6 @@ impl<D> Handle<D> {
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
-                        let next_interface = arg_interfaces.next().unwrap();
                         if !same_interface(next_interface, o.interface) {
                             panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
                         }

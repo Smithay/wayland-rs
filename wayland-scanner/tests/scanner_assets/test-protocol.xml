@@ -171,7 +171,7 @@
 
   <!-- And now the test interfaces -->
 
-  <interface name="test_global" version="3">
+  <interface name="test_global" version="5">
     <request name="many_args">
       <description summary="a request with every possible non-object arg"></description>
       <arg name="unsigned_int" type="uint" summary="an unsigned int" />
@@ -200,6 +200,12 @@
     <request name="destroy" type="destructor" since="4">
     </request>
 
+    <request name="reverse_link" since="5">
+      <description summary="reverse link a secondary and a tertiary"></description>
+      <arg name="sec" type="object" interface="secondary" allow-null="true" />
+      <arg name="ter" type="object" interface="tertiary" />
+    </request>
+
     <event name="many_args_evt">
       <description summary="an event with every possible non-object arg"></description>
       <arg name="unsigned_int" type="uint" summary="an unsigned int" />
@@ -222,17 +228,17 @@
     </event>
   </interface>
 
-  <interface name="secondary" version="3">
+  <interface name="secondary" version="5">
     <request name="destroy" type="destructor" since="2">
     </request>
   </interface>
 
-  <interface name="tertiary" version="3">
+  <interface name="tertiary" version="5">
     <request name="destroy" type="destructor" since="3">
     </request>
   </interface>
 
-  <interface name="quad" version="3">
+  <interface name="quad" version="5">
     <request name="destroy" type="destructor" since="3">
     </request>
   </interface>

@@ -484,6 +484,8 @@ pub mod test_global {
     pub const REQ_LINK_SINCE: u32 = 3u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
@@ -516,6 +518,8 @@ pub mod test_global {
         Link { sec: super::secondary::Secondary, ter: Option<super::tertiary::Tertiary>, time: u32 },
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 4 of the interface"]
         Destroy,
+        #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
+        ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
     }
     #[derive(Debug)]
     #[non_exhaustive]
@@ -743,6 +747,18 @@ pub mod test_global {
                     opcode: 4u16,
                     args: smallvec::smallvec![],
                 }),
+                Request::ReverseLink { sec, ter } => Ok(Message {
+                    sender_id: self.id.clone(),
+                    opcode: 5u16,
+                    args: smallvec::smallvec![
+                        if let Some(obj) = sec {
+                            Argument::Object(Proxy::id(&obj))
+                        } else {
+                            Argument::Object(conn.null_id())
+                        },
+                        Argument::Object(Proxy::id(&ter))
+                    ],
+                }),
             }
         }
     }
@@ -812,6 +828,19 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn destroy(&self, conn: &mut ConnectionHandle) {
             let _ = conn.send_request(self, Request::Destroy {}, None);
+        }
+        #[allow(clippy::too_many_arguments)]
+        pub fn reverse_link(
+            &self,
+            conn: &mut ConnectionHandle,
+            sec: Option<&super::secondary::Secondary>,
+            ter: &super::tertiary::Tertiary,
+        ) {
+            let _ = conn.send_request(
+                self,
+                Request::ReverseLink { sec: sec.cloned(), ter: ter.clone() },
+                None,
+            );
         }
     }
 }
