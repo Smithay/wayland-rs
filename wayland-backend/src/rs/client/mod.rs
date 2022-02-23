@@ -713,11 +713,11 @@ impl Handle {
                 Argument::NewId(nid) => Argument::NewId(nid.id),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
+                    let next_interface = arg_interfaces.next().unwrap();
                     if o.id != 0 {
-                        let object = self.get_object(o.clone())?;
-                        let next_interface = arg_interfaces.next().unwrap();
-                        if !same_interface_or_anonymous(next_interface, object.interface) {
-                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, object.interface.name);
+                        let arg_object = self.get_object(o.clone())?;
+                        if !same_interface_or_anonymous(next_interface, arg_object.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, arg_object.interface.name);
                         }
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                         panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);

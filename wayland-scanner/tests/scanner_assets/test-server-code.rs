@@ -120,6 +120,8 @@ pub mod test_global {
     pub const REQ_LINK_SINCE: u32 = 3u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
@@ -158,6 +160,8 @@ pub mod test_global {
         Link { sec: super::secondary::Secondary, ter: Option<super::tertiary::Tertiary>, time: u32 },
         #[doc = "This is a destructor, once received this object cannot be used any longer.\nOnly available since version 4 of the interface"]
         Destroy,
+        #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
+        ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
     }
     #[derive(Debug)]
     #[non_exhaustive]
@@ -348,6 +352,47 @@ pub mod test_global {
                 4u16 => {
                     if let [] = &msg.args[..] {
                         Ok((me, Request::Destroy {}))
+                    } else {
+                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                    }
+                }
+                5u16 => {
+                    if let [Argument::Object(sec), Argument::Object(ter)] = &msg.args[..] {
+                        Ok((
+                            me,
+                            Request::ReverseLink {
+                                sec: if sec.is_null() {
+                                    None
+                                } else {
+                                    Some(
+                                        match <super::secondary::Secondary as Resource>::from_id(
+                                            conn,
+                                            sec.clone(),
+                                        ) {
+                                            Ok(p) => p,
+                                            Err(_) => {
+                                                return Err(DispatchError::BadMessage {
+                                                    msg,
+                                                    interface: Self::interface().name,
+                                                })
+                                            }
+                                        },
+                                    )
+                                },
+                                ter: match <super::tertiary::Tertiary as Resource>::from_id(
+                                    conn,
+                                    ter.clone(),
+                                ) {
+                                    Ok(p) => p,
+                                    Err(_) => {
+                                        return Err(DispatchError::BadMessage {
+                                            msg,
+                                            interface: Self::interface().name,
+                                        })
+                                    }
+                                },
+                            },
+                        ))
                     } else {
                         Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
                     }

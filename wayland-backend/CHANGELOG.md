@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+#### Bugfixes
+
 - Fix display leaks on system server backend.
+- Fix a panic when trying to send a message with a null object argument followed by a
+  non-null object argument
 
 ## 0.1.0-alpha5
 

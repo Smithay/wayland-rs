@@ -188,7 +188,7 @@ pub static mut wl_callback_interface: wayland_backend::protocol::wl_interface =
     };
 pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
     name: "test_global",
-    version: 3u32,
+    version: 5u32,
     requests: &[
         wayland_backend::protocol::MessageDesc {
             name: "many_args",
@@ -241,6 +241,21 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
             child_interface: None,
             arg_interfaces: &[]
         },
+        wayland_backend::protocol::MessageDesc {
+            name: "reverse_link",
+            signature: &[
+                wayland_backend::protocol::ArgumentType::Object(
+                    wayland_backend::protocol::AllowNull::Yes,
+                ),
+                wayland_backend::protocol::ArgumentType::Object(
+                    wayland_backend::protocol::AllowNull::No,
+                ),
+            ],
+            since: 5u32,
+            is_destructor: false,
+            child_interface: None,
+            arg_interfaces: &[&SECONDARY_INTERFACE, &TERTIARY_INTERFACE],
+        },
     ],
     events: &[
     wayland_backend::protocol::MessageDesc {
@@ -291,7 +306,12 @@ static mut test_global_requests_link_types: [*const wayland_backend::protocol::w
     unsafe { &tertiary_interface as *const wayland_backend::protocol::wl_interface },
     NULLPTR as *const wayland_backend::protocol::wl_interface,
 ];
-pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 5] = [
+static mut test_global_requests_reverse_link_types:
+    [*const wayland_backend::protocol::wl_interface; 2] =
+    [unsafe { &secondary_interface as *const wayland_backend::protocol::wl_interface }, unsafe {
+        &tertiary_interface as *const wayland_backend::protocol::wl_interface
+    }];
+pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 6] = [
     wayland_backend::protocol::wl_message {
         name: b"many_args\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
@@ -316,6 +336,11 @@ pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 5] 
         name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"4\0" as *const u8 as *const std::os::raw::c_char,
         types: unsafe { &types_null as *const _ },
+    },
+    wayland_backend::protocol::wl_message {
+        name: b"reverse_link\0" as *const u8 as *const std::os::raw::c_char,
+        signature: b"5?oo\0" as *const u8 as *const std::os::raw::c_char,
+        types: unsafe { &test_global_requests_reverse_link_types as *const _ },
     },
 ];
 static mut test_global_events_ack_secondary_types:
@@ -346,15 +371,15 @@ pub static mut test_global_events: [wayland_backend::protocol::wl_message; 3] = 
 pub static mut test_global_interface: wayland_backend::protocol::wl_interface =
     wayland_backend::protocol::wl_interface {
         name: b"test_global\0" as *const u8 as *const std::os::raw::c_char,
-        version: 3,
-        request_count: 5,
+        version: 5,
+        request_count: 6,
         requests: unsafe { &test_global_requests as *const _ },
         event_count: 3,
         events: unsafe { &test_global_events as *const _ },
     };
 pub static SECONDARY_INTERFACE: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
     name: "secondary",
-    version: 3u32,
+    version: 5u32,
     requests: &[wayland_backend::protocol::MessageDesc {
         name: "destroy",
         signature: &[],
@@ -375,7 +400,7 @@ pub static mut secondary_requests: [wayland_backend::protocol::wl_message; 1] =
 pub static mut secondary_interface: wayland_backend::protocol::wl_interface =
     wayland_backend::protocol::wl_interface {
         name: b"secondary\0" as *const u8 as *const std::os::raw::c_char,
-        version: 3,
+        version: 5,
         request_count: 1,
         requests: unsafe { &secondary_requests as *const _ },
         event_count: 0,
@@ -383,7 +408,7 @@ pub static mut secondary_interface: wayland_backend::protocol::wl_interface =
     };
 pub static TERTIARY_INTERFACE: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
     name: "tertiary",
-    version: 3u32,
+    version: 5u32,
     requests: &[wayland_backend::protocol::MessageDesc {
         name: "destroy",
         signature: &[],
@@ -404,38 +429,38 @@ pub static mut tertiary_requests: [wayland_backend::protocol::wl_message; 1] =
 pub static mut tertiary_interface: wayland_backend::protocol::wl_interface =
     wayland_backend::protocol::wl_interface {
         name: b"tertiary\0" as *const u8 as *const std::os::raw::c_char,
-        version: 3,
+        version: 5,
         request_count: 1,
         requests: unsafe { &tertiary_requests as *const _ },
         event_count: 0,
         events: NULLPTR as *const wayland_backend::protocol::wl_message,
     };
-    pub static QUAD_INTERFACE: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
-        name: "quad",
-        version: 3u32,
-        requests: &[wayland_backend::protocol::MessageDesc {
-            name: "destroy",
-            signature: &[],
-            since: 3u32,
-            is_destructor: true,
-            child_interface: None,
-            arg_interfaces: &[],
-        }],
-        events: &[],
-        c_ptr: Some(unsafe { &quad_interface }),
+pub static QUAD_INTERFACE: wayland_backend::protocol::Interface = wayland_backend::protocol::Interface {
+    name: "quad",
+    version: 5u32,
+    requests: &[wayland_backend::protocol::MessageDesc {
+        name: "destroy",
+        signature: &[],
+        since: 3u32,
+        is_destructor: true,
+        child_interface: None,
+        arg_interfaces: &[],
+    }],
+    events: &[],
+    c_ptr: Some(unsafe { &quad_interface }),
+};
+pub static mut quad_requests: [wayland_backend::protocol::wl_message; 1] =
+    [wayland_backend::protocol::wl_message {
+        name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
+        signature: b"3\0" as *const u8 as *const std::os::raw::c_char,
+        types: unsafe { &types_null as *const _ },
+    }];
+pub static mut quad_interface: wayland_backend::protocol::wl_interface =
+    wayland_backend::protocol::wl_interface {
+        name: b"quad\0" as *const u8 as *const std::os::raw::c_char,
+        version: 5,
+        request_count: 1,
+        requests: unsafe { &quad_requests as *const _ },
+        event_count: 0,
+        events: NULLPTR as *const wayland_backend::protocol::wl_message,
     };
-    pub static mut quad_requests: [wayland_backend::protocol::wl_message; 1] =
-        [wayland_backend::protocol::wl_message {
-            name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"3\0" as *const u8 as *const std::os::raw::c_char,
-            types: unsafe { &types_null as *const _ },
-        }];
-    pub static mut quad_interface: wayland_backend::protocol::wl_interface =
-        wayland_backend::protocol::wl_interface {
-            name: b"quad\0" as *const u8 as *const std::os::raw::c_char,
-            version: 3,
-            request_count: 1,
-            requests: unsafe { &quad_requests as *const _ },
-            event_count: 0,
-            events: NULLPTR as *const wayland_backend::protocol::wl_message,
-        };
