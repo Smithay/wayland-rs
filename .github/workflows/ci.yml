@@ -44,6 +44,10 @@ jobs:
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
 
+      - name: Freeze bitflags on 1.41.0
+        if: ${{ matrix.rust == '1.41.0' }}
+        run: cargo update --precise bitflags:1.2.1
+
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
         with:
