@@ -96,3 +96,16 @@ pub mod server_decoration{
     //! Use in conjunction with zxdg_decoration_manager_v1 is undefined.
     wayland_protocol!("./misc/server-decoration.xml", []);
 }
+
+pub mod org_kde_kwin_idle{
+    //! KDE idle protocol
+    //!
+    //! This interface allows to monitor user idle time on a given seat. The interface
+    //! allows to register timers which trigger after no user activity was registered
+    //! on the seat for a given interval. It notifies when user activity resumes.
+    //!
+    //! This is useful for applications wanting to perform actions when the user is not
+    //! interacting with the system, e.g. chat applications setting the user as away, power
+    //! management features to dim screen, etc..
+    wayland_protocol!("./misc/org-kde-kwin-idle-v1.xml", []);
+}
