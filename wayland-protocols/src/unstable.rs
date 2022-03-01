@@ -81,7 +81,7 @@ pub mod keyboard_shortcuts_inhibit {
 pub mod linux_dmabuf {
     //! Linux DMA-BUF protocol
 
-    wayland_protocol_versioned!("linux-dmabuf", [v1], [(wl_buffer, wl_buffer_interface)], []);
+    wayland_protocol_versioned!("linux-dmabuf", [v1], [(wl_surface, wl_buffer_interface), (wl_buffer, wl_buffer_interface)], []);
 }
 
 pub mod linux_explicit_synchronization {

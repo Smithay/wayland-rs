@@ -19,7 +19,11 @@ type VersionedProtocol<'a> = (&'a str, &'a [(&'a str, &'a [(&'a str, &'a str)])]
 static STABLE_PROTOCOLS: &[StableProtocol] =
     &[("presentation-time", &[]), ("viewporter", &[]), ("xdg-shell", &[])];
 
-static STAGING_PROTOCOLS: &[VersionedProtocol] = &[("xdg-activation", &[("v1", &[])])];
+static STAGING_PROTOCOLS: &[VersionedProtocol] = &[
+    ("xdg-activation", &[("v1", &[])]),
+    ("drm-lease", &[("v1", &[])]),
+    ("ext-session-lock", &[("v1", &[])]),
+];
 
 static UNSTABLE_PROTOCOLS: &[VersionedProtocol] = &[
     ("fullscreen-shell", &[("v1", &[])]),

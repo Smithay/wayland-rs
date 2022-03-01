@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Additions
+
+- [protocols] Bump wayland-protocols version to 1.25
+- [protocols] Added staging `drm-lease-v1`
+- [protocols] Added staging `ext-session-lock-v1`
+
 ## 0.29.4 -- 2022-01-06
 
 #### Bugfixes
