@@ -226,30 +226,43 @@ pub mod signal {
     );
 
     pub unsafe fn wl_signal_init(signal: *mut wl_signal) {
-        ffi_dispatch!(WSH, wl_list_init, &mut (*signal).listener_list);
+        // Safety: signal is a valid initialized wl_signal
+        ffi_dispatch!(WSH, wl_list_init, unsafe { &mut (*signal).listener_list });
     }
 
     pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
-        ffi_dispatch!(WSH, wl_list_insert, (*signal).listener_list.prev, &mut (*listener).link)
+        // Safety: signal and listener are valid pointers
+        ffi_dispatch!(
+            WSH,
+            wl_list_insert,
+            unsafe { (*signal).listener_list.prev },
+            unsafe { &mut (*listener).link }
+        )
     }
 
     pub unsafe fn wl_signal_get(
         signal: *mut wl_signal,
         notify: wl_notify_func_t,
     ) -> *mut wl_listener {
-        list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
-            if (*l).notify == notify {
-                return l;
-            }
-        });
+        // Safety: the signal pointer is valid
+        unsafe {
+            list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+                if (*l).notify == notify {
+                    return l;
+                }
+            });
+        }
 
         ptr::null_mut()
     }
 
     pub unsafe fn wl_signal_emit(signal: *mut wl_signal, data: *mut c_void) {
-        list_for_each_safe!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
-            ((*l).notify)(l, data);
-        });
+        // Safety: the signal pointer is valid
+        unsafe {
+            list_for_each_safe!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+                ((*l).notify)(l, data);
+            });
+        }
     }
 
     #[repr(C)]
@@ -271,17 +284,20 @@ pub mod signal {
     }
 
     pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
-        let data = container_of!(listener, ListenerWithUserData, listener);
-        (*data).user_data
+        // Safety: listener is a valid pointer to a listener created by rust_listener_create
+        let data = unsafe { container_of!(listener, ListenerWithUserData, listener) };
+        unsafe { (*data).user_data }
     }
 
     pub unsafe fn rust_listener_set_user_data(listener: *mut wl_listener, user_data: *mut c_void) {
-        let data = container_of!(listener, ListenerWithUserData, listener);
-        (*data).user_data = user_data
+        // Safety: listener is a valid pointer to a listener created by rust_listener_create
+        let data = unsafe { container_of!(listener, ListenerWithUserData, listener) };
+        unsafe { (*data).user_data = user_data }
     }
 
     pub unsafe fn rust_listener_destroy(listener: *mut wl_listener) {
-        let data = container_of!(listener, ListenerWithUserData, listener);
-        let _ = Box::from_raw(data);
+        // Safety: listener is a valid pointer to a listener created by rust_listener_create
+        let data = unsafe { container_of!(listener, ListenerWithUserData, listener) };
+        let _ = unsafe { Box::from_raw(data) };
     }
 }

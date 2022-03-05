@@ -15,6 +15,7 @@
 //! by the cargo feature `nightly`.
 
 #![warn(missing_docs)]
+#![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
 #[macro_use]
 mod protocol_macro;
