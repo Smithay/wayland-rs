@@ -27,6 +27,7 @@
 //! `is_lib_available()` which returns whether the library could be loaded. They always return true
 //! if the feature `dlopen` is absent, as we link against the library directly in that case.
 #![allow(non_camel_case_types)]
+#![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
 // If compiling with neither the `client` or `server` feature (non-sensical but
 // it's what happens when running `cargo test --all` from the workspace root),

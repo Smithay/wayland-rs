@@ -1,4 +1,5 @@
 #![warn(missing_debug_implementations)]
+#![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
 use wayland_backend::{
     protocol::{Interface, Message},

@@ -1,7 +1,7 @@
 //! Backend API for wayland crates
 
 #![warn(missing_docs, missing_debug_implementations)]
-#![forbid(improper_ctypes)]
+#![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
 pub extern crate smallvec;
 

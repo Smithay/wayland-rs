@@ -16,7 +16,9 @@ static RUST_MANAGED: u8 = 42;
 unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
     for (typ, arg) in signature.iter().zip(arglist.iter()) {
         if let ArgumentType::Array(_) = typ {
-            let _ = Box::from_raw(arg.a as *mut wl_array);
+            // Safety: the arglist provided arglist must be valid for associated signature
+            // and contains pointers to boxed arrays as appropriate
+            let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
         }
     }
 }
