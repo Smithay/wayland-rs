@@ -22,9 +22,6 @@ pub fn is_available() -> bool {
     is_lib_available()
 }
 
-unsafe impl Send for WlEglSurface {}
-unsafe impl Sync for WlEglSurface {}
-
 /// EGL surface
 ///
 /// This object is a simple wrapper around a `WlSurface` to add the EGL
@@ -51,11 +48,12 @@ impl WlEglSurface {
         if ptr.is_null() {
             Err(InvalidId)
         } else {
+            // SAFETY: We are sure the pointer is valid and the interface is correct.
             Ok(unsafe { WlEglSurface::new_from_raw(ptr, width, height) })
         }
     }
 
-    /// Create an EGL surface from a raw pointer to a wayland surface
+    /// Create an EGL surface from a raw pointer to a wayland surface.
     ///
     /// # Safety
     ///
@@ -101,6 +99,10 @@ impl WlEglSurface {
         self.ptr as *const c_void
     }
 }
+
+// SAFETY: We own the pointer to the wl_egl_window and can therefore be transferred to another thread.
+unsafe impl Send for WlEglSurface {}
+// Note that WlEglSurface is !Sync. This is because the pointer performs no internal synchronization.
 
 impl Drop for WlEglSurface {
     fn drop(&mut self) {
