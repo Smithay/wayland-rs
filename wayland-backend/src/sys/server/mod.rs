@@ -361,6 +361,7 @@ pub struct Handle<D> {
     display: *mut wl_display,
     pending_destructors: Vec<PendingDestructor<D>>,
     _data: std::marker::PhantomData<fn(&mut D)>,
+    known_globals: Vec<GlobalId>,
 }
 
 /// A backend object that represents the state of a wayland server.
@@ -410,6 +411,7 @@ impl<D> Backend<D> {
                 display,
                 pending_destructors: Vec::new(),
                 _data: std::marker::PhantomData,
+                known_globals: Vec::new(),
             },
         })
     }
@@ -557,6 +559,11 @@ impl<D> Drop for Backend<D> {
                 );
             },
         );
+
+        let known_globals = std::mem::take(&mut self.handle.known_globals);
+        for global in known_globals {
+            self.handle.remove_global(global);
+        }
 
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.handle.display);
@@ -969,6 +976,8 @@ impl<D> Handle<D> {
         };
 
         if ret.is_null() {
+            // free the user data as global creation failed
+            let _ = unsafe { Box::from_raw(udata) };
             panic!(
                 "[wayland-backend-sys] Invalid global specification or memory allocation failure."
             );
@@ -978,7 +987,9 @@ impl<D> Handle<D> {
             (*udata).ptr = ret;
         }
 
-        GlobalId { ptr: ret, alive }
+        let id = GlobalId { ptr: ret, alive };
+        self.known_globals.push(id.clone());
+        id
     }
 
     /// Disables a global object that is currently active.
@@ -1011,6 +1022,8 @@ impl<D> Handle<D> {
     /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
     /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
     pub fn remove_global(&mut self, id: GlobalId) {
+        self.known_globals.retain(|g| g != &id);
+
         if !id.alive.load(Ordering::Acquire) {
             return;
         }

@@ -2,6 +2,7 @@
 
 use std::{
     cell::RefCell,
+    collections::HashSet,
     ffi::CStr,
     os::raw::{c_char, c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
@@ -211,6 +212,7 @@ pub struct Handle {
     display_id: ObjectId,
     last_error: Option<WaylandError>,
     pending_placeholder: Option<(&'static Interface, u32)>,
+    known_proxies: HashSet<*mut wl_proxy>,
 }
 
 /// A pure rust implementation of a Wayland client backend
@@ -262,6 +264,7 @@ impl Backend {
                 },
                 last_error: None,
                 pending_placeholder: None,
+                known_proxies: HashSet::new(),
             },
         })
     }
@@ -738,13 +741,22 @@ impl Handle {
                 id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
                 interface: child_interface,
             };
-            let child_udata = Box::new(ProxyUserData {
-                alive: child_alive,
-                data: data.expect(
-                    "Sending a request creating an object without providing an object data.",
-                ),
-                interface: child_interface,
-            });
+            let child_udata = match data {
+                Some(data) => {
+                    Box::new(ProxyUserData { alive: child_alive, data, interface: child_interface })
+                }
+                None => {
+                    // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
+                    // main destructor given it does not yet have a proper user-data
+                    unsafe {
+                        ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, ret);
+                    }
+                    panic!(
+                        "Sending a request creating an object without providing an object data."
+                    );
+                }
+            };
+            self.known_proxies.insert(ret);
             unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -780,6 +792,7 @@ impl Handle {
                 alive.store(false, Ordering::Release);
                 udata.data.destroyed(id.clone());
             }
+            self.known_proxies.remove(&id.ptr);
             unsafe {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, id.ptr);
             }
@@ -988,8 +1001,15 @@ unsafe extern "C" fn dispatcher_func(
     };
 
     let ret = HANDLE.with(|handle| {
+        let mut handle = handle.borrow_mut();
+        if let Some((ref new_id, _)) = created {
+            handle.known_proxies.insert(new_id.ptr);
+        }
+        if message_desc.is_destructor {
+            handle.known_proxies.remove(&proxy);
+        }
         udata.data.clone().event(
-            &mut **handle.borrow_mut(),
+            &mut handle,
             Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
         )
     });
@@ -1029,7 +1049,19 @@ extern "C" {
 impl Drop for Backend {
     fn drop(&mut self) {
         if self.handle.evq.is_null() {
-            // we are own the connection, clone it
+            // we are own the connection, cleanup and close it
+            for proxy_ptr in self.handle.known_proxies.drain() {
+                let _ = unsafe {
+                    Box::from_raw(ffi_dispatch!(
+                        WAYLAND_CLIENT_HANDLE,
+                        wl_proxy_get_user_data,
+                        proxy_ptr
+                    ) as *mut ProxyUserData)
+                };
+                unsafe {
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy_ptr);
+                }
+            }
             unsafe {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.handle.display)
             }
