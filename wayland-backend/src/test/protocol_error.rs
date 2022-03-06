@@ -185,3 +185,127 @@ expand_test!(client_wrong_sender, {
     let ret = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
     assert!(ret.is_err());
 });
+
+struct ProtocolErrorServerData;
+
+impl server_rs::GlobalHandler<()> for ProtocolErrorServerData {
+    fn bind(
+        self: Arc<Self>,
+        _: &mut server_rs::Handle<()>,
+        _: &mut (),
+        _: server_rs::ClientId,
+        _: server_rs::GlobalId,
+        _: server_rs::ObjectId,
+    ) -> Arc<dyn server_rs::ObjectData<()>> {
+        Arc::new(ProtocolErrorServerData)
+    }
+}
+
+impl server_sys::GlobalHandler<()> for ProtocolErrorServerData {
+    fn bind(
+        self: Arc<Self>,
+        _: &mut server_sys::Handle<()>,
+        _: &mut (),
+        _: server_sys::ClientId,
+        _: server_sys::GlobalId,
+        _: server_sys::ObjectId,
+    ) -> Arc<dyn server_sys::ObjectData<()>> {
+        Arc::new(ProtocolErrorServerData)
+    }
+}
+
+impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
+    fn request(
+        self: Arc<Self>,
+        handle: &mut server_rs::Handle<D>,
+        _: &mut D,
+        _: server_rs::ClientId,
+        msg: Message<server_rs::ObjectId>,
+    ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
+        handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        None
+    }
+
+    fn destroyed(&self, _: &mut D, _: server_rs::ClientId, _: server_rs::ObjectId) {}
+}
+
+impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
+    fn request(
+        self: Arc<Self>,
+        handle: &mut server_sys::Handle<D>,
+        _: &mut D,
+        _: server_sys::ClientId,
+        msg: Message<server_sys::ObjectId>,
+    ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
+        handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        None
+    }
+
+    fn destroyed(&self, _: &mut D, _: server_sys::ClientId, _: server_sys::ObjectId) {}
+}
+
+expand_test!(protocol_error_in_request_without_object_init, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::new().unwrap();
+    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let mut client = client_backend::Backend::connect(tx).unwrap();
+
+    // Prepare a global
+    server.handle().create_global(
+        &interfaces::TEST_GLOBAL_INTERFACE,
+        3,
+        // The user code will provide an user data even if it triggers a protocol error
+        // (and thus destroys the object)
+        Arc::new(ProtocolErrorServerData),
+    );
+
+    // get the registry client-side
+    let client_display = client.handle().display_id();
+    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let registry_id = client
+        .handle()
+        .send_request(
+            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            Some(Arc::new(DoNothingData)),
+        )
+        .unwrap();
+    // create the test global
+    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
+    let test_global_id = client
+        .handle()
+        .send_request(
+            message!(
+                registry_id,
+                0,
+                [
+                    Argument::Uint(1),
+                    Argument::Str(Box::new(
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                    )),
+                    Argument::Uint(3),
+                    Argument::NewId(placeholder),
+                ],
+            ),
+            Some(Arc::new(DoNothingData)),
+        )
+        .unwrap();
+
+    client.flush().unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
+
+    // Now, the client sends a request, which will trigger a protocol error
+    let placeholder = client.handle().placeholder_id(None);
+    client
+        .handle()
+        .send_request(
+            message!(test_global_id, 1, [Argument::NewId(placeholder)]),
+            Some(Arc::new(DoNothingData)),
+        )
+        .unwrap();
+
+    client.flush().unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
+
+    // the server should not panic, and gracefull accept that the user did not provide any object data for
+    // the already destroyed object
+});

@@ -157,10 +157,16 @@ impl<D> Handle<D> {
                         }
                         (None, None) => {}
                         (Some(child_id), None) => {
-                            panic!(
-                                "Callback creating object {} did not provide any object data.",
-                                child_id
-                            );
+                            // Allow the callback to not return any data if the client is already dead (typically
+                            // if the callback provoked a protocol error)
+                            if let Ok(client) = self.clients.get_client(client_id.clone()) {
+                                if !client.killed {
+                                    panic!(
+                                        "Callback creating object {} did not provide any object data.",
+                                        child_id
+                                    );
+                                }
+                            }
                         }
                         (None, Some(_)) => {
                             panic!("An object data was returned from a callback not creating any object");

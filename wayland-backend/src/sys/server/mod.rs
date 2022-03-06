@@ -897,6 +897,13 @@ impl<D> Handle<D> {
             return;
         }
 
+        // Safety: at this point we already checked that the pointer is valid
+        let client =
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, id.ptr) };
+        let client_id = unsafe { client_id_from_ptr::<D>(client) }.unwrap();
+        // mark the client as dead
+        client_id.alive.store(false, Ordering::Release);
+
         unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -1360,14 +1367,14 @@ unsafe extern "C" fn resource_dispatcher<D>(
     }
 
     match (created, ret) {
-        (Some((_, child_udata_ptr)), Some(child_data)) => {
-            // Safety: child_udata_ptr is valid, we created it earlier
-            unsafe {
-                (*child_udata_ptr).data = child_data;
-            }
-        }
+        (Some((_, child_udata_ptr)), Some(child_data)) => unsafe {
+            (*child_udata_ptr).data = child_data;
+        },
         (Some((child_id, _)), None) => {
-            panic!("Callback creating object {} did not provide any object data.", child_id);
+            // Accept a missing object data if a protocol error occured (and the object is already dead)
+            if client_id.alive.load(Ordering::Acquire) {
+                panic!("Callback creating object {} did not provide any object data.", child_id);
+            }
         }
         (None, Some(_)) => {
             panic!("An object data was returned from a callback not creating any object");
