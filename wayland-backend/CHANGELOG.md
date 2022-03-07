@@ -2,11 +2,19 @@
 
 ## Unreleased
 
+## 0.1.0-alpha6
+
+#### Changes
+
+- Server-side, request callbacks are now allowed to omit providing an `ObjectData` for newly
+  created objects if they triggered a protocol error
+
 #### Bugfixes
 
 - Fix display leaks on system server backend.
 - Fix a panic when trying to send a message with a null object argument followed by a
   non-null object argument
+- Fix various memory leaks
 
 ## 0.1.0-alpha5
 

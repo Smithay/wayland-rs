@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## 0.30.0-alpha6
+
 ### Additions
+
 - Bump wayland-protocols to 1.25
- - A new staging protocol, `ext-session-lock-v1`.
+- A new staging protocol, `ext-session-lock-v1`.
 
 ## 0.30.0-alpha3
 
