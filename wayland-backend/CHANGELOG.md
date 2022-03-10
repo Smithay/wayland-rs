@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Client-side with the rust backend, `wl_display` events are now properly printed with other events
+  when `WAYLAND_DEBUG=1` is set.
+
 ## 0.1.0-alpha6
 
 #### Changes

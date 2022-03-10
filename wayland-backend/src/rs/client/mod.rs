@@ -815,6 +815,14 @@ impl Handle {
     }
 
     fn handle_display_event(&mut self, message: Message<u32>) -> Result<(), WaylandError> {
+        if self.debug {
+            super::debug::print_dispatched_message(
+                "wl_display",
+                message.sender_id,
+                if message.opcode == 0 { "error" } else { "delete_id" },
+                &message.args,
+            );
+        }
         match message.opcode {
             0 => {
                 // wl_display.error
