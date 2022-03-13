@@ -20,6 +20,7 @@ use crate::{
 use smallvec::SmallVec;
 
 use super::{
+    client::*,
     debug::DisplaySlice,
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
     socket::{BufferedSocket, Socket},
@@ -27,42 +28,6 @@ use super::{
 };
 
 pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
-
-/// A trait representing your data associated to an object
-///
-/// You will only be given access to it as a `&` reference, so you
-/// need to handle interior mutability by yourself.
-///
-/// The methods of this trait will be invoked internally every time a
-/// new object is created to initialize its data.
-pub trait ObjectData: downcast_rs::DowncastSync {
-    /// Dispatch an event for the associated object
-    ///
-    /// If the event has a NewId argument, the callback must return the object data
-    /// for the newly created object
-    fn event(
-        self: Arc<Self>,
-        handle: &mut Handle,
-        msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>>;
-    /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, object_id: ObjectId);
-    /// Helper for forwarding a Debug implementation of your `ObjectData` type
-    ///
-    /// By default will just print `ObjectData { ... }`
-    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ObjectData").finish_non_exhaustive()
-    }
-}
-
-#[cfg(not(tarpaulin_include))]
-impl std::fmt::Debug for dyn ObjectData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.debug(f)
-    }
-}
-
-downcast_rs::impl_downcast!(sync ObjectData);
 
 #[derive(Debug, Clone)]
 struct Data {
@@ -74,64 +39,52 @@ struct Data {
 
 /// An ID representing a Wayland object
 #[derive(Clone)]
-pub struct ObjectId {
+pub struct InnerObjectId {
     serial: u32,
     id: u32,
     interface: &'static Interface,
 }
 
-impl std::cmp::PartialEq for ObjectId {
-    fn eq(&self, other: &ObjectId) -> bool {
+impl std::cmp::PartialEq for InnerObjectId {
+    fn eq(&self, other: &InnerObjectId) -> bool {
         self.id == other.id
             && self.serial == other.serial
             && same_interface(self.interface, other.interface)
     }
 }
 
-impl std::cmp::Eq for ObjectId {}
+impl std::cmp::Eq for InnerObjectId {}
 
 #[cfg(not(tarpaulin_include))]
-impl fmt::Display for ObjectId {
+impl fmt::Display for InnerObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
 #[cfg(not(tarpaulin_include))]
-impl fmt::Debug for ObjectId {
+impl fmt::Debug for InnerObjectId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ObjectId({}, {})", self, self.serial)
     }
 }
 
-impl ObjectId {
-    /// Check if this is the null ID
+impl InnerObjectId {
     pub fn is_null(&self) -> bool {
         self.id == 0
     }
 
-    /// Interface of the represented object
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
 
-    /// Return the protocol-level numerical ID of this object
-    ///
-    /// Protocol IDs are reused after object destruction, so this should not be used as a
-    /// unique identifier,
     pub fn protocol_id(&self) -> u32 {
         self.id
     }
 }
 
-/// Main handle of a backend to the Wayland protocol
-///
-/// This type hosts most of the protocol-related functionality of the backend, and is the
-/// main entry point for manipulating Wayland objects. It can be retrieved both from
-/// the backend via [`Backend::handle()`](Backend::handle), and is given to you as argument
-/// in most event callbacks.
 #[derive(Debug)]
-pub struct Handle {
+pub struct InnerHandle {
     socket: BufferedSocket,
     map: ObjectMap<Data>,
     last_error: Option<WaylandError>,
@@ -140,24 +93,15 @@ pub struct Handle {
     debug: bool,
 }
 
-/// A pure rust implementation of a Wayland client backend
-///
-/// This type hosts the plumbing functionalities for interacting with the wayland protocol,
-/// and most of the protocol-level interactions are made through the [`Handle`] type, accessed
-/// via the [`handle()`](Backend::handle) method.
 #[derive(Debug)]
-pub struct Backend {
+pub struct InnerBackend {
     handle: Handle,
     prepared_reads: usize,
     read_condvar: Arc<Condvar>,
     read_serial: usize,
 }
 
-impl Backend {
-    /// Try to initialize a Wayland backend on the provided unix stream
-    ///
-    /// The provided stream should correspond to an already established unix connection with
-    /// the Wayland server. On this rust backend, this method never fails.
+impl InnerBackend {
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
         let mut map = ObjectMap::new();
@@ -179,14 +123,16 @@ impl Backend {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client");
 
-        Ok(Backend {
+        Ok(InnerBackend {
             handle: Handle {
-                socket,
-                map,
-                last_error: None,
-                last_serial: 0,
-                pending_placeholder: None,
-                debug,
+                handle: InnerHandle {
+                    socket,
+                    map,
+                    last_error: None,
+                    last_serial: 0,
+                    pending_placeholder: None,
+                    debug,
+                },
             },
             prepared_reads: 0,
             read_condvar: Arc::new(Condvar::new()),
@@ -196,9 +142,9 @@ impl Backend {
 
     /// Flush all pending outgoing requests to the server
     pub fn flush(&mut self) -> Result<(), WaylandError> {
-        self.handle.no_last_error()?;
-        if let Err(e) = self.handle.socket.flush() {
-            return Err(self.handle.store_if_not_wouldblock_and_return_error(e));
+        self.handle.handle.no_last_error()?;
+        if let Err(e) = self.handle.handle.socket.flush() {
+            return Err(self.handle.handle.store_if_not_wouldblock_and_return_error(e));
         }
         Ok(())
     }
@@ -211,12 +157,12 @@ impl Backend {
     /// **Note:** this function should only be used if you know that you are the only thread
     /// reading events from the wayland socket. If this may not be the case, see [`ReadEventsGuard`]
     pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
-        self.handle.no_last_error()?;
+        self.handle.handle.no_last_error()?;
         let mut dispatched = 0;
         loop {
             // Attempt to read a message
-            let map = &self.handle.map;
-            let message = match self.handle.socket.read_one_message(|id, opcode| {
+            let map = &self.handle.handle.map;
+            let message = match self.handle.handle.socket.read_one_message(|id, opcode| {
                 map.find(id)
                     .and_then(|o| o.interface.events.get(opcode as usize))
                     .map(|desc| desc.signature)
@@ -224,9 +170,9 @@ impl Backend {
                 Ok(msg) => msg,
                 Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
                     // need to read more data
-                    if let Err(e) = self.handle.socket.fill_incoming_buffers() {
+                    if let Err(e) = self.handle.handle.socket.fill_incoming_buffers() {
                         if e.kind() != std::io::ErrorKind::WouldBlock {
-                            return Err(self.handle.store_and_return_error(e));
+                            return Err(self.handle.handle.store_and_return_error(e));
                         } else if dispatched == 0 {
                             return Err(e.into());
                         } else {
@@ -243,18 +189,18 @@ impl Backend {
                         object_interface: "".into(),
                         message: "Malformed Wayland message.".into(),
                     });
-                    return Err(self.handle.store_and_return_error(err));
+                    return Err(self.handle.handle.store_and_return_error(err));
                 }
             };
 
             // We got a message, retrieve its associated object & details
             // These lookups must succeed otherwise we would not have been able to parse this message
-            let receiver = self.handle.map.find(message.sender_id).unwrap();
+            let receiver = self.handle.handle.map.find(message.sender_id).unwrap();
             let message_desc = receiver.interface.events.get(message.opcode as usize).unwrap();
 
             // Short-circuit display-associated events
             if message.sender_id == 1 {
-                self.handle.handle_display_event(message)?;
+                self.handle.handle.handle_display_event(message)?;
                 continue;
             }
 
@@ -274,7 +220,7 @@ impl Backend {
                     Argument::Object(o) => {
                         if o != 0 {
                             // Lookup the object to make the appropriate Id
-                            let obj = match self.handle.map.find(o) {
+                            let obj = match self.handle.handle.map.find(o) {
                                 Some(o) => o,
                                 None => {
                                     let err = WaylandError::Protocol(ProtocolError {
@@ -283,7 +229,7 @@ impl Backend {
                                         object_interface: "".into(),
                                         message: format!("Unknown object {}.", o),
                                     });
-                                    return Err(self.handle.store_and_return_error(err));
+                                    return Err(self.handle.handle.store_and_return_error(err));
                                 }
                             };
                             if let Some(next_interface) = arg_interfaces.next() {
@@ -297,12 +243,12 @@ impl Backend {
                                             o, next_interface.name, obj.interface.name
                                         ),
                                     });
-                                    return Err(self.handle.store_and_return_error(err));
+                                    return Err(self.handle.handle.store_and_return_error(err));
                                 }
                             }
-                            Argument::Object(ObjectId { id: o, serial: obj.data.serial, interface: obj.interface })
+                            Argument::Object(ObjectId { id: InnerObjectId { id: o, serial: obj.data.serial, interface: obj.interface }})
                         } else {
-                            Argument::Object(ObjectId { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE })
+                            Argument::Object(ObjectId { id: InnerObjectId { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE }})
                         }
                     }
                     Argument::NewId(new_id) => {
@@ -316,9 +262,9 @@ impl Backend {
 
                         // if this ID belonged to a now destroyed server object, we can replace it
                         if new_id >= SERVER_ID_LIMIT
-                            && self.handle.map.with(new_id, |obj| obj.data.client_destroyed).unwrap_or(false)
+                            && self.handle.handle.map.with(new_id, |obj| obj.data.client_destroyed).unwrap_or(false)
                         {
-                            self.handle.map.remove(new_id);
+                            self.handle.handle.map.remove(new_id);
                         }
 
                         let child_obj = Object {
@@ -328,14 +274,14 @@ impl Backend {
                                 client_destroyed: receiver.data.client_destroyed,
                                 server_destroyed: false,
                                 user_data: child_udata,
-                                serial: self.handle.next_serial(),
+                                serial: self.handle.handle.next_serial(),
                             }
                         };
 
-                        let child_id = ObjectId { id: new_id, serial: child_obj.data.serial, interface: child_obj.interface };
+                        let child_id = InnerObjectId { id: new_id, serial: child_obj.data.serial, interface: child_obj.interface };
                         created_id = Some(child_id.clone());
 
-                        if let Err(()) = self.handle.map.insert_at(new_id, child_obj) {
+                        if let Err(()) = self.handle.handle.map.insert_at(new_id, child_obj) {
                             // abort parsing, this is an unrecoverable error
                             let err = WaylandError::Protocol(ProtocolError {
                                 code: 0,
@@ -347,15 +293,15 @@ impl Backend {
                                     child_interface.name, new_id
                                 ),
                             });
-                            return Err(self.handle.store_and_return_error(err));
+                            return Err(self.handle.handle.store_and_return_error(err));
                         }
 
-                        Argument::NewId(child_id)
+                        Argument::NewId(ObjectId { id: child_id })
                     }
                 });
             }
 
-            if self.handle.debug {
+            if self.handle.handle.debug {
                 super::debug::print_dispatched_message(
                     receiver.interface.name,
                     message.sender_id,
@@ -376,21 +322,21 @@ impl Backend {
             }
 
             // Invoke the user callback
-            let id = ObjectId {
+            let id = InnerObjectId {
                 id: message.sender_id,
                 serial: receiver.data.serial,
                 interface: receiver.interface,
             };
             log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
-            let ret = receiver
-                .data
-                .user_data
-                .clone()
-                .event(&mut self.handle, Message { sender_id: id, opcode: message.opcode, args });
+            let ret = receiver.data.user_data.clone().event(
+                &mut self.handle,
+                Message { sender_id: ObjectId { id }, opcode: message.opcode, args },
+            );
 
             // If this event is a destructor, destroy the object
             if message_desc.is_destructor {
                 self.handle
+                    .handle
                     .map
                     .with(message.sender_id, |obj| {
                         obj.data.server_destroyed = true;
@@ -398,15 +344,18 @@ impl Backend {
                     })
                     .unwrap();
                 receiver.data.user_data.destroyed(ObjectId {
-                    id: message.sender_id,
-                    serial: receiver.data.serial,
-                    interface: receiver.interface,
+                    id: InnerObjectId {
+                        id: message.sender_id,
+                        serial: receiver.data.serial,
+                        interface: receiver.interface,
+                    },
                 });
             }
 
             match (created_id, ret) {
                 (Some(child_id), Some(child_data)) => {
                     self.handle
+                        .handle
                         .map
                         .with(child_id.id, |obj| obj.data.user_data = child_data)
                         .unwrap();
@@ -434,38 +383,25 @@ impl Backend {
     }
 }
 
-/// Guard for synchronizing event reading across multiple threads
-///
-/// If multiple threads need to read events from the Wayland socket concurrently,
-/// it is necessary to synchronize their access. Failing to do so may cause some of the
-/// threads to not be notified of new events, and sleep much longer than appropriate.
-///
-/// To correctly synchronize access, this type should be used. The guard is created using
-/// the [`try_new()`](ReadEventsGuard::try_new) method. And the event reading is triggered by consuming
-/// the guard using the [`read()`](ReadEventsGuard::read) method.
-///
-/// If you plan to poll the Wayland socket for readiness, the file descriptor can be retrieved via
-/// the [`connection_fd`](ReadEventsGuard::connection_fd) method. Note that for the synchronization to
-/// correctly occur, you must *always* create the `ReadEventsGuard` *before* polling the socket.
 #[derive(Debug)]
-pub struct ReadEventsGuard {
+pub struct InnerReadEventsGuard {
     backend: Arc<Mutex<Backend>>,
     done: bool,
 }
 
-impl ReadEventsGuard {
+impl InnerReadEventsGuard {
     /// Create a new reading guard
     ///
     /// This call will not block, but event callbacks may be invoked in the process
     /// of preparing the guard.
     pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
-        backend.lock().unwrap().prepared_reads += 1;
-        Ok(ReadEventsGuard { backend, done: false })
+        backend.lock().unwrap().backend.prepared_reads += 1;
+        Ok(InnerReadEventsGuard { backend, done: false })
     }
 
     /// Access the Wayland socket FD for polling
     pub fn connection_fd(&self) -> RawFd {
-        self.backend.lock().unwrap().handle.socket.as_raw_fd()
+        self.backend.lock().unwrap().backend.handle.handle.socket.as_raw_fd()
     }
 
     /// Attempt to read events from the Wayland socket
@@ -478,109 +414,79 @@ impl ReadEventsGuard {
     /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
     /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
-        let mut backend = self.backend.lock().unwrap();
-        backend.prepared_reads -= 1;
+        let mut guard = self.backend.lock().unwrap();
+        guard.backend.prepared_reads -= 1;
         self.done = true;
-        if backend.prepared_reads == 0 {
+        if guard.backend.prepared_reads == 0 {
             // We should be the one reading
-            let ret = backend.dispatch_events();
+            let ret = guard.backend.dispatch_events();
             // wake up other threads
-            backend.read_serial = backend.read_serial.wrapping_add(1);
-            backend.read_condvar.notify_all();
+            guard.backend.read_serial = guard.backend.read_serial.wrapping_add(1);
+            guard.backend.read_condvar.notify_all();
             // forward the return value
             ret
         } else {
             // We should wait for an other thread to read (or cancel)
-            let serial = backend.read_serial;
-            let condvar = backend.read_condvar.clone();
-            backend = condvar.wait_while(backend, |backend| serial == backend.read_serial).unwrap();
-            backend.handle.no_last_error()?;
+            let serial = guard.backend.read_serial;
+            let condvar = guard.backend.read_condvar.clone();
+            guard =
+                condvar.wait_while(guard, |backend| serial == backend.backend.read_serial).unwrap();
+            guard.backend.handle.handle.no_last_error()?;
             Ok(0)
         }
     }
 }
 
-impl Drop for ReadEventsGuard {
+impl Drop for InnerReadEventsGuard {
     fn drop(&mut self) {
         if !self.done {
-            let mut backend = self.backend.lock().unwrap();
-            backend.prepared_reads -= 1;
-            if backend.prepared_reads == 0 {
+            let mut guard = self.backend.lock().unwrap();
+            guard.backend.prepared_reads -= 1;
+            if guard.backend.prepared_reads == 0 {
                 // Cancel the read
-                backend.read_serial = backend.read_serial.wrapping_add(1);
-                backend.read_condvar.notify_all();
+                guard.backend.read_serial = guard.backend.read_serial.wrapping_add(1);
+                guard.backend.read_condvar.notify_all();
             }
         }
     }
 }
 
-impl Handle {
-    /// Get the object ID for the `wl_display`
+impl InnerHandle {
     pub fn display_id(&self) -> ObjectId {
-        ObjectId { serial: 0, id: 1, interface: &WL_DISPLAY_INTERFACE }
+        ObjectId { id: InnerObjectId { serial: 0, id: 1, interface: &WL_DISPLAY_INTERFACE } }
     }
 
-    /// Get the last error that occurred on this backend
-    ///
-    /// If this returns an error, your Wayland connection is already dead.
     pub fn last_error(&self) -> Option<WaylandError> {
         self.last_error.clone()
     }
 
-    /// Get the detailed information about a wayland object
-    ///
-    /// Returns an error if the provided object ID is no longer valid.
     pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        let object = self.get_object(id.clone())?;
+        let object = self.get_object(id.id.clone())?;
         if object.data.client_destroyed {
             Err(InvalidId)
         } else {
-            Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
+            Ok(ObjectInfo { id: id.id.id, interface: object.interface, version: object.version })
         }
     }
 
-    /// Create a null object ID
-    ///
-    /// This object ID is always invalid, and can be used as placeholder.
     pub fn null_id(&mut self) -> ObjectId {
-        ObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE }
+        ObjectId { id: InnerObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE } }
     }
 
-    /// Create a placeholder ID for object creation
-    ///
-    /// This ID needs to be created beforehand and given as argument to a request creating a
-    /// new object ID. A specification must be specified if the interface and version cannot
-    /// be inferred from the protocol (for example object creation from the `wl_registry`).
-    ///
-    /// If a specification is provided it'll be checked against what can be deduced from the
-    /// protocol specification, and [`send_request`](Handle::send_request) will panic if they
-    /// do not match.
     pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
         self.pending_placeholder = spec;
         ObjectId {
-            serial: 0,
-            id: 0,
-            interface: spec.map(|(i, _)| i).unwrap_or(&ANONYMOUS_INTERFACE),
+            id: InnerObjectId {
+                serial: 0,
+                id: 0,
+                interface: spec.map(|(i, _)| i).unwrap_or(&ANONYMOUS_INTERFACE),
+            },
         }
     }
 
-    /// Sends a request to the server
-    ///
-    /// Returns an error if the sender ID of the provided message is no longer valid.
-    ///
-    /// **Panic:**
-    ///
-    /// Several checks against the protocol specification are done, and this method will panic if they do
-    /// not pass:
-    ///
-    /// - the message opcode must be valid for the sender interface
-    /// - the argument list must match the prototype for the message associated with this opcode
-    /// - if the method creates a new object, a [`placeholder_id()`](Handle::placeholder_id) must be given
-    ///   in the argument list, either without a specification, or with a specification that matches the
-    ///   interface and version deduced from the protocol rules
     pub fn send_request(
         &mut self,
-        Message { sender_id: id, opcode, args }: Message<ObjectId>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
         let object = self.get_object(id.clone())?;
@@ -675,12 +581,12 @@ impl Handle {
 
         // Prepare the message in a debug-compatible way
         let args = args.into_iter().map(|arg| {
-            if let Argument::NewId(p) = arg {
+            if let Argument::NewId(ObjectId { id: p }) = arg {
                 if !p.id == 0 {
                     panic!("The newid provided when sending request {}@{}.{} is not a placeholder.", object.interface.name, id.id, message_desc.name);
                 }
                 if let Some((child_id, child_serial, child_interface)) = child {
-                    Argument::NewId(ObjectId { id: child_id, serial: child_serial, interface: child_interface})
+                    Argument::NewId(ObjectId { id: InnerObjectId { id: child_id, serial: child_serial, interface: child_interface}})
                 } else {
                     unreachable!();
                 }
@@ -710,19 +616,19 @@ impl Handle {
                 Argument::Uint(u) => Argument::Uint(u),
                 Argument::Str(s) => Argument::Str(s),
                 Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::NewId(nid) => Argument::NewId(nid.id),
+                Argument::NewId(nid) => Argument::NewId(nid.id.id),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
-                    if o.id != 0 {
-                        let arg_object = self.get_object(o.clone())?;
+                    if o.id.id != 0 {
+                        let arg_object = self.get_object(o.id.clone())?;
                         if !same_interface_or_anonymous(next_interface, arg_object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, arg_object.interface.name);
                         }
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                         panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);
                     }
-                    Argument::Object(o.id)
+                    Argument::Object(o.id.id)
                 }
             });
         }
@@ -740,30 +646,30 @@ impl Handle {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            object.data.user_data.destroyed(id);
+            object.data.user_data.destroyed(ObjectId { id });
         }
         if let Some((child_id, child_serial, child_interface)) = child {
-            Ok(ObjectId { id: child_id, serial: child_serial, interface: child_interface })
+            Ok(ObjectId {
+                id: InnerObjectId {
+                    id: child_id,
+                    serial: child_serial,
+                    interface: child_interface,
+                },
+            })
         } else {
             Ok(self.null_id())
         }
     }
 
-    /// Access the object data associated with a given object ID
-    ///
-    /// Returns an error if the object ID is not longer valid
     pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
-        let object = self.get_object(id)?;
+        let object = self.get_object(id.id)?;
         Ok(object.data.user_data)
     }
 
-    /// Set the object data associated with a given object ID
-    ///
-    /// Returns an error if the object ID is not longer valid
     pub fn set_data(&mut self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
         self.map
-            .with(id.id, move |objdata| {
-                if objdata.data.serial != id.serial {
+            .with(id.id.id, move |objdata| {
+                if objdata.data.serial != id.id.serial {
                     Err(InvalidId)
                 } else {
                     objdata.data.user_data = data;
@@ -774,7 +680,7 @@ impl Handle {
     }
 }
 
-impl Handle {
+impl InnerHandle {
     fn next_serial(&mut self) -> u32 {
         self.last_serial = self.last_serial.wrapping_add(1);
         self.last_serial
@@ -806,7 +712,7 @@ impl Handle {
         }
     }
 
-    fn get_object(&self, id: ObjectId) -> Result<Object<Data>, InvalidId> {
+    fn get_object(&self, id: InnerObjectId) -> Result<Object<Data>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
             return Err(InvalidId);
@@ -864,39 +770,5 @@ impl Handle {
             _ => unreachable!(),
         }
         Ok(())
-    }
-}
-
-struct DumbObjectData;
-
-impl ObjectData for DumbObjectData {
-    fn event(
-        self: Arc<Self>,
-        _handle: &mut Handle,
-        _msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        unreachable!()
-    }
-
-    fn destroyed(&self, _object_id: ObjectId) {
-        unreachable!()
-    }
-}
-
-struct UninitObjectData;
-
-impl ObjectData for UninitObjectData {
-    fn event(
-        self: Arc<Self>,
-        _handle: &mut Handle,
-        msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        panic!("Received a message on an uninitialized object: {:?}", msg);
-    }
-
-    fn destroyed(&self, _object_id: ObjectId) {}
-
-    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UninitObjectData").finish()
     }
 }
