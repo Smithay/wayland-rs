@@ -8,7 +8,7 @@ use crate::types::server::{GlobalInfo, InvalidId};
 
 use super::{
     client::{Client, ClientStore},
-    ClientId, GlobalHandler, GlobalId, ObjectId,
+    ClientId, GlobalHandler, GlobalId, InnerGlobalId, InnerObjectId, ObjectId,
 };
 
 /*
@@ -18,7 +18,7 @@ use super::{
 
 #[derive(Debug)]
 struct Global<D> {
-    id: GlobalId,
+    id: InnerGlobalId,
     interface: &'static Interface,
     version: u32,
     handler: Arc<dyn GlobalHandler<D>>,
@@ -29,7 +29,7 @@ struct Global<D> {
 
 pub struct Registry<D> {
     globals: Vec<Option<Global<D>>>,
-    known_registries: Vec<ObjectId>,
+    known_registries: Vec<InnerObjectId>,
     last_serial: u32,
 }
 
@@ -49,7 +49,7 @@ impl<D> Registry<D> {
         version: u32,
         handler: Arc<dyn GlobalHandler<D>>,
         clients: &mut ClientStore<D>,
-    ) -> GlobalId {
+    ) -> InnerGlobalId {
         if version > interface.version {
             panic!(
                 "Cannot create global {} version {}: maximum supported version is {}",
@@ -65,7 +65,7 @@ impl<D> Registry<D> {
             }
         };
 
-        let id = GlobalId { id: id as u32 + 1, serial };
+        let id = InnerGlobalId { id: id as u32 + 1, serial };
 
         *place = Some(Global { id: id.clone(), interface, version, handler, disabled: false });
 
@@ -74,7 +74,7 @@ impl<D> Registry<D> {
         id
     }
 
-    fn get_global(&self, id: GlobalId) -> Result<&Global<D>, InvalidId> {
+    fn get_global(&self, id: InnerGlobalId) -> Result<&Global<D>, InvalidId> {
         self.globals
             .get(id.id as usize - 1)
             .and_then(|o| o.as_ref())
@@ -82,7 +82,7 @@ impl<D> Registry<D> {
             .ok_or(InvalidId)
     }
 
-    pub(crate) fn get_info(&self, id: GlobalId) -> Result<GlobalInfo, InvalidId> {
+    pub(crate) fn get_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         let global = self.get_global(id)?;
         Ok(GlobalInfo {
             interface: global.interface,
@@ -91,7 +91,10 @@ impl<D> Registry<D> {
         })
     }
 
-    pub(crate) fn get_handler(&self, id: GlobalId) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
+    pub(crate) fn get_handler(
+        &self,
+        id: InnerGlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         let global = self.get_global(id)?;
         Ok(global.handler.clone())
     }
@@ -102,7 +105,7 @@ impl<D> Registry<D> {
         name: u32,
         interface_name: &CStr,
         version: u32,
-    ) -> Option<(&'static Interface, GlobalId, Arc<dyn GlobalHandler<D>>)> {
+    ) -> Option<(&'static Interface, InnerGlobalId, Arc<dyn GlobalHandler<D>>)> {
         if name == 0 || version == 0 {
             return None;
         }
@@ -114,9 +117,9 @@ impl<D> Registry<D> {
             return None;
         }
         if !target_global.handler.can_view(
-            client.id.clone(),
+            ClientId { id: client.id.clone() },
             &client.data,
-            target_global.id.clone(),
+            GlobalId { id: target_global.id.clone() },
         ) {
             return None;
         }
@@ -125,10 +128,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn cleanup(&mut self, dead_clients: &[ClientId]) {
-        self.known_registries.retain(|obj_id| !dead_clients.contains(&obj_id.client_id))
+        self.known_registries
+            .retain(|obj_id| !dead_clients.iter().any(|cid| cid.id == obj_id.client_id))
     }
 
-    pub(crate) fn disable_global(&mut self, id: GlobalId, clients: &mut ClientStore<D>) {
+    pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
         let global = match self.globals.get_mut(id.id as usize - 1) {
             Some(&mut Some(ref mut g)) if g.id == id => g,
             _ => return,
@@ -140,13 +144,14 @@ impl<D> Registry<D> {
             // send the global_remove
             for registry in self.known_registries.iter().cloned() {
                 if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
-                    let _ = send_global_remove_to(client, global, registry.clone());
+                    let _ =
+                        send_global_remove_to(client, global, ObjectId { id: registry.clone() });
                 }
             }
         }
     }
 
-    pub(crate) fn remove_global(&mut self, id: GlobalId, clients: &mut ClientStore<D>) {
+    pub(crate) fn remove_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
         // disable the global if not already disabled
         self.disable_global(id.clone(), clients);
         // now remove it if the id is still valid
@@ -159,7 +164,7 @@ impl<D> Registry<D> {
 
     pub(crate) fn new_registry(
         &mut self,
-        registry: ObjectId,
+        registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
         self.send_all_globals_to(registry.clone(), client)?;
@@ -169,15 +174,19 @@ impl<D> Registry<D> {
 
     pub(crate) fn send_all_globals_to(
         &self,
-        registry: ObjectId,
+        registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
             if !global.disabled
-                && global.handler.can_view(client.id.clone(), &client.data, global.id.clone())
+                && global.handler.can_view(
+                    ClientId { id: client.id.clone() },
+                    &client.data,
+                    GlobalId { id: global.id.clone() },
+                )
             {
                 // fail the whole send on error, there is no point in trying further on a failing client
-                send_global_to(client, global, registry.clone())?;
+                send_global_to(client, global, ObjectId { id: registry.clone() })?;
             }
         }
         Ok(())
@@ -185,7 +194,7 @@ impl<D> Registry<D> {
 
     pub(crate) fn send_global_to_all(
         &self,
-        global_id: GlobalId,
+        global_id: InnerGlobalId,
         clients: &mut ClientStore<D>,
     ) -> Result<(), InvalidId> {
         let global = self.get_global(global_id)?;
@@ -195,10 +204,14 @@ impl<D> Registry<D> {
         for registry in self.known_registries.iter().cloned() {
             if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
                 if !global.disabled
-                    && global.handler.can_view(client.id.clone(), &client.data, global.id.clone())
+                    && global.handler.can_view(
+                        ClientId { id: client.id.clone() },
+                        &client.data,
+                        GlobalId { id: global.id.clone() },
+                    )
                 {
                     // don't fail the whole send for a single erroring client
-                    let _ = send_global_to(client, global, registry.clone());
+                    let _ = send_global_to(client, global, ObjectId { id: registry.clone() });
                 }
             }
         }

@@ -28,58 +28,24 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 
 use super::{free_arrays, RUST_MANAGED};
 
+use super::client::*;
+
 scoped_thread_local!(static HANDLE: RefCell<&mut Handle>);
-
-/// A trait representing your data associated to an object
-///
-/// You will only be given access to it as a `&` reference, so you
-/// need to handle interior mutability by yourself.
-///
-/// The methods of this trait will be invoked internally every time a
-/// new object is created to initialize its data.
-pub trait ObjectData: downcast_rs::DowncastSync {
-    /// Dispatch an event for the associated object
-    ///
-    /// If the event has a NewId argument, the callback must return the object data
-    /// for the newly created object
-    fn event(
-        self: Arc<Self>,
-        handle: &mut Handle,
-        msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>>;
-    /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, object_id: ObjectId);
-    /// Helper for forwarding a Debug implementation of your `ObjectData` type
-    ///
-    /// By default will just print `ObjectData { ... }`
-    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ObjectData").finish_non_exhaustive()
-    }
-}
-
-#[cfg(not(tarpaulin_include))]
-impl std::fmt::Debug for dyn ObjectData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.debug(f)
-    }
-}
-
-downcast_rs::impl_downcast!(sync ObjectData);
 
 /// An ID representing a Wayland object
 #[derive(Clone)]
-pub struct ObjectId {
+pub struct InnerObjectId {
     id: u32,
     ptr: *mut wl_proxy,
     alive: Option<Arc<AtomicBool>>,
     interface: &'static Interface,
 }
 
-unsafe impl Send for ObjectId {}
-unsafe impl Sync for ObjectId {}
+unsafe impl Send for InnerObjectId {}
+unsafe impl Sync for InnerObjectId {}
 
-impl std::cmp::PartialEq for ObjectId {
-    fn eq(&self, other: &ObjectId) -> bool {
+impl std::cmp::PartialEq for InnerObjectId {
+    fn eq(&self, other: &InnerObjectId) -> bool {
         match (&self.alive, &other.alive) {
             (Some(ref a), Some(ref b)) => {
                 // this is an object we manage
@@ -96,42 +62,25 @@ impl std::cmp::PartialEq for ObjectId {
     }
 }
 
-impl std::cmp::Eq for ObjectId {}
+impl std::cmp::Eq for InnerObjectId {}
 
-impl ObjectId {
-    /// Check if this is the null ID
+impl InnerObjectId {
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
 
-    /// Interface of the represented object
     pub fn interface(&self) -> &'static Interface {
         self.interface
     }
 
-    /// Return the protocol-level numerical ID of this object
-    ///
-    /// Protocol IDs are reused after object destruction, so this should not be used as a
-    /// unique identifier,
     pub fn protocol_id(&self) -> u32 {
         self.id
     }
 
-    /// Creates an object id from a libwayland-client pointer.
-    ///
-    /// # Errors
-    ///
-    /// This function returns an [`InvalidId`] error if the interface of the proxy does not match the provided
-    /// interface.
-    ///
-    /// # Safety
-    ///
-    /// The provided pointer must be a valid pointer to a `wl_resource` and remain valid for as
-    /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static Interface,
         ptr: *mut wl_proxy,
-    ) -> Result<ObjectId, InvalidId> {
+    ) -> Result<InnerObjectId, InvalidId> {
         // Safety: the provided pointer must be a valid wayland object
         let ptr_iface_name = unsafe {
             CStr::from_ptr(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, ptr))
@@ -166,10 +115,9 @@ impl ObjectId {
             None
         };
 
-        Ok(ObjectId { id, ptr, alive, interface })
+        Ok(InnerObjectId { id, ptr, alive, interface })
     }
 
-    /// Get the underlying libwayland pointer for this object
     pub fn as_ptr(&self) -> *mut wl_proxy {
         if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             self.ptr
@@ -180,14 +128,14 @@ impl ObjectId {
 }
 
 #[cfg(not(tarpaulin_include))]
-impl std::fmt::Display for ObjectId {
+impl std::fmt::Display for InnerObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
 #[cfg(not(tarpaulin_include))]
-impl std::fmt::Debug for ObjectId {
+impl std::fmt::Debug for InnerObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ObjectId({})", self)
     }
@@ -199,40 +147,25 @@ struct ProxyUserData {
     interface: &'static Interface,
 }
 
-/// Main handle of a backend to the Wayland protocol
-///
-/// This type hosts most of the protocol-related functionality of the backend, and is the
-/// main entry point for manipulating Wayland objects. It can be retrieved both from
-/// the backend via [`Backend::handle()`](Backend::handle), and is given to you as argument
-/// in most event callbacks.
 #[derive(Debug)]
-pub struct Handle {
+pub struct InnerHandle {
     display: *mut wl_display,
     evq: *mut wl_event_queue,
-    display_id: ObjectId,
+    display_id: InnerObjectId,
     last_error: Option<WaylandError>,
     pending_placeholder: Option<(&'static Interface, u32)>,
     known_proxies: HashSet<*mut wl_proxy>,
 }
 
-/// A pure rust implementation of a Wayland client backend
-///
-/// This type hosts the plumbing functionalities for interacting with the wayland protocol,
-/// and most of the protocol-level interactions are made through the [`Handle`] type, accessed
-/// via the [`handle()`](Backend::handle) method.
 #[derive(Debug)]
-pub struct Backend {
+pub struct InnerBackend {
     handle: Handle,
 }
 
-unsafe impl Send for Backend {}
-unsafe impl Sync for Backend {}
+unsafe impl Send for InnerBackend {}
+unsafe impl Sync for InnerBackend {}
 
-impl Backend {
-    /// Try to initialize a Wayland backend on the provided unix stream
-    ///
-    /// The provided stream should correspond to an already established unix connection with
-    /// the Wayland server. This function fails if the system `libwayland` could not be loaded.
+impl InnerBackend {
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         if !is_lib_available() {
             return Err(NoWaylandLib);
@@ -254,28 +187,31 @@ impl Backend {
         let display_alive = Arc::new(AtomicBool::new(true));
         Ok(Self {
             handle: Handle {
-                display,
-                evq: std::ptr::null_mut(),
-                display_id: ObjectId {
-                    id: 1,
-                    ptr: display as *mut wl_proxy,
-                    alive: Some(display_alive),
-                    interface: &WL_DISPLAY_INTERFACE,
+                handle: InnerHandle {
+                    display,
+                    evq: std::ptr::null_mut(),
+                    display_id: InnerObjectId {
+                        id: 1,
+                        ptr: display as *mut wl_proxy,
+                        alive: Some(display_alive),
+                        interface: &WL_DISPLAY_INTERFACE,
+                    },
+                    last_error: None,
+                    pending_placeholder: None,
+                    known_proxies: HashSet::new(),
                 },
-                last_error: None,
-                pending_placeholder: None,
-                known_proxies: HashSet::new(),
             },
         })
     }
 
-    /// Flush all pending outgoing requests to the server
     pub fn flush(&mut self) -> Result<(), WaylandError> {
-        self.handle.no_last_error()?;
-        let ret =
-            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.handle.display) };
+        self.handle.handle.no_last_error()?;
+        let ret = unsafe {
+            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.handle.handle.display)
+        };
         if ret < 0 {
             Err(self
+                .handle
                 .handle
                 .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
@@ -283,26 +219,18 @@ impl Backend {
         }
     }
 
-    /// Read events from the wayland socket if available, and invoke the associated callbacks
-    ///
-    /// This function will never block, and returns an I/O `WouldBlock` error if no event is available
-    /// to read.
-    ///
-    /// **Note:** this function should only be used if you know that you are the only thread
-    /// reading events from the wayland socket. If this may not be the case, see [`ReadEventsGuard`]
     pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
-        self.handle.no_last_error()?;
-        self.handle.try_read()?;
-        self.handle.dispatch_pending()
+        self.handle.handle.no_last_error()?;
+        self.handle.handle.try_read()?;
+        self.handle.handle.dispatch_pending()
     }
 
-    /// Access the [`Handle`] associated with this backend
     pub fn handle(&mut self) -> &mut Handle {
         &mut self.handle
     }
 }
 
-impl Handle {
+impl InnerHandle {
     #[inline]
     fn no_last_error(&self) -> Result<(), WaylandError> {
         if let Some(ref err) = self.last_error {
@@ -410,38 +338,18 @@ impl Handle {
     }
 }
 
-/// Guard for synchronizing event reading across multiple threads
-///
-/// If multiple threads need to read events from the Wayland socket concurrently,
-/// it is necessary to synchronize their access. Failing to do so may cause some of the
-/// threads to not be notified of new events, and sleep much longer than appropriate.
-///
-/// To correctly synchronize access, this type should be used. The guard is created using
-/// the [`try_new()`](ReadEventsGuard::try_new) method. And the event reading is triggered by consuming
-/// the guard using the [`read()`](ReadEventsGuard::read) method.
-///
-/// If you plan to poll the Wayland socket for readiness, the file descriptor can be retrieved via
-/// the [`connection_fd`](ReadEventsGuard::connection_fd) method. Note that for the synchronization to
-/// correctly occur, you must *always* create the `ReadEventsGuard` *before* polling the socket.
-///
-/// This synchronization is compatible with the "prepare_read" mechanism of the system libwayland,
-/// and will correctly synchronize with other C libraries using the same Wayland socket.
 #[derive(Debug)]
-pub struct ReadEventsGuard {
+pub struct InnerReadEventsGuard {
     backend: Arc<Mutex<Backend>>,
     display: *mut wl_display,
     done: bool,
 }
 
-impl ReadEventsGuard {
-    /// Create a new reading guard
-    ///
-    /// This call will not block, but event callbacks may be invoked in the process
-    /// of preparing the guard.
+impl InnerReadEventsGuard {
     pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
         let mut backend_guard = backend.lock().unwrap();
-        let display = backend_guard.handle.display;
-        let evq = backend_guard.handle.evq;
+        let display = backend_guard.backend.handle.handle.display;
+        let evq = backend_guard.backend.handle.handle.evq;
 
         // do the prepare_read() and dispatch as necessary
         loop {
@@ -458,7 +366,7 @@ impl ReadEventsGuard {
                 }
             };
             if ret < 0 {
-                backend_guard.handle.dispatch_pending()?;
+                backend_guard.backend.handle.handle.dispatch_pending()?;
             } else {
                 break;
             }
@@ -467,23 +375,13 @@ impl ReadEventsGuard {
         std::mem::drop(backend_guard);
 
         // prepare_read is done, we are ready
-        Ok(ReadEventsGuard { backend, display, done: false })
+        Ok(InnerReadEventsGuard { backend, display, done: false })
     }
 
-    /// Access the Wayland socket FD for polling
     pub fn connection_fd(&self) -> RawFd {
         unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
     }
 
-    /// Attempt to read events from the Wayland socket
-    ///
-    /// If multiple threads have a live reading guard, this method will block until all of them
-    /// are either dropped or have their `read()` method invoked, at which point on of the threads
-    /// will read events from the socket and invoke the callbacks for the received events. All
-    /// threads will then resume their execution.
-    ///
-    /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
         self.done = true;
         let ret =
@@ -494,16 +392,18 @@ impl ReadEventsGuard {
                 .backend
                 .lock()
                 .unwrap()
+                .backend
+                .handle
                 .handle
                 .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             // the read occured, dispatch pending events
-            self.backend.lock().unwrap().handle.dispatch_pending()
+            self.backend.lock().unwrap().backend.handle.handle.dispatch_pending()
         }
     }
 }
 
-impl Drop for ReadEventsGuard {
+impl Drop for InnerReadEventsGuard {
     fn drop(&mut self) {
         if !self.done {
             unsafe {
@@ -513,23 +413,16 @@ impl Drop for ReadEventsGuard {
     }
 }
 
-impl Handle {
-    /// Get the object ID for the `wl_display`
+impl InnerHandle {
     pub fn display_id(&self) -> ObjectId {
-        self.display_id.clone()
+        ObjectId { id: self.display_id.clone() }
     }
 
-    /// Get the last error that occurred on this backend
-    ///
-    /// If this returns an error, your Wayland connection is already dead.
     pub fn last_error(&self) -> Option<WaylandError> {
         self.last_error.clone()
     }
 
-    /// Get the detailed information about a wayland object
-    ///
-    /// Returns an error if the provided object ID is no longer valid.
-    pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn info(&self, ObjectId { id }: ObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
             return Err(InvalidId);
@@ -545,52 +438,32 @@ impl Handle {
         Ok(ObjectInfo { id: id.id, interface: id.interface, version })
     }
 
-    /// Create a null object ID
-    ///
-    /// This object ID is always invalid, and can be used as placeholder.
     pub fn null_id(&mut self) -> ObjectId {
-        ObjectId { ptr: std::ptr::null_mut(), interface: &ANONYMOUS_INTERFACE, id: 0, alive: None }
-    }
-
-    /// Create a placeholder ID for object creation
-    ///
-    /// This ID needs to be created beforehand and given as argument to a request creating a
-    /// new object ID. A specification must be specified if the interface and version cannot
-    /// be inferred from the protocol (for example object creation from the `wl_registry`).
-    ///
-    /// If a specification is provided it'll be checked against what can be deduced from the
-    /// protocol specification, and [`send_request`](Handle::send_request) will panic if they
-    /// do not match.
-    pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
-        self.pending_placeholder = spec;
         ObjectId {
-            ptr: std::ptr::null_mut(),
-            alive: None,
-            id: 0,
-            interface: spec.map(|(iface, _)| iface).unwrap_or(&ANONYMOUS_INTERFACE),
+            id: InnerObjectId {
+                ptr: std::ptr::null_mut(),
+                interface: &ANONYMOUS_INTERFACE,
+                id: 0,
+                alive: None,
+            },
         }
     }
 
-    /// Sends a request to the server
-    ///
-    /// Returns an error if the sender ID of the provided message is no longer valid.
-    ///
-    /// **Panic:**
-    ///
-    /// Several checks against the protocol specification are done, and this method will panic if they do
-    /// not pass:
-    ///
-    /// - the message opcode must be valid for the sender interface
-    /// - the argument list must match the prototype for the message associated with this opcode
-    /// - if the method creates a new object, a [`placeholder_id()`](Handle::placeholder_id) must be given
-    ///   in the argument list, either without a specification, or with a specification that matches the
-    ///   interface and version deduced from the protocol rules
-    ///
-    /// When using the system libwayland backend, the Wayland interfaces must have been generated with the C-ptr
-    /// support.
+    pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
+        self.pending_placeholder = spec;
+        ObjectId {
+            id: InnerObjectId {
+                ptr: std::ptr::null_mut(),
+                alive: None,
+                id: 0,
+                interface: spec.map(|(iface, _)| iface).unwrap_or(&ANONYMOUS_INTERFACE),
+            },
+        }
+    }
+
     pub fn send_request(
         &mut self,
-        Message { sender_id: id, opcode, args }: Message<ObjectId>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
@@ -689,13 +562,13 @@ impl Handle {
                 Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
-                    if !o.ptr.is_null() {
+                    if !o.id.ptr.is_null() {
                         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
-                        if !same_interface(next_interface, o.interface) {
-                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.interface.name);
+                        if !same_interface(next_interface, o.id.interface) {
+                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.id.interface.name);
                         }
                     } else if !matches!(
                         message_desc.signature[i],
@@ -706,7 +579,7 @@ impl Handle {
                             id.interface.name, id.id, message_desc.name
                         );
                     }
-                    argument_list.push(wl_argument { o: o.ptr as *const _ })
+                    argument_list.push(wl_argument { o: o.id.ptr as *const _ })
                 }
                 Argument::NewId(_) => argument_list.push(wl_argument { n: 0 }),
             }
@@ -736,10 +609,12 @@ impl Handle {
         let child_id = if let Some((child_interface, _)) = child_spec {
             let child_alive = Arc::new(AtomicBool::new(true));
             let child_id = ObjectId {
-                ptr: ret,
-                alive: Some(child_alive.clone()),
-                id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
-                interface: child_interface,
+                id: InnerObjectId {
+                    ptr: ret,
+                    alive: Some(child_alive.clone()),
+                    id: unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, ret) },
+                    interface: child_interface,
+                },
             };
             let child_udata = match data {
                 Some(data) => {
@@ -790,7 +665,7 @@ impl Handle {
                     );
                 }
                 alive.store(false, Ordering::Release);
-                udata.data.destroyed(id.clone());
+                udata.data.destroyed(ObjectId { id: id.clone() });
             }
             self.known_proxies.remove(&id.ptr);
             unsafe {
@@ -801,12 +676,7 @@ impl Handle {
         Ok(child_id)
     }
 
-    /// Access the object data associated with a given object ID
-    ///
-    /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
-    /// object that is not managed by this backend (when multiple libraries share the same Wayland
-    /// socket via `libwayland`).
-    pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+    pub fn get_data(&self, ObjectId { id }: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);
         }
@@ -823,12 +693,11 @@ impl Handle {
         Ok(udata.data.clone())
     }
 
-    /// Set the object data associated with a given object ID
-    ///
-    /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
-    /// object that is not managed by this backend (when multiple libraries share the same Wayland
-    /// socket via `libwayland`).
-    pub fn set_data(&mut self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
+    pub fn set_data(
+        &mut self,
+        ObjectId { id }: ObjectId,
+        data: Arc<dyn ObjectData>,
+    ) -> Result<(), InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
             return Err(InvalidId);
         }
@@ -923,26 +792,32 @@ unsafe extern "C" fn dispatcher_func(
                             return -1;
                         }
                         parsed_args.push(Argument::Object(ObjectId {
-                            alive: Some(obj_udata.alive.clone()),
-                            ptr: obj,
-                            id: obj_id,
-                            interface: obj_udata.interface,
+                            id: InnerObjectId {
+                                alive: Some(obj_udata.alive.clone()),
+                                ptr: obj,
+                                id: obj_id,
+                                interface: obj_udata.interface,
+                            },
                         }));
                     } else {
                         parsed_args.push(Argument::Object(ObjectId {
-                            alive: None,
-                            id: obj_id,
-                            ptr: obj,
-                            interface: next_interface,
+                            id: InnerObjectId {
+                                alive: None,
+                                id: obj_id,
+                                ptr: obj,
+                                interface: next_interface,
+                            },
                         }));
                     }
                 } else {
                     // libwayland-client.so checks nulls for us
                     parsed_args.push(Argument::Object(ObjectId {
-                        alive: None,
-                        id: 0,
-                        ptr: std::ptr::null_mut(),
-                        interface: &ANONYMOUS_INTERFACE,
+                        id: InnerObjectId {
+                            alive: None,
+                            id: 0,
+                            ptr: std::ptr::null_mut(),
+                            interface: &ANONYMOUS_INTERFACE,
+                        },
                     }))
                 }
             }
@@ -959,7 +834,7 @@ unsafe extern "C" fn dispatcher_func(
                         &ANONYMOUS_INTERFACE
                     });
                     let child_alive = Arc::new(AtomicBool::new(true));
-                    let child_id = ObjectId {
+                    let child_id = InnerObjectId {
                         ptr: obj,
                         alive: Some(child_alive.clone()),
                         id: ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, obj),
@@ -979,13 +854,15 @@ unsafe extern "C" fn dispatcher_func(
                         &RUST_MANAGED as *const u8 as *const c_void,
                         child_udata as *mut c_void
                     );
-                    parsed_args.push(Argument::NewId(child_id));
+                    parsed_args.push(Argument::NewId(ObjectId { id: child_id }));
                 } else {
                     parsed_args.push(Argument::NewId(ObjectId {
-                        id: 0,
-                        ptr: std::ptr::null_mut(),
-                        alive: None,
-                        interface: &ANONYMOUS_INTERFACE,
+                        id: InnerObjectId {
+                            id: 0,
+                            ptr: std::ptr::null_mut(),
+                            alive: None,
+                            interface: &ANONYMOUS_INTERFACE,
+                        },
                     }))
                 }
             }
@@ -994,19 +871,21 @@ unsafe extern "C" fn dispatcher_func(
 
     let proxy_id = ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_id, proxy);
     let id = ObjectId {
-        alive: Some(udata.alive.clone()),
-        ptr: proxy,
-        id: proxy_id,
-        interface: udata.interface,
+        id: InnerObjectId {
+            alive: Some(udata.alive.clone()),
+            ptr: proxy,
+            id: proxy_id,
+            interface: udata.interface,
+        },
     };
 
     let ret = HANDLE.with(|handle| {
         let mut handle = handle.borrow_mut();
         if let Some((ref new_id, _)) = created {
-            handle.known_proxies.insert(new_id.ptr);
+            handle.handle.known_proxies.insert(new_id.ptr);
         }
         if message_desc.is_destructor {
-            handle.known_proxies.remove(&proxy);
+            handle.handle.known_proxies.remove(&proxy);
         }
         udata.data.clone().event(
             &mut handle,
@@ -1046,11 +925,11 @@ extern "C" {
     fn wl_log_trampoline_to_rust_client(fmt: *const c_char, list: *const c_void);
 }
 
-impl Drop for Backend {
+impl Drop for InnerBackend {
     fn drop(&mut self) {
-        if self.handle.evq.is_null() {
+        if self.handle.handle.evq.is_null() {
             // we are own the connection, cleanup and close it
-            for proxy_ptr in self.handle.known_proxies.drain() {
+            for proxy_ptr in self.handle.handle.known_proxies.drain() {
                 let _ = unsafe {
                     Box::from_raw(ffi_dispatch!(
                         WAYLAND_CLIENT_HANDLE,
@@ -1063,42 +942,12 @@ impl Drop for Backend {
                 }
             }
             unsafe {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.handle.display)
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_display_disconnect,
+                    self.handle.handle.display
+                )
             }
         }
-    }
-}
-
-struct DumbObjectData;
-
-impl ObjectData for DumbObjectData {
-    fn event(
-        self: Arc<Self>,
-        _handle: &mut Handle,
-        _msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        unreachable!()
-    }
-
-    fn destroyed(&self, _object_id: ObjectId) {
-        unreachable!()
-    }
-}
-
-struct UninitObjectData;
-
-impl ObjectData for UninitObjectData {
-    fn event(
-        self: Arc<Self>,
-        _handle: &mut Handle,
-        msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        panic!("Received a message on an uninitialized object: {:?}", msg);
-    }
-
-    fn destroyed(&self, _object_id: ObjectId) {}
-
-    fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UninitObjectData").finish()
     }
 }
