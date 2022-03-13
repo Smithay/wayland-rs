@@ -1,7 +1,8 @@
 use std::{
     env,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fs::File,
+    io,
     ops::Range,
     os::unix::{
         io::{AsRawFd, FromRawFd, RawFd},
@@ -22,6 +23,7 @@ pub struct ListeningSocket {
     _lock: File,
     socket_path: PathBuf,
     lock_path: PathBuf,
+    socket_name: OsString,
 }
 
 impl ListeningSocket {
@@ -39,6 +41,7 @@ impl ListeningSocket {
         )
         .map_err(|_| BindError::PermissionDenied)?;
 
+        // SAFETY: We have just opened the file descriptor.
         let _lock = unsafe { File::from_raw_fd(lock_fd) };
 
         // lock the lockfile
@@ -66,7 +69,13 @@ impl ListeningSocket {
 
         listener.set_nonblocking(true).map_err(BindError::Io)?;
 
-        Ok(ListeningSocket { listener, _lock, socket_path, lock_path })
+        Ok(ListeningSocket {
+            listener,
+            _lock,
+            socket_path,
+            lock_path,
+            socket_name: socket_name.as_ref().to_owned(),
+        })
     }
 
     pub fn bind_auto(basename: &str, range: Range<usize>) -> Result<Self, BindError> {
@@ -83,16 +92,29 @@ impl ListeningSocket {
         Err(BindError::AlreadyInUse)
     }
 
-    pub fn accept(&self) -> std::io::Result<Option<UnixStream>> {
+    #[must_use = "the client must be initialized by the display using `Display::insert_client` or else the client will hang forever"]
+    pub fn accept(&self) -> io::Result<Option<UnixStream>> {
         match self.listener.accept() {
             Ok((stream, _)) => Ok(Some(stream)),
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    /// Returns the name of the listening socket.
+    pub fn socket_name(&self) -> &OsStr {
+        &self.socket_name
     }
 }
 
 impl AsRawFd for ListeningSocket {
+    /// Returns a file descriptor that may be polled for readiness.
+    ///
+    /// This file descriptor may be polled using apis such as epoll and kqueue to be told when a client has
+    /// found the socket and is trying to connect.
+    ///
+    /// When the polling system reports the file descriptor is ready, you can use [`ListeningSocket::accept`]
+    /// to get a stream to the new client.
     fn as_raw_fd(&self) -> RawFd {
         self.listener.as_raw_fd()
     }
@@ -114,5 +136,5 @@ pub enum BindError {
     #[error("Requested socket name is already in use")]
     AlreadyInUse,
     #[error("I/O error: {0}")]
-    Io(#[source] std::io::Error),
+    Io(#[source] io::Error),
 }
