@@ -78,6 +78,23 @@ impl<'a, D> DataInit<'a, D> {
         obj.__set_object_data(arc);
         obj
     }
+
+    /// Set a custom [`ObjectData`] for this object
+    ///
+    /// This object data is not managed by `wayland-server`, as a result you will not
+    /// be able to retreive it through [`Resource::data()`](Resource::data).
+    /// Instead, you'll need to directly retrieve it using
+    /// [`DisplayHandle::get_object_data()`](DisplayHandle::get_object_data).
+    pub fn custom_init<I: Resource + 'static>(
+        &mut self,
+        resource: New<I>,
+        data: Arc<dyn ObjectData<D>>,
+    ) -> I {
+        *self.store = Some(data.clone());
+        let mut obj = resource.id;
+        obj.__set_object_data(data.into_any_arc());
+        obj
+    }
 }
 
 /*
