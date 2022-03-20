@@ -42,7 +42,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
 downcast_rs::impl_downcast!(sync ObjectData<D>);
 
 #[cfg(not(tarpaulin_include))]
-impl<D> std::fmt::Debug for dyn ObjectData<D> {
+impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
     }
@@ -87,7 +87,7 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<D> std::fmt::Debug for dyn GlobalHandler<D> {
+impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
@@ -111,7 +111,7 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
 }
 
 #[cfg(not(tarpaulin_include))]
-impl<D> std::fmt::Debug for dyn ClientData<D> {
+impl<D: 'static> std::fmt::Debug for dyn ClientData<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
@@ -200,7 +200,7 @@ impl fmt::Debug for GlobalId {
 /// the backend via [`Backend::handle()`](super::Backend::handle), and is given to you as argument
 /// in most event callbacks.
 #[derive(Debug)]
-pub struct Handle<D> {
+pub struct Handle<D: 'static> {
     pub(crate) handle: server_impl::InnerHandle<D>,
 }
 
@@ -376,7 +376,7 @@ impl<D> Handle<D> {
 /// A backend is used to drive a wayland server by receiving requests, dispatching messages to the appropriate
 /// handlers and flushes requests to be sent back to the client.
 #[derive(Debug)]
-pub struct Backend<D> {
+pub struct Backend<D: 'static> {
     pub(crate) backend: server_impl::InnerBackend<D>,
 }
 

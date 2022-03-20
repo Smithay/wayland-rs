@@ -59,7 +59,7 @@ impl<I> New<I> {
 }
 
 #[derive(Debug)]
-pub struct DataInit<'a, D> {
+pub struct DataInit<'a, D: 'static> {
     pub(crate) store: &'a mut Option<Arc<dyn ObjectData<D>>>,
 }
 

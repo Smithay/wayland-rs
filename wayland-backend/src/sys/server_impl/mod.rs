@@ -218,7 +218,7 @@ struct GlobalUserData<D> {
 }
 
 #[derive(Debug)]
-pub struct InnerHandle<D> {
+pub struct InnerHandle<D: 'static> {
     display: *mut wl_display,
     pending_destructors: Vec<PendingDestructor<D>>,
     _data: std::marker::PhantomData<fn(&mut D)>,
@@ -226,7 +226,7 @@ pub struct InnerHandle<D> {
 }
 
 #[derive(Debug)]
-pub struct InnerBackend<D> {
+pub struct InnerBackend<D: 'static> {
     handle: Handle<D>,
 }
 
@@ -390,7 +390,7 @@ impl<D> Drop for InnerBackend<D> {
     }
 }
 
-impl<D> InnerHandle<D> {
+impl<D: 'static> InnerHandle<D> {
     pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return Err(InvalidId);
@@ -853,7 +853,10 @@ impl<D> InnerHandle<D> {
     }
 }
 
-unsafe fn init_client<D>(client: *mut wl_client, data: Arc<dyn ClientData<D>>) -> InnerClientId {
+unsafe fn init_client<D: 'static>(
+    client: *mut wl_client,
+    data: Arc<dyn ClientData<D>>,
+) -> InnerClientId {
     let alive = Arc::new(AtomicBool::new(true));
     let client_data = Box::into_raw(Box::new(ClientUserData { alive: alive.clone(), data }));
 
@@ -868,7 +871,7 @@ unsafe fn init_client<D>(client: *mut wl_client, data: Arc<dyn ClientData<D>>) -
     InnerClientId { ptr: client, alive }
 }
 
-unsafe fn client_id_from_ptr<D>(client: *mut wl_client) -> Option<InnerClientId> {
+unsafe fn client_id_from_ptr<D: 'static>(client: *mut wl_client) -> Option<InnerClientId> {
     // Safety: the provided pointer is a valid and initialized wl_client for type parameter D
     unsafe {
         client_user_data::<D>(client)
@@ -876,7 +879,7 @@ unsafe fn client_id_from_ptr<D>(client: *mut wl_client) -> Option<InnerClientId>
     }
 }
 
-unsafe fn client_user_data<D>(client: *mut wl_client) -> Option<*mut ClientUserData<D>> {
+unsafe fn client_user_data<D: 'static>(client: *mut wl_client) -> Option<*mut ClientUserData<D>> {
     if client.is_null() {
         return None;
     }
@@ -894,7 +897,10 @@ unsafe fn client_user_data<D>(client: *mut wl_client) -> Option<*mut ClientUserD
     }
 }
 
-unsafe extern "C" fn client_destroy_notify<D>(listener: *mut wl_listener, client_ptr: *mut c_void) {
+unsafe extern "C" fn client_destroy_notify<D: 'static>(
+    listener: *mut wl_listener,
+    client_ptr: *mut c_void,
+) {
     // Safety: if this function is invoked by libwayland its arguments must be valid
     let data = unsafe {
         Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut ClientUserData<D>)
@@ -914,7 +920,7 @@ unsafe extern "C" fn client_destroy_notify<D>(listener: *mut wl_listener, client
     }
 }
 
-unsafe extern "C" fn global_bind<D>(
+unsafe extern "C" fn global_bind<D: 'static>(
     client: *mut wl_client,
     data: *mut c_void,
     version: u32,
@@ -961,7 +967,7 @@ unsafe extern "C" fn global_bind<D>(
     })
 }
 
-unsafe extern "C" fn global_filter<D>(
+unsafe extern "C" fn global_filter<D: 'static>(
     client: *const wl_client,
     global: *const wl_global,
     _: *mut c_void,
@@ -990,7 +996,7 @@ unsafe extern "C" fn global_filter<D>(
     )
 }
 
-unsafe fn init_resource<D>(
+unsafe fn init_resource<D: 'static>(
     resource: *mut wl_resource,
     interface: &'static Interface,
     data: Option<Arc<dyn ObjectData<D>>>,
@@ -1016,7 +1022,7 @@ unsafe fn init_resource<D>(
     (InnerObjectId { interface, alive: Some(alive), id, ptr: resource }, udata)
 }
 
-unsafe extern "C" fn resource_dispatcher<D>(
+unsafe extern "C" fn resource_dispatcher<D: 'static>(
     _: *const c_void,
     resource: *mut c_void,
     opcode: u32,
@@ -1202,7 +1208,7 @@ unsafe extern "C" fn resource_dispatcher<D>(
     0
 }
 
-unsafe extern "C" fn resource_destructor<D>(resource: *mut wl_resource) {
+unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource) {
     // Safety: if this destructor is called resource is valid and initialized by us
     let udata = unsafe {
         Box::from_raw(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, resource)

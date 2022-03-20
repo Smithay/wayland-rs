@@ -17,7 +17,7 @@ use super::{
 */
 
 #[derive(Debug)]
-struct Global<D> {
+struct Global<D: 'static> {
     id: InnerGlobalId,
     interface: &'static Interface,
     version: u32,
@@ -27,7 +27,7 @@ struct Global<D> {
 
 #[derive(Debug)]
 
-pub struct Registry<D> {
+pub struct Registry<D: 'static> {
     globals: Vec<Option<Global<D>>>,
     known_registries: Vec<InnerObjectId>,
     last_serial: u32,

@@ -32,7 +32,7 @@ use smallvec::SmallVec;
 use super::{ClientId, InnerHandle};
 
 #[derive(Debug)]
-pub struct InnerBackend<D> {
+pub struct InnerBackend<D: 'static> {
     handle: Handle<D>,
     poll_fd: RawFd,
 }
@@ -322,7 +322,7 @@ impl<D> InnerBackend<D> {
     }
 }
 
-enum DispatchAction<D> {
+enum DispatchAction<D: 'static> {
     Request {
         object: Object<Data<D>>,
         object_id: InnerObjectId,
