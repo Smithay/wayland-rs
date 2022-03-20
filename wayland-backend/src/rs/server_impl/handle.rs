@@ -13,7 +13,7 @@ use super::{
 pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, InnerClientId, InnerObjectId);
 
 #[derive(Debug)]
-pub struct InnerHandle<D> {
+pub struct InnerHandle<D: 'static> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,

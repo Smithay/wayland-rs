@@ -91,7 +91,7 @@ pub struct InnerGlobalId {
 }
 
 #[derive(Debug)]
-pub(crate) struct Data<D> {
+pub(crate) struct Data<D: 'static> {
     user_data: Arc<dyn ObjectData<D>>,
     serial: u32,
 }

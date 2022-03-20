@@ -42,7 +42,7 @@ pub(crate) enum DisplayError {
 }
 
 #[derive(Debug)]
-pub(crate) struct Client<D> {
+pub(crate) struct Client<D: 'static> {
     socket: BufferedSocket,
     pub(crate) map: ObjectMap<Data<D>>,
     debug: bool,
@@ -646,7 +646,7 @@ impl<D> Client<D> {
 }
 
 #[derive(Debug)]
-pub(crate) struct ClientStore<D> {
+pub(crate) struct ClientStore<D: 'static> {
     clients: Vec<Option<Client<D>>>,
     last_serial: u32,
     debug: bool,

@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Display<D> {
+pub struct Display<D: 'static> {
     backend: Arc<Mutex<Backend<D>>>,
 }
 
