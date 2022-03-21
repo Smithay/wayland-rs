@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.30.0-alpha7
+
+- Introduce `DataInit::custom_init()`
+
 ## 0.30.0-alpha5
 
 - Introduce `Display::backend()`

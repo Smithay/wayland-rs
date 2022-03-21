@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-alpha7
+
 #### Bugfixes
 
 - Client-side with the rust backend, `wl_display` events are now properly printed with other events
