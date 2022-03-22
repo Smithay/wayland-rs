@@ -41,15 +41,15 @@ impl InnerObjectId {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}[{}]", self.interface.name, self.id, self.client_id.id)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ObjectId({}, {})", self, self.serial)
     }
@@ -96,8 +96,8 @@ pub(crate) struct Data<D: 'static> {
     serial: u32,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<D> Clone for Data<D> {
+    #[cfg_attr(coverage, no_coverage)]
     fn clone(&self) -> Data<D> {
         Data { user_data: self.user_data.clone(), serial: self.serial }
     }
@@ -106,6 +106,7 @@ impl<D> Clone for Data<D> {
 struct UninitObjectData;
 
 impl<D> ObjectData<D> for UninitObjectData {
+    #[cfg_attr(coverage, no_coverage)]
     fn request(
         self: Arc<Self>,
         _: &mut Handle<D>,
@@ -116,8 +117,10 @@ impl<D> ObjectData<D> for UninitObjectData {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
 
+    #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()
     }
