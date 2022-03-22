@@ -127,15 +127,15 @@ impl InnerObjectId {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ObjectId({})", self)
     }

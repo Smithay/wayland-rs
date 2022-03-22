@@ -55,15 +55,15 @@ impl std::cmp::PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ObjectId({}, {})", self, self.serial)
     }

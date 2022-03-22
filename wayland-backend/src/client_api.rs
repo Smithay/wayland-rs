@@ -32,13 +32,14 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
+    #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ObjectData").finish_non_exhaustive()
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for dyn ObjectData {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
     }
@@ -52,16 +53,16 @@ pub struct ObjectId {
     pub(crate) id: client_impl::InnerObjectId,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl fmt::Debug for ObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
@@ -281,6 +282,7 @@ impl Handle {
 pub(crate) struct DumbObjectData;
 
 impl ObjectData for DumbObjectData {
+    #[cfg_attr(coverage, no_coverage)]
     fn event(
         self: Arc<Self>,
         _handle: &mut Handle,
@@ -289,6 +291,7 @@ impl ObjectData for DumbObjectData {
         unreachable!()
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn destroyed(&self, _object_id: ObjectId) {
         unreachable!()
     }
@@ -297,6 +300,7 @@ impl ObjectData for DumbObjectData {
 pub(crate) struct UninitObjectData;
 
 impl ObjectData for UninitObjectData {
+    #[cfg_attr(coverage, no_coverage)]
     fn event(
         self: Arc<Self>,
         _handle: &mut Handle,
@@ -305,8 +309,10 @@ impl ObjectData for UninitObjectData {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn destroyed(&self, _object_id: ObjectId) {}
 
+    #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()
     }

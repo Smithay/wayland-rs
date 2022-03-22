@@ -66,15 +66,15 @@ impl std::cmp::PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for InnerObjectId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ObjectId({})", self)
     }
@@ -1254,6 +1254,7 @@ extern "C" {
 struct UninitObjectData;
 
 impl<D> ObjectData<D> for UninitObjectData {
+    #[cfg_attr(coverage, no_coverage)]
     fn request(
         self: Arc<Self>,
         _: &mut Handle<D>,
@@ -1264,8 +1265,10 @@ impl<D> ObjectData<D> for UninitObjectData {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
 
+    #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()
     }

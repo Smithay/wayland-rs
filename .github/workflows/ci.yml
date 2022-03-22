@@ -26,9 +26,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo
+          key: rust_stable-${{ hashFiles('**/Cargo.toml') }}
       - name: Format
         uses: actions-rs/cargo@v1
         with:
@@ -37,10 +36,6 @@ jobs:
 
   clippy-check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        rust: ['1.53.0', 'stable', 'beta']
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -58,14 +53,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
-      - name: Build cache
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-build-rust_stable-check-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo
+          key: rust_stable-${{ hashFiles('**/Cargo.toml') }}
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
       - name: Clippy
@@ -95,9 +84,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-rust_nightly-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo
+          key: rust_nightly-${{ hashFiles('**/Cargo.toml') }}
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
       - name: Downgrade to minimal dependencies
@@ -128,9 +116,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo
+          key: rust_nightly_coverage-${{ hashFiles('**/Cargo.toml') }}
       
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
@@ -138,20 +125,33 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           override: true
           default: true
-          profile: minimal
+          components: llvm-tools-preview, rustfmt
 
       - name: Runtime directory
         run: |
           mkdir -p $(pwd)/.runtime
           echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
-      - name: Coverage
-        uses: actions-rs/tarpaulin@v0.1
+      - name: Install grcov
+        uses: actions-rs/cargo@v1
         with:
-          args: --ignore-tests --workspace --exclude 'wayland-tests' --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
+          command: install
+          args: grcov
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --exclude 'wayland-tests'
+        env:
+          LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
+          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage"
+
+      - name: Coverage
+        run: grcov . --binary-path ./target/debug -s . -t lcov --branch --llvm --ignore-not-existing --ignore 'wayland-backend/src/test/*' --ignore '*/examples/*' --ignore '*/tests/*' --ignore '*/.cargo/registry/*' --excl-br-start "mod tests \{" --excl-start "mod tests \{" --excl-br-line "#\[derive\(" --excl-line "#\[derive\(" -o lcov.info
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
@@ -181,9 +181,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-rust_stable-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo
+          key: rust_nightly_coverage-${{ hashFiles('**/Cargo.toml') }}
       
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
@@ -191,20 +190,33 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           override: true
           default: true
-          profile: minimal
+          components: llvm-tools-preview, rustfmt
 
       - name: Runtime directory
         run: |
           mkdir -p $(pwd)/.runtime
           echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
-      - name: Coverage
-        uses: actions-rs/tarpaulin@v0.1
+      - name: Install grcov
+        uses: actions-rs/cargo@v1
         with:
-          args: --ignore-tests -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}" --exclude-files 'wayland-tests/*' --exclude-files 'wayland-scanner/tests/*'
+          command: install
+          args: grcov
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}"
+        env:
+          LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
+          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage"
+      
+      - name: Coverage
+        run: grcov . --binary-path ./target/debug -s . -t lcov --branch --llvm --ignore-not-existing --ignore 'wayland-tests/*' --ignore '*/examples/*' --ignore '*/tests/*' --ignore '*/.cargo/registry/*' --excl-br-start "mod tests \{" --excl-start "mod tests \{" --excl-br-line "#\[derive\(" --excl-line "#\[derive\(" -o lcov.info
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1

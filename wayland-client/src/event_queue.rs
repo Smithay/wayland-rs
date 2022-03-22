@@ -31,6 +31,7 @@ pub trait Dispatch<I: Proxy>: Sized {
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
     /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    #[cfg_attr(coverage, no_coverage)]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<Self>) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",
@@ -102,8 +103,8 @@ type QueueCallback<D> = fn(
 
 struct QueueEvent<D>(QueueCallback<D>, Message<ObjectId>, Arc<dyn ObjectData>);
 
-#[cfg(not(tarpaulin_include))]
 impl<D> std::fmt::Debug for QueueEvent<D> {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueEvent").field("msg", &self.1).finish_non_exhaustive()
     }
@@ -125,8 +126,8 @@ pub struct EventQueue<D> {
     backend: Arc<Mutex<Backend>>,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<D> std::fmt::Debug for EventQueue<D> {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EventQueue")
             .field("rx", &self.rx)
@@ -224,8 +225,8 @@ pub struct QueueHandle<D> {
     tx: UnboundedSender<QueueEvent<D>>,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<Data> std::fmt::Debug for QueueHandle<Data> {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueHandle").field("tx", &self.tx).finish()
     }
@@ -326,8 +327,8 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
     fn destroyed(&self, _: ObjectId) {}
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
     }
@@ -424,6 +425,7 @@ pub trait DelegateDispatch<
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
     /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    #[cfg_attr(coverage, no_coverage)]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<D>) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",

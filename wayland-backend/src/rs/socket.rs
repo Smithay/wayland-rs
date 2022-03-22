@@ -1,7 +1,7 @@
 //! Wayland socket manipulation
 
 use std::io::Result as IoResult;
-use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 
 use nix::sys::{socket, uio};
 
@@ -77,24 +77,9 @@ impl Socket {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl FromRawFd for Socket {
     unsafe fn from_raw_fd(fd: RawFd) -> Socket {
         Socket { fd }
-    }
-}
-
-#[cfg(not(tarpaulin_include))]
-impl AsRawFd for Socket {
-    fn as_raw_fd(&self) -> RawFd {
-        self.fd
-    }
-}
-
-#[cfg(not(tarpaulin_include))]
-impl IntoRawFd for Socket {
-    fn into_raw_fd(self) -> RawFd {
-        self.fd
     }
 }
 
@@ -279,7 +264,6 @@ impl BufferedSocket {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl AsRawFd for BufferedSocket {
     fn as_raw_fd(&self) -> RawFd {
         self.socket.fd
@@ -351,6 +335,7 @@ mod tests {
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
+    use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 
     use smallvec::smallvec;
 

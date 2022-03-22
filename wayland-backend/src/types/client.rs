@@ -4,8 +4,8 @@ pub struct NoWaylandLib;
 
 impl std::error::Error for NoWaylandLib {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for NoWaylandLib {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         f.write_str("could not load libwayland-client.so")
     }
@@ -20,8 +20,8 @@ pub enum WaylandError {
     Protocol(crate::protocol::ProtocolError),
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::error::Error for WaylandError {
+    #[cfg_attr(coverage, no_coverage)]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
             WaylandError::Io(e) => Some(e),
@@ -30,8 +30,8 @@ impl std::error::Error for WaylandError {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for WaylandError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             WaylandError::Io(e) => write!(f, "Io error: {}", e),
@@ -40,8 +40,8 @@ impl std::fmt::Display for WaylandError {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl Clone for WaylandError {
+    #[cfg_attr(coverage, no_coverage)]
     fn clone(&self) -> WaylandError {
         match self {
             WaylandError::Protocol(e) => WaylandError::Protocol(e.clone()),
@@ -56,15 +56,15 @@ impl Clone for WaylandError {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl From<crate::protocol::ProtocolError> for WaylandError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(err: crate::protocol::ProtocolError) -> WaylandError {
         WaylandError::Protocol(err)
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl From<std::io::Error> for WaylandError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(err: std::io::Error) -> WaylandError {
         WaylandError::Io(err)
     }
@@ -76,8 +76,8 @@ pub struct InvalidId;
 
 impl std::error::Error for InvalidId {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for InvalidId {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(f, "Invalid ObjectId")
     }

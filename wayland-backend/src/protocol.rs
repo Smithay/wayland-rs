@@ -85,8 +85,8 @@ impl<Id> Argument<Id> {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Argument::Int(value) => write!(f, "{}", value),
@@ -119,8 +119,8 @@ pub struct Interface {
     pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,
 }
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for Interface {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name)
     }
@@ -198,8 +198,8 @@ pub struct Message<Id> {
 
 impl std::error::Error for ProtocolError {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for ProtocolError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(
             f,

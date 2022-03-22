@@ -22,8 +22,8 @@ pub enum MessageWriteError {
 
 impl std::error::Error for MessageWriteError {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for MessageWriteError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             MessageWriteError::BufferTooSmall => {
@@ -53,8 +53,8 @@ pub enum MessageParseError {
 
 impl std::error::Error for MessageParseError {}
 
-#[cfg(not(tarpaulin_include))]
 impl std::fmt::Display for MessageParseError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             MessageParseError::MissingFD => {
