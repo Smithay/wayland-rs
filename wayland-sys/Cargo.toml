@@ -2,7 +2,7 @@
 name = "wayland-sys"
 version = "0.30.0-alpha8"
 repository = "https://github.com/smithay/wayland-rs"
-documentation = "https://smithay.github.io/wayland-rs/wayland_sys/"
+documentation = "https://docs.rs/wayland-sys/"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 description = "FFI bindings to the various libwayland-*.so libraries. You should only need this crate if you are working on custom wayland protocol extensions. Look at the crate wayland-client for usable bindings."
 license = "MIT"

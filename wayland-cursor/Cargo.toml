@@ -1,7 +1,7 @@
 [package]
 name = "wayland-cursor"
 version = "0.30.0-alpha8"
-documentation = "https://smithay.github.io/wayland-rs/wayland_client/"
+documentation = "https://docs.rs/wayland-cursor/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 license = "MIT"
