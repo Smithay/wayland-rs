@@ -99,7 +99,7 @@ fn parse_interface<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribu
                 "request" => interface.requests.push(parse_request(reader, attributes)),
                 "event" => interface.events.push(parse_event(reader, attributes)),
                 "enum" => interface.enums.push(parse_enum(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "interface" => break,
             _ => {}
@@ -148,7 +148,7 @@ fn parse_request<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
                 "description" => request.description = Some(parse_description(reader, attributes)),
                 "arg" => request.args.push(parse_arg(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "request" => break,
             _ => {}
@@ -178,7 +178,7 @@ fn parse_enum<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) 
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
                 "description" => enu.description = Some(parse_description(reader, attributes)),
                 "entry" => enu.entries.push(parse_entry(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "enum" => break,
             _ => {}
@@ -204,7 +204,7 @@ fn parse_event<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>)
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
                 "description" => event.description = Some(parse_description(reader, attributes)),
                 "arg" => event.args.push(parse_arg(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "event" => break,
             _ => {}
@@ -238,7 +238,7 @@ fn parse_arg<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>) -
         match reader.next() {
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
                 "description" => arg.description = Some(parse_description(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "arg" => break,
             _ => {}
@@ -287,7 +287,7 @@ fn parse_entry<R: Read>(reader: &mut EventReader<R>, attrs: Vec<OwnedAttribute>)
         match reader.next() {
             Ok(XmlEvent::StartElement { name, attributes, .. }) => match &name.local_name[..] {
                 "description" => entry.description = Some(parse_description(reader, attributes)),
-                _ => panic!("Unexpected tocken: `{}`", name.local_name),
+                _ => panic!("Unexpected token: `{}`", name.local_name),
             },
             Ok(XmlEvent::EndElement { ref name }) if name.local_name == "entry" => break,
             _ => {}
