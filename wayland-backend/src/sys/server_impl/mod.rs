@@ -239,7 +239,7 @@ impl<D> InnerBackend<D> {
             return Err(InitError::NoWaylandLib);
         }
 
-        let display = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create,) };
+        let display = unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_create) };
         if display.is_null() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
