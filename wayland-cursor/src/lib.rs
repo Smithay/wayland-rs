@@ -9,11 +9,10 @@
 //!
 //! First of all, you need to create a [`CursorTheme`], which represents the full cursor theme.
 //!
-//! From this theme, using the `get_cursor` method, you can load a specific [`Cursor`],
-//! which can contain several images if the cursor is animated. It also provides you with the
-//! means of querying which frame of the animation should be displayed at
-//! what time, as well as handles to the buffers containing these frames, to
-//! attach them to a wayland surface.
+//! From this theme, using the [`get_cursor()`](CursorTheme::get_cursor) method, you can load a
+//! specific [`Cursor`], which can contain several images if the cursor is animated. It also provides
+//! you with the means of querying which frame of the animation should be displayed at what time, as
+//! well as handles to the buffers containing these frames, to attach them to a wayland surface.
 //!
 //! # Example
 //!
@@ -27,8 +26,10 @@
 //! # use std::time::{Instant, Duration};
 //! # fn test(connection: &mut wayland_client::Connection, cursor_surface: &wayland_client::protocol::wl_surface::WlSurface, shm: wayland_client::protocol::wl_shm::WlShm) {
 //! // Load the default cursor theme.
-//! let mut cursor_theme = CursorTheme::load(&mut connection.handle(), shm, 32).expect("Could not load cursor theme");
-//! let cursor = cursor_theme.get_cursor(&mut connection.handle(), "wait").expect("Cursor not provided by theme");
+//! let mut cursor_theme = CursorTheme::load(&mut connection.handle(), shm, 32)
+//!     .expect("Could not load cursor theme");
+//! let cursor = cursor_theme.get_cursor(&mut connection.handle(), "wait")
+//!     .expect("Cursor not provided by theme");
 //!
 //! let start_time = Instant::now();
 //! loop {
@@ -254,7 +255,7 @@ impl Cursor {
 
     /// Given a time, calculate which frame to show, and how much time remains until the next frame.
     ///
-    /// Time will wrap, so if for instance the cursor has an animation during 100ms,
+    /// Time will wrap, so if for instance the cursor has an animation lasting 100ms,
     /// then calling this function with 5ms and 105ms as input gives the same output.
     pub fn frame_and_duration(&self, mut millis: u32) -> FrameAndDuration {
         millis %= self.total_duration;
@@ -289,9 +290,7 @@ impl Index<usize> for Cursor {
 ///
 /// You can access the `WlBuffer` via `Deref`.
 ///
-/// ## Usage of proxies
-///
-/// Note that this proxy will be considered as "unmanaged" by the crate, as such you should
+/// Note that this buffer is internally managed by wayland-cursor, as such you should
 /// not try to act on it beyond assigning it to `wl_surface`s.
 #[derive(Debug, Clone)]
 pub struct CursorImageBuffer {
