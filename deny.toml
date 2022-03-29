@@ -1,0 +1,25 @@
+exclude = ["wayland-tests"]
+
+[advisories]
+vulnerability = "deny"
+unmaintained = "deny"
+notice = "deny"
+
+[bans]
+multiple-versions = "deny"
+deny = [
+]
+skip = [
+]
+
+[licenses]
+unlicensed = "deny"
+allow-osi-fsf-free = "neither"
+copyleft = "deny"
+confidence-threshold = 0.93 # We want really high confidence when inferring licenses from text
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "ISC",
+    "BSD-3-Clause",
+] 
