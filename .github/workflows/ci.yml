@@ -64,9 +64,11 @@ jobs:
           args: --all --all-features --all-targets -- -D warnings -A clippy::non-send-fields-in-send-ty
 
   check-minimal:
+    needs:
+      - format
+      - clippy-check
     env:
       RUSTFLAGS: "-D warnings"
-
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -97,12 +99,45 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all
+          args: --all --all-features
+  
+  msrv:
+    needs:
+      - format
+      - clippy-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.53.0
+          override: true
+          profile: minimal
+          default: true
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+          key: rust_msrv-${{ hashFiles('**/Cargo.toml') }}
+      - name: System dependencies
+        run: sudo apt-get install libwayland-dev
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --all-features
   
   coverage-main:
     needs:
       - format
       - clippy-check
+      - msrv
+      - check-minimal
       
     runs-on: ubuntu-latest
 
@@ -162,6 +197,8 @@ jobs:
     needs:
       - format
       - clippy-check
+      - msrv
+      - check-minimal
       
     runs-on: ubuntu-latest
 
