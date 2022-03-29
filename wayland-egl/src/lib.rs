@@ -8,7 +8,7 @@
 //! This library is used to interface with the OpenGL stack, and creating
 //! EGL surfaces from a wayland surface.
 //!
-//! See WlEglSurface documentation for details.
+//! See [`WlEglSurface`] documentation for details.
 
 use std::os::raw::c_void;
 
@@ -17,7 +17,7 @@ use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 
 /// Checks if the wayland-egl lib is available and can be used
 ///
-/// Trying to create an `WlEglSurface` while this function returns
+/// Trying to create an [`WlEglSurface`] while this function returns
 /// `false` will result in a panic.
 pub fn is_available() -> bool {
     is_lib_available()
@@ -25,11 +25,11 @@ pub fn is_available() -> bool {
 
 /// EGL surface
 ///
-/// This object is a simple wrapper around a `WlSurface` to add the EGL
-/// capabilities. Just use the `ptr` method once this object is created
-/// to get the window pointer your OpenGL library is needing to initialize the
-/// EGL context (you'll most likely need the display ptr as well, that you can
-/// get via the `ptr` method of the `Proxy` trait on the `WlDisplay` object).
+/// This object is a simple wrapper around a `wl_surface` to add the EGL
+/// capabilities. Just use the [`ptr()`](WlEglSurface::ptr) method once this object
+/// is created to get the window pointer your OpenGL library is needing to initialize
+/// the EGL context (you'll most likely need the display ptr as well, that you can
+/// get via the [`ObjectId::as_ptr()`] method on of the `wl_display` ID).
 #[derive(Debug)]
 pub struct WlEglSurface {
     ptr: *mut wl_egl_window,
