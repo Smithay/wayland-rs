@@ -5,8 +5,9 @@
 
 # wayland-scanner
 
-Code-generation for Wayland protocols, to be used with `wayland-client` or `wayland-server`
-to integrate them with your own protocol extensions.
+This crate provides procedural macros for generating the rust code associated with a
+Wayland XML protocol specification, for use with the `wayland-client`, `wayland-server`
+and `wayland-backend` crates.
 
-Most general protocol extensions are already exposed by the `wayland-protocols` crate, so you
-don't need to use `wayland-scanner` directly to support them.
+Before trying to use this crate, you may check if the protocol extension you want to use
+is not already exposed in the `wayland-protocols` crate.
