@@ -12,7 +12,7 @@
 
 use std::os::raw::c_void;
 
-use wayland_backend::{client::InvalidId, sys::client::ObjectId};
+use wayland_backend::client::ObjectId;
 use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 
 /// Checks if the wayland-egl lib is available and can be used
@@ -40,17 +40,21 @@ impl WlEglSurface {
     ///
     /// This method will check that the provided `ObjectId` is still alive and from the
     /// correct interface (`wl_surface`).
-    pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<WlEglSurface, InvalidId> {
+    ///
+    /// You must always destroy the [`WlEglSurface`] *before* the underling `wl_surface`
+    /// protocol object.
+    pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<WlEglSurface, Error> {
         if surface.interface().name != "wl_surface" {
-            return Err(InvalidId);
+            return Err(Error::InvalidId);
         }
 
         let ptr = surface.as_ptr();
         if ptr.is_null() {
-            Err(InvalidId)
+            // ObjectId::as_ptr() returns NULL if the surface is no longer alive
+            Err(Error::InvalidId)
         } else {
             // SAFETY: We are sure the pointer is valid and the interface is correct.
-            Ok(unsafe { WlEglSurface::new_from_raw(ptr, width, height) })
+            unsafe { WlEglSurface::new_from_raw(ptr, width, height) }
         }
     }
 
@@ -59,9 +63,19 @@ impl WlEglSurface {
     /// # Safety
     ///
     /// The provided pointer must be a valid `wl_surface` pointer from `libwayland-client`.
-    pub unsafe fn new_from_raw(surface: *mut wl_proxy, width: i32, height: i32) -> WlEglSurface {
+    pub unsafe fn new_from_raw(
+        surface: *mut wl_proxy,
+        width: i32,
+        height: i32,
+    ) -> Result<WlEglSurface, Error> {
+        if width <= 0 || height <= 0 {
+            return Err(Error::InvalidSize);
+        }
         let ptr = ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_create, surface, width, height);
-        WlEglSurface { ptr }
+        if ptr.is_null() {
+            panic!("egl window allocation failed");
+        }
+        Ok(WlEglSurface { ptr })
     }
 
     /// Fetch current size of the EGL surface
@@ -111,4 +125,15 @@ impl Drop for WlEglSurface {
             ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_destroy, self.ptr);
         }
     }
+}
+
+/// EGL surface creation error.
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    /// Surface width or height are <= 0.
+    #[error("surface width or height is <= 0")]
+    InvalidSize,
+    /// Passed surface object is not a surface.
+    #[error("object id is not a surface")]
+    InvalidId,
 }

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `WlEglSurface` creation API now correcly handles all error conditions, as a result
+  `wayland-egl` now has its own error type.
+
 ## 0.30.0-alpha6
 
 #### Breaking changes

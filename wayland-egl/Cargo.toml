@@ -14,3 +14,4 @@ readme = "README.md"
 [dependencies]
 wayland-backend = { version = "0.1.0-alpha8", path = "../wayland-backend", features = ["client_system"] }
 wayland-sys = { version = "0.30.0-alpha8", path="../wayland-sys", features = ["egl"] }
+thiserror = "1.0.30"
