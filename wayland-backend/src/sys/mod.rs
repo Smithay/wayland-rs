@@ -69,8 +69,8 @@ impl server::ObjectId {
     ///
     /// # Errors
     ///
-    /// This function returns an [`InvalidId`] error if the interface of the resource does not match the
-    /// provided interface.
+    /// This function returns an [`InvalidId`](server::InvalidId) error if the interface of the
+    /// resource does not match the provided interface.
     ///
     /// # Safety
     ///

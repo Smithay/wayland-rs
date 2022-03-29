@@ -200,7 +200,7 @@ impl fmt::Debug for GlobalId {
 ///
 /// This type hosts most of the protocol-related functionality of the backend, and is the
 /// main entry point for manipulating Wayland objects. It can be retrieved both from
-/// the backend via [`Backend::handle()`](super::Backend::handle), and is given to you as argument
+/// the backend via [`Backend::handle()`](Backend::handle), and is given to you as argument
 /// in most event callbacks.
 #[derive(Debug)]
 pub struct Handle<D: 'static> {
