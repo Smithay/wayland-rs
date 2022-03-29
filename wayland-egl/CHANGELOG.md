@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-alpha9
+
 #### Breaking changes
 
 - `WlEglSurface` creation API now correcly handles all error conditions, as a result
