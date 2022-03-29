@@ -2,6 +2,22 @@
 //!
 //! This crate provide low-level APIs for interacting with the Wayland protocol,
 //! both client-side and server-side.
+//!
+//! Two possible backends are provided by this crate: the system backend ([`sys`] module)
+//! which relies on the system-provided wayland libraries, and the rust backend ([`rs`] module)
+//! which is an alternative rust implementation of the protocol. The rust backend is always
+//! available, and the system backend is controlled by the `client_system` and `server_system`
+//! cargo features. The `dlopen` cargo feature ensures that the system wayland
+//! libraries are loaded dynamically at runtime, so that your executable does not link them and
+//! can gracefully handle their absence (for example by falling back to X11).
+//!
+//! Additionnaly the default backends are reexported as toplevel `client` and `server` modules
+//! in this crate. For both client and server, the default backend is the system one if the
+//! associated cargo feature is enabled, and the rust one otherwise. Using these reexports is the
+//! recommended way to use the crate.
+//!
+//! Both backends have the exact same API, except that the system backend additionnaly provides
+//! functions related to FFI.
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
