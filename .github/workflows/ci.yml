@@ -63,10 +63,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all --all-features --all-targets -- -D warnings -A clippy::non-send-fields-in-send-ty
 
+  cargo-deny:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
   check-minimal:
     needs:
       - format
       - clippy-check
+      - cargo-deny
     env:
       RUSTFLAGS: "-D warnings"
     runs-on: ubuntu-latest
@@ -105,6 +117,7 @@ jobs:
     needs:
       - format
       - clippy-check
+      - cargo-deny
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -138,6 +151,7 @@ jobs:
       - clippy-check
       - msrv
       - check-minimal
+      - cargo-deny
       
     runs-on: ubuntu-latest
 
@@ -199,6 +213,7 @@ jobs:
       - clippy-check
       - msrv
       - check-minimal
+      - cargo-deny
       
     runs-on: ubuntu-latest
 
