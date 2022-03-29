@@ -52,7 +52,9 @@ pub mod cursor;
 #[cfg(feature = "server")]
 pub use libc::{gid_t, pid_t, uid_t};
 
-// Small hack while #[macro_reexport] is not stable
+// We cannot just reexport dlib::ffi_dispatch, because it'd then
+// use the "dlopen" feature *on the crate invoking it* rather than
+// the "dlopen" feature of wayland-sys.
 
 #[cfg(feature = "dlopen")]
 #[macro_export]
