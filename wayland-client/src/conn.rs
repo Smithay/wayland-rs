@@ -129,7 +129,7 @@ impl Connection {
         let done = Arc::new(AtomicBool::new(false));
         {
             let mut backend = self.backend.lock().unwrap();
-            let mut handle = ConnectionHandle::from_handle(backend.handle());
+            let mut handle = ConnectionHandle::from(backend.handle());
             let display = handle.display();
             let cb_done = done.clone();
             let sync_data = Arc::new(SyncData { done: cb_done });
@@ -195,6 +195,8 @@ pub(crate) fn blocking_dispatch_impl(backend: Arc<Mutex<Backend>>) -> Result<usi
 }
 
 /// A handle to the Wayland connection
+///
+/// A connection handle may be constructed from a [`Handle`] using it's [`From`] implementation.
 #[derive(Debug)]
 pub struct ConnectionHandle<'a> {
     pub(crate) inner: HandleInner<'a>,
@@ -217,8 +219,9 @@ impl<'a> HandleInner<'a> {
 }
 
 impl<'a> ConnectionHandle<'a> {
-    pub(crate) fn from_handle(handle: &'a mut Handle) -> ConnectionHandle<'a> {
-        ConnectionHandle { inner: HandleInner::Handle(handle) }
+    /// Returns the underlying [`Handle`] from `wayland-backend`.
+    pub fn backend_handle(&mut self) -> &mut Handle {
+        self.inner.handle()
     }
 
     /// Get the `WlDisplay` associated with this connection
@@ -268,6 +271,13 @@ impl<'a> ConnectionHandle<'a> {
     /// Get the protocol information related to given object ID
     pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.inner.handle().info(id)
+    }
+}
+
+impl<'a> From<&'a mut Handle> for ConnectionHandle<'a> {
+    /// Creates a [`ConnectionHandle`] using a [`&mut Handle`](Handle) from `wayland-backend`.
+    fn from(handle: &'a mut Handle) -> Self {
+        ConnectionHandle { inner: HandleInner::Handle(handle) }
     }
 }
 
