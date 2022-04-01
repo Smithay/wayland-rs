@@ -209,7 +209,7 @@ impl<D> EventQueue<D> {
         qhandle: &QueueHandle<D>,
         data: &mut D,
     ) -> Result<usize, DispatchError> {
-        let mut handle = ConnectionHandle::from_handle(backend.handle());
+        let mut handle = ConnectionHandle::from(backend.handle());
         let mut dispatched = 0;
 
         while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
