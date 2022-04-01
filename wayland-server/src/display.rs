@@ -79,6 +79,9 @@ impl<D: 'static> Display<D> {
     }
 }
 
+/// A handle to the Wayland display
+///
+/// A display handle may be constructed from a [`Handle`] using it's [`From`] implementation.
 pub struct DisplayHandle<'a> {
     pub(crate) inner: HandleInner<'a>,
 }
@@ -114,8 +117,11 @@ impl<'a> HandleInner<'a> {
 }
 
 impl<'a> DisplayHandle<'a> {
-    pub(crate) fn from_handle<D: 'static>(handle: &'a mut Handle<D>) -> DisplayHandle<'a> {
-        DisplayHandle { inner: HandleInner::Handle(handle) }
+    /// Returns the underlying [`Handle`] from `wayland-backend`.
+    ///
+    /// You must know the type of data the display dispatches in order to get the handle.
+    pub fn backend_handle<D: 'static>(&mut self) -> Option<&mut Handle<D>> {
+        self.inner.typed_handle()
     }
 
     pub fn get_object_data(
@@ -148,6 +154,13 @@ impl<'a> DisplayHandle<'a> {
 
     pub fn post_error<I: Resource>(&mut self, resource: &I, code: u32, error: String) {
         self.inner.handle().post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
+    }
+}
+
+impl<'a, D: 'static> From<&'a mut Handle<D>> for DisplayHandle<'a> {
+    /// Creates a [`DisplayHandle`] using a [`&mut Handle`](Handle) from `wayland-backend`.
+    fn from(handle: &'a mut Handle<D>) -> Self {
+        DisplayHandle { inner: HandleInner::Handle(handle) }
     }
 }
 
@@ -192,7 +205,7 @@ impl<D: 'static> ErasedDisplayHandle for Handle<D> {
 
     fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
         let client_id = Handle::<D>::get_client(self, id)?;
-        Client::from_id(&mut DisplayHandle::from_handle(self), client_id)
+        Client::from_id(&mut DisplayHandle::from(self), client_id)
     }
 
     fn null_id(&mut self) -> ObjectId {
@@ -246,7 +259,7 @@ impl<D: 'static> ErasedDisplayHandle for Backend<D> {
 
     fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
         let client_id = Handle::<D>::get_client(self.handle(), id)?;
-        Client::from_id(&mut DisplayHandle::from_handle(self.handle()), client_id)
+        Client::from_id(&mut DisplayHandle::from(self.handle()), client_id)
     }
 
     fn null_id(&mut self) -> ObjectId {

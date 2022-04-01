@@ -160,7 +160,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
         client_id: wayland_backend::server::ClientId,
         msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
-        let mut dhandle = DisplayHandle::from_handle(handle);
+        let mut dhandle = DisplayHandle::from(handle);
         let client = match Client::from_id(&mut dhandle, client_id) {
             Ok(v) => v,
             Err(_) => {
