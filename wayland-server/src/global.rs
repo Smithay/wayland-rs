@@ -27,7 +27,7 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
         _: GlobalId,
         object_id: ObjectId,
     ) -> Arc<dyn ObjectData<D>> {
-        let mut handle = DisplayHandle::from_handle(handle);
+        let mut handle = DisplayHandle::from(handle);
         let client = Client::from_id(&mut handle, client_id).expect("Dead client in bind ?!");
         let resource = <I as Resource>::from_id(&mut handle, object_id)
             .expect("Wrong object_id in GlobalHandler ?!");
