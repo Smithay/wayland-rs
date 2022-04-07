@@ -1,6 +1,6 @@
 [package]
 name = "wayland-cursor"
-version = "0.30.0-alpha9"
+version = "0.30.0-alpha10"
 documentation = "https://docs.rs/wayland-cursor/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -12,6 +12,6 @@ description = "Bindings to libwayland-cursor."
 readme = "README.md"
 
 [dependencies]
-wayland-client = { version = "0.30.0-alpha9", path = "../wayland-client" }
+wayland-client = { version = "0.30.0-alpha10", path = "../wayland-client" }
 xcursor = "0.3.1"
 nix = "0.23"

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.30.0-alpha10
+
+- Introduce conversion methods between `wayland_backend::Handle` and `DisplayHandle`
+
 ## 0.30.0-alpha7
 
 - Introduce `DataInit::custom_init()`

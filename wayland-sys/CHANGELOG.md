@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-alpha10
+
 ### Changes
 
 - The `ffi_dispatch!` macro no longer requires a trailing comma when invoking functions without
