@@ -31,5 +31,5 @@ fn main() {
 
     println!("Advertized globals:");
 
-    event_queue.blocking_dispatch(&mut AppData).unwrap();
+    event_queue.sync_roundtrip(&mut AppData).unwrap();
 }

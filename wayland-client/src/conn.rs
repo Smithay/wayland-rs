@@ -301,8 +301,8 @@ pub enum ConnectError {
     wl_callback object data for wl_display.sync
 */
 
-struct SyncData {
-    done: Arc<AtomicBool>,
+pub(crate) struct SyncData {
+    pub(crate) done: Arc<AtomicBool>,
 }
 
 impl ObjectData for SyncData {

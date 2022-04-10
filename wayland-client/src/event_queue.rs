@@ -1,12 +1,16 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use nix::Error;
 use wayland_backend::{
     client::{Backend, Handle, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::Message,
 };
 
-use crate::{ConnectionHandle, DispatchError, Proxy};
+use crate::{conn::SyncData, ConnectionHandle, DispatchError, Proxy};
 
 /// A trait which provides an implementation for handling events from the server on a proxy with some type of
 /// associated user data.
@@ -162,7 +166,7 @@ impl<D> EventQueue<D> {
     /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending), but if there are no
     /// pending events it will also block waiting for the Wayland server to send an event.
     ///
-    /// A simple app event loop can consist in invoking this method in a loop.
+    /// A simple app event loop can consist of invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut D) -> Result<usize, DispatchError> {
         let dispatched = Self::dispatching_impl(
             &mut self.backend.lock().unwrap(),
@@ -181,6 +185,40 @@ impl<D> EventQueue<D> {
                 data,
             )
         }
+    }
+
+    /// Synchronous roundtrip
+    ///
+    /// This function will cause a synchronous round trip with the wayland server. This function will block
+    /// until all requests in the queue are sent and processed by the server.
+    ///
+    /// This function may be useful during initial setup with the compositor. This function may also be useful
+    /// where you need to guarantee all requests prior to calling this function are completed.
+    pub fn sync_roundtrip(&mut self, data: &mut D) -> Result<usize, DispatchError> {
+        let done = Arc::new(AtomicBool::new(false));
+
+        {
+            let mut backend = self.backend.lock().unwrap();
+            let mut handle = ConnectionHandle::from(backend.handle());
+            let display = handle.display();
+            let cb_done = done.clone();
+            let sync_data = Arc::new(SyncData { done: cb_done });
+            handle
+                .send_request(
+                    &display,
+                    crate::protocol::wl_display::Request::Sync {},
+                    Some(sync_data),
+                )
+                .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
+        }
+
+        let mut dispatched = 0;
+
+        while !done.load(Ordering::Acquire) {
+            dispatched += self.blocking_dispatch(data)?;
+        }
+
+        Ok(dispatched)
     }
 
     /// Start a synchronized read from the socket
