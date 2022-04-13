@@ -317,12 +317,14 @@ impl<T: Copy + Default> Buffer<T> {
     /// Move the unread contents of the buffer to the front, to ensure
     /// maximal write space availability
     fn move_to_front(&mut self) {
-        unsafe {
-            ::std::ptr::copy(
-                &self.storage[self.offset] as *const T,
-                &mut self.storage[0] as *mut T,
-                self.occupied - self.offset,
-            );
+        if self.occupied > self.offset {
+            unsafe {
+                ::std::ptr::copy(
+                    &self.storage[self.offset] as *const T,
+                    &mut self.storage[0] as *mut T,
+                    self.occupied - self.offset,
+                );
+            }
         }
         self.occupied -= self.offset;
         self.offset = 0;

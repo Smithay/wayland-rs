@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Fix a crash when exactly filling the internal buffers.
+
 ## 0.1.0-alpha7
 
 #### Bugfixes
