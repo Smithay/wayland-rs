@@ -8,7 +8,7 @@ use wayland_client::{
     Connection, ConnectionHandle, Dispatch, QueueHandle, WEnum,
 };
 
-use wayland_protocols::xdg_shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
+use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
 fn main() {
     let conn = Connection::connect_to_env().unwrap();

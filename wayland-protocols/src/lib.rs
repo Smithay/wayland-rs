@@ -7,27 +7,41 @@
 //! protocol. The creation of these modules (and the dependency on the associated crate) is
 //! controlled by the two cargo features `client` and `server`.
 //!
-//! The cargo feature `unstable_protocols` adds an `unstable` module, containing bindings
-//! to protocols that are not yet considered stable. As such, no stability guarantee is
-//! given for these protocols.
+//! ## Protocol categories
 //!
-//! Some protocols require unstable rust features, the inclusion of them is controlled
-//! by the cargo feature `nightly`.
+//! The protocols provided in this crate are grouped in 3 main categories:
+//!
+//! - The [`wp`] module contains general purpose wayland protocols
+//! - The [`xdg`] module contains protocols specifically related to window management
+//! - The [`ext`] module contains protocols that do not fit into the two previous categories.
+//!
+//! ## Staging protocols
+//!
+//! The cargo feature `staging` enables the generation of the staging protocols.
+//!
+//! These protocols are ready for wider adoption and clients and compositors are encouraged to
+//! implement staging protocol extensions where a protocol's functionality is desired.
+//!
+//! Although these protocols should be stable, the protocols may still be completely replaced in a new
+//! major version or with a completely different protocol.
+//!
+//! ## Unstable protocols
+//!
+//! The `wayland-protocols` project previously had a notion of "unstable protocols" representing protocols
+//! that are still being worked on and evolving. These protocols are recognized by the use of the prefix `z`
+//! in their interface names.
+//!
+//! This category has now been deprecated and is no longer supposed to be used, however several protocols
+//! are still under that umbrella. We can expect them to be replaced by staging and stable protocols in the
+//! long term, but in the meantime you can enable them with the `unstable` cargo feature.
 
 #![warn(missing_docs)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 #[macro_use]
 mod protocol_macro;
 
-#[cfg(feature = "unstable_protocols")]
-pub mod staging;
-
-#[cfg(feature = "unstable_protocols")]
-pub mod unstable;
-
-pub mod misc;
-pub mod wlr;
-
-mod stable;
-pub use stable::*;
+pub mod ext;
+pub mod wp;
+pub mod xdg;

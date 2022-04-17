@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Breaking Change
+
+- Complete reorganization of the crate around the `wp`/`xdg`/`ext` categories
+- Protocols from other origins than the officiel repository are now split into their own crates
+
 ## 0.30.0-alpha6
 
 ### Additions
