@@ -6,6 +6,7 @@ members = [
     "wayland-egl",
     "wayland-protocols",
     "wayland-protocols-misc",
+    "wayland-protocols-plasma",
     "wayland-protocols-wlr",
     "wayland-scanner",
     "wayland-server",

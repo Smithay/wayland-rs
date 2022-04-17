@@ -4,3 +4,6 @@
 [submodule "wayland-protocols-wlr/wlr-protocols"]
 	path = wayland-protocols-wlr/wlr-protocols
 	url = https://gitlab.freedesktop.org/wlroots/wlr-protocols.git
+[submodule "wayland-protocols-plasma/plasma-wayland-protocols"]
+	path = wayland-protocols-plasma/plasma-wayland-protocols
+	url = https://github.com/KDE/plasma-wayland-protocols.git
