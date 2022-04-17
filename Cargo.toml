@@ -1,12 +1,13 @@
 [workspace]
 members = [
-    "wayland-sys",
-    "wayland-scanner",
     "wayland-backend",
     "wayland-client",
-    "wayland-server",
-    "wayland-protocols",
-    "wayland-egl",
     "wayland-cursor",
+    "wayland-egl",
+    "wayland-protocols",
+    "wayland-protocols-wlr",
+    "wayland-scanner",
+    "wayland-server",
+    "wayland-sys",
     "wayland-tests",
 ]

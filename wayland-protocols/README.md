@@ -18,3 +18,6 @@ The provided objects are controlled by cargo features:
 - the `staging` enable the generation of protocols in the staging process and will soon become stable.
 - the `unstable` enable the generation of not-yet-stabilized protocols
 
+For other protocols, see also:
+
+- [wayland-protocols-wlr](https://crates.io/crates/wayland-protocols-wlr) for the WLR set of protocol extensions
