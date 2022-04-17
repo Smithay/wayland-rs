@@ -5,6 +5,7 @@ members = [
     "wayland-cursor",
     "wayland-egl",
     "wayland-protocols",
+    "wayland-protocols-misc",
     "wayland-protocols-wlr",
     "wayland-scanner",
     "wayland-server",
