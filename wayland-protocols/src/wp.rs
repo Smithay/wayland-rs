@@ -1,26 +1,50 @@
-//! Unstable protocols from wayland-protocols
-//!
-//! The protocols described in this module are experimental and
-//! provide no guarantee of forward support. They may be abandoned
-//! or never widely implemented.
-//!
-//! Backward compatible changes may be added together with the
-//! corresponding interface version bump.
-//!
-//! Backward incompatible changes are done by bumping the version
-//! number in the protocol and interface names and resetting the
-//! interface version. Once the protocol is to be declared stable,
-//! the 'z' prefix and the version number in the protocol and
-//! interface names are removed and the interface version number is
-//! reset.
+//! Generic wayland protocols
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
+#[cfg(feature = "staging")]
+pub mod drm_lease {
+    //! This protocol is used by Wayland compositors which act as Direct
+    //! Renderering Manager (DRM) masters to lease DRM resources to Wayland
+    //! clients.
+    //!
+    //! The compositor will advertise one wp_drm_lease_device_v1 global for each
+    //! DRM node. Some time after a client binds to the wp_drm_lease_device_v1
+    //! global, the compositor will send a drm_fd event followed by zero, one or
+    //! more connector events. After all currently available connectors have been
+    //! sent, the compositor will send a wp_drm_lease_device_v1.done event.
+    //!
+    //! When the list of connectors available for lease changes the compositor
+    //! will send wp_drm_lease_device_v1.connector events for added connectors and
+    //! wp_drm_lease_connector_v1.withdrawn events for removed connectors,
+    //! followed by a wp_drm_lease_device_v1.done event.
+    //!
+    //! The compositor will indicate when a device is gone by removing the global
+    //! via a wl_registry.global_remove event. Upon receiving this event, the
+    //! client should destroy any matching wp_drm_lease_device_v1 object.
+    //!
+    //! To destroy a wp_drm_lease_device_v1 object, the client must first issue
+    //! a release request. Upon receiving this request, the compositor will
+    //! immediately send a released event and destroy the object. The client must
+    //! continue to process and discard drm_fd and connector events until it
+    //! receives the released event. Upon receiving the released event, the
+    //! client can safely cleanup any client-side resources.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/drm-lease/drm-lease-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "unstable")]
 pub mod fullscreen_shell {
     //! Fullscreen shell protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml",
             []
@@ -28,11 +52,12 @@ pub mod fullscreen_shell {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod idle_inhibit {
     //! Screensaver inhibition protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml",
             []
@@ -40,11 +65,12 @@ pub mod idle_inhibit {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod input_method {
     //! Input method protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/input-method/input-method-unstable-v1.xml",
             []
@@ -52,11 +78,12 @@ pub mod input_method {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod input_timestamps {
     //! Input timestamps protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/input-timestamps/input-timestamps-unstable-v1.xml",
             []
@@ -64,6 +91,7 @@ pub mod input_timestamps {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod keyboard_shortcuts_inhibit {
     //! Protocol for inhibiting the compositor keyboard shortcuts
     //!
@@ -72,7 +100,7 @@ pub mod keyboard_shortcuts_inhibit {
     //! key events from that seat get forwarded to a surface.
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/keyboard-shortcuts-inhibit/keyboard-shortcuts-inhibit-unstable-v1.xml",
             []
@@ -80,11 +108,12 @@ pub mod keyboard_shortcuts_inhibit {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod linux_dmabuf {
     //! Linux DMA-BUF protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml",
             []
@@ -92,11 +121,12 @@ pub mod linux_dmabuf {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod linux_explicit_synchronization {
     //! Linux explicit synchronization protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/linux-explicit-synchronization/linux-explicit-synchronization-unstable-v1.xml",
             []
@@ -104,6 +134,7 @@ pub mod linux_explicit_synchronization {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod pointer_constraints {
     //! protocol for constraining pointer motions
     //!
@@ -118,7 +149,7 @@ pub mod pointer_constraints {
     //! to make. See wp_pointer_constraints for more details.
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml",
             []
@@ -126,11 +157,12 @@ pub mod pointer_constraints {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod pointer_gestures {
     //! Pointer gestures protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/pointer-gestures/pointer-gestures-unstable-v1.xml",
             []
@@ -138,11 +170,23 @@ pub mod pointer_gestures {
     }
 }
 
+pub mod presentation_time {
+    //! Presentation time protocol
+    //!
+    //! Allows precise feedback on presentation timing, for example for smooth video playback.
+
+    wayland_protocol!(
+        "./protocols/stable/presentation-time/presentation-time.xml",
+        []
+    );
+}
+
+#[cfg(feature = "unstable")]
 pub mod primary_selection {
     //! Primary selection protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/primary-selection/primary-selection-unstable-v1.xml",
             []
@@ -150,6 +194,7 @@ pub mod primary_selection {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod relative_pointer {
     //! protocol for relative pointer motion events
     //!
@@ -168,7 +213,7 @@ pub mod relative_pointer {
     //! relative pointer interface for more details.
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml",
             []
@@ -176,6 +221,7 @@ pub mod relative_pointer {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod tablet {
     //! Wayland protocol for graphics tablets
     //!
@@ -257,7 +303,7 @@ pub mod tablet {
     //! tool was used on are removed.
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/tablet/tablet-unstable-v1.xml",
             []
@@ -265,7 +311,7 @@ pub mod tablet {
     }
 
     /// Unstable version 2
-    pub mod v2 {
+    pub mod zv2 {
         wayland_protocol!(
             "./protocols/unstable/tablet/tablet-unstable-v2.xml",
             []
@@ -273,11 +319,12 @@ pub mod tablet {
     }
 }
 
+#[cfg(feature = "unstable")]
 pub mod text_input {
     //! Text input protocol
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/text-input/text-input-unstable-v1.xml",
             []
@@ -285,7 +332,7 @@ pub mod text_input {
     }
 
     /// Unstable version 3
-    pub mod v3 {
+    pub mod zv3 {
         wayland_protocol!(
             "./protocols/unstable/text-input/text-input-unstable-v3.xml",
             []
@@ -293,125 +340,16 @@ pub mod text_input {
     }
 }
 
-pub mod xdg_decoration {
-    //! This interface allows a compositor to announce support for server-side
-    //! decorations.
+pub mod viewporter {
+    //! Viewporter protocol
+    //!
+    //! Provides the capability of scaling and cropping surfaces, decorrelating the surface
+    //! dimensions from the size of the buffer.
 
-    //! A window decoration is a set of window controls as deemed appropriate by
-    //! the party managing them, such as user interface components used to move,
-    //! resize and change a window's state.
-
-    //! A client can use this protocol to request being decorated by a supporting
-    //! compositor.
-
-    //! If compositor and client do not negotiate the use of a server-side
-    //! decoration using this protocol, clients continue to self-decorate as they
-    //! see fit.
-
-    /// Unstable version 1
-    pub mod v1 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml",
-            [crate::xdg_shell]
-        );
-    }
+    wayland_protocol!("./protocols/stable/viewporter/viewporter.xml", []);
 }
 
-pub mod xdg_foreign {
-    //! Protocol for exporting xdg surface handles
-    //!
-    //! This protocol specifies a way for making it possible to reference a surface
-    //! of a different client. With such a reference, a client can, by using the
-    //! interfaces provided by this protocol, manipulate the relationship between
-    //! its own surfaces and the surface of some other client. For example, stack
-    //! some of its own surface above the other clients surface.
-    //!
-    //! In order for a client A to get a reference of a surface of client B, client
-    //! B must first export its surface using xdg_exporter.export. Upon doing this,
-    //! client B will receive a handle (a unique string) that it may share with
-    //! client A in some way (for example D-Bus). After client A has received the
-    //! handle from client B, it may use xdg_importer.import to create a reference
-    //! to the surface client B just exported. See the corresponding requests for
-    //! details.
-    //!
-    //! A possible use case for this is out-of-process dialogs. For example when a
-    //! sandboxed client without file system access needs the user to select a file
-    //! on the file system, given sandbox environment support, it can export its
-    //! surface, passing the exported surface handle to an unsandboxed process that
-    //! can show a file browser dialog and stack it above the sandboxed client's
-    //! surface.
-
-    /// Unstable version 1
-    pub mod v1 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-foreign/xdg-foreign-unstable-v1.xml",
-            []
-        );
-    }
-    
-    /// Unstable version 2
-    pub mod v2 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-foreign/xdg-foreign-unstable-v2.xml",
-            []
-        );
-    }
-}
-
-pub mod xdg_output {
-    //! Protocol to describe output regions
-    //!
-    //! This protocol aims at describing outputs in a way which is more in line
-    //! with the concept of an output on desktop oriented systems.
-    //!
-    //! Some information are more specific to the concept of an output for
-    //! a desktop oriented system and may not make sense in other applications,
-    //! such as IVI systems for example.
-    //!
-    //! Typically, the global compositor space on a desktop system is made of
-    //! a contiguous or overlapping set of rectangular regions.
-    //!
-    //! Some of the information provided in this protocol might be identical
-    //! to their counterparts already available from wl_output, in which case
-    //! the information provided by this protocol should be preferred to their
-    //! equivalent in wl_output. The goal is to move the desktop specific
-    //! concepts (such as output location within the global compositor space,
-    //! the connector name and types, etc.) out of the core wl_output protocol.
-
-    /// Unstable version 1
-    pub mod v1 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-output/xdg-output-unstable-v1.xml",
-            []
-        );
-    }
-}
-
-pub mod xdg_shell {
-    //! XDG Shell protocol
-    //!
-    //! These are the old, unstable versions of the now stable XDG Shell protocol.
-    //!
-    //! They remain here for compatibility reasons, allowing you to support older
-    //! clients/server not yet implementing the new protocol.
-
-    /// Unstable version 5
-    pub mod v5 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-shell/xdg-shell-unstable-v5.xml",
-            []
-        );
-    }
-
-    /// Unstable version 6
-    pub mod v6 {
-        wayland_protocol!(
-            "./protocols/unstable/xdg-shell/xdg-shell-unstable-v6.xml",
-            []
-        );
-    }
-}
-
+#[cfg(feature = "unstable")]
 pub mod xwayland_keyboard_grab {
     //! Protocol for grabbing the keyboard from Xwayland
     //!
@@ -443,7 +381,7 @@ pub mod xwayland_keyboard_grab {
     //! specific protocol to Xwayland alone.
 
     /// Unstable version 1
-    pub mod v1 {
+    pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml",
             []

@@ -5,23 +5,16 @@
 
 # wayland-protocols
 
-This crate provides Wayland object definitions for many of the Wayland protocol extensions available.
+This crate provides Wayland object definitions for the official Wayland protocol extensions.
 It is meant to be used in addition to `wayland-client` or `wayland-server`.
 
-This crate provides bindings for the following protocols extensions:
-
-- The standard ["wayland-protocols"](https://gitlab.freedesktop.org/wayland/wayland-protocols) extensions
-- The ["wlr-protocols"](https://github.com/swaywm/wlr-protocols) extensions from wlroots
-- A few other misc protocols:
-  - `gtk_primary_selection`
+This crate follows the ["wayland-protocols"](https://gitlab.freedesktop.org/wayland/wayland-protocols)
+extensions repository.
 
 The provided objects are controlled by cargo features:
 
 - the `client` and `server` cargo features respectively enable the generation of client-side
   and server-side objects
-- the `staging_protocols` enable the generation of protocols in the staging process and will soon become stable.
-- the `unstable_protocols` enable the generation of not-yet-stabilized protocols
+- the `staging` enable the generation of protocols in the staging process and will soon become stable.
+- the `unstable` enable the generation of not-yet-stabilized protocols
 
-If you wish for other protocols to be integrated, please open an issue on Github. Only protocols that
-are meant to be stabilized and largely used are in scope of this crate. If you wish to generate
-bindings for your own internal protocol, you can directly use `wayland-scanner`.
