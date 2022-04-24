@@ -14,4 +14,4 @@ readme = "README.md"
 [dependencies]
 wayland-client = { version = "0.30.0-alpha10", path = "../wayland-client" }
 xcursor = "0.3.1"
-nix = "0.23"
+nix = "0.24.1"
