@@ -17,5 +17,5 @@ wayland-scanner = { version = "0.30.0-alpha10", path = "../wayland-scanner" }
 bitflags = "1.2"
 thiserror = "1.0.2"
 log = "0.4"
-nix = "0.24.1"
+nix = { version = "0.24.1", default-features = false }
 downcast-rs = "1.2"
