@@ -53,14 +53,14 @@ impl<D> TestClient<D> {
         let conn =
             self::wayc::Connection::from_socket(socket).expect("Failed to connect to server.");
         let event_queue = conn.new_event_queue();
-        let display = conn.handle().display();
+        let display = conn.display();
         TestClient { conn, display, event_queue }
     }
 
     pub fn new_from_env() -> TestClient<D> {
         let conn = self::wayc::Connection::connect_to_env().expect("Failed to connect to server.");
         let event_queue = conn.new_event_queue();
-        let display = conn.handle().display();
+        let display = conn.display();
         TestClient { conn, display, event_queue }
     }
 }
@@ -76,7 +76,6 @@ pub fn roundtrip<CD: 'static, SD: 'static>(
     let done2 = done.clone();
     client
         .conn
-        .handle()
         .send_request(
             &client.display,
             wayc::protocol::wl_display::Request::Sync {},
@@ -111,7 +110,7 @@ struct SyncData {
 impl wayc::backend::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
-        _handle: &mut wayc::backend::Handle,
+        _backend: &wayc::backend::Backend,
         _msg: self::wayc::backend::protocol::Message<wayc::backend::ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);
@@ -138,7 +137,7 @@ macro_rules! client_ignore_impl {
                     _: &$iface,
                     _: <$iface as $crate::helpers::wayc::Proxy>::Event,
                     _: &Self::UserData,
-                    _: &mut $crate::helpers::wayc::ConnectionHandle,
+                    _: &$crate::helpers::wayc::Connection,
                     _: &$crate::helpers::wayc::QueueHandle<Self>,
                 ) {
                 }

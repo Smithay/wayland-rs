@@ -64,7 +64,7 @@ macro_rules! impl_client_objectdata {
         impl $client_backend::ObjectData for ClientData {
             fn event(
                 self: Arc<Self>,
-                handle: &mut $client_backend::Handle,
+                handle: &$client_backend::Backend,
                 msg: Message<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 2);
@@ -107,7 +107,7 @@ expand_test!(server_created_object, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let client_data = Arc::new(ClientData(AtomicU32::new(0)));
 
@@ -115,19 +115,16 @@ expand_test!(server_created_object, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, Arc::new(ServerData));
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let _test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -138,17 +135,18 @@ expand_test!(server_created_object, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(1),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(client_data.clone()),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
         )
         .unwrap();
 
     client.flush().unwrap();
     server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
 
     assert_eq!(client_data.0.load(Ordering::SeqCst), 2);
 });

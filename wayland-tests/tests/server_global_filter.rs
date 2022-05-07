@@ -25,10 +25,7 @@ fn global_filter() {
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
     let mut client_ddata = ClientHandler::new();
 
-    client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -38,10 +35,7 @@ fn global_filter() {
         server.add_client_with_data(Arc::new(MyClientData { privileged: true }));
     let mut priv_client_ddata = ClientHandler::new();
 
-    priv_client
-        .display
-        .get_registry(&mut priv_client.conn.handle(), &priv_client.event_queue.handle(), ())
-        .unwrap();
+    priv_client.display.get_registry(&priv_client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
@@ -79,34 +73,17 @@ fn global_filter_try_force() {
 
     // privileged client can bind it
 
-    let priv_registry = priv_client
-        .display
-        .get_registry(&mut priv_client.conn.handle(), &priv_client.event_queue.handle(), ())
-        .unwrap();
+    let priv_registry =
+        priv_client.display.get_registry(&priv_client.event_queue.handle(), ()).unwrap();
     priv_registry
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut priv_client.conn.handle(),
-            1,
-            1,
-            &priv_client.event_queue.handle(),
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(1, 1, &priv_client.event_queue.handle(), ())
         .unwrap();
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
     // unprivileged client cannot
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
     registry
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
-            1,
-            1,
-            &client.event_queue.handle(),
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _>(1, 1, &client.event_queue.handle(), ())
         .unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).is_err());

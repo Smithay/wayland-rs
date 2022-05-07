@@ -6,13 +6,13 @@ use std::{
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, MutexGuard,
+        Arc,
     },
 };
 
 use wayland_backend::{
-    client::{Backend, Handle, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
-    protocol::{Interface, ObjectInfo, ProtocolError},
+    client::{Backend, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
+    protocol::{ObjectInfo, ProtocolError},
 };
 
 use nix::{fcntl, Error};
@@ -21,20 +21,13 @@ use crate::{EventQueue, Proxy};
 
 /// The Wayland connection
 ///
-/// This is the main type representing your connection to the Wayland server. Most operations require
-/// access to either this type or the [`ConnectionHandle`], which can be accessed through the
-/// [`handle()`](Connection::handle) method, and is given to you in most callbacks.
+/// This is the main type representing your connection to the Wayland server.
 #[derive(Debug, Clone)]
 pub struct Connection {
-    backend: Arc<Mutex<Backend>>,
+    backend: Backend,
 }
 
 impl Connection {
-    /// Access the connection handle
-    pub fn handle(&self) -> ConnectionHandle {
-        ConnectionHandle { inner: HandleInner::Guard(self.backend.lock().unwrap()) }
-    }
-
     /// Try to connect to the Wayland server following the environment
     ///
     /// This is the standard way to initialize a Wayland connection.
@@ -70,22 +63,22 @@ impl Connection {
         };
 
         let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
-        Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
+        Ok(Connection { backend })
     }
 
     /// Initialize a Wayland connection from an already existing Unix stream
     pub fn from_socket(stream: UnixStream) -> Result<Connection, ConnectError> {
         let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
-        Ok(Connection { backend: Arc::new(Mutex::new(backend)) })
+        Ok(Connection { backend })
     }
 
     /// Wrap an existing [`Backend`] into a Connection
-    pub fn from_backend(backend: Arc<Mutex<Backend>>) -> Connection {
+    pub fn from_backend(backend: Backend) -> Connection {
         Connection { backend }
     }
 
     /// Get the [`Backend`] underlying this Connection
-    pub fn backend(&self) -> Arc<Mutex<Backend>> {
+    pub fn backend(&self) -> Backend {
         self.backend.clone()
     }
 
@@ -93,7 +86,7 @@ impl Connection {
     ///
     /// This needs to be done regularly to ensure the server receives all your requests.
     pub fn flush(&self) -> Result<(), WaylandError> {
-        self.backend.lock().unwrap().flush()
+        self.backend.flush()
     }
 
     /// Start a synchronized read from the socket
@@ -106,7 +99,7 @@ impl Connection {
     /// If you don't need to manage multiple event sources, see
     /// [`blocking_dispatch()`](Connection::blocking_dispatch) for a simpler mechanism.
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
-        ReadEventsGuard::try_new(self.backend.clone())
+        self.backend.prepare_read()
     }
 
     /// Block until events are received from the server
@@ -128,18 +121,15 @@ impl Connection {
     pub fn roundtrip(&self) -> Result<usize, WaylandError> {
         let done = Arc::new(AtomicBool::new(false));
         {
-            let mut backend = self.backend.lock().unwrap();
-            let mut handle = ConnectionHandle::from(backend.handle());
-            let display = handle.display();
+            let display = self.display();
             let cb_done = done.clone();
             let sync_data = Arc::new(SyncData { done: cb_done });
-            handle
-                .send_request(
-                    &display,
-                    crate::protocol::wl_display::Request::Sync {},
-                    Some(sync_data),
-                )
-                .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
+            self.send_request(
+                &display,
+                crate::protocol::wl_display::Request::Sync {},
+                Some(sync_data),
+            )
+            .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
         }
 
         let mut dispatched = 0;
@@ -153,23 +143,23 @@ impl Connection {
 
     /// Create a new event queue
     pub fn new_event_queue<D>(&self) -> EventQueue<D> {
-        EventQueue::new(self.backend.clone())
+        EventQueue::new(self.clone())
     }
 
     /// Retrive the protocol error that occured on the socket (if any)
     pub fn protocol_error(&self) -> Option<ProtocolError> {
-        match dbg!(self.backend.lock().unwrap().handle().last_error())? {
+        match dbg!(self.backend.last_error())? {
             WaylandError::Protocol(err) => Some(err),
             WaylandError::Io(_) => None,
         }
     }
 }
 
-pub(crate) fn blocking_dispatch_impl(backend: Arc<Mutex<Backend>>) -> Result<usize, WaylandError> {
-    backend.lock().unwrap().flush()?;
+pub(crate) fn blocking_dispatch_impl(backend: Backend) -> Result<usize, WaylandError> {
+    backend.flush()?;
 
     // first, prepare the read
-    let guard = ReadEventsGuard::try_new(backend)?;
+    let guard = backend.prepare_read()?;
 
     // there is nothing to dispatch, wait for readiness
     loop {
@@ -194,39 +184,10 @@ pub(crate) fn blocking_dispatch_impl(backend: Arc<Mutex<Backend>>) -> Result<usi
     }
 }
 
-/// A handle to the Wayland connection
-///
-/// A connection handle may be constructed from a [`Handle`] using it's [`From`] implementation.
-#[derive(Debug)]
-pub struct ConnectionHandle<'a> {
-    pub(crate) inner: HandleInner<'a>,
-}
-
-#[derive(Debug)]
-pub(crate) enum HandleInner<'a> {
-    Handle(&'a mut Handle),
-    Guard(MutexGuard<'a, Backend>),
-}
-
-impl<'a> HandleInner<'a> {
-    #[inline]
-    pub(crate) fn handle(&mut self) -> &mut Handle {
-        match self {
-            HandleInner::Handle(handle) => handle,
-            HandleInner::Guard(guard) => guard.handle(),
-        }
-    }
-}
-
-impl<'a> ConnectionHandle<'a> {
-    /// Returns the underlying [`Handle`] from `wayland-backend`.
-    pub fn backend_handle(&mut self) -> &mut Handle {
-        self.inner.handle()
-    }
-
+impl Connection {
     /// Get the `WlDisplay` associated with this connection
-    pub fn display(&mut self) -> crate::protocol::wl_display::WlDisplay {
-        let display_id = self.inner.handle().display_id();
+    pub fn display(&self) -> crate::protocol::wl_display::WlDisplay {
+        let display_id = self.backend.display_id();
         Proxy::from_id(self, display_id).unwrap()
     }
 
@@ -235,49 +196,34 @@ impl<'a> ConnectionHandle<'a> {
     /// This is a low-level interface for sending requests, you will likely instead use
     /// the methods of the types representing each interface.
     pub fn send_request<I: Proxy>(
-        &mut self,
+        &self,
         proxy: &I,
         request: I::Request,
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
-        let msg = proxy.write_request(self, request)?;
-        self.inner.handle().send_request(msg, data)
-    }
-
-    /// Create a placeholder id for request serialization
-    ///
-    /// This is a low-level interface for sending requests, you don't need to use it if you
-    /// are using the methods of the types representing each interface.
-    pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
-        self.inner.handle().placeholder_id(spec)
+        let (msg, child_spec) = proxy.write_request(self, request)?;
+        self.backend.send_request(msg, data, child_spec)
     }
 
     /// Create a null id for request serialization
     ///
     /// This is a low-level interface for sending requests, you don't need to use it if you
     /// are using the methods of the types representing each interface.
-    pub fn null_id(&mut self) -> ObjectId {
-        self.inner.handle().null_id()
+    pub fn null_id() -> ObjectId {
+        Backend::null_id()
     }
 
     /// Get the object data for a given object ID
     ///
     /// This is a low-level interface, a higher-level interface for manipulating object data
     /// is given as [`Proxy::data()`](crate::Proxy::data).
-    pub fn get_object_data(&mut self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
-        self.inner.handle().get_data(id)
+    pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+        self.backend.get_data(id)
     }
 
     /// Get the protocol information related to given object ID
-    pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.inner.handle().info(id)
-    }
-}
-
-impl<'a> From<&'a mut Handle> for ConnectionHandle<'a> {
-    /// Creates a [`ConnectionHandle`] using a [`&mut Handle`](Handle) from `wayland-backend`.
-    fn from(handle: &'a mut Handle) -> Self {
-        ConnectionHandle { inner: HandleInner::Handle(handle) }
+    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.backend.info(id)
     }
 }
 
@@ -308,7 +254,7 @@ pub(crate) struct SyncData {
 impl ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
-        _handle: &mut Handle,
+        _handle: &Backend,
         _msg: wayland_backend::protocol::Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);

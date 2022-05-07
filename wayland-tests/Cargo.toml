@@ -11,7 +11,7 @@ autotests = false
 wayland-backend = { path = "../wayland-backend" }
 wayland-client = { path = "../wayland-client" }
 wayland-server = { path = "../wayland-server" }
-wayland-protocols = { path = "../wayland-protocols" }
+wayland-protocols = { path = "../wayland-protocols", features = ["client", "server"] }
 tempfile = "3"
 
 [features]
@@ -61,3 +61,6 @@ name = "server_global_filter"
 
 [[test]]
 name = "server_resources"
+
+[[test]]
+name = "xdg_shell_ping"

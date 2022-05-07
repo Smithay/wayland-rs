@@ -1,4 +1,4 @@
-use wayland_client::{protocol::wl_registry, Connection, ConnectionHandle, Dispatch, QueueHandle};
+use wayland_client::{protocol::wl_registry, Connection, Dispatch, QueueHandle};
 
 struct AppData;
 
@@ -10,7 +10,7 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &Self::UserData,
-        _: &mut ConnectionHandle,
+        _: &Connection,
         _: &QueueHandle<AppData>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
@@ -22,12 +22,12 @@ impl Dispatch<wl_registry::WlRegistry> for AppData {
 fn main() {
     let conn = Connection::connect_to_env().unwrap();
 
-    let display = conn.handle().display();
+    let display = conn.display();
 
     let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
 
-    let _registry = display.get_registry(&mut conn.handle(), &qh, ()).unwrap();
+    let _registry = display.get_registry(&qh, ()).unwrap();
 
     println!("Advertized globals:");
 

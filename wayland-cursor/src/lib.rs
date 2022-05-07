@@ -16,19 +16,16 @@
 //!
 //! # Example
 //!
-//! Several functions of this crate send wayland requests under the hood, requiring you to provide a
-//! [`ConnectionHandle`] to load a cursor theme.
-//!
 //! ```
 //! use wayland_cursor::CursorTheme;
 //! # use std::ops::Deref;
 //! # use std::thread::sleep;
 //! # use std::time::{Instant, Duration};
-//! # fn test(connection: &mut wayland_client::Connection, cursor_surface: &wayland_client::protocol::wl_surface::WlSurface, shm: wayland_client::protocol::wl_shm::WlShm) {
+//! # fn test(connection: &wayland_client::Connection, cursor_surface: &wayland_client::protocol::wl_surface::WlSurface, shm: wayland_client::protocol::wl_shm::WlShm) {
 //! // Load the default cursor theme.
-//! let mut cursor_theme = CursorTheme::load(&mut connection.handle(), shm, 32)
+//! let mut cursor_theme = CursorTheme::load(&connection, shm, 32)
 //!     .expect("Could not load cursor theme");
-//! let cursor = cursor_theme.get_cursor(&mut connection.handle(), "wait")
+//! let cursor = cursor_theme.get_cursor("wait")
 //!     .expect("Cursor not provided by theme");
 //!
 //! let start_time = Instant::now();
@@ -40,8 +37,8 @@
 //!     // Here, we obtain the right cursor frame...
 //!     let buffer = &cursor[fr_info.frame_index];
 //!     // and attach it to a wl_surface.
-//!     cursor_surface.attach(&mut connection.handle(), Some(&buffer), 0, 0);
-//!     cursor_surface.commit(&mut connection.handle());
+//!     cursor_surface.attach(Some(&buffer), 0, 0);
+//!     cursor_surface.commit();
 //!
 //!     sleep(Duration::from_millis(fr_info.frame_duration as u64));
 //! }
@@ -63,11 +60,11 @@ use nix::unistd;
 #[cfg(target_os = "linux")]
 use {nix::sys::memfd, std::ffi::CStr};
 
-use wayland_client::backend::{InvalidId, ObjectData};
+use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{self, Format, WlShm};
 use wayland_client::protocol::wl_shm_pool::{self, WlShmPool};
-use wayland_client::{ConnectionHandle, Proxy, WEnum};
+use wayland_client::{Connection, Proxy, WEnum};
 
 use xcursor::parser as xparser;
 use xcursor::CursorTheme as XCursorTheme;
@@ -82,6 +79,7 @@ pub struct CursorTheme {
     pool: WlShmPool,
     pool_size: i32,
     file: File,
+    backend: WeakBackend,
 }
 
 impl CursorTheme {
@@ -90,12 +88,12 @@ impl CursorTheme {
     /// Same as calling the following:
     /// ```
     /// # use wayland_cursor::CursorTheme;
-    /// # use wayland_client::{ConnectionHandle, backend::InvalidId, protocol::wl_shm};
-    /// # fn example(conn: &mut ConnectionHandle, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
+    /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
+    /// # fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
     /// CursorTheme::load_or(conn, shm, "default", size)
     /// # }
     /// ```
-    pub fn load(conn: &mut ConnectionHandle, shm: WlShm, size: u32) -> Result<Self, InvalidId> {
+    pub fn load(conn: &Connection, shm: WlShm, size: u32) -> Result<Self, InvalidId> {
         CursorTheme::load_or(conn, shm, "default", size)
     }
 
@@ -105,7 +103,7 @@ impl CursorTheme {
     /// `XCURSOR_SIZE` environment variables, respectively, or from the provided variables
     /// if those are invalid.
     pub fn load_or(
-        conn: &mut ConnectionHandle,
+        conn: &Connection,
         shm: WlShm,
         name: &str,
         mut size: u32,
@@ -124,7 +122,7 @@ impl CursorTheme {
 
     /// Create a new cursor theme, ignoring the system defaults.
     pub fn load_from_name(
-        conn: &mut ConnectionHandle,
+        conn: &Connection,
         shm: WlShm,
         name: &str,
         size: u32,
@@ -160,17 +158,18 @@ impl CursorTheme {
             pool,
             pool_size: INITIAL_POOL_SIZE,
             cursors: Vec::new(),
+            backend: conn.backend().downgrade(),
         })
     }
 
     /// Retrieve a cursor from the theme.
     ///
     /// This method returns [`None`] if this cursor is not provided either by the theme, or by one of its parents.
-    pub fn get_cursor(&mut self, conn: &mut ConnectionHandle, name: &str) -> Option<&Cursor> {
+    pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
         match self.cursors.iter().position(|cursor| cursor.name == name) {
             Some(i) => Some(&self.cursors[i]),
             None => {
-                let cursor = self.load_cursor(conn, name, self.size)?;
+                let cursor = self.load_cursor(name, self.size)?;
                 self.cursors.push(cursor);
                 self.cursors.iter().last()
             }
@@ -180,12 +179,8 @@ impl CursorTheme {
     /// This function loads a cursor, parses it and pushes the images onto the shm pool.
     ///
     /// Keep in mind that if the cursor is already loaded, the function will make a duplicate.
-    fn load_cursor(
-        &mut self,
-        conn: &mut ConnectionHandle,
-        name: &str,
-        size: u32,
-    ) -> Option<Cursor> {
+    fn load_cursor(&mut self, name: &str, size: u32) -> Option<Cursor> {
+        let conn = Connection::from_backend(self.backend.upgrade()?);
         let icon_path = XCursorTheme::load(&self.name).load_icon(name)?;
         let mut icon_file = File::open(icon_path).ok()?;
 
@@ -195,16 +190,16 @@ impl CursorTheme {
             xparser::parse_xcursor(&buf)?
         };
 
-        Some(Cursor::new(conn, name, self, &images, size))
+        Some(Cursor::new(&conn, name, self, &images, size))
     }
 
     /// Grow the wl_shm_pool this theme is stored on.
     ///
     /// This method does nothing if the provided size is smaller or equal to the pool's current size.
-    fn grow(&mut self, conn: &mut ConnectionHandle, size: i32) {
+    fn grow(&mut self, size: i32) {
         if size > self.pool_size {
             self.file.set_len(size as u64).expect("Failed to set new buffer length");
-            self.pool.resize(conn, size);
+            self.pool.resize(size);
             self.pool_size = size;
         }
     }
@@ -224,7 +219,7 @@ impl Cursor {
     /// Each of the provided images will be written into `theme`.
     /// This will also grow `theme.pool` if necessary.
     fn new(
-        conn: &mut ConnectionHandle,
+        conn: &Connection,
         name: &str,
         theme: &mut CursorTheme,
         images: &[XCursorImage],
@@ -307,13 +302,13 @@ impl CursorImageBuffer {
     ///
     /// This function appends the pixels of the image to the provided file,
     /// and constructs a wl_buffer on that data.
-    fn new(conn: &mut ConnectionHandle, theme: &mut CursorTheme, image: &XCursorImage) -> Self {
+    fn new(conn: &Connection, theme: &mut CursorTheme, image: &XCursorImage) -> Self {
         let buf = &image.pixels_rgba;
         let offset = theme.file.seek(SeekFrom::End(0)).unwrap();
 
         // Resize memory before writing to it to handle shm correctly.
         let new_size = offset + buf.len() as u64;
-        theme.grow(conn, new_size as i32);
+        theme.grow(new_size as i32);
 
         theme.file.write_all(buf).unwrap();
 
@@ -435,7 +430,7 @@ struct IgnoreObjectData;
 impl ObjectData for IgnoreObjectData {
     fn event(
         self: Arc<Self>,
-        _: &mut wayland_client::backend::Handle,
+        _: &wayland_client::backend::Backend,
         _: wayland_client::backend::protocol::Message<wayland_client::backend::ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         None

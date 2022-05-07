@@ -6,7 +6,7 @@ struct SyncData(AtomicBool);
 impl client_rs::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
-        _: &mut client_rs::Handle,
+        _: &client_rs::Backend,
         msg: Message<client_rs::ObjectId>,
     ) -> Option<Arc<dyn client_rs::ObjectData>> {
         assert_eq!(msg.opcode, 0);
@@ -21,7 +21,7 @@ impl client_rs::ObjectData for SyncData {
 impl client_sys::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
-        _: &mut client_sys::Handle,
+        _: &client_sys::Backend,
         msg: Message<client_sys::ObjectId>,
     ) -> Option<Arc<dyn client_sys::ObjectData>> {
         assert_eq!(msg.opcode, 0);
@@ -38,17 +38,16 @@ expand_test!(sync, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_CALLBACK_INTERFACE, 1)));
+    let client_display = client.display_id();
     let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
     let sync_id = client
-        .handle()
         .send_request(
-            message!(client_display, 0, [Argument::NewId(placeholder)]),
+            message!(client_display, 0, [Argument::NewId(client_backend::Backend::null_id())]),
             Some(sync_data.clone()),
+            Some((&interfaces::WL_CALLBACK_INTERFACE, 1)),
         )
         .unwrap();
     client.flush().unwrap();
@@ -62,28 +61,26 @@ expand_test!(sync, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // ensure the answer is received client-side
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.handle().get_data(sync_id).is_err());
+    assert!(client.get_data(sync_id).is_err());
 });
 
 expand_test!(panic test_bad_placeholder, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request
-    let client_display = client.handle().display_id();
-    let placeholder =
-        client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
     let sync_id = client
-        .handle()
         .send_request(
-            message!(client_display, 0, [Argument::NewId(placeholder)]),
+            message!(client_display, 0, [Argument::NewId(client_backend::Backend::null_id())]),
             Some(sync_data.clone()),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )
         .unwrap();
     client.flush().unwrap();
@@ -97,24 +94,23 @@ expand_test!(panic test_bad_placeholder, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // ensure the answer is received client-side
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.handle().get_data(sync_id).is_err());
+    assert!(client.get_data(sync_id).is_err());
 });
 
 expand_test!(panic test_bad_signature, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request
-    let client_display = client.handle().display_id();
+    let client_display = client.display_id();
     let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
     let sync_id = client
-        .handle()
-        .send_request(message!(client_display, 0, [Argument::Uint(1)]), Some(sync_data.clone()))
+        .send_request(message!(client_display, 0, [Argument::Uint(1)]), Some(sync_data.clone()), None)
         .unwrap();
     client.flush().unwrap();
 
@@ -127,8 +123,8 @@ expand_test!(panic test_bad_signature, {
     std::thread::sleep(std::time::Duration::from_millis(10));
 
     // ensure the answer is received client-side
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.handle().get_data(sync_id).is_err());
+    assert!(client.get_data(sync_id).is_err());
 });

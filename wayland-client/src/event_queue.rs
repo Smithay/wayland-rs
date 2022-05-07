@@ -1,16 +1,16 @@
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc,
 };
 
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use nix::Error;
 use wayland_backend::{
-    client::{Backend, Handle, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
+    client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::Message,
 };
 
-use crate::{conn::SyncData, ConnectionHandle, DispatchError, Proxy};
+use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 
 /// A trait which provides an implementation for handling events from the server on a proxy with some type of
 /// associated user data.
@@ -27,7 +27,7 @@ pub trait Dispatch<I: Proxy>: Sized {
         proxy: &I,
         event: I::Event,
         data: &Self::UserData,
-        connhandle: &mut ConnectionHandle,
+        conn: &Connection,
         qhandle: &QueueHandle<Self>,
     );
 
@@ -98,7 +98,7 @@ macro_rules! event_created_child {
 }
 
 type QueueCallback<D> = fn(
-    &mut ConnectionHandle<'_>,
+    &Connection,
     Message<ObjectId>,
     &mut D,
     Arc<dyn ObjectData>,
@@ -127,7 +127,7 @@ impl<D> std::fmt::Debug for QueueEvent<D> {
 pub struct EventQueue<D> {
     rx: UnboundedReceiver<QueueEvent<D>>,
     handle: QueueHandle<D>,
-    backend: Arc<Mutex<Backend>>,
+    conn: Connection,
 }
 
 impl<D> std::fmt::Debug for EventQueue<D> {
@@ -141,9 +141,9 @@ impl<D> std::fmt::Debug for EventQueue<D> {
 }
 
 impl<D> EventQueue<D> {
-    pub(crate) fn new(backend: Arc<Mutex<Backend>>) -> Self {
+    pub(crate) fn new(conn: Connection) -> Self {
         let (tx, rx) = unbounded();
-        EventQueue { rx, handle: QueueHandle { tx }, backend }
+        EventQueue { rx, handle: QueueHandle { tx }, conn }
     }
 
     /// Get a [`QueueHandle`] for this event queue
@@ -158,7 +158,7 @@ impl<D> EventQueue<D> {
     /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
     /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
     pub fn dispatch_pending(&mut self, data: &mut D) -> Result<usize, DispatchError> {
-        Self::dispatching_impl(&mut self.backend.lock().unwrap(), &mut self.rx, &self.handle, data)
+        Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
     }
 
     /// Block waiting for events and dispatch them
@@ -168,22 +168,12 @@ impl<D> EventQueue<D> {
     ///
     /// A simple app event loop can consist of invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut D) -> Result<usize, DispatchError> {
-        let dispatched = Self::dispatching_impl(
-            &mut self.backend.lock().unwrap(),
-            &mut self.rx,
-            &self.handle,
-            data,
-        )?;
+        let dispatched = Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)?;
         if dispatched > 0 {
             Ok(dispatched)
         } else {
-            crate::conn::blocking_dispatch_impl(self.backend.clone())?;
-            Self::dispatching_impl(
-                &mut self.backend.lock().unwrap(),
-                &mut self.rx,
-                &self.handle,
-                data,
-            )
+            crate::conn::blocking_dispatch_impl(self.conn.backend())?;
+            Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
         }
     }
 
@@ -198,12 +188,10 @@ impl<D> EventQueue<D> {
         let done = Arc::new(AtomicBool::new(false));
 
         {
-            let mut backend = self.backend.lock().unwrap();
-            let mut handle = ConnectionHandle::from(backend.handle());
-            let display = handle.display();
+            let display = self.conn.display();
             let cb_done = done.clone();
             let sync_data = Arc::new(SyncData { done: cb_done });
-            handle
+            self.conn
                 .send_request(
                     &display,
                     crate::protocol::wl_display::Request::Sync {},
@@ -231,27 +219,26 @@ impl<D> EventQueue<D> {
     /// If you don't need to manage multiple event sources, see
     /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
-        ReadEventsGuard::try_new(self.backend.clone())
+        self.conn.prepare_read()
     }
 
     /// Flush pending outgoing events to the server
     ///
     /// This needs to be done regularly to ensure the server receives all your requests.
     pub fn flush(&self) -> Result<(), WaylandError> {
-        self.backend.lock().unwrap().flush()
+        self.conn.flush()
     }
 
     fn dispatching_impl(
-        backend: &mut Backend,
+        backend: &Connection,
         rx: &mut UnboundedReceiver<QueueEvent<D>>,
         qhandle: &QueueHandle<D>,
         data: &mut D,
     ) -> Result<usize, DispatchError> {
-        let mut handle = ConnectionHandle::from(backend.handle());
         let mut dispatched = 0;
 
         while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
-            cb(&mut handle, msg, data, odata, qhandle)?;
+            cb(backend, msg, data, odata, qhandle)?;
             dispatched += 1;
         }
         Ok(dispatched)
@@ -327,7 +314,7 @@ impl<D: 'static> QueueHandle<D> {
 }
 
 fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
-    handle: &mut ConnectionHandle<'_>,
+    handle: &Connection,
     msg: Message<ObjectId>,
     data: &mut D,
     odata: Arc<dyn ObjectData>,
@@ -352,11 +339,7 @@ pub struct QueueProxyData<I: Proxy, U> {
 }
 
 impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
-    fn event(
-        self: Arc<Self>,
-        _: &mut Handle,
-        msg: Message<ObjectId>,
-    ) -> Option<Arc<dyn ObjectData>> {
+    fn event(self: Arc<Self>, _: &Backend, msg: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
         let ret = (self.odata_maker)(&msg);
         self.sender.send(msg, self.clone());
         ret
@@ -375,7 +358,7 @@ impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
 struct TemporaryData;
 
 impl ObjectData for TemporaryData {
-    fn event(self: Arc<Self>, _: &mut Handle, _: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
+    fn event(self: Arc<Self>, _: &Backend, _: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
 
@@ -429,7 +412,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
 ///         _udata: &Self::UserData,
-///         _connhandle: &mut wayland_client::ConnectionHandle,
+///         _conn: &wayland_client::Connection,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
 ///     ) {
 ///         // Here the delegate may handle incoming events as it pleases.
@@ -455,7 +438,7 @@ pub trait DelegateDispatch<
         proxy: &I,
         event: I::Event,
         udata: &Self::UserData,
-        connhandle: &mut ConnectionHandle,
+        conn: &Connection,
         qhandle: &QueueHandle<D>,
     );
 
@@ -506,7 +489,7 @@ pub trait DelegateDispatch<
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
 /// #         _udata: &Self::UserData,
-/// #         _connhandle: &mut wayland_client::ConnectionHandle,
+/// #         _conn: &wayland_client::Connection,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
 /// #     }
@@ -567,10 +550,10 @@ macro_rules! delegate_dispatch {
                     proxy: &$interface,
                     event: <$interface as $crate::Proxy>::Event,
                     data: &Self::UserData,
-                    connhandle: &mut $crate::ConnectionHandle,
+                    conn: &$crate::Connection,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(self, proxy, event, data, connhandle, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(self, proxy, event, data, conn, qhandle)
                 }
 
                 fn event_created_child(

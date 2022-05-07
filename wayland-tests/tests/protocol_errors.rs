@@ -13,10 +13,7 @@ fn client_receive_generic_error() {
 
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -24,7 +21,6 @@ fn client_receive_generic_error() {
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,

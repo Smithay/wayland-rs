@@ -175,7 +175,7 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
 impl client_rs::ObjectData for DoNothingData {
     fn event(
         self: Arc<Self>,
-        _: &mut client_rs::Handle,
+        _: &client_rs::Backend,
         _: Message<client_rs::ObjectId>,
     ) -> Option<Arc<dyn client_rs::ObjectData>> {
         None
@@ -187,7 +187,7 @@ impl client_rs::ObjectData for DoNothingData {
 impl client_sys::ObjectData for DoNothingData {
     fn event(
         self: Arc<Self>,
-        _: &mut client_sys::Handle,
+        _: &client_sys::Backend,
         _: Message<client_sys::ObjectId>,
     ) -> Option<Arc<dyn client_sys::ObjectData>> {
         None

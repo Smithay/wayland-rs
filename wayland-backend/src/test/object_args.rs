@@ -87,7 +87,7 @@ macro_rules! impl_client_objectdata {
         impl $client_backend::ObjectData for ClientData {
             fn event(
                 self: Arc<Self>,
-                handle: &mut $client_backend::Handle,
+                handle: &$client_backend::Backend,
                 msg: Message<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 1);
@@ -114,7 +114,7 @@ expand_test!(create_objects, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
     let client_data = Arc::new(ClientData(AtomicBool::new(false)));
@@ -123,19 +123,16 @@ expand_test!(create_objects, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data.clone());
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -146,48 +143,53 @@ expand_test!(create_objects, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(client_data.clone()),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
         )
         .unwrap();
     // create the two objects
-    let placeholder = client.handle().placeholder_id(None);
     let secondary_id = client
-        .handle()
         .send_request(
-            message!(test_global_id.clone(), 1, [Argument::NewId(placeholder)]),
+            message!(
+                test_global_id.clone(),
+                1,
+                [Argument::NewId(client_backend::Backend::null_id())]
+            ),
             Some(client_data.clone()),
+            None,
         )
         .unwrap();
-    let placeholder = client.handle().placeholder_id(None);
     let tertiary_id = client
-        .handle()
         .send_request(
-            message!(test_global_id.clone(), 2, [Argument::NewId(placeholder)]),
+            message!(
+                test_global_id.clone(),
+                2,
+                [Argument::NewId(client_backend::Backend::null_id())]
+            ),
             Some(client_data.clone()),
+            None,
         )
         .unwrap();
     // link them
-    let null_obj = client.handle().null_id();
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id.clone(),
                 3,
                 [
                     Argument::Object(secondary_id.clone()),
-                    Argument::Object(null_obj),
+                    Argument::Object(client_backend::Backend::null_id()),
                     Argument::Uint(1),
                 ],
             ),
             None,
+            None,
         )
         .unwrap();
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id,
@@ -195,13 +197,14 @@ expand_test!(create_objects, {
                 [Argument::Object(secondary_id), Argument::Object(tertiary_id), Argument::Uint(2)],
             ),
             None,
+            None,
         )
         .unwrap();
 
     client.flush().unwrap();
     server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
 
     assert!(server_data.0.load(Ordering::SeqCst));
     assert!(client_data.0.load(Ordering::SeqCst));
@@ -211,7 +214,7 @@ expand_test!(panic bad_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
@@ -219,20 +222,16 @@ expand_test!(panic bad_interface, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data);
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder =
-        client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -243,32 +242,29 @@ expand_test!(panic bad_interface, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             None,
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3))
         )
         .unwrap();
     // create the two objects
-    let placeholder = client.handle().placeholder_id(None);
     let secondary_id = client
-        .handle()
-        .send_request(message!(test_global_id.clone(), 1, [Argument::NewId(placeholder)]), Some(Arc::new(DoNothingData)))
+        .send_request(message!(test_global_id.clone(), 1, [Argument::NewId(client_backend::Backend::null_id())]), Some(Arc::new(DoNothingData)), None)
         .unwrap();
-    let placeholder = client.handle().placeholder_id(None);
     let tertiary_id = client
-        .handle()
-        .send_request(message!(test_global_id.clone(), 2, [Argument::NewId(placeholder)]), Some(Arc::new(DoNothingData)))
+        .send_request(message!(test_global_id.clone(), 2, [Argument::NewId(client_backend::Backend::null_id())]), Some(Arc::new(DoNothingData)), None)
         .unwrap();
     // link them, argument order is wrong, should panic
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id,
                 3,
                 [Argument::Object(tertiary_id), Argument::Object(secondary_id), Argument::Uint(42)],
             ),
+            None,
             None,
         )
         .unwrap();
@@ -278,7 +274,7 @@ expand_test!(panic double_null, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
@@ -286,21 +282,16 @@ expand_test!(panic double_null, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data);
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder =
-        client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )
         .unwrap();
     // create the test global
-    let placeholder =
-        client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -311,27 +302,26 @@ expand_test!(panic double_null, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3))
         )
         .unwrap();
-    // create the two objects
-    let null_obj = client.handle().null_id();
-    // link them, first object cannot be null, should panic
+    // link two objects, first object cannot be null, should panic
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id,
                 3,
                 [
-                    Argument::Object(null_obj.clone()),
-                    Argument::Object(null_obj),
+                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(client_backend::Backend::null_id()),
                     Argument::Uint(42)
                 ],
             ),
+            None,
             None,
         )
         .unwrap();
@@ -341,7 +331,7 @@ expand_test!(null_obj_followed_by_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
 
@@ -349,19 +339,16 @@ expand_test!(null_obj_followed_by_interface, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 3, server_data);
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -372,32 +359,38 @@ expand_test!(null_obj_followed_by_interface, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
         )
         .unwrap();
-    // create the two objects
-    let placeholder = client.handle().placeholder_id(None);
+    // create the an object
     let tertiary_id = client
-        .handle()
         .send_request(
-            message!(test_global_id.clone(), 2, [Argument::NewId(placeholder)]),
+            message!(
+                test_global_id.clone(),
+                2,
+                [Argument::NewId(client_backend::Backend::null_id())]
+            ),
             Some(Arc::new(DoNothingData)),
+            None,
         )
         .unwrap();
 
-    let null_obj = client.handle().null_id();
-    // link them, first is null but the second is not, this should work fine
+    // link it, first is null but the second is not, this should work fine
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id,
                 5,
-                [Argument::Object(null_obj), Argument::Object(tertiary_id),],
+                [
+                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(tertiary_id),
+                ],
             ),
+            None,
             None,
         )
         .unwrap();

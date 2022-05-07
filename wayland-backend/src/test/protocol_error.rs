@@ -42,7 +42,7 @@ expand_test!(protocol_error, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let object_id = Arc::new(Mutex::new(None));
 
@@ -54,19 +54,16 @@ expand_test!(protocol_error, {
     );
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -77,10 +74,11 @@ expand_test!(protocol_error, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
         )
         .unwrap();
 
@@ -94,7 +92,7 @@ expand_test!(protocol_error, {
     server.handle().post_error(oid, 42, CString::new("I don't like you.".as_bytes()).unwrap());
 
     server.flush(None).unwrap();
-    let ret = client.dispatch_events();
+    let ret = client.prepare_read().unwrap().read();
 
     match ret {
         Err(client_backend::WaylandError::Protocol(err)) => {
@@ -248,7 +246,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     // Prepare a global
     server.handle().create_global(
@@ -260,19 +258,16 @@ expand_test!(protocol_error_in_request_without_object_init, {
     );
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -283,10 +278,11 @@ expand_test!(protocol_error_in_request_without_object_init, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
         )
         .unwrap();
 
@@ -294,12 +290,11 @@ expand_test!(protocol_error_in_request_without_object_init, {
     server.dispatch_all_clients(&mut ()).unwrap();
 
     // Now, the client sends a request, which will trigger a protocol error
-    let placeholder = client.handle().placeholder_id(None);
     client
-        .handle()
         .send_request(
-            message!(test_global_id, 1, [Argument::NewId(placeholder)]),
+            message!(test_global_id, 1, [Argument::NewId(client_backend::Backend::null_id())]),
             Some(Arc::new(DoNothingData)),
+            None,
         )
         .unwrap();
 

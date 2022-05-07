@@ -1,14 +1,13 @@
 //! Client-side implementation of a Wayland protocol backend using `libwayland`
 
 use std::{
-    cell::RefCell,
     collections::HashSet,
     ffi::CStr,
     os::raw::{c_char, c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, MutexGuard, Weak,
     },
 };
 
@@ -30,7 +29,7 @@ use super::{free_arrays, RUST_MANAGED};
 
 use super::client::*;
 
-scoped_thread_local!(static HANDLE: RefCell<&mut Handle>);
+scoped_thread_local!(static BACKEND: Backend);
 
 /// An ID representing a Wayland object
 #[derive(Clone)]
@@ -148,18 +147,49 @@ struct ProxyUserData {
 }
 
 #[derive(Debug)]
-pub struct InnerHandle {
+struct ConnectionState {
     display: *mut wl_display,
     evq: *mut wl_event_queue,
     display_id: InnerObjectId,
     last_error: Option<WaylandError>,
-    pending_placeholder: Option<(&'static Interface, u32)>,
     known_proxies: HashSet<*mut wl_proxy>,
 }
 
+unsafe impl Send for ConnectionState {}
+
 #[derive(Debug)]
+struct Dispatcher;
+
+#[derive(Debug)]
+struct Inner {
+    state: Mutex<ConnectionState>,
+    dispatch_lock: Mutex<Dispatcher>,
+}
+
+#[derive(Clone, Debug)]
 pub struct InnerBackend {
-    handle: Handle,
+    inner: Arc<Inner>,
+}
+
+#[derive(Clone, Debug)]
+pub struct WeakInnerBackend {
+    inner: Weak<Inner>,
+}
+
+impl InnerBackend {
+    fn lock_state(&self) -> MutexGuard<ConnectionState> {
+        self.inner.state.lock().unwrap()
+    }
+
+    pub fn downgrade(&self) -> WeakInnerBackend {
+        WeakInnerBackend { inner: Arc::downgrade(&self.inner) }
+    }
+}
+
+impl WeakInnerBackend {
+    pub fn upgrade(&self) -> Option<InnerBackend> {
+        Weak::upgrade(&self.inner).map(|inner| InnerBackend { inner })
+    }
 }
 
 unsafe impl Send for InnerBackend {}
@@ -186,8 +216,8 @@ impl InnerBackend {
         }
         let display_alive = Arc::new(AtomicBool::new(true));
         Ok(Self {
-            handle: Handle {
-                handle: InnerHandle {
+            inner: Arc::new(Inner {
+                state: Mutex::new(ConnectionState {
                     display,
                     evq: std::ptr::null_mut(),
                     display_id: InnerObjectId {
@@ -197,40 +227,26 @@ impl InnerBackend {
                         interface: &WL_DISPLAY_INTERFACE,
                     },
                     last_error: None,
-                    pending_placeholder: None,
                     known_proxies: HashSet::new(),
-                },
-            },
+                }),
+                dispatch_lock: Mutex::new(Dispatcher),
+            }),
         })
     }
 
-    pub fn flush(&mut self) -> Result<(), WaylandError> {
-        self.handle.handle.no_last_error()?;
-        let ret = unsafe {
-            ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, self.handle.handle.display)
-        };
+    pub fn flush(&self) -> Result<(), WaylandError> {
+        let mut guard = self.lock_state();
+        guard.no_last_error()?;
+        let ret = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_flush, guard.display) };
         if ret < 0 {
-            Err(self
-                .handle
-                .handle
-                .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
+            Err(guard.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             Ok(())
         }
     }
-
-    pub fn dispatch_events(&mut self) -> Result<usize, WaylandError> {
-        self.handle.handle.no_last_error()?;
-        self.handle.handle.try_read()?;
-        self.handle.handle.dispatch_pending()
-    }
-
-    pub fn handle(&mut self) -> &mut Handle {
-        &mut self.handle
-    }
 }
 
-impl InnerHandle {
+impl ConnectionState {
     #[inline]
     fn no_last_error(&self) -> Result<(), WaylandError> {
         if let Some(ref err) = self.last_error {
@@ -285,72 +301,58 @@ impl InnerHandle {
             e.into()
         }
     }
+}
 
-    fn dispatch_pending(&mut self) -> Result<usize, WaylandError> {
-        let display = self.display;
-        let evq = self.evq;
+impl Dispatcher {
+    fn dispatch_pending(&self, inner: Arc<Inner>) -> Result<usize, WaylandError> {
+        let (display, evq) = {
+            let guard = inner.state.lock().unwrap();
+            (guard.display, guard.evq)
+        };
+        let backend = Backend { backend: InnerBackend { inner } };
 
         // We erase the lifetime of the Handle to be able to store it in the tls,
         // it's safe as it'll only last until the end of this function call anyway
-        let ret =
-            HANDLE.set(&RefCell::new(unsafe { std::mem::transmute(&mut *self) }), || unsafe {
-                if evq.is_null() {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending, display)
-                } else {
-                    ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_display_dispatch_queue_pending,
-                        display,
-                        evq
-                    )
-                }
-            });
-        if ret < 0 {
-            Err(self.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
-        } else {
-            Ok(ret as usize)
-        }
-    }
-
-    fn try_read(&mut self) -> Result<(), WaylandError> {
-        let ret = unsafe {
-            if self.evq.is_null() {
-                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_prepare_read, self.display)
+        let ret = BACKEND.set(&backend, || unsafe {
+            if evq.is_null() {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_dispatch_pending, display)
             } else {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
-                    wl_display_prepare_read_queue,
-                    self.display,
-                    self.evq
+                    wl_display_dispatch_queue_pending,
+                    display,
+                    evq
                 )
             }
-        };
+        });
         if ret < 0 {
-            return Ok(());
-        }
-        let ret =
-            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_read_events, self.display) };
-        if ret < 0 {
-            Err(self.store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
+            Err(backend
+                .backend
+                .inner
+                .state
+                .lock()
+                .unwrap()
+                .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
-            Ok(())
+            Ok(ret as usize)
         }
     }
 }
 
 #[derive(Debug)]
 pub struct InnerReadEventsGuard {
-    backend: Arc<Mutex<Backend>>,
+    inner: Arc<Inner>,
     display: *mut wl_display,
     done: bool,
 }
 
 impl InnerReadEventsGuard {
-    pub fn try_new(backend: Arc<Mutex<Backend>>) -> Result<Self, WaylandError> {
-        let mut backend_guard = backend.lock().unwrap();
-        let display = backend_guard.backend.handle.handle.display;
-        let evq = backend_guard.backend.handle.handle.evq;
-
+    pub fn try_new(backend: InnerBackend) -> Result<Self, WaylandError> {
+        let (display, evq) = {
+            let guard = backend.lock_state();
+            (guard.display, guard.evq)
+        };
+        let dispatcher = backend.inner.dispatch_lock.lock().unwrap();
         // do the prepare_read() and dispatch as necessary
         loop {
             let ret = unsafe {
@@ -366,16 +368,15 @@ impl InnerReadEventsGuard {
                 }
             };
             if ret < 0 {
-                backend_guard.backend.handle.handle.dispatch_pending()?;
+                dispatcher.dispatch_pending(backend.inner.clone())?;
             } else {
                 break;
             }
         }
-
-        std::mem::drop(backend_guard);
+        std::mem::drop(dispatcher);
 
         // prepare_read is done, we are ready
-        Ok(InnerReadEventsGuard { backend, display, done: false })
+        Ok(InnerReadEventsGuard { inner: backend.inner, display, done: false })
     }
 
     pub fn connection_fd(&self) -> RawFd {
@@ -389,16 +390,14 @@ impl InnerReadEventsGuard {
         if ret < 0 {
             // we have done the reading, and there is an error
             Err(self
-                .backend
+                .inner
+                .state
                 .lock()
                 .unwrap()
-                .backend
-                .handle
-                .handle
                 .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
             // the read occured, dispatch pending events
-            self.backend.lock().unwrap().backend.handle.handle.dispatch_pending()
+            self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
         }
     }
 }
@@ -413,13 +412,13 @@ impl Drop for InnerReadEventsGuard {
     }
 }
 
-impl InnerHandle {
+impl InnerBackend {
     pub fn display_id(&self) -> ObjectId {
-        ObjectId { id: self.display_id.clone() }
+        ObjectId { id: self.lock_state().display_id.clone() }
     }
 
     pub fn last_error(&self) -> Option<WaylandError> {
-        self.last_error.clone()
+        self.lock_state().last_error.clone()
     }
 
     pub fn info(&self, ObjectId { id }: ObjectId) -> Result<ObjectInfo, InvalidId> {
@@ -438,7 +437,7 @@ impl InnerHandle {
         Ok(ObjectInfo { id: id.id, interface: id.interface, version })
     }
 
-    pub fn null_id(&mut self) -> ObjectId {
+    pub fn null_id() -> ObjectId {
         ObjectId {
             id: InnerObjectId {
                 ptr: std::ptr::null_mut(),
@@ -449,23 +448,13 @@ impl InnerHandle {
         }
     }
 
-    pub fn placeholder_id(&mut self, spec: Option<(&'static Interface, u32)>) -> ObjectId {
-        self.pending_placeholder = spec;
-        ObjectId {
-            id: InnerObjectId {
-                ptr: std::ptr::null_mut(),
-                alive: None,
-                id: 0,
-                interface: spec.map(|(iface, _)| iface).unwrap_or(&ANONYMOUS_INTERFACE),
-            },
-        }
-    }
-
     pub fn send_request(
-        &mut self,
+        &self,
         Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
+        child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
+        let mut guard = self.lock_state();
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
             return Err(InvalidId);
@@ -495,7 +484,7 @@ impl InnerHandle {
             .iter()
             .any(|arg| matches!(arg, ArgumentType::NewId(_)))
         {
-            if let Some((iface, version)) = self.pending_placeholder.take() {
+            if let Some((iface, version)) = child_spec {
                 if let Some(child_interface) = message_desc.child_interface {
                     if !same_interface(child_interface, iface) {
                         panic!(
@@ -631,7 +620,7 @@ impl InnerHandle {
                     );
                 }
             };
-            self.known_proxies.insert(ret);
+            guard.known_proxies.insert(ret);
             unsafe {
                 ffi_dispatch!(
                     WAYLAND_CLIENT_HANDLE,
@@ -644,7 +633,7 @@ impl InnerHandle {
             }
             child_id
         } else {
-            self.null_id()
+            InnerBackend::null_id()
         };
 
         if message_desc.is_destructor {
@@ -667,7 +656,7 @@ impl InnerHandle {
                 alive.store(false, Ordering::Release);
                 udata.data.destroyed(ObjectId { id: id.clone() });
             }
-            self.known_proxies.remove(&id.ptr);
+            guard.known_proxies.remove(&id.ptr);
             unsafe {
                 ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, id.ptr);
             }
@@ -694,7 +683,7 @@ impl InnerHandle {
     }
 
     pub fn set_data(
-        &mut self,
+        &self,
         ObjectId { id }: ObjectId,
         data: Arc<dyn ObjectData>,
     ) -> Result<(), InvalidId> {
@@ -879,16 +868,17 @@ unsafe extern "C" fn dispatcher_func(
         },
     };
 
-    let ret = HANDLE.with(|handle| {
-        let mut handle = handle.borrow_mut();
+    let ret = BACKEND.with(|backend| {
+        let mut guard = backend.backend.lock_state();
         if let Some((ref new_id, _)) = created {
-            handle.handle.known_proxies.insert(new_id.ptr);
+            guard.known_proxies.insert(new_id.ptr);
         }
         if message_desc.is_destructor {
-            handle.handle.known_proxies.remove(&proxy);
+            guard.known_proxies.remove(&proxy);
         }
+        std::mem::drop(guard);
         udata.data.clone().event(
-            &mut handle,
+            backend,
             Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
         )
     });
@@ -925,11 +915,11 @@ extern "C" {
     fn wl_log_trampoline_to_rust_client(fmt: *const c_char, list: *const c_void);
 }
 
-impl Drop for InnerBackend {
+impl Drop for ConnectionState {
     fn drop(&mut self) {
-        if self.handle.handle.evq.is_null() {
+        if self.evq.is_null() {
             // we are own the connection, cleanup and close it
-            for proxy_ptr in self.handle.handle.known_proxies.drain() {
+            for proxy_ptr in self.known_proxies.drain() {
                 let _ = unsafe {
                     Box::from_raw(ffi_dispatch!(
                         WAYLAND_CLIENT_HANDLE,
@@ -941,13 +931,7 @@ impl Drop for InnerBackend {
                     ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy_ptr);
                 }
             }
-            unsafe {
-                ffi_dispatch!(
-                    WAYLAND_CLIENT_HANDLE,
-                    wl_display_disconnect,
-                    self.handle.handle.display
-                )
-            }
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.display) }
         }
     }
 }
