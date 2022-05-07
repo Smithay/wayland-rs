@@ -3,9 +3,9 @@ pub mod wl_display {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
@@ -78,6 +78,7 @@ pub mod wl_display {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for WlDisplay {
         fn eq(&self, other: &WlDisplay) -> bool {
@@ -108,16 +109,17 @@ pub mod wl_display {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(WlDisplay { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(WlDisplay { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -150,34 +152,30 @@ pub mod wl_display {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
-                Request::Sync {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![{
+                Request::Sync {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![{
                         let my_info = conn.object_info(self.id())?;
-                        let placeholder = conn.placeholder_id(Some((
-                            super::wl_callback::WlCallback::interface(),
-                            my_info.version,
-                        )));
-                        Argument::NewId(placeholder)
-                    }],
-                }),
-                Request::GetRegistry {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 1u16,
-                    args: smallvec::smallvec![{
+                        child_spec =
+                            Some((super::wl_callback::WlCallback::interface(), my_info.version));
+                        Argument::NewId(Connection::null_id())
+                    }];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
+                Request::GetRegistry {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![{
                         let my_info = conn.object_info(self.id())?;
-                        let placeholder = conn.placeholder_id(Some((
-                            super::wl_registry::WlRegistry::interface(),
-                            my_info.version,
-                        )));
-                        Argument::NewId(placeholder)
-                    }],
-                }),
+                        child_spec =
+                            Some((super::wl_registry::WlRegistry::interface(), my_info.version));
+                        Argument::NewId(Connection::null_id())
+                    }];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
+                }
             }
         }
     }
@@ -185,30 +183,30 @@ pub mod wl_display {
         #[allow(clippy::too_many_arguments)]
         pub fn sync<D: Dispatch<super::wl_callback::WlCallback> + 'static>(
             &self,
-            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::wl_callback::WlCallback>>::UserData,
         ) -> Result<super::wl_callback::WlCallback, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::Sync {},
                 Some(qh.make_data::<super::wl_callback::WlCallback>(udata)),
             )?;
-            Proxy::from_id(conn, ret)
+            Proxy::from_id(&conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_registry<D: Dispatch<super::wl_registry::WlRegistry> + 'static>(
             &self,
-            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::wl_registry::WlRegistry>>::UserData,
         ) -> Result<super::wl_registry::WlRegistry, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetRegistry {},
                 Some(qh.make_data::<super::wl_registry::WlRegistry>(udata)),
             )?;
-            Proxy::from_id(conn, ret)
+            Proxy::from_id(&conn, ret)
         }
     }
 }
@@ -217,9 +215,9 @@ pub mod wl_registry {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -262,6 +260,7 @@ pub mod wl_registry {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for WlRegistry {
         fn eq(&self, other: &WlRegistry) -> bool {
@@ -292,16 +291,17 @@ pub mod wl_registry {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(WlRegistry { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(WlRegistry { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -335,20 +335,23 @@ pub mod wl_registry {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
-                Request::Bind { name, id } => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![
+                Request::Bind { name, id } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
                         Argument::Uint(name),
                         Argument::Str(Box::new(std::ffi::CString::new(id.0.name).unwrap())),
                         Argument::Uint(id.1),
-                        Argument::NewId(conn.placeholder_id(Some((id.0, id.1))))
-                    ],
-                }),
+                        {
+                            child_spec = Some((id.0, id.1));
+                            Argument::NewId(Connection::null_id())
+                        }
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
             }
         }
     }
@@ -356,19 +359,18 @@ pub mod wl_registry {
         #[allow(clippy::too_many_arguments)]
         pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
             &self,
-            conn: &mut ConnectionHandle,
             name: u32,
             version: u32,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<I>>::UserData,
         ) -> Result<I, InvalidId> {
-            let placeholder = conn.placeholder_id(Some((I::interface(), version)));
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::Bind { name, id: (I::interface(), version) },
                 Some(qh.make_data::<I>(udata)),
             )?;
-            Proxy::from_id(conn, ret)
+            Proxy::from_id(&conn, ret)
         }
     }
 }
@@ -377,9 +379,9 @@ pub mod wl_callback {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
@@ -401,6 +403,7 @@ pub mod wl_callback {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for WlCallback {
         fn eq(&self, other: &WlCallback) -> bool {
@@ -431,16 +434,17 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(WlCallback { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(WlCallback { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -457,9 +461,9 @@ pub mod wl_callback {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {}
         }
     }
@@ -469,9 +473,9 @@ pub mod test_global {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -549,6 +553,7 @@ pub mod test_global {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for TestGlobal {
         fn eq(&self, other: &TestGlobal) -> bool {
@@ -579,16 +584,17 @@ pub mod test_global {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(TestGlobal { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(TestGlobal { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -682,9 +688,9 @@ pub mod test_global {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::ManyArgs {
                     unsigned_int,
@@ -693,72 +699,68 @@ pub mod test_global {
                     number_array,
                     some_text,
                     file_descriptor,
-                } => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![
+                } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
                         Argument::Uint(unsigned_int),
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
                         Argument::Str(Box::new(std::ffi::CString::new(some_text).unwrap())),
                         Argument::Fd(file_descriptor)
-                    ],
-                }),
-                Request::GetSecondary {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 1u16,
-                    args: smallvec::smallvec![{
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
+                Request::GetSecondary {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![{
                         let my_info = conn.object_info(self.id())?;
-                        let placeholder = conn.placeholder_id(Some((
-                            super::secondary::Secondary::interface(),
-                            my_info.version,
-                        )));
-                        Argument::NewId(placeholder)
-                    }],
-                }),
-                Request::GetTertiary {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 2u16,
-                    args: smallvec::smallvec![{
+                        child_spec =
+                            Some((super::secondary::Secondary::interface(), my_info.version));
+                        Argument::NewId(Connection::null_id())
+                    }];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
+                }
+                Request::GetTertiary {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![{
                         let my_info = conn.object_info(self.id())?;
-                        let placeholder = conn.placeholder_id(Some((
-                            super::tertiary::Tertiary::interface(),
-                            my_info.version,
-                        )));
-                        Argument::NewId(placeholder)
-                    }],
-                }),
-                Request::Link { sec, ter, time } => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 3u16,
-                    args: smallvec::smallvec![
+                        child_spec =
+                            Some((super::tertiary::Tertiary::interface(), my_info.version));
+                        Argument::NewId(Connection::null_id())
+                    }];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
+                }
+                Request::Link { sec, ter, time } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
                         Argument::Object(Proxy::id(&sec)),
                         if let Some(obj) = ter {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(conn.null_id())
+                            Argument::Object(Connection::null_id())
                         },
                         Argument::Uint(time)
-                    ],
-                }),
-                Request::Destroy {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 4u16,
-                    args: smallvec::smallvec![],
-                }),
-                Request::ReverseLink { sec, ter } => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 5u16,
-                    args: smallvec::smallvec![
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 3u16, args }, child_spec))
+                }
+                Request::Destroy {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 4u16, args }, child_spec))
+                }
+                Request::ReverseLink { sec, ter } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
                         if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(conn.null_id())
+                            Argument::Object(Connection::null_id())
                         },
                         Argument::Object(Proxy::id(&ter))
-                    ],
-                }),
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
+                }
             }
         }
     }
@@ -766,7 +768,6 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn many_args(
             &self,
-            conn: &mut ConnectionHandle,
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
@@ -774,6 +775,11 @@ pub mod test_global {
             some_text: String,
             file_descriptor: ::std::os::unix::io::RawFd,
         ) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(
                 self,
                 Request::ManyArgs {
@@ -790,52 +796,65 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn get_secondary<D: Dispatch<super::secondary::Secondary> + 'static>(
             &self,
-            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::secondary::Secondary>>::UserData,
         ) -> Result<super::secondary::Secondary, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetSecondary {},
                 Some(qh.make_data::<super::secondary::Secondary>(udata)),
             )?;
-            Proxy::from_id(conn, ret)
+            Proxy::from_id(&conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_tertiary<D: Dispatch<super::tertiary::Tertiary> + 'static>(
             &self,
-            conn: &mut ConnectionHandle,
             qh: &QueueHandle<D>,
             udata: <D as Dispatch<super::tertiary::Tertiary>>::UserData,
         ) -> Result<super::tertiary::Tertiary, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetTertiary {},
                 Some(qh.make_data::<super::tertiary::Tertiary>(udata)),
             )?;
-            Proxy::from_id(conn, ret)
+            Proxy::from_id(&conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
         pub fn link(
             &self,
-            conn: &mut ConnectionHandle,
             sec: &super::secondary::Secondary,
             ter: Option<&super::tertiary::Tertiary>,
             time: u32,
         ) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Link { sec: sec.clone(), ter: ter.cloned(), time }, None);
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+        pub fn destroy(&self) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Destroy {}, None);
         }
         #[allow(clippy::too_many_arguments)]
         pub fn reverse_link(
             &self,
-            conn: &mut ConnectionHandle,
             sec: Option<&super::secondary::Secondary>,
             ter: &super::tertiary::Tertiary,
         ) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(
                 self,
                 Request::ReverseLink { sec: sec.cloned(), ter: ter.clone() },
@@ -848,9 +867,9 @@ pub mod secondary {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -869,6 +888,7 @@ pub mod secondary {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for Secondary {
         fn eq(&self, other: &Secondary) -> bool {
@@ -899,16 +919,17 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Secondary { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(Secondary { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -918,21 +939,26 @@ pub mod secondary {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
-                Request::Destroy {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![],
-                }),
+                Request::Destroy {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
             }
         }
     }
     impl Secondary {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+        pub fn destroy(&self) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
@@ -941,9 +967,9 @@ pub mod tertiary {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -962,6 +988,7 @@ pub mod tertiary {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for Tertiary {
         fn eq(&self, other: &Tertiary) -> bool {
@@ -992,16 +1019,17 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Tertiary { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(Tertiary { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -1011,21 +1039,26 @@ pub mod tertiary {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
-                Request::Destroy {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![],
-                }),
+                Request::Destroy {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
             }
         }
     }
     impl Tertiary {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+        pub fn destroy(&self) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }
@@ -1034,9 +1067,9 @@ pub mod quad {
     use super::wayland_client::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
-        ConnectionHandle, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
+        Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -1055,6 +1088,7 @@ pub mod quad {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn ObjectData>>,
+        backend: WeakBackend,
     }
     impl std::cmp::PartialEq for Quad {
         fn eq(&self, other: &Quad) -> bool {
@@ -1085,16 +1119,17 @@ pub mod quad {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Quad { id, data, version })
+            let backend = conn.backend().downgrade();
+            Ok(Quad { id, data, version, backend })
         }
         fn parse_event(
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -1104,21 +1139,26 @@ pub mod quad {
         }
         fn write_request(
             &self,
-            conn: &mut ConnectionHandle,
+            conn: &Connection,
             msg: Self::Request,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
-                Request::Destroy {} => Ok(Message {
-                    sender_id: self.id.clone(),
-                    opcode: 0u16,
-                    args: smallvec::smallvec![],
-                }),
+                Request::Destroy {} => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                }
             }
         }
     }
     impl Quad {
         #[allow(clippy::too_many_arguments)]
-        pub fn destroy(&self, conn: &mut ConnectionHandle) {
+        pub fn destroy(&self) {
+            let backend = match self.backend.upgrade() {
+                Some(b) => b,
+                None => return,
+            };
+            let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Destroy {}, None);
         }
     }

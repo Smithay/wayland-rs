@@ -16,17 +16,13 @@ fn proxy_equals() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let compositor1 = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -37,7 +33,6 @@ fn proxy_equals() {
     let compositor2 = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -61,17 +56,13 @@ fn proxy_user_data() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let compositor1 = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -82,7 +73,6 @@ fn proxy_user_data() {
     let compositor2 = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -107,17 +97,13 @@ fn dead_proxies() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let output = client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -130,16 +116,16 @@ fn dead_proxies() {
     let output2 = output.clone();
 
     assert!(output == output2);
-    assert!(client.conn.handle().object_info(output.id()).is_ok());
-    assert!(client.conn.handle().object_info(output2.id()).is_ok());
+    assert!(client.conn.object_info(output.id()).is_ok());
+    assert!(client.conn.object_info(output2.id()).is_ok());
 
     // kill the output
-    output.release(&mut client.conn.handle());
+    output.release();
 
     // dead proxies are still equal
     assert!(output == output2);
-    assert!(client.conn.handle().object_info(output.id()).is_err());
-    assert!(client.conn.handle().object_info(output2.id()).is_err());
+    assert!(client.conn.object_info(output.id()).is_err());
+    assert!(client.conn.object_info(output2.id()).is_err());
 }
 
 #[test]
@@ -152,17 +138,13 @@ fn dead_object_argument() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let output = client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -172,7 +154,6 @@ fn dead_object_argument() {
     let compositor = client_ddata
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -180,8 +161,8 @@ fn dead_object_argument() {
         )
         .unwrap();
 
-    compositor.create_surface(&mut client.conn.handle(), &client.event_queue.handle(), ()).unwrap();
-    output.release(&mut client.conn.handle());
+    compositor.create_surface(&client.event_queue.handle(), ()).unwrap();
+    output.release();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -265,7 +246,7 @@ impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor> for ClientHandl
         _: &wayc::protocol::wl_compositor::WlCompositor,
         _: wayc::protocol::wl_compositor::Event,
         _: &usize,
-        _: &mut wayc::ConnectionHandle,
+        _: &wayc::Connection,
         _: &wayc::QueueHandle<Self>,
     ) {
     }
@@ -279,11 +260,11 @@ impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface> for ClientHandler {
         _: &wayc::protocol::wl_surface::WlSurface,
         event: wayc::protocol::wl_surface::Event,
         _: &(),
-        connhandle: &mut wayc::ConnectionHandle,
+        conn: &wayc::Connection,
         _: &wayc::QueueHandle<Self>,
     ) {
         if let wayc::protocol::wl_surface::Event::Enter { output } = event {
-            assert!(connhandle.get_object_data(output.id()).is_err());
+            assert!(conn.get_object_data(output.id()).is_err());
             self.entered = true;
         } else {
             panic!("Unexpected event: {:?}", event);

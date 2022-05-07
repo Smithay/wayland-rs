@@ -44,8 +44,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use std::sync::Arc;
 
             use super::wayland_client::{
-                backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
-                QueueProxyData, Proxy, ConnectionHandle, Dispatch, QueueHandle, DispatchError
+                backend::{Backend, WeakBackend, smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
+                QueueProxyData, Proxy, Connection, Dispatch, QueueHandle, DispatchError
             };
 
             #enums
@@ -58,6 +58,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 id: ObjectId,
                 version: u32,
                 data: Option<Arc<dyn ObjectData>>,
+                backend: WeakBackend,
             }
 
             impl std::cmp::PartialEq for #iface_name {
@@ -93,20 +94,21 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn from_id(conn: &mut ConnectionHandle, id: ObjectId) -> Result<Self, InvalidId> {
+                fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                         return Err(InvalidId);
                     }
                     let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
                     let data = conn.get_object_data(id.clone()).ok();
-                    Ok(#iface_name { id, data, version })
+                    let backend = conn.backend().downgrade();
+                    Ok(#iface_name { id, data, version, backend })
                 }
 
-                fn parse_event(conn: &mut ConnectionHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
+                fn parse_event(conn: &Connection, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
                     #parse_body
                 }
 
-                fn write_request(&self, conn: &mut ConnectionHandle, msg: Self::Request) -> Result<Message<ObjectId>, InvalidId> {
+                fn write_request(&self, conn: &Connection, msg: Self::Request) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
                     #write_body
                 }
             }
@@ -196,7 +198,8 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, conn: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<super::#created_iface_mod::#created_iface_type>>::UserData) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<super::#created_iface_mod::#created_iface_type>>::UserData) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                        let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                         let ret = conn.send_request(
                             self,
                             Request::#enum_variant {
@@ -204,7 +207,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                             },
                             Some(qh.make_data::<super::#created_iface_mod::#created_iface_type>(udata))
                         )?;
-                        Proxy::from_id(conn, ret)
+                        Proxy::from_id(&conn, ret)
                     }
                 }
             },
@@ -212,16 +215,16 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 // a bind-like request
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, conn: &mut ConnectionHandle, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<I>>::UserData) -> Result<I, InvalidId> {
-                        let placeholder = conn.placeholder_id(Some((I::interface(), version)));
+                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<I>>::UserData) -> Result<I, InvalidId> {
+                        let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                         let ret = conn.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<I>(udata))
+                            Some(qh.make_data::<I>(udata)),
                         )?;
-                        Proxy::from_id(conn, ret)
+                        Proxy::from_id(&conn, ret)
                     }
                 }
             },
@@ -229,7 +232,12 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 // a non-creating request
                 quote! {
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name(&self, conn: &mut ConnectionHandle, #(#fn_args),*) {
+                    pub fn #method_name(&self, #(#fn_args),*) {
+                        let backend = match self.backend.upgrade() {
+                            Some(b) => b,
+                            None => return,
+                        };
+                        let conn = Connection::from_backend(backend);
                         let _ = conn.send_request(
                             self,
                             Request::#enum_variant {

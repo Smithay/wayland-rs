@@ -3,8 +3,8 @@
 use std::ops::Range;
 
 use crate::{
-    protocol::wl_registry, ConnectionHandle, DelegateDispatch, DelegateDispatchBase, Dispatch,
-    Proxy, QueueHandle,
+    protocol::wl_registry, Connection, DelegateDispatch, DelegateDispatchBase, Dispatch, Proxy,
+    QueueHandle,
 };
 
 /// Description of an advertized global
@@ -42,7 +42,7 @@ where
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
-        _: &mut crate::ConnectionHandle,
+        _: &Connection,
         _: &crate::QueueHandle<D>,
     ) {
         let me = handle.as_mut();
@@ -72,11 +72,11 @@ impl Dispatch<wl_registry::WlRegistry> for GlobalList {
         proxy: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         data: &Self::UserData,
-        connhandle: &mut ConnectionHandle,
+        conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
         <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
-            self, proxy, event, data, connhandle, qhandle,
+            self, proxy, event, data, conn, qhandle,
         )
     }
 }
@@ -104,7 +104,6 @@ impl GlobalList {
     /// also need to provide the user data value that will be set for the newly created object.
     pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
         &self,
-        conn: &mut ConnectionHandle<'_>,
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
         version: Range<u32>,
@@ -117,7 +116,7 @@ impl GlobalList {
 
             if version.contains(&desc.version) {
                 return Ok(registry
-                    .bind::<I, D>(conn, desc.name, desc.version, qh, user_data)
+                    .bind::<I, D>(desc.name, desc.version, qh, user_data)
                     .expect("invalid wl_registry"));
             } else {
                 return Err(BindError::WrongVersion {

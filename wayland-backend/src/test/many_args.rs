@@ -76,7 +76,7 @@ struct ClientData(AtomicBool);
 macro_rules! clientdata_impls {
     ($client_backend:tt) => {
         impl $client_backend::ObjectData for ClientData {
-            fn event(self: Arc<Self>, _handle: &mut $client_backend::Handle, msg: Message<$client_backend::ObjectId>) -> Option<Arc<dyn $client_backend::ObjectData>> {
+            fn event(self: Arc<Self>, _handle: & $client_backend::Backend, msg: Message<$client_backend::ObjectId>) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
                 if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(ref s), Argument::Fd(fd)] =
                     &msg.args[..]
@@ -110,7 +110,7 @@ expand_test!(many_args, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
-    let mut client = client_backend::Backend::connect(tx).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
     let client_data = Arc::new(ClientData(AtomicBool::new(false)));
@@ -119,19 +119,16 @@ expand_test!(many_args, {
     server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 1, server_data.clone());
 
     // get the registry client-side
-    let client_display = client.handle().display_id();
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::WL_REGISTRY_INTERFACE, 1)));
+    let client_display = client.display_id();
     let registry_id = client
-        .handle()
         .send_request(
-            message!(client_display, 1, [Argument::NewId(placeholder)],),
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
             Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
         .unwrap();
     // create the test global
-    let placeholder = client.handle().placeholder_id(Some((&interfaces::TEST_GLOBAL_INTERFACE, 1)));
     let test_global_id = client
-        .handle()
         .send_request(
             message!(
                 registry_id,
@@ -142,22 +139,22 @@ expand_test!(many_args, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(1),
-                    Argument::NewId(placeholder),
+                    Argument::NewId(client_backend::Backend::null_id()),
                 ],
             ),
             Some(client_data.clone()),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 1)),
         )
         .unwrap();
 
     client.flush().unwrap();
     server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
-    client.dispatch_events().unwrap();
+    client.prepare_read().unwrap().read().unwrap();
     assert!(client_data.0.load(Ordering::SeqCst));
 
     // send the many_args request
     client
-        .handle()
         .send_request(
             message!(
                 test_global_id,
@@ -171,6 +168,7 @@ expand_test!(many_args, {
                     Argument::Fd(0), // stdin
                 ],
             ),
+            None,
             None,
         )
         .unwrap();

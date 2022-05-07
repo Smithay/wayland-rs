@@ -458,7 +458,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     if side == Side::Server {
                         quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(conn.null_id()) } }
                     } else {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(conn.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(Connection::null_id()) } }
                     }
                 } else if side == Side::Server {
                     quote!{ Argument::Object(Resource::id(&#arg_name)) }
@@ -481,14 +481,17 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                         quote! { {
                             let my_info = conn.object_info(self.id())?;
-                            let placeholder = conn.placeholder_id(Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version)));
-                            Argument::NewId(placeholder)
+                            child_spec = Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version));
+                            Argument::NewId(Connection::null_id())
                         } }
                     } else {
                         quote! {
                             Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())),
                             Argument::Uint(#arg_name.1),
-                            Argument::NewId(conn.placeholder_id(Some((#arg_name.0, #arg_name.1))))
+                            {
+                                child_spec = Some((#arg_name.0, #arg_name.1));
+                                Argument::NewId(Connection::null_id())
+                            }
                         }
                     }
                 } else {
@@ -502,14 +505,30 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });
-        quote! {
-            #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
-                sender_id: self.id.clone(),
-                opcode: #opcode,
-                args: smallvec::smallvec![
-                    #(#args),*
-                ]
-            })
+        if side == Side::Client {
+            quote! {
+                #msg_type::#msg_name { #(#arg_names),* } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
+                        #(#args),*
+                    ];
+                    Ok((Message {
+                        sender_id: self.id.clone(),
+                        opcode: #opcode,
+                        args
+                    }, child_spec))
+                }
+            }
+        } else {
+            quote! {
+                #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
+                    sender_id: self.id.clone(),
+                    opcode: #opcode,
+                    args: smallvec::smallvec![
+                        #(#args),*
+                    ]
+                })
+            }
         }
     });
     quote! {

@@ -17,17 +17,13 @@ fn resource_destructor_request() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let output = client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -37,7 +33,7 @@ fn resource_destructor_request() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    output.release(&mut client.conn.handle());
+    output.release();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -53,17 +49,13 @@ fn resource_destructor_cleanup() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -92,17 +84,13 @@ fn client_destructor_cleanup() {
         server.add_client_with_data(Arc::new(DestructorClientData(destructor_called.clone())));
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client
-        .display
-        .get_registry(&mut client.conn.handle(), &client.event_queue.handle(), ())
-        .unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     client_ddata
         .globals
         .bind::<wayc::protocol::wl_output::WlOutput, _>(
-            &mut client.conn.handle(),
             &client.event_queue.handle(),
             &registry,
             3..4,

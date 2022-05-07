@@ -164,10 +164,7 @@ mod client {
             Eq
         );
 
-        // Handle
-        assert_impl!(client::Handle: std::fmt::Debug);
-
         // Backend
-        assert_impl!(client::Backend: Send, Sync);
+        assert_impl!(client::Backend: Send, Sync, std::fmt::Debug);
     }
 }
