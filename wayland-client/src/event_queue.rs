@@ -7,7 +7,7 @@ use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
-    protocol::Message,
+    protocol::{Argument, Message},
 };
 
 use crate::{conn::SyncData, Connection, DispatchError, Proxy};
@@ -304,7 +304,20 @@ impl<D: 'static> QueueHandle<D> {
         let odata_maker = if has_creating_event {
             let qhandle = self.clone();
             Box::new(move |msg: &Message<ObjectId>| {
-                Some(<D as Dispatch<I>>::event_created_child(msg.opcode, &qhandle))
+                for arg in &msg.args {
+                    match arg {
+                        Argument::NewId(id) if id.is_null() => {
+                            return None;
+                        }
+                        Argument::NewId(_) => {
+                            return Some(<D as Dispatch<I>>::event_created_child(
+                                msg.opcode, &qhandle,
+                            ));
+                        }
+                        _ => continue,
+                    }
+                }
+                None
             }) as Box<_>
         } else {
             Box::new(|_: &Message<ObjectId>| None) as Box<_>
