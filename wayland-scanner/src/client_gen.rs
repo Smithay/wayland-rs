@@ -93,6 +93,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>()).map(|data| &data.udata)
                 }
 
+                fn backend(&self) -> &WeakBackend {
+                    &self.backend
+                }
+
                 #[inline]
                 fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null() {

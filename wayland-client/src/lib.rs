@@ -63,6 +63,9 @@ pub trait Proxy: Sized {
     /// Access the user-data associated with this object
     fn data<U: Send + Sync + 'static>(&self) -> Option<&U>;
 
+    /// Access the backend associated with this object
+    fn backend(&self) -> &backend::WeakBackend;
+
     /// Create an object proxy from its ID
     ///
     /// Returns an error this the provided object ID does not correspond to
