@@ -101,6 +101,19 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     &self.backend
                 }
 
+                fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+                    let id = conn.send_request(self, req, None)?;
+                    debug_assert!(id.is_null());
+                    Ok(())
+                }
+
+                fn send_constructor<I: Proxy>(&self, req: Self::Request, data: Arc<dyn ObjectData>) -> Result<I, InvalidId> {
+                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+                    let id = conn.send_request(self, req, Some(data))?;
+                    Proxy::from_id(&conn, id)
+                }
+
                 #[inline]
                 fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
