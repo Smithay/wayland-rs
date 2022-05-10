@@ -93,6 +93,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>()).map(|data| &data.udata)
                 }
 
+                fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+                    self.data.as_ref()
+                }
+
                 fn backend(&self) -> &WeakBackend {
                     &self.backend
                 }

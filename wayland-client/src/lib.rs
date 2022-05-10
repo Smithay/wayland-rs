@@ -63,6 +63,12 @@ pub trait Proxy: Sized {
     /// Access the user-data associated with this object
     fn data<U: Send + Sync + 'static>(&self) -> Option<&U>;
 
+    /// Access the raw data associated with this object.
+    ///
+    /// For objects created using the scanner-generated methods, this will be an instance of the
+    /// [QueueProxyData] type.
+    fn object_data(&self) -> Option<&Arc<dyn ObjectData>>;
+
     /// Access the backend associated with this object
     fn backend(&self) -> &backend::WeakBackend;
 
