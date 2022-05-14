@@ -73,6 +73,7 @@ pub mod wl_display {
             id: u32,
         },
     }
+    #[doc = "core global object\n\nThe core global object.  This is a special singleton object.  It\nis used for internal Wayland protocol features.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct WlDisplay {
         id: ObjectId,
@@ -107,6 +108,27 @@ pub mod wl_display {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -180,6 +202,7 @@ pub mod wl_display {
         }
     }
     impl WlDisplay {
+        #[doc = "asynchronous roundtrip\n\nThe sync request asks the server to emit the 'done' event\non the returned wl_callback object.  Since requests are\nhandled in-order and events are delivered in-order, this can\nbe used as a barrier to ensure all previous requests and the\nresulting events have been handled.\n\nThe object returned by this request will be destroyed by the\ncompositor after the callback is fired and as such the client must not\nattempt to use it after that point.\n\nThe callback_data passed in the callback is the event serial."]
         #[allow(clippy::too_many_arguments)]
         pub fn sync<D: Dispatch<super::wl_callback::WlCallback> + 'static>(
             &self,
@@ -194,6 +217,7 @@ pub mod wl_display {
             )?;
             Proxy::from_id(&conn, ret)
         }
+        #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         #[allow(clippy::too_many_arguments)]
         pub fn get_registry<D: Dispatch<super::wl_registry::WlRegistry> + 'static>(
             &self,
@@ -255,6 +279,7 @@ pub mod wl_registry {
             name: u32,
         },
     }
+    #[doc = "global registry object\n\nThe singleton global registry object.  The server has a number of\nglobal objects that are available to all clients.  These objects\ntypically represent an actual object in the server (for example,\nan input device) or they are singleton objects that provide\nextension functionality.\n\nWhen a client creates a registry object, the registry object\nwill emit a global event for each global currently in the\nregistry.  Globals come and go as a result of device or\nmonitor hotplugs, reconfiguration or other events, and the\nregistry will send out global and global_remove events to\nkeep the client up to date with the changes.  To mark the end\nof the initial burst of events, the client can use the\nwl_display.sync request immediately after calling\nwl_display.get_registry.\n\nA client can bind to a global object by using the bind\nrequest.  This creates a client-side handle that lets the object\nemit events to the client and lets the client invoke requests on\nthe object.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct WlRegistry {
         id: ObjectId,
@@ -289,6 +314,27 @@ pub mod wl_registry {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -356,6 +402,7 @@ pub mod wl_registry {
         }
     }
     impl WlRegistry {
+        #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
         #[allow(clippy::too_many_arguments)]
         pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
             &self,
@@ -398,6 +445,7 @@ pub mod wl_callback {
             callback_data: u32,
         },
     }
+    #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct WlCallback {
         id: ObjectId,
@@ -432,6 +480,27 @@ pub mod wl_callback {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -548,6 +617,7 @@ pub mod test_global {
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
     }
+    #[doc = "test_global\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct TestGlobal {
         id: ObjectId,
@@ -582,6 +652,27 @@ pub mod test_global {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -765,6 +856,7 @@ pub mod test_global {
         }
     }
     impl TestGlobal {
+        #[doc = "a request with every possible non-object arg"]
         #[allow(clippy::too_many_arguments)]
         pub fn many_args(
             &self,
@@ -821,6 +913,7 @@ pub mod test_global {
             )?;
             Proxy::from_id(&conn, ret)
         }
+        #[doc = "link a secondary and a tertiary"]
         #[allow(clippy::too_many_arguments)]
         pub fn link(
             &self,
@@ -844,6 +937,7 @@ pub mod test_global {
             let conn = Connection::from_backend(backend);
             let _ = conn.send_request(self, Request::Destroy {}, None);
         }
+        #[doc = "reverse link a secondary and a tertiary"]
         #[allow(clippy::too_many_arguments)]
         pub fn reverse_link(
             &self,
@@ -883,6 +977,7 @@ pub mod secondary {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "secondary\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Secondary {
         id: ObjectId,
@@ -917,6 +1012,27 @@ pub mod secondary {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -983,6 +1099,7 @@ pub mod tertiary {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "tertiary\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Tertiary {
         id: ObjectId,
@@ -1017,6 +1134,27 @@ pub mod tertiary {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
@@ -1083,6 +1221,7 @@ pub mod quad {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "quad\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Quad {
         id: ObjectId,
@@ -1117,6 +1256,27 @@ pub mod quad {
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
                 .map(|data| &data.udata)
+        }
+        fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+            self.data.as_ref()
+        }
+        fn backend(&self) -> &WeakBackend {
+            &self.backend
+        }
+        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, None)?;
+            debug_assert!(id.is_null());
+            Ok(())
+        }
+        fn send_constructor<I: Proxy>(
+            &self,
+            req: Self::Request,
+            data: Arc<dyn ObjectData>,
+        ) -> Result<I, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let id = conn.send_request(self, req, Some(data))?;
+            Proxy::from_id(&conn, id)
         }
         #[inline]
         fn from_id(conn: &Connection, id: ObjectId) -> Result<Self, InvalidId> {
