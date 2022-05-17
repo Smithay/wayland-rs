@@ -135,26 +135,29 @@ pub trait DelegateGlobalDispatch<
 
 #[macro_export]
 macro_rules! delegate_global_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
-        $(
-            impl $crate::GlobalDispatch<$interface> for $dispatch_from {
-                type GlobalData = <$dispatch_to as $crate::DelegateGlobalDispatchBase<$interface>>::GlobalData;
+    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : $interface: ty => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::GlobalDispatch<$interface> for $dispatch_from$(< $( $lt ),+ >)? {
+            type GlobalData = <$dispatch_to as $crate::DelegateGlobalDispatchBase<$interface>>::GlobalData;
 
-                fn bind(
-                    &mut self,
-                    dhandle: &mut $crate::DisplayHandle<'_>,
-                    client: &$crate::Client,
-                    resource: $crate::New<$interface>,
-                    global_data: &Self::GlobalData,
-                    data_init: &mut $crate::DataInit<'_, Self>,
-                ) {
-                    <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
-                }
-
-                fn can_view(client: $crate::Client, global_data: &Self::GlobalData) -> bool {
-                    <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::can_view(client, global_data)
-                }
+            fn bind(
+                &mut self,
+                dhandle: &mut $crate::DisplayHandle<'_>,
+                client: &$crate::Client,
+                resource: $crate::New<$interface>,
+                global_data: &Self::GlobalData,
+                data_init: &mut $crate::DataInit<'_, Self>,
+            ) {
+                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
             }
+
+            fn can_view(client: $crate::Client, global_data: &Self::GlobalData) -> bool {
+                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::can_view(client, global_data)
+            }
+        }
+    };
+    ($impl:tt : [$($interface: ty),*] => $dispatch_to: ty) => {
+        $(
+            $crate::delegate_global_dispatch!(@impl $impl : $interface => $dispatch_to);
         )*
     };
 }
