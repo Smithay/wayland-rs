@@ -274,27 +274,30 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
-        $(
-            impl $crate::Dispatch<$interface> for $dispatch_from {
-                type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
+    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : $interface:ty => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface> for $dispatch_from$(< $( $lt ),+ >)? {
+            type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
 
-                fn request(
-                    &mut self,
-                    client: &$crate::Client,
-                    resource: &$interface,
-                    request: <$interface as $crate::Resource>::Request,
-                    data: &Self::UserData,
-                    dhandle: &mut $crate::DisplayHandle<'_>,
-                    data_init: &mut $crate::DataInit<'_, Self>,
-                ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
-                }
-
-                fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &Self::UserData) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(self, client, resource, data)
-                }
+            fn request(
+                &mut self,
+                client: &$crate::Client,
+                resource: &$interface,
+                request: <$interface as $crate::Resource>::Request,
+                data: &Self::UserData,
+                dhandle: &mut $crate::DisplayHandle<'_>,
+                data_init: &mut $crate::DataInit<'_, Self>,
+            ) {
+                <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
             }
+
+            fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &Self::UserData) {
+                <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(self, client, resource, data)
+            }
+        }
+    };
+    ($impl:tt : [$($interface: ty),*] => $dispatch_to: ty) => {
+        $(
+            $crate::delegate_dispatch!(@impl $impl : $interface => $dispatch_to);
         )*
     };
 }
