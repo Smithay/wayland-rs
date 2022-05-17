@@ -4,7 +4,7 @@ use quote::{format_ident, quote};
 
 use crate::{
     protocol::{Interface, Protocol, Type},
-    util::{dotted_to_relname, is_keyword, snake_to_camel},
+    util::{description_to_doc_attr, dotted_to_relname, is_keyword, snake_to_camel, to_doc_attr},
     Side,
 };
 
@@ -14,7 +14,7 @@ pub fn generate_client_objects(protocol: &Protocol) -> TokenStream {
 
 fn generate_objects_for(interface: &Interface) -> TokenStream {
     let mod_name = Ident::new(&interface.name, Span::call_site());
-    let mod_doc = interface.description.as_ref().map(crate::util::description_to_doc_attr);
+    let mod_doc = interface.description.as_ref().map(description_to_doc_attr);
     let iface_name = Ident::new(&snake_to_camel(&interface.name), Span::call_site());
     let iface_const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
 
@@ -38,6 +38,17 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let write_body = crate::common::gen_write_body(interface, Side::Client);
     let methods = gen_methods(interface);
 
+    let event_ref = if interface.events.is_empty() {
+        "This interface has no events."
+    } else {
+        "See also the [Event] enum for this interface."
+    };
+    let docs = match &interface.description {
+        Some((short, long)) => format!("{}\n\n{}\n\n{}", short, long, event_ref),
+        None => format!("{}\n\n{}", interface.name, event_ref),
+    };
+    let doc_attr = to_doc_attr(&docs);
+
     quote! {
         #mod_doc
         pub mod #mod_name {
@@ -53,6 +64,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             #requests
             #events
 
+            #doc_attr
             #[derive(Debug, Clone)]
             pub struct #iface_name {
                 id: ObjectId,
@@ -91,6 +103,27 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 #[inline]
                 fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
                     self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>()).map(|data| &data.udata)
+                }
+
+                fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
+                    self.data.as_ref()
+                }
+
+                fn backend(&self) -> &WeakBackend {
+                    &self.backend
+                }
+
+                fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+                    let id = conn.send_request(self, req, None)?;
+                    debug_assert!(id.is_null());
+                    Ok(())
+                }
+
+                fn send_constructor<I: Proxy>(&self, req: Self::Request, data: Arc<dyn ObjectData>) -> Result<I, InvalidId> {
+                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+                    let id = conn.send_request(self, req, Some(data))?;
+                    Proxy::from_id(&conn, id)
                 }
 
                 #[inline]
@@ -191,12 +224,18 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             }
         });
 
+        let doc_attr = request
+            .description
+            .as_ref()
+            .map(description_to_doc_attr);
+
         match created_interface {
             Some(Some(ref created_interface)) => {
                 // a regular creating request
                 let created_iface_mod = Ident::new(created_interface, Span::call_site());
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                 quote! {
+                    #doc_attr
                     #[allow(clippy::too_many_arguments)]
                     pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<super::#created_iface_mod::#created_iface_type>>::UserData) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
                         let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -214,6 +253,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             Some(None) => {
                 // a bind-like request
                 quote! {
+                    #doc_attr
                     #[allow(clippy::too_many_arguments)]
                     pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<I>>::UserData) -> Result<I, InvalidId> {
                         let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -231,6 +271,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             None => {
                 // a non-creating request
                 quote! {
+                    #doc_attr
                     #[allow(clippy::too_many_arguments)]
                     pub fn #method_name(&self, #(#fn_args),*) {
                         let backend = match self.backend.upgrade() {

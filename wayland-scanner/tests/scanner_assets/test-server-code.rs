@@ -22,6 +22,7 @@ pub mod wl_callback {
             callback_data: u32
         },
     }
+    #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done.\n\nThis interface has no requests."]
     #[derive(Debug, Clone)]
     pub struct WlCallback {
         id: ObjectId,
@@ -95,6 +96,7 @@ pub mod wl_callback {
         }
     }
     impl WlCallback {
+        #[doc = "done event\n\nNotify the client when the related request is done."]
         #[allow(clippy::too_many_arguments)]
         pub fn done(&self, conn: &mut DisplayHandle, callback_data: u32) {
             let _ = conn.send_event(self, Event::Done { callback_data });
@@ -186,6 +188,7 @@ pub mod test_global {
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
     }
+    #[doc = "test_global\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct TestGlobal {
         id: ObjectId,
@@ -452,6 +455,7 @@ pub mod test_global {
         }
     }
     impl TestGlobal {
+        #[doc = "an event with every possible non-object arg"]
         #[allow(clippy::too_many_arguments)]
         pub fn many_args_evt(
             &self,
@@ -475,6 +479,7 @@ pub mod test_global {
                 },
             );
         }
+        #[doc = "acking the creation of a secondary"]
         #[allow(clippy::too_many_arguments)]
         pub fn ack_secondary(
             &self,
@@ -483,6 +488,7 @@ pub mod test_global {
         ) {
             let _ = conn.send_event(self, Event::AckSecondary { sec: sec.clone() });
         }
+        #[doc = "create a new quad optionally replacing a previous one"]
         #[allow(clippy::too_many_arguments)]
         pub fn cycle_quad(
             &self,
@@ -514,6 +520,7 @@ pub mod secondary {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "secondary\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Secondary {
         id: ObjectId,
@@ -609,6 +616,7 @@ pub mod tertiary {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "tertiary\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Tertiary {
         id: ObjectId,
@@ -704,6 +712,7 @@ pub mod quad {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    #[doc = "quad\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Quad {
         id: ObjectId,

@@ -4,7 +4,7 @@ use quote::{format_ident, quote};
 
 use crate::{
     protocol::{Interface, Protocol, Type},
-    util::{dotted_to_relname, is_keyword, snake_to_camel},
+    util::{description_to_doc_attr, dotted_to_relname, is_keyword, snake_to_camel, to_doc_attr},
     Side,
 };
 
@@ -19,7 +19,7 @@ pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {
 
 fn generate_objects_for(interface: &Interface) -> TokenStream {
     let mod_name = Ident::new(&interface.name, Span::call_site());
-    let mod_doc = interface.description.as_ref().map(crate::util::description_to_doc_attr);
+    let mod_doc = interface.description.as_ref().map(description_to_doc_attr);
     let iface_name = Ident::new(&snake_to_camel(&interface.name), Span::call_site());
     let iface_const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
 
@@ -43,6 +43,17 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let write_body = crate::common::gen_write_body(interface, Side::Server);
     let methods = gen_methods(interface);
 
+    let event_ref = if interface.requests.is_empty() {
+        "This interface has no requests."
+    } else {
+        "See also the [Request] enum for this interface."
+    };
+    let docs = match &interface.description {
+        Some((short, long)) => format!("{}\n\n{}\n\n{}", short, long, event_ref),
+        None => format!("{}\n\n{}", interface.name, event_ref),
+    };
+    let doc_attr = to_doc_attr(&docs);
+
     quote! {
         #mod_doc
         pub mod #mod_name {
@@ -58,6 +69,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             #requests
             #events
 
+            #doc_attr
             #[derive(Debug, Clone)]
             pub struct #iface_name {
                 id: ObjectId,
@@ -201,7 +213,10 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 }
             });
 
+            let doc_attr = request.description.as_ref().map(description_to_doc_attr);
+
             quote! {
+                #doc_attr
                 #[allow(clippy::too_many_arguments)]
                 pub fn #method_name(&self, conn: &mut DisplayHandle, #(#fn_args),*) {
                     let _ = conn.send_event(
