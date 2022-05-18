@@ -161,3 +161,68 @@ macro_rules! delegate_global_dispatch {
         )*
     };
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn smoke_test_dispatch_global_dispatch() {
+        use crate::{
+            delegate_dispatch, protocol::wl_output, Client, DataInit, DelegateDispatch,
+            DelegateDispatchBase, DelegateGlobalDispatch, DelegateGlobalDispatchBase, Dispatch,
+            DisplayHandle, GlobalDispatch, New,
+        };
+
+        struct DelegateToMe;
+
+        impl DelegateDispatchBase<wl_output::WlOutput> for DelegateToMe {
+            type UserData = ();
+        }
+        impl<D> DelegateDispatch<wl_output::WlOutput, D> for DelegateToMe
+        where
+            D: Dispatch<wl_output::WlOutput, UserData = Self::UserData> + AsMut<DelegateToMe>,
+        {
+            fn request(
+                _state: &mut D,
+                _client: &Client,
+                _resource: &wl_output::WlOutput,
+                _request: wl_output::Request,
+                _data: &Self::UserData,
+                _dhandle: &mut DisplayHandle,
+                _data_init: &mut DataInit<'_, D>,
+            ) {
+            }
+        }
+        impl DelegateGlobalDispatchBase<wl_output::WlOutput> for DelegateToMe {
+            type GlobalData = ();
+        }
+        impl<D> DelegateGlobalDispatch<wl_output::WlOutput, D> for DelegateToMe
+        where
+            D: GlobalDispatch<wl_output::WlOutput, GlobalData = Self::GlobalData>,
+            D: Dispatch<wl_output::WlOutput, UserData = ()>,
+            D: AsMut<DelegateToMe>,
+        {
+            fn bind(
+                _state: &mut D,
+                _handle: &mut DisplayHandle<'_>,
+                _client: &Client,
+                _resource: New<wl_output::WlOutput>,
+                _global_data: &Self::GlobalData,
+                _data_init: &mut DataInit<'_, D>,
+            ) {
+            }
+        }
+
+        struct ExampleApp {
+            delegate: DelegateToMe,
+        }
+
+        delegate_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
+        delegate_global_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
+
+        impl AsMut<DelegateToMe> for ExampleApp {
+            fn as_mut(&mut self) -> &mut DelegateToMe {
+                &mut self.delegate
+            }
+        }
+    }
+}
