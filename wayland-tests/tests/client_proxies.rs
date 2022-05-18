@@ -22,7 +22,7 @@ fn proxy_equals() {
 
     let compositor1 = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -32,7 +32,7 @@ fn proxy_equals() {
 
     let compositor2 = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -62,7 +62,7 @@ fn proxy_user_data() {
 
     let compositor1 = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -72,7 +72,7 @@ fn proxy_user_data() {
 
     let compositor2 = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -103,7 +103,7 @@ fn dead_proxies() {
 
     let output = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -144,7 +144,7 @@ fn dead_object_argument() {
 
     let output = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -153,7 +153,7 @@ fn dead_object_argument() {
         .unwrap();
     let compositor = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -238,9 +238,7 @@ wayc::delegate_dispatch!(ClientHandler:
     [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
 );
 
-impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor> for ClientHandler {
-    type UserData = usize;
-
+impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor, usize> for ClientHandler {
     fn event(
         &mut self,
         _: &wayc::protocol::wl_compositor::WlCompositor,
@@ -252,9 +250,7 @@ impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor> for ClientHandl
     }
 }
 
-impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface> for ClientHandler {
-    type UserData = ();
-
+impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ()> for ClientHandler {
     fn event(
         &mut self,
         _: &wayc::protocol::wl_surface::WlSurface,

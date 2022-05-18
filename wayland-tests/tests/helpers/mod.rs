@@ -130,13 +130,12 @@ impl<D> ways::backend::ClientData<D> for DumbClientData {
 macro_rules! client_ignore_impl {
     ($handler:ty => [$($iface:ty),*]) => {
         $(
-            impl $crate::helpers::wayc::Dispatch<$iface> for $handler {
-                type UserData = ();
+            impl $crate::helpers::wayc::Dispatch<$iface, ()> for $handler {
                 fn event(
                     &mut self,
                     _: &$iface,
                     _: <$iface as $crate::helpers::wayc::Proxy>::Event,
-                    _: &Self::UserData,
+                    _: &(),
                     _: &$crate::helpers::wayc::Connection,
                     _: &$crate::helpers::wayc::QueueHandle<Self>,
                 ) {

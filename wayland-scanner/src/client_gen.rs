@@ -237,14 +237,14 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<D: Dispatch<super::#created_iface_mod::#created_iface_type> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<super::#created_iface_mod::#created_iface_type>>::UserData) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
+                    pub fn #method_name<U: Send + Sync + 'static, D: Dispatch<super::#created_iface_mod::#created_iface_type, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
                         let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                         let ret = conn.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type>(udata))
+                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type, U>(udata))
                         )?;
                         Proxy::from_id(&conn, ret)
                     }
@@ -255,14 +255,14 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy + 'static, D: Dispatch<I> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: <D as Dispatch<I>>::UserData) -> Result<I, InvalidId> {
+                    pub fn #method_name<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> Result<I, InvalidId> {
                         let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                         let ret = conn.send_request(
                             self,
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<I>(udata)),
+                            Some(qh.make_data::<I, U>(udata)),
                         )?;
                         Proxy::from_id(&conn, ret)
                     }

@@ -44,9 +44,7 @@ struct State {
     configured: bool,
 }
 
-impl Dispatch<wl_registry::WlRegistry> for State {
-    type UserData = ();
-
+impl Dispatch<wl_registry::WlRegistry, ()> for State {
     fn event(
         &mut self,
         registry: &wl_registry::WlRegistry,
@@ -58,8 +56,9 @@ impl Dispatch<wl_registry::WlRegistry> for State {
         if let wl_registry::Event::Global { name, interface, .. } = event {
             match &interface[..] {
                 "wl_compositor" => {
-                    let compositor =
-                        registry.bind::<wl_compositor::WlCompositor, _>(name, 1, qh, ()).unwrap();
+                    let compositor = registry
+                        .bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ())
+                        .unwrap();
                     let surface = compositor.create_surface(qh, ()).unwrap();
                     self.base_surface = Some(surface);
 
@@ -68,7 +67,7 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                     }
                 }
                 "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _>(name, 1, qh, ()).unwrap();
+                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ()).unwrap();
 
                     let (init_w, init_h) = (320, 240);
 
@@ -97,11 +96,11 @@ impl Dispatch<wl_registry::WlRegistry> for State {
                     }
                 }
                 "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _>(name, 1, qh, ()).unwrap();
+                    registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ()).unwrap();
                 }
                 "xdg_wm_base" => {
                     let wm_base =
-                        registry.bind::<xdg_wm_base::XdgWmBase, _>(name, 1, qh, ()).unwrap();
+                        registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ()).unwrap();
                     self.wm_base = Some(wm_base);
 
                     if self.base_surface.is_some() && self.xdg_surface.is_none() {
@@ -114,14 +113,12 @@ impl Dispatch<wl_registry::WlRegistry> for State {
     }
 }
 
-impl Dispatch<wl_compositor::WlCompositor> for State {
-    type UserData = ();
-
+impl Dispatch<wl_compositor::WlCompositor, ()> for State {
     fn event(
         &mut self,
         _: &wl_compositor::WlCompositor,
         _: wl_compositor::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
@@ -129,14 +126,12 @@ impl Dispatch<wl_compositor::WlCompositor> for State {
     }
 }
 
-impl Dispatch<wl_surface::WlSurface> for State {
-    type UserData = ();
-
+impl Dispatch<wl_surface::WlSurface, ()> for State {
     fn event(
         &mut self,
         _: &wl_surface::WlSurface,
         _: wl_surface::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
@@ -144,14 +139,12 @@ impl Dispatch<wl_surface::WlSurface> for State {
     }
 }
 
-impl Dispatch<wl_shm::WlShm> for State {
-    type UserData = ();
-
+impl Dispatch<wl_shm::WlShm, ()> for State {
     fn event(
         &mut self,
         _: &wl_shm::WlShm,
         _: wl_shm::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
@@ -159,14 +152,12 @@ impl Dispatch<wl_shm::WlShm> for State {
     }
 }
 
-impl Dispatch<wl_shm_pool::WlShmPool> for State {
-    type UserData = ();
-
+impl Dispatch<wl_shm_pool::WlShmPool, ()> for State {
     fn event(
         &mut self,
         _: &wl_shm_pool::WlShmPool,
         _: wl_shm_pool::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
@@ -174,14 +165,12 @@ impl Dispatch<wl_shm_pool::WlShmPool> for State {
     }
 }
 
-impl Dispatch<wl_buffer::WlBuffer> for State {
-    type UserData = ();
-
+impl Dispatch<wl_buffer::WlBuffer, ()> for State {
     fn event(
         &mut self,
         _: &wl_buffer::WlBuffer,
         _: wl_buffer::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
@@ -221,9 +210,7 @@ impl State {
     }
 }
 
-impl Dispatch<xdg_wm_base::XdgWmBase> for State {
-    type UserData = ();
-
+impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
     fn event(
         &mut self,
         wm_base: &xdg_wm_base::XdgWmBase,
@@ -238,9 +225,7 @@ impl Dispatch<xdg_wm_base::XdgWmBase> for State {
     }
 }
 
-impl Dispatch<xdg_surface::XdgSurface> for State {
-    type UserData = ();
-
+impl Dispatch<xdg_surface::XdgSurface, ()> for State {
     fn event(
         &mut self,
         xdg_surface: &xdg_surface::XdgSurface,
@@ -261,9 +246,7 @@ impl Dispatch<xdg_surface::XdgSurface> for State {
     }
 }
 
-impl Dispatch<xdg_toplevel::XdgToplevel> for State {
-    type UserData = ();
-
+impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
     fn event(
         &mut self,
         _: &xdg_toplevel::XdgToplevel,
@@ -278,9 +261,7 @@ impl Dispatch<xdg_toplevel::XdgToplevel> for State {
     }
 }
 
-impl Dispatch<wl_seat::WlSeat> for State {
-    type UserData = ();
-
+impl Dispatch<wl_seat::WlSeat, ()> for State {
     fn event(
         &mut self,
         seat: &wl_seat::WlSeat,
@@ -297,9 +278,7 @@ impl Dispatch<wl_seat::WlSeat> for State {
     }
 }
 
-impl Dispatch<wl_keyboard::WlKeyboard> for State {
-    type UserData = ();
-
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
     fn event(
         &mut self,
         _: &wl_keyboard::WlKeyboard,

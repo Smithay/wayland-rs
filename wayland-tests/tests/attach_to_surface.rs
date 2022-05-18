@@ -33,7 +33,7 @@ fn attach_null() {
 
     let compositor = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -69,7 +69,12 @@ fn attach_buffer() {
 
     let shm = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_shm::WlShm, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<wayc::protocol::wl_shm::WlShm, _, _>(
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
         .unwrap();
 
     let mut file = tempfile::tempfile().unwrap();
@@ -81,7 +86,7 @@ fn attach_buffer() {
 
     let compositor = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,

@@ -35,7 +35,7 @@ impl DelegateDispatchBase<wl_registry::WlRegistry> for GlobalList {
 
 impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for GlobalList
 where
-    D: Dispatch<wl_registry::WlRegistry, UserData = ()> + AsMut<GlobalList>,
+    D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<GlobalList>,
 {
     fn event(
         handle: &mut D,
@@ -63,15 +63,13 @@ impl AsMut<GlobalList> for GlobalList {
     }
 }
 
-impl Dispatch<wl_registry::WlRegistry> for GlobalList {
-    type UserData = ();
-
+impl Dispatch<wl_registry::WlRegistry, ()> for GlobalList {
     #[inline]
     fn event(
         &mut self,
         proxy: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        data: &Self::UserData,
+        data: &(),
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
@@ -102,12 +100,12 @@ impl GlobalList {
     ///
     /// You can specify the requested interface as type parameter, and the version range. You
     /// also need to provide the user data value that will be set for the newly created object.
-    pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
+    pub fn bind<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
         &self,
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
         version: Range<u32>,
-        user_data: <D as Dispatch<I>>::UserData,
+        user_data: U,
     ) -> Result<I, BindError> {
         for desc in &self.globals {
             if desc.interface != I::interface().name {
@@ -116,7 +114,7 @@ impl GlobalList {
 
             if version.contains(&desc.version) {
                 return Ok(registry
-                    .bind::<I, D>(desc.name, desc.version, qh, user_data)
+                    .bind::<I, U, D>(desc.name, desc.version, qh, user_data)
                     .expect("invalid wl_registry"));
             } else {
                 return Err(BindError::WrongVersion {

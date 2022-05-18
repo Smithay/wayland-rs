@@ -204,31 +204,37 @@ pub mod wl_display {
     impl WlDisplay {
         #[doc = "asynchronous roundtrip\n\nThe sync request asks the server to emit the 'done' event\non the returned wl_callback object.  Since requests are\nhandled in-order and events are delivered in-order, this can\nbe used as a barrier to ensure all previous requests and the\nresulting events have been handled.\n\nThe object returned by this request will be destroyed by the\ncompositor after the callback is fired and as such the client must not\nattempt to use it after that point.\n\nThe callback_data passed in the callback is the event serial."]
         #[allow(clippy::too_many_arguments)]
-        pub fn sync<D: Dispatch<super::wl_callback::WlCallback> + 'static>(
+        pub fn sync<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::wl_callback::WlCallback, U> + 'static,
+        >(
             &self,
             qh: &QueueHandle<D>,
-            udata: <D as Dispatch<super::wl_callback::WlCallback>>::UserData,
+            udata: U,
         ) -> Result<super::wl_callback::WlCallback, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::Sync {},
-                Some(qh.make_data::<super::wl_callback::WlCallback>(udata)),
+                Some(qh.make_data::<super::wl_callback::WlCallback, U>(udata)),
             )?;
             Proxy::from_id(&conn, ret)
         }
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         #[allow(clippy::too_many_arguments)]
-        pub fn get_registry<D: Dispatch<super::wl_registry::WlRegistry> + 'static>(
+        pub fn get_registry<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::wl_registry::WlRegistry, U> + 'static,
+        >(
             &self,
             qh: &QueueHandle<D>,
-            udata: <D as Dispatch<super::wl_registry::WlRegistry>>::UserData,
+            udata: U,
         ) -> Result<super::wl_registry::WlRegistry, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetRegistry {},
-                Some(qh.make_data::<super::wl_registry::WlRegistry>(udata)),
+                Some(qh.make_data::<super::wl_registry::WlRegistry, U>(udata)),
             )?;
             Proxy::from_id(&conn, ret)
         }
@@ -258,7 +264,7 @@ pub mod wl_registry {
             #[doc = "unique numeric name of the object"]
             name: u32,
             #[doc = "bounded object"]
-            id: (&'static Interface, u32)
+            id: (&'static Interface, u32),
         },
     }
     #[derive(Debug)]
@@ -404,18 +410,18 @@ pub mod wl_registry {
     impl WlRegistry {
         #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
         #[allow(clippy::too_many_arguments)]
-        pub fn bind<I: Proxy + 'static, D: Dispatch<I> + 'static>(
+        pub fn bind<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
             &self,
             name: u32,
             version: u32,
             qh: &QueueHandle<D>,
-            udata: <D as Dispatch<I>>::UserData,
+            udata: U,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::Bind { name, id: (I::interface(), version) },
-                Some(qh.make_data::<I>(udata)),
+                Some(qh.make_data::<I, U>(udata)),
             )?;
             Proxy::from_id(&conn, ret)
         }
@@ -886,30 +892,36 @@ pub mod test_global {
             );
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn get_secondary<D: Dispatch<super::secondary::Secondary> + 'static>(
+        pub fn get_secondary<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::secondary::Secondary, U> + 'static,
+        >(
             &self,
             qh: &QueueHandle<D>,
-            udata: <D as Dispatch<super::secondary::Secondary>>::UserData,
+            udata: U,
         ) -> Result<super::secondary::Secondary, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetSecondary {},
-                Some(qh.make_data::<super::secondary::Secondary>(udata)),
+                Some(qh.make_data::<super::secondary::Secondary, U>(udata)),
             )?;
             Proxy::from_id(&conn, ret)
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn get_tertiary<D: Dispatch<super::tertiary::Tertiary> + 'static>(
+        pub fn get_tertiary<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::tertiary::Tertiary, U> + 'static,
+        >(
             &self,
             qh: &QueueHandle<D>,
-            udata: <D as Dispatch<super::tertiary::Tertiary>>::UserData,
+            udata: U,
         ) -> Result<super::tertiary::Tertiary, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let ret = conn.send_request(
                 self,
                 Request::GetTertiary {},
-                Some(qh.make_data::<super::tertiary::Tertiary>(udata)),
+                Some(qh.make_data::<super::tertiary::Tertiary, U>(udata)),
             )?;
             Proxy::from_id(&conn, ret)
         }
@@ -926,7 +938,11 @@ pub mod test_global {
                 None => return,
             };
             let conn = Connection::from_backend(backend);
-            let _ = conn.send_request(self, Request::Link { sec: sec.clone(), ter: ter.cloned(), time }, None);
+            let _ = conn.send_request(
+                self,
+                Request::Link { sec: sec.clone(), ter: ter.cloned(), time },
+                None,
+            );
         }
         #[allow(clippy::too_many_arguments)]
         pub fn destroy(&self) {

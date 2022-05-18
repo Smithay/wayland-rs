@@ -23,7 +23,7 @@ fn resource_destructor_request() {
 
     let output = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -55,7 +55,7 @@ fn resource_destructor_cleanup() {
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -90,7 +90,7 @@ fn client_destructor_cleanup() {
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,

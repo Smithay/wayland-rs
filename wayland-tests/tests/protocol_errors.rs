@@ -20,7 +20,7 @@ fn client_receive_generic_error() {
     // Instantiate the globals
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,

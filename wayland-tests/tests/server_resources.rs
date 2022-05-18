@@ -26,7 +26,7 @@ fn resource_equals() {
     // create two outputs
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -35,7 +35,7 @@ fn resource_equals() {
         .unwrap();
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -70,7 +70,7 @@ fn resource_user_data() {
     // create two outputs
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -79,7 +79,7 @@ fn resource_user_data() {
         .unwrap();
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -111,7 +111,7 @@ fn dead_resources() {
     // create two outputs
     let client_output_1 = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -120,7 +120,7 @@ fn dead_resources() {
         .unwrap();
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -160,7 +160,7 @@ fn get_resource() {
     // create an outputs
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
