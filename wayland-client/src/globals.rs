@@ -33,7 +33,7 @@ impl DelegateDispatchBase<wl_registry::WlRegistry> for GlobalList {
     type UserData = ();
 }
 
-impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for GlobalList
+impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for GlobalList
 where
     D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<GlobalList>,
 {
@@ -73,7 +73,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for GlobalList {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        <Self as DelegateDispatch<wl_registry::WlRegistry, Self>>::event(
+        <Self as DelegateDispatch<wl_registry::WlRegistry, (), Self>>::event(
             self, proxy, event, data, conn, qhandle,
         )
     }

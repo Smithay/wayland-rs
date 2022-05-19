@@ -406,10 +406,10 @@ pub trait DelegateDispatchBase<I: Proxy> {
 /// }
 ///
 /// // Now implement DelegateDispatch.
-/// impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// where
 ///     // `D` is the type which has delegated to this type.
-///     D: Dispatch<wl_registry::WlRegistry, Self::UserData>,
+///     D: Dispatch<wl_registry::WlRegistry, ()>,
 ///     // If your delegate type has some internal state, it'll need to access it, and you can
 ///     // require it via an AsMut<_> implementation for example
 ///     D: AsMut<DelegateToMe>,
@@ -418,7 +418,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///         data: &mut D,
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
-///         _udata: &Self::UserData,
+///         _udata: &(),
 ///         _conn: &wayland_client::Connection,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
 ///     ) {
@@ -431,9 +431,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///     }
 /// }
 /// ```
-pub trait DelegateDispatch<I: Proxy, D: Dispatch<I, <Self as DelegateDispatchBase<I>>::UserData>>:
-    Sized + DelegateDispatchBase<I>
-{
+pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
     /// Called when an event from the server is processed.
     ///
     /// The implementation of this function may vary depending on protocol requirements. Typically the client
@@ -442,7 +440,7 @@ pub trait DelegateDispatch<I: Proxy, D: Dispatch<I, <Self as DelegateDispatchBas
         data: &mut D,
         proxy: &I,
         event: I::Event,
-        udata: &Self::UserData,
+        udata: &U,
         conn: &Connection,
         qhandle: &QueueHandle<D>,
     );
@@ -485,15 +483,15 @@ pub trait DelegateDispatch<I: Proxy, D: Dispatch<I, <Self as DelegateDispatchBas
 /// #     type UserData = ();
 /// # }
 /// #
-/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// # where
-/// #     D: Dispatch<wl_registry::WlRegistry, Self::UserData> + AsMut<DelegateToMe>,
+/// #     D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<DelegateToMe>,
 /// # {
 /// #     fn event(
 /// #         _data: &mut D,
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
-/// #         _udata: &Self::UserData,
+/// #         _udata: &(),
 /// #         _conn: &wayland_client::Connection,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
@@ -545,7 +543,7 @@ pub trait DelegateDispatch<I: Proxy, D: Dispatch<I, <Self as DelegateDispatchBas
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
+    ($dispatch_from: ty: [$($interface: ty),* $(,)?] => $dispatch_to: ty) => {
         $(
             impl $crate::Dispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData> for $dispatch_from {
                 fn event(
@@ -556,14 +554,38 @@ macro_rules! delegate_dispatch {
                     conn: &$crate::Connection,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(self, proxy, event, data, conn, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData, Self>>::event(self, proxy, event, data, conn, qhandle)
                 }
 
                 fn event_created_child(
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData, Self>>::event_created_child(opcode, qhandle)
+                }
+            }
+        )*
+    };
+
+    ($dispatch_from: ty: [ $($interface: ty : $user_data: ty),* $(,)?] => $dispatch_to: ty) => {
+        $(
+            impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
+                fn event(
+                    &mut self,
+                    proxy: &$interface,
+                    event: <$interface as $crate::Proxy>::Event,
+                    data: &$user_data,
+                    conn: &$crate::Connection,
+                    qhandle: &$crate::QueueHandle<Self>,
+                ) {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event(self, proxy, event, data, conn, qhandle)
+                }
+
+                fn event_created_child(
+                    opcode: u16,
+                    qhandle: &$crate::QueueHandle<Self>
+                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
                 }
             }
         )*
