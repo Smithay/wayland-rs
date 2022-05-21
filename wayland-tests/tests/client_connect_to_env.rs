@@ -9,7 +9,7 @@ static SOCKET_NAME: &str = "wayland-rs-test-client-connect-to-env";
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput>(1, ());
+    server.display.handle().create_global::<ServerData, ServerOutput>(1, ());
 
     // client fails to connect if environment is not set
     ::std::env::remove_var("WAYLAND_DISPLAY");

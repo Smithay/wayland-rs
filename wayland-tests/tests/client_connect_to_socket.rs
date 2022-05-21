@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 fn main() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerOutput>(2, ());
+    server.display.handle().create_global::<ServerData, ServerOutput>(2, ());
 
     let (s1, s2) = ::std::os::unix::net::UnixStream::pair().unwrap();
 
@@ -34,7 +34,7 @@ fn main() {
     assert_eq!(output.version, 2);
 
     my_client.kill(
-        &mut server.display.handle(),
+        &server.display.handle(),
         ways::backend::protocol::ProtocolError {
             code: 0,
             object_id: 1,

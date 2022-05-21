@@ -8,7 +8,10 @@ use wayland_protocols::xdg::shell::{client as xs_client, server as xs_server};
 #[test]
 fn xdg_ping() {
     let mut server = TestServer::new();
-    server.display.create_global::<xs_server::xdg_wm_base::XdgWmBase>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, xs_server::xdg_wm_base::XdgWmBase>(1, ());
     let mut server_ddata = ServerHandler { received_pong: false };
 
     let (_, mut client) = server.add_client();
@@ -43,14 +46,14 @@ impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase> for ServerHandler {
 
     fn bind(
         &mut self,
-        handle: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<xs_server::xdg_wm_base::XdgWmBase>,
         _: &Self::GlobalData,
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         let wm_base = data_init.init(resource, ());
-        wm_base.ping(handle, 42);
+        wm_base.ping(42);
     }
 }
 
@@ -63,7 +66,7 @@ impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase> for ServerHandler {
         _: &xs_server::xdg_wm_base::XdgWmBase,
         request: xs_server::xdg_wm_base::Request,
         _: &Self::UserData,
-        _: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         _: &mut ways::DataInit<'_, Self>,
     ) {
         match request {

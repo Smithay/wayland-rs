@@ -60,7 +60,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use std::sync::Arc;
 
             use super::wayland_server::{
-                backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
+                backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}, WeakHandle},
                 Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New,
             };
 
@@ -75,6 +75,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 id: ObjectId,
                 version: u32,
                 data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+                handle: WeakHandle,
             }
 
             impl std::cmp::PartialEq for #iface_name {
@@ -110,20 +111,34 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+                fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+                    self.data.as_ref()
+                }
+
+                fn handle(&self) -> &WeakHandle {
+                    &self.handle
+                }
+
+                #[inline]
+                fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null(){
                         return Err(InvalidId)
                     }
                     let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
                     let data = conn.get_object_data(id.clone()).ok();
-                    Ok(#iface_name { id, data, version })
+                    Ok(#iface_name { id, data, version, handle: conn.backend_handle().downgrade() })
                 }
 
-                fn parse_request(conn: &mut DisplayHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
+                fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+                    let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+                    handle.send_event(self, evt)
+                }
+
+                fn parse_request(conn: &DisplayHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }
 
-                fn write_event(&self, conn: &mut DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
+                fn write_event(&self, conn: &DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
                     #write_body
                 }
 
@@ -218,9 +233,8 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             quote! {
                 #doc_attr
                 #[allow(clippy::too_many_arguments)]
-                pub fn #method_name(&self, conn: &mut DisplayHandle, #(#fn_args),*) {
-                    let _ = conn.send_event(
-                        self,
+                pub fn #method_name(&self, #(#fn_args),*) {
+                    let _ = self.send_event(
                         Event::#enum_variant {
                             #(#enum_args),*
                         }

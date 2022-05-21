@@ -7,7 +7,10 @@ use ways::Resource;
 #[test]
 fn client_receive_generic_error() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
 
     let (s_client, mut client) = server.add_client();
 
@@ -33,11 +36,11 @@ fn client_receive_generic_error() {
     // the server sends a protocol error
     let compositor = s_client
         .object_from_protocol_id::<ways::protocol::wl_compositor::WlCompositor>(
-            &mut server.display.handle(),
+            &server.display.handle(),
             3,
         )
         .unwrap();
-    compositor.post_error(&mut server.display.handle(), 42u32, "I don't like you!");
+    compositor.post_error(&server.display.handle(), 42u32, "I don't like you!");
 
     // the error has not yet reached the client
     assert!(client.conn.protocol_error().is_none());

@@ -21,7 +21,7 @@ pub mod backend {
     pub use wayland_backend::protocol;
     pub use wayland_backend::server::{
         Backend, ClientData, ClientId, Credentials, DisconnectReason, GlobalHandler, GlobalId,
-        Handle, InitError, InvalidId, ObjectData, ObjectId,
+        Handle, InitError, InvalidId, ObjectData, ObjectId, WeakHandle,
     };
     pub use wayland_backend::smallvec;
 }
@@ -49,21 +49,27 @@ pub trait Resource: Sized {
 
     fn data<U: 'static>(&self) -> Option<&U>;
 
-    fn from_id(dh: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId>;
+    fn object_data(&self) -> Option<&std::sync::Arc<dyn std::any::Any + Send + Sync>>;
+
+    fn handle(&self) -> &backend::WeakHandle;
+
+    fn from_id(dh: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId>;
+
+    fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId>;
 
     fn parse_request(
-        dh: &mut DisplayHandle,
+        dh: &DisplayHandle,
         msg: Message<ObjectId>,
     ) -> Result<(Self, Self::Request), DispatchError>;
 
     fn write_event(
         &self,
-        dh: &mut DisplayHandle,
+        dh: &DisplayHandle,
         req: Self::Event,
     ) -> Result<Message<ObjectId>, InvalidId>;
 
     #[inline]
-    fn post_error(&self, dh: &mut DisplayHandle, code: impl Into<u32>, error: impl Into<String>) {
+    fn post_error(&self, dh: &DisplayHandle, code: impl Into<u32>, error: impl Into<String>) {
         dh.post_error(self, code.into(), error.into())
     }
 

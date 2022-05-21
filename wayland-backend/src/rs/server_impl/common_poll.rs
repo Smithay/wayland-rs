@@ -3,12 +3,13 @@ use std::{
         io::{AsRawFd, RawFd},
         net::UnixStream,
     },
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use super::{
-    ClientData, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId, InnerObjectId,
-    ObjectId,
+    handle::{ErasedState, State},
+    ClientData, ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId,
+    InnerHandle, InnerObjectId, ObjectId,
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
@@ -29,11 +30,9 @@ use nix::sys::epoll::*;
 use nix::sys::event::*;
 use smallvec::SmallVec;
 
-use super::{ClientId, InnerHandle};
-
 #[derive(Debug)]
 pub struct InnerBackend<D: 'static> {
-    handle: Handle<D>,
+    state: Arc<Mutex<State<D>>>,
     poll_fd: RawFd,
 }
 
@@ -52,16 +51,17 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(InnerBackend { handle: Handle { handle: InnerHandle::new() }, poll_fd })
+        Ok(InnerBackend { state: Arc::new(Mutex::new(State::new())), poll_fd })
     }
 
     pub fn insert_client(
-        &mut self,
+        &self,
         stream: UnixStream,
         data: Arc<dyn ClientData<D>>,
     ) -> std::io::Result<InnerClientId> {
+        let mut state = self.state.lock().unwrap();
         let client_fd = stream.as_raw_fd();
-        let id = self.handle.handle.clients.create_client(stream, data);
+        let id = state.clients.create_client(stream, data);
 
         // register the client to the internal epoll
         #[cfg(target_os = "linux")]
@@ -92,18 +92,18 @@ impl<D> InnerBackend<D> {
         match ret {
             Ok(()) => Ok(id),
             Err(e) => {
-                self.handle.handle.kill_client(id, DisconnectReason::ConnectionClosed);
+                state.kill_client(id, DisconnectReason::ConnectionClosed);
                 Err(e.into())
             }
         }
     }
 
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
-        self.handle.handle.flush(client)
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
+        self.state.lock().unwrap().flush(client)
     }
 
-    pub fn handle(&mut self) -> &mut Handle<D> {
-        &mut self.handle
+    pub fn handle(&self) -> Handle {
+        Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
     pub fn poll_fd(&self) -> RawFd {
@@ -111,17 +111,17 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn dispatch_client(
-        &mut self,
+        &self,
         data: &mut D,
         client_id: InnerClientId,
     ) -> std::io::Result<usize> {
         let ret = self.dispatch_events_for(data, client_id);
-        self.handle.handle.cleanup(data);
+        self.state.lock().unwrap().cleanup(data);
         ret
     }
 
     #[cfg(target_os = "linux")]
-    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [EpollEvent::empty(); 32];
@@ -138,7 +138,7 @@ impl<D> InnerBackend<D> {
                     dispatched += count;
                 }
             }
-            self.handle.handle.cleanup(data);
+            self.state.lock().unwrap().cleanup(data);
         }
 
         Ok(dispatched)
@@ -150,7 +150,7 @@ impl<D> InnerBackend<D> {
         target_os = "netbsd",
         target_os = "openbsd"
     ))]
-    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         let mut dispatched = 0;
         loop {
             let mut events = [KEvent::new(
@@ -175,21 +175,24 @@ impl<D> InnerBackend<D> {
                     dispatched += count;
                 }
             }
-            self.handle.handle.cleanup(data);
+            self.state.lock().unwrap().cleanup(data);
         }
 
         Ok(dispatched)
     }
 
     pub(crate) fn dispatch_events_for(
-        &mut self,
+        &self,
         data: &mut D,
         client_id: InnerClientId,
     ) -> std::io::Result<usize> {
         let mut dispatched = 0;
+        let handle = self.handle();
+        let mut state = self.state.lock().unwrap();
         loop {
-            let action =
-                if let Ok(client) = self.handle.handle.clients.get_client_mut(client_id.clone()) {
+            let action = {
+                let state = &mut *state;
+                if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
                     let (message, object) = match client.next_request() {
                         Ok(v) => v,
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -203,11 +206,11 @@ impl<D> InnerBackend<D> {
                     };
                     dispatched += 1;
                     if same_interface(object.interface, &WL_DISPLAY_INTERFACE) {
-                        client.handle_display_request(message, &mut self.handle.handle.registry);
+                        client.handle_display_request(message, &mut state.registry);
                         continue;
                     } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
-                        if let Some((client, global, object, handler)) = client
-                            .handle_registry_request(message, &mut self.handle.handle.registry)
+                        if let Some((client, global, object, handler)) =
+                            client.handle_registry_request(message, &mut state.registry)
                         {
                             DispatchAction::Bind { client, global, object, handler }
                         } else {
@@ -241,7 +244,8 @@ impl<D> InnerBackend<D> {
                         std::io::ErrorKind::InvalidInput,
                         "Invalid client ID",
                     ));
-                };
+                }
+            };
             match action {
                 DispatchAction::Request {
                     object,
@@ -251,8 +255,10 @@ impl<D> InnerBackend<D> {
                     is_destructor,
                     created_id,
                 } => {
+                    // temporarily unlock the state Mutex while this request is dispatched
+                    std::mem::drop(state);
                     let ret = object.data.user_data.clone().request(
-                        &mut self.handle,
+                        &handle.clone(),
                         data,
                         ClientId { id: client_id.clone() },
                         Message {
@@ -261,23 +267,21 @@ impl<D> InnerBackend<D> {
                             args: arguments,
                         },
                     );
+                    // acquire the lock again and continue
+                    state = self.state.lock().unwrap();
                     if is_destructor {
                         object.data.user_data.destroyed(
                             data,
                             ClientId { id: client_id.clone() },
                             ObjectId { id: object_id.clone() },
                         );
-                        if let Ok(client) =
-                            self.handle.handle.clients.get_client_mut(client_id.clone())
-                        {
+                        if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
                             client.send_delete_id(object_id);
                         }
                     }
                     match (created_id, ret) {
                         (Some(child_id), Some(child_data)) => {
-                            if let Ok(client) =
-                                self.handle.handle.clients.get_client_mut(client_id.clone())
-                            {
+                            if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
                                 client
                                     .map
                                     .with(child_id.id, |obj| obj.data.user_data = child_data)
@@ -288,9 +292,7 @@ impl<D> InnerBackend<D> {
                         (Some(child_id), None) => {
                             // Allow the callback to not return any data if the client is already dead (typically
                             // if the callback provoked a protocol error)
-                            if let Ok(client) =
-                                self.handle.handle.clients.get_client(client_id.clone())
-                            {
+                            if let Ok(client) = state.clients.get_client(client_id.clone()) {
                                 if !client.killed {
                                     panic!(
                                         "Callback creating object {} did not provide any object data.",
@@ -305,14 +307,18 @@ impl<D> InnerBackend<D> {
                     }
                 }
                 DispatchAction::Bind { object, client, global, handler } => {
+                    // temporarily unlock the state Mutex while this request is dispatched
+                    std::mem::drop(state);
                     let child_data = handler.bind(
-                        &mut self.handle,
+                        &handle.clone(),
                         data,
                         ClientId { id: client.clone() },
                         GlobalId { id: global },
                         ObjectId { id: object.clone() },
                     );
-                    if let Ok(client) = self.handle.handle.clients.get_client_mut(client.clone()) {
+                    // acquire the lock again and continue
+                    state = self.state.lock().unwrap();
+                    if let Ok(client) = state.clients.get_client_mut(client.clone()) {
                         client.map.with(object.id, |obj| obj.data.user_data = child_data).unwrap();
                     }
                 }

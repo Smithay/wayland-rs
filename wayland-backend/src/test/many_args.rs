@@ -12,7 +12,7 @@ struct ServerData(AtomicBool);
 macro_rules! serverdata_impls {
     ($server_backend:tt) => {
         impl $server_backend::ObjectData<()> for ServerData {
-            fn request(self: Arc<Self>, _: &mut $server_backend::Handle<()>, _: &mut (), _: $server_backend::ClientId, msg: Message<$server_backend::ObjectId>)
+            fn request(self: Arc<Self>, _: &$server_backend::Handle, _: &mut (), _: $server_backend::ClientId, msg: Message<$server_backend::ObjectId>)
                 -> Option<Arc<dyn $server_backend::ObjectData<()>>>
             {
                 assert_eq!(msg.opcode, 0);
@@ -42,7 +42,7 @@ macro_rules! serverdata_impls {
         impl $server_backend::GlobalHandler<()> for ServerData {
             fn bind(
                 self: Arc<Self>,
-                handle: &mut $server_backend::Handle<()>,
+                handle: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::GlobalId,

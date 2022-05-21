@@ -12,7 +12,7 @@ use std::ops::Range;
 #[test]
 fn simple_global() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -31,10 +31,10 @@ fn simple_global() {
 #[test]
 fn multi_versions() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(4, ());
-    server.display.create_global::<ServerCompositor>(3, ());
-    server.display.create_global::<ServerCompositor>(2, ());
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(4, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(3, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(2, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -56,7 +56,7 @@ fn multi_versions() {
 #[test]
 fn dynamic_global() {
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -66,17 +66,17 @@ fn dynamic_global() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 1);
 
-    server.display.create_global::<ServerShell>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerShell>(1, ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 2);
 
-    let output = server.display.create_global::<ServerOutput>(1, ());
+    let output = server.display.handle().create_global::<ServerHandler, ServerOutput>(1, ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 3);
 
-    server.display.remove_global(output);
+    server.display.handle().remove_global(output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 2);
@@ -90,8 +90,8 @@ fn range_instantiate() {
         Proxy,
     };
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(4, ());
-    server.display.create_global::<ServerShell>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(4, ());
+    server.display.handle().create_global::<ServerHandler, ServerShell>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -139,7 +139,7 @@ fn range_instantiate() {
 #[should_panic]
 fn wrong_version_create_global() {
     let server = TestServer::<ServerHandler>::new();
-    server.display.create_global::<ServerCompositor>(42, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(42, ());
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn wrong_global() {
     use wayc::protocol::wl_output::WlOutput;
 
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(4, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(4, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -167,7 +167,7 @@ fn wrong_global_version() {
     use wayc::protocol::wl_compositor::WlCompositor;
 
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -186,7 +186,7 @@ fn invalid_global_version() {
     use wayc::protocol::wl_compositor::WlCompositor;
 
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -205,7 +205,7 @@ fn wrong_global_id() {
     use wayc::protocol::wl_compositor::WlCompositor;
 
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -224,7 +224,7 @@ fn two_step_binding() {
     use wayc::protocol::{wl_compositor::WlCompositor, wl_output::WlOutput};
 
     let mut server = TestServer::new();
-    server.display.create_global::<ServerCompositor>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerCompositor>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -234,7 +234,7 @@ fn two_step_binding() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
     // add a new global while clients already exist
-    server.display.create_global::<ServerOutput>(1, ());
+    server.display.handle().create_global::<ServerHandler, ServerOutput>(1, ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 

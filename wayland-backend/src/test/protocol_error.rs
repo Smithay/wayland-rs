@@ -13,7 +13,7 @@ struct ServerData<Id>(Arc<Mutex<Option<Id>>>);
 impl server_rs::GlobalHandler<()> for ServerData<server_rs::ObjectId> {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_rs::Handle<()>,
+        _: &server_rs::Handle,
         _: &mut (),
         _: server_rs::ClientId,
         _: server_rs::GlobalId,
@@ -27,7 +27,7 @@ impl server_rs::GlobalHandler<()> for ServerData<server_rs::ObjectId> {
 impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_sys::Handle<()>,
+        _: &server_sys::Handle,
         _: &mut (),
         _: server_sys::ClientId,
         _: server_sys::GlobalId,
@@ -189,7 +189,7 @@ struct ProtocolErrorServerData;
 impl server_rs::GlobalHandler<()> for ProtocolErrorServerData {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_rs::Handle<()>,
+        _: &server_rs::Handle,
         _: &mut (),
         _: server_rs::ClientId,
         _: server_rs::GlobalId,
@@ -202,7 +202,7 @@ impl server_rs::GlobalHandler<()> for ProtocolErrorServerData {
 impl server_sys::GlobalHandler<()> for ProtocolErrorServerData {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_sys::Handle<()>,
+        _: &server_sys::Handle,
         _: &mut (),
         _: server_sys::ClientId,
         _: server_sys::GlobalId,
@@ -215,7 +215,7 @@ impl server_sys::GlobalHandler<()> for ProtocolErrorServerData {
 impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
     fn request(
         self: Arc<Self>,
-        handle: &mut server_rs::Handle<D>,
+        handle: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
         msg: Message<server_rs::ObjectId>,
@@ -230,7 +230,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
 impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
     fn request(
         self: Arc<Self>,
-        handle: &mut server_sys::Handle<D>,
+        handle: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
         msg: Message<server_sys::ObjectId>,

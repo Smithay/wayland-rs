@@ -21,21 +21,21 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
 
     fn bind(
         self: Arc<Self>,
-        handle: &mut Handle<D>,
+        handle: &Handle,
         data: &mut D,
         client_id: ClientId,
         _: GlobalId,
         object_id: ObjectId,
     ) -> Arc<dyn ObjectData<D>> {
-        let mut handle = DisplayHandle::from(handle);
-        let client = Client::from_id(&mut handle, client_id).expect("Dead client in bind ?!");
-        let resource = <I as Resource>::from_id(&mut handle, object_id)
+        let handle = DisplayHandle::from(handle.clone());
+        let client = Client::from_id(&handle, client_id).expect("Dead client in bind ?!");
+        let resource = <I as Resource>::from_id(&handle, object_id)
             .expect("Wrong object_id in GlobalHandler ?!");
 
         let mut new_data = None;
 
         data.bind(
-            &mut handle,
+            &handle,
             &client,
             New::wrap(resource),
             &self.data,
@@ -64,7 +64,7 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
     /// client.
     fn bind(
         &mut self,
-        handle: &mut DisplayHandle<'_>,
+        handle: &DisplayHandle,
         client: &Client,
         resource: New<I>,
         global_data: &Self::GlobalData,
@@ -111,7 +111,7 @@ pub trait DelegateGlobalDispatch<
     /// client.
     fn bind(
         state: &mut D,
-        handle: &mut DisplayHandle<'_>,
+        handle: &DisplayHandle,
         client: &Client,
         resource: New<I>,
         global_data: &Self::GlobalData,
@@ -141,7 +141,7 @@ macro_rules! delegate_global_dispatch {
 
             fn bind(
                 &mut self,
-                dhandle: &mut $crate::DisplayHandle<'_>,
+                dhandle: &$crate::DisplayHandle,
                 client: &$crate::Client,
                 resource: $crate::New<$interface>,
                 global_data: &Self::GlobalData,
@@ -187,7 +187,7 @@ mod tests {
                 _resource: &wl_output::WlOutput,
                 _request: wl_output::Request,
                 _data: &Self::UserData,
-                _dhandle: &mut DisplayHandle,
+                _dhandle: &DisplayHandle,
                 _data_init: &mut DataInit<'_, D>,
             ) {
             }
@@ -203,7 +203,7 @@ mod tests {
         {
             fn bind(
                 _state: &mut D,
-                _handle: &mut DisplayHandle<'_>,
+                _handle: &DisplayHandle,
                 _client: &Client,
                 _resource: New<wl_output::WlOutput>,
                 _global_data: &Self::GlobalData,

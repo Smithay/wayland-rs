@@ -14,7 +14,7 @@ macro_rules! impl_server_objectdata {
         impl $server_backend::ObjectData<()> for ServerData {
             fn request(
                 self: Arc<Self>,
-                handle: &mut $server_backend::Handle<()>,
+                handle: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 msg: Message<$server_backend::ObjectId>,
@@ -65,7 +65,7 @@ macro_rules! impl_server_objectdata {
         impl $server_backend::GlobalHandler<()> for ServerData {
             fn bind(
                 self: Arc<Self>,
-                _: &mut $server_backend::Handle<()>,
+                _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::GlobalId,
@@ -212,7 +212,7 @@ expand_test!(create_objects, {
 
 expand_test!(panic bad_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::new().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
@@ -272,7 +272,7 @@ expand_test!(panic bad_interface, {
 
 expand_test!(panic double_null, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::new().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
@@ -329,7 +329,7 @@ expand_test!(panic double_null, {
 
 expand_test!(null_obj_followed_by_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::new().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 

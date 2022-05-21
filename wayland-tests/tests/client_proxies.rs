@@ -10,7 +10,10 @@ use wayc::Proxy;
 #[test]
 fn proxy_equals() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -50,7 +53,10 @@ fn proxy_equals() {
 #[test]
 fn proxy_user_data() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -91,7 +97,10 @@ fn proxy_user_data() {
 #[test]
 fn dead_proxies() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -131,8 +140,14 @@ fn dead_proxies() {
 #[test]
 fn dead_object_argument() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
-    server.display.create_global::<ways::protocol::wl_output::WlOutput>(3, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -177,7 +192,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
@@ -196,14 +211,14 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandl
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
         _: &(),
-        dhandle: &mut ways::DisplayHandle<'_>,
+        dhandle: &ways::DisplayHandle,
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_compositor::Request::CreateSurface { id } = request {
             let surface = data_init.init(id, ());
             let output = self.output.clone().unwrap();
             assert!(dhandle.object_info(output.id()).is_ok());
-            surface.enter(dhandle, &output);
+            surface.enter(&output);
         }
     }
 }

@@ -24,7 +24,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
     /// for the newly created object
     fn request(
         self: Arc<Self>,
-        handle: &mut Handle<D>,
+        handle: &Handle,
         data: &mut D,
         client_id: ClientId,
         msg: Message<ObjectId>,
@@ -73,7 +73,7 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     /// The method must return the object data for the newly created object.
     fn bind(
         self: Arc<Self>,
-        handle: &mut Handle<D>,
+        handle: &Handle,
         data: &mut D,
         client_id: ClientId,
         global_id: GlobalId,
@@ -200,14 +200,37 @@ impl fmt::Debug for GlobalId {
 ///
 /// This type hosts most of the protocol-related functionality of the backend, and is the
 /// main entry point for manipulating Wayland objects. It can be retrieved both from
-/// the backend via [`Backend::handle()`](Backend::handle), and is given to you as argument
-/// in most event callbacks.
-#[derive(Debug)]
-pub struct Handle<D: 'static> {
-    pub(crate) handle: server_impl::InnerHandle<D>,
+/// the backend via [`Backend::handle()`](Backend::handle), cloned, and is given to you as
+/// argument in most event callbacks.
+#[derive(Clone, Debug)]
+pub struct Handle {
+    pub(crate) handle: server_impl::InnerHandle,
 }
 
-impl<D> Handle<D> {
+/// A weak reference to a [`Handle`]
+///
+/// This handle behaves similarly to [`Weak`](std::sync::Weak), and can be used to keep access to
+/// the handle without actually preventing it from being dropped.
+#[derive(Clone, Debug)]
+pub struct WeakHandle {
+    pub(crate) handle: server_impl::WeakInnerHandle,
+}
+
+impl WeakHandle {
+    /// Try to upgrade this weak handle to a [`Handle`]
+    ///
+    /// Returns `None` if the associated backend was already dropped.
+    pub fn upgrade(&self) -> Option<Handle> {
+        self.handle.upgrade().map(|handle| Handle { handle })
+    }
+}
+
+impl Handle {
+    /// Get a [`WeakHandle`] from this handle
+    pub fn downgrade(&self) -> WeakHandle {
+        WeakHandle { handle: self.handle.downgrade() }
+    }
+
     /// Returns information about some object.
     #[inline]
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
@@ -222,8 +245,20 @@ impl<D> Handle<D> {
 
     /// Returns the data associated with a client.
     #[inline]
-    pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
+    pub fn get_client_data<D: 'static>(
+        &self,
+        id: ClientId,
+    ) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
         self.handle.get_client_data(id.id)
+    }
+
+    /// Returns the data associated with a client as a `dyn Any`
+    #[inline]
+    pub fn get_client_data_any(
+        &self,
+        id: ClientId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        self.handle.get_client_data_any(id.id)
     }
 
     /// Retrive the [`Credentials`] of a client
@@ -232,19 +267,30 @@ impl<D> Handle<D> {
         self.handle.get_client_credentials(id.id)
     }
 
-    /// Returns an iterator over all clients connected to the server.
+    /// Invokes a closure for all clients connected to this server
+    ///
+    /// Note that while this method is running, an internal lock of the backend is held,
+    /// as a result invoking other methods of the `Handle` within the closure will deadlock.
+    /// You should thus store the relevant `ClientId` in a container of your choice and process
+    /// them after this method has returned.
     #[inline]
-    pub fn all_clients<'b>(&'b self) -> Box<dyn Iterator<Item = ClientId> + 'b> {
-        self.handle.all_clients()
+    pub fn with_all_clients(&self, f: impl FnMut(ClientId)) {
+        self.handle.with_all_clients(f)
     }
 
-    /// Returns an iterator over all objects owned by a client.
+    /// Invokes a closure for all objects owned by a client.
+    ///
+    /// Note that while this method is running, an internal lock of the backend is held,
+    /// as a result invoking other methods of the `Handle` within the closure will deadlock.
+    /// You should thus store the relevant `ObjectId` in a container of your choice and process
+    /// them after this method has returned.
     #[inline]
-    pub fn all_objects_for<'b>(
-        &'b self,
+    pub fn with_all_objects_for(
+        &self,
         client_id: ClientId,
-    ) -> Result<Box<dyn Iterator<Item = ObjectId> + 'b>, InvalidId> {
-        self.handle.all_objects_for(client_id.id)
+        f: impl FnMut(ObjectId),
+    ) -> Result<(), InvalidId> {
+        self.handle.with_all_objects_for(client_id.id, f)
     }
 
     /// Retrieve the `ObjectId` for a wayland object given its protocol numerical ID
@@ -263,8 +309,8 @@ impl<D> Handle<D> {
     /// To ensure state coherence of the protocol, the created object should be immediately
     /// sent as a "New ID" argument in an event to the client.
     #[inline]
-    pub fn create_object(
-        &mut self,
+    pub fn create_object<D: 'static>(
+        &self,
         client_id: ClientId,
         interface: &'static Interface,
         version: u32,
@@ -275,8 +321,8 @@ impl<D> Handle<D> {
 
     /// Returns an object id that represents a null object.
     #[inline]
-    pub fn null_id(&mut self) -> ObjectId {
-        self.handle.null_id()
+    pub fn null_id() -> ObjectId {
+        server_impl::InnerHandle::null_id()
     }
 
     /// Send an event to the client
@@ -291,20 +337,32 @@ impl<D> Handle<D> {
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
     #[inline]
-    pub fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.handle.send_event(msg)
     }
 
     /// Returns the data associated with an object.
     #[inline]
-    pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
+    pub fn get_object_data<D: 'static>(
+        &self,
+        id: ObjectId,
+    ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         self.handle.get_object_data(id.id)
+    }
+
+    /// Returns the data associated with an object as `dyn Any`
+    #[inline]
+    pub fn get_object_data_any(
+        &self,
+        id: ObjectId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        self.handle.get_object_data_any(id.id)
     }
 
     /// Sets the data associated with some object.
     #[inline]
-    pub fn set_object_data(
-        &mut self,
+    pub fn set_object_data<D: 'static>(
+        &self,
         id: ObjectId,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
@@ -313,7 +371,7 @@ impl<D> Handle<D> {
 
     /// Posts an error on an object. This will also disconnect the client which created the object.
     #[inline]
-    pub fn post_error(&mut self, object_id: ObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: ObjectId, error_code: u32, message: CString) {
         self.handle.post_error(object_id.id, error_code, message)
     }
 
@@ -321,7 +379,7 @@ impl<D> Handle<D> {
     ///
     /// The disconnection reason determines the error message that is sent to the client (if any).
     #[inline]
-    pub fn kill_client(&mut self, client_id: ClientId, reason: DisconnectReason) {
+    pub fn kill_client(&self, client_id: ClientId, reason: DisconnectReason) {
         self.handle.kill_client(client_id.id, reason)
     }
 
@@ -329,8 +387,8 @@ impl<D> Handle<D> {
     ///
     /// The clients which the global is advertised to is determined by the implementation of the [`GlobalHandler`].
     #[inline]
-    pub fn create_global(
-        &mut self,
+    pub fn create_global<D: 'static>(
+        &self,
         interface: &'static Interface,
         version: u32,
         handler: Arc<dyn GlobalHandler<D>>,
@@ -344,7 +402,7 @@ impl<D> Handle<D> {
     /// but the associated state and callbacks will not be freed. As such, clients that still try to bind the global
     /// afterwards (because they have not yet realized it was removed) will succeed.
     #[inline]
-    pub fn disable_global(&mut self, id: GlobalId) {
+    pub fn disable_global(&self, id: GlobalId) {
         self.handle.disable_global(id.id)
     }
 
@@ -357,7 +415,7 @@ impl<D> Handle<D> {
     /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
     /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
     #[inline]
-    pub fn remove_global(&mut self, id: GlobalId) {
+    pub fn remove_global(&self, id: GlobalId) {
         self.handle.remove_global(id.id)
     }
 
@@ -369,7 +427,10 @@ impl<D> Handle<D> {
 
     /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     #[inline]
-    pub fn get_global_handler(&self, id: GlobalId) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
+    pub fn get_global_handler<D: 'static>(
+        &self,
+        id: GlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         self.handle.get_global_handler(id.id)
     }
 }
@@ -415,7 +476,7 @@ impl<D> Backend<D> {
     /// The handle provides a variety of functionality, such as querying information about wayland objects,
     /// obtaining data associated with a client and it's objects, and creating globals.
     #[inline]
-    pub fn handle(&mut self) -> &mut Handle<D> {
+    pub fn handle(&self) -> Handle {
         self.backend.handle()
     }
 
@@ -440,7 +501,11 @@ impl<D> Backend<D> {
     /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
     /// file descriptor associated with the client and only calling this method when messages are available.
     #[inline]
-    pub fn dispatch_client(&mut self, data: &mut D, client_id: ClientId) -> std::io::Result<usize> {
+    pub fn dispatch_single_client(
+        &mut self,
+        data: &mut D,
+        client_id: ClientId,
+    ) -> std::io::Result<usize> {
         self.backend.dispatch_client(data, client_id.id)
     }
 
@@ -465,7 +530,7 @@ impl<D> ObjectData<D> for DumbObjectData {
     #[cfg_attr(coverage, no_coverage)]
     fn request(
         self: Arc<Self>,
-        _handle: &mut Handle<D>,
+        _handle: &Handle,
         _data: &mut D,
         _client_id: ClientId,
         _msg: Message<ObjectId>,
