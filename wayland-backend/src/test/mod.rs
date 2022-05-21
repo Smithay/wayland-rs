@@ -117,7 +117,7 @@ impl<D> server_sys::ClientData<D> for DoNothingData {
 impl<D> server_rs::GlobalHandler<D> for DoNothingData {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_rs::Handle<D>,
+        _: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
         _: server_rs::GlobalId,
@@ -130,7 +130,7 @@ impl<D> server_rs::GlobalHandler<D> for DoNothingData {
 impl<D> server_sys::GlobalHandler<D> for DoNothingData {
     fn bind(
         self: Arc<Self>,
-        _: &mut server_sys::Handle<D>,
+        _: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
         _: server_sys::GlobalId,
@@ -145,7 +145,7 @@ impl<D> server_sys::GlobalHandler<D> for DoNothingData {
 impl<D> server_rs::ObjectData<D> for DoNothingData {
     fn request(
         self: Arc<Self>,
-        _: &mut server_rs::Handle<D>,
+        _: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
         _: Message<server_rs::ObjectId>,
@@ -159,7 +159,7 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
 impl<D> server_sys::ObjectData<D> for DoNothingData {
     fn request(
         self: Arc<Self>,
-        _: &mut server_sys::Handle<D>,
+        _: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
         _: Message<server_sys::ObjectId>,

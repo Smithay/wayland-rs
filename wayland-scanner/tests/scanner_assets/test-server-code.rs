@@ -3,7 +3,7 @@ pub mod wl_callback {
     use super::wayland_server::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
     };
@@ -28,6 +28,7 @@ pub mod wl_callback {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
     }
     impl std::cmp::PartialEq for WlCallback {
         fn eq(&self, other: &WlCallback) -> bool {
@@ -58,16 +59,27 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(WlCallback { id, data, version })
+            Ok(WlCallback { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
         }
         fn parse_request(
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -77,7 +89,7 @@ pub mod wl_callback {
         }
         fn write_event(
             &self,
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -98,8 +110,8 @@ pub mod wl_callback {
     impl WlCallback {
         #[doc = "done event\n\nNotify the client when the related request is done."]
         #[allow(clippy::too_many_arguments)]
-        pub fn done(&self, conn: &mut DisplayHandle, callback_data: u32) {
-            let _ = conn.send_event(self, Event::Done { callback_data });
+        pub fn done(&self, callback_data: u32) {
+            let _ = self.send_event(Event::Done { callback_data });
         }
     }
 }
@@ -107,7 +119,7 @@ pub mod test_global {
     use super::wayland_server::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
     };
@@ -194,6 +206,7 @@ pub mod test_global {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
     }
     impl std::cmp::PartialEq for TestGlobal {
         fn eq(&self, other: &TestGlobal) -> bool {
@@ -224,16 +237,27 @@ pub mod test_global {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(TestGlobal { id, data, version })
+            Ok(TestGlobal { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
         }
         fn parse_request(
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -405,7 +429,7 @@ pub mod test_global {
         }
         fn write_event(
             &self,
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {
@@ -459,7 +483,6 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn many_args_evt(
             &self,
-            conn: &mut DisplayHandle,
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
@@ -467,8 +490,7 @@ pub mod test_global {
             some_text: String,
             file_descriptor: ::std::os::unix::io::RawFd,
         ) {
-            let _ = conn.send_event(
-                self,
+            let _ = self.send_event(
                 Event::ManyArgsEvt {
                     unsigned_int,
                     signed_int,
@@ -483,20 +505,18 @@ pub mod test_global {
         #[allow(clippy::too_many_arguments)]
         pub fn ack_secondary(
             &self,
-            conn: &mut DisplayHandle,
             sec: &super::secondary::Secondary,
         ) {
-            let _ = conn.send_event(self, Event::AckSecondary { sec: sec.clone() });
+            let _ = self.send_event(Event::AckSecondary { sec: sec.clone() });
         }
         #[doc = "create a new quad optionally replacing a previous one"]
         #[allow(clippy::too_many_arguments)]
         pub fn cycle_quad(
             &self,
-            conn: &mut DisplayHandle,
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = conn.send_event(self, Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
+            let _ = self.send_event(Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
         }
     }
 }
@@ -504,7 +524,7 @@ pub mod secondary {
     use super::wayland_server::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
     };
@@ -526,6 +546,7 @@ pub mod secondary {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Secondary {
         fn eq(&self, other: &Secondary) -> bool {
@@ -556,16 +577,27 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Secondary { id, data, version })
+            Ok(Secondary { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
         }
         fn parse_request(
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -582,7 +614,7 @@ pub mod secondary {
         }
         fn write_event(
             &self,
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -600,7 +632,7 @@ pub mod tertiary {
     use super::wayland_server::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
     };
@@ -622,6 +654,7 @@ pub mod tertiary {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Tertiary {
         fn eq(&self, other: &Tertiary) -> bool {
@@ -652,16 +685,27 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Tertiary { id, data, version })
+            Ok(Tertiary { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
         }
         fn parse_request(
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -678,7 +722,7 @@ pub mod tertiary {
         }
         fn write_event(
             &self,
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}
@@ -696,7 +740,7 @@ pub mod quad {
     use super::wayland_server::{
         backend::{
             protocol::{same_interface, Argument, Interface, Message, WEnum},
-            smallvec, InvalidId, ObjectData, ObjectId,
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
     };
@@ -718,6 +762,7 @@ pub mod quad {
         id: ObjectId,
         version: u32,
         data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Quad {
         fn eq(&self, other: &Quad) -> bool {
@@ -748,16 +793,27 @@ pub mod quad {
                 .map(|data| &data.udata)
         }
         #[inline]
-        fn from_id(conn: &mut DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
-            Ok(Quad { id, data, version })
+            Ok(Quad { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
         }
         fn parse_request(
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Message<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
@@ -774,7 +830,7 @@ pub mod quad {
         }
         fn write_event(
             &self,
-            conn: &mut DisplayHandle,
+            conn: &DisplayHandle,
             msg: Self::Event,
         ) -> Result<Message<ObjectId>, InvalidId> {
             match msg {}

@@ -11,7 +11,7 @@ mod registry;
 
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 pub use common_poll::InnerBackend;
-pub use handle::InnerHandle;
+pub use handle::{InnerHandle, WeakInnerHandle};
 
 use super::server::*;
 
@@ -109,7 +109,7 @@ impl<D> ObjectData<D> for UninitObjectData {
     #[cfg_attr(coverage, no_coverage)]
     fn request(
         self: Arc<Self>,
-        _: &mut Handle<D>,
+        _: &Handle,
         _: &mut D,
         _: ClientId,
         msg: Message<ObjectId>,

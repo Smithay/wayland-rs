@@ -1,14 +1,8 @@
-use std::{
-    os::unix::net::UnixStream,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{os::unix::net::UnixStream, sync::Arc};
 
 use wayland_backend::{
-    protocol::{Interface, Message, ObjectInfo},
-    server::{
-        Backend, ClientData, ClientId, Credentials, DisconnectReason, GlobalId, Handle, InitError,
-        InvalidId, ObjectId,
-    },
+    protocol::ObjectInfo,
+    server::{Backend, ClientData, GlobalId, Handle, InitError, InvalidId, ObjectId},
 };
 
 use crate::{
@@ -16,42 +10,92 @@ use crate::{
     Client, Resource,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Display<D: 'static> {
-    backend: Arc<Mutex<Backend<D>>>,
+    backend: Backend<D>,
 }
 
 impl<D: 'static> Display<D> {
     pub fn new() -> Result<Display<D>, InitError> {
-        Ok(Display { backend: Arc::new(Mutex::new(Backend::new()?)) })
+        Ok(Display { backend: Backend::new()? })
     }
 
-    pub fn handle(&self) -> DisplayHandle<'_> {
-        DisplayHandle {
-            inner: HandleInner::Guard(
-                (&*self.backend as &Mutex<dyn ErasedDisplayHandle>).lock().unwrap(),
-            ),
-        }
+    pub fn handle(&self) -> DisplayHandle {
+        DisplayHandle { handle: self.backend.handle() }
     }
 
     pub fn insert_client(
-        &self,
+        &mut self,
         stream: UnixStream,
         data: Arc<dyn ClientData<D>>,
     ) -> std::io::Result<Client> {
-        let id = self.backend.lock().unwrap().insert_client(stream, data.clone())?;
+        let id = self.backend.insert_client(stream, data.clone())?;
         Ok(Client { id, data: data.into_any_arc() })
     }
 
-    pub fn dispatch_clients(&self, data: &mut D) -> std::io::Result<usize> {
-        self.backend.lock().unwrap().dispatch_all_clients(data)
+    pub fn dispatch_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+        self.backend.dispatch_all_clients(data)
     }
 
-    pub fn flush_clients(&self) -> std::io::Result<()> {
-        self.backend.lock().unwrap().flush(None)
+    pub fn flush_clients(&mut self) -> std::io::Result<()> {
+        self.backend.flush(None)
     }
 
-    pub fn create_global<I: Resource + 'static>(
+    pub fn backend(&mut self) -> &mut Backend<D> {
+        &mut self.backend
+    }
+}
+
+/// A handle to the Wayland display
+///
+/// A display handle may be constructed from a [`Handle`] using it's [`From`] implementation.
+#[derive(Clone)]
+pub struct DisplayHandle {
+    pub(crate) handle: Handle,
+}
+
+impl std::fmt::Debug for DisplayHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DisplayHandle").finish_non_exhaustive()
+    }
+}
+
+impl DisplayHandle {
+    /// Returns the underlying [`Handle`] from `wayland-backend`.
+    pub fn backend_handle(&self) -> Handle {
+        self.handle.clone()
+    }
+
+    pub fn get_object_data(
+        &self,
+        id: ObjectId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
+        self.handle.get_object_data_any(id)
+    }
+
+    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.handle.object_info(id)
+    }
+
+    pub fn get_client(&self, id: ObjectId) -> Result<Client, InvalidId> {
+        let client_id = self.handle.get_client(id)?;
+        Client::from_id(self, client_id)
+    }
+
+    pub fn null_id(&self) -> ObjectId {
+        Handle::null_id()
+    }
+
+    pub fn send_event<I: Resource>(&self, resource: &I, event: I::Event) -> Result<(), InvalidId> {
+        let msg = resource.write_event(self, event)?;
+        self.handle.send_event(msg)
+    }
+
+    pub fn post_error<I: Resource>(&self, resource: &I, code: u32, error: String) {
+        self.handle.post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
+    }
+
+    pub fn create_global<D, I: Resource + 'static>(
         &self,
         version: u32,
         data: <D as GlobalDispatch<I>>::GlobalData,
@@ -59,242 +103,21 @@ impl<D: 'static> Display<D> {
     where
         D: GlobalDispatch<I> + 'static,
     {
-        self.backend.lock().unwrap().handle().create_global(
-            I::interface(),
-            version,
-            Arc::new(GlobalData { data }),
-        )
+        self.handle.create_global::<D>(I::interface(), version, Arc::new(GlobalData { data }))
     }
 
     pub fn disable_global(&self, id: GlobalId) {
-        self.backend.lock().unwrap().handle().disable_global(id)
+        self.handle.disable_global(id)
     }
 
     pub fn remove_global(&self, id: GlobalId) {
-        self.backend.lock().unwrap().handle().remove_global(id)
-    }
-
-    pub fn backend(&self) -> &Arc<Mutex<Backend<D>>> {
-        &self.backend
+        self.handle.remove_global(id)
     }
 }
 
-/// A handle to the Wayland display
-///
-/// A display handle may be constructed from a [`Handle`] using it's [`From`] implementation.
-pub struct DisplayHandle<'a> {
-    pub(crate) inner: HandleInner<'a>,
-}
-
-impl<'a> std::fmt::Debug for DisplayHandle<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DisplayHandle").finish_non_exhaustive()
-    }
-}
-
-pub(crate) enum HandleInner<'a> {
-    Handle(&'a mut dyn ErasedDisplayHandle),
-    Guard(MutexGuard<'a, dyn ErasedDisplayHandle>),
-}
-
-impl<'a> HandleInner<'a> {
-    #[inline]
-    pub(crate) fn handle(&mut self) -> &mut dyn ErasedDisplayHandle {
-        match self {
-            HandleInner::Handle(handle) => *handle,
-            HandleInner::Guard(ref mut guard) => &mut **guard,
-        }
-    }
-
-    pub(crate) fn typed_handle<D: 'static>(&mut self) -> Option<&mut Handle<D>> {
-        match self {
-            HandleInner::Handle(handle) => handle.downcast_mut(),
-            HandleInner::Guard(ref mut guard) => {
-                (&mut **guard).downcast_mut::<Backend<D>>().map(|backend| backend.handle())
-            }
-        }
-    }
-}
-
-impl<'a> DisplayHandle<'a> {
-    /// Returns the underlying [`Handle`] from `wayland-backend`.
-    ///
-    /// You must know the type of data the display dispatches in order to get the handle.
-    pub fn backend_handle<D: 'static>(&mut self) -> Option<&mut Handle<D>> {
-        self.inner.typed_handle()
-    }
-
-    pub fn get_object_data(
-        &mut self,
-        id: ObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
-        self.inner.handle().get_object_data(id)
-    }
-
-    pub fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.inner.handle().object_info(id)
-    }
-
-    pub fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
-        self.inner.handle().get_client(id)
-    }
-
-    pub fn null_id(&mut self) -> ObjectId {
-        self.inner.handle().null_id()
-    }
-
-    pub fn send_event<I: Resource>(
-        &mut self,
-        resource: &I,
-        event: I::Event,
-    ) -> Result<(), InvalidId> {
-        let msg = resource.write_event(self, event)?;
-        self.inner.handle().send_event(msg)
-    }
-
-    pub fn post_error<I: Resource>(&mut self, resource: &I, code: u32, error: String) {
-        self.inner.handle().post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
-    }
-}
-
-impl<'a, D: 'static> From<&'a mut Handle<D>> for DisplayHandle<'a> {
-    /// Creates a [`DisplayHandle`] using a [`&mut Handle`](Handle) from `wayland-backend`.
-    fn from(handle: &'a mut Handle<D>) -> Self {
-        DisplayHandle { inner: HandleInner::Handle(handle) }
-    }
-}
-
-/* Dynamic dispatch plumbing for erasing type parameter on DisplayHandle */
-pub(crate) trait ErasedDisplayHandle: downcast_rs::Downcast {
-    fn get_object_data(
-        &mut self,
-        id: ObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId>;
-    fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId>;
-    fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId>;
-    fn null_id(&mut self) -> ObjectId;
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
-    fn object_for_protocol_id(
-        &mut self,
-        cid: ClientId,
-        interface: &'static Interface,
-        pid: u32,
-    ) -> Result<ObjectId, InvalidId>;
-    fn post_error(&mut self, id: ObjectId, code: u32, msg: std::ffi::CString);
-    fn get_client_credentials(&mut self, id: ClientId) -> Result<Credentials, InvalidId>;
-    fn get_client_data(
-        &mut self,
-        id: ClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
-    fn kill_client(&mut self, id: ClientId, reason: DisconnectReason);
-}
-
-downcast_rs::impl_downcast!(ErasedDisplayHandle);
-
-impl<D: 'static> ErasedDisplayHandle for Handle<D> {
-    fn get_object_data(
-        &mut self,
-        id: ObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
-        Handle::<D>::get_object_data(self, id).map(|udata| udata.into_any_arc())
-    }
-
-    fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        Handle::<D>::object_info(self, id)
-    }
-
-    fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
-        let client_id = Handle::<D>::get_client(self, id)?;
-        Client::from_id(&mut DisplayHandle::from(self), client_id)
-    }
-
-    fn null_id(&mut self) -> ObjectId {
-        Handle::<D>::null_id(self)
-    }
-
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
-        Handle::<D>::send_event(self, msg)
-    }
-
-    fn object_for_protocol_id(
-        &mut self,
-        cid: ClientId,
-        interface: &'static Interface,
-        pid: u32,
-    ) -> Result<ObjectId, InvalidId> {
-        Handle::<D>::object_for_protocol_id(self, cid, interface, pid)
-    }
-
-    fn post_error(&mut self, id: ObjectId, code: u32, msg: std::ffi::CString) {
-        Handle::<D>::post_error(self, id, code, msg)
-    }
-
-    fn get_client_credentials(&mut self, id: ClientId) -> Result<Credentials, InvalidId> {
-        Handle::<D>::get_client_credentials(self, id)
-    }
-
-    fn get_client_data(
-        &mut self,
-        id: ClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        Handle::<D>::get_client_data(self, id).map(|udata| udata.into_any_arc())
-    }
-
-    fn kill_client(&mut self, id: ClientId, reason: DisconnectReason) {
-        Handle::<D>::kill_client(self, id, reason)
-    }
-}
-
-impl<D: 'static> ErasedDisplayHandle for Backend<D> {
-    fn get_object_data(
-        &mut self,
-        id: ObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
-        Handle::<D>::get_object_data(self.handle(), id).map(|udata| udata.into_any_arc())
-    }
-
-    fn object_info(&mut self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        Handle::<D>::object_info(self.handle(), id)
-    }
-
-    fn get_client(&mut self, id: ObjectId) -> Result<Client, InvalidId> {
-        let client_id = Handle::<D>::get_client(self.handle(), id)?;
-        Client::from_id(&mut DisplayHandle::from(self.handle()), client_id)
-    }
-
-    fn null_id(&mut self) -> ObjectId {
-        Handle::<D>::null_id(self.handle())
-    }
-
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
-        Handle::<D>::send_event(self.handle(), msg)
-    }
-
-    fn object_for_protocol_id(
-        &mut self,
-        cid: ClientId,
-        interface: &'static Interface,
-        pid: u32,
-    ) -> Result<ObjectId, InvalidId> {
-        Handle::<D>::object_for_protocol_id(self.handle(), cid, interface, pid)
-    }
-
-    fn post_error(&mut self, id: ObjectId, code: u32, msg: std::ffi::CString) {
-        Handle::<D>::post_error(self.handle(), id, code, msg)
-    }
-
-    fn get_client_credentials(&mut self, id: ClientId) -> Result<Credentials, InvalidId> {
-        Handle::<D>::get_client_credentials(self.handle(), id)
-    }
-
-    fn get_client_data(
-        &mut self,
-        id: ClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        Handle::<D>::get_client_data(self.handle(), id).map(|udata| udata.into_any_arc())
-    }
-
-    fn kill_client(&mut self, id: ClientId, reason: DisconnectReason) {
-        Handle::<D>::kill_client(self.handle(), id, reason)
+impl From<Handle> for DisplayHandle {
+    /// Creates a [`DisplayHandle`] using a [`Handle`](Handle) from `wayland-backend`.
+    fn from(handle: Handle) -> Self {
+        DisplayHandle { handle }
     }
 }

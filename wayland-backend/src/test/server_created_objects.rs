@@ -14,7 +14,7 @@ macro_rules! impl_globalhandler {
         impl $server_backend::GlobalHandler<()> for ServerData {
             fn bind(
                 self: Arc<Self>,
-                handle: &mut $server_backend::Handle<()>,
+                handle: &$server_backend::Handle,
                 _: &mut (),
                 client: $server_backend::ClientId,
                 _: $server_backend::GlobalId,
@@ -22,14 +22,14 @@ macro_rules! impl_globalhandler {
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 // send the first event with a newid & a null object
                 let obj_1 = handle
-                    .create_object(
+                    .create_object::<()>(
                         client.clone(),
                         &interfaces::QUAD_INTERFACE,
                         3,
                         Arc::new(DoNothingData),
                     )
                     .unwrap();
-                let null_id = handle.null_id();
+                let null_id = $server_backend::Handle::null_id();
                 handle
                     .send_event(message!(
                         object_id.clone(),
@@ -39,7 +39,12 @@ macro_rules! impl_globalhandler {
                     .unwrap();
                 // send the second
                 let obj_2 = handle
-                    .create_object(client, &interfaces::QUAD_INTERFACE, 3, Arc::new(DoNothingData))
+                    .create_object::<()>(
+                        client,
+                        &interfaces::QUAD_INTERFACE,
+                        3,
+                        Arc::new(DoNothingData),
+                    )
                     .unwrap();
                 handle
                     .send_event(message!(

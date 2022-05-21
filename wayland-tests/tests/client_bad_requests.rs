@@ -7,7 +7,7 @@ use wayc::Proxy;
 #[test]
 fn constructor_dead() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_seat::WlSeat>(1, ());
+    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -34,7 +34,7 @@ fn constructor_dead() {
 #[test]
 fn send_constructor_wrong_type() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_seat::WlSeat>(1, ());
+    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -109,7 +109,7 @@ impl ways::Dispatch<ways::protocol::wl_seat::WlSeat> for ServerHandler {
         _: &ways::protocol::wl_seat::WlSeat,
         _: ways::protocol::wl_seat::Request,
         _: &(),
-        _: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         _: &mut ways::DataInit<'_, Self>,
     ) {
     }

@@ -138,7 +138,7 @@ mod server {
         assert_impl!(server::GlobalId: std::fmt::Debug, Clone, Send, Sync, PartialEq, Eq);
 
         // Handle
-        assert_impl!(server::Handle<()>: std::fmt::Debug);
+        assert_impl!(server::Handle: std::fmt::Debug);
 
         // Backend
         assert_impl!(server::Backend<()>: Send, Sync);

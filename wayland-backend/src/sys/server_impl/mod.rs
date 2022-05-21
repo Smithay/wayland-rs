@@ -9,7 +9,7 @@ use std::{
     },
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex, Weak,
     },
 };
 
@@ -26,8 +26,7 @@ use super::{free_arrays, server::*, RUST_MANAGED};
 
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 
-// First pointer is &mut Handle<D>, and second pointer is &mut D
-scoped_thread_local!(static HANDLE: (*mut c_void, *mut c_void));
+scoped_thread_local!(static HANDLE: (Arc<Mutex<dyn ErasedState + Send>>, *mut c_void));
 
 type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, ClientId, ObjectId);
 
@@ -218,16 +217,19 @@ struct GlobalUserData<D> {
 }
 
 #[derive(Debug)]
-pub struct InnerHandle<D: 'static> {
+pub struct State<D: 'static> {
     display: *mut wl_display,
     pending_destructors: Vec<PendingDestructor<D>>,
     _data: std::marker::PhantomData<fn(&mut D)>,
     known_globals: Vec<InnerGlobalId>,
 }
 
+unsafe impl<D> Send for State<D> {}
+
 #[derive(Debug)]
 pub struct InnerBackend<D: 'static> {
-    handle: Handle<D>,
+    state: Arc<Mutex<State<D>>>,
+    display_ptr: *mut wl_display,
 }
 
 unsafe impl<D> Send for InnerBackend<D> {}
@@ -263,27 +265,27 @@ impl<D> InnerBackend<D> {
         }
 
         Ok(InnerBackend {
-            handle: Handle {
-                handle: InnerHandle {
-                    display,
-                    pending_destructors: Vec::new(),
-                    _data: std::marker::PhantomData,
-                    known_globals: Vec::new(),
-                },
-            },
+            state: Arc::new(Mutex::new(State {
+                display,
+                pending_destructors: Vec::new(),
+                _data: std::marker::PhantomData,
+                known_globals: Vec::new(),
+            })),
+            display_ptr: display,
         })
     }
 
     pub fn insert_client(
-        &mut self,
+        &self,
         stream: UnixStream,
         data: Arc<dyn ClientData<D>>,
     ) -> std::io::Result<InnerClientId> {
+        let state = self.state.lock().unwrap();
         let ret = unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_client_create,
-                self.handle.handle.display,
+                state.display,
                 stream.into_raw_fd()
             )
         };
@@ -296,6 +298,7 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        let mut state = self.state.lock().unwrap();
         if let Some(ClientId { id: client_id }) = client {
             if client_id.alive.load(Ordering::Acquire) {
                 unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_flush, client_id.ptr) }
@@ -303,30 +306,23 @@ impl<D> InnerBackend<D> {
         } else {
             // wl_display_flush_clients might invoke destructors
             PENDING_DESTRUCTORS.set(
-                &(&mut self.handle.handle.pending_destructors as *mut _ as *mut _),
+                &(&mut state.pending_destructors as *mut _ as *mut _),
                 || unsafe {
-                    ffi_dispatch!(
-                        WAYLAND_SERVER_HANDLE,
-                        wl_display_flush_clients,
-                        self.handle.handle.display
-                    );
+                    ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, state.display);
                 },
             );
         }
         Ok(())
     }
 
-    pub fn handle(&mut self) -> &mut Handle<D> {
-        &mut self.handle
+    pub fn handle(&self) -> Handle {
+        Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
     pub fn poll_fd(&self) -> RawFd {
         unsafe {
-            let evl_ptr = ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_display_get_event_loop,
-                self.handle.handle.display
-            );
+            let evl_ptr =
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.display_ptr);
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_get_fd, evl_ptr)
         }
     }
@@ -340,14 +336,16 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
-        let display = self.handle.handle.display;
-        let pointers = (&mut self.handle as *mut _ as *mut c_void, data as *mut _ as *mut c_void);
-        let ret = HANDLE.set(&pointers, || unsafe {
+        let state = self.state.clone() as Arc<Mutex<dyn ErasedState + Send>>;
+        let display = self.display_ptr;
+        let ret = HANDLE.set(&(state, data as *mut _ as *mut c_void), || unsafe {
             let evl_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, display);
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0)
         });
 
-        for (object, client_id, object_id) in self.handle.handle.pending_destructors.drain(..) {
+        for (object, client_id, object_id) in
+            self.state.lock().unwrap().pending_destructors.drain(..)
+        {
             object.destroyed(data, client_id, object_id);
         }
 
@@ -359,61 +357,81 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn display_ptr(&self) -> *mut wl_display {
-        self.handle.handle.display
+        self.display_ptr
     }
 }
 
-impl<D> Drop for InnerBackend<D> {
+impl<D> Drop for State<D> {
     fn drop(&mut self) {
         // wl_display_destroy_clients may result in the destruction of some wayland objects. Pending
         // destructors are queued up inside the PENDING_DESTRUCTORS scoped global. We need to set the scoped
         // global in order for destructors to be queued up properly.
-        PENDING_DESTRUCTORS.set(
-            &(&mut self.handle.handle.pending_destructors as *mut _ as *mut _),
-            || unsafe {
-                ffi_dispatch!(
-                    WAYLAND_SERVER_HANDLE,
-                    wl_display_destroy_clients,
-                    self.handle.handle.display
-                );
-            },
-        );
+        PENDING_DESTRUCTORS.set(&(&mut self.pending_destructors as *mut _ as *mut _), || unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy_clients, self.display);
+        });
 
-        let known_globals = std::mem::take(&mut self.handle.handle.known_globals);
+        let known_globals = std::mem::take(&mut self.known_globals);
         for global in known_globals {
-            self.handle.handle.remove_global(global);
+            self.remove_global(global);
         }
 
         unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.handle.handle.display);
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_destroy, self.display);
         }
     }
 }
 
-impl<D: 'static> InnerHandle<D> {
+#[derive(Clone)]
+pub struct InnerHandle {
+    state: Arc<Mutex<dyn ErasedState + Send>>,
+}
+
+impl std::fmt::Debug for InnerHandle {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt.debug_struct("InnerHandle[sys]").finish_non_exhaustive()
+    }
+}
+
+#[derive(Clone)]
+pub struct WeakInnerHandle {
+    pub(crate) state: Weak<Mutex<dyn ErasedState + Send>>,
+}
+
+impl std::fmt::Debug for WeakInnerHandle {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt.debug_struct("WeakInnerHandle[sys]").finish_non_exhaustive()
+    }
+}
+
+impl WeakInnerHandle {
+    pub fn upgrade(&self) -> Option<InnerHandle> {
+        self.state.upgrade().map(|state| InnerHandle { state })
+    }
+}
+
+impl InnerHandle {
+    pub fn downgrade(&self) -> WeakInnerHandle {
+        WeakInnerHandle { state: Arc::downgrade(&self.state) }
+    }
+
     pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
-            return Err(InvalidId);
-        }
-
-        let version =
-            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, id.ptr) } as u32;
-
-        Ok(ObjectInfo { id: id.id, version, interface: id.interface })
+        self.state.lock().unwrap().object_info(id)
     }
 
     pub fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
-        if !id.alive.map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
-            return Err(InvalidId);
-        }
-
-        unsafe {
-            let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, id.ptr);
-            client_id_from_ptr::<D>(client_ptr).ok_or(InvalidId).map(|id| ClientId { id })
-        }
+        self.state.lock().unwrap().get_client(id)
     }
 
-    pub fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
+    pub fn get_client_data<D: 'static>(
+        &self,
+        id: InnerClientId,
+    ) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let _state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::get_client_data().");
+
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -428,58 +446,27 @@ impl<D: 'static> InnerHandle<D> {
         Ok(data.data.clone())
     }
 
+    pub fn get_client_data_any(
+        &self,
+        id: InnerClientId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        self.state.lock().unwrap().get_client_data_any(id)
+    }
+
     pub fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
-        if !id.alive.load(Ordering::Acquire) {
-            return Err(InvalidId);
-        }
-
-        let mut creds = Credentials { pid: 0, uid: 0, gid: 0 };
-
-        unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_client_get_credentials,
-                id.ptr,
-                &mut creds.pid,
-                &mut creds.uid,
-                &mut creds.gid
-            );
-        }
-
-        Ok(creds)
+        self.state.lock().unwrap().get_client_credentials(id)
     }
 
-    pub fn all_clients<'a>(&'a self) -> Box<dyn Iterator<Item = ClientId> + 'a> {
-        let mut client_list = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_client_list, self.display)
-        };
-        Box::new(std::iter::from_fn(move || {
-            if client_list.is_null() {
-                None
-            } else {
-                unsafe {
-                    let client =
-                        ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_from_link, client_list);
-                    let id = client_id_from_ptr::<D>(client);
-
-                    let next = (*client_list).next;
-                    if client_list == next {
-                        client_list = std::ptr::null_mut();
-                    } else {
-                        client_list = next;
-                    }
-
-                    id.map(|id| ClientId { id })
-                }
-            }
-        }))
+    pub fn with_all_clients(&self, mut f: impl FnMut(ClientId)) {
+        self.state.lock().unwrap().with_all_clients(&mut f)
     }
 
-    pub fn all_objects_for<'a>(
-        &'a self,
-        _client_id: InnerClientId,
-    ) -> Result<Box<dyn Iterator<Item = ObjectId> + 'a>, InvalidId> {
-        todo!()
+    pub fn with_all_objects_for(
+        &self,
+        client_id: InnerClientId,
+        mut f: impl FnMut(ObjectId),
+    ) -> Result<(), InvalidId> {
+        self.state.lock().unwrap().with_all_objects_for(client_id, &mut f)
     }
 
     pub fn object_for_protocol_id(
@@ -488,26 +475,22 @@ impl<D: 'static> InnerHandle<D> {
         interface: &'static Interface,
         protocol_id: u32,
     ) -> Result<ObjectId, InvalidId> {
-        if !client_id.alive.load(Ordering::Acquire) {
-            return Err(InvalidId);
-        }
-        let resource = unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_object, client_id.ptr, protocol_id)
-        };
-        if resource.is_null() {
-            Err(InvalidId)
-        } else {
-            unsafe { ObjectId::from_ptr(interface, resource) }
-        }
+        self.state.lock().unwrap().object_for_protocol_id(client_id, interface, protocol_id)
     }
 
-    pub fn create_object(
-        &mut self,
+    pub fn create_object<D: 'static>(
+        &self,
         client: InnerClientId,
         interface: &'static Interface,
         version: u32,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<ObjectId, InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let _state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::create_object().");
+
         if !client.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -529,7 +512,7 @@ impl<D: 'static> InnerHandle<D> {
         Ok(ObjectId { id: unsafe { init_resource(resource, interface, Some(data)).0 } })
     }
 
-    pub fn null_id(&mut self) -> ObjectId {
+    pub fn null_id() -> ObjectId {
         ObjectId {
             id: InnerObjectId {
                 ptr: std::ptr::null_mut(),
@@ -540,7 +523,317 @@ impl<D: 'static> InnerHandle<D> {
         }
     }
 
-    pub fn send_event(
+    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+        self.state.lock().unwrap().send_event(msg)
+    }
+
+    pub fn get_object_data<D: 'static>(
+        &self,
+        id: InnerObjectId,
+    ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let _state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::get_object_data().");
+
+        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
+                as *mut ResourceUserData<D>)
+        };
+
+        Ok(udata.data.clone())
+    }
+
+    pub fn get_object_data_any(
+        &self,
+        id: InnerObjectId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        self.state.lock().unwrap().get_object_data_any(id)
+    }
+
+    pub fn set_object_data<D: 'static>(
+        &self,
+        id: InnerObjectId,
+        data: Arc<dyn ObjectData<D>>,
+    ) -> Result<(), InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let _state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::set_object_data().");
+
+        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
+                as *mut ResourceUserData<D>)
+        };
+
+        udata.data = data;
+
+        Ok(())
+    }
+
+    pub fn post_error(&self, object_id: InnerObjectId, error_code: u32, message: CString) {
+        self.state.lock().unwrap().post_error(object_id, error_code, message)
+    }
+
+    pub fn kill_client(&self, client_id: InnerClientId, reason: DisconnectReason) {
+        self.state.lock().unwrap().kill_client(client_id, reason)
+    }
+
+    pub fn create_global<D: 'static>(
+        &self,
+        interface: &'static Interface,
+        version: u32,
+        handler: Arc<dyn GlobalHandler<D>>,
+    ) -> InnerGlobalId {
+        let mut state = self.state.lock().unwrap();
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::set_object_data().");
+
+        let alive = Arc::new(AtomicBool::new(true));
+
+        let interface_ptr =
+            interface.c_ptr.expect("Interface without c_ptr are unsupported by the sys backend.");
+
+        let udata = Box::into_raw(Box::new(GlobalUserData {
+            handler,
+            alive: alive.clone(),
+            interface,
+            version,
+            disabled: false,
+            ptr: std::ptr::null_mut(),
+        }));
+
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_global_create,
+                state.display,
+                interface_ptr,
+                version as i32,
+                udata as *mut c_void,
+                global_bind::<D>
+            )
+        };
+
+        if ret.is_null() {
+            // free the user data as global creation failed
+            let _ = unsafe { Box::from_raw(udata) };
+            panic!(
+                "[wayland-backend-sys] Invalid global specification or memory allocation failure."
+            );
+        }
+
+        unsafe {
+            (*udata).ptr = ret;
+        }
+
+        let id = InnerGlobalId { ptr: ret, alive };
+        state.known_globals.push(id.clone());
+        id
+    }
+
+    pub fn disable_global(&self, id: InnerGlobalId) {
+        self.state.lock().unwrap().disable_global(id)
+    }
+
+    pub fn remove_global(&self, id: InnerGlobalId) {
+        self.state.lock().unwrap().remove_global(id)
+    }
+
+    pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
+        self.state.lock().unwrap().global_info(id)
+    }
+
+    /// Returns the handler which manages the visibility and notifies when a client has bound the global.
+    pub fn get_global_handler<D: 'static>(
+        &self,
+        id: InnerGlobalId,
+    ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let _state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::set_object_data().");
+
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            Box::from_raw(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
+                as *mut GlobalUserData<D>)
+        };
+        Ok(udata.handler.clone())
+    }
+}
+
+pub(crate) trait ErasedState: downcast_rs::Downcast {
+    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
+    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
+    fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
+    fn get_client_data_any(
+        &self,
+        id: InnerClientId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
+    fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
+    fn with_all_objects_for(
+        &self,
+        client_id: InnerClientId,
+        f: &mut dyn FnMut(ObjectId),
+    ) -> Result<(), InvalidId>;
+    fn object_for_protocol_id(
+        &self,
+        client_id: InnerClientId,
+        interface: &'static Interface,
+        protocol_id: u32,
+    ) -> Result<ObjectId, InvalidId>;
+    fn get_object_data_any(
+        &self,
+        id: InnerObjectId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
+    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
+    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
+    fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
+    fn disable_global(&mut self, id: InnerGlobalId);
+    fn remove_global(&mut self, id: InnerGlobalId);
+    fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+}
+
+downcast_rs::impl_downcast!(ErasedState);
+
+impl<D: 'static> ErasedState for State<D> {
+    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            return Err(InvalidId);
+        }
+
+        let version =
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, id.ptr) } as u32;
+
+        Ok(ObjectInfo { id: id.id, version, interface: id.interface })
+    }
+
+    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
+        if !id.alive.map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            return Err(InvalidId);
+        }
+
+        unsafe {
+            let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, id.ptr);
+            client_id_from_ptr::<D>(client_ptr).ok_or(InvalidId).map(|id| ClientId { id })
+        }
+    }
+
+    fn get_client_data_any(
+        &self,
+        id: InnerClientId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let data = unsafe {
+            match client_user_data::<D>(id.ptr) {
+                Some(ptr) => &mut *ptr,
+                None => return Err(InvalidId),
+            }
+        };
+
+        Ok(data.data.clone().into_any_arc())
+    }
+
+    fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let mut creds = Credentials { pid: 0, uid: 0, gid: 0 };
+
+        unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_client_get_credentials,
+                id.ptr,
+                &mut creds.pid,
+                &mut creds.uid,
+                &mut creds.gid
+            );
+        }
+
+        Ok(creds)
+    }
+
+    fn with_all_clients(&self, f: &mut dyn FnMut(ClientId)) {
+        let mut client_list = unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_client_list, self.display)
+        };
+        unsafe {
+            while (*client_list).next != client_list {
+                let client = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_from_link, client_list);
+                if let Some(id) = client_id_from_ptr::<D>(client) {
+                    f(ClientId { id })
+                }
+
+                client_list = (*client_list).next;
+            }
+        }
+    }
+
+    fn with_all_objects_for(
+        &self,
+        _client_id: InnerClientId,
+        _f: &mut dyn FnMut(ObjectId),
+    ) -> Result<(), InvalidId> {
+        todo!()
+    }
+
+    fn object_for_protocol_id(
+        &self,
+        client_id: InnerClientId,
+        interface: &'static Interface,
+        protocol_id: u32,
+    ) -> Result<ObjectId, InvalidId> {
+        if !client_id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+        let resource = unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_get_object, client_id.ptr, protocol_id)
+        };
+        if resource.is_null() {
+            Err(InvalidId)
+        } else {
+            unsafe { ObjectId::from_ptr(interface, resource) }
+        }
+    }
+
+    fn get_object_data_any(
+        &self,
+        id: InnerObjectId,
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        let udata = unsafe {
+            &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
+                as *mut ResourceUserData<D>)
+        };
+
+        Ok(udata.data.clone().into_any_arc())
+    }
+
+    fn send_event(
         &mut self,
         Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
     ) -> Result<(), InvalidId> {
@@ -667,39 +960,7 @@ impl<D: 'static> InnerHandle<D> {
         Ok(())
     }
 
-    pub fn get_object_data(&self, id: InnerObjectId) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
-            return Err(InvalidId);
-        }
-
-        let udata = unsafe {
-            &*(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
-                as *mut ResourceUserData<D>)
-        };
-
-        Ok(udata.data.clone())
-    }
-
-    pub fn set_object_data(
-        &mut self,
-        id: InnerObjectId,
-        data: Arc<dyn ObjectData<D>>,
-    ) -> Result<(), InvalidId> {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
-            return Err(InvalidId);
-        }
-
-        let udata = unsafe {
-            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, id.ptr)
-                as *mut ResourceUserData<D>)
-        };
-
-        udata.data = data;
-
-        Ok(())
-    }
-
-    pub fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: CString) {
+    fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: CString) {
         if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             return;
         }
@@ -722,7 +983,7 @@ impl<D: 'static> InnerHandle<D> {
         }
     }
 
-    pub fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason) {
+    fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason) {
         if !client_id.alive.load(Ordering::Acquire) {
             return;
         }
@@ -737,56 +998,7 @@ impl<D: 'static> InnerHandle<D> {
         }
     }
 
-    pub fn create_global(
-        &mut self,
-        interface: &'static Interface,
-        version: u32,
-        handler: Arc<dyn GlobalHandler<D>>,
-    ) -> InnerGlobalId {
-        let alive = Arc::new(AtomicBool::new(true));
-
-        let interface_ptr =
-            interface.c_ptr.expect("Interface without c_ptr are unsupported by the sys backend.");
-
-        let udata = Box::into_raw(Box::new(GlobalUserData {
-            handler,
-            alive: alive.clone(),
-            interface,
-            version,
-            disabled: false,
-            ptr: std::ptr::null_mut(),
-        }));
-
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_global_create,
-                self.display,
-                interface_ptr,
-                version as i32,
-                udata as *mut c_void,
-                global_bind::<D>
-            )
-        };
-
-        if ret.is_null() {
-            // free the user data as global creation failed
-            let _ = unsafe { Box::from_raw(udata) };
-            panic!(
-                "[wayland-backend-sys] Invalid global specification or memory allocation failure."
-            );
-        }
-
-        unsafe {
-            (*udata).ptr = ret;
-        }
-
-        let id = InnerGlobalId { ptr: ret, alive };
-        self.known_globals.push(id.clone());
-        id
-    }
-
-    pub fn disable_global(&mut self, id: InnerGlobalId) {
+    fn disable_global(&mut self, id: InnerGlobalId) {
         if !id.alive.load(Ordering::Acquire) {
             return;
         }
@@ -802,7 +1014,7 @@ impl<D: 'static> InnerHandle<D> {
         }
     }
 
-    pub fn remove_global(&mut self, id: InnerGlobalId) {
+    fn remove_global(&mut self, id: InnerGlobalId) {
         self.known_globals.retain(|g| g != &id);
 
         if !id.alive.load(Ordering::Acquire) {
@@ -820,7 +1032,7 @@ impl<D: 'static> InnerHandle<D> {
         }
     }
 
-    pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
+    fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -834,22 +1046,6 @@ impl<D: 'static> InnerHandle<D> {
             version: udata.version,
             disabled: udata.disabled,
         })
-    }
-
-    /// Returns the handler which manages the visibility and notifies when a client has bound the global.
-    pub fn get_global_handler(
-        &self,
-        id: InnerGlobalId,
-    ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
-        if !id.alive.load(Ordering::Acquire) {
-            return Err(InvalidId);
-        }
-
-        let udata = unsafe {
-            Box::from_raw(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
-                as *mut GlobalUserData<D>)
-        };
-        Ok(udata.handler.clone())
     }
 }
 
@@ -940,9 +1136,8 @@ unsafe extern "C" fn global_bind<D: 'static>(
     // this must be Some(), checked at creation of the global
     let interface_ptr = global_udata.interface.c_ptr.unwrap();
 
-    HANDLE.with(|&(handle_ptr, data_ptr)| {
-        // Safety: the handle_ptr and data_ptr are valid pointers that outside code put there
-        let handle = unsafe { &mut *(handle_ptr as *mut Handle<D>) };
+    HANDLE.with(|&(ref state_arc, data_ptr)| {
+        // Safety: the data_ptr is a valid pointer that live outside code put there
         let data = unsafe { &mut *(data_ptr as *mut D) };
         // create the object
         let resource = ffi_dispatch!(
@@ -956,7 +1151,7 @@ unsafe extern "C" fn global_bind<D: 'static>(
         // Safety: resource was just created, it must be valid
         let (object_id, udata) = unsafe { init_resource(resource, global_udata.interface, None) };
         let obj_data = global_udata.handler.clone().bind(
-            handle,
+            &Handle { handle: InnerHandle { state: state_arc.clone() } },
             data,
             ClientId { id: client_id },
             GlobalId { id: global_id },
@@ -1173,12 +1368,11 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     // Safety: the client ptr is valid and provided by libwayland
     let client_id = unsafe { client_id_from_ptr::<D>(client) }.unwrap();
 
-    let ret = HANDLE.with(|&(handle_ptr, data_ptr)| {
-        // Safety: the handle and data pointers have been set by outside code and are valid
-        let handle = unsafe { &mut *(handle_ptr as *mut Handle<D>) };
+    let ret = HANDLE.with(|&(ref state_arc, data_ptr)| {
+        // Safety: the data pointer has been set by outside code and is valid
         let data = unsafe { &mut *(data_ptr as *mut D) };
         udata.data.clone().request(
-            handle,
+            &Handle { handle: InnerHandle { state: state_arc.clone() } },
             data,
             ClientId { id: client_id.clone() },
             Message { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
@@ -1257,7 +1451,7 @@ impl<D> ObjectData<D> for UninitObjectData {
     #[cfg_attr(coverage, no_coverage)]
     fn request(
         self: Arc<Self>,
-        _: &mut Handle<D>,
+        _: &Handle,
         _: &mut D,
         _: ClientId,
         msg: Message<ObjectId>,

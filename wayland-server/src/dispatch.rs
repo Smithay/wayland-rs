@@ -21,7 +21,7 @@ pub trait Dispatch<I: Resource>: Sized {
         resource: &I,
         request: I::Request,
         data: &Self::UserData,
-        dhandle: &mut DisplayHandle<'_>,
+        dhandle: &DisplayHandle,
         data_init: &mut DataInit<'_, Self>,
     );
 
@@ -126,7 +126,7 @@ pub trait DelegateDispatch<
         resource: &I,
         request: I::Request,
         data: &Self::UserData,
-        dhandle: &mut DisplayHandle<'_>,
+        dhandle: &DisplayHandle,
         data_init: &mut DataInit<'_, D>,
     );
 
@@ -155,13 +155,13 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 {
     fn request(
         self: Arc<Self>,
-        handle: &mut wayland_backend::server::Handle<D>,
+        handle: &wayland_backend::server::Handle,
         data: &mut D,
         client_id: wayland_backend::server::ClientId,
         msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
-        let mut dhandle = DisplayHandle::from(handle);
-        let client = match Client::from_id(&mut dhandle, client_id) {
+        let dhandle = DisplayHandle::from(handle.clone());
+        let client = match Client::from_id(&dhandle, client_id) {
             Ok(v) => v,
             Err(_) => {
                 log::error!("Receiving a request from a dead client ?!");
@@ -169,7 +169,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
             }
         };
 
-        let (resource, request) = match I::parse_request(&mut dhandle, msg) {
+        let (resource, request) = match I::parse_request(&dhandle, msg) {
             Ok(v) => v,
             Err(e) => {
                 log::warn!("Dispatching error encountered: {:?}, killing client.", e);
@@ -186,7 +186,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
             &resource,
             request,
             udata,
-            &mut dhandle,
+            &dhandle,
             &mut DataInit { store: &mut new_data },
         );
 
@@ -237,7 +237,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 /// #         _resource: &wl_output::WlOutput,
 /// #         _request: wl_output::Request,
 /// #         _data: &Self::UserData,
-/// #         _dhandle: &mut wayland_server::DisplayHandle,
+/// #         _dhandle: &wayland_server::DisplayHandle,
 /// #         _data_init: &mut wayland_server::DataInit<'_, D>,
 /// #     ) {
 /// #     }
@@ -284,7 +284,7 @@ macro_rules! delegate_dispatch {
                 resource: &$interface,
                 request: <$interface as $crate::Resource>::Request,
                 data: &Self::UserData,
-                dhandle: &mut $crate::DisplayHandle<'_>,
+                dhandle: &$crate::DisplayHandle,
                 data_init: &mut $crate::DataInit<'_, Self>,
             ) {
                 <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)

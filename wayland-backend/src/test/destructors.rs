@@ -15,7 +15,7 @@ macro_rules! impl_server_objectdata {
         impl $server_backend::ObjectData<()> for ServerData {
             fn request(
                 self: Arc<Self>,
-                _: &mut $server_backend::Handle<()>,
+                _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: Message<$server_backend::ObjectId>,
@@ -36,7 +36,7 @@ macro_rules! impl_server_objectdata {
         impl $server_backend::GlobalHandler<()> for ServerData {
             fn bind(
                 self: Arc<Self>,
-                _: &mut $server_backend::Handle<()>,
+                _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::GlobalId,

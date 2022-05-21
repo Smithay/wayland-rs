@@ -156,7 +156,7 @@ macro_rules! server_ignore_impl {
                     _: &$iface,
                     _: <$iface as $crate::helpers::ways::Resource>::Request,
                     _: &Self::UserData,
-                    _: &mut $crate::helpers::ways::DisplayHandle<'_>,
+                    _: &$crate::helpers::ways::DisplayHandle,
                     _: &mut $crate::helpers::ways::DataInit<'_, Self>,
                 ) {
                 }
@@ -173,7 +173,7 @@ macro_rules! server_ignore_global_impl {
 
                 fn bind(
                     &mut self,
-                    _: &mut $crate::helpers::ways::DisplayHandle<'_>,
+                    _: &$crate::helpers::ways::DisplayHandle,
                     _: &$crate::helpers::ways::Client,
                     new_id: $crate::helpers::ways::New<$iface>,
                     _: &(),

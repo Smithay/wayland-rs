@@ -8,8 +8,14 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn client_user_data() {
     let mut server = TestServer::new();
-    server.display.create_global::<ways::protocol::wl_output::WlOutput>(1, ());
-    server.display.create_global::<ways::protocol::wl_compositor::WlCompositor>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
     let mut server_ddata = ServerHandler {};
 
     let (s_client, mut client) = server.add_client_with_data(Arc::new(Mutex::new(MyClientData {
@@ -66,7 +72,7 @@ fn client_credentials() {
 
     let (s_client, _) = server.add_client::<()>();
 
-    let credentials = s_client.get_credentials(&mut server.display.handle());
+    let credentials = s_client.get_credentials(&server.display.handle());
     assert!(credentials.is_ok());
     assert_credentials(credentials.unwrap());
 }
@@ -140,7 +146,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &Self::GlobalData,
@@ -155,7 +161,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor> for Serve
     type GlobalData = ();
     fn bind(
         &mut self,
-        _: &mut ways::DisplayHandle<'_>,
+        _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_compositor::WlCompositor>,
         _: &Self::GlobalData,
