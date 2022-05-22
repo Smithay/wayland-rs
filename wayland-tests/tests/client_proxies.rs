@@ -13,7 +13,7 @@ fn proxy_equals() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -56,7 +56,7 @@ fn proxy_user_data() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -100,7 +100,7 @@ fn dead_proxies() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -143,11 +143,11 @@ fn dead_object_argument() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { output: None };
 
     let (_, mut client) = server.add_client();
@@ -188,8 +188,7 @@ struct ServerHandler {
     output: Option<ways::protocol::wl_output::WlOutput>,
 }
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
@@ -203,8 +202,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandler {
-    type UserData = ();
+impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,

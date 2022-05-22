@@ -34,17 +34,21 @@ impl Client {
         handle.handle.get_client_credentials(self.id.clone())
     }
 
-    pub fn create_resource<I: Resource + 'static, D: Dispatch<I> + 'static>(
+    pub fn create_resource<
+        I: Resource + 'static,
+        U: Send + Sync + 'static,
+        D: Dispatch<I, U> + 'static,
+    >(
         &self,
         handle: &DisplayHandle,
         version: u32,
-        user_data: <D as Dispatch<I>>::UserData,
+        user_data: U,
     ) -> Result<I, InvalidId> {
         let id = handle.handle.create_object::<D>(
             self.id.clone(),
             I::interface(),
             version,
-            Arc::new(ResourceData::<I, _>::new(user_data)),
+            Arc::new(ResourceData::<I, U>::new(user_data)) as Arc<_>,
         )?;
         I::from_id(handle, id)
     }

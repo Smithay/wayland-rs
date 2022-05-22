@@ -11,7 +11,7 @@ fn xdg_ping() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, xs_server::xdg_wm_base::XdgWmBase>(1, ());
+        .create_global::<ServerHandler, xs_server::xdg_wm_base::XdgWmBase, _>(1, ());
     let mut server_ddata = ServerHandler { received_pong: false };
 
     let (_, mut client) = server.add_client();
@@ -41,15 +41,13 @@ struct ServerHandler {
     received_pong: bool,
 }
 
-impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase> for ServerHandler {
-    type GlobalData = ();
-
+impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<xs_server::xdg_wm_base::XdgWmBase>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         let wm_base = data_init.init(resource, ());
@@ -57,15 +55,13 @@ impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase> for ServerHandler {
     }
 }
 
-impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase> for ServerHandler {
-    type UserData = ();
-
+impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
         _: &xs_server::xdg_wm_base::XdgWmBase,
         request: xs_server::xdg_wm_base::Request,
-        _: &Self::UserData,
+        _: &(),
         _: &ways::DisplayHandle,
         _: &mut ways::DataInit<'_, Self>,
     ) {

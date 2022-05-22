@@ -21,7 +21,7 @@ fn attach_null() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     let mut server_ddata = ServerHandler { buffer_found: None, fd_found: None };
 
     // Client setup
@@ -59,8 +59,8 @@ fn attach_buffer() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
-    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_shm::WlShm>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
+    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_shm::WlShm, _>(1, ());
     let mut server_ddata = ServerHandler { buffer_found: None, fd_found: None };
 
     // Client setup
@@ -125,8 +125,7 @@ struct ServerHandler {
     fd_found: Option<(RawFd, Option<ServerBuffer>)>,
 }
 
-impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandler {
-    type UserData = ();
+impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
@@ -144,8 +143,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandl
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_surface::WlSurface> for ServerHandler {
-    type UserData = ();
+impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
@@ -166,8 +164,7 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface> for ServerHandler {
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_shm::WlShm> for ServerHandler {
-    type UserData = ();
+impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
@@ -188,9 +185,7 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm> for ServerHandler {
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool> for ServerHandler {
-    type UserData = ();
-
+impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool, ()> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
