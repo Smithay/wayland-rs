@@ -2,10 +2,7 @@
 
 use std::ops::Range;
 
-use crate::{
-    protocol::wl_registry, Connection, DelegateDispatch, DelegateDispatchBase, Dispatch, Proxy,
-    QueueHandle,
-};
+use crate::{protocol::wl_registry, Connection, DelegateDispatch, Dispatch, Proxy, QueueHandle};
 
 /// Description of an advertized global
 #[derive(Debug)]
@@ -27,10 +24,6 @@ pub struct GlobalDescription {
 #[derive(Debug)]
 pub struct GlobalList {
     globals: Vec<GlobalDescription>,
-}
-
-impl DelegateDispatchBase<wl_registry::WlRegistry> for GlobalList {
-    type UserData = ();
 }
 
 impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for GlobalList

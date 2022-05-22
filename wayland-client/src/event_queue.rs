@@ -376,12 +376,6 @@ impl ObjectData for TemporaryData {
  * Dispatch delegation helpers
  */
 
-/// The base trait used to define a delegate type to handle some type of proxy.
-pub trait DelegateDispatchBase<I: Proxy> {
-    /// The type of user data the delegate holds
-    type UserData: Send + Sync + 'static;
-}
-
 /// A trait which defines a delegate type to handle some type of proxy.
 ///
 /// This trait is useful for building modular handlers of proxies.
@@ -392,18 +386,10 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///
 /// ```
 /// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
-/// use wayland_client::{protocol::wl_registry, DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// use wayland_client::{protocol::wl_registry, DelegateDispatch, Dispatch};
 ///
 /// /// The type we want to delegate to
 /// struct DelegateToMe;
-///
-/// // Now implement DelegateDispatchBase.
-/// impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
-///     /// The type of user data associated with the delegation of events from a registry is defined here.
-///     ///
-///     /// If you don't need user data, the unit type, `()`, may be used.
-///     type UserData = ();
-/// }
 ///
 /// // Now implement DelegateDispatch.
 /// impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
@@ -475,13 +461,9 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 /// ```
 /// use wayland_client::{delegate_dispatch, protocol::wl_registry};
 /// #
-/// # use wayland_client::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// # use wayland_client::{DelegateDispatch, Dispatch};
 /// #
 /// # struct DelegateToMe;
-/// #
-/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
-/// #     type UserData = ();
-/// # }
 /// #
 /// # impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// # where
@@ -507,7 +489,7 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 /// }
 ///
 /// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe);
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry: ()] => DelegateToMe);
 ///
 /// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
 /// impl AsMut<DelegateToMe> for ExampleApp {
@@ -539,34 +521,13 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 ///
 /// ```ignore
 /// # // This is not tested because xdg_output is in wayland-protocols.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate);
+/// delegate_dispatch!(ExampleApp: [
+///     wl_output::WlOutput: OutputData,
+///     xdg_output::XdgOutput: XdgOutputData,
+/// ] => OutputDelegate);
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),* $(,)?] => $dispatch_to: ty) => {
-        $(
-            impl $crate::Dispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData> for $dispatch_from {
-                fn event(
-                    &mut self,
-                    proxy: &$interface,
-                    event: <$interface as $crate::Proxy>::Event,
-                    data: &<$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData,
-                    conn: &$crate::Connection,
-                    qhandle: &$crate::QueueHandle<Self>,
-                ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData, Self>>::event(self, proxy, event, data, conn, qhandle)
-                }
-
-                fn event_created_child(
-                    opcode: u16,
-                    qhandle: &$crate::QueueHandle<Self>
-                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData, Self>>::event_created_child(opcode, qhandle)
-                }
-            }
-        )*
-    };
-
     ($dispatch_from: ty: [ $($interface: ty : $user_data: ty),* $(,)?] => $dispatch_to: ty) => {
         $(
             impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
