@@ -148,14 +148,13 @@ macro_rules! client_ignore_impl {
 macro_rules! server_ignore_impl {
     ($handler:ty => [$($iface:ty),*]) => {
         $(
-            impl $crate::helpers::ways::Dispatch<$iface> for $handler {
-                type UserData = ();
+            impl $crate::helpers::ways::Dispatch<$iface, ()> for $handler {
                 fn request(
                     &mut self,
                     _: &$crate::helpers::ways::Client,
                     _: &$iface,
                     _: <$iface as $crate::helpers::ways::Resource>::Request,
-                    _: &Self::UserData,
+                    _: &(),
                     _: &$crate::helpers::ways::DisplayHandle,
                     _: &mut $crate::helpers::ways::DataInit<'_, Self>,
                 ) {
@@ -168,8 +167,7 @@ macro_rules! server_ignore_impl {
 macro_rules! server_ignore_global_impl {
     ($handler:ty => [$($iface:ty),*]) => {
         $(
-            impl $crate::helpers::ways::GlobalDispatch<$iface> for $handler {
-                type GlobalData = ();
+            impl $crate::helpers::ways::GlobalDispatch<$iface, ()> for $handler {
 
                 fn bind(
                     &mut self,

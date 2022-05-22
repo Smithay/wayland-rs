@@ -6,10 +6,7 @@ use crate::{Client, DisplayHandle, Resource};
 
 /// A trait which provides an implementation for handling a client's requests from a resource with some type
 /// of associated user data.
-pub trait Dispatch<I: Resource>: Sized {
-    /// The user data associated with the type of resource.
-    type UserData: Send + Sync + 'static;
-
+pub trait Dispatch<I: Resource, U>: Sized {
     /// Called when a request from a client is processed.
     ///
     /// The implementation of this function will vary depending on what protocol is being implemented. Typically
@@ -20,7 +17,7 @@ pub trait Dispatch<I: Resource>: Sized {
         client: &Client,
         resource: &I,
         request: I::Request,
-        data: &Self::UserData,
+        data: &U,
         dhandle: &DisplayHandle,
         data_init: &mut DataInit<'_, Self>,
     );
@@ -36,7 +33,7 @@ pub trait Dispatch<I: Resource>: Sized {
     /// convenience.
     ///
     /// By default this method does nothing.
-    fn destroyed(&mut self, _client: ClientId, _resource: ObjectId, _data: &Self::UserData) {}
+    fn destroyed(&mut self, _client: ClientId, _resource: ObjectId, _data: &U) {}
 }
 
 #[derive(Debug)]
@@ -64,16 +61,16 @@ pub struct DataInit<'a, D: 'static> {
 }
 
 impl<'a, D> DataInit<'a, D> {
-    pub fn init<I: Resource + 'static>(
+    pub fn init<I: Resource + 'static, U: Send + Sync + 'static>(
         &mut self,
         resource: New<I>,
-        data: <D as Dispatch<I>>::UserData,
+        data: U,
     ) -> I
     where
-        D: Dispatch<I> + 'static,
+        D: Dispatch<I, U> + 'static,
     {
         let arc = Arc::new(ResourceData::<I, _>::new(data));
-        *self.store = Some(arc.clone());
+        *self.store = Some(arc.clone() as Arc<_>);
         let mut obj = resource.id;
         obj.__set_object_data(arc);
         obj
@@ -101,20 +98,10 @@ impl<'a, D> DataInit<'a, D> {
  * Dispatch delegation helpers.
  */
 
-/// The base trait used to define a delegate type to hand some type of resource.
-pub trait DelegateDispatchBase<I: Resource> {
-    /// The type of user data the delegate holds.
-    type UserData: Send + Sync + 'static;
-}
-
 /// A trait which defines a delegate to handle some type of resource.
 ///
 /// This trait is useful for building modular handlers of resources.
-pub trait DelegateDispatch<
-    I: Resource,
-    D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
->: Sized + DelegateDispatchBase<I>
-{
+pub trait DelegateDispatch<I: Resource, U, D: Dispatch<I, U>>: Sized {
     /// Called when a request from a client is processed.
     ///
     /// The implementation of this function will vary depending on what protocol is being implemented. Typically
@@ -125,7 +112,7 @@ pub trait DelegateDispatch<
         client: &Client,
         resource: &I,
         request: I::Request,
-        data: &Self::UserData,
+        data: &U,
         dhandle: &DisplayHandle,
         data_init: &mut DataInit<'_, D>,
     );
@@ -141,7 +128,7 @@ pub trait DelegateDispatch<
     /// convenience.
     ///
     /// By default this method does nothing.
-    fn destroyed(_state: &mut D, _client: ClientId, _resource: ObjectId, _data: &Self::UserData) {}
+    fn destroyed(_state: &mut D, _client: ClientId, _resource: ObjectId, _data: &U) {}
 }
 
 impl<I, U> ResourceData<I, U> {
@@ -150,8 +137,8 @@ impl<I, U> ResourceData<I, U> {
     }
 }
 
-impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = U> + 'static>
-    ObjectData<D> for ResourceData<I, U>
+impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static> ObjectData<D>
+    for ResourceData<I, U>
 {
     fn request(
         self: Arc<Self>,
@@ -219,29 +206,27 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 /// ```
 /// use wayland_server::{delegate_dispatch, protocol::wl_output};
 /// #
-/// # use wayland_server::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// # use wayland_server::{DelegateDispatch, Dispatch};
 /// #
 /// # struct DelegateToMe;
 /// #
-/// # impl DelegateDispatchBase<wl_output::WlOutput> for DelegateToMe {
-/// #     type UserData = ();
-/// # }
-/// #
-/// # impl<D> DelegateDispatch<wl_output::WlOutput, D> for DelegateToMe
+/// # impl<D> DelegateDispatch<wl_output::WlOutput, (), D> for DelegateToMe
 /// # where
-/// #     D: Dispatch<wl_output::WlOutput, UserData = Self::UserData> + AsMut<DelegateToMe>,
+/// #     D: Dispatch<wl_output::WlOutput, ()> + AsMut<DelegateToMe>,
 /// # {
 /// #     fn request(
 /// #         _state: &mut D,
 /// #         _client: &wayland_server::Client,
 /// #         _resource: &wl_output::WlOutput,
 /// #         _request: wl_output::Request,
-/// #         _data: &Self::UserData,
+/// #         _data: &(),
 /// #         _dhandle: &wayland_server::DisplayHandle,
 /// #         _data_init: &mut wayland_server::DataInit<'_, D>,
 /// #     ) {
 /// #     }
 /// # }
+/// #
+/// # type UserData = ();
 ///
 /// // ExampleApp is the type events will be dispatched to.
 ///
@@ -252,7 +237,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 /// }
 ///
 /// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput: UserData] => DelegateToMe);
 ///
 /// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
 /// impl AsMut<DelegateToMe> for ExampleApp {
@@ -274,30 +259,28 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, UserData = 
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : $interface:ty => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface> for $dispatch_from$(< $( $lt ),+ >)? {
-            type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
-
+    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : ($interface:ty, $udata:ty) => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from$(< $( $lt ),+ >)? {
             fn request(
                 &mut self,
                 client: &$crate::Client,
                 resource: &$interface,
                 request: <$interface as $crate::Resource>::Request,
-                data: &Self::UserData,
+                data: &$udata,
                 dhandle: &$crate::DisplayHandle,
                 data_init: &mut $crate::DataInit<'_, Self>,
             ) {
-                <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::request(self, client, resource, request, data, dhandle, data_init)
+                <$dispatch_to as $crate::DelegateDispatch<$interface, $udata, Self>>::request(self, client, resource, request, data, dhandle, data_init)
             }
 
-            fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &Self::UserData) {
-                <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::destroyed(self, client, resource, data)
+            fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &$udata) {
+                <$dispatch_to as $crate::DelegateDispatch<$interface, $udata, Self>>::destroyed(self, client, resource, data)
             }
         }
     };
-    ($impl:tt : [$($interface: ty),*] => $dispatch_to: ty) => {
+    ($impl:tt : [$($interface: ty: $udata: ty),*] => $dispatch_to: ty) => {
         $(
-            $crate::delegate_dispatch!(@impl $impl : $interface => $dispatch_to);
+            $crate::delegate_dispatch!(@impl $impl : ($interface, $udata) => $dispatch_to);
         )*
     };
 }

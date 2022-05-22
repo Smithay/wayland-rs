@@ -11,11 +11,11 @@ fn client_user_data() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(1, ());
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     let mut server_ddata = ServerHandler {};
 
     let (s_client, mut client) = server.add_client_with_data(Arc::new(Mutex::new(MyClientData {
@@ -142,14 +142,13 @@ server_ignore_impl!(ServerHandler => [
     ways::protocol::wl_compositor::WlCompositor
 ]);
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_output::WlOutput>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
@@ -157,14 +156,13 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler
     }
 }
 
-impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_compositor::WlCompositor>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());

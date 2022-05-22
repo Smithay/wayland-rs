@@ -7,7 +7,10 @@ use wayc::Proxy;
 #[test]
 fn constructor_dead() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -34,7 +37,10 @@ fn constructor_dead() {
 #[test]
 fn send_constructor_wrong_type() {
     let mut server = TestServer::new();
-    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
@@ -101,20 +107,6 @@ client_ignore_impl!(ClientHandler => [
 
 struct ServerHandler;
 
-impl ways::Dispatch<ways::protocol::wl_seat::WlSeat> for ServerHandler {
-    type UserData = ();
-    fn request(
-        &mut self,
-        _: &ways::Client,
-        _: &ways::protocol::wl_seat::WlSeat,
-        _: ways::protocol::wl_seat::Request,
-        _: &(),
-        _: &ways::DisplayHandle,
-        _: &mut ways::DataInit<'_, Self>,
-    ) {
-    }
-}
-
-server_ignore_impl!(ServerHandler => [ways::protocol::wl_pointer::WlPointer]);
+server_ignore_impl!(ServerHandler => [ways::protocol::wl_pointer::WlPointer, ways::protocol::wl_seat::WlSeat]);
 
 server_ignore_global_impl!(ServerHandler => [ways::protocol::wl_seat::WlSeat]);

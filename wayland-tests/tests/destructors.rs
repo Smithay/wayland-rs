@@ -14,7 +14,7 @@ fn resource_destructor_request() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
@@ -49,7 +49,7 @@ fn resource_destructor_cleanup() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
@@ -84,7 +84,7 @@ fn client_destructor_cleanup() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let destructor_called = Arc::new(AtomicBool::new(false));
@@ -136,23 +136,20 @@ struct ServerHandler {
 
 struct ServerUData(Arc<AtomicBool>);
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
-    type GlobalData = ();
-
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(output, ServerUData(self.destructor_called.clone()));
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
-    type UserData = ServerUData;
+impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
@@ -168,7 +165,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput> for ServerHandler {
         &mut self,
         _client: wayland_backend::server::ClientId,
         _resource: wayland_backend::server::ObjectId,
-        data: &Self::UserData,
+        data: &ServerUData,
     ) {
         data.0.store(true, Ordering::Release);
     }

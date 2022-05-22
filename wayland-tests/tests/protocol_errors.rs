@@ -10,7 +10,7 @@ fn client_receive_generic_error() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
 
     let (s_client, mut client) = server.add_client();
 

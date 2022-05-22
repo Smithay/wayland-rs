@@ -18,13 +18,13 @@ fn global_filter() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor>(1, ());
-    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_shm::WlShm>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
+    server.display.handle().create_global::<ServerHandler, ways::protocol::wl_shm::WlShm, _>(1, ());
     // only privileged can see output
     let privileged_output = server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(1, ());
     let mut server_ddata = ServerHandler;
 
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
@@ -67,7 +67,7 @@ fn global_filter_try_force() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(1, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(1, ());
     let mut server_ddata = ServerHandler;
 
     // normal client that cannot bind the privileged global
@@ -130,56 +130,53 @@ client_ignore_impl!(ClientHandler => [
 
 struct ServerHandler;
 
-impl ways::GlobalDispatch<wl_compositor::WlCompositor> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<wl_compositor::WlCompositor, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_compositor::WlCompositor>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
     }
 
-    fn can_view(_: ways::Client, _: &Self::GlobalData) -> bool {
+    fn can_view(_: ways::Client, _: &()) -> bool {
         true
     }
 }
 
-impl ways::GlobalDispatch<wl_shm::WlShm> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<wl_shm::WlShm, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_shm::WlShm>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
     }
 
-    fn can_view(_: ways::Client, _: &Self::GlobalData) -> bool {
+    fn can_view(_: ways::Client, _: &()) -> bool {
         true
     }
 }
 
-impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_output::WlOutput>,
-        _: &Self::GlobalData,
+        _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
     }
 
-    fn can_view(client: ways::Client, _: &Self::GlobalData) -> bool {
+    fn can_view(client: ways::Client, _: &()) -> bool {
         client.get_data::<MyClientData>().unwrap().privileged
     }
 }

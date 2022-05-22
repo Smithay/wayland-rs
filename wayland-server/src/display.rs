@@ -95,15 +95,19 @@ impl DisplayHandle {
         self.handle.post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
     }
 
-    pub fn create_global<D, I: Resource + 'static>(
+    pub fn create_global<D, I: Resource + 'static, U: Send + Sync + 'static>(
         &self,
         version: u32,
-        data: <D as GlobalDispatch<I>>::GlobalData,
+        data: U,
     ) -> GlobalId
     where
-        D: GlobalDispatch<I> + 'static,
+        D: GlobalDispatch<I, U> + 'static,
     {
-        self.handle.create_global::<D>(I::interface(), version, Arc::new(GlobalData { data }))
+        self.handle.create_global::<D>(
+            I::interface(),
+            version,
+            Arc::new(GlobalData { data, _types: std::marker::PhantomData }),
+        )
     }
 
     pub fn disable_global(&self, id: GlobalId) {

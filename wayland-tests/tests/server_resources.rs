@@ -16,7 +16,7 @@ fn resource_equals() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -63,7 +63,7 @@ fn resource_user_data() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -107,7 +107,7 @@ fn dead_resources() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -159,7 +159,7 @@ fn get_resource() {
     server
         .display
         .handle()
-        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput>(3, ());
+        .create_global::<ServerHandler, ways::protocol::wl_output::WlOutput, _>(3, ());
     let mut server_ddata = ServerHandler { outputs: Vec::new() };
 
     let (_, mut client) = server.add_client();
@@ -225,8 +225,7 @@ struct ServerHandler {
     outputs: Vec<wl_output::WlOutput>,
 }
 
-impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
-    type GlobalData = ();
+impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
         &mut self,
         _: &ways::DisplayHandle,
@@ -242,15 +241,13 @@ impl ways::GlobalDispatch<wl_output::WlOutput> for ServerHandler {
 
 struct UData(usize);
 
-impl ways::Dispatch<wl_output::WlOutput> for ServerHandler {
-    type UserData = UData;
-
+impl ways::Dispatch<wl_output::WlOutput, UData> for ServerHandler {
     fn request(
         &mut self,
         _: &ways::Client,
         _: &wl_output::WlOutput,
         _: wl_output::Request,
-        _: &Self::UserData,
+        _: &UData,
         _: &ways::DisplayHandle,
         _: &mut ways::DataInit<'_, Self>,
     ) {

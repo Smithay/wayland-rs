@@ -4,19 +4,22 @@ use wayland_backend::server::{
     ClientData, ClientId, GlobalHandler, GlobalId, Handle, ObjectData, ObjectId,
 };
 
-use crate::{
-    dispatch::{DelegateDispatch, DelegateDispatchBase},
-    Client, DataInit, Dispatch, DisplayHandle, New, Resource,
-};
+use crate::{Client, DataInit, DisplayHandle, New, Resource};
 
-pub(crate) struct GlobalData<I: Resource, D: GlobalDispatch<I>> {
-    pub(crate) data: <D as GlobalDispatch<I>>::GlobalData,
+pub(crate) struct GlobalData<I, U, D> {
+    pub(crate) data: U,
+    pub(crate) _types: std::marker::PhantomData<(I, D)>,
 }
 
-impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for GlobalData<I, D> {
+unsafe impl<I, D, U: Send + Sync> Send for GlobalData<I, U, D> {}
+unsafe impl<I, D, U: Send + Sync> Sync for GlobalData<I, U, D> {}
+
+impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 'static>
+    GlobalHandler<D> for GlobalData<I, U, D>
+{
     fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData<D>>, _: GlobalId) -> bool {
         let client = Client { id, data: data.clone().into_any_arc() };
-        <D as GlobalDispatch<I>>::can_view(client, &self.data)
+        <D as GlobalDispatch<I, U>>::can_view(client, &self.data)
     }
 
     fn bind(
@@ -54,10 +57,7 @@ impl<I: Resource + 'static, D: GlobalDispatch<I> + 'static> GlobalHandler<D> for
 
 /// A trait which provides an implementation for handling advertisement of a global to clients with some type
 /// of associated user data.
-pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
-    /// Data associated with the global.
-    type GlobalData: Send + Sync + 'static;
-
+pub trait GlobalDispatch<I: Resource, GU>: Sized {
     /// Called when a client has bound this global.
     ///
     /// The return value of this function should contain user data to associate the object created by the
@@ -67,7 +67,7 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
         handle: &DisplayHandle,
         client: &Client,
         resource: New<I>,
-        global_data: &Self::GlobalData,
+        global_data: &GU,
         data_init: &mut DataInit<'_, Self>,
     );
 
@@ -81,7 +81,7 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
     /// which must only be used by XWayland.
     ///
     /// The default implementation allows all clients to see the global.
-    fn can_view(_client: Client, _global_data: &Self::GlobalData) -> bool {
+    fn can_view(_client: Client, _global_data: &GU) -> bool {
         true
     }
 }
@@ -90,21 +90,10 @@ pub trait GlobalDispatch<I: Resource>: Dispatch<I> {
  * Dispatch delegation helpers
  */
 
-/// The base trait used to define a delegate type to handle some global.
-pub trait DelegateGlobalDispatchBase<I: Resource>: DelegateDispatchBase<I> {
-    /// Data associated with the global.
-    type GlobalData: Send + Sync + 'static;
-}
-
 /// A trait which defines a delegate type to handle some type of global.
 ///
 /// This trait is useful for building modular handlers for globals.
-pub trait DelegateGlobalDispatch<
-    I: Resource,
-    D: GlobalDispatch<I, GlobalData = <Self as DelegateGlobalDispatchBase<I>>::GlobalData>
-        + Dispatch<I, UserData = Self::UserData>,
->: Sized + DelegateGlobalDispatchBase<I> + DelegateDispatch<I, D>
-{
+pub trait DelegateGlobalDispatch<I: Resource, U, D: GlobalDispatch<I, U>>: Sized {
     /// Called when a client has bound this global.
     ///
     /// The return value of this function should contain user data to associate the object created by the
@@ -114,7 +103,7 @@ pub trait DelegateGlobalDispatch<
         handle: &DisplayHandle,
         client: &Client,
         resource: New<I>,
-        global_data: &Self::GlobalData,
+        global_data: &U,
         data_init: &mut DataInit<'_, D>,
     );
 
@@ -128,36 +117,35 @@ pub trait DelegateGlobalDispatch<
     /// which must only be used by XWayland.
     ///
     /// The default implementation allows all clients to see the global.
-    fn can_view(_client: Client, _global_data: &Self::GlobalData) -> bool {
+    fn can_view(_client: Client, _global_data: &U) -> bool {
         true
     }
 }
 
 #[macro_export]
 macro_rules! delegate_global_dispatch {
-    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : $interface: ty => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::GlobalDispatch<$interface> for $dispatch_from$(< $( $lt ),+ >)? {
-            type GlobalData = <$dispatch_to as $crate::DelegateGlobalDispatchBase<$interface>>::GlobalData;
+    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : ($interface: ty, $udata: ty) => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::GlobalDispatch<$interface, $udata> for $dispatch_from$(< $( $lt ),+ >)? {
 
             fn bind(
                 &mut self,
                 dhandle: &$crate::DisplayHandle,
                 client: &$crate::Client,
                 resource: $crate::New<$interface>,
-                global_data: &Self::GlobalData,
+                global_data: &$udata,
                 data_init: &mut $crate::DataInit<'_, Self>,
             ) {
-                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
+                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, $udata, Self>>::bind(self, dhandle, client, resource, global_data, data_init)
             }
 
-            fn can_view(client: $crate::Client, global_data: &Self::GlobalData) -> bool {
-                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, Self>>::can_view(client, global_data)
+            fn can_view(client: $crate::Client, global_data: &$udata) -> bool {
+                <$dispatch_to as $crate::DelegateGlobalDispatch<$interface, $udata, Self>>::can_view(client, global_data)
             }
         }
     };
-    ($impl:tt : [$($interface: ty),*] => $dispatch_to: ty) => {
+    ($impl:tt : [$($interface: ty: $udata: ty),*] => $dispatch_to: ty) => {
         $(
-            $crate::delegate_global_dispatch!(@impl $impl : $interface => $dispatch_to);
+            $crate::delegate_global_dispatch!(@impl $impl : ($interface, $udata) => $dispatch_to);
         )*
     };
 }
@@ -168,37 +156,30 @@ mod tests {
     fn smoke_test_dispatch_global_dispatch() {
         use crate::{
             delegate_dispatch, protocol::wl_output, Client, DataInit, DelegateDispatch,
-            DelegateDispatchBase, DelegateGlobalDispatch, DelegateGlobalDispatchBase, Dispatch,
-            DisplayHandle, GlobalDispatch, New,
+            DelegateGlobalDispatch, Dispatch, DisplayHandle, GlobalDispatch, New,
         };
 
         struct DelegateToMe;
 
-        impl DelegateDispatchBase<wl_output::WlOutput> for DelegateToMe {
-            type UserData = ();
-        }
-        impl<D> DelegateDispatch<wl_output::WlOutput, D> for DelegateToMe
+        impl<D> DelegateDispatch<wl_output::WlOutput, (), D> for DelegateToMe
         where
-            D: Dispatch<wl_output::WlOutput, UserData = Self::UserData> + AsMut<DelegateToMe>,
+            D: Dispatch<wl_output::WlOutput, ()> + AsMut<DelegateToMe>,
         {
             fn request(
                 _state: &mut D,
                 _client: &Client,
                 _resource: &wl_output::WlOutput,
                 _request: wl_output::Request,
-                _data: &Self::UserData,
+                _data: &(),
                 _dhandle: &DisplayHandle,
                 _data_init: &mut DataInit<'_, D>,
             ) {
             }
         }
-        impl DelegateGlobalDispatchBase<wl_output::WlOutput> for DelegateToMe {
-            type GlobalData = ();
-        }
-        impl<D> DelegateGlobalDispatch<wl_output::WlOutput, D> for DelegateToMe
+        impl<D> DelegateGlobalDispatch<wl_output::WlOutput, (), D> for DelegateToMe
         where
-            D: GlobalDispatch<wl_output::WlOutput, GlobalData = Self::GlobalData>,
-            D: Dispatch<wl_output::WlOutput, UserData = ()>,
+            D: GlobalDispatch<wl_output::WlOutput, ()>,
+            D: Dispatch<wl_output::WlOutput, ()>,
             D: AsMut<DelegateToMe>,
         {
             fn bind(
@@ -206,7 +187,7 @@ mod tests {
                 _handle: &DisplayHandle,
                 _client: &Client,
                 _resource: New<wl_output::WlOutput>,
-                _global_data: &Self::GlobalData,
+                _global_data: &(),
                 _data_init: &mut DataInit<'_, D>,
             ) {
             }
@@ -216,8 +197,8 @@ mod tests {
             delegate: DelegateToMe,
         }
 
-        delegate_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
-        delegate_global_dispatch!(ExampleApp: [wl_output::WlOutput] => DelegateToMe);
+        delegate_dispatch!(ExampleApp: [wl_output::WlOutput: ()] => DelegateToMe);
+        delegate_global_dispatch!(ExampleApp: [wl_output::WlOutput: ()] => DelegateToMe);
 
         impl AsMut<DelegateToMe> for ExampleApp {
             fn as_mut(&mut self) -> &mut DelegateToMe {
