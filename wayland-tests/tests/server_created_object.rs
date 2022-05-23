@@ -33,11 +33,11 @@ fn data_offer() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
@@ -79,11 +79,11 @@ fn server_id_reuse() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
@@ -160,11 +160,11 @@ fn server_created_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
@@ -223,11 +223,11 @@ fn creation_destruction_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
     // client creates two data devices
@@ -294,11 +294,11 @@ fn creation_destruction_queue_dispatch_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
     let client_dd = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
@@ -361,20 +361,19 @@ impl AsMut<wayc::globals::GlobalList> for ClientHandler {
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
 );
 client_ignore_impl!(ClientHandler => [
     ClientSeat,
     ClientDDMgr
 ]);
 
-impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice> for ClientHandler {
-    type UserData = ();
+impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ()> for ClientHandler {
     fn event(
         &mut self,
         data_device: &wayc::protocol::wl_data_device::WlDataDevice,
         event: wayc::protocol::wl_data_device::Event,
-        _: &Self::UserData,
+        _: &(),
         conn: &wayc::Connection,
         _: &wayc::QueueHandle<Self>,
     ) {
@@ -394,14 +393,12 @@ impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice> for ClientHand
     ]);
 }
 
-impl wayc::Dispatch<ClientDO> for ClientHandler {
-    type UserData = ();
-
+impl wayc::Dispatch<ClientDO, ()> for ClientHandler {
     fn event(
         &mut self,
         _: &ClientDO,
         event: wayc::protocol::wl_data_offer::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &wayc::Connection,
         _: &wayc::QueueHandle<Self>,
     ) {

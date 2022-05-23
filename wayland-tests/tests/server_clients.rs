@@ -25,7 +25,7 @@ fn client_user_data() {
     // Instantiate the globals
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -43,7 +43,7 @@ fn client_user_data() {
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _>(
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -106,7 +106,7 @@ impl AsMut<wayc::globals::GlobalList> for ClientHandler {
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

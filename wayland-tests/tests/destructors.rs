@@ -23,7 +23,7 @@ fn resource_destructor_request() {
 
     let output = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -55,7 +55,7 @@ fn resource_destructor_cleanup() {
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -90,7 +90,7 @@ fn client_destructor_cleanup() {
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _>(
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
             3..4,
@@ -182,7 +182,7 @@ impl AsMut<wayc::globals::GlobalList> for ClientHandler {
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

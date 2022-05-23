@@ -20,7 +20,7 @@ fn xdg_ping() {
 
     client_ddata
         .globals
-        .bind::<xs_client::xdg_wm_base::XdgWmBase, _>(
+        .bind::<xs_client::xdg_wm_base::XdgWmBase, _, _>(
             &client.event_queue.handle(),
             &registry,
             1..2,
@@ -93,12 +93,10 @@ impl AsMut<wayc::globals::GlobalList> for ClientHandler {
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
 );
 
-impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase> for ClientHandler {
-    type UserData = ();
-
+impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ()> for ClientHandler {
     fn event(
         &mut self,
         wm_base: &xs_client::xdg_wm_base::XdgWmBase,

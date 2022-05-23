@@ -102,17 +102,17 @@ fn range_instantiate() {
 
     let compositor = client_ddata
         .globals
-        .bind::<WlCompositor, _>(&client.event_queue.handle(), &registry, 1..5, ())
+        .bind::<WlCompositor, _, _>(&client.event_queue.handle(), &registry, 1..5, ())
         .unwrap();
     assert!(compositor.version() == 4);
     let shell = client_ddata
         .globals
-        .bind::<WlShell, _>(&client.event_queue.handle(), &registry, 1..3, ())
+        .bind::<WlShell, _, _>(&client.event_queue.handle(), &registry, 1..3, ())
         .unwrap();
     assert!(shell.version() == 1);
 
     assert!(matches!(
-        client_ddata.globals.bind::<WlCompositor, _>(
+        client_ddata.globals.bind::<WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
             5..6,
@@ -125,7 +125,12 @@ fn range_instantiate() {
         })
     ));
     assert!(matches!(
-        client_ddata.globals.bind::<WlOutput, _>(&client.event_queue.handle(), &registry, 1..4, ()),
+        client_ddata.globals.bind::<WlOutput, _, _>(
+            &client.event_queue.handle(),
+            &registry,
+            1..4,
+            ()
+        ),
         Err(BindError::MissingGlobal { interface: "wl_output" })
     ));
 }
@@ -152,7 +157,7 @@ fn wrong_global() {
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
-    registry.bind::<WlOutput, _>(1, 1, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlOutput, _, _>(1, 1, &client.event_queue.handle(), ()).unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -171,7 +176,7 @@ fn wrong_global_version() {
 
     // instantiate a global with wrong version, this should kill the client
 
-    registry.bind::<WlCompositor, _>(1, 2, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(1, 2, &client.event_queue.handle(), ()).unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -190,7 +195,7 @@ fn invalid_global_version() {
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _>(1, 0, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(1, 0, &client.event_queue.handle(), ()).unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -209,7 +214,7 @@ fn wrong_global_id() {
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _>(3, 1, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(3, 1, &client.event_queue.handle(), ()).unwrap();
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -235,12 +240,12 @@ fn two_step_binding() {
 
     client_ddata
         .globals
-        .bind::<WlCompositor, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<WlCompositor, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
 
     client_ddata
         .globals
-        .bind::<WlOutput, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<WlOutput, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -262,7 +267,7 @@ impl AsMut<wayc::globals::GlobalList> for ClientHandler {
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

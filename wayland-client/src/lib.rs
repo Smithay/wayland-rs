@@ -27,9 +27,7 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
-pub use event_queue::{
-    DelegateDispatch, DelegateDispatchBase, Dispatch, EventQueue, QueueHandle, QueueProxyData,
-};
+pub use event_queue::{DelegateDispatch, Dispatch, EventQueue, QueueHandle, QueueProxyData};
 
 /// Generated protocol definitions
 ///

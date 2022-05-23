@@ -14,10 +14,7 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 
 /// A trait which provides an implementation for handling events from the server on a proxy with some type of
 /// associated user data.
-pub trait Dispatch<I: Proxy>: Sized {
-    /// The user data associated with the type of proxy.
-    type UserData: Send + Sync + 'static;
-
+pub trait Dispatch<I: Proxy, UserData>: Sized {
     /// Called when an event from the server is processed.
     ///
     /// The implementation of this function may vary depending on protocol requirements. Typically the client
@@ -26,7 +23,7 @@ pub trait Dispatch<I: Proxy>: Sized {
         &mut self,
         proxy: &I,
         event: I::Event,
-        data: &Self::UserData,
+        data: &UserData,
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     );
@@ -86,7 +83,7 @@ macro_rules! event_created_child {
             match opcode {
                 $(
                     $opcode => {
-                        qhandle.make_data::<$child_iface>({$child_udata})
+                        qhandle.make_data::<$child_iface, _>({$child_udata})
                     },
                 )*
                 _ => {
@@ -272,10 +269,7 @@ pub(crate) trait ErasedQueueSender<I> {
     fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>);
 }
 
-impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D>
-where
-    D: Dispatch<I>,
-{
+impl<I: Proxy, D> ErasedQueueSender<I> for QueueSender<D> {
     fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
         if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
             log::error!("Event received for EventQueue after it was dropped.");
@@ -289,14 +283,15 @@ impl<D: 'static> QueueHandle<D> {
     /// This creates an implementation of [`ObjectData`] fitting for direct use with `wayland-backend` APIs
     /// that forwards all events to the event queue associated with this token, integrating the object into
     /// the [`Dispatch`]-based logic of `wayland-client`.
-    pub fn make_data<I: Proxy + 'static>(
+    pub fn make_data<I: Proxy + 'static, U: Send + Sync + 'static>(
         &self,
-        user_data: <D as Dispatch<I>>::UserData,
+        user_data: U,
     ) -> Arc<dyn ObjectData>
     where
-        D: Dispatch<I>,
+        D: Dispatch<I, U>,
     {
-        let sender = Box::new(QueueSender { func: queue_callback::<I, D>, handle: self.clone() });
+        let sender: Box<dyn ErasedQueueSender<I> + Send + Sync> =
+            Box::new(QueueSender { func: queue_callback::<I, U, D>, handle: self.clone() });
 
         let has_creating_event =
             I::interface().events.iter().any(|desc| desc.child_interface.is_some());
@@ -310,7 +305,7 @@ impl<D: 'static> QueueHandle<D> {
                             return None;
                         }
                         Argument::NewId(_) => {
-                            return Some(<D as Dispatch<I>>::event_created_child(
+                            return Some(<D as Dispatch<I, U>>::event_created_child(
                                 msg.opcode, &qhandle,
                             ));
                         }
@@ -326,7 +321,7 @@ impl<D: 'static> QueueHandle<D> {
     }
 }
 
-fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
+fn queue_callback<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
     handle: &Connection,
     msg: Message<ObjectId>,
     data: &mut D,
@@ -334,9 +329,8 @@ fn queue_callback<I: Proxy + 'static, D: Dispatch<I> + 'static>(
     qhandle: &QueueHandle<D>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let proxy_data = (&*odata)
-        .downcast_ref::<QueueProxyData<I, <D as Dispatch<I>>::UserData>>()
-        .expect("Wrong user_data value for object");
+    let proxy_data =
+        (&*odata).downcast_ref::<QueueProxyData<I, U>>().expect("Wrong user_data value for object");
     data.event(&proxy, event, &proxy_data.udata, handle, qhandle);
     Ok(())
 }
@@ -382,12 +376,6 @@ impl ObjectData for TemporaryData {
  * Dispatch delegation helpers
  */
 
-/// The base trait used to define a delegate type to handle some type of proxy.
-pub trait DelegateDispatchBase<I: Proxy> {
-    /// The type of user data the delegate holds
-    type UserData: Send + Sync + 'static;
-}
-
 /// A trait which defines a delegate type to handle some type of proxy.
 ///
 /// This trait is useful for building modular handlers of proxies.
@@ -398,24 +386,16 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///
 /// ```
 /// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
-/// use wayland_client::{protocol::wl_registry, DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// use wayland_client::{protocol::wl_registry, DelegateDispatch, Dispatch};
 ///
 /// /// The type we want to delegate to
 /// struct DelegateToMe;
 ///
-/// // Now implement DelegateDispatchBase.
-/// impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
-///     /// The type of user data associated with the delegation of events from a registry is defined here.
-///     ///
-///     /// If you don't need user data, the unit type, `()`, may be used.
-///     type UserData = ();
-/// }
-///
 /// // Now implement DelegateDispatch.
-/// impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// where
 ///     // `D` is the type which has delegated to this type.
-///     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData>,
+///     D: Dispatch<wl_registry::WlRegistry, ()>,
 ///     // If your delegate type has some internal state, it'll need to access it, and you can
 ///     // require it via an AsMut<_> implementation for example
 ///     D: AsMut<DelegateToMe>,
@@ -424,7 +404,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///         data: &mut D,
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
-///         _udata: &Self::UserData,
+///         _udata: &(),
 ///         _conn: &wayland_client::Connection,
 ///         _qhandle: &wayland_client::QueueHandle<D>,
 ///     ) {
@@ -437,11 +417,7 @@ pub trait DelegateDispatchBase<I: Proxy> {
 ///     }
 /// }
 /// ```
-pub trait DelegateDispatch<
-    I: Proxy,
-    D: Dispatch<I, UserData = <Self as DelegateDispatchBase<I>>::UserData>,
->: Sized + DelegateDispatchBase<I>
-{
+pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
     /// Called when an event from the server is processed.
     ///
     /// The implementation of this function may vary depending on protocol requirements. Typically the client
@@ -450,7 +426,7 @@ pub trait DelegateDispatch<
         data: &mut D,
         proxy: &I,
         event: I::Event,
-        udata: &Self::UserData,
+        udata: &U,
         conn: &Connection,
         qhandle: &QueueHandle<D>,
     );
@@ -485,23 +461,19 @@ pub trait DelegateDispatch<
 /// ```
 /// use wayland_client::{delegate_dispatch, protocol::wl_registry};
 /// #
-/// # use wayland_client::{DelegateDispatch, DelegateDispatchBase, Dispatch};
+/// # use wayland_client::{DelegateDispatch, Dispatch};
 /// #
 /// # struct DelegateToMe;
 /// #
-/// # impl DelegateDispatchBase<wl_registry::WlRegistry> for DelegateToMe {
-/// #     type UserData = ();
-/// # }
-/// #
-/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, D> for DelegateToMe
+/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// # where
-/// #     D: Dispatch<wl_registry::WlRegistry, UserData = Self::UserData> + AsMut<DelegateToMe>,
+/// #     D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<DelegateToMe>,
 /// # {
 /// #     fn event(
 /// #         _data: &mut D,
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
-/// #         _udata: &Self::UserData,
+/// #         _udata: &(),
 /// #         _conn: &wayland_client::Connection,
 /// #         _qhandle: &wayland_client::QueueHandle<D>,
 /// #     ) {
@@ -517,7 +489,7 @@ pub trait DelegateDispatch<
 /// }
 ///
 /// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry] => DelegateToMe);
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry: ()] => DelegateToMe);
 ///
 /// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
 /// impl AsMut<DelegateToMe> for ExampleApp {
@@ -534,7 +506,7 @@ pub trait DelegateDispatch<
 /// // Assert ExampleApp can Dispatch events for wl_registry
 /// fn assert_is_registry_delegate<T>()
 /// where
-///     T: Dispatch<wl_registry::WlRegistry, UserData = ()>,
+///     T: Dispatch<wl_registry::WlRegistry, ()>,
 /// {
 /// }
 ///
@@ -549,31 +521,32 @@ pub trait DelegateDispatch<
 ///
 /// ```ignore
 /// # // This is not tested because xdg_output is in wayland-protocols.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate);
+/// delegate_dispatch!(ExampleApp: [
+///     wl_output::WlOutput: OutputData,
+///     xdg_output::XdgOutput: XdgOutputData,
+/// ] => OutputDelegate);
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [$($interface: ty),*] => $dispatch_to: ty) => {
+    ($dispatch_from: ty: [ $($interface: ty : $user_data: ty),* $(,)?] => $dispatch_to: ty) => {
         $(
-            impl $crate::Dispatch<$interface> for $dispatch_from {
-                type UserData = <$dispatch_to as $crate::DelegateDispatchBase<$interface>>::UserData;
-
+            impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
                 fn event(
                     &mut self,
                     proxy: &$interface,
                     event: <$interface as $crate::Proxy>::Event,
-                    data: &Self::UserData,
+                    data: &$user_data,
                     conn: &$crate::Connection,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event(self, proxy, event, data, conn, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event(self, proxy, event, data, conn, qhandle)
                 }
 
                 fn event_created_child(
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, Self>>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
                 }
             }
         )*

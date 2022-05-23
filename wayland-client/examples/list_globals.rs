@@ -2,14 +2,12 @@ use wayland_client::{protocol::wl_registry, Connection, Dispatch, QueueHandle};
 
 struct AppData;
 
-impl Dispatch<wl_registry::WlRegistry> for AppData {
-    type UserData = ();
-
+impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
     fn event(
         &mut self,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &Self::UserData,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<AppData>,
     ) {
