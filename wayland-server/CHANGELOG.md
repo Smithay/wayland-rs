@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.30.0-beta.1
+
+#### Breaking changes
+
+- Large rework of the API as a consequence of the rework of the backend.
+
 ## 0.30.0-alpha10
 
 - Introduce conversion methods between `wayland_backend::Handle` and `DisplayHandle`

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0-beta.1
+
+#### Breaking changes
+
+- Both client and server APIs have been profoundly reworked. The backend now has internal locking
+  mechanism allowing handles to it to be cloned and shared accross the application.
+
 #### Bugfixes
 
 - Fix a crash when exactly filling the internal buffers.

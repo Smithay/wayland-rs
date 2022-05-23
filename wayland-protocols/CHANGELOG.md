@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+#### 0.30.0-beta.1
+
 ### Breaking Change
 
 - Complete reorganization of the crate around the `wp`/`xdg`/`ext` categories

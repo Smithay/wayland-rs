@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.30.0-alpha10"
+version = "0.30.0-beta.1"
 documentation = "https://docs.rs/wayland-server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -12,8 +12,8 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.1.0-alpha10", path = "../wayland-backend" }
-wayland-scanner = { version = "0.30.0-alpha10", path = "../wayland-scanner" }
+wayland-backend = { version = "0.1.0-beta.1", path = "../wayland-backend" }
+wayland-scanner = { version = "0.30.0-beta.1", path = "../wayland-scanner" }
 bitflags = "1.2"
 thiserror = "1.0.2"
 log = "0.4"
