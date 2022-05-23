@@ -27,10 +27,10 @@ impl<D: 'static> Display<D> {
     pub fn insert_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> std::io::Result<Client> {
         let id = self.backend.insert_client(stream, data.clone())?;
-        Ok(Client { id, data: data.into_any_arc() })
+        Ok(Client { id, data })
     }
 
     pub fn dispatch_clients(&mut self, data: &mut D) -> std::io::Result<usize> {

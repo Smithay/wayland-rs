@@ -17,8 +17,8 @@ unsafe impl<I, D, U: Send + Sync> Sync for GlobalData<I, U, D> {}
 impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 'static>
     GlobalHandler<D> for GlobalData<I, U, D>
 {
-    fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData<D>>, _: GlobalId) -> bool {
-        let client = Client { id, data: data.clone().into_any_arc() };
+    fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData>, _: GlobalId) -> bool {
+        let client = Client { id, data: data.clone() };
         <D as GlobalDispatch<I, U>>::can_view(client, &self.data)
     }
 

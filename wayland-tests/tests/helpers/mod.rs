@@ -29,7 +29,7 @@ impl<D: 'static> TestServer<D> {
 
     pub fn add_client_with_data<CD>(
         &mut self,
-        data: Arc<dyn ways::backend::ClientData<D>>,
+        data: Arc<dyn ways::backend::ClientData>,
     ) -> (ways::Client, TestClient<CD>) {
         let (server_socket, client_socket) = UnixStream::pair().unwrap();
         let client = self.display.insert_client(server_socket, data).unwrap();
@@ -122,7 +122,7 @@ impl wayc::backend::ObjectData for SyncData {
 
 pub struct DumbClientData;
 
-impl<D> ways::backend::ClientData<D> for DumbClientData {
+impl ways::backend::ClientData for DumbClientData {
     fn initialized(&self, _: ways::backend::ClientId) {}
     fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {}
 }

@@ -193,7 +193,7 @@ struct ServerClientData(AtomicBool);
 
 macro_rules! impl_server_clientdata {
     ($server_backend:tt) => {
-        impl $server_backend::ClientData<()> for ServerClientData {
+        impl $server_backend::ClientData for ServerClientData {
             fn initialized(&self, _: $server_backend::ClientId) {}
 
             fn disconnected(

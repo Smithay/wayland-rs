@@ -57,7 +57,7 @@ impl<D> InnerBackend<D> {
     pub fn insert_client(
         &self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId> {
         let mut state = self.state.lock().unwrap();
         let client_fd = stream.as_raw_fd();

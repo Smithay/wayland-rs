@@ -61,7 +61,7 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     fn can_view(
         &self,
         _client_id: ClientId,
-        _client_data: &Arc<dyn ClientData<D>>,
+        _client_data: &Arc<dyn ClientData>,
         _global_id: GlobalId,
     ) -> bool {
         true
@@ -98,11 +98,10 @@ impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
 
 /// A trait representing your data associated to a clientObjectData
-pub trait ClientData<D>: downcast_rs::DowncastSync {
-    /// Notification that a client was initialized
+pub trait ClientData: downcast_rs::DowncastSync {
+    /// Notification that the client was initialized
     fn initialized(&self, client_id: ClientId);
-
-    /// Notification that a client is disconnected
+    /// Notification that the client is disconnected
     fn disconnected(&self, client_id: ClientId, reason: DisconnectReason);
     /// Helper for forwarding a Debug implementation of your `ClientData` type
     ///
@@ -113,14 +112,14 @@ pub trait ClientData<D>: downcast_rs::DowncastSync {
     }
 }
 
-impl<D: 'static> std::fmt::Debug for dyn ClientData<D> {
+impl std::fmt::Debug for dyn ClientData {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
 }
 
-downcast_rs::impl_downcast!(sync ClientData<D>);
+downcast_rs::impl_downcast!(sync ClientData);
 
 /// An id of an object on a wayland server.
 #[derive(Clone, PartialEq, Eq)]
@@ -245,20 +244,8 @@ impl Handle {
 
     /// Returns the data associated with a client.
     #[inline]
-    pub fn get_client_data<D: 'static>(
-        &self,
-        id: ClientId,
-    ) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
+    pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
         self.handle.get_client_data(id.id)
-    }
-
-    /// Returns the data associated with a client as a `dyn Any`
-    #[inline]
-    pub fn get_client_data_any(
-        &self,
-        id: ClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        self.handle.get_client_data_any(id.id)
     }
 
     /// Retrive the [`Credentials`] of a client
@@ -458,7 +445,7 @@ impl<D> Backend<D> {
     pub fn insert_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> std::io::Result<ClientId> {
         Ok(ClientId { id: self.backend.insert_client(stream, data)? })
     }

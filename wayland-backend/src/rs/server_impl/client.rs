@@ -49,7 +49,7 @@ pub(crate) struct Client<D: 'static> {
     last_serial: u32,
     pub(crate) id: InnerClientId,
     pub(crate) killed: bool,
-    pub(crate) data: Arc<dyn ClientData<D>>,
+    pub(crate) data: Arc<dyn ClientData>,
 }
 
 impl<D> Client<D> {
@@ -64,7 +64,7 @@ impl<D> Client<D> {
         stream: UnixStream,
         id: InnerClientId,
         debug: bool,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> Self {
         let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
         let mut map = ObjectMap::new();
@@ -660,7 +660,7 @@ impl<D> ClientStore<D> {
     pub(crate) fn create_client(
         &mut self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> InnerClientId {
         let serial = self.next_serial();
         // Find the next free place

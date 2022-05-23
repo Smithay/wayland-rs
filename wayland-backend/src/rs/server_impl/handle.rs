@@ -98,23 +98,8 @@ impl InnerHandle {
         self.state.lock().unwrap().get_client(id)
     }
 
-    pub fn get_client_data<D: 'static>(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
-        let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
-            .downcast_mut::<State<D>>()
-            .expect("Wrong type parameter passed to Handle::get_client_data().");
-        let client = state.clients.get_client(id)?;
-        Ok(client.data.clone())
-    }
-
-    pub fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        self.state.lock().unwrap().get_client_data_any(id)
+    pub fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+        self.state.lock().unwrap().get_client_data(id)
     }
 
     pub fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
@@ -250,10 +235,7 @@ impl InnerHandle {
 pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
-    fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
+    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
     fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
     fn with_all_objects_for(
@@ -294,12 +276,9 @@ impl<D> ErasedState for State<D> {
         }
     }
 
-    fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
         let client = self.clients.get_client(id)?;
-        Ok(client.data.clone().into_any_arc())
+        Ok(client.data.clone())
     }
 
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {

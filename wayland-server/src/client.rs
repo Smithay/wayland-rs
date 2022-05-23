@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use wayland_backend::{
     protocol::ProtocolError,
-    server::{ClientId, DisconnectReason, InvalidId, ObjectData},
+    server::{ClientData, ClientId, DisconnectReason, InvalidId, ObjectData},
 };
 
 use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
@@ -10,12 +10,12 @@ use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
 #[derive(Debug)]
 pub struct Client {
     pub(crate) id: ClientId,
-    pub(crate) data: Arc<dyn std::any::Any + Send + Sync>,
+    pub(crate) data: Arc<dyn ClientData>,
 }
 
 impl Client {
     pub(crate) fn from_id(handle: &DisplayHandle, id: ClientId) -> Result<Client, InvalidId> {
-        let data = handle.handle.get_client_data_any(id.clone())?;
+        let data = handle.handle.get_client_data(id.clone())?;
         Ok(Client { id, data })
     }
 
@@ -23,7 +23,7 @@ impl Client {
         self.id.clone()
     }
 
-    pub fn get_data<Data: 'static>(&self) -> Option<&Data> {
+    pub fn get_data<Data: ClientData + 'static>(&self) -> Option<&Data> {
         (&*self.data).downcast_ref()
     }
 

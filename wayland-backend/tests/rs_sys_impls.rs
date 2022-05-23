@@ -117,7 +117,7 @@ mod server {
 
         // ClientData
         assert_impl!(
-            dyn server::ClientData<()>: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn server::ClientData: std::fmt::Debug, downcast_rs::DowncastSync
         );
 
         // ObjectId

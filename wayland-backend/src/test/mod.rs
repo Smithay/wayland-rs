@@ -102,12 +102,12 @@ struct DoNothingData;
 
 // Server Client Data
 
-impl<D> server_rs::ClientData<D> for DoNothingData {
+impl server_rs::ClientData for DoNothingData {
     fn initialized(&self, _: server_rs::ClientId) {}
     fn disconnected(&self, _: server_rs::ClientId, _: server_rs::DisconnectReason) {}
 }
 
-impl<D> server_sys::ClientData<D> for DoNothingData {
+impl server_sys::ClientData for DoNothingData {
     fn initialized(&self, _: server_sys::ClientId) {}
     fn disconnected(&self, _: server_sys::ClientId, _: server_rs::DisconnectReason) {}
 }

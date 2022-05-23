@@ -185,7 +185,7 @@ struct MyClientData {
     privileged: bool,
 }
 
-impl ways::backend::ClientData<ServerHandler> for MyClientData {
+impl ways::backend::ClientData for MyClientData {
     fn initialized(&self, _: wayland_backend::server::ClientId) {}
     fn disconnected(
         &self,
