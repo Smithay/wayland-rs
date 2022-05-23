@@ -275,28 +275,6 @@ impl<D> InnerBackend<D> {
         })
     }
 
-    pub fn insert_client(
-        &self,
-        stream: UnixStream,
-        data: Arc<dyn ClientData>,
-    ) -> std::io::Result<InnerClientId> {
-        let state = self.state.lock().unwrap();
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_SERVER_HANDLE,
-                wl_client_create,
-                state.display,
-                stream.into_raw_fd()
-            )
-        };
-
-        if ret.is_null() {
-            return Err(std::io::Error::last_os_error());
-        }
-
-        Ok(unsafe { init_client::<D>(ret, data) })
-    }
-
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         let mut state = self.state.lock().unwrap();
         if let Some(ClientId { id: client_id }) = client {
@@ -416,6 +394,14 @@ impl InnerHandle {
 
     pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         self.state.lock().unwrap().object_info(id)
+    }
+
+    pub fn insert_client(
+        &self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId> {
+        self.state.lock().unwrap().insert_client(stream, data)
     }
 
     pub fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
@@ -653,6 +639,11 @@ impl InnerHandle {
 
 pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
+    fn insert_client(
+        &self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId>;
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
     fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
@@ -692,6 +683,27 @@ impl<D: 'static> ErasedState for State<D> {
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_version, id.ptr) } as u32;
 
         Ok(ObjectInfo { id: id.id, version, interface: id.interface })
+    }
+
+    fn insert_client(
+        &self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId> {
+        let ret = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_client_create,
+                self.display,
+                stream.into_raw_fd()
+            )
+        };
+
+        if ret.is_null() {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        Ok(unsafe { init_client::<D>(ret, data) })
     }
 
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {

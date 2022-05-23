@@ -1,5 +1,9 @@
 use std::{
     ffi::CString,
+    os::unix::{
+        net::UnixStream,
+        prelude::{AsRawFd, RawFd},
+    },
     sync::{Arc, Mutex, Weak},
 };
 
@@ -20,16 +24,18 @@ pub struct State<D: 'static> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
+    pub(crate) poll_fd: RawFd,
 }
 
 impl<D> State<D> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(poll_fd: RawFd) -> Self {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
         State {
             clients: ClientStore::new(debug),
             registry: Registry::new(),
             pending_destructors: Vec::new(),
+            poll_fd,
         }
     }
 
@@ -92,6 +98,14 @@ impl InnerHandle {
 
     pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         self.state.lock().unwrap().object_info(id)
+    }
+
+    pub fn insert_client(
+        &self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId> {
+        self.state.lock().unwrap().insert_client(stream, data)
     }
 
     pub fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
@@ -234,6 +248,11 @@ impl InnerHandle {
 
 pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
+    fn insert_client(
+        &mut self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId>;
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
     fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
@@ -266,6 +285,51 @@ downcast_rs::impl_downcast!(ErasedState);
 impl<D> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         self.clients.get_client(id.client_id.clone())?.object_info(id)
+    }
+
+    fn insert_client(
+        &mut self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<InnerClientId> {
+        let client_fd = stream.as_raw_fd();
+        let id = self.clients.create_client(stream, data);
+
+        // register the client to the internal epoll
+        #[cfg(target_os = "linux")]
+        let ret = {
+            use nix::sys::epoll::*;
+            let mut evt = EpollEvent::new(EpollFlags::EPOLLIN, id.as_u64());
+            epoll_ctl(self.poll_fd, EpollOp::EpollCtlAdd, client_fd, &mut evt)
+        };
+
+        #[cfg(any(
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        let ret = {
+            use nix::sys::event::*;
+            let evt = KEvent::new(
+                client_fd as usize,
+                EventFilter::EVFILT_READ,
+                EventFlag::EV_ADD | EventFlag::EV_RECEIPT,
+                FilterFlag::empty(),
+                0,
+                id.as_u64() as isize,
+            );
+
+            kevent_ts(self.poll_fd, &[evt], &mut [], None).map(|_| ())
+        };
+
+        match ret {
+            Ok(()) => Ok(id),
+            Err(e) => {
+                self.kill_client(id, DisconnectReason::ConnectionClosed);
+                Err(e.into())
+            }
+        }
     }
 
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {

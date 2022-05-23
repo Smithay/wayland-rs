@@ -27,7 +27,11 @@ fn main() {
 
     // setup server-side
     let client_stream = listening.accept().unwrap().unwrap();
-    server.display.insert_client(client_stream, std::sync::Arc::new(DumbClientData)).unwrap();
+    server
+        .display
+        .handle()
+        .insert_client(client_stream, std::sync::Arc::new(DumbClientData))
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut globals, &mut ServerData).unwrap();
     // check that we connected to the right compositor

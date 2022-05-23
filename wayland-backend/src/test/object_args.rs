@@ -113,7 +113,7 @@ impl_client_objectdata!(client_sys);
 expand_test!(create_objects, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
@@ -212,8 +212,8 @@ expand_test!(create_objects, {
 
 expand_test!(panic bad_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
@@ -272,8 +272,8 @@ expand_test!(panic bad_interface, {
 
 expand_test!(panic double_null, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
@@ -329,8 +329,8 @@ expand_test!(panic double_null, {
 
 expand_test!(null_obj_followed_by_interface, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));

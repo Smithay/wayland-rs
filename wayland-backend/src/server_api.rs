@@ -236,6 +236,18 @@ impl Handle {
         self.handle.object_info(id.id)
     }
 
+    /// Initializes a connection to a client.
+    ///
+    /// The `data` parameter contains data that will be associated with the client.
+    #[inline]
+    pub fn insert_client(
+        &mut self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<ClientId> {
+        Ok(ClientId { id: self.handle.insert_client(stream, data)? })
+    }
+
     /// Returns the id of the client which owns the object.
     #[inline]
     pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
@@ -436,18 +448,6 @@ impl<D> Backend<D> {
     #[inline]
     pub fn new() -> Result<Self, InitError> {
         Ok(Backend { backend: server_impl::InnerBackend::new()? })
-    }
-
-    /// Initializes a connection to a client.
-    ///
-    /// The `data` parameter contains data that will be associated with the client.
-    #[inline]
-    pub fn insert_client(
-        &mut self,
-        stream: UnixStream,
-        data: Arc<dyn ClientData>,
-    ) -> std::io::Result<ClientId> {
-        Ok(ClientId { id: self.backend.insert_client(stream, data)? })
     }
 
     /// Flushes pending events destined for a client.
