@@ -3,7 +3,10 @@ mod helpers;
 
 use helpers::{roundtrip, wayc, ways, TestServer};
 
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 #[test]
 fn client_user_data() {
@@ -18,10 +21,10 @@ fn client_user_data() {
         .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
     let mut server_ddata = ServerHandler {};
 
-    let (s_client, mut client) = server.add_client_with_data(Arc::new(Mutex::new(MyClientData {
-        has_compositor: false,
-        has_output: false,
-    })));
+    let (s_client, mut client) = server.add_client_with_data(Arc::new(MyClientData {
+        has_compositor: AtomicBool::new(false),
+        has_output: AtomicBool::new(false),
+    }));
     let mut client_ddata = ClientHandler::new();
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
@@ -42,9 +45,9 @@ fn client_user_data() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     {
-        let guard = s_client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap();
-        assert!(guard.has_output);
-        assert!(!guard.has_compositor);
+        let cdata = s_client.get_data::<MyClientData>().unwrap();
+        assert!(cdata.has_output.load(Ordering::SeqCst));
+        assert!(!cdata.has_compositor.load(Ordering::SeqCst));
     }
 
     client_ddata
@@ -60,9 +63,9 @@ fn client_user_data() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     {
-        let guard = s_client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap();
-        assert!(guard.has_output);
-        assert!(guard.has_compositor);
+        let cdata = s_client.get_data::<MyClientData>().unwrap();
+        assert!(cdata.has_output.load(Ordering::SeqCst));
+        assert!(cdata.has_compositor.load(Ordering::SeqCst));
     }
 }
 
@@ -123,11 +126,11 @@ client_ignore_impl!(ClientHandler => [
 struct ServerHandler;
 
 struct MyClientData {
-    has_compositor: bool,
-    has_output: bool,
+    has_compositor: AtomicBool,
+    has_output: AtomicBool,
 }
 
-impl ways::backend::ClientData<ServerHandler> for Mutex<MyClientData> {
+impl ways::backend::ClientData for MyClientData {
     fn initialized(&self, _: wayland_backend::server::ClientId) {}
     fn disconnected(
         &self,
@@ -152,7 +155,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHan
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
-        client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap().has_output = true;
+        client.get_data::<MyClientData>().unwrap().has_output.store(true, Ordering::SeqCst);
     }
 }
 
@@ -166,6 +169,6 @@ impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor, ()> for S
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         data_init.init(resource, ());
-        client.get_data::<Mutex<MyClientData>>().unwrap().lock().unwrap().has_compositor = true;
+        client.get_data::<MyClientData>().unwrap().has_compositor.store(true, Ordering::SeqCst)
     }
 }

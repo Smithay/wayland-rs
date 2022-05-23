@@ -202,8 +202,8 @@ struct ResourceUserData<D> {
     interface: &'static Interface,
 }
 
-struct ClientUserData<D> {
-    data: Arc<dyn ClientData<D>>,
+struct ClientUserData {
+    data: Arc<dyn ClientData>,
     alive: Arc<AtomicBool>,
 }
 
@@ -278,7 +278,7 @@ impl<D> InnerBackend<D> {
     pub fn insert_client(
         &self,
         stream: UnixStream,
-        data: Arc<dyn ClientData<D>>,
+        data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId> {
         let state = self.state.lock().unwrap();
         let ret = unsafe {
@@ -422,35 +422,8 @@ impl InnerHandle {
         self.state.lock().unwrap().get_client(id)
     }
 
-    pub fn get_client_data<D: 'static>(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn ClientData<D>>, InvalidId> {
-        let mut state = self.state.lock().unwrap();
-        // Keep this guard alive while the code is run to protect the C state
-        let _state = (&mut *state as &mut dyn ErasedState)
-            .downcast_mut::<State<D>>()
-            .expect("Wrong type parameter passed to Handle::get_client_data().");
-
-        if !id.alive.load(Ordering::Acquire) {
-            return Err(InvalidId);
-        }
-
-        let data = unsafe {
-            match client_user_data::<D>(id.ptr) {
-                Some(ptr) => &mut *ptr,
-                None => return Err(InvalidId),
-            }
-        };
-
-        Ok(data.data.clone())
-    }
-
-    pub fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        self.state.lock().unwrap().get_client_data_any(id)
+    pub fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+        self.state.lock().unwrap().get_client_data(id)
     }
 
     pub fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
@@ -682,10 +655,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
-    fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
+    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
     fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
     fn with_all_objects_for(
         &self,
@@ -731,26 +701,23 @@ impl<D: 'static> ErasedState for State<D> {
 
         unsafe {
             let client_ptr = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, id.ptr);
-            client_id_from_ptr::<D>(client_ptr).ok_or(InvalidId).map(|id| ClientId { id })
+            client_id_from_ptr(client_ptr).ok_or(InvalidId).map(|id| ClientId { id })
         }
     }
 
-    fn get_client_data_any(
-        &self,
-        id: InnerClientId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
 
         let data = unsafe {
-            match client_user_data::<D>(id.ptr) {
+            match client_user_data(id.ptr) {
                 Some(ptr) => &mut *ptr,
                 None => return Err(InvalidId),
             }
         };
 
-        Ok(data.data.clone().into_any_arc())
+        Ok(data.data.clone())
     }
 
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
@@ -781,7 +748,7 @@ impl<D: 'static> ErasedState for State<D> {
         unsafe {
             while (*client_list).next != client_list {
                 let client = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_from_link, client_list);
-                if let Some(id) = client_id_from_ptr::<D>(client) {
+                if let Some(id) = client_id_from_ptr(client) {
                     f(ClientId { id })
                 }
 
@@ -968,7 +935,7 @@ impl<D: 'static> ErasedState for State<D> {
         // Safety: at this point we already checked that the pointer is valid
         let client =
             unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, id.ptr) };
-        let client_id = unsafe { client_id_from_ptr::<D>(client) }.unwrap();
+        let client_id = unsafe { client_id_from_ptr(client) }.unwrap();
         // mark the client as dead
         client_id.alive.store(false, Ordering::Release);
 
@@ -987,7 +954,7 @@ impl<D: 'static> ErasedState for State<D> {
         if !client_id.alive.load(Ordering::Acquire) {
             return;
         }
-        if let Some(udata) = unsafe { client_user_data::<D>(client_id.ptr) } {
+        if let Some(udata) = unsafe { client_user_data(client_id.ptr) } {
             let udata = unsafe { &*udata };
             udata.alive.store(false, Ordering::Release);
             udata.data.disconnected(ClientId { id: client_id.clone() }, reason);
@@ -1051,12 +1018,12 @@ impl<D: 'static> ErasedState for State<D> {
 
 unsafe fn init_client<D: 'static>(
     client: *mut wl_client,
-    data: Arc<dyn ClientData<D>>,
+    data: Arc<dyn ClientData>,
 ) -> InnerClientId {
     let alive = Arc::new(AtomicBool::new(true));
     let client_data = Box::into_raw(Box::new(ClientUserData { alive: alive.clone(), data }));
 
-    let listener = signal::rust_listener_create(client_destroy_notify::<D>);
+    let listener = signal::rust_listener_create(client_destroy_notify);
     // Safety: we just created listener and client_data, they are valid
     unsafe {
         signal::rust_listener_set_user_data(listener, client_data as *mut c_void);
@@ -1067,15 +1034,15 @@ unsafe fn init_client<D: 'static>(
     InnerClientId { ptr: client, alive }
 }
 
-unsafe fn client_id_from_ptr<D: 'static>(client: *mut wl_client) -> Option<InnerClientId> {
+unsafe fn client_id_from_ptr(client: *mut wl_client) -> Option<InnerClientId> {
     // Safety: the provided pointer is a valid and initialized wl_client for type parameter D
     unsafe {
-        client_user_data::<D>(client)
+        client_user_data(client)
             .map(|udata| InnerClientId { ptr: client, alive: (*udata).alive.clone() })
     }
 }
 
-unsafe fn client_user_data<D: 'static>(client: *mut wl_client) -> Option<*mut ClientUserData<D>> {
+unsafe fn client_user_data(client: *mut wl_client) -> Option<*mut ClientUserData> {
     if client.is_null() {
         return None;
     }
@@ -1083,23 +1050,20 @@ unsafe fn client_user_data<D: 'static>(client: *mut wl_client) -> Option<*mut Cl
         WAYLAND_SERVER_HANDLE,
         wl_client_get_destroy_listener,
         client,
-        client_destroy_notify::<D>
+        client_destroy_notify
     );
     if !listener.is_null() {
         // Safety: the pointer we got must be valid if the client is still alive
-        unsafe { Some(signal::rust_listener_get_user_data(listener) as *mut ClientUserData<D>) }
+        unsafe { Some(signal::rust_listener_get_user_data(listener) as *mut ClientUserData) }
     } else {
         None
     }
 }
 
-unsafe extern "C" fn client_destroy_notify<D: 'static>(
-    listener: *mut wl_listener,
-    client_ptr: *mut c_void,
-) {
+unsafe extern "C" fn client_destroy_notify(listener: *mut wl_listener, client_ptr: *mut c_void) {
     // Safety: if this function is invoked by libwayland its arguments must be valid
     let data = unsafe {
-        Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut ClientUserData<D>)
+        Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut ClientUserData)
     };
     unsafe {
         signal::rust_listener_destroy(listener);
@@ -1128,7 +1092,7 @@ unsafe extern "C" fn global_bind<D: 'static>(
     let global_id = InnerGlobalId { alive: global_udata.alive.clone(), ptr: global_udata.ptr };
 
     // Safety: libwayland invoked us with a valid wl_client
-    let client_id = match unsafe { client_id_from_ptr::<D>(client) } {
+    let client_id = match unsafe { client_id_from_ptr(client) } {
         Some(id) => id,
         None => return,
     };
@@ -1168,7 +1132,7 @@ unsafe extern "C" fn global_filter<D: 'static>(
     _: *mut c_void,
 ) -> bool {
     // Safety: if we are invoked here, the client is a valid client initialized by us
-    let client_udata = match unsafe { client_user_data::<D>(client as *mut _) } {
+    let client_udata = match unsafe { client_user_data(client as *mut _) } {
         Some(id) => unsafe { &*id },
         None => return false,
     };
@@ -1366,7 +1330,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     };
 
     // Safety: the client ptr is valid and provided by libwayland
-    let client_id = unsafe { client_id_from_ptr::<D>(client) }.unwrap();
+    let client_id = unsafe { client_id_from_ptr(client) }.unwrap();
 
     let ret = HANDLE.with(|&(ref state_arc, data_ptr)| {
         // Safety: the data pointer has been set by outside code and is valid
@@ -1411,7 +1375,7 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
     let id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, resource);
     let client = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, resource);
     // if this destructor is invoked during cleanup, the client ptr is no longer valid and it'll return None
-    let client_id = unsafe { client_id_from_ptr::<D>(client) }.unwrap_or(InnerClientId {
+    let client_id = unsafe { client_id_from_ptr(client) }.unwrap_or(InnerClientId {
         ptr: std::ptr::null_mut(),
         alive: Arc::new(AtomicBool::new(false)),
     });
