@@ -239,7 +239,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 /// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput> for ExampleApp.
 /// delegate_dispatch!(ExampleApp: [wl_output::WlOutput: UserData] => DelegateToMe);
 ///
-/// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
+/// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the trait implementation.
 /// impl AsMut<DelegateToMe> for ExampleApp {
 ///     fn as_mut(&mut self) -> &mut DelegateToMe {
 ///         &mut self.delegate

@@ -392,6 +392,7 @@ impl ObjectData for TemporaryData {
 /// struct DelegateToMe;
 ///
 /// // Now implement DelegateDispatch.
+/// // The second parameter specifies which type of user data is associated with the registry.
 /// impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
 /// where
 ///     // `D` is the type which has delegated to this type.
@@ -488,10 +489,10 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 ///     delegate: DelegateToMe,
 /// }
 ///
-/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp.
+/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp with unit as the user data.
 /// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry: ()] => DelegateToMe);
 ///
-/// // But DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide this impl
+/// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the trait implementation.
 /// impl AsMut<DelegateToMe> for ExampleApp {
 ///     fn as_mut(&mut self) -> &mut DelegateToMe {
 ///         &mut self.delegate
@@ -500,8 +501,7 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 ///
 /// // To explain the macro above, you may read it as the following:
 /// //
-/// // For ExampleApp, delegate WlRegistry to DelegateToMe and use the closure to get an `&mut` reference to
-/// // the delegate.
+/// // For ExampleApp, delegate WlRegistry to DelegateToMe.
 ///
 /// // Assert ExampleApp can Dispatch events for wl_registry
 /// fn assert_is_registry_delegate<T>()
