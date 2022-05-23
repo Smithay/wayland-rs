@@ -23,16 +23,6 @@ impl<D: 'static> Display<D> {
     pub fn handle(&self) -> DisplayHandle {
         DisplayHandle { handle: self.backend.handle() }
     }
-
-    pub fn insert_client(
-        &mut self,
-        stream: UnixStream,
-        data: Arc<dyn ClientData>,
-    ) -> std::io::Result<Client> {
-        let id = self.backend.insert_client(stream, data.clone())?;
-        Ok(Client { id, data })
-    }
-
     pub fn dispatch_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         self.backend.dispatch_all_clients(data)
     }
@@ -75,6 +65,15 @@ impl DisplayHandle {
 
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.handle.object_info(id)
+    }
+
+    pub fn insert_client(
+        &mut self,
+        stream: UnixStream,
+        data: Arc<dyn ClientData>,
+    ) -> std::io::Result<Client> {
+        let id = self.handle.insert_client(stream, data.clone())?;
+        Ok(Client { id, data })
     }
 
     pub fn get_client(&self, id: ObjectId) -> Result<Client, InvalidId> {

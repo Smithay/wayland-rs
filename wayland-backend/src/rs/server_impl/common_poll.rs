@@ -1,21 +1,17 @@
 use std::{
-    os::unix::{
-        io::{AsRawFd, RawFd},
-        net::UnixStream,
-    },
+    os::unix::io::RawFd,
     sync::{Arc, Mutex},
 };
 
 use super::{
-    handle::{ErasedState, State},
-    ClientData, ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId,
+    handle::State, ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId,
     InnerHandle, InnerObjectId, ObjectId,
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     protocol::{same_interface, Argument, Message},
     rs::map::Object,
-    types::server::{DisconnectReason, InitError},
+    types::server::InitError,
 };
 
 #[cfg(target_os = "linux")]
@@ -33,7 +29,6 @@ use smallvec::SmallVec;
 #[derive(Debug)]
 pub struct InnerBackend<D: 'static> {
     state: Arc<Mutex<State<D>>>,
-    poll_fd: RawFd,
 }
 
 impl<D> InnerBackend<D> {
@@ -51,51 +46,7 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(InnerBackend { state: Arc::new(Mutex::new(State::new())), poll_fd })
-    }
-
-    pub fn insert_client(
-        &self,
-        stream: UnixStream,
-        data: Arc<dyn ClientData>,
-    ) -> std::io::Result<InnerClientId> {
-        let mut state = self.state.lock().unwrap();
-        let client_fd = stream.as_raw_fd();
-        let id = state.clients.create_client(stream, data);
-
-        // register the client to the internal epoll
-        #[cfg(target_os = "linux")]
-        let ret = {
-            let mut evt = EpollEvent::new(EpollFlags::EPOLLIN, id.as_u64());
-            epoll_ctl(self.poll_fd, EpollOp::EpollCtlAdd, client_fd, &mut evt)
-        };
-
-        #[cfg(any(
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ))]
-        let ret = {
-            let evt = KEvent::new(
-                client_fd as usize,
-                EventFilter::EVFILT_READ,
-                EventFlag::EV_ADD | EventFlag::EV_RECEIPT,
-                FilterFlag::empty(),
-                0,
-                id.as_u64() as isize,
-            );
-
-            kevent_ts(self.poll_fd, &[evt], &mut [], None).map(|_| ())
-        };
-
-        match ret {
-            Ok(()) => Ok(id),
-            Err(e) => {
-                state.kill_client(id, DisconnectReason::ConnectionClosed);
-                Err(e.into())
-            }
-        }
+        Ok(InnerBackend { state: Arc::new(Mutex::new(State::new(poll_fd))) })
     }
 
     pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
@@ -107,7 +58,7 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn poll_fd(&self) -> RawFd {
-        self.poll_fd
+        self.state.lock().unwrap().poll_fd
     }
 
     pub fn dispatch_client(
@@ -122,10 +73,11 @@ impl<D> InnerBackend<D> {
 
     #[cfg(target_os = "linux")]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
+        let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
             let mut events = [EpollEvent::empty(); 32];
-            let nevents = epoll_wait(self.poll_fd, &mut events, 0)?;
+            let nevents = epoll_wait(poll_fd, &mut events, 0)?;
 
             if nevents == 0 {
                 break;
@@ -151,6 +103,7 @@ impl<D> InnerBackend<D> {
         target_os = "openbsd"
     ))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
+        let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
             let mut events = [KEvent::new(
@@ -162,7 +115,7 @@ impl<D> InnerBackend<D> {
                 0,
             ); 32];
 
-            let nevents = kevent(self.poll_fd, &[], &mut events, 0)?;
+            let nevents = kevent(poll_fd, &[], &mut events, 0)?;
 
             if nevents == 0 {
                 break;

@@ -32,7 +32,7 @@ impl<D: 'static> TestServer<D> {
         data: Arc<dyn ways::backend::ClientData>,
     ) -> (ways::Client, TestClient<CD>) {
         let (server_socket, client_socket) = UnixStream::pair().unwrap();
-        let client = self.display.insert_client(server_socket, data).unwrap();
+        let client = self.display.handle().insert_client(server_socket, data).unwrap();
         let test_client = TestClient::new(client_socket);
         (client, test_client)
     }

@@ -41,7 +41,7 @@ impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
 expand_test!(protocol_error, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let object_id = Arc::new(Mutex::new(None));
@@ -113,7 +113,7 @@ expand_test!(protocol_error, {
 expand_test!(client_wrong_id, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
 
     let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
 
@@ -139,7 +139,7 @@ expand_test!(client_wrong_id, {
 expand_test!(client_wrong_opcode, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
 
     let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
 
@@ -163,7 +163,7 @@ expand_test!(client_wrong_opcode, {
 expand_test!(client_wrong_sender, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::<()>::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
 
     let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
 
@@ -245,7 +245,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
 expand_test!(protocol_error_in_request_without_object_init, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     // Prepare a global
