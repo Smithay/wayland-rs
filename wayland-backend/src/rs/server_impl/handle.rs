@@ -31,7 +31,7 @@ impl<D> State<D> {
     pub(crate) fn new(poll_fd: RawFd) -> Self {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
-        State {
+        Self {
             clients: ClientStore::new(debug),
             registry: Registry::new(),
             pending_destructors: Vec::new(),

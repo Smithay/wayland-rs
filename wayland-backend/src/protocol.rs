@@ -73,14 +73,14 @@ impl<Id> Argument<Id> {
     /// Retrieve the type of a given argument instance
     pub fn get_type(&self) -> ArgumentType {
         match *self {
-            Argument::Int(_) => ArgumentType::Int,
-            Argument::Uint(_) => ArgumentType::Uint,
-            Argument::Fixed(_) => ArgumentType::Fixed,
-            Argument::Str(_) => ArgumentType::Str(AllowNull::Yes),
-            Argument::Object(_) => ArgumentType::Object(AllowNull::Yes),
-            Argument::NewId(_) => ArgumentType::NewId(AllowNull::Yes),
-            Argument::Array(_) => ArgumentType::Array(AllowNull::Yes),
-            Argument::Fd(_) => ArgumentType::Fd,
+            Self::Int(_) => ArgumentType::Int,
+            Self::Uint(_) => ArgumentType::Uint,
+            Self::Fixed(_) => ArgumentType::Fixed,
+            Self::Str(_) => ArgumentType::Str(AllowNull::Yes),
+            Self::Object(_) => ArgumentType::Object(AllowNull::Yes),
+            Self::NewId(_) => ArgumentType::NewId(AllowNull::Yes),
+            Self::Array(_) => ArgumentType::Array(AllowNull::Yes),
+            Self::Fd(_) => ArgumentType::Fd,
         }
     }
 }
@@ -89,14 +89,14 @@ impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Argument::Int(value) => write!(f, "{}", value),
-            Argument::Uint(value) => write!(f, "{}", value),
-            Argument::Fixed(value) => write!(f, "{}", value),
-            Argument::Str(value) => write!(f, "{:?}", value),
-            Argument::Object(value) => write!(f, "{}", value),
-            Argument::NewId(value) => write!(f, "{}", value),
-            Argument::Array(value) => write!(f, "{:?}", value),
-            Argument::Fd(value) => write!(f, "{}", value),
+            Self::Int(value) => write!(f, "{}", value),
+            Self::Uint(value) => write!(f, "{}", value),
+            Self::Fixed(value) => write!(f, "{}", value),
+            Self::Str(value) => write!(f, "{:?}", value),
+            Self::Object(value) => write!(f, "{}", value),
+            Self::NewId(value) => write!(f, "{}", value),
+            Self::Array(value) => write!(f, "{:?}", value),
+            Self::Fd(value) => write!(f, "{}", value),
         }
     }
 }
@@ -267,8 +267,8 @@ impl<T> WEnum<T> {
     #[inline]
     pub fn into_result(self) -> Result<T, WEnumError> {
         match self {
-            WEnum::Value(v) => Ok(v),
-            WEnum::Unknown(value) => Err(WEnumError { typ: std::any::type_name::<T>(), value }),
+            Self::Value(v) => Ok(v),
+            Self::Unknown(value) => Err(WEnumError { typ: std::any::type_name::<T>(), value }),
         }
     }
 }
@@ -281,10 +281,10 @@ impl<T> From<WEnum<T>> for Result<T, WEnumError> {
 
 impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
     /// Constructs an enum from the integer format used by the wayland protocol.
-    fn from(v: u32) -> WEnum<T> {
+    fn from(v: u32) -> Self {
         match T::try_from(v) {
-            Ok(t) => WEnum::Value(t),
-            Err(_) => WEnum::Unknown(v),
+            Ok(t) => Self::Value(t),
+            Err(_) => Self::Unknown(v),
         }
     }
 }

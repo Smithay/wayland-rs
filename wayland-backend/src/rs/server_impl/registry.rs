@@ -35,7 +35,7 @@ pub struct Registry<D: 'static> {
 
 impl<D> Registry<D> {
     pub(crate) fn new() -> Self {
-        Registry { globals: Vec::new(), known_registries: Vec::new(), last_serial: 0 }
+        Self { globals: Vec::new(), known_registries: Vec::new(), last_serial: 0 }
     }
 
     fn next_serial(&mut self) -> u32 {

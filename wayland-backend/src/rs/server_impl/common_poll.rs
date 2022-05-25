@@ -46,7 +46,7 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(InnerBackend { state: Arc::new(Mutex::new(State::new(poll_fd))) })
+        Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
     }
 
     pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {

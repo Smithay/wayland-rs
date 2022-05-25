@@ -30,8 +30,8 @@ pub struct ObjectMap<Data> {
 
 impl<Data: Clone> ObjectMap<Data> {
     /// Create a new empty object map
-    pub fn new() -> ObjectMap<Data> {
-        ObjectMap { client_objects: Vec::new(), server_objects: Vec::new() }
+    pub fn new() -> Self {
+        Self { client_objects: Vec::new(), server_objects: Vec::new() }
     }
 
     /// Find an object in the store

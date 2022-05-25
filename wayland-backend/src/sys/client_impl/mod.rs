@@ -44,7 +44,7 @@ unsafe impl Send for InnerObjectId {}
 unsafe impl Sync for InnerObjectId {}
 
 impl std::cmp::PartialEq for InnerObjectId {
-    fn eq(&self, other: &InnerObjectId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         match (&self.alive, &other.alive) {
             (Some(ref a), Some(ref b)) => {
                 // this is an object we manage
@@ -79,7 +79,7 @@ impl InnerObjectId {
     pub unsafe fn from_ptr(
         interface: &'static Interface,
         ptr: *mut wl_proxy,
-    ) -> Result<InnerObjectId, InvalidId> {
+    ) -> Result<Self, InvalidId> {
         // Safety: the provided pointer must be a valid wayland object
         let ptr_iface_name = unsafe {
             CStr::from_ptr(ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_get_class, ptr))
@@ -114,7 +114,7 @@ impl InnerObjectId {
             None
         };
 
-        Ok(InnerObjectId { id, ptr, alive, interface })
+        Ok(Self { id, ptr, alive, interface })
     }
 
     pub fn as_ptr(&self) -> *mut wl_proxy {
@@ -376,7 +376,7 @@ impl InnerReadEventsGuard {
         std::mem::drop(dispatcher);
 
         // prepare_read is done, we are ready
-        Ok(InnerReadEventsGuard { inner: backend.inner, display, done: false })
+        Ok(Self { inner: backend.inner, display, done: false })
     }
 
     pub fn connection_fd(&self) -> RawFd {
@@ -633,7 +633,7 @@ impl InnerBackend {
             }
             child_id
         } else {
-            InnerBackend::null_id()
+            Self::null_id()
         };
 
         if message_desc.is_destructor {

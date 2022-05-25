@@ -14,9 +14,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub(crate) fn from_id(handle: &DisplayHandle, id: ClientId) -> Result<Client, InvalidId> {
+    pub(crate) fn from_id(handle: &DisplayHandle, id: ClientId) -> Result<Self, InvalidId> {
         let data = handle.handle.get_client_data(id.clone())?;
-        Ok(Client { id, data })
+        Ok(Self { id, data })
     }
 
     pub fn id(&self) -> ClientId {

@@ -43,7 +43,7 @@ impl WlEglSurface {
     ///
     /// You must always destroy the [`WlEglSurface`] *before* the underling `wl_surface`
     /// protocol object.
-    pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<WlEglSurface, Error> {
+    pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<Self, Error> {
         if surface.interface().name != "wl_surface" {
             return Err(Error::InvalidId);
         }
@@ -54,7 +54,7 @@ impl WlEglSurface {
             Err(Error::InvalidId)
         } else {
             // SAFETY: We are sure the pointer is valid and the interface is correct.
-            unsafe { WlEglSurface::new_from_raw(ptr, width, height) }
+            unsafe { Self::new_from_raw(ptr, width, height) }
         }
     }
 
@@ -67,7 +67,7 @@ impl WlEglSurface {
         surface: *mut wl_proxy,
         width: i32,
         height: i32,
-    ) -> Result<WlEglSurface, Error> {
+    ) -> Result<Self, Error> {
         if width <= 0 || height <= 0 {
             return Err(Error::InvalidSize);
         }
@@ -75,7 +75,7 @@ impl WlEglSurface {
         if ptr.is_null() {
             panic!("egl window allocation failed");
         }
-        Ok(WlEglSurface { ptr })
+        Ok(Self { ptr })
     }
 
     /// Fetch current size of the EGL surface

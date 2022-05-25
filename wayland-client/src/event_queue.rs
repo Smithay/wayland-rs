@@ -140,7 +140,7 @@ impl<D> std::fmt::Debug for EventQueue<D> {
 impl<D> EventQueue<D> {
     pub(crate) fn new(conn: Connection) -> Self {
         let (tx, rx) = unbounded();
-        EventQueue { rx, handle: QueueHandle { tx }, conn }
+        Self { rx, handle: QueueHandle { tx }, conn }
     }
 
     /// Get a [`QueueHandle`] for this event queue
@@ -256,7 +256,7 @@ impl<Data> std::fmt::Debug for QueueHandle<Data> {
 
 impl<Data> Clone for QueueHandle<Data> {
     fn clone(&self) -> Self {
-        QueueHandle { tx: self.tx.clone() }
+        Self { tx: self.tx.clone() }
     }
 }
 

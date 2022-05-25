@@ -121,6 +121,6 @@ impl DisplayHandle {
 impl From<Handle> for DisplayHandle {
     /// Creates a [`DisplayHandle`] using a [`Handle`](Handle) from `wayland-backend`.
     fn from(handle: Handle) -> Self {
-        DisplayHandle { handle }
+        Self { handle }
     }
 }

@@ -125,7 +125,7 @@ impl Backend {
     /// The provided stream should correspond to an already established unix connection with
     /// the Wayland server. On this rust backend, this method never fails.
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
-        client_impl::InnerBackend::connect(stream).map(|backend| Backend { backend })
+        client_impl::InnerBackend::connect(stream).map(|backend| Self { backend })
     }
 
     /// Get a [`WeakBackend`] from this backend

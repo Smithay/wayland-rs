@@ -46,7 +46,7 @@ pub struct InnerObjectId {
 }
 
 impl std::cmp::PartialEq for InnerObjectId {
-    fn eq(&self, other: &InnerObjectId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.id == other.id
             && self.serial == other.serial
             && same_interface(self.interface, other.interface)
@@ -157,7 +157,7 @@ impl InnerBackend {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client");
 
-        Ok(InnerBackend {
+        Ok(Self {
             state: Arc::new(ConnectionState {
                 protocol: Mutex::new(ProtocolState {
                     socket,
@@ -199,7 +199,7 @@ impl InnerReadEventsGuard {
     /// of preparing the guard.
     pub fn try_new(backend: InnerBackend) -> Result<Self, WaylandError> {
         backend.state.lock_read().prepared_reads += 1;
-        Ok(InnerReadEventsGuard { state: backend.state, done: false })
+        Ok(Self { state: backend.state, done: false })
     }
 
     /// Access the Wayland socket FD for polling
