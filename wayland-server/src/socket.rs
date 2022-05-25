@@ -27,7 +27,7 @@ pub struct ListeningSocket {
 }
 
 impl ListeningSocket {
-    pub fn bind<S: AsRef<OsStr>>(socket_name: S) -> Result<ListeningSocket, BindError> {
+    pub fn bind<S: AsRef<OsStr>>(socket_name: S) -> Result<Self, BindError> {
         let runtime_dir: PathBuf =
             env::var("XDG_RUNTIME_DIR").map_err(|_| BindError::RuntimeDirNotSet)?.into();
         let socket_path = runtime_dir.join(socket_name.as_ref());
@@ -69,7 +69,7 @@ impl ListeningSocket {
 
         listener.set_nonblocking(true).map_err(BindError::Io)?;
 
-        Ok(ListeningSocket {
+        Ok(Self {
             listener,
             _lock,
             socket_path,
@@ -81,7 +81,7 @@ impl ListeningSocket {
     pub fn bind_auto(basename: &str, range: Range<usize>) -> Result<Self, BindError> {
         for i in range {
             // early return on any error except AlreadyInUse
-            match ListeningSocket::bind(&format!("{}-{}", basename, i)) {
+            match Self::bind(&format!("{}-{}", basename, i)) {
                 Ok(socket) => return Ok(socket),
                 Err(BindError::RuntimeDirNotSet) => return Err(BindError::RuntimeDirNotSet),
                 Err(BindError::PermissionDenied) => return Err(BindError::PermissionDenied),
