@@ -47,9 +47,7 @@ impl client::ObjectId {
         interface: &'static crate::protocol::Interface,
         ptr: *mut wayland_sys::client::wl_proxy,
     ) -> Result<Self, client::InvalidId> {
-        Ok(Self {
-            id: unsafe { client_impl::InnerObjectId::from_ptr(interface, ptr) }?,
-        })
+        Ok(Self { id: unsafe { client_impl::InnerObjectId::from_ptr(interface, ptr) }? })
     }
 
     /// Get the underlying libwayland pointer for this object
@@ -80,9 +78,7 @@ impl server::ObjectId {
         interface: &'static crate::protocol::Interface,
         ptr: *mut wayland_sys::server::wl_resource,
     ) -> Result<Self, server::InvalidId> {
-        Ok(Self {
-            id: unsafe { server_impl::InnerObjectId::from_ptr(interface, ptr) }?,
-        })
+        Ok(Self { id: unsafe { server_impl::InnerObjectId::from_ptr(interface, ptr) }? })
     }
 
     /// Returns the pointer that represents this object.

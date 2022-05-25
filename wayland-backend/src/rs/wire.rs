@@ -60,12 +60,8 @@ impl std::fmt::Display for MessageParseError {
             Self::MissingFD => {
                 f.write_str("The message references a FD but the buffer FD is empty.")
             }
-            Self::MissingData => {
-                f.write_str("More data is needed to deserialize the message")
-            }
-            Self::Malformed => {
-                f.write_str("The message is malformed and cannot be parsed")
-            }
+            Self::MissingData => f.write_str("More data is needed to deserialize the message"),
+            Self::Malformed => f.write_str("The message is malformed and cannot be parsed"),
         }
     }
 }
