@@ -246,21 +246,10 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 ///     }
 /// }
 /// ```
-///
-/// You may also delegate multiple proxies to a single type. This is especially useful for handling multiple
-/// related protocols in the same modular component.
-///
-/// For example, a type which can dispatch both the `wl_output` and `xdg_output` protocols may be used as a
-/// delegate:
-///
-/// ```ignore
-/// # // This is not tested because xdg_output is in wayland-protocols.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput, xdg_output::XdgOutput] => OutputDelegate);
-/// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    (@impl $dispatch_from:ident $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? : ($interface:ty, $udata:ty) => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from$(< $( $lt ),+ >)? {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
             fn request(
                 &mut self,
                 client: &$crate::Client,
@@ -277,10 +266,5 @@ macro_rules! delegate_dispatch {
                 <$dispatch_to as $crate::DelegateDispatch<$interface, $udata, Self>>::destroyed(self, client, resource, data)
             }
         }
-    };
-    ($impl:tt : [$($interface: ty: $udata: ty),*] => $dispatch_to: ty) => {
-        $(
-            $crate::delegate_dispatch!(@impl $impl : ($interface, $udata) => $dispatch_to);
-        )*
     };
 }
