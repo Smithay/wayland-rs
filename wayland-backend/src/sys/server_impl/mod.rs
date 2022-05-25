@@ -333,10 +333,6 @@ impl<D> InnerBackend<D> {
             Ok(ret as usize)
         }
     }
-
-    pub fn display_ptr(&self) -> *mut wl_display {
-        self.display_ptr
-    }
 }
 
 impl<D> Drop for State<D> {

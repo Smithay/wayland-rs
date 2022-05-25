@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.30.0-beta.2
+
+#### Breaking changes
+
+- `delegate_dispatch!` can no longer delegate multiple interfaces at once, in order to properly support
+  generic delegate base types.
+
 ## 0.30.0-beta.1
 
 #### Breaking changes

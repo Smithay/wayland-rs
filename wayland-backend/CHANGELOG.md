@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.0-beta.2
+
+#### Breaking changes
+
+- server-sys: move `display_ptr()` from `Backend` to `Handle`.
+
 ## 0.1.0-beta.1
 
 #### Breaking changes
