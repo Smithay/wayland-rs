@@ -24,8 +24,8 @@ impl std::error::Error for WaylandError {
     #[cfg_attr(coverage, no_coverage)]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
-            WaylandError::Io(e) => Some(e),
-            WaylandError::Protocol(e) => Some(e),
+            Self::Io(e) => Some(e),
+            Self::Protocol(e) => Some(e),
         }
     }
 }
@@ -34,22 +34,22 @@ impl std::fmt::Display for WaylandError {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            WaylandError::Io(e) => write!(f, "Io error: {}", e),
-            WaylandError::Protocol(e) => std::fmt::Display::fmt(e, f),
+            Self::Io(e) => write!(f, "Io error: {}", e),
+            Self::Protocol(e) => std::fmt::Display::fmt(e, f),
         }
     }
 }
 
 impl Clone for WaylandError {
     #[cfg_attr(coverage, no_coverage)]
-    fn clone(&self) -> WaylandError {
+    fn clone(&self) -> Self {
         match self {
-            WaylandError::Protocol(e) => WaylandError::Protocol(e.clone()),
-            WaylandError::Io(e) => {
+            Self::Protocol(e) => Self::Protocol(e.clone()),
+            Self::Io(e) => {
                 if let Some(code) = e.raw_os_error() {
-                    WaylandError::Io(std::io::Error::from_raw_os_error(code))
+                    Self::Io(std::io::Error::from_raw_os_error(code))
                 } else {
-                    WaylandError::Io(std::io::Error::new(e.kind(), ""))
+                    Self::Io(std::io::Error::new(e.kind(), ""))
                 }
             }
         }
@@ -58,15 +58,15 @@ impl Clone for WaylandError {
 
 impl From<crate::protocol::ProtocolError> for WaylandError {
     #[cfg_attr(coverage, no_coverage)]
-    fn from(err: crate::protocol::ProtocolError) -> WaylandError {
-        WaylandError::Protocol(err)
+    fn from(err: crate::protocol::ProtocolError) -> Self {
+        Self::Protocol(err)
     }
 }
 
 impl From<std::io::Error> for WaylandError {
     #[cfg_attr(coverage, no_coverage)]
-    fn from(err: std::io::Error) -> WaylandError {
-        WaylandError::Io(err)
+    fn from(err: std::io::Error) -> Self {
+        Self::Io(err)
     }
 }
 

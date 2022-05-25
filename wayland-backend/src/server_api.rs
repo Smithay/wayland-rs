@@ -142,7 +142,7 @@ impl ObjectId {
     ///
     /// *Note:* This may spuriously return `false` if one (or both) of the objects to compare
     /// is no longer valid.
-    pub fn same_client_as(&self, other: &ObjectId) -> bool {
+    pub fn same_client_as(&self, other: &Self) -> bool {
         self.id.same_client_as(&other.id)
     }
 
@@ -447,7 +447,7 @@ impl<D> Backend<D> {
     /// Initialize a new Wayland backend
     #[inline]
     pub fn new() -> Result<Self, InitError> {
-        Ok(Backend { backend: server_impl::InnerBackend::new()? })
+        Ok(Self { backend: server_impl::InnerBackend::new()? })
     }
 
     /// Flushes pending events destined for a client.

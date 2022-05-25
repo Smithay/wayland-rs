@@ -46,7 +46,7 @@ unsafe impl Send for InnerObjectId {}
 unsafe impl Sync for InnerObjectId {}
 
 impl std::cmp::PartialEq for InnerObjectId {
-    fn eq(&self, other: &InnerObjectId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         match (&self.alive, &other.alive) {
             (Some(ref a), Some(ref b)) => {
                 // this is an object we manage
@@ -88,7 +88,7 @@ impl InnerObjectId {
         self.interface
     }
 
-    pub fn same_client_as(&self, other: &InnerObjectId) -> bool {
+    pub fn same_client_as(&self, other: &Self) -> bool {
         let my_client_ptr = match self.alive {
             Some(ref alive) if !alive.load(Ordering::Acquire) => {
                 return false;
@@ -170,7 +170,7 @@ unsafe impl Send for InnerClientId {}
 unsafe impl Sync for InnerClientId {}
 
 impl std::cmp::PartialEq for InnerClientId {
-    fn eq(&self, other: &InnerClientId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.alive, &other.alive)
     }
 }
@@ -188,7 +188,7 @@ unsafe impl Send for InnerGlobalId {}
 unsafe impl Sync for InnerGlobalId {}
 
 impl std::cmp::PartialEq for InnerGlobalId {
-    fn eq(&self, other: &InnerGlobalId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.alive, &other.alive)
     }
 }
@@ -264,7 +264,7 @@ impl<D> InnerBackend<D> {
             );
         }
 
-        Ok(InnerBackend {
+        Ok(Self {
             state: Arc::new(Mutex::new(State {
                 display,
                 pending_destructors: Vec::new(),
