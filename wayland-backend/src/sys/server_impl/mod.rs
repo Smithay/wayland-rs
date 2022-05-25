@@ -635,6 +635,10 @@ impl InnerHandle {
         };
         Ok(udata.handler.clone())
     }
+
+    pub fn display_ptr(&self) -> *mut wl_display {
+        self.state.lock().unwrap().display_ptr()
+    }
 }
 
 pub(crate) trait ErasedState: downcast_rs::Downcast {
@@ -669,6 +673,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn disable_global(&mut self, id: InnerGlobalId);
     fn remove_global(&mut self, id: InnerGlobalId);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn display_ptr(&self) -> *mut wl_display;
 }
 
 downcast_rs::impl_downcast!(ErasedState);
@@ -1025,6 +1030,10 @@ impl<D: 'static> ErasedState for State<D> {
             version: udata.version,
             disabled: udata.disabled,
         })
+    }
+
+    fn display_ptr(&self) -> *mut wl_display {
+        self.display
     }
 }
 

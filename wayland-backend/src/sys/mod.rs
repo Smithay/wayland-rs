@@ -100,3 +100,11 @@ impl<D> server::Backend<D> {
         self.backend.display_ptr()
     }
 }
+
+#[cfg(any(test, feature = "server_system"))]
+impl server::Handle {
+    /// Access the underlying `*mut wl_display` pointer
+    pub fn display_ptr(&self) -> *mut wayland_sys::server::wl_display {
+        self.handle.display_ptr()
+    }
+}
