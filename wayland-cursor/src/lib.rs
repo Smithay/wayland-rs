@@ -94,7 +94,7 @@ impl CursorTheme {
     /// # }
     /// ```
     pub fn load(conn: &Connection, shm: WlShm, size: u32) -> Result<Self, InvalidId> {
-        CursorTheme::load_or(conn, shm, "default", size)
+        Self::load_or(conn, shm, "default", size)
     }
 
     /// Load a cursor theme, using `name` as fallback.
@@ -117,7 +117,7 @@ impl CursorTheme {
             }
         }
 
-        CursorTheme::load_from_name(conn, shm, name, size)
+        Self::load_from_name(conn, shm, name, size)
     }
 
     /// Create a new cursor theme, ignoring the system defaults.
@@ -151,7 +151,7 @@ impl CursorTheme {
 
         let name = String::from(name);
 
-        Ok(CursorTheme {
+        Ok(Self {
             name,
             file,
             size,
@@ -226,7 +226,7 @@ impl Cursor {
         size: u32,
     ) -> Self {
         let mut total_duration = 0;
-        let images: Vec<CursorImageBuffer> = Cursor::nearest_images(size, images)
+        let images: Vec<CursorImageBuffer> = Self::nearest_images(size, images)
             .map(|image| {
                 let buffer = CursorImageBuffer::new(conn, theme, image);
                 total_duration += buffer.delay;
@@ -235,7 +235,7 @@ impl Cursor {
             })
             .collect();
 
-        Cursor { total_duration, name: String::from(name), images }
+        Self { total_duration, name: String::from(name), images }
     }
 
     fn nearest_images(size: u32, images: &[XCursorImage]) -> impl Iterator<Item = &XCursorImage> {
@@ -328,7 +328,7 @@ impl CursorImageBuffer {
 
         let buffer = WlBuffer::from_id(conn, buffer_id).unwrap();
 
-        CursorImageBuffer {
+        Self {
             buffer,
             delay: image.delay,
             xhot: image.xhot,
