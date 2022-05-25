@@ -80,7 +80,7 @@ impl<D> Client<D> {
 
         data.initialized(ClientId { id: id.clone() });
 
-        Client { socket, map, debug, id, killed: false, last_serial: 0, data }
+        Self { socket, map, debug, id, killed: false, last_serial: 0, data }
     }
 
     pub(crate) fn create_object(
@@ -654,7 +654,7 @@ pub(crate) struct ClientStore<D: 'static> {
 
 impl<D> ClientStore<D> {
     pub(crate) fn new(debug: bool) -> Self {
-        ClientStore { clients: Vec::new(), last_serial: 0, debug }
+        Self { clients: Vec::new(), last_serial: 0, debug }
     }
 
     pub(crate) fn create_client(

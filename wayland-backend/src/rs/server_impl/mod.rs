@@ -32,7 +32,7 @@ impl InnerObjectId {
         self.interface
     }
 
-    pub fn same_client_as(&self, other: &InnerObjectId) -> bool {
+    pub fn same_client_as(&self, other: &Self) -> bool {
         self.client_id == other.client_id
     }
 
@@ -56,7 +56,7 @@ impl fmt::Debug for InnerObjectId {
 }
 
 impl PartialEq for InnerObjectId {
-    fn eq(&self, other: &InnerObjectId) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.id == other.id
             && self.serial == other.serial
             && self.client_id == other.client_id
@@ -98,8 +98,8 @@ pub(crate) struct Data<D: 'static> {
 
 impl<D> Clone for Data<D> {
     #[cfg_attr(coverage, no_coverage)]
-    fn clone(&self) -> Data<D> {
-        Data { user_data: self.user_data.clone(), serial: self.serial }
+    fn clone(&self) -> Self {
+        Self { user_data: self.user_data.clone(), serial: self.serial }
     }
 }
 

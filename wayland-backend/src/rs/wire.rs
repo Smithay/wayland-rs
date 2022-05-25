@@ -26,10 +26,10 @@ impl std::fmt::Display for MessageWriteError {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            MessageWriteError::BufferTooSmall => {
+            Self::BufferTooSmall => {
                 f.write_str("The provided buffer is too small to hold message content.")
             }
-            MessageWriteError::DupFdFailed(e) => {
+            Self::DupFdFailed(e) => {
                 write!(
                     f,
                     "The message contains a file descriptor that could not be dup()-ed ({}).",
@@ -57,13 +57,13 @@ impl std::fmt::Display for MessageParseError {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
-            MessageParseError::MissingFD => {
+            Self::MissingFD => {
                 f.write_str("The message references a FD but the buffer FD is empty.")
             }
-            MessageParseError::MissingData => {
+            Self::MissingData => {
                 f.write_str("More data is needed to deserialize the message")
             }
-            MessageParseError::Malformed => {
+            Self::Malformed => {
                 f.write_str("The message is malformed and cannot be parsed")
             }
         }
@@ -290,8 +290,8 @@ struct FdStore {
 }
 
 impl FdStore {
-    fn new() -> FdStore {
-        FdStore { fds: Vec::new() }
+    fn new() -> Self {
+        Self { fds: Vec::new() }
     }
     fn push(&mut self, fd: RawFd) {
         self.fds.push(fd);

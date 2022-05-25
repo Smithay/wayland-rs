@@ -81,8 +81,8 @@ impl Socket {
 }
 
 impl FromRawFd for Socket {
-    unsafe fn from_raw_fd(fd: RawFd) -> Socket {
-        Socket { fd }
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        Self { fd }
     }
 }
 
@@ -109,8 +109,8 @@ pub struct BufferedSocket {
 
 impl BufferedSocket {
     /// Wrap a Socket into a Buffered Socket
-    pub fn new(socket: Socket) -> BufferedSocket {
-        BufferedSocket {
+    pub fn new(socket: Socket) -> Self {
+        Self {
             socket,
             in_data: Buffer::new(2 * MAX_BYTES_OUT / 4), // Incoming buffers are twice as big in order to be
             in_fds: Buffer::new(2 * MAX_FDS_OUT),        // able to store leftover data if needed
@@ -284,8 +284,8 @@ struct Buffer<T: Copy> {
 }
 
 impl<T: Copy + Default> Buffer<T> {
-    fn new(size: usize) -> Buffer<T> {
-        Buffer { storage: vec![T::default(); size], occupied: 0, offset: 0 }
+    fn new(size: usize) -> Self {
+        Self { storage: vec![T::default(); size], occupied: 0, offset: 0 }
     }
 
     /// Advance the internal counter of occupied space
