@@ -90,7 +90,7 @@ pub trait Proxy: Sized {
     ///
     /// It is an error to use this function on requests that do not create objects; use
     /// [Proxy::send_request] for such requests.
-    fn send_constructor<I: Self>(
+    fn send_constructor<I: Proxy>(
         &self,
         req: Self::Request,
         data: Arc<dyn ObjectData>,
