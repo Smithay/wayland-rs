@@ -74,14 +74,14 @@ impl Dispatch<wl_registry::WlRegistry, ()> for GlobalList {
 
 impl Default for GlobalList {
     fn default() -> Self {
-        GlobalList::new()
+        Self::new()
     }
 }
 
 impl GlobalList {
     /// Create a new `GLobalList`
-    pub fn new() -> GlobalList {
-        GlobalList { globals: Vec::new() }
+    pub fn new() -> Self {
+        Self { globals: Vec::new() }
     }
 
     /// Access the list of currently advertized globals

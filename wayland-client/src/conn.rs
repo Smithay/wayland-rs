@@ -31,7 +31,7 @@ impl Connection {
     /// Try to connect to the Wayland server following the environment
     ///
     /// This is the standard way to initialize a Wayland connection.
-    pub fn connect_to_env() -> Result<Connection, ConnectError> {
+    pub fn connect_to_env() -> Result<Self, ConnectError> {
         let stream = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
@@ -63,18 +63,18 @@ impl Connection {
         };
 
         let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
-        Ok(Connection { backend })
+        Ok(Self { backend })
     }
 
     /// Initialize a Wayland connection from an already existing Unix stream
-    pub fn from_socket(stream: UnixStream) -> Result<Connection, ConnectError> {
+    pub fn from_socket(stream: UnixStream) -> Result<Self, ConnectError> {
         let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
-        Ok(Connection { backend })
+        Ok(Self { backend })
     }
 
     /// Wrap an existing [`Backend`] into a Connection
-    pub fn from_backend(backend: Backend) -> Connection {
-        Connection { backend }
+    pub fn from_backend(backend: Backend) -> Self {
+        Self { backend }
     }
 
     /// Get the [`Backend`] underlying this Connection
