@@ -669,6 +669,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn disable_global(&mut self, id: InnerGlobalId);
     fn remove_global(&mut self, id: InnerGlobalId);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
     fn display_ptr(&self) -> *mut wl_display;
 }
 
@@ -1028,6 +1029,10 @@ impl<D: 'static> ErasedState for State<D> {
         })
     }
 
+    fn is_known_global(&self, global_ptr: *const wl_global) -> bool {
+        self.known_globals.iter().any(|ginfo| (ginfo.ptr as *const wl_global) == global_ptr)
+    }
+
     fn display_ptr(&self) -> *mut wl_display {
         self.display
     }
@@ -1148,6 +1153,15 @@ unsafe extern "C" fn global_filter<D: 'static>(
     global: *const wl_global,
     _: *mut c_void,
 ) -> bool {
+    // Safety: skip processing globals that do not belong to us
+    let is_known_global = HANDLE.with(|&(ref state_arc, _)| {
+        let guard = state_arc.lock().unwrap();
+        guard.is_known_global(global)
+    });
+    if !is_known_global {
+        return true;
+    }
+
     // Safety: if we are invoked here, the client is a valid client initialized by us
     let client_udata = match unsafe { client_user_data(client as *mut _) } {
         Some(id) => unsafe { &*id },
