@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-beta.3
+
 #### Bugfixes
 
 - server-sys: Skip unmanaged globals in the global filter (caused a segfault)
