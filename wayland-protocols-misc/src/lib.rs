@@ -89,6 +89,19 @@ pub mod zwp_input_method_v2 {
     wayland_protocol!("./protocols/input-method-unstable-v2.xml", [wayland_protocols::wp::text_input::zv3]);
 }
 
+#[cfg(feature = "unstable_protocols")]
+pub mod zwp_virtual_keyboard_v1 {
+    //! Virtual keyboard v1 unstable
+    //!
+    //! The virtual keyboard provides an application with requests which emulate
+    //! the behaviour of a physical keyboard.
+    //!
+    //! This interface can be used by clients on its own to provide raw input
+    //! events, or it can accompany the input method protocol.
+
+    wayland_protocol!("./protocols/virtual-keyboard-unstable-v1.xml", []);
+}
+
 pub mod server_decoration {
     //! KDE server decoration protocol
     //!
@@ -99,5 +112,6 @@ pub mod server_decoration {
     //! side decorations.
     //!
     //! Use in conjunction with zxdg_decoration_manager_v1 is undefined.
+
     wayland_protocol!("./protocols/server-decoration.xml", []);
 }
