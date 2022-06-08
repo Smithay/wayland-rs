@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.30.0-beta.4
+
+#### Breaking changes
+
+- `Resource::post_error` no longer requires a `&mut DisplayHandle`
+
+#### Additions
+
+- Introduce `Resource::client_id`
+
 ## 0.30.0-beta.2
 
 #### Breaking changes
