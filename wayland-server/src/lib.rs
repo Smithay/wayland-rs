@@ -3,7 +3,7 @@
 
 use wayland_backend::{
     protocol::{Interface, Message},
-    server::{InvalidId, ObjectId},
+    server::{ClientId, InvalidId, ObjectId},
 };
 
 mod client;
@@ -44,6 +44,10 @@ pub trait Resource: Sized {
     fn interface() -> &'static Interface;
 
     fn id(&self) -> ObjectId;
+
+    fn client_id(&self) -> Option<ClientId> {
+        self.handle().upgrade().and_then(|dh| dh.get_client(self.id()).ok())
+    }
 
     fn version(&self) -> u32;
 
