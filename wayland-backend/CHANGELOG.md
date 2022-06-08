@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- server-rs: the inner lock is no longer help when destructors are invoked
+
 ## 0.1.0-beta.3
 
 #### Bugfixes

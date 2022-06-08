@@ -39,12 +39,15 @@ impl<D> State<D> {
         }
     }
 
-    pub(crate) fn cleanup(&mut self, data: &mut D) {
-        let dead_clients = self.clients.cleanup(data);
+    pub(crate) fn cleanup(&mut self) -> impl FnOnce(&mut D) {
+        let dead_clients = self.clients.cleanup(&mut self.pending_destructors);
         self.registry.cleanup(&dead_clients);
-        // invoke all pending destructors if relevant
-        for (object_data, client_id, object_id) in self.pending_destructors.drain(..) {
-            object_data.destroyed(data, ClientId { id: client_id }, ObjectId { id: object_id });
+        // return a closure that will do the cleanup once invoked
+        let pending_destructors = std::mem::take(&mut self.pending_destructors);
+        move |data| {
+            for (object_data, client_id, object_id) in pending_destructors {
+                object_data.destroyed(data, ClientId { id: client_id }, ObjectId { id: object_id });
+            }
         }
     }
 
