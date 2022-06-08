@@ -40,7 +40,7 @@ fn client_receive_generic_error() {
             3,
         )
         .unwrap();
-    compositor.post_error(&server.display.handle(), 42u32, "I don't like you!");
+    compositor.post_error(42u32, "I don't like you!");
 
     // the error has not yet reached the client
     assert!(client.conn.protocol_error().is_none());

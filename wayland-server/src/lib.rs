@@ -73,8 +73,10 @@ pub trait Resource: Sized {
     ) -> Result<Message<ObjectId>, InvalidId>;
 
     #[inline]
-    fn post_error(&self, dh: &DisplayHandle, code: impl Into<u32>, error: impl Into<String>) {
-        dh.post_error(self, code.into(), error.into())
+    fn post_error(&self, code: impl Into<u32>, error: impl Into<String>) {
+        if let Some(dh) = self.handle().upgrade().map(DisplayHandle::from) {
+            dh.post_error(self, code.into(), error.into());
+        }
     }
 
     #[doc(hidden)]
