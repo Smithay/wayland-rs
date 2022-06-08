@@ -26,8 +26,9 @@ use crate::rs::{
 };
 
 use super::{
-    registry::Registry, ClientData, ClientId, Credentials, Data, DumbObjectData, GlobalHandler,
-    InnerClientId, InnerGlobalId, InnerObjectId, ObjectData, ObjectId, UninitObjectData,
+    handle::PendingDestructor, registry::Registry, ClientData, ClientId, Credentials, Data,
+    DumbObjectData, GlobalHandler, InnerClientId, InnerGlobalId, InnerObjectId, ObjectData,
+    ObjectId, UninitObjectData,
 };
 
 type ArgSmallVec = SmallVec<[Argument<ObjectId>; INLINE_ARGS]>;
@@ -379,21 +380,19 @@ impl<D> Client<D> {
         })
     }
 
-    fn destroy_all_objects(&mut self, data: &mut D) {
-        for (id, obj) in self.map.all_objects() {
-            obj.data.user_data.destroyed(
-                data,
-                ClientId { id: self.id.clone() },
-                ObjectId {
-                    id: InnerObjectId {
-                        id,
-                        serial: obj.data.serial,
-                        client_id: self.id.clone(),
-                        interface: obj.interface,
-                    },
+    fn queue_all_destructors(&mut self, pending_destructors: &mut Vec<PendingDestructor<D>>) {
+        pending_destructors.extend(self.map.all_objects().map(|(id, obj)| {
+            (
+                obj.data.user_data.clone(),
+                self.id.clone(),
+                InnerObjectId {
+                    id,
+                    serial: obj.data.serial,
+                    client_id: self.id.clone(),
+                    interface: obj.interface,
                 },
-            );
-        }
+            )
+        }));
     }
 
     pub(crate) fn handle_display_request(
@@ -696,13 +695,16 @@ impl<D> ClientStore<D> {
         }
     }
 
-    pub(crate) fn cleanup(&mut self, data: &mut D) -> SmallVec<[ClientId; 1]> {
+    pub(crate) fn cleanup(
+        &mut self,
+        pending_destructors: &mut Vec<PendingDestructor<D>>,
+    ) -> SmallVec<[ClientId; 1]> {
         let mut cleaned = SmallVec::new();
         for place in &mut self.clients {
             if place.as_ref().map(|client| client.killed).unwrap_or(false) {
                 // Remove the client from the store and flush it one last time before dropping it
                 let mut client = place.take().unwrap();
-                client.destroy_all_objects(data);
+                client.queue_all_destructors(pending_destructors);
                 let _ = client.flush();
                 cleaned.push(ClientId { id: client.id });
             }
