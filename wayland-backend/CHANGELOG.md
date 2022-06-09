@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- client/sys: introduce `Backend::from_foreign_display`
+
 ## 0.1.0-beta.4
 
 #### Bugfixes
