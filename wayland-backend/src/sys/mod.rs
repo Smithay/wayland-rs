@@ -56,6 +56,28 @@ impl client::ObjectId {
     }
 }
 
+#[cfg(any(test, feature = "client_system"))]
+impl client::Backend {
+    /// Creates a Backend from a foreign `*mut wl_display`.
+    ///
+    /// This is useful if you are writing a library that is expected to plug itself into an existing
+    /// Wayland connection.
+    ///
+    /// This will initialize the [`Backend`] in "guest" mode, meaning it will not close the connection
+    /// on drop. After the [`Backend`] is dropped, if the server sends an event to an object that was
+    /// created from it, that event will be silently discarded. This may lead to protocol errors if the
+    /// server expects an answer to that event, as such you should make sure to cleanup your Wayland
+    /// state before dropping the [`Backend`].
+    ///
+    /// # Safety
+    ///
+    /// You need to ensure the `*mut wl_display` remains live as lon as the  [`Backend`] (or its clones)
+    /// exist.
+    pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
+        Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
+    }
+}
+
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
 #[cfg(any(test, feature = "server_system"))]
 #[path = "../server_api.rs"]

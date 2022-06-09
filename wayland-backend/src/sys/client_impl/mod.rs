@@ -234,6 +234,27 @@ impl InnerBackend {
         })
     }
 
+    pub unsafe fn from_foreign_display(display: *mut wl_display) -> Self {
+        let evq = unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_create_queue, display) };
+        Self {
+            inner: Arc::new(Inner {
+                state: Mutex::new(ConnectionState {
+                    display,
+                    evq,
+                    display_id: InnerObjectId {
+                        id: 1,
+                        ptr: display as *mut wl_proxy,
+                        alive: None,
+                        interface: &WL_DISPLAY_INTERFACE,
+                    },
+                    last_error: None,
+                    known_proxies: HashSet::new(),
+                }),
+                dispatch_lock: Mutex::new(Dispatcher),
+            }),
+        }
+    }
+
     pub fn flush(&self) -> Result<(), WaylandError> {
         let mut guard = self.lock_state();
         guard.no_last_error()?;
@@ -574,16 +595,36 @@ impl InnerBackend {
             }
         }
 
-        let ret = unsafe {
-            ffi_dispatch!(
-                WAYLAND_CLIENT_HANDLE,
-                wl_proxy_marshal_array_constructor_versioned,
-                id.ptr,
-                opcode as u32,
-                argument_list.as_mut_ptr(),
-                child_interface_ptr,
-                child_version
-            )
+        let ret = if guard.evq.is_null() || child_spec.is_none() {
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_marshal_array_constructor_versioned,
+                    id.ptr,
+                    opcode as u32,
+                    argument_list.as_mut_ptr(),
+                    child_interface_ptr,
+                    child_version
+                )
+            }
+        } else {
+            // We are a guest Backend, need to use a wrapper
+            unsafe {
+                let wrapped_ptr =
+                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_create_wrapper, id.ptr);
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_set_queue, wrapped_ptr, guard.evq);
+                let ret = ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_marshal_array_constructor_versioned,
+                    wrapped_ptr,
+                    opcode as u32,
+                    argument_list.as_mut_ptr(),
+                    child_interface_ptr,
+                    child_version
+                );
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_wrapper_destroy, wrapped_ptr);
+                ret
+            }
         };
 
         unsafe {
@@ -917,21 +958,26 @@ extern "C" {
 
 impl Drop for ConnectionState {
     fn drop(&mut self) {
-        if self.evq.is_null() {
-            // we are own the connection, cleanup and close it
-            for proxy_ptr in self.known_proxies.drain() {
-                let _ = unsafe {
-                    Box::from_raw(ffi_dispatch!(
-                        WAYLAND_CLIENT_HANDLE,
-                        wl_proxy_get_user_data,
-                        proxy_ptr
-                    ) as *mut ProxyUserData)
-                };
-                unsafe {
-                    ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy_ptr);
-                }
+        // Cleanup the objects we know about, libwayland will discard any future message
+        // they receive.
+        for proxy_ptr in self.known_proxies.drain() {
+            let _ = unsafe {
+                Box::from_raw(ffi_dispatch!(
+                    WAYLAND_CLIENT_HANDLE,
+                    wl_proxy_get_user_data,
+                    proxy_ptr
+                ) as *mut ProxyUserData)
+            };
+            unsafe {
+                ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_proxy_destroy, proxy_ptr);
             }
+        }
+        if self.evq.is_null() {
+            // we own the connection, close it
             unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_disconnect, self.display) }
+        } else {
+            // we don't own the connecton, just destroy the event queue
+            unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_event_queue_destroy, self.evq) }
         }
     }
 }
