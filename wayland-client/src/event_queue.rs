@@ -1,9 +1,13 @@
+use std::convert::Infallible;
+use std::pin::Pin;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+use std::task;
 
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures_core::stream::Stream;
 use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
@@ -239,6 +243,71 @@ impl<D> EventQueue<D> {
             dispatched += 1;
         }
         Ok(dispatched)
+    }
+
+    /// Attempt to dispatch events from this queue, registering the current task for wakeup if no
+    /// events are pending.
+    ///
+    /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending); it will not
+    /// perform reads on the Wayland socket.  Reads on the socket by other tasks or threads will
+    /// cause the current task to wake up if events are pending on this queue.
+    ///
+    /// ```
+    /// use futures_channel::mpsc::Receiver;
+    /// use futures_util::future::{poll_fn,select};
+    /// use futures_util::stream::StreamExt;
+    /// use wayland_client::EventQueue;
+    ///
+    /// struct Data;
+    ///
+    /// enum AppEvent {
+    ///     SomethingHappened(u32),
+    /// }
+    ///
+    /// impl Data {
+    ///     fn handle(&mut self, event: AppEvent) {
+    ///         // actual event handling goes here
+    ///     }
+    /// }
+    ///
+    /// // An async task that is spawned on an executor in order to handle events that need access
+    /// // to a specific data object.
+    /// async fn run(data: &mut Data, mut wl_queue: EventQueue<Data>, mut app_queue: Receiver<AppEvent>)
+    ///     -> Result<(), Box<dyn std::error::Error>>
+    /// {
+    ///     use futures_util::future::Either;
+    ///     loop {
+    ///         match select(
+    ///             poll_fn(|cx| wl_queue.poll_dispatch_pending(cx, data)),
+    ///             app_queue.next(),
+    ///         ).await {
+    ///             Either::Left((res, _)) => match res? {},
+    ///             Either::Right((Some(event), _)) => {
+    ///                 data.handle(event);
+    ///             }
+    ///             Either::Right((None, _)) => return Ok(()),
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn poll_dispatch_pending(
+        &mut self,
+        cx: &mut task::Context,
+        data: &mut D,
+    ) -> task::Poll<Result<Infallible, DispatchError>> {
+        loop {
+            match Pin::new(&mut self.rx).poll_next(cx) {
+                task::Poll::Pending => return task::Poll::Pending,
+                task::Poll::Ready(None) => {
+                    // We never close the channel, and we hold a valid sender in self.handle.tx, so
+                    // our event stream will never reach an end.
+                    unreachable!("Got end of stream while holding a valid sender");
+                }
+                task::Poll::Ready(Some(QueueEvent(cb, msg, odata))) => {
+                    cb(&self.conn, msg, data, odata, &self.handle)?
+                }
+            }
+        }
     }
 }
 
