@@ -14,6 +14,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
+
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -22,12 +23,7 @@ jobs:
           profile: minimal
           components: rustfmt
           default: true
-      - name: Cargo cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo
-          key: rust_stable-${{ hashFiles('**/Cargo.toml') }}
+
       - name: Format
         uses: actions-rs/cargo@v1
         with:
@@ -41,6 +37,21 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+          restore-keys: ${{ runner.os }}-cargo-registry-
+
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -49,14 +60,45 @@ jobs:
           profile: minimal
           components: clippy
           default: true
-      - name: Cargo cache
+
+      - name: Get cargo-cache latest version
+        id: cargocacheversion
+        run: echo "::set-output name=version::$(cargo search 'cargo-cache' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+
+      - name: Cargo binaries cache
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo
-          key: rust_stable-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo/bin/cargo-cache
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-cargo-binaries-${{ steps.cargocacheversion.outputs.version }}
+
+      - name: Install cargo-cache
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-cache --version ${{ steps.cargocacheversion.outputs.version }}
+
+      - name: Clean cargo cache of old items
+        uses: actions-rs/cargo@v1
+        with:
+          command: cache
+          args: clean-unref
+
+      - name: Get rustc version for caching
+        id: rustcversion
+        run: echo "::set-output name=version::$(rustc --version | cut -d ' ' -f 2)"
+
+      - name: Build cache
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-clippy-${{ steps.rustcversion.outputs.version }}-${{ hashFiles('**/Cargo.toml') }}
+
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
+
       - name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
@@ -78,7 +120,6 @@ jobs:
     needs:
       - format
       - clippy-check
-      - cargo-deny
     env:
       RUSTFLAGS: "-D warnings"
     runs-on: ubuntu-latest
@@ -87,6 +128,20 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -94,19 +149,16 @@ jobs:
           override: true
           profile: minimal
           default: true
-      - name: Cargo cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo
-          key: rust_nightly-${{ hashFiles('**/Cargo.toml') }}
+
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
+
       - name: Downgrade to minimal dependencies
         uses: actions-rs/cargo@v1
         with:
           command: update
           args: -Z minimal-versions
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
@@ -117,13 +169,26 @@ jobs:
     needs:
       - format
       - clippy-check
-      - cargo-deny
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
           submodules: recursive
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -131,14 +196,20 @@ jobs:
           override: true
           profile: minimal
           default: true
-      - name: Cargo cache
+
+      - name: Get rustc version for caching
+        id: rustcversion
+        run: echo "::set-output name=version::$(rustc --version | cut -d ' ' -f 2)"
+
+      - name: Build cache
         uses: actions/cache@v2
         with:
-          path: |
-            ~/.cargo
-          key: rust_msrv-${{ hashFiles('**/Cargo.toml') }}
+          path: target
+          key: ${{ runner.os }}-test-${{ steps.rustcversion.outputs.version }}-${{ hashFiles('**/Cargo.toml') }}
+
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
@@ -149,9 +220,6 @@ jobs:
     needs:
       - format
       - clippy-check
-      - msrv
-      - check-minimal
-      - cargo-deny
       
     runs-on: ubuntu-latest
 
@@ -160,17 +228,23 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-      
-      - name: Cargo cache
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo
-          key: rust_nightly_coverage-${{ hashFiles('**/Cargo.toml') }}
-      
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
-      
+
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -184,11 +258,24 @@ jobs:
           mkdir -p $(pwd)/.runtime
           echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
+      - name: Get grcov latest version
+        id: grcovversion
+        run: echo "::set-output name=version::$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+      
+      - name: grcov cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/grcov
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-grcov-${{ steps.grcovversion.outputs.version }}
+
       - name: Install grcov
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: grcov
+          args: grcov --version ${{ steps.grcovversion.outputs.version }}
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -211,9 +298,6 @@ jobs:
     needs:
       - format
       - clippy-check
-      - msrv
-      - check-minimal
-      - cargo-deny
       
     runs-on: ubuntu-latest
 
@@ -229,12 +313,18 @@ jobs:
         with:
           submodules: recursive
       
-      - name: Cargo cache
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
         uses: actions/cache@v2
         with:
           path: |
-            ~/.cargo
-          key: rust_nightly_coverage-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
       
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
@@ -252,11 +342,24 @@ jobs:
           mkdir -p $(pwd)/.runtime
           echo "XDG_RUNTIME_DIR=$(pwd)/.runtime" >> $GITHUB_ENV
 
+      - name: Get grcov latest version
+        id: grcovversion
+        run: echo "::set-output name=version::$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+      
+      - name: grcov cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/grcov
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-grcov-${{ steps.grcovversion.outputs.version }}
+
       - name: Install grcov
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: grcov
+          args: grcov --version ${{ steps.grcovversion.outputs.version }}
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -274,4 +377,54 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           flags: test-${{ matrix.client_feature }}-${{ matrix.server_feature }}
- 
+
+  doc:
+    name: Documentation on Github Pages
+    runs-on: ubuntu-latest
+    needs:
+      - format
+      - clippy-check
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Cargo registry cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
+      - name: Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: System dependencies
+        run: sudo apt-get install libwayland-client0 libwayland-server0
+
+      - name: Build Documentation
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all --no-deps --all-features
+
+      - name: Setup index
+        run: cp ./doc/index.html ./doc/rust.css ./target/doc/
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.event_name == 'push' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc
