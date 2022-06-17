@@ -36,7 +36,7 @@
 //! long term, but in the meantime you can enable them with the `unstable` cargo feature.
 //!
 //! ## Other protocols
-//! 
+//!
 //! Additionally, more protocol extensions are provided here:
 //! - <https://smithay.github.io/wayland-rs/wayland_protocols_wlr/index.html>
 //! - <https://smithay.github.io/wayland-rs/wayland_protocols_plasma/index.html>
