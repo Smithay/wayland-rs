@@ -38,9 +38,9 @@
 //! ## Other protocols
 //!
 //! Additionally, more protocol extensions are provided here:
-//! - <https://smithay.github.io/wayland-rs/wayland_protocols_wlr/index.html>
-//! - <https://smithay.github.io/wayland-rs/wayland_protocols_plasma/index.html>
-//! - <https://smithay.github.io/wayland-rs/wayland_protocols_misc/index.html>
+//! - [wayland-protocols-wlr](https://docs.rs/wayland-protocols-wlr)
+//! - [wayland-protocols-plasma](https://docs.rs/wayland-protocols-plasma)
+//! - [wayland-protocols-misc](https://docs.rs/wayland-protocols-misc)
 
 #![warn(missing_docs)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
