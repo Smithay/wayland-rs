@@ -34,6 +34,13 @@
 //! This category has now been deprecated and is no longer supposed to be used, however several protocols
 //! are still under that umbrella. We can expect them to be replaced by staging and stable protocols in the
 //! long term, but in the meantime you can enable them with the `unstable` cargo feature.
+//!
+//! ## Other protocols
+//!
+//! Additionally, more protocol extensions are provided here:
+//! - [wayland-protocols-wlr](https://docs.rs/wayland-protocols-wlr)
+//! - [wayland-protocols-plasma](https://docs.rs/wayland-protocols-plasma)
+//! - [wayland-protocols-misc](https://docs.rs/wayland-protocols-misc)
 
 #![warn(missing_docs)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
