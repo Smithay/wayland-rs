@@ -79,7 +79,7 @@ impl Default for GlobalList {
 }
 
 impl GlobalList {
-    /// Create a new `GLobalList`
+    /// Create a new `GlobalList`
     pub fn new() -> Self {
         Self { globals: Vec::new() }
     }
