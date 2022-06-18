@@ -57,7 +57,7 @@ use nix::errno::Errno;
 use nix::fcntl;
 use nix::sys::{mman, stat};
 use nix::unistd;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux"))]
 use {nix::sys::memfd, std::ffi::CStr};
 
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
@@ -375,8 +375,8 @@ pub struct FrameAndDuration {
 
 /// Create a shared file descriptor in memory.
 fn create_shm_fd() -> IoResult<RawFd> {
-    // Only try memfd on linux.
-    #[cfg(target_os = "linux")]
+    // Only try memfd on linux kernel systems.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     loop {
         match memfd::memfd_create(
             CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),

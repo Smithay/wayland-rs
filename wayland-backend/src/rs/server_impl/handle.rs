@@ -299,7 +299,7 @@ impl<D> ErasedState for State<D> {
         let id = self.clients.create_client(stream, data);
 
         // register the client to the internal epoll
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os="android"))]
         let ret = {
             use nix::sys::epoll::*;
             let mut evt = EpollEvent::new(EpollFlags::EPOLLIN, id.as_u64());
