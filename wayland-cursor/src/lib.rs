@@ -57,7 +57,7 @@ use nix::errno::Errno;
 use nix::fcntl;
 use nix::sys::{mman, stat};
 use nix::unistd;
-#[cfg(any(target_os = "linux"))]
+#[cfg(any(target_os = "linux", target_os="android"))]
 use {nix::sys::memfd, std::ffi::CStr};
 
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
