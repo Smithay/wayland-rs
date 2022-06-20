@@ -565,6 +565,8 @@ pub mod test_global {
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
@@ -599,6 +601,11 @@ pub mod test_global {
         Destroy,
         #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
         ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
+        #[doc = "a newid request that also takes allow null arg\n\n\n\nOnly available since version 5 of the interface"]
+        NewidAndAllowNull {
+            sec: Option<super::secondary::Secondary>,
+            ter: super::tertiary::Tertiary,
+        },
     }
     #[derive(Debug)]
     #[non_exhaustive]
@@ -858,6 +865,23 @@ pub mod test_global {
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
                 }
+                Request::NewidAndAllowNull { sec, ter } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
+                        {
+                            let my_info = conn.object_info(self.id())?;
+                            child_spec = Some((super::quad::Quad::interface(), my_info.version));
+                            Argument::NewId(Connection::null_id())
+                        },
+                        if let Some(obj) = sec {
+                            Argument::Object(Proxy::id(&obj))
+                        } else {
+                            Argument::Object(Connection::null_id())
+                        },
+                        Argument::Object(Proxy::id(&ter))
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
+                }
             }
         }
     }
@@ -970,6 +994,26 @@ pub mod test_global {
                 Request::ReverseLink { sec: sec.cloned(), ter: ter.clone() },
                 None,
             );
+        }
+        #[doc = "a newid request that also takes allow null arg"]
+        #[allow(clippy::too_many_arguments)]
+        pub fn newid_and_allow_null<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::quad::Quad, U> + 'static,
+        >(
+            &self,
+            sec: Option<&super::secondary::Secondary>,
+            ter: &super::tertiary::Tertiary,
+            qh: &QueueHandle<D>,
+            udata: U,
+        ) -> Result<super::quad::Quad, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let ret = conn.send_request(
+                self,
+                Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
+                Some(qh.make_data::<super::quad::Quad, U>(udata)),
+            )?;
+            Proxy::from_id(&conn, ret)
         }
     }
 }

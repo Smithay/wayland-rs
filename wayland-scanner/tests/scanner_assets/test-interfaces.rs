@@ -256,6 +256,24 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
             child_interface: None,
             arg_interfaces: &[&SECONDARY_INTERFACE, &TERTIARY_INTERFACE],
         },
+        wayland_backend::protocol::MessageDesc {
+            name: "newid_and_allow_null",
+            signature: &[
+                wayland_backend::protocol::ArgumentType::NewId(
+                    wayland_backend::protocol::AllowNull::No,
+                ),
+                wayland_backend::protocol::ArgumentType::Object(
+                    wayland_backend::protocol::AllowNull::Yes,
+                ),
+                wayland_backend::protocol::ArgumentType::Object(
+                    wayland_backend::protocol::AllowNull::No,
+                ),
+            ],
+            since: 5u32,
+            is_destructor: false,
+            child_interface: Some(&QUAD_INTERFACE),
+            arg_interfaces: &[&SECONDARY_INTERFACE, &TERTIARY_INTERFACE],
+        },
     ],
     events: &[
     wayland_backend::protocol::MessageDesc {
@@ -311,7 +329,13 @@ static mut test_global_requests_reverse_link_types:
     [unsafe { &secondary_interface as *const wayland_backend::protocol::wl_interface }, unsafe {
         &tertiary_interface as *const wayland_backend::protocol::wl_interface
     }];
-pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 6] = [
+static mut test_global_requests_newid_and_allow_null_types:
+    [*const wayland_backend::protocol::wl_interface; 3] = [
+    unsafe { &quad_interface as *const wayland_backend::protocol::wl_interface },
+    unsafe { &secondary_interface as *const wayland_backend::protocol::wl_interface },
+    unsafe { &tertiary_interface as *const wayland_backend::protocol::wl_interface },
+];
+pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 7] = [
     wayland_backend::protocol::wl_message {
         name: b"many_args\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
@@ -341,6 +365,11 @@ pub static mut test_global_requests: [wayland_backend::protocol::wl_message; 6] 
         name: b"reverse_link\0" as *const u8 as *const std::os::raw::c_char,
         signature: b"5?oo\0" as *const u8 as *const std::os::raw::c_char,
         types: unsafe { &test_global_requests_reverse_link_types as *const _ },
+    },
+    wayland_backend::protocol::wl_message {
+        name: b"newid_and_allow_null\0" as *const u8 as *const std::os::raw::c_char,
+        signature: b"5n?oo\0" as *const u8 as *const std::os::raw::c_char,
+        types: unsafe { &test_global_requests_newid_and_allow_null_types as *const _ },
     },
 ];
 static mut test_global_events_ack_secondary_types:
@@ -372,7 +401,7 @@ pub static mut test_global_interface: wayland_backend::protocol::wl_interface =
     wayland_backend::protocol::wl_interface {
         name: b"test_global\0" as *const u8 as *const std::os::raw::c_char,
         version: 5,
-        request_count: 6,
+        request_count: 7,
         requests: unsafe { &test_global_requests as *const _ },
         event_count: 3,
         events: unsafe { &test_global_events as *const _ },

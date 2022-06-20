@@ -562,6 +562,7 @@ impl<D> Client<D> {
                 Argument::Fixed(f) => Argument::Fixed(f),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
+                    let next_interface = arg_interfaces.next();
                     if o != 0 {
                         // Lookup the object to make the appropriate Id
                         let obj = match self.map.find(o) {
@@ -574,7 +575,7 @@ impl<D> Client<D> {
                                 return None;
                             }
                         };
-                        if let Some(next_interface) = arg_interfaces.next() {
+                        if let Some(next_interface) = next_interface {
                             if !same_interface_or_anonymous(next_interface, obj.interface) {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
@@ -639,7 +640,6 @@ impl<D> Client<D> {
                 }
             });
         }
-
         Some((new_args, message_desc.is_destructor, created_id))
     }
 }
