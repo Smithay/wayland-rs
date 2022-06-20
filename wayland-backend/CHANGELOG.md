@@ -2,14 +2,16 @@
 
 ## Unreleased
 
-#### Bugfixes
-
-- The server backend now correctly associates interfaces with its object arguments when parsing
-  messages with nullable object arguments.
+## 0.1.0-beta.5
 
 #### Additions
 
 - client/sys: introduce `Backend::from_foreign_display`
+
+#### Bugfixes
+
+- The server backend now correctly associates interfaces with its object arguments when parsing
+  messages with nullable object arguments.
 
 ## 0.1.0-beta.4
 
