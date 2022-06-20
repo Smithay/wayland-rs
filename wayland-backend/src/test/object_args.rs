@@ -55,6 +55,15 @@ macro_rules! impl_server_objectdata {
                     } else {
                         panic!("Bad argument list!");
                     }
+                } else if msg.opcode == 6 {
+                    if let [Argument::NewId(_), Argument::Object(sec), Argument::Object(ter)] = &msg.args[..] {
+                        assert!(sec.is_null());
+                        assert!(&ter.interface().name == &interfaces::TERTIARY_INTERFACE.name);
+                    } else {
+                        panic!("Bad argument list!");
+                    }
+                    self.0.store(true, Ordering::SeqCst);
+                    return Some(self)
                 }
                 None
             }
@@ -394,4 +403,81 @@ expand_test!(null_obj_followed_by_interface, {
             None,
         )
         .unwrap();
+});
+
+expand_test!(new_id_null_and_non_null, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::<()>::new().unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let client = client_backend::Backend::connect(tx).unwrap();
+
+    let server_data = Arc::new(ServerData(AtomicBool::new(false)));
+
+    // Prepare a global
+    server.handle().create_global(&interfaces::TEST_GLOBAL_INTERFACE, 5, server_data.clone());
+
+    // get the registry client-side
+    let client_display = client.display_id();
+    let registry_id = client
+        .send_request(
+            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            Some(Arc::new(DoNothingData)),
+            Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
+        )
+        .unwrap();
+    // create the test global
+    let test_global_id = client
+        .send_request(
+            message!(
+                registry_id,
+                0,
+                [
+                    Argument::Uint(1),
+                    Argument::Str(Box::new(
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                    )),
+                    Argument::Uint(5),
+                    Argument::NewId(client_backend::Backend::null_id()),
+                ],
+            ),
+            Some(Arc::new(DoNothingData)),
+            Some((&interfaces::TEST_GLOBAL_INTERFACE, 3)),
+        )
+        .unwrap();
+    // create the an object
+    let tertiary_id = client
+        .send_request(
+            message!(
+                test_global_id.clone(),
+                2,
+                [Argument::NewId(client_backend::Backend::null_id())]
+            ),
+            Some(Arc::new(DoNothingData)),
+            None,
+        )
+        .unwrap();
+
+    // link it, first is null but the second is not, this should work fine
+    let _quad_id = client
+        .send_request(
+            message!(
+                test_global_id,
+                6, // newid_and_allow_null
+                [
+                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(tertiary_id),
+                ],
+            ),
+            Some(Arc::new(DoNothingData)),
+            None,
+        )
+        .unwrap();
+
+    client.flush().unwrap();
+    server.dispatch_all_clients(&mut ()).unwrap();
+    server.flush(None).unwrap();
+    client.prepare_read().unwrap().read().unwrap();
+
+    assert!(server_data.0.load(Ordering::SeqCst));
 });

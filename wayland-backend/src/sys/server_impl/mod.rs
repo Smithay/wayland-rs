@@ -1262,11 +1262,11 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             }
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_resource };
+                let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
                 if !obj.is_null() {
                     // retrieve the object relevant info
                     let obj_id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, obj);
                     // check if this is a local or distant proxy
-                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
                     let ret = ffi_dispatch!(
                         WAYLAND_SERVER_HANDLE,
                         wl_resource_instance_of,
