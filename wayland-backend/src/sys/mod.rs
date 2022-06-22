@@ -25,6 +25,7 @@ unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
 
 /// Client-side implementation of a Wayland protocol backend using `libwayland`
 #[cfg(any(test, feature = "client_system"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
 #[path = "../client_api.rs"]
 pub mod client;
 
@@ -43,6 +44,7 @@ impl client::ObjectId {
     ///
     /// The provided pointer must be a valid pointer to a `wl_resource` and remain valid for as
     /// long as the retrieved `ObjectId` is used.
+    #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
         ptr: *mut wayland_sys::client::wl_proxy,
@@ -51,6 +53,7 @@ impl client::ObjectId {
     }
 
     /// Get the underlying libwayland pointer for this object
+    #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
     pub fn as_ptr(&self) -> *mut wayland_sys::client::wl_proxy {
         self.id.as_ptr()
     }
@@ -73,6 +76,7 @@ impl client::Backend {
     ///
     /// You need to ensure the `*mut wl_display` remains live as lon as the  [`Backend`] (or its clones)
     /// exist.
+    #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
     pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
         Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
     }
@@ -80,6 +84,7 @@ impl client::Backend {
 
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
 #[cfg(any(test, feature = "server_system"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "server_system")))]
 #[path = "../server_api.rs"]
 pub mod server;
 
@@ -96,6 +101,7 @@ impl server::ObjectId {
     ///
     /// The provided pointer must be a valid pointer to a `wl_resource` and remain valid for as
     /// long as the retrieved `ObjectId` is used.
+    #[cfg_attr(docsrs, doc(cfg(feature = "server_system")))]
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
         ptr: *mut wayland_sys::server::wl_resource,
@@ -106,6 +112,7 @@ impl server::ObjectId {
     /// Returns the pointer that represents this object.
     ///
     /// The pointer may be used to interoperate with libwayland.
+    #[cfg_attr(docsrs, doc(cfg(feature = "server_system")))]
     pub fn as_ptr(&self) -> *mut wayland_sys::server::wl_resource {
         self.id.as_ptr()
     }
@@ -114,6 +121,7 @@ impl server::ObjectId {
 #[cfg(any(test, feature = "server_system"))]
 impl server::Handle {
     /// Access the underlying `*mut wl_display` pointer
+    #[cfg_attr(docsrs, doc(cfg(feature = "server_system")))]
     pub fn display_ptr(&self) -> *mut wayland_sys::server::wl_display {
         self.handle.display_ptr()
     }
