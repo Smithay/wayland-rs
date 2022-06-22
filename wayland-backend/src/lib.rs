@@ -22,6 +22,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage, feature(no_coverage))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub extern crate smallvec;
 
@@ -38,6 +39,7 @@ macro_rules! message {
 }
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
+#[cfg_attr(docsrs, doc(cfg(any(test, feature = "client_system", feature = "server_system"))))]
 pub mod sys;
 
 pub mod rs;
