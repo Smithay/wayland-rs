@@ -322,7 +322,7 @@ impl<D> InnerBackend<D> {
         });
 
         for (object, client_id, object_id) in
-            self.state.lock().unwrap().pending_destructors.drain(..)
+            std::mem::take(&mut self.state.lock().unwrap().pending_destructors)
         {
             object.destroyed(data, client_id, object_id);
         }
