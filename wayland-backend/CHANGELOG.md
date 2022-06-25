@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- client: `ObjectId` now implements the `Hash` trait
+- server: `ObjectId`, `ClientId` and `GlobalId` now implement the `Hash` trait
+
 #### Bugfixes
 
 - backend/sys: the inner lock is no longer held when destructors are invoked

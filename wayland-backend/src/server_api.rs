@@ -122,7 +122,7 @@ impl std::fmt::Debug for dyn ClientData {
 downcast_rs::impl_downcast!(sync ClientData);
 
 /// An id of an object on a wayland server.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ObjectId {
     pub(crate) id: server_impl::InnerObjectId,
 }
@@ -170,7 +170,7 @@ impl fmt::Debug for ObjectId {
 }
 
 /// An id of a client connected to the server.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ClientId {
     pub(crate) id: server_impl::InnerClientId,
 }
@@ -183,7 +183,7 @@ impl fmt::Debug for ClientId {
 }
 
 /// The ID of a global
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct GlobalId {
     pub(crate) id: server_impl::InnerGlobalId,
 }
