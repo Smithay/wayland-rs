@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.6
+
 - Introduce `EventQueue::poll_dispatch_pending` for running dispatch using an async runtime.
 
 ## 0.30.0-beta.1

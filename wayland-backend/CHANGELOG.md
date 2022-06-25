@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-beta.6
+
 #### Additions
 
 - client: `ObjectId` now implements the `Hash` trait
