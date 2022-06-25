@@ -55,6 +55,13 @@ impl std::cmp::PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.serial.hash(state);
+        self.id.hash(state);
+    }
+}
+
 impl fmt::Display for InnerObjectId {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

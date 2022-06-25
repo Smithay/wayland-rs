@@ -63,6 +63,18 @@ impl std::cmp::PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.ptr.hash(state);
+        self.alive
+            .as_ref()
+            .map(|arc| &**arc as *const AtomicBool)
+            .unwrap_or(std::ptr::null())
+            .hash(state);
+    }
+}
+
 impl InnerObjectId {
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()

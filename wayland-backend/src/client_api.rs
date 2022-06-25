@@ -48,7 +48,7 @@ impl std::fmt::Debug for dyn ObjectData {
 downcast_rs::impl_downcast!(sync ObjectData);
 
 /// An ID representing a Wayland object
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ObjectId {
     pub(crate) id: client_impl::InnerObjectId,
 }

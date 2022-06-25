@@ -65,6 +65,18 @@ impl std::cmp::PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.ptr.hash(state);
+        self.alive
+            .as_ref()
+            .map(|arc| &**arc as *const AtomicBool)
+            .unwrap_or(std::ptr::null())
+            .hash(state);
+    }
+}
+
 impl std::fmt::Display for InnerObjectId {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -177,6 +189,12 @@ impl std::cmp::PartialEq for InnerClientId {
 
 impl std::cmp::Eq for InnerClientId {}
 
+impl std::hash::Hash for InnerClientId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (&*self.alive as *const AtomicBool).hash(state)
+    }
+}
+
 /// The ID of a global
 #[derive(Debug, Clone)]
 pub struct InnerGlobalId {
@@ -194,6 +212,12 @@ impl std::cmp::PartialEq for InnerGlobalId {
 }
 
 impl std::cmp::Eq for InnerGlobalId {}
+
+impl std::hash::Hash for InnerGlobalId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (&*self.alive as *const AtomicBool).hash(state)
+    }
+}
 
 #[repr(C)]
 struct ResourceUserData<D> {
