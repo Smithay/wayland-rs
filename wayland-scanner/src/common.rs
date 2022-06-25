@@ -119,21 +119,29 @@ impl ToTokens for Enum {
     }
 }
 
-pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> TokenStream {
-    let req_constants = requests.iter().map(|msg| {
-        let cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
+pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> TokenStream {
+    let req_constants = requests.iter().enumerate().map(|(opcode, msg)| {
+        let since_cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
+        let opcode_cstname = format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
+        let opcode = opcode as u32;
         quote! {
             /// The minimal object version supporting this request
-            pub const #cstname: u32 = #since;
+            pub const #since_cstname: u32 = #since;
+            /// The wire opcode for this request
+            pub const #opcode_cstname: u32 = #opcode;
         }
     });
-    let evt_constants = events.iter().map(|msg| {
-        let cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
+    let evt_constants = events.iter().enumerate().map(|(opcode, msg)| {
+        let since_cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
+        let opcode_cstname = format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
+        let opcode = opcode as u32;
         quote! {
             /// The minimal object version supporting this event
-            pub const #cstname: u32 = #since;
+            pub const #since_cstname: u32 = #since;
+            /// The wire opcode for this event
+            pub const #opcode_cstname: u32 = #opcode;
         }
     });
 

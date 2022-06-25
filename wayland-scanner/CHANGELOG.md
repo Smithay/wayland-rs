@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-Generated enums now derive `Ord` and `Hash`.
+- Generated enums now derive `Ord` and `Hash`.
+- The scanner now generates constants for the opcode values of the protocol messages.
 
 ## 0.30.0-alpha1
 

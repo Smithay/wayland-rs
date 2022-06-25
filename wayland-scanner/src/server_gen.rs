@@ -24,7 +24,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let iface_const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
 
     let enums = crate::common::generate_enums_for(interface);
-    let sinces = crate::common::gen_since_constants(&interface.requests, &interface.events);
+    let sinces = crate::common::gen_msg_constants(&interface.requests, &interface.events);
 
     let requests = crate::common::gen_message_enum(
         &format_ident!("Request"),

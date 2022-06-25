@@ -10,6 +10,8 @@ pub mod wl_callback {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_DONE_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
@@ -126,24 +128,44 @@ pub mod test_global {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_MANY_ARGS_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_SECONDARY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_TERTIARY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_TERTIARY_OPCODE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_LINK_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_LINK_OPCODE: u32 = 3u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 4u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_REVERSE_LINK_OPCODE: u32 = 5u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u32 = 6u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_MANY_ARGS_EVT_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ACK_SECONDARY_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_ACK_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_CYCLE_QUAD_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_CYCLE_QUAD_OPCODE: u32 = 2u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -596,6 +618,8 @@ pub mod secondary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -704,6 +728,8 @@ pub mod tertiary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -812,6 +838,8 @@ pub mod quad {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
