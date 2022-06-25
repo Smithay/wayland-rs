@@ -78,7 +78,7 @@ impl ToTokens for Enum {
             enum_decl = quote! {
                 #doc_attr
                 #[repr(u32)]
-                #[derive(Copy, Clone, Debug, PartialEq)]
+                #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
                 #[non_exhaustive]
                 pub enum #ident {
                     #(#variants,)*
