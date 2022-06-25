@@ -10,7 +10,7 @@ pub mod wl_display {
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[repr(u32)]
-    #[derive(Copy, Clone, Debug, PartialEq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[non_exhaustive]
     pub enum Error {
         #[doc = "server couldn't find object"]
