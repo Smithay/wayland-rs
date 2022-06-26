@@ -345,9 +345,9 @@ impl<D> InnerBackend<D> {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0)
         });
 
-        for (object, client_id, object_id) in
-            std::mem::take(&mut self.state.lock().unwrap().pending_destructors)
-        {
+        let pending_destructors =
+            std::mem::take(&mut self.state.lock().unwrap().pending_destructors);
+        for (object, client_id, object_id) in pending_destructors {
             object.destroyed(data, client_id, object_id);
         }
 
