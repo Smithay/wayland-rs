@@ -5,6 +5,7 @@
 #### Bugfixes
 
 - backend/sys: the inner lock is no longer held when destructors are invoked
+- backend/sys: sys backend does not abort process when `Backend::disable_global` is invoked more than once
 
 ## 0.1.0-beta.6
 
