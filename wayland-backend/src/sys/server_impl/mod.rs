@@ -1012,10 +1012,16 @@ impl<D: 'static> ErasedState for State<D> {
             &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
                 as *mut GlobalUserData<D>)
         };
-        udata.disabled = true;
 
-        unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_remove, id.ptr);
+        // libwayland will abort if wl_global_remove is called more than once.
+        // This means we do nothing if the global is already disabled
+        if !udata.disabled {
+            udata.disabled = true;
+
+            // send the global_remove
+            unsafe {
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_remove, id.ptr);
+            }
         }
     }
 
