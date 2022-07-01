@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 
 use quote::{format_ident, quote, ToTokens};
@@ -160,16 +162,18 @@ pub(crate) fn gen_message_enum(
     let variants = messages.iter().map(|msg| {
         let mut docs = String::new();
         if let Some((ref short, ref long)) = msg.description {
-            docs += &format!("{}\n\n{}\n", short, long.trim());
+            write!(docs, "{}\n\n{}\n", short, long.trim()).unwrap();
         }
         if let Some(Type::Destructor) = msg.typ {
-            docs += &format!(
+            write!(
+                docs,
                 "\nThis is a destructor, once {} this object cannot be used any longer.",
                 if receiver { "received" } else { "sent" },
-            );
+            )
+            .unwrap()
         }
         if msg.since > 1 {
-            docs += &format!("\nOnly available since version {} of the interface", msg.since);
+            write!(docs, "\nOnly available since version {} of the interface", msg.since).unwrap();
         }
 
         let doc_attr = to_doc_attr(&docs);
