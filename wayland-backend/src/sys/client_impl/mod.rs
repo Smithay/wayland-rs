@@ -196,6 +196,10 @@ impl InnerBackend {
     pub fn downgrade(&self) -> WeakInnerBackend {
         WeakInnerBackend { inner: Arc::downgrade(&self.inner) }
     }
+
+    pub fn display_ptr(&self) -> *mut wl_display {
+        self.inner.state.lock().unwrap().display
+    }
 }
 
 impl WeakInnerBackend {

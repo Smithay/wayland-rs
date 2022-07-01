@@ -74,11 +74,21 @@ impl client::Backend {
     ///
     /// # Safety
     ///
-    /// You need to ensure the `*mut wl_display` remains live as lon as the  [`Backend`] (or its clones)
+    /// You need to ensure the `*mut wl_display` remains alive as long as the [`Backend`] (or its clones)
     /// exist.
     #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
     pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
         Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
+    }
+
+    /// Returns the underlying `wl_display` pointer to this backend.
+    ///
+    /// This pointer is needed to interface with EGL, Vulkan and other C libraries.
+    ///
+    /// This pointer is only valid for the lifetime of the backend.
+    #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
+    pub fn display_ptr(&self) -> *mut wayland_sys::client::wl_display {
+        self.backend.display_ptr()
     }
 }
 
