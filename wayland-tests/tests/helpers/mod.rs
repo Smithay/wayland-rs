@@ -12,6 +12,8 @@ use std::sync::Arc;
 
 use wayland_backend::client::ObjectData;
 
+pub mod globals;
+
 pub struct TestServer<D: 'static> {
     pub display: self::ways::Display<D>,
 }

@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -99,7 +99,7 @@ fn assert_credentials(_credentials: ways::backend::Credentials) {
 }
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
 impl ClientHandler {
@@ -108,14 +108,14 @@ impl ClientHandler {
     }
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

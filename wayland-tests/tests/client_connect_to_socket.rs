@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, DumbClientData, TestClient, TestServer};
+use helpers::{globals, roundtrip, ways, DumbClientData, TestClient, TestServer};
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 
@@ -21,7 +21,7 @@ fn main() {
 
     let mut client = TestClient::new_from_env();
 
-    let mut globals = wayc::globals::GlobalList::new();
+    let mut globals = globals::GlobalList::new();
 
     client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 

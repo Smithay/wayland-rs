@@ -2,7 +2,9 @@
 
 use std::ops::Range;
 
-use crate::{protocol::wl_registry, Connection, DelegateDispatch, Dispatch, Proxy, QueueHandle};
+use wayland_client::{
+    protocol::wl_registry, Connection, DelegateDispatch, Dispatch, Proxy, QueueHandle,
+};
 
 /// Description of an advertized global
 #[derive(Debug)]
@@ -36,7 +38,7 @@ where
         event: wl_registry::Event,
         _: &(),
         _: &Connection,
-        _: &crate::QueueHandle<D>,
+        _: &QueueHandle<D>,
     ) {
         let me = handle.as_mut();
         match event {
@@ -45,6 +47,9 @@ where
             }
             wl_registry::Event::GlobalRemove { name } => {
                 me.globals.retain(|desc| desc.name != name);
+            }
+            _ => {
+                unreachable!()
             }
         }
     }
@@ -122,23 +127,23 @@ impl GlobalList {
     }
 }
 
-/// Error when trying to bind a global
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum BindError {
-    /// The requested global was not advertized by the server
-    #[error("Requested global was not advertized by the server: {interface}")]
-    MissingGlobal {
-        /// The requested interface
-        interface: &'static str,
-    },
-    /// The version advertized by the server did not fit in the requested range
-    #[error("Global {interface} has version {got}, which is outside of the requested range ({requested:?})")]
-    WrongVersion {
-        /// The requested interface
-        interface: &'static str,
-        /// The requested version range
-        requested: Range<u32>,
-        /// The advertized version
-        got: u32,
-    },
+    MissingGlobal { interface: &'static str },
+    WrongVersion { interface: &'static str, requested: Range<u32>, got: u32 },
+}
+
+impl std::error::Error for BindError {}
+
+impl std::fmt::Display for BindError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BindError::MissingGlobal { interface } => {
+                write!(f, "Requested global was not advertized by the server: {interface}")
+            }
+            BindError::WrongVersion { interface, requested, got } => {
+                write!(f, "Global {interface} has version {got}, which is outside of the requested range ({requested:?})")
+            }
+        }
+    }
 }
