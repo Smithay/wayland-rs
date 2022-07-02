@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `Connection::null_id()` has been removed, instead use `ObjectId::null()`.
+
 ## 0.30.0-beta.4
 
 #### Breaking changes

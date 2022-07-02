@@ -122,7 +122,7 @@ expand_test!(many_args, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -139,7 +139,7 @@ expand_test!(many_args, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(1),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(client_data.clone()),

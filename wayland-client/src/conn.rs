@@ -205,14 +205,6 @@ impl Connection {
         self.backend.send_request(msg, data, child_spec)
     }
 
-    /// Create a null id for request serialization
-    ///
-    /// This is a low-level interface for sending requests, you don't need to use it if you
-    /// are using the methods of the types representing each interface.
-    pub fn null_id() -> ObjectId {
-        Backend::null_id()
-    }
-
     /// Get the object data for a given object ID
     ///
     /// This is a low-level interface, a higher-level interface for manipulating object data

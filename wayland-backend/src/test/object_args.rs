@@ -135,7 +135,7 @@ expand_test!(create_objects, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -152,7 +152,7 @@ expand_test!(create_objects, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(client_data.clone()),
@@ -165,7 +165,7 @@ expand_test!(create_objects, {
             message!(
                 test_global_id.clone(),
                 1,
-                [Argument::NewId(client_backend::Backend::null_id())]
+                [Argument::NewId(client_backend::ObjectId::null())]
             ),
             Some(client_data.clone()),
             None,
@@ -176,7 +176,7 @@ expand_test!(create_objects, {
             message!(
                 test_global_id.clone(),
                 2,
-                [Argument::NewId(client_backend::Backend::null_id())]
+                [Argument::NewId(client_backend::ObjectId::null())]
             ),
             Some(client_data.clone()),
             None,
@@ -190,7 +190,7 @@ expand_test!(create_objects, {
                 3,
                 [
                     Argument::Object(secondary_id.clone()),
-                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(client_backend::ObjectId::null()),
                     Argument::Uint(1),
                 ],
             ),
@@ -234,7 +234,7 @@ expand_test!(panic bad_interface, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )
@@ -251,7 +251,7 @@ expand_test!(panic bad_interface, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             None,
@@ -260,10 +260,10 @@ expand_test!(panic bad_interface, {
         .unwrap();
     // create the two objects
     let secondary_id = client
-        .send_request(message!(test_global_id.clone(), 1, [Argument::NewId(client_backend::Backend::null_id())]), Some(Arc::new(DoNothingData)), None)
+        .send_request(message!(test_global_id.clone(), 1, [Argument::NewId(client_backend::ObjectId::null())]), Some(Arc::new(DoNothingData)), None)
         .unwrap();
     let tertiary_id = client
-        .send_request(message!(test_global_id.clone(), 2, [Argument::NewId(client_backend::Backend::null_id())]), Some(Arc::new(DoNothingData)), None)
+        .send_request(message!(test_global_id.clone(), 2, [Argument::NewId(client_backend::ObjectId::null())]), Some(Arc::new(DoNothingData)), None)
         .unwrap();
     // link them, argument order is wrong, should panic
     client
@@ -294,7 +294,7 @@ expand_test!(panic double_null, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )
@@ -311,7 +311,7 @@ expand_test!(panic double_null, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
@@ -325,8 +325,8 @@ expand_test!(panic double_null, {
                 test_global_id,
                 3,
                 [
-                    Argument::Object(client_backend::Backend::null_id()),
-                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(client_backend::ObjectId::null()),
+                    Argument::Object(client_backend::ObjectId::null()),
                     Argument::Uint(42)
                 ],
             ),
@@ -351,7 +351,7 @@ expand_test!(null_obj_followed_by_interface, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -368,7 +368,7 @@ expand_test!(null_obj_followed_by_interface, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
@@ -381,7 +381,7 @@ expand_test!(null_obj_followed_by_interface, {
             message!(
                 test_global_id.clone(),
                 2,
-                [Argument::NewId(client_backend::Backend::null_id())]
+                [Argument::NewId(client_backend::ObjectId::null())]
             ),
             Some(Arc::new(DoNothingData)),
             None,
@@ -395,7 +395,7 @@ expand_test!(null_obj_followed_by_interface, {
                 test_global_id,
                 5,
                 [
-                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::Object(client_backend::ObjectId::null()),
                     Argument::Object(tertiary_id),
                 ],
             ),
@@ -420,7 +420,7 @@ expand_test!(new_id_null_and_non_null, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -437,7 +437,7 @@ expand_test!(new_id_null_and_non_null, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(5),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
@@ -450,7 +450,7 @@ expand_test!(new_id_null_and_non_null, {
             message!(
                 test_global_id.clone(),
                 2,
-                [Argument::NewId(client_backend::Backend::null_id())]
+                [Argument::NewId(client_backend::ObjectId::null())]
             ),
             Some(Arc::new(DoNothingData)),
             None,
@@ -464,8 +464,8 @@ expand_test!(new_id_null_and_non_null, {
                 test_global_id,
                 6, // newid_and_allow_null
                 [
-                    Argument::NewId(client_backend::Backend::null_id()),
-                    Argument::Object(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
+                    Argument::Object(client_backend::ObjectId::null()),
                     Argument::Object(tertiary_id),
                 ],
             ),

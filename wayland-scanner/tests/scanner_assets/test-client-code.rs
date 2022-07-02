@@ -192,7 +192,7 @@ pub mod wl_display {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::wl_callback::WlCallback::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
@@ -202,7 +202,7 @@ pub mod wl_display {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::wl_registry::WlRegistry::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
@@ -413,7 +413,7 @@ pub mod wl_registry {
                         Argument::Uint(id.1),
                         {
                             child_spec = Some((id.0, id.1));
-                            Argument::NewId(Connection::null_id())
+                            Argument::NewId(ObjectId::null())
                         }
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
@@ -857,7 +857,7 @@ pub mod test_global {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::secondary::Secondary::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
@@ -867,7 +867,7 @@ pub mod test_global {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::tertiary::Tertiary::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
                 }
@@ -878,7 +878,7 @@ pub mod test_global {
                         if let Some(obj) = ter {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(Connection::null_id())
+                            Argument::Object(ObjectId::null())
                         },
                         Argument::Uint(time)
                     ];
@@ -895,7 +895,7 @@ pub mod test_global {
                         if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(Connection::null_id())
+                            Argument::Object(ObjectId::null())
                         },
                         Argument::Object(Proxy::id(&ter))
                     ];
@@ -907,12 +907,12 @@ pub mod test_global {
                         {
                             let my_info = conn.object_info(self.id())?;
                             child_spec = Some((super::quad::Quad::interface(), my_info.version));
-                            Argument::NewId(Connection::null_id())
+                            Argument::NewId(ObjectId::null())
                         },
                         if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(Connection::null_id())
+                            Argument::Object(ObjectId::null())
                         },
                         Argument::Object(Proxy::id(&ter))
                     ];

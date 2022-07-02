@@ -468,9 +468,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Fixed => quote! { Argument::Fixed((#arg_name * 256.) as i32) },
                 Type::Object => if arg.allow_null {
                     if side == Side::Server {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(conn.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
                     } else {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(Connection::null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
                     }
                 } else if side == Side::Server {
                     quote!{ Argument::Object(Resource::id(&#arg_name)) }
@@ -494,7 +494,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         quote! { {
                             let my_info = conn.object_info(self.id())?;
                             child_spec = Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version));
-                            Argument::NewId(Connection::null_id())
+                            Argument::NewId(ObjectId::null())
                         } }
                     } else {
                         quote! {
@@ -502,14 +502,14 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                             Argument::Uint(#arg_name.1),
                             {
                                 child_spec = Some((#arg_name.0, #arg_name.1));
-                                Argument::NewId(Connection::null_id())
+                                Argument::NewId(ObjectId::null())
                             }
                         }
                     }
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(conn.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(ObjectId::null()) } }
                     } else {
                         quote!{ Argument::NewId(Resource::id(&#arg_name)) }
                     }

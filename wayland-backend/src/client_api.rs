@@ -70,10 +70,25 @@ impl fmt::Debug for ObjectId {
 }
 
 impl ObjectId {
-    /// Check if this is the null ID
+    /// Check if this is a null ID
+    ///
+    /// **Note:** This is not the same as checking if the ID is still valid, which cannot be done without the
+    /// [`Backend`]. A null ID is the ID equivalent of a null pointer: it never has been valid and never will
+    /// be.
     #[inline]
     pub fn is_null(&self) -> bool {
         self.id.is_null()
+    }
+
+    /// Create a null object ID
+    ///
+    /// This object ID is always invalid, and should be used as placeholder in requests that create objects,
+    /// or for request with an optional `Object` argument.
+    ///
+    /// See [`Backend::send_request`](Backend::send_request) for details.
+    #[inline]
+    pub fn null() -> ObjectId {
+        client_impl::InnerBackend::null_id()
     }
 
     /// Interface of the represented object
@@ -158,14 +173,6 @@ impl Backend {
     #[inline]
     pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.backend.info(id)
-    }
-
-    /// Create a null object ID
-    ///
-    /// This object ID is always invalid, and can be used as placeholder.
-    #[inline]
-    pub fn null_id() -> ObjectId {
-        client_impl::InnerBackend::null_id()
     }
 
     /// Sends a request to the server

@@ -129,8 +129,20 @@ pub struct ObjectId {
 
 impl ObjectId {
     /// Returns whether this object is a null object.
+    ///
+    /// **Note:** This is not the same as checking if the ID is still valid, which cannot be done without the
+    /// [`Backend`]. A null ID is the ID equivalent of a null pointer: it never has been valid and never will
+    /// be.
     pub fn is_null(&self) -> bool {
         self.id.is_null()
+    }
+
+    /// Returns an object id that represents a null object.
+    ///
+    /// This object ID is always invalid, and should be used for events with an optional `Object` argument.
+    #[inline]
+    pub fn null() -> ObjectId {
+        server_impl::InnerHandle::null_id()
     }
 
     /// Returns the interface of this object.
@@ -316,12 +328,6 @@ impl Handle {
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<ObjectId, InvalidId> {
         self.handle.create_object(client_id.id, interface, version, data)
-    }
-
-    /// Returns an object id that represents a null object.
-    #[inline]
-    pub fn null_id() -> ObjectId {
-        server_impl::InnerHandle::null_id()
     }
 
     /// Send an event to the client
