@@ -11,13 +11,19 @@
 //! libraries are loaded dynamically at runtime, so that your executable does not link them and
 //! can gracefully handle their absence (for example by falling back to X11).
 //!
-//! Additionnaly the default backends are reexported as toplevel `client` and `server` modules
+//! Additionally the default backends are reexported as toplevel `client` and `server` modules
 //! in this crate. For both client and server, the default backend is the system one if the
-//! associated cargo feature is enabled, and the rust one otherwise. Using these reexports is the
-//! recommended way to use the crate.
+//! associated cargo feature is enabled, and the rust one otherwise.
 //!
-//! Both backends have the exact same API, except that the system backend additionnaly provides
-//! functions related to FFI.
+//! Using these reexports is the recommended way to use the crate:
+//! - If you don't need the `*_system` features, an other crate enabling them will not impact your code in
+//!   any way as both backends have the same API (the system backend only has more methods)
+//! - If your code needs to do FFI, you just need to directly depend on `wayland-backend` with the
+//!   appropriate `*_system` feature enabled, and all the other crates in your dependency tree will
+//!   automatically use the `sys` backend.
+//!
+//! Both the `wayland-client` and `wayland-server` crates follow this principle, so everything will "Just
+//! Work" when using them.
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
@@ -39,7 +45,7 @@ macro_rules! message {
 }
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
-#[cfg_attr(docsrs, doc(cfg(any(test, feature = "client_system", feature = "server_system"))))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "client_system", feature = "server_system"))))]
 pub mod sys;
 
 pub mod rs;

@@ -20,15 +20,17 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 pub trait ObjectData: downcast_rs::DowncastSync {
     /// Dispatch an event for the associated object
     ///
-    /// If the event has a NewId argument, the callback must return the object data
+    /// If the event has a `NewId` argument, the callback must return the object data
     /// for the newly created object
     fn event(
         self: Arc<Self>,
         backend: &Backend,
         msg: Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>>;
+
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, object_id: ObjectId);
+
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
@@ -48,6 +50,11 @@ impl std::fmt::Debug for dyn ObjectData {
 downcast_rs::impl_downcast!(sync ObjectData);
 
 /// An ID representing a Wayland object
+///
+/// The backend internally tracks which IDs are still valid, invalidates them when the protocol object they
+/// represent is destroyed. As such even though the Wayland protocol reuses IDs, you can confidently compare
+/// two `ObjectId` for equality, they will only compare as equal if they both represent the same protocol
+/// object.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ObjectId {
     pub(crate) id: client_impl::InnerObjectId,
@@ -99,8 +106,8 @@ impl ObjectId {
 
     /// Return the protocol-level numerical ID of this object
     ///
-    /// Protocol IDs are reused after object destruction, so this should not be used as a
-    /// unique identifier,
+    /// Protocol IDs are reused after object destruction, so this should not be used as a unique identifier,
+    /// instead use the `ObjectId` directly, it implements `Clone`, `PartialEq`, `Eq` and `Hash`.
     #[inline]
     pub fn protocol_id(&self) -> u32 {
         self.id.protocol_id()
@@ -138,7 +145,10 @@ impl Backend {
     /// Try to initialize a Wayland backend on the provided unix stream
     ///
     /// The provided stream should correspond to an already established unix connection with
-    /// the Wayland server. On this rust backend, this method never fails.
+    /// the Wayland server.
+    ///
+    /// This method can only fail on the `sys` backend if the `dlopen` cargo feature was enabled
+    /// and the system wayland library could not be found.
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
         client_impl::InnerBackend::connect(stream).map(|backend| Self { backend })
     }
@@ -149,6 +159,13 @@ impl Backend {
     }
 
     /// Flush all pending outgoing requests to the server
+    ///
+    /// Most errors on this method mean that the Wayland connection is no longer valid, the only
+    /// exception being an IO `WouldBlock` error. In that case it means that you should try flushing again
+    /// later.
+    ///
+    /// You can however expect this method returning `WouldBlock` to be very rare: it can only occur if
+    /// either your client sent a lot of big messages at once, or the server is very laggy.
     pub fn flush(&self) -> Result<(), WaylandError> {
         self.backend.flush()
     }
@@ -161,13 +178,13 @@ impl Backend {
 
     /// Get the last error that occurred on this backend
     ///
-    /// If this returns an error, your Wayland connection is already dead.
+    /// If this returns [`Some`], your Wayland connection is already dead.
     #[inline]
     pub fn last_error(&self) -> Option<WaylandError> {
         self.backend.last_error()
     }
 
-    /// Get the detailed information about a wayland object
+    /// Get the detailed protocol information about a wayland object
     ///
     /// Returns an error if the provided object ID is no longer valid.
     #[inline]
@@ -186,9 +203,11 @@ impl Backend {
     ///
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
-    /// - if the method creates a new object, a [`null_id()`](Backend::null_id) must be given
+    /// - if the method creates a new object, a [`ObjectId::null()`](ObjectId::null) must be given
     ///   in the argument list at the appropriate place, and a `child_spec` (interface and version)
-    ///   can be provided. If one is provided, it'll be checked agains the protocol spec.
+    ///   can be provided. If one is provided, it'll be checked against the protocol spec. If the
+    ///   protocol specification does not define the interface of the created object (notable example
+    ///   is `wl_registry.bind`), the `child_spec` must be provided.
     pub fn send_request(
         &self,
         msg: Message<ObjectId>,
@@ -218,8 +237,13 @@ impl Backend {
 
     /// Create a new reading guard
     ///
+    /// This is the first step for actually reading events from the Wayland socket. See
+    /// [`ReadEventsGuard`] for how to use it.
+    ///
     /// This call will not block, but event callbacks may be invoked in the process
     /// of preparing the guard.
+    ///
+    /// If it returns an error, you Wayland connection is already dead.
     #[inline]
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
         client_impl::InnerReadEventsGuard::try_new(self.backend.clone())
@@ -233,13 +257,16 @@ impl Backend {
 /// it is necessary to synchronize their access. Failing to do so may cause some of the
 /// threads to not be notified of new events, and sleep much longer than appropriate.
 ///
-/// To correctly synchronize access, this type should be used. The guard is created using
+/// This guard is provided to ensure the proper synchronization is done. The guard is created using
 /// the [`Backend::prepare_read()`](Backend::prepare_read) method. And the event reading is
-/// triggered by consuming the guard using the [`read()`](ReadEventsGuard::read) method.
+/// triggered by consuming the guard using the [`read()`](ReadEventsGuard::read) method, synchronizing
+/// with other threads as necessary so that only one of the threads will actually perform the socket read.
 ///
 /// If you plan to poll the Wayland socket for readiness, the file descriptor can be retrieved via
 /// the [`connection_fd`](ReadEventsGuard::connection_fd) method. Note that for the synchronization to
 /// correctly occur, you must *always* create the `ReadEventsGuard` *before* polling the socket.
+///
+/// Dropping the guard is valid and will cancel the prepared read.
 #[derive(Debug)]
 pub struct ReadEventsGuard {
     pub(crate) guard: client_impl::InnerReadEventsGuard,
@@ -255,7 +282,7 @@ impl ReadEventsGuard {
     /// Attempt to read events from the Wayland socket
     ///
     /// If multiple threads have a live reading guard, this method will block until all of them
-    /// are either dropped or have their `read()` method invoked, at which point on of the threads
+    /// are either dropped or have their `read()` method invoked, at which point one of the threads
     /// will read events from the socket and invoke the callbacks for the received events. All
     /// threads will then resume their execution.
     ///
