@@ -45,7 +45,7 @@ expand_test!(sync, {
     let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
     let sync_id = client
         .send_request(
-            message!(client_display, 0, [Argument::NewId(client_backend::Backend::null_id())]),
+            message!(client_display, 0, [Argument::NewId(client_backend::ObjectId::null())]),
             Some(sync_data.clone()),
             Some((&interfaces::WL_CALLBACK_INTERFACE, 1)),
         )
@@ -78,7 +78,7 @@ expand_test!(panic test_bad_placeholder, {
     let sync_data = Arc::new(SyncData(AtomicBool::new(false)));
     let sync_id = client
         .send_request(
-            message!(client_display, 0, [Argument::NewId(client_backend::Backend::null_id())]),
+            message!(client_display, 0, [Argument::NewId(client_backend::ObjectId::null())]),
             Some(sync_data.clone()),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1))
         )

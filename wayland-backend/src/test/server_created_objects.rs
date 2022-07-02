@@ -29,7 +29,7 @@ macro_rules! impl_globalhandler {
                         Arc::new(DoNothingData),
                     )
                     .unwrap();
-                let null_id = $server_backend::Handle::null_id();
+                let null_id = $server_backend::ObjectId::null();
                 handle
                     .send_event(message!(
                         object_id.clone(),
@@ -123,7 +123,7 @@ expand_test!(server_created_object, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -140,7 +140,7 @@ expand_test!(server_created_object, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(1),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(client_data.clone()),

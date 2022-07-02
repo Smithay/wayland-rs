@@ -552,7 +552,7 @@ pub mod test_global {
                         if let Some(obj) = old_quad {
                             Argument::Object(Resource::id(&obj))
                         } else {
-                            Argument::Object(conn.null_id())
+                            Argument::Object(ObjectId::null())
                         }
                     ],
                 }),

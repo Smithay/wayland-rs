@@ -57,7 +57,7 @@ expand_test!(protocol_error, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -74,7 +74,7 @@ expand_test!(protocol_error, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
@@ -261,7 +261,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::Backend::null_id())],),
+            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -278,7 +278,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
                     )),
                     Argument::Uint(3),
-                    Argument::NewId(client_backend::Backend::null_id()),
+                    Argument::NewId(client_backend::ObjectId::null()),
                 ],
             ),
             Some(Arc::new(DoNothingData)),
@@ -292,7 +292,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
     // Now, the client sends a request, which will trigger a protocol error
     client
         .send_request(
-            message!(test_global_id, 1, [Argument::NewId(client_backend::Backend::null_id())]),
+            message!(test_global_id, 1, [Argument::NewId(client_backend::ObjectId::null())]),
             Some(Arc::new(DoNothingData)),
             None,
         )

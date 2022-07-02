@@ -81,10 +81,6 @@ impl DisplayHandle {
         Client::from_id(self, client_id)
     }
 
-    pub fn null_id(&self) -> ObjectId {
-        Handle::null_id()
-    }
-
     pub fn send_event<I: Resource>(&self, resource: &I, event: I::Event) -> Result<(), InvalidId> {
         let msg = resource.write_event(self, event)?;
         self.handle.send_event(msg)
