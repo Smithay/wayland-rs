@@ -24,6 +24,11 @@ unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
 }
 
 /// Client-side implementation of a Wayland protocol backend using `libwayland`
+///
+/// Entrypoints are:
+/// - [`Backend::connect`](client::Backend::connect) method if you're creating the Wayland connection
+/// - [`Backend::from_foreign_display`](client::Backend::from_foreign_display) if you're interacting with an
+///   already existing Wayland connection through FFI.
 #[cfg(any(test, feature = "client_system"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
 #[path = "../client_api.rs"]
@@ -66,16 +71,16 @@ impl client::Backend {
     /// This is useful if you are writing a library that is expected to plug itself into an existing
     /// Wayland connection.
     ///
-    /// This will initialize the [`Backend`] in "guest" mode, meaning it will not close the connection
-    /// on drop. After the [`Backend`] is dropped, if the server sends an event to an object that was
-    /// created from it, that event will be silently discarded. This may lead to protocol errors if the
-    /// server expects an answer to that event, as such you should make sure to cleanup your Wayland
-    /// state before dropping the [`Backend`].
+    /// This will initialize the [`Backend`](client::Backend) in "guest" mode, meaning it will not close the
+    /// connection on drop. After the [`Backend`](client::Backend) is dropped, if the server sends an event
+    /// to an object that was created from it, that event will be silently discarded. This may lead to
+    /// protocol errors if the server expects an answer to that event, as such you should make sure to
+    /// cleanup your Wayland state before dropping the [`Backend`](client::Backend).
     ///
     /// # Safety
     ///
-    /// You need to ensure the `*mut wl_display` remains alive as long as the [`Backend`] (or its clones)
-    /// exist.
+    /// You need to ensure the `*mut wl_display` remains live as long as the  [`Backend`](client::Backend)
+    /// (or its clones) exist.
     #[cfg_attr(docsrs, doc(cfg(feature = "client_system")))]
     pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
         Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
@@ -93,6 +98,8 @@ impl client::Backend {
 }
 
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
+///
+/// The main entrypoint is the [`Backend::new`](server::Backend::new) method.
 #[cfg(any(test, feature = "server_system"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "server_system")))]
 #[path = "../server_api.rs"]
