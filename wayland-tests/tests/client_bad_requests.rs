@@ -13,7 +13,7 @@ fn constructor_dead() {
         .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -43,7 +43,7 @@ fn send_constructor_wrong_type() {
         .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -82,17 +82,17 @@ fn send_constructor_wrong_type() {
  */
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

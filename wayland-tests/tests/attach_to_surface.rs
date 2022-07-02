@@ -7,7 +7,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use wayc::protocol::wl_shm::Format;
 
@@ -27,7 +27,7 @@ fn attach_null() {
     // Client setup
     //
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -66,7 +66,7 @@ fn attach_buffer() {
     // Client setup
     //
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -216,17 +216,17 @@ server_ignore_global_impl!(ServerHandler => [
  * Client Handler
  */
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

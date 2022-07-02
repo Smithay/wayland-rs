@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use wayland_protocols::xdg::shell::{client as xs_client, server as xs_server};
 
@@ -76,7 +76,7 @@ impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
 }
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
 impl ClientHandler {
@@ -85,14 +85,14 @@ impl ClientHandler {
     }
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ()> for ClientHandler {
