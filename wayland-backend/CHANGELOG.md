@@ -7,6 +7,11 @@
 - all backends: creating null `ObjectId` is now done through the `ObjectId::null()` method, and the
   `null_id()` methods on the backends are removed.
 
+#### Additions
+
+- client: introduce `Backend::dispatch_inner_queue()` meant for ensuring a system backend in guest mode can
+  still process events event it does not control reading the socket.
+
 ## 0.1.0-beta.7
 
 #### Bugfixes

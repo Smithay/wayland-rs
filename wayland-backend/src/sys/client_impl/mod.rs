@@ -281,6 +281,10 @@ impl InnerBackend {
             Ok(())
         }
     }
+
+    pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
+        self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
+    }
 }
 
 impl ConnectionState {
