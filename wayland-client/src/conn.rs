@@ -17,14 +17,28 @@ use wayland_backend::{
 
 use nix::{fcntl, Error};
 
-use crate::{EventQueue, Proxy};
+use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
 
 /// The Wayland connection
 ///
-/// This is the main type representing your connection to the Wayland server.
+/// This is the main type representing your connection to the Wayland server, though most of the interaction
+/// with the protocol are actually done using other types. The two main an simple app as for the
+/// [`Connection`] are:
+///
+/// - Obtaining the initial [`WlDisplay`] through the [`display()`](Connection::display) method.
+/// - Creating new [`EventQueue`]s with the [`new_event_queue()`](Connection::new_event_queue) method.
+///
+/// It can be created through the [`connect_to_env()`](Connection::connect_to_env) method to follow the
+/// configuration from the environment (which is what you'll do most of the time), or using the
+/// [`from_socket()`](Connection::from_socket) method if you retrieved your connected Wayland socket through
+/// other means.
+///
+/// In case you need to plug yourself into an external Wayland connection that you don't control, you'll
+/// likely get access to it as a [`Backend`], in which case you can create a [`Connection`] from it using
+/// the [`from_backend`](Connection::from_backend) method.
 #[derive(Debug, Clone)]
 pub struct Connection {
-    backend: Backend,
+    pub(crate) backend: Backend,
 }
 
 impl Connection {
@@ -72,32 +86,44 @@ impl Connection {
         Ok(Self { backend })
     }
 
-    /// Wrap an existing [`Backend`] into a Connection
+    /// Get the `WlDisplay` associated with this connection
+    pub fn display(&self) -> WlDisplay {
+        let display_id = self.backend.display_id();
+        Proxy::from_id(self, display_id).unwrap()
+    }
+
+    /// Create a new event queue
+    pub fn new_event_queue<State>(&self) -> EventQueue<State> {
+        EventQueue::new(self.clone())
+    }
+
+    /// Wrap an existing [`Backend`] into a [`Connection`]
     pub fn from_backend(backend: Backend) -> Self {
         Self { backend }
     }
 
-    /// Get the [`Backend`] underlying this Connection
+    /// Get the [`Backend`] underlying this [`Connection`]
     pub fn backend(&self) -> Backend {
         self.backend.clone()
     }
 
     /// Flush pending outgoing events to the server
     ///
-    /// This needs to be done regularly to ensure the server receives all your requests.
+    /// This needs to be done regularly to ensure the server receives all your requests, though several
+    /// dispatching methods do it implicitly (this is stated in their documentation when they do).
     pub fn flush(&self) -> Result<(), WaylandError> {
         self.backend.flush()
     }
 
     /// Start a synchronized read from the socket
     ///
-    /// This is needed if you plan to wait on readiness of the Wayland socket using an event
-    /// loop. See [`ReadEventsGuard`] for details. Once the events are received, you'll then
-    /// need to dispatch them from the event queue using
-    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
+    /// This is needed if you plan to wait on readiness of the Wayland socket using an event loop. See
+    /// [`ReadEventsGuard`] for details. Once the events are received, you'll then need to dispatch them from
+    /// their event queues using [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
     ///
     /// If you don't need to manage multiple event sources, see
-    /// [`blocking_dispatch()`](Connection::blocking_dispatch) for a simpler mechanism.
+    /// [`blocking_dispatch()`](Connection::blocking_read) for a simpler mechanism. [`EventQueue`] has an
+    /// identical method for convenience.
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
         self.backend.prepare_read()
     }
@@ -108,8 +134,12 @@ impl Connection {
     /// server and read them. You'll then need to invoke
     /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending) to dispatch them on
     /// their respective event queues. Alternatively,
-    /// [`EventQueue::blocking_dispatch()`](EventQueue::blocking_dispatch) does both.
-    pub fn blocking_dispatch(&self) -> Result<usize, WaylandError> {
+    /// [`EventQueue::blocking_dispatch()`](EventQueue::blocking_dispatch) does the same thing as this
+    /// method but also dispatches the pending messages on the queue it was invoked.
+    ///
+    /// If you created objects bypassing the event queues with direct [`ObjectData`] callbacks, those
+    /// callbacks will be invoked (if those objects received any events) before this method returns.
+    pub fn blocking_read(&self) -> Result<usize, WaylandError> {
         blocking_dispatch_impl(self.backend.clone())
     }
 
@@ -118,6 +148,8 @@ impl Connection {
     /// This method will block until the Wayland server has processed and answered all your
     /// preceding requests. This is notably useful during the initial setup of an app, to wait for
     /// the initial state from the server.
+    ///
+    /// See [`EventQueue::roundtrip()`] for a version that includes the dispatching of the event queue.
     pub fn roundtrip(&self) -> Result<usize, WaylandError> {
         let done = Arc::new(AtomicBool::new(false));
         {
@@ -141,17 +173,43 @@ impl Connection {
         Ok(dispatched)
     }
 
-    /// Create a new event queue
-    pub fn new_event_queue<D>(&self) -> EventQueue<D> {
-        EventQueue::new(self.clone())
-    }
-
-    /// Retrive the protocol error that occured on the socket (if any)
+    /// Retrieve the protocol error that occured on the connection if any
+    ///
+    /// If this method returns `Some`, it means your Wayland connection is already dead.
     pub fn protocol_error(&self) -> Option<ProtocolError> {
         match dbg!(self.backend.last_error())? {
             WaylandError::Protocol(err) => Some(err),
             WaylandError::Io(_) => None,
         }
+    }
+
+    /// Send a request associated with the provided object
+    ///
+    /// This is a low-level interface used by the code generated by `wayland-scanner`, you will likely
+    /// instead use the methods of the types representing each interface, or the [`Proxy::send_request`] and
+    /// [`Proxy::send_constructor`]
+    pub fn send_request<I: Proxy>(
+        &self,
+        proxy: &I,
+        request: I::Request,
+        data: Option<Arc<dyn ObjectData>>,
+    ) -> Result<ObjectId, InvalidId> {
+        let (msg, child_spec) = proxy.write_request(self, request)?;
+        self.backend.send_request(msg, data, child_spec)
+    }
+
+    /// Get the protocol information related to given object ID
+    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.backend.info(id)
+    }
+
+    /// Get the object data for a given object ID
+    ///
+    /// This is a low-level interface used by the code generated by `wayland-scanner`, a higher-level
+    /// interface for manipulating the user-data assocated to [`Dispatch`](crate::Dispatch) implementations
+    /// is given as [`Proxy::data()`]. Also see [`Proxy::object_data()`].
+    pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+        self.backend.get_data(id)
     }
 }
 
@@ -181,41 +239,6 @@ pub(crate) fn blocking_dispatch_impl(backend: Backend) -> Result<usize, WaylandE
         // thread with the C-based backend, spuriously return 0.
         Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => Ok(0),
         Err(e) => Err(e),
-    }
-}
-
-impl Connection {
-    /// Get the `WlDisplay` associated with this connection
-    pub fn display(&self) -> crate::protocol::wl_display::WlDisplay {
-        let display_id = self.backend.display_id();
-        Proxy::from_id(self, display_id).unwrap()
-    }
-
-    /// Send a request associated with the provided object
-    ///
-    /// This is a low-level interface for sending requests, you will likely instead use
-    /// the methods of the types representing each interface.
-    pub fn send_request<I: Proxy>(
-        &self,
-        proxy: &I,
-        request: I::Request,
-        data: Option<Arc<dyn ObjectData>>,
-    ) -> Result<ObjectId, InvalidId> {
-        let (msg, child_spec) = proxy.write_request(self, request)?;
-        self.backend.send_request(msg, data, child_spec)
-    }
-
-    /// Get the object data for a given object ID
-    ///
-    /// This is a low-level interface, a higher-level interface for manipulating object data
-    /// is given as [`Proxy::data()`](crate::Proxy::data).
-    pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
-        self.backend.get_data(id)
-    }
-
-    /// Get the protocol information related to given object ID
-    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.backend.info(id)
     }
 }
 
