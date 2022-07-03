@@ -484,6 +484,11 @@ impl InnerBackend {
             })
             .unwrap_or(Err(InvalidId))
     }
+
+    // Nothing to do here, we don't have an inner queue
+    pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
+        Ok(0)
+    }
 }
 
 impl ProtocolState {

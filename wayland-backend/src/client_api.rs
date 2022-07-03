@@ -249,6 +249,24 @@ impl Backend {
         client_impl::InnerReadEventsGuard::try_new(self.backend.clone())
             .map(|guard| ReadEventsGuard { guard })
     }
+
+    /// Dispatches the inner queue of this backend if necessary
+    ///
+    /// This function is only relevant when using the system backend that was created from an external
+    /// display. In this case, it is possible that some other part of the program already takes care
+    /// of reading the wayland socket and you should not touch it, and thus you cannot use
+    /// [`prepare_read()`](Backend::prepare_read). In this situation, this method will ensure that this
+    /// [`Backend`] still correctly processes its messages.
+    ///
+    /// When using the rust backend, or when using the system backend where you own the connection, this
+    /// function will do nothing. It is thus safe to unconditionnaly invoke it at some point in your library
+    /// code to ensure you support all use cases, for example.
+    ///
+    /// Returns the number of messages that were dispatched to their `ObjectData` callbacks.
+    #[inline]
+    pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
+        self.backend.dispatch_inner_queue()
+    }
 }
 
 /// Guard for synchronizing event reading across multiple threads
