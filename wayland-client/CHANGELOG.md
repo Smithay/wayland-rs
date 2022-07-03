@@ -5,6 +5,7 @@
 #### Breaking changes
 
 - `Connection::null_id()` has been removed, instead use `ObjectId::null()`.
+- `EventQueue::sync_roundtrip()` has been renamed to `EventQueue::roundtrip()`.
 - Module `globals` has been removed as the abstractions it provide are not deemed useful.
 
 ## 0.30.0-beta.6
