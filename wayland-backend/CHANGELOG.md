@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-beta.7
+
 #### Bugfixes
 
 - backend/sys: the inner lock is no longer held when destructors are invoked
