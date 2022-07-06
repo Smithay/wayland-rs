@@ -14,10 +14,18 @@ build = "build.rs"
 
 [dependencies]
 wayland-sys = { version = "0.30.0-beta.7", path = "../wayland-sys", features = [] }
-smallvec = "1.4"
 log = "0.4"
 scoped-tls = "1.0"
 downcast-rs = "1.2"
+
+[dependencies.smallvec]
+version = "1.9"
+# Some additional features can be enabled since wayland-rs requires at least Rust 1.53
+features = [
+    "union", # 1.49
+    "const_generics", # 1.51
+    "const_new", # 1.51
+]
 
 [dependencies.nix]
 version = "0.24.1"
