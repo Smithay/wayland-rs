@@ -13,9 +13,9 @@ mod global;
 pub mod socket;
 
 pub use client::Client;
-pub use dispatch::{DataInit, DelegateDispatch, Dispatch, New, ResourceData};
+pub use dispatch::{DataInit, Dispatch, New, ResourceData};
 pub use display::{Display, DisplayHandle};
-pub use global::{DelegateGlobalDispatch, GlobalDispatch};
+pub use global::GlobalDispatch;
 
 pub mod backend {
     pub use wayland_backend::protocol;

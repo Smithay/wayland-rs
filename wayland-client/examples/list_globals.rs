@@ -16,7 +16,7 @@ struct AppData;
 // the `Dispatch` documentation for more details about this.
 impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),

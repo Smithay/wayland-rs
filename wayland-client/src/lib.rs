@@ -70,7 +70,7 @@
 //! // the `Dispatch` documentation for more details about this.
 //! impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
 //!     fn event(
-//!         &mut self,
+//!         _state: &mut Self,
 //!         _: &wl_registry::WlRegistry,
 //!         event: wl_registry::Event,
 //!         _: &(),
@@ -186,7 +186,7 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
-pub use event_queue::{DelegateDispatch, Dispatch, EventQueue, QueueHandle, QueueProxyData};
+pub use event_queue::{Dispatch, EventQueue, QueueHandle, QueueProxyData};
 
 /// Generated protocol definitions
 ///

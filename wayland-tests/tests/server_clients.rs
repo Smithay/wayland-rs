@@ -147,7 +147,7 @@ server_ignore_impl!(ServerHandler => [
 
 impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_output::WlOutput>,
@@ -161,7 +161,7 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHan
 
 impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_compositor::WlCompositor>,

@@ -46,7 +46,7 @@ struct State {
 
 impl Dispatch<wl_registry::WlRegistry, ()> for State {
     fn event(
-        &mut self,
+        state: &mut Self,
         registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
@@ -60,10 +60,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                         .bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ())
                         .unwrap();
                     let surface = compositor.create_surface(qh, ()).unwrap();
-                    self.base_surface = Some(surface);
+                    state.base_surface = Some(surface);
 
-                    if self.wm_base.is_some() && self.xdg_surface.is_none() {
-                        self.init_xdg_surface(qh);
+                    if state.wm_base.is_some() && state.xdg_surface.is_none() {
+                        state.init_xdg_surface(qh);
                     }
                 }
                 "wl_shm" => {
@@ -87,10 +87,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                             (),
                         )
                         .unwrap();
-                    self.buffer = Some(buffer.clone());
+                    state.buffer = Some(buffer.clone());
 
-                    if self.configured {
-                        let surface = self.base_surface.as_ref().unwrap();
+                    if state.configured {
+                        let surface = state.base_surface.as_ref().unwrap();
                         surface.attach(Some(&buffer), 0, 0);
                         surface.commit();
                     }
@@ -101,10 +101,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                 "xdg_wm_base" => {
                     let wm_base =
                         registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ()).unwrap();
-                    self.wm_base = Some(wm_base);
+                    state.wm_base = Some(wm_base);
 
-                    if self.base_surface.is_some() && self.xdg_surface.is_none() {
-                        self.init_xdg_surface(qh);
+                    if state.base_surface.is_some() && state.xdg_surface.is_none() {
+                        state.init_xdg_surface(qh);
                     }
                 }
                 _ => {}
@@ -115,7 +115,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
 
 impl Dispatch<wl_compositor::WlCompositor, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_compositor::WlCompositor,
         _: wl_compositor::Event,
         _: &(),
@@ -128,7 +128,7 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for State {
 
 impl Dispatch<wl_surface::WlSurface, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_surface::WlSurface,
         _: wl_surface::Event,
         _: &(),
@@ -141,7 +141,7 @@ impl Dispatch<wl_surface::WlSurface, ()> for State {
 
 impl Dispatch<wl_shm::WlShm, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_shm::WlShm,
         _: wl_shm::Event,
         _: &(),
@@ -154,7 +154,7 @@ impl Dispatch<wl_shm::WlShm, ()> for State {
 
 impl Dispatch<wl_shm_pool::WlShmPool, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_shm_pool::WlShmPool,
         _: wl_shm_pool::Event,
         _: &(),
@@ -167,7 +167,7 @@ impl Dispatch<wl_shm_pool::WlShmPool, ()> for State {
 
 impl Dispatch<wl_buffer::WlBuffer, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wl_buffer::WlBuffer,
         _: wl_buffer::Event,
         _: &(),
@@ -212,7 +212,7 @@ impl State {
 
 impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         wm_base: &xdg_wm_base::XdgWmBase,
         event: xdg_wm_base::Event,
         _: &(),
@@ -227,7 +227,7 @@ impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
 
 impl Dispatch<xdg_surface::XdgSurface, ()> for State {
     fn event(
-        &mut self,
+        state: &mut Self,
         xdg_surface: &xdg_surface::XdgSurface,
         event: xdg_surface::Event,
         _: &(),
@@ -236,9 +236,9 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for State {
     ) {
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(serial);
-            self.configured = true;
-            let surface = self.base_surface.as_ref().unwrap();
-            if let Some(ref buffer) = self.buffer {
+            state.configured = true;
+            let surface = state.base_surface.as_ref().unwrap();
+            if let Some(ref buffer) = state.buffer {
                 surface.attach(Some(buffer), 0, 0);
                 surface.commit();
             }
@@ -248,7 +248,7 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for State {
 
 impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
     fn event(
-        &mut self,
+        state: &mut Self,
         _: &xdg_toplevel::XdgToplevel,
         event: xdg_toplevel::Event,
         _: &(),
@@ -256,14 +256,14 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
         _: &QueueHandle<Self>,
     ) {
         if let xdg_toplevel::Event::Close {} = event {
-            self.running = false;
+            state.running = false;
         }
     }
 }
 
 impl Dispatch<wl_seat::WlSeat, ()> for State {
     fn event(
-        &mut self,
+        _: &mut Self,
         seat: &wl_seat::WlSeat,
         event: wl_seat::Event,
         _: &(),
@@ -280,7 +280,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for State {
 
 impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
     fn event(
-        &mut self,
+        state: &mut Self,
         _: &wl_keyboard::WlKeyboard,
         event: wl_keyboard::Event,
         _: &(),
@@ -290,7 +290,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
         if let wl_keyboard::Event::Key { key, .. } = event {
             if key == 1 {
                 // ESC key
-                self.running = false;
+                state.running = false;
             }
         }
     }

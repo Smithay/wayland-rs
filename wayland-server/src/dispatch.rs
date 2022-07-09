@@ -6,20 +6,90 @@ use crate::{Client, DisplayHandle, Resource};
 
 /// A trait which provides an implementation for handling a client's requests from a resource with some type
 /// of associated user data.
-pub trait Dispatch<I: Resource, U>: Sized {
+///
+///  ## General usage
+///
+/// You need to implement this trait on your `State` for every type of Wayland object that will be processed
+/// by the [`Display`](crate::Display) working with your `State`.
+///
+/// You can have different implementations of the trait for the same interface but different `UserData` type,
+/// this way the events for a given object will be processed by the adequate implementation depending on
+/// which `UserData` was assigned to it at creation.
+///
+/// The way this trait works is that the [`Dispatch::request()`] method will be invoked by the
+/// [`Display`](crate::Display) for every request received by an object. Your implementation can then match
+/// on the associated [`Resource::Request`] enum and do any processing needed with that event.
+///
+/// ## Modularity
+///
+/// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
+/// that is generic over the last type argument, as illustrated below. Users will then be able to
+/// automatically delegate their implementation to yours using the [`delegate_dispatch!`] macro.
+///
+/// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
+/// struct of the app using your generic implementation. You can put additional trait constraints on it to
+/// specify an interface between your module and downstream code, as illustrated in this example:
+///
+/// ```
+/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
+/// use wayland_server::{protocol::wl_output, Dispatch};
+///
+/// /// The type we want to delegate to
+/// struct DelegateToMe;
+///
+/// /// The user data relevant for your implementation.
+/// /// When providing delegate implementation, it is recommended to use your own type here, even if it is
+/// /// just a unit struct: using () would cause a risk of clashing with an other such implementation.
+/// struct MyUserData;
+///
+/// // Now a generic implementation of Dispatch, we are generic over the last type argument instead of using
+/// // the default State=Self.
+/// impl<State> Dispatch<wl_output::WlOutput, MyUserData, State> for DelegateToMe
+/// where
+///     // State is the type which has delegated to this type, so it needs to have an impl of Dispatch itself
+///     State: Dispatch<wl_output::WlOutput, MyUserData>,
+///     // If your delegate type has some internal state, it'll need to access it, and you can
+///     // require it by adding custom trait bounds.
+///     // In this example, we just require an AsMut implementation
+///     State: AsMut<DelegateToMe>,
+/// {
+///     fn request(
+///         state: &mut State,
+///         _client: &wayland_server::Client,
+///         _resource: &wl_output::WlOutput,
+///         _request: wl_output::Request,
+///         _udata: &MyUserData,
+///         _dhandle: &wayland_server::DisplayHandle,
+///         _data_init: &mut wayland_server::DataInit<'_, State>,
+///     ) {
+///         // Here the delegate may handle incoming requests as it pleases.
+///
+///         // For example, it retrives its state and does some processing with it
+///         let me: &mut DelegateToMe = state.as_mut();
+///         // do something with `me` ...
+/// #       std::mem::drop(me) // use `me` to avoid a warning
+///     }
+/// }
+/// ```
+///
+/// **Note:** Due to limitations in Rust's trait resolution algorithm, a type providing a generic
+/// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
+/// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
+/// trait bounds are respected as well).
+pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
     /// Called when a request from a client is processed.
     ///
     /// The implementation of this function will vary depending on what protocol is being implemented. Typically
     /// the server may respond to clients by sending events to the resource, or some other resource stored in
     /// the user data.
     fn request(
-        &mut self,
+        state: &mut State,
         client: &Client,
         resource: &I,
         request: I::Request,
-        data: &U,
+        data: &UserData,
         dhandle: &DisplayHandle,
-        data_init: &mut DataInit<'_, Self>,
+        data_init: &mut DataInit<'_, State>,
     );
 
     /// Called when the object this user data is associated with has been destroyed.
@@ -33,7 +103,7 @@ pub trait Dispatch<I: Resource, U>: Sized {
     /// convenience.
     ///
     /// By default this method does nothing.
-    fn destroyed(&mut self, _client: ClientId, _resource: ObjectId, _data: &U) {}
+    fn destroyed(_state: &mut State, _client: ClientId, _resource: ObjectId, _data: &UserData) {}
 }
 
 #[derive(Debug)]
@@ -98,39 +168,6 @@ impl<'a, D> DataInit<'a, D> {
  * Dispatch delegation helpers.
  */
 
-/// A trait which defines a delegate to handle some type of resource.
-///
-/// This trait is useful for building modular handlers of resources.
-pub trait DelegateDispatch<I: Resource, U, D: Dispatch<I, U>>: Sized {
-    /// Called when a request from a client is processed.
-    ///
-    /// The implementation of this function will vary depending on what protocol is being implemented. Typically
-    /// the server may respond to clients by sending events to the resource, or some other resource stored in
-    /// the user data.
-    fn request(
-        state: &mut D,
-        client: &Client,
-        resource: &I,
-        request: I::Request,
-        data: &U,
-        dhandle: &DisplayHandle,
-        data_init: &mut DataInit<'_, D>,
-    );
-
-    /// Called when the object this user data is associated with has been destroyed.
-    ///
-    /// Note this type only provides an immutable reference to the user data, you will need to use
-    /// interior mutability to change it.
-    ///
-    /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
-    ///
-    /// You are given the [`ObjectId`] and [`ClientId`] associated with the destroyed object for cleanup
-    /// convenience.
-    ///
-    /// By default this method does nothing.
-    fn destroyed(_state: &mut D, _client: ClientId, _resource: ObjectId, _data: &U) {}
-}
-
 impl<I, U> ResourceData<I, U> {
     pub(crate) fn new(udata: U) -> Self {
         ResourceData { marker: std::marker::PhantomData, udata }
@@ -168,7 +205,8 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 
         let mut new_data = None;
 
-        data.request(
+        <D as Dispatch<I, U>>::request(
+            data,
             &client,
             &resource,
             request,
@@ -186,7 +224,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         client_id: wayland_backend::server::ClientId,
         object_id: wayland_backend::server::ObjectId,
     ) {
-        data.destroyed(client_id, object_id, &self.udata)
+        <D as Dispatch<I, U>>::destroyed(data, client_id, object_id, &self.udata)
     }
 }
 
@@ -206,11 +244,11 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 /// ```
 /// use wayland_server::{delegate_dispatch, protocol::wl_output};
 /// #
-/// # use wayland_server::{DelegateDispatch, Dispatch};
+/// # use wayland_server::Dispatch;
 /// #
 /// # struct DelegateToMe;
 /// #
-/// # impl<D> DelegateDispatch<wl_output::WlOutput, (), D> for DelegateToMe
+/// # impl<D> Dispatch<wl_output::WlOutput, (), D> for DelegateToMe
 /// # where
 /// #     D: Dispatch<wl_output::WlOutput, ()> + AsMut<DelegateToMe>,
 /// # {
@@ -226,7 +264,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 /// #     }
 /// # }
 /// #
-/// # type UserData = ();
+/// # type MyUserData = ();
 ///
 /// // ExampleApp is the type events will be dispatched to.
 ///
@@ -236,8 +274,8 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 ///     delegate: DelegateToMe,
 /// }
 ///
-/// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput: UserData] => DelegateToMe);
+/// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput, MyUserData> for ExampleApp.
+/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput: MyUserData] => DelegateToMe);
 ///
 /// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the trait implementation.
 /// impl AsMut<DelegateToMe> for ExampleApp {
@@ -251,7 +289,7 @@ macro_rules! delegate_dispatch {
     ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
         impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
             fn request(
-                &mut self,
+                state: &mut Self,
                 client: &$crate::Client,
                 resource: &$interface,
                 request: <$interface as $crate::Resource>::Request,
@@ -259,11 +297,11 @@ macro_rules! delegate_dispatch {
                 dhandle: &$crate::DisplayHandle,
                 data_init: &mut $crate::DataInit<'_, Self>,
             ) {
-                <$dispatch_to as $crate::DelegateDispatch<$interface, $udata, Self>>::request(self, client, resource, request, data, dhandle, data_init)
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::request(state, client, resource, request, data, dhandle, data_init)
             }
 
-            fn destroyed(&mut self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &$udata) {
-                <$dispatch_to as $crate::DelegateDispatch<$interface, $udata, Self>>::destroyed(self, client, resource, data)
+            fn destroyed(state: &mut Self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &$udata) {
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::destroyed(state, client, resource, data)
             }
         }
     };

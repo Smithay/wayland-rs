@@ -18,6 +18,8 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 
 /// A trait providing an implementation for handling events a proxy through an [`EventQueue`].
 ///
+/// ## General usage
+///
 /// You need to implement this trait on your `State` for every type of Wayland object that will be processed
 /// by the [`EventQueue`] working with your `State`.
 ///
@@ -33,7 +35,68 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// instance of this is the `wl_data_device.data_offer` event), you'll need to implement the
 /// [`Dispatch::event_created_child()`] method. See the [`event_created_child!`](event_created_child!) macro
 /// for a simple way to do this.
-pub trait Dispatch<I: Proxy, UserData>: Sized {
+///
+/// ## Modularity
+///
+/// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
+/// that is generic over the last type argument, as illustrated below. Users will then be able to
+/// automatically delegate their implementation to yours using the [`delegate_dispatch!`] macro.
+///
+/// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
+/// struct of the app using your generic implementation. You can put additional trait constraints on it to
+/// specify an interface between your module and downstream code, as illustrated in this example:
+///
+/// ```
+/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
+/// use wayland_client::{protocol::wl_registry, Dispatch};
+///
+/// /// The type we want to delegate to
+/// struct DelegateToMe;
+///
+/// /// The user data relevant for your implementation.
+/// /// When providing delegate implementation, it is recommended to use your own type here, even if it is
+/// /// just a unit struct: using () would cause a risk of clashing with an other such implementation.
+/// struct MyUserData;
+///
+/// // Now a generic implementation of Dispatch, we are generic over the last type argument instead of using
+/// // the default State=Self.
+/// impl<State> Dispatch<wl_registry::WlRegistry, MyUserData, State> for DelegateToMe
+/// where
+///     // State is the type which has delegated to this type, so it needs to have an impl of Dispatch itself
+///     State: Dispatch<wl_registry::WlRegistry, MyUserData>,
+///     // If your delegate type has some internal state, it'll need to access it, and you can
+///     // require it by adding custom trait bounds.
+///     // In this example, we just require an AsMut implementation
+///     State: AsMut<DelegateToMe>,
+/// {
+///     fn event(
+///         state: &mut State,
+///         _proxy: &wl_registry::WlRegistry,
+///         _event: wl_registry::Event,
+///         _udata: &MyUserData,
+///         _conn: &wayland_client::Connection,
+///         _qhandle: &wayland_client::QueueHandle<State>,
+///     ) {
+///         // Here the delegate may handle incoming events as it pleases.
+///
+///         // For example, it retrives its state and does some processing with it
+///         let me: &mut DelegateToMe = state.as_mut();
+///         // do something with `me` ...
+/// #       std::mem::drop(me) // use `me` to avoid a warning
+///     }
+/// }
+/// ```
+///
+/// **Note:** Due to limitations in Rust's trait resolution algorithm, a type providing a generic
+/// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
+/// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
+/// trait bounds are respected as well).
+pub trait Dispatch<I, UserData, State = Self>
+where
+    Self: Sized,
+    I: Proxy,
+    State: Dispatch<I, UserData, State>,
+{
     /// Called when an event from the server is processed
     ///
     /// This method contains your logic for processing events, which can vary wildly from an object to the
@@ -46,12 +109,12 @@ pub trait Dispatch<I: Proxy, UserData>: Sized {
     /// - a reference to a [`QueueHandle`] associated with the [`EventQueue`] currently processing events, in
     ///   case you need to create new objects that you want associated to the same [`EventQueue`].
     fn event(
-        &mut self,
+        state: &mut State,
         proxy: &I,
         event: I::Event,
         data: &UserData,
         conn: &Connection,
-        qhandle: &QueueHandle<Self>,
+        qhandle: &QueueHandle<State>,
     );
 
     /// Method used to initialize the user-data of objects created by events
@@ -59,7 +122,7 @@ pub trait Dispatch<I: Proxy, UserData>: Sized {
     /// If the interface does not have any such event, you can ignore it. If not, the
     /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
     #[cfg_attr(coverage, no_coverage)]
-    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<Self>) -> Arc<dyn ObjectData> {
+    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",
             opcode,
@@ -494,7 +557,7 @@ impl<State: 'static> QueueHandle<State> {
         user_data: U,
     ) -> Arc<dyn ObjectData>
     where
-        State: Dispatch<I, U>,
+        State: Dispatch<I, U, State>,
     {
         let sender: Box<dyn ErasedQueueSender<I> + Send + Sync> =
             Box::new(QueueSender { func: queue_callback::<I, U, State>, handle: self.clone() });
@@ -511,7 +574,7 @@ impl<State: 'static> QueueHandle<State> {
                             return None;
                         }
                         Argument::NewId(_) => {
-                            return Some(<State as Dispatch<I, U>>::event_created_child(
+                            return Some(<State as Dispatch<I, U, State>>::event_created_child(
                                 msg.opcode, &qhandle,
                             ));
                         }
@@ -527,7 +590,11 @@ impl<State: 'static> QueueHandle<State> {
     }
 }
 
-fn queue_callback<I: Proxy + 'static, U: Send + Sync + 'static, State: Dispatch<I, U> + 'static>(
+fn queue_callback<
+    I: Proxy + 'static,
+    U: Send + Sync + 'static,
+    State: Dispatch<I, U, State> + 'static,
+>(
     handle: &Connection,
     msg: Message<ObjectId>,
     data: &mut State,
@@ -537,7 +604,14 @@ fn queue_callback<I: Proxy + 'static, U: Send + Sync + 'static, State: Dispatch<
     let (proxy, event) = I::parse_event(handle, msg)?;
     let proxy_data =
         (&*odata).downcast_ref::<QueueProxyData<I, U>>().expect("Wrong user_data value for object");
-    data.event(&proxy, event, &proxy_data.udata, handle, qhandle);
+    <State as Dispatch<I, U, State>>::event(
+        data,
+        &proxy,
+        event,
+        &proxy_data.udata,
+        handle,
+        qhandle,
+    );
     Ok(())
 }
 
@@ -582,85 +656,8 @@ impl ObjectData for TemporaryData {
  * Dispatch delegation helpers
  */
 
-/// A trait which defines a delegate type to handle some type of proxy.
-///
-/// This trait is useful for building modular handlers of proxies. It describes the fact that your type is
-/// able to process events for a given kind of Wayland object, and downstream users can use it by delegating
-/// their [`Dispatch`] implementation to it
-///
-/// ## Usage
-///
-/// To explain the trait, let's implement a delegate for handling the events from
-/// [`WlRegistry`](crate::protocol::wl_registry::WlRegistry).
-///
-/// ```
-/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
-/// use wayland_client::{protocol::wl_registry, DelegateDispatch, Dispatch};
-///
-/// /// The type we want to delegate to
-/// struct DelegateToMe;
-///
-/// /// The user data relevant for your implementation.
-/// /// When providing delegate implementation, it is recommended to use your own type here, even if it is
-/// /// just a unit struct: using () would cause a risk of clashing with an other such implementation.
-/// struct MyUserData;
-///
-/// // Now implement DelegateDispatch.
-/// impl<D> DelegateDispatch<wl_registry::WlRegistry, MyUserData, D> for DelegateToMe
-/// where
-///     // `D` is the type which has delegated to this type.
-///     D: Dispatch<wl_registry::WlRegistry, MyUserData>,
-///     // If your delegate type has some internal state, it'll need to access it, and you can
-///     // require it via an AsMut<_> implementation for example
-///     D: AsMut<DelegateToMe>,
-/// {
-///     fn event(
-///         data: &mut D,
-///         _proxy: &wl_registry::WlRegistry,
-///         _event: wl_registry::Event,
-///         _udata: &MyUserData,
-///         _conn: &wayland_client::Connection,
-///         _qhandle: &wayland_client::QueueHandle<D>,
-///     ) {
-///         // Here the delegate may handle incoming events as it pleases.
-///
-///         // For example, it retrives its state and does some processing with it
-///         let me: &mut DelegateToMe = data.as_mut();
-///         // do something with `me` ...
-/// #       std::mem::drop(me) // use `me` to avoid a warning
-///     }
-/// }
-/// ```
-pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
-    /// Called when an event from the server is processed.
-    ///
-    /// The implementation of this function may vary depending on protocol requirements. Typically the client
-    /// will respond to the server by sending requests to the proxy.
-    fn event(
-        data: &mut D,
-        proxy: &I,
-        event: I::Event,
-        udata: &U,
-        conn: &Connection,
-        qhandle: &QueueHandle<D>,
-    );
-
-    /// Method used to initialize the user-data of objects created by events
-    ///
-    /// If the interface does not have any such event, you can ignore it. If not, the
-    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
-    #[cfg_attr(coverage, no_coverage)]
-    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<D>) -> Arc<dyn ObjectData> {
-        panic!(
-            "Missing event_created_child specialization for event opcode {} of {}",
-            opcode,
-            I::interface().name
-        );
-    }
-}
-
-/// A helper macro which delegates a set of [`Dispatch`] implementations for a proxy to some other type which
-/// implements [`DelegateDispatch`] for each proxy.
+/// A helper macro which delegates a set of [`Dispatch`] implementations for proxies to some other type which
+/// provides a generic [`Dispatch`] implementation.
 ///
 /// This macro allows more easily delegating smaller parts of the protocol an application may wish to handle
 /// in a modular fashion.
@@ -668,28 +665,27 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 /// # Usage
 ///
 /// For example, say you want to delegate events for [`WlRegistry`](crate::protocol::wl_registry::WlRegistry)
-/// to some other type.
-///
-/// For brevity, we will use the example in the documentation for [`DelegateDispatch`], `DelegateToMe`.
+/// to the struct `DelegateToMe` for the [`Dispatch`] documentatione example.
 ///
 /// ```
 /// use wayland_client::{delegate_dispatch, protocol::wl_registry};
 /// #
-/// # use wayland_client::{DelegateDispatch, Dispatch};
+/// # use wayland_client::Dispatch;
 /// #
 /// # struct DelegateToMe;
+/// # struct MyUserData;
 /// #
-/// # impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for DelegateToMe
+/// # impl<State> Dispatch<wl_registry::WlRegistry, MyUserData, State> for DelegateToMe
 /// # where
-/// #     D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<DelegateToMe>,
+/// #     State: Dispatch<wl_registry::WlRegistry, MyUserData> + AsMut<DelegateToMe>,
 /// # {
 /// #     fn event(
-/// #         _data: &mut D,
+/// #         _state: &mut State,
 /// #         _proxy: &wl_registry::WlRegistry,
 /// #         _event: wl_registry::Event,
-/// #         _udata: &(),
+/// #         _udata: &MyUserData,
 /// #         _conn: &wayland_client::Connection,
-/// #         _qhandle: &wayland_client::QueueHandle<D>,
+/// #         _qhandle: &wayland_client::QueueHandle<State>,
 /// #     ) {
 /// #     }
 /// # }
@@ -702,10 +698,11 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 ///     delegate: DelegateToMe,
 /// }
 ///
-/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry> for ExampleApp with unit as the user data.
-/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry: ()] => DelegateToMe);
+/// // Use delegate_dispatch to implement Dispatch<wl_registry::WlRegistry, MyUserData> for ExampleApp
+/// delegate_dispatch!(ExampleApp: [wl_registry::WlRegistry: MyUserData] => DelegateToMe);
 ///
-/// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the trait implementation.
+/// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the
+/// // trait implementation.
 /// impl AsMut<DelegateToMe> for ExampleApp {
 ///     fn as_mut(&mut self) -> &mut DelegateToMe {
 ///         &mut self.delegate
@@ -719,7 +716,7 @@ pub trait DelegateDispatch<I: Proxy, U, D: Dispatch<I, U>> {
 /// // Assert ExampleApp can Dispatch events for wl_registry
 /// fn assert_is_registry_delegate<T>()
 /// where
-///     T: Dispatch<wl_registry::WlRegistry, ()>,
+///     T: Dispatch<wl_registry::WlRegistry, MyUserData>,
 /// {
 /// }
 ///
@@ -745,21 +742,21 @@ macro_rules! delegate_dispatch {
         $(
             impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
                 fn event(
-                    &mut self,
+                    state: &mut Self,
                     proxy: &$interface,
                     event: <$interface as $crate::Proxy>::Event,
                     data: &$user_data,
                     conn: &$crate::Connection,
                     qhandle: &$crate::QueueHandle<Self>,
                 ) {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event(self, proxy, event, data, conn, qhandle)
+                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event(state, proxy, event, data, conn, qhandle)
                 }
 
                 fn event_created_child(
                     opcode: u16,
                     qhandle: &$crate::QueueHandle<Self>
                 ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::DelegateDispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
+                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
                 }
             }
         )*

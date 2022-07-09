@@ -138,20 +138,20 @@ struct ServerUData(Arc<AtomicBool>);
 
 impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        state: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
-        data_init.init(output, ServerUData(self.destructor_called.clone()));
+        data_init.init(output, ServerUData(state.destructor_called.clone()));
     }
 }
 
 impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_output::WlOutput,
         _: ways::protocol::wl_output::Request,
@@ -162,7 +162,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for Server
     }
 
     fn destroyed(
-        &mut self,
+        _: &mut Self,
         _client: wayland_backend::server::ClientId,
         _resource: wayland_backend::server::ObjectId,
         data: &ServerUData,

@@ -132,7 +132,7 @@ struct ServerHandler;
 
 impl ways::GlobalDispatch<wl_compositor::WlCompositor, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_compositor::WlCompositor>,
@@ -149,7 +149,7 @@ impl ways::GlobalDispatch<wl_compositor::WlCompositor, ()> for ServerHandler {
 
 impl ways::GlobalDispatch<wl_shm::WlShm, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_shm::WlShm>,
@@ -166,7 +166,7 @@ impl ways::GlobalDispatch<wl_shm::WlShm, ()> for ServerHandler {
 
 impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_output::WlOutput>,

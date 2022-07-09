@@ -127,7 +127,7 @@ struct ServerHandler {
 
 impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
@@ -145,7 +145,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerH
 
 impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_surface::WlSurface,
         request: ways::protocol::wl_surface::Request,
@@ -156,8 +156,8 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler
         if let ways::protocol::wl_surface::Request::Attach { buffer, x, y } = request {
             assert_eq!(x, 0);
             assert_eq!(y, 0);
-            assert!(self.buffer_found.is_none());
-            self.buffer_found = Some(buffer);
+            assert!(state.buffer_found.is_none());
+            state.buffer_found = Some(buffer);
         } else {
             panic!("Unexpected request!");
         }
@@ -166,7 +166,7 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler
 
 impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_shm::WlShm,
         request: ways::protocol::wl_shm::Request,
@@ -176,8 +176,8 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
     ) {
         if let ways::protocol::wl_shm::Request::CreatePool { fd, size, id } = request {
             assert_eq!(size, 42);
-            assert!(self.buffer_found.is_none());
-            self.fd_found = Some((fd, None));
+            assert!(state.buffer_found.is_none());
+            state.fd_found = Some((fd, None));
             init.init(id, ());
         } else {
             panic!("Unexpected request!");
@@ -187,7 +187,7 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
 
 impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_shm_pool::WlShmPool,
         request: ways::protocol::wl_shm_pool::Request,
@@ -196,7 +196,7 @@ impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool, ()> for ServerHandle
         init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_shm_pool::Request::CreateBuffer { id, .. } = request {
-            let fd_found = self.fd_found.as_mut().unwrap();
+            let fd_found = state.fd_found.as_mut().unwrap();
             assert!(fd_found.1.is_none());
             fd_found.1 = Some(init.init(id, ()));
         }

@@ -370,7 +370,7 @@ client_ignore_impl!(ClientHandler => [
 
 impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ()> for ClientHandler {
     fn event(
-        &mut self,
+        state: &mut Self,
         data_device: &wayc::protocol::wl_data_device::WlDataDevice,
         event: wayc::protocol::wl_data_device::Event,
         _: &(),
@@ -378,11 +378,11 @@ impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ()> for Client
         _: &wayc::QueueHandle<Self>,
     ) {
         if conn.object_info(data_device.id()).is_err() {
-            self.received_dead = true;
+            state.received_dead = true;
         }
         match event {
             CDDEvt::DataOffer { id } => {
-                self.data_offer = Some(id);
+                state.data_offer = Some(id);
             }
             _ => unimplemented!(),
         }
@@ -395,7 +395,7 @@ impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ()> for Client
 
 impl wayc::Dispatch<ClientDO, ()> for ClientHandler {
     fn event(
-        &mut self,
+        state: &mut Self,
         _: &ClientDO,
         event: wayc::protocol::wl_data_offer::Event,
         _: &(),
@@ -404,7 +404,7 @@ impl wayc::Dispatch<ClientDO, ()> for ClientHandler {
     ) {
         match event {
             wayc::protocol::wl_data_offer::Event::Offer { mime_type } => {
-                self.received = Some(mime_type);
+                state.received = Some(mime_type);
             }
             _ => unimplemented!(),
         }
@@ -428,7 +428,7 @@ server_ignore_global_impl!(ServerHandler => [
 
 impl ways::Dispatch<ServerDDMgr, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ServerDDMgr,
         request: SDDMReq,
@@ -439,7 +439,7 @@ impl ways::Dispatch<ServerDDMgr, ()> for ServerHandler {
         match request {
             SDDMReq::GetDataDevice { id, .. } => {
                 let dd = data_init.init(id, ());
-                self.data_device = Some(dd);
+                state.data_device = Some(dd);
             }
             _ => {
                 unimplemented!()
