@@ -134,7 +134,7 @@ macro_rules! client_ignore_impl {
         $(
             impl $crate::helpers::wayc::Dispatch<$iface, ()> for $handler {
                 fn event(
-                    &mut self,
+                    _: &mut Self,
                     _: &$iface,
                     _: <$iface as $crate::helpers::wayc::Proxy>::Event,
                     _: &(),
@@ -152,7 +152,7 @@ macro_rules! server_ignore_impl {
         $(
             impl $crate::helpers::ways::Dispatch<$iface, ()> for $handler {
                 fn request(
-                    &mut self,
+                    _: &mut Self,
                     _: &$crate::helpers::ways::Client,
                     _: &$iface,
                     _: <$iface as $crate::helpers::ways::Resource>::Request,
@@ -172,7 +172,7 @@ macro_rules! server_ignore_global_impl {
             impl $crate::helpers::ways::GlobalDispatch<$iface, ()> for $handler {
 
                 fn bind(
-                    &mut self,
+                    _: &mut Self,
                     _: &$crate::helpers::ways::DisplayHandle,
                     _: &$crate::helpers::ways::Client,
                     new_id: $crate::helpers::ways::New<$iface>,

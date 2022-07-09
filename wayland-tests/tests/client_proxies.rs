@@ -190,7 +190,7 @@ struct ServerHandler {
 
 impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        state: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
@@ -198,13 +198,13 @@ impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHan
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
         let output = data_init.init(output, ());
-        self.output = Some(output);
+        state.output = Some(output);
     }
 }
 
 impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
@@ -214,7 +214,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerH
     ) {
         if let ways::protocol::wl_compositor::Request::CreateSurface { id } = request {
             let surface = data_init.init(id, ());
-            let output = self.output.clone().unwrap();
+            let output = state.output.clone().unwrap();
             assert!(dhandle.object_info(output.id()).is_ok());
             surface.enter(&output);
         }
@@ -253,7 +253,7 @@ wayc::delegate_dispatch!(ClientHandler:
 
 impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor, usize> for ClientHandler {
     fn event(
-        &mut self,
+        _: &mut Self,
         _: &wayc::protocol::wl_compositor::WlCompositor,
         _: wayc::protocol::wl_compositor::Event,
         _: &usize,
@@ -265,7 +265,7 @@ impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor, usize> for Clie
 
 impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ()> for ClientHandler {
     fn event(
-        &mut self,
+        state: &mut Self,
         _: &wayc::protocol::wl_surface::WlSurface,
         event: wayc::protocol::wl_surface::Event,
         _: &(),
@@ -274,7 +274,7 @@ impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ()> for ClientHandler
     ) {
         if let wayc::protocol::wl_surface::Event::Enter { output } = event {
             assert!(conn.get_object_data(output.id()).is_err());
-            self.entered = true;
+            state.entered = true;
         } else {
             panic!("Unexpected event: {:?}", event);
         }

@@ -227,15 +227,15 @@ struct ServerHandler {
 
 impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        state: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
-        let output = data_init.init(output, UData(1000 + self.outputs.len()));
-        self.outputs.push(output);
+        let output = data_init.init(output, UData(1000 + state.outputs.len()));
+        state.outputs.push(output);
     }
 }
 
@@ -243,7 +243,7 @@ struct UData(usize);
 
 impl ways::Dispatch<wl_output::WlOutput, UData> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &wl_output::WlOutput,
         _: wl_output::Request,

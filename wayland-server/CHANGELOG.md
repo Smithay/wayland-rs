@@ -5,6 +5,8 @@
 #### Breaking changes
 
 - `Connection::null_id()` has been removed, instead use `ObjectId::null()`.
+- The traits `DelegateDispatch` and `DelegeteGlobalDispatch` have been removed, their functionnality being
+  fused into more generic versions of the `Dispatch` and `GlobalDispatch` traits.
 
 ## 0.30.0-beta.4
 

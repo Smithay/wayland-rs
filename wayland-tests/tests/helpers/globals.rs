@@ -2,9 +2,7 @@
 
 use std::ops::Range;
 
-use wayland_client::{
-    protocol::wl_registry, Connection, DelegateDispatch, Dispatch, Proxy, QueueHandle,
-};
+use wayland_client::{protocol::wl_registry, Connection, Dispatch, Proxy, QueueHandle};
 
 /// Description of an advertized global
 #[derive(Debug)]
@@ -28,7 +26,7 @@ pub struct GlobalList {
     globals: Vec<GlobalDescription>,
 }
 
-impl<D> DelegateDispatch<wl_registry::WlRegistry, (), D> for GlobalList
+impl<D> Dispatch<wl_registry::WlRegistry, (), D> for GlobalList
 where
     D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<GlobalList>,
 {
@@ -58,22 +56,6 @@ where
 impl AsMut<GlobalList> for GlobalList {
     fn as_mut(&mut self) -> &mut GlobalList {
         self
-    }
-}
-
-impl Dispatch<wl_registry::WlRegistry, ()> for GlobalList {
-    #[inline]
-    fn event(
-        &mut self,
-        proxy: &wl_registry::WlRegistry,
-        event: wl_registry::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        <Self as DelegateDispatch<wl_registry::WlRegistry, (), Self>>::event(
-            self, proxy, event, data, conn, qhandle,
-        )
     }
 }
 

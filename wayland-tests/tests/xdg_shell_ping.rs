@@ -43,7 +43,7 @@ struct ServerHandler {
 
 impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<xs_server::xdg_wm_base::XdgWmBase>,
@@ -57,7 +57,7 @@ impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandl
 
 impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &xs_server::xdg_wm_base::XdgWmBase,
         request: xs_server::xdg_wm_base::Request,
@@ -68,7 +68,7 @@ impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
         match request {
             xs_server::xdg_wm_base::Request::Pong { serial } => {
                 assert_eq!(serial, 42);
-                self.received_pong = true;
+                state.received_pong = true;
             }
             _ => unreachable!(),
         }
@@ -97,7 +97,7 @@ wayc::delegate_dispatch!(ClientHandler:
 
 impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ()> for ClientHandler {
     fn event(
-        &mut self,
+        _: &mut Self,
         wm_base: &xs_client::xdg_wm_base::XdgWmBase,
         event: xs_client::xdg_wm_base::Event,
         _: &(),
