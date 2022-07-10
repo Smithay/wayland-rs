@@ -8,6 +8,10 @@
 - The traits `DelegateDispatch` and `DelegeteGlobalDispatch` have been removed, their functionnality being
   fused into more generic versions of the `Dispatch` and `GlobalDispatch` traits.
 
+#### Additions
+
+- Introduce the `log` cargo feature to control logging behavior.
+
 ## 0.30.0-beta.4
 
 #### Breaking changes

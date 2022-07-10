@@ -10,6 +10,10 @@
 - The trait `DelegateDispatch` as been removed, its functionnality being fused into a more generic
   version of the `Dispatch` trait.
 
+#### Additions
+
+- Introduce the `log` cargo feature to control logging behavior
+
 ## 0.30.0-beta.6
 
 - Introduce `EventQueue::poll_dispatch_pending` for running dispatch using an async runtime.

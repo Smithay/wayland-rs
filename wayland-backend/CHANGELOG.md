@@ -11,6 +11,7 @@
 
 - client: introduce `Backend::dispatch_inner_queue()` meant for ensuring a system backend in guest mode can
   still process events event it does not control reading the socket.
+- introduce the `log` cargo feature to control logging behavior
 
 ## 0.1.0-beta.7
 
