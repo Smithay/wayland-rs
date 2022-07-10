@@ -3,7 +3,7 @@
 use std::{
     collections::HashSet,
     ffi::CStr,
-    os::raw::{c_char, c_int, c_void},
+    os::raw::{c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -223,6 +223,7 @@ impl InnerBackend {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
         // set the log trampoline
+        #[cfg(feature = "log")]
         unsafe {
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
@@ -329,7 +330,7 @@ impl ConnectionState {
         } else {
             WaylandError::Io(err)
         };
-        log::error!("{}", err);
+        crate::log_error!("{}", err);
         self.last_error = Some(err.clone());
         err
     }
@@ -788,7 +789,7 @@ unsafe extern "C" fn dispatcher_func(
     let message_desc = match interface.events.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            crate::log_error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
             return -1;
         }
     };
@@ -836,7 +837,7 @@ unsafe extern "C" fn dispatcher_func(
                                 as *mut ProxyUserData)
                         };
                         if !same_interface(next_interface, obj_udata.interface) {
-                            log::error!(
+                            crate::log_error!(
                                 "Received object {}@{} in {}.{} but expected interface {}.",
                                 obj_udata.interface.name,
                                 obj_id,
@@ -881,7 +882,7 @@ unsafe extern "C" fn dispatcher_func(
                 // this is a newid, it needs to be initialized
                 if !obj.is_null() {
                     let child_interface = message_desc.child_interface.unwrap_or_else(|| {
-                        log::warn!(
+                        crate::log_warn!(
                             "Event {}.{} creates an anonymous object.",
                             interface.name,
                             opcode
@@ -977,8 +978,9 @@ unsafe extern "C" fn dispatcher_func(
     0
 }
 
+#[cfg(feature = "log")]
 extern "C" {
-    fn wl_log_trampoline_to_rust_client(fmt: *const c_char, list: *const c_void);
+    fn wl_log_trampoline_to_rust_client(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 
 impl Drop for ConnectionState {

@@ -2,7 +2,7 @@
 
 use std::{
     ffi::{CStr, CString},
-    os::raw::{c_char, c_void},
+    os::raw::c_void,
     os::unix::{
         io::{IntoRawFd, RawFd},
         net::UnixStream,
@@ -270,6 +270,7 @@ impl<D> InnerBackend<D> {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
 
+        #[cfg(feature = "log")]
         unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -1262,7 +1263,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     let message_desc = match interface.requests.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            crate::log_error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
             return -1;
         }
     };
@@ -1471,8 +1472,9 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
     }
 }
 
+#[cfg(feature = "log")]
 extern "C" {
-    fn wl_log_trampoline_to_rust_server(fmt: *const c_char, list: *const c_void);
+    fn wl_log_trampoline_to_rust_server(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 
 struct UninitObjectData;

@@ -541,7 +541,7 @@ pub(crate) trait ErasedQueueSender<I> {
 impl<I: Proxy, State> ErasedQueueSender<I> for QueueSender<State> {
     fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
         if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
-            log::error!("Event received for EventQueue after it was dropped.");
+            crate::log_error!("Event received for EventQueue after it was dropped.");
         }
     }
 }

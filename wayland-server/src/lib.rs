@@ -1,3 +1,10 @@
+//!
+//! ## Logging
+//!
+//! This crate can generate some runtime error message (notably when a protocol error occurs). By default
+//! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
+//! piped through the `log` crate.
+
 #![warn(missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
@@ -36,6 +43,16 @@ pub mod protocol {
     }
     wayland_scanner::generate_server_code!("wayland.xml");
 }
+
+// internal imports for dispatching logging depending on the `log` feature
+#[cfg(feature = "log")]
+#[allow(unused_imports)]
+use log::{debug as log_debug, error as log_error, info as log_info, warn as log_warn};
+#[cfg(not(feature = "log"))]
+#[allow(unused_imports)]
+use std::{
+    eprintln as log_error, eprintln as log_warn, eprintln as log_info, eprintln as log_debug,
+};
 
 pub trait Resource: Sized {
     type Event;

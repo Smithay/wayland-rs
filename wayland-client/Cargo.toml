@@ -19,10 +19,9 @@ thiserror = "1.0.2"
 nix = { version = "0.24.1", default-features = false }
 futures-channel = "0.3.16"
 futures-core = "0.3"
-log = "0.4"
+log = { version = "0.4", optional = true }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 futures-util = "0.3"
 tempfile = "3.2"
-

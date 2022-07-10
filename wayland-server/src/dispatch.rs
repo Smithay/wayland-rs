@@ -188,7 +188,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         let client = match Client::from_id(&dhandle, client_id) {
             Ok(v) => v,
             Err(_) => {
-                log::error!("Receiving a request from a dead client ?!");
+                crate::log_error!("Receiving a request from a dead client ?!");
                 return None;
             }
         };
@@ -196,7 +196,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         let (resource, request) = match I::parse_request(&dhandle, msg) {
             Ok(v) => v,
             Err(e) => {
-                log::warn!("Dispatching error encountered: {:?}, killing client.", e);
+                crate::log_warn!("Dispatching error encountered: {:?}, killing client.", e);
                 // TODO: Kill client
                 return None;
             }

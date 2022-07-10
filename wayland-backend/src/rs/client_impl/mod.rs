@@ -406,7 +406,7 @@ impl InnerBackend {
                 &args,
             );
         }
-        log::debug!("Sending {}.{} ({})", id, message_desc.name, DisplaySlice(&args));
+        crate::log_debug!("Sending {}.{} ({})", id, message_desc.name, DisplaySlice(&args));
 
         // Send the message
 
@@ -509,7 +509,7 @@ impl ProtocolState {
     #[inline]
     fn store_and_return_error(&mut self, err: impl Into<WaylandError>) -> WaylandError {
         let err = err.into();
-        log::error!("{}", err);
+        crate::log_error!("{}", err);
         self.last_error = Some(err.clone());
         err
     }
@@ -760,7 +760,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
 
         // unlock the mutex while we invoke the user callback
         std::mem::drop(guard);
-        log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
+        crate::log_debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
         let ret = receiver
             .data
             .user_data
