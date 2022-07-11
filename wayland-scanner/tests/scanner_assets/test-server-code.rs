@@ -303,8 +303,10 @@ pub mod test_global {
                                 signed_int: *signed_int,
                                 fixed_point: (*fixed_point as f64) / 256.,
                                 number_array: *number_array.clone(),
-                                some_text: String::from_utf8_lossy(some_text.as_bytes())
-                                    .into_owned(),
+                                some_text: String::from_utf8_lossy(
+                                    some_text.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 file_descriptor: *file_descriptor,
                             },
                         ))
@@ -535,7 +537,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Box::new(std::ffi::CString::new(some_text).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
                         Argument::Fd(file_descriptor)
                     ],
                 }),

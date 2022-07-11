@@ -543,7 +543,7 @@ impl ProtocolState {
         match message.opcode {
             0 => {
                 // wl_display.error
-                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(ref message)] =
+                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(Some(ref message))] =
                     message.args[..]
                 {
                     let object = self.map.find(obj);

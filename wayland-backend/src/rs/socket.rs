@@ -375,7 +375,7 @@ mod tests {
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(Box::new(CString::new(&b"I like trains!"[..]).unwrap())),
+                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
                 Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
                 Argument::Object(88),
                 Argument::NewId(56),
@@ -459,7 +459,7 @@ mod tests {
                 opcode: 0,
                 args: smallvec![
                     Argument::Int(42),
-                    Argument::Str(Box::new(CString::new(&b"I like trains"[..]).unwrap())),
+                    Argument::Str(Some(Box::new(CString::new(&b"I like trains"[..]).unwrap()))),
                 ],
             },
             Message {
@@ -520,7 +520,7 @@ mod tests {
             opcode: 0,
             args: smallvec![
                 Argument::Uint(18),
-                Argument::Str(Box::new(CString::new(&b"wl_shell"[..]).unwrap())),
+                Argument::Str(Some(Box::new(CString::new(&b"wl_shell"[..]).unwrap()))),
                 Argument::Uint(1),
             ],
         };

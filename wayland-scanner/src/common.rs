@@ -329,20 +329,13 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                     Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name: *#arg_name },
                     Type::Fixed => quote!{ #arg_name: (*#arg_name as f64) / 256.},
                     Type::String => {
-                        let string_conversion = quote! {
-                            String::from_utf8_lossy(#arg_name.as_bytes()).into_owned()
-                        };
-
                         if arg.allow_null {
                             quote! {
-                                #arg_name: {
-                                    let s = #string_conversion;
-                                    if s.len() == 0 { None } else { Some(s) }
-                                }
+                                #arg_name: #arg_name.as_ref().map(|s| String::from_utf8_lossy(s.as_bytes()).into_owned())
                             }
                         } else {
                             quote! {
-                                #arg_name: #string_conversion
+                                #arg_name: String::from_utf8_lossy(#arg_name.as_ref().unwrap().as_bytes()).into_owned()
                             }
                         }
                     },
@@ -483,9 +476,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     quote! { Argument::Array(Box::new(#arg_name)) }
                 },
                 Type::String => if arg.allow_null {
-                    quote! { if let Some(string) = #arg_name { Argument::Str(Box::new(std::ffi::CString::new(string).unwrap())) } else { Argument::Str(Box::new(std::ffi::CString::new(Vec::new()).unwrap())) }}
+                    quote! { Argument::Str(#arg_name.map(|s| Box::new(std::ffi::CString::new(s).unwrap()))) }
                 } else {
-                    quote! { Argument::Str(Box::new(std::ffi::CString::new(#arg_name).unwrap())) }
+                    quote! { Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name).unwrap()))) }
                 },
                 Type::NewId => if side == Side::Client {
                     if let Some(ref created_interface) = arg.interface {
@@ -498,7 +491,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         } }
                     } else {
                         quote! {
-                            Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())),
+                            Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap()))),
                             Argument::Uint(#arg_name.1),
                             {
                                 child_spec = Some((#arg_name.0, #arg_name.1));

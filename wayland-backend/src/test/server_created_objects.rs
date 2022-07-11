@@ -136,9 +136,9 @@ expand_test!(server_created_object, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(1),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],

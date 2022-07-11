@@ -6,6 +6,8 @@
 
 - all backends: creating null `ObjectId` is now done through the `ObjectId::null()` method, and the
   `null_id()` methods on the backends are removed.
+- `Argument::Str` now contains an `Option`, which is correctly mapped to nullable strings. This fixes
+  segfaults that previously occurred dereferencing the null pointer in the system backend.
 
 #### Additions
 

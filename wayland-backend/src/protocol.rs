@@ -55,7 +55,7 @@ pub enum Argument<Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Box<CString>),
+    Str(Option<Box<CString>>),
     /// Id of a wayland object
     Object(Id),
     /// Id of a newly created wayland object
