@@ -877,7 +877,8 @@ impl<D: 'static> ErasedState for State<D> {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
@@ -1287,8 +1288,12 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Str(_) => {
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland is valid
-                let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                parsed_args.push(Argument::Str(Box::new(cstr.into())));
+                if !ptr.is_null() {
+                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
+                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                } else {
+                    parsed_args.push(Argument::Str(None));
+                }
             }
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_resource };

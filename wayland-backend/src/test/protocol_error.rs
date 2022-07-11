@@ -70,9 +70,9 @@ expand_test!(protocol_error, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -274,9 +274,9 @@ expand_test!(protocol_error_in_request_without_object_init, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],

@@ -148,9 +148,9 @@ expand_test!(create_objects, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -247,9 +247,9 @@ expand_test!(panic bad_interface, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -307,9 +307,9 @@ expand_test!(panic double_null, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -364,9 +364,9 @@ expand_test!(null_obj_followed_by_interface, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -433,9 +433,9 @@ expand_test!(new_id_null_and_non_null, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Box::new(
+                    Argument::Str(Some(Box::new(
                         CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    )),
+                    ))),
                     Argument::Uint(5),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],

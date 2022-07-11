@@ -276,7 +276,7 @@ impl<D> Client<D> {
                 [
                     Argument::Object(ObjectId { id: object_id.clone() }),
                     Argument::Uint(error_code),
-                    Argument::Str(Box::new(message)),
+                    Argument::Str(Some(Box::new(message))),
                 ],
             ),
             // wl_display.error is not a destructor, this argument will not be used
@@ -481,7 +481,7 @@ impl<D> Client<D> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
-                if let [Argument::Uint(name), Argument::Str(ref interface_name), Argument::Uint(version), Argument::NewId(new_id)] =
+                if let [Argument::Uint(name), Argument::Str(Some(ref interface_name)), Argument::Uint(version), Argument::NewId(new_id)] =
                     message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =

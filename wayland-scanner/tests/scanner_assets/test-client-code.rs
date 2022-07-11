@@ -163,7 +163,10 @@ pub mod wl_display {
                             Event::Error {
                                 object_id: object_id.clone(),
                                 code: *code,
-                                message: String::from_utf8_lossy(message.as_bytes()).into_owned(),
+                                message: String::from_utf8_lossy(
+                                    message.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                             },
                         ))
                     } else {
@@ -380,8 +383,10 @@ pub mod wl_registry {
                             me,
                             Event::Global {
                                 name: *name,
-                                interface: String::from_utf8_lossy(interface.as_bytes())
-                                    .into_owned(),
+                                interface: String::from_utf8_lossy(
+                                    interface.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 version: *version,
                             },
                         ))
@@ -409,7 +414,7 @@ pub mod wl_registry {
                     let mut child_spec = None;
                     let args = smallvec::smallvec![
                         Argument::Uint(name),
-                        Argument::Str(Box::new(std::ffi::CString::new(id.0.name).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(id.0.name).unwrap()))),
                         Argument::Uint(id.1),
                         {
                             child_spec = Some((id.0, id.1));
@@ -750,8 +755,10 @@ pub mod test_global {
                                 signed_int: *signed_int,
                                 fixed_point: (*fixed_point as f64) / 256.,
                                 number_array: *number_array.clone(),
-                                some_text: String::from_utf8_lossy(some_text.as_bytes())
-                                    .into_owned(),
+                                some_text: String::from_utf8_lossy(
+                                    some_text.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 file_descriptor: *file_descriptor,
                             },
                         ))
@@ -846,7 +853,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Box::new(std::ffi::CString::new(some_text).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
                         Argument::Fd(file_descriptor)
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
