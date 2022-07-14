@@ -7,6 +7,7 @@ use wayland_backend::{
 
 use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
 
+/// A struct representing a Wayland client connected to your compositor.
 #[derive(Debug)]
 pub struct Client {
     pub(crate) id: ClientId,
@@ -19,14 +20,25 @@ impl Client {
         Ok(Self { id, data })
     }
 
+    /// The backend [`ClientId`] of this client
     pub fn id(&self) -> ClientId {
         self.id.clone()
     }
 
+    /// Access the data associated to this client
+    ///
+    /// Returns [`None`] if the provided `Data` type parameter is not the correct one.
     pub fn get_data<Data: ClientData + 'static>(&self) -> Option<&Data> {
         (&*self.data).downcast_ref()
     }
 
+    /// Access the pid/uid/gid of this client
+    ///
+    /// **Note:** You should be careful if you plan tu use this for security purposes, as it is possible for
+    /// programs to spoof this kind of information.
+    ///
+    /// For a discussion about the subject of securely identifying clients, see
+    /// <https://gitlab.freedesktop.org/wayland/weston/-/issues/206>
     pub fn get_credentials(
         &self,
         handle: &DisplayHandle,
@@ -34,6 +46,11 @@ impl Client {
         handle.handle.get_client_credentials(self.id.clone())
     }
 
+    /// Create a new Wayland object in the protocol state of this client
+    ///
+    /// The newly created resource should be immediately sent to the client through an associated event with
+    /// a `new_id` argument. Not doing so risks corrupting the protocol state and causing protocol errors at
+    /// a later time.
     pub fn create_resource<
         I: Resource + 'static,
         U: Send + Sync + 'static,
@@ -53,6 +70,14 @@ impl Client {
         I::from_id(handle, id)
     }
 
+    /// Create a new Wayland object in the protocol state of this client, from an [`ObjectData`]
+    ///
+    /// This is a lower-level method than [`create_resource`](Client::create_resource), in case you need to
+    /// bypass the [`Dispatch`] machinnery.
+    ///
+    /// The newly created resource should be immediately sent to the client through an associated event with
+    /// a `new_id` argument. Not doing so risks corrupting the protocol state and causing protocol errors at
+    /// a later time.
     pub fn create_resource_from_objdata<I: Resource + 'static, D: 'static>(
         &self,
         handle: &DisplayHandle,
@@ -64,6 +89,10 @@ impl Client {
         I::from_id(handle, id)
     }
 
+    /// Attempt to retrieve an object from this client's protocol state from its protocol id
+    ///
+    /// Will fail if either the provided protocol id does not correspond to any object, or if the
+    /// corresponding object is not of the interface `I`.
     pub fn object_from_protocol_id<I: Resource + 'static>(
         &self,
         handle: &DisplayHandle,
@@ -74,6 +103,7 @@ impl Client {
         I::from_id(handle, object_id)
     }
 
+    /// Kill this client by triggering a protocol error
     pub fn kill(&self, handle: &DisplayHandle, error: ProtocolError) {
         handle.handle.kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }

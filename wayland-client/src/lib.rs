@@ -42,10 +42,10 @@
 //! managing the newly created object.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`DelegateDispatch`] trait and
-//! [`delegate_dispatch!`] macro. This way, an other library (such as Smithay's Client Toolkit) can provide
-//! generic `Dispatch<_,_>` immplementations that you can reuse on your own app by delegating thos objects to
-//! that provided implementation. See the documentation of those traits and macro for details.
+//! easier a composition mechanism is provided using the [`delegate_dispatch!`] macro. This way, another
+//! library (such as Smithay's Client Toolkit) can provide generic [`Dispatch`] implementations that you
+//! can reuse on your own app by delegating those objects to that provided implementation. See the
+//! documentation of those traits and macro for details.
 //!
 //! ## Getting started example
 //!
@@ -228,7 +228,7 @@ pub trait Proxy: Sized {
     /// The interface description
     fn interface() -> &'static Interface;
 
-    /// he ID of this object
+    /// The ID of this object
     fn id(&self) -> ObjectId;
 
     /// The version of this object
