@@ -8,6 +8,8 @@
   `null_id()` methods on the backends are removed.
 - `Argument::Str` now contains an `Option`, which is correctly mapped to nullable strings. This fixes
   segfaults that previously occurred dereferencing the null pointer in the system backend.
+- server: `disable_global` and `remove_global` now require the state type parameter, like `create_global`.
+  This is required for compatibility with libwayland 1.21.
 
 #### Additions
 

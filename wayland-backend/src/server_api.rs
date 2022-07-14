@@ -435,9 +435,12 @@ impl Handle {
     /// Invoking this method on an already disabled or removed global does nothing. It is not possible to
     /// re-enable a disabled global, this method is meant to be invoked some time before actually removing
     /// the global, to avoid killing clients because of a race.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
-    pub fn disable_global(&self, id: GlobalId) {
-        self.handle.disable_global(id.id)
+    pub fn disable_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.disable_global::<D>(id.id)
     }
 
     /// Removes a global object and free its ressources.
@@ -451,9 +454,12 @@ impl Handle {
     /// (like `wl_output` or `wl_seat`).
     ///
     /// This methods does nothing if the provided `GlobalId` corresponds to an already removed global.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
-    pub fn remove_global(&self, id: GlobalId) {
-        self.handle.remove_global(id.id)
+    pub fn remove_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.remove_global::<D>(id.id)
     }
 
     /// Returns information about a global.

@@ -76,7 +76,7 @@ fn dynamic_global() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 3);
 
-    server.display.handle().remove_global(output);
+    server.display.handle().remove_global::<ServerHandler>(output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 2);

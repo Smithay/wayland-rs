@@ -105,12 +105,12 @@ impl DisplayHandle {
         )
     }
 
-    pub fn disable_global(&self, id: GlobalId) {
-        self.handle.disable_global(id)
+    pub fn disable_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.disable_global::<D>(id)
     }
 
-    pub fn remove_global(&self, id: GlobalId) {
-        self.handle.remove_global(id)
+    pub fn remove_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.remove_global::<D>(id)
     }
 }
 
