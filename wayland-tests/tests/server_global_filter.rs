@@ -51,7 +51,7 @@ fn global_filter() {
     // if a regular client received it, it would panic as the server destroyed an
     // unknown global
 
-    server.display.handle().remove_global(privileged_output);
+    server.display.handle().remove_global::<ServerHandler>(privileged_output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
