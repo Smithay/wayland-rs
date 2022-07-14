@@ -21,7 +21,6 @@ use smallvec::SmallVec;
 
 use super::{
     client::*,
-    debug::DisplaySlice,
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
     socket::{BufferedSocket, Socket},
     wire::MessageParseError,
@@ -406,7 +405,13 @@ impl InnerBackend {
                 &args,
             );
         }
-        crate::log_debug!("Sending {}.{} ({})", id, message_desc.name, DisplaySlice(&args));
+        #[cfg(feature = "log")]
+        crate::log_debug!(
+            "Sending {}.{} ({})",
+            id,
+            message_desc.name,
+            super::debug::DisplaySlice(&args)
+        );
 
         // Send the message
 
@@ -760,7 +765,13 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
 
         // unlock the mutex while we invoke the user callback
         std::mem::drop(guard);
-        crate::log_debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
+        #[cfg(feature = "log")]
+        crate::log_debug!(
+            "Dispatching {}.{} ({})",
+            id,
+            receiver.version,
+            super::debug::DisplaySlice(&args)
+        );
         let ret = receiver
             .data
             .user_data
