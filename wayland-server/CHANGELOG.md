@@ -9,6 +9,7 @@
   fused into more generic versions of the `Dispatch` and `GlobalDispatch` traits.
 - `DisplayHandle::disable_global()` and `DisplayHandle::remove_global()` now require the state type parameter,
   like `create_global`. This is required for compatibility with libwayland 1.21.
+- The `socket` module has been flattened into crate root.
 
 #### Additions
 

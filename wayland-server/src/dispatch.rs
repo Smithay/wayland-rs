@@ -20,6 +20,9 @@ use crate::{Client, DisplayHandle, Resource};
 /// [`Display`](crate::Display) for every request received by an object. Your implementation can then match
 /// on the associated [`Resource::Request`] enum and do any processing needed with that event.
 ///
+/// If the request being processed created a new object, you'll receive it as a [`New<I>`]. When that is the
+/// case, you *must* initialize it using the [`DataInit`] argument. **Failing to do so will cause a **panic**.
+///
 /// ## Modularity
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
@@ -31,7 +34,8 @@ use crate::{Client, DisplayHandle, Resource};
 /// specify an interface between your module and downstream code, as illustrated in this example:
 ///
 /// ```
-/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the delegate_dispatch macro.
+/// # // Maintainers: If this example changes, please make sure you also carry those changes over to the
+/// # // delegate_dispatch macro.
 /// use wayland_server::{protocol::wl_output, Dispatch};
 ///
 /// /// The type we want to delegate to
@@ -106,12 +110,15 @@ pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
     fn destroyed(_state: &mut State, _client: ClientId, _resource: ObjectId, _data: &UserData) {}
 }
 
+/// The [`ObjectData`] implementation that is internally used by this crate
 #[derive(Debug)]
 pub struct ResourceData<I, U> {
     marker: std::marker::PhantomData<fn(I)>,
+    /// The user-data associated with this object
     pub udata: U,
 }
 
+/// A newly created object that needs to be initialized. See [`DataInit`].
 #[derive(Debug)]
 pub struct New<I> {
     id: I,
@@ -125,12 +132,20 @@ impl<I> New<I> {
     }
 }
 
+/// Helper to initialize client-created objects
+///
+/// This helper is provided to you in your [`Dispatch`] and [`GlobalDispatch`](super::GlobalDispatch) to
+/// initialize objects created by the client, by assigning them their user-data (or [`ObjectData`] if you
+/// need to go this lower-level route).
+///
+/// This step is mandatory, and **failing to initialize a newly created object will cause a panic**.
 #[derive(Debug)]
 pub struct DataInit<'a, D: 'static> {
     pub(crate) store: &'a mut Option<Arc<dyn ObjectData<D>>>,
 }
 
 impl<'a, D> DataInit<'a, D> {
+    /// Initialize an object by assigning it its user-data
     pub fn init<I: Resource + 'static, U: Send + Sync + 'static>(
         &mut self,
         resource: New<I>,
@@ -150,8 +165,8 @@ impl<'a, D> DataInit<'a, D> {
     ///
     /// This object data is not managed by `wayland-server`, as a result you will not
     /// be able to retreive it through [`Resource::data()`](Resource::data).
-    /// Instead, you'll need to directly retrieve it using
-    /// [`DisplayHandle::get_object_data()`](DisplayHandle::get_object_data).
+    /// Instead, you'll need to retrieve it using [`Resource::object_data()`](Resource::object_data) and
+    /// handle the downcasting yourself.
     pub fn custom_init<I: Resource + 'static>(
         &mut self,
         resource: New<I>,
@@ -229,7 +244,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 }
 
 /// A helper macro which delegates a set of [`Dispatch`] implementations for a resource to some other type which
-/// implements [`DelegateDispatch`] for each resource.
+/// provides a generic [`Dispatch`] implementation.
 ///
 /// This macro allows more easily delegating smaller parts of the protocol a compositor may wish to handle
 /// in a modular fashion.
@@ -237,9 +252,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 /// # Usage
 ///
 /// For example, say you want to delegate events for [`WlOutput`](crate::protocol::wl_output::WlOutput)
-/// to some other type.
-///
-/// For brevity, we will use the example in the documentation for [`DelegateDispatch`], `DelegateToMe`.
+/// to the `DelegateToMe` type from the [`Dispatch`] documentation.
 ///
 /// ```
 /// use wayland_server::{delegate_dispatch, protocol::wl_output};
