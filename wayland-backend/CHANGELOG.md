@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-beta.8
+
 #### Breaking changes
 
 - all backends: creating null `ObjectId` is now done through the `ObjectId::null()` method, and the

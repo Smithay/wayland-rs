@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0-beta.8
+
 #### Breaking changes
 
 - `Display::null_id()` has been removed, instead use `ObjectId::null()`.
