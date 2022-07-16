@@ -7,7 +7,7 @@ use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    },
+    }, ffi::OsString
 };
 
 use wayland_backend::{
@@ -71,7 +71,7 @@ impl Connection {
             let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
                 .map(Into::<PathBuf>::into)
                 .ok_or(ConnectError::NoCompositor)?;
-            socket_path.push(env::var_os("WAYLAND_DISPLAY").ok_or(ConnectError::NoCompositor)?);
+            socket_path.push(env::var_os("WAYLAND_DISPLAY").unwrap_or(OsString::from("wayland-0")));
 
             UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositor)?
         };
