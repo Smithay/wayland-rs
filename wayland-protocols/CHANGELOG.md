@@ -2,9 +2,20 @@
 
 ## Unreleased
 
+### Additions
+
+- Bump wayland-protocols to 1.26
+  - `xdg-shell` is now version 5, introducing wm capabilities.
+  - A new staging protocol, `single-pixel-buffer`.
+  - Events in the following protocols now have properly labeled destructors (TODO: Do these count as breaking?):
+    - `wp-linux-explicit-synchronization`
+    - `wp-presentation-time`
+    - `wp-drm-lease`
+    - `wp-fullscreen-shell`
+
 #### 0.30.0-beta.1
 
-### Breaking Change
+### Breaking Changes
 
 - Complete reorganization of the crate around the `wp`/`xdg`/`ext` categories
 - Protocols from other origins than the officiel repository are now split into their own crates
