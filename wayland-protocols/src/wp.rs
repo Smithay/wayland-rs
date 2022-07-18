@@ -221,6 +221,23 @@ pub mod relative_pointer {
     }
 }
 
+#[cfg(feature = "staging")]
+pub mod single_pixel_buffer {
+    //! This protocol extension allows clients to create single-pixel buffers.
+    //!
+    //! Compositors supporting this protocol extension should also support the
+    //! viewporter protocol extension. Clients may use viewporter to scale a
+    //! single-pixel buffer to a desired size.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/single-pixel-buffer/single-pixel-buffer-v1.xml",
+            []
+        );
+    }
+}
+
 #[cfg(feature = "unstable")]
 pub mod tablet {
     //! Wayland protocol for graphics tablets
