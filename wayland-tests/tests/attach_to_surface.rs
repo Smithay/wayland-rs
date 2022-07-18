@@ -7,7 +7,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use wayc::protocol::wl_shm::Format;
 
@@ -27,7 +27,7 @@ fn attach_null() {
     // Client setup
     //
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -66,7 +66,7 @@ fn attach_buffer() {
     // Client setup
     //
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -127,7 +127,7 @@ struct ServerHandler {
 
 impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
@@ -145,7 +145,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerH
 
 impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_surface::WlSurface,
         request: ways::protocol::wl_surface::Request,
@@ -156,8 +156,8 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler
         if let ways::protocol::wl_surface::Request::Attach { buffer, x, y } = request {
             assert_eq!(x, 0);
             assert_eq!(y, 0);
-            assert!(self.buffer_found.is_none());
-            self.buffer_found = Some(buffer);
+            assert!(state.buffer_found.is_none());
+            state.buffer_found = Some(buffer);
         } else {
             panic!("Unexpected request!");
         }
@@ -166,7 +166,7 @@ impl ways::Dispatch<ways::protocol::wl_surface::WlSurface, ()> for ServerHandler
 
 impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_shm::WlShm,
         request: ways::protocol::wl_shm::Request,
@@ -176,8 +176,8 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
     ) {
         if let ways::protocol::wl_shm::Request::CreatePool { fd, size, id } = request {
             assert_eq!(size, 42);
-            assert!(self.buffer_found.is_none());
-            self.fd_found = Some((fd, None));
+            assert!(state.buffer_found.is_none());
+            state.fd_found = Some((fd, None));
             init.init(id, ());
         } else {
             panic!("Unexpected request!");
@@ -187,7 +187,7 @@ impl ways::Dispatch<ways::protocol::wl_shm::WlShm, ()> for ServerHandler {
 
 impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool, ()> for ServerHandler {
     fn request(
-        &mut self,
+        state: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_shm_pool::WlShmPool,
         request: ways::protocol::wl_shm_pool::Request,
@@ -196,7 +196,7 @@ impl ways::Dispatch<ways::protocol::wl_shm_pool::WlShmPool, ()> for ServerHandle
         init: &mut ways::DataInit<'_, Self>,
     ) {
         if let ways::protocol::wl_shm_pool::Request::CreateBuffer { id, .. } = request {
-            let fd_found = self.fd_found.as_mut().unwrap();
+            let fd_found = state.fd_found.as_mut().unwrap();
             assert!(fd_found.1.is_none());
             fd_found.1 = Some(init.init(id, ()));
         }
@@ -216,17 +216,17 @@ server_ignore_global_impl!(ServerHandler => [
  * Client Handler
  */
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

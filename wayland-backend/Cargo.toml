@@ -1,6 +1,6 @@
 [package]
 name = "wayland-backend"
-version = "0.1.0-beta.4"
+version = "0.1.0-beta.8"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
 edition = "2018"
 repository = "https://github.com/smithay/wayland-rs"
@@ -13,11 +13,19 @@ readme = "README.md"
 build = "build.rs"
 
 [dependencies]
-wayland-sys = { version = "0.30.0-beta.4", path = "../wayland-sys", features = [] }
-smallvec = "1.4"
-log = "0.4"
+wayland-sys = { version = "0.30.0-beta.8", path = "../wayland-sys", features = [] }
+log = { version = "0.4", optional = true }
 scoped-tls = "1.0"
 downcast-rs = "1.2"
+
+[dependencies.smallvec]
+version = "1.9"
+# Some additional features can be enabled since wayland-rs requires at least Rust 1.53
+features = [
+    "union", # 1.49
+    "const_generics", # 1.51
+    "const_new", # 1.51
+]
 
 [dependencies.nix]
 version = "0.24.1"
@@ -43,3 +51,7 @@ env_logger = "0.9"
 client_system = ["wayland-sys/client"]
 server_system = ["wayland-sys/server"]
 dlopen = ["wayland-sys/dlopen"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

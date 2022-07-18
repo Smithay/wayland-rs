@@ -2,9 +2,51 @@
 
 ## Unreleased
 
+## 0.1.0-beta.8
+
+#### Breaking changes
+
+- all backends: creating null `ObjectId` is now done through the `ObjectId::null()` method, and the
+  `null_id()` methods on the backends are removed.
+- `Argument::Str` now contains an `Option`, which is correctly mapped to nullable strings. This fixes
+  segfaults that previously occurred dereferencing the null pointer in the system backend.
+- server: `disable_global` and `remove_global` now require the state type parameter, like `create_global`.
+  This is required for compatibility with libwayland 1.21.
+
+#### Additions
+
+- client: introduce `Backend::dispatch_inner_queue()` meant for ensuring a system backend in guest mode can
+  still process events event it does not control reading the socket.
+- introduce the `log` cargo feature to control logging behavior
+
+## 0.1.0-beta.7
+
+#### Bugfixes
+
+- backend/sys: the inner lock is no longer held when destructors are invoked
+- backend/sys: sys backend does not abort process when `Backend::disable_global` is invoked more than once
+
+## 0.1.0-beta.6
+
+#### Additions
+
+- client: `ObjectId` now implements the `Hash` trait
+- server: `ObjectId`, `ClientId` and `GlobalId` now implement the `Hash` trait
+
+#### Bugfixes
+
+- backend/sys: the inner lock is no longer held when destructors are invoked
+
+## 0.1.0-beta.5
+
 #### Additions
 
 - client/sys: introduce `Backend::from_foreign_display`
+
+#### Bugfixes
+
+- The server backend now correctly associates interfaces with its object arguments when parsing
+  messages with nullable object arguments.
 
 ## 0.1.0-beta.4
 

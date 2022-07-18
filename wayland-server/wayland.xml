@@ -258,6 +258,12 @@
 	for the pool from the file descriptor passed when the pool was
 	created, but using the new size.  This request can only be
 	used to make the pool bigger.
+
+        This request only changes the amount of bytes that are mmapped
+        by the server and does not touch the file corresponding to the
+        file descriptor passed at creation time. It is the client's
+        responsibility to ensure that the file is at least as big as
+        the new pool size.
       </description>
       <arg name="size" type="int" summary="new size of the pool, in bytes"/>
     </request>
@@ -271,8 +277,8 @@
       Clients can create wl_shm_pool objects using the create_pool
       request.
 
-      At connection setup time, the wl_shm object emits one or more
-      format events to inform clients about the valid pixel formats
+      On binding the wl_shm object one or more format events
+      are emitted to inform clients about the valid pixel formats
       that can be used for buffers.
     </description>
 
@@ -890,7 +896,7 @@
 	which will subsequently be used in either the
 	data_device.enter event (for drag-and-drop) or the
 	data_device.selection event (for selections).  Immediately
-	following the data_device_data_offer event, the new data_offer
+	following the data_device.data_offer event, the new data_offer
 	object will send out data_offer.offer events to describe the
 	mime types it offers.
       </description>
@@ -1051,7 +1057,8 @@
       a basic surface.
 
       Note! This protocol is deprecated and not intended for production use.
-      For desktop-style user interfaces, use xdg_shell.
+      For desktop-style user interfaces, use xdg_shell. Compositors and clients
+      should not implement this interface.
     </description>
 
     <enum name="error">
@@ -1781,7 +1788,7 @@
     </request>
    </interface>
 
-  <interface name="wl_seat" version="7">
+  <interface name="wl_seat" version="8">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -1914,7 +1921,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="7">
+  <interface name="wl_pointer" version="8">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -2214,6 +2221,9 @@
 	This event carries the axis value of the wl_pointer.axis event in
 	discrete steps (e.g. mouse wheel clicks).
 
+	This event is deprecated with wl_pointer version 8 - this event is not
+	sent to clients supporting version 8 or later.
+
 	This event does not occur on its own, it is coupled with a
 	wl_pointer.axis event that represents this axis value on a
 	continuous scale. The protocol guarantees that each axis_discrete
@@ -2221,7 +2231,8 @@
 	axis number within the same wl_pointer.frame. Note that the protocol
 	allows for other events to occur between the axis_discrete and
 	its coupled axis event, including other axis_discrete or axis
-	events.
+	events. A wl_pointer.frame must not contain more than one axis_discrete
+	event per axis type.
 
 	This event is optional; continuous scrolling devices
 	like two-finger scrolling on touchpads do not have discrete
@@ -2239,9 +2250,37 @@
       <arg name="axis" type="uint" enum="axis" summary="axis type"/>
       <arg name="discrete" type="int" summary="number of steps"/>
     </event>
+
+    <event name="axis_value120" since="8">
+      <description summary="axis high-resolution scroll event">
+	Discrete high-resolution scroll information.
+
+	This event carries high-resolution wheel scroll information,
+	with each multiple of 120 representing one logical scroll step
+	(a wheel detent). For example, an axis_value120 of 30 is one quarter of
+	a logical scroll step in the positive direction, a value120 of
+	-240 are two logical scroll steps in the negative direction within the
+	same hardware event.
+	Clients that rely on discrete scrolling should accumulate the
+	value120 to multiples of 120 before processing the event.
+
+	The value120 must not be zero.
+
+	This event replaces the wl_pointer.axis_discrete event in clients
+	supporting wl_pointer version 8 or later.
+
+	Where a wl_pointer.axis_source event occurs in the same
+	wl_pointer.frame, the axis source applies to this event.
+
+	The order of wl_pointer.axis_value120 and wl_pointer.axis_source is
+	not guaranteed.
+      </description>
+      <arg name="axis" type="uint" enum="axis" summary="axis type"/>
+      <arg name="value120" type="int" summary="scroll distance as fraction of 120"/>
+    </event>
   </interface>
 
-  <interface name="wl_keyboard" version="7">
+  <interface name="wl_keyboard" version="8">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2255,7 +2294,7 @@
       <entry name="no_keymap" value="0"
 	     summary="no keymap; client must understand how to interpret the raw keycode"/>
       <entry name="xkb_v1" value="1"
-	     summary="libxkbcommon compatible; to determine the xkb keycode, clients must add 8 to the key event keycode"/>
+	     summary="libxkbcommon compatible, null-terminated string; to determine the xkb keycode, clients must add 8 to the key event keycode"/>
     </enum>
 
     <event name="keymap">
@@ -2368,7 +2407,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="7">
+  <interface name="wl_touch" version="8">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.

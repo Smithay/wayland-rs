@@ -20,7 +20,7 @@ use super::server_impl;
 pub trait ObjectData<D>: downcast_rs::DowncastSync {
     /// Dispatch a request for the associated object
     ///
-    /// If the request has a NewId argument, the callback must return the object data
+    /// If the request has a `NewId` argument, the callback must return the object data
     /// for the newly created object
     fn request(
         self: Arc<Self>,
@@ -97,7 +97,7 @@ impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
 
 downcast_rs::impl_downcast!(sync GlobalHandler<D>);
 
-/// A trait representing your data associated to a clientObjectData
+/// A trait representing your data associated to a client
 pub trait ClientData: downcast_rs::DowncastSync {
     /// Notification that the client was initialized
     fn initialized(&self, client_id: ClientId);
@@ -121,16 +121,33 @@ impl std::fmt::Debug for dyn ClientData {
 
 downcast_rs::impl_downcast!(sync ClientData);
 
-/// An id of an object on a wayland server.
-#[derive(Clone, PartialEq, Eq)]
+/// An ID representing a Wayland object
+///
+/// The backend internally tracks which IDs are still valid, invalidates them when the protocol object they
+/// represent is destroyed. As such even though the Wayland protocol reuses IDs, you still confidently compare
+/// two `ObjectId` for equality, they will only compare as equal if they both represent the same protocol
+/// object from the same client.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ObjectId {
     pub(crate) id: server_impl::InnerObjectId,
 }
 
 impl ObjectId {
     /// Returns whether this object is a null object.
+    ///
+    /// **Note:** This is not the same as checking if the ID is still valid, which cannot be done without the
+    /// [`Backend`]. A null ID is the ID equivalent of a null pointer: it never has been valid and never will
+    /// be.
     pub fn is_null(&self) -> bool {
         self.id.is_null()
+    }
+
+    /// Returns an object id that represents a null object.
+    ///
+    /// This object ID is always invalid, and should be used for events with an optional `Object` argument.
+    #[inline]
+    pub fn null() -> ObjectId {
+        server_impl::InnerHandle::null_id()
     }
 
     /// Returns the interface of this object.
@@ -148,8 +165,9 @@ impl ObjectId {
 
     /// Return the protocol-level numerical ID of this object
     ///
-    /// Protocol IDs are reused after object destruction, so this should not be used as a
-    /// unique identifier,
+    /// Protocol IDs are reused after object destruction and each client has its own ID space, so this should
+    /// not be used as a unique identifier, instead use the `ObjectId` directly, it implements `Clone`,
+    /// `PartialEq`, `Eq` and `Hash`.
     pub fn protocol_id(&self) -> u32 {
         self.id.protocol_id()
     }
@@ -169,8 +187,12 @@ impl fmt::Debug for ObjectId {
     }
 }
 
-/// An id of a client connected to the server.
-#[derive(Clone, PartialEq, Eq)]
+/// An ID representing a Wayland client
+///
+/// The backend internally tracks which IDs are still valid, invalidates them when the client they represent
+/// is disconnected. As such you can confidently compare two `ClientId` for equality, they will only compare
+/// as equal if they both represent the same client.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ClientId {
     pub(crate) id: server_impl::InnerClientId,
 }
@@ -182,8 +204,8 @@ impl fmt::Debug for ClientId {
     }
 }
 
-/// The ID of a global
-#[derive(Clone, PartialEq, Eq)]
+/// An Id representing a global
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct GlobalId {
     pub(crate) id: server_impl::InnerGlobalId,
 }
@@ -198,9 +220,8 @@ impl fmt::Debug for GlobalId {
 /// Main handle of a backend to the Wayland protocol
 ///
 /// This type hosts most of the protocol-related functionality of the backend, and is the
-/// main entry point for manipulating Wayland objects. It can be retrieved both from
-/// the backend via [`Backend::handle()`](Backend::handle), cloned, and is given to you as
-/// argument in most event callbacks.
+/// main entry point for manipulating Wayland objects. It can be retrieved from the backend via
+/// [`Backend::handle()`](Backend::handle) and cloned, and is given to you as argument in many callbacks.
 #[derive(Clone, Debug)]
 pub struct Handle {
     pub(crate) handle: server_impl::InnerHandle,
@@ -230,13 +251,15 @@ impl Handle {
         WeakHandle { handle: self.handle.downgrade() }
     }
 
-    /// Returns information about some object.
+    /// Get the detailed protocol information about a wayland object
+    ///
+    /// Returns an error if the provided object ID is no longer valid.
     #[inline]
     pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.handle.object_info(id.id)
     }
 
-    /// Initializes a connection to a client.
+    /// Initializes a connection with a client.
     ///
     /// The `data` parameter contains data that will be associated with the client.
     #[inline]
@@ -307,6 +330,11 @@ impl Handle {
     ///
     /// To ensure state coherence of the protocol, the created object should be immediately
     /// sent as a "New ID" argument in an event to the client.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
     pub fn create_object<D: 'static>(
         &self,
@@ -318,17 +346,11 @@ impl Handle {
         self.handle.create_object(client_id.id, interface, version, data)
     }
 
-    /// Returns an object id that represents a null object.
-    #[inline]
-    pub fn null_id() -> ObjectId {
-        server_impl::InnerHandle::null_id()
-    }
-
     /// Send an event to the client
     ///
     /// Returns an error if the sender ID of the provided message is no longer valid.
     ///
-    /// **Panic:**
+    /// # Panics
     ///
     /// Checks against the protocol specification are done, and this method will panic if they do
     /// not pass:
@@ -341,6 +363,9 @@ impl Handle {
     }
 
     /// Returns the data associated with an object.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
     pub fn get_object_data<D: 'static>(
         &self,
@@ -349,7 +374,7 @@ impl Handle {
         self.handle.get_object_data(id.id)
     }
 
-    /// Returns the data associated with an object as `dyn Any`
+    /// Returns the data associated with an object as a `dyn Any`
     #[inline]
     pub fn get_object_data_any(
         &self,
@@ -359,6 +384,9 @@ impl Handle {
     }
 
     /// Sets the data associated with some object.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
     pub fn set_object_data<D: 'static>(
         &self,
@@ -368,7 +396,7 @@ impl Handle {
         self.handle.set_object_data(id.id, data)
     }
 
-    /// Posts an error on an object. This will also disconnect the client which created the object.
+    /// Posts a protocol error on an object. This will also disconnect the client which created the object.
     #[inline]
     pub fn post_error(&self, object_id: ObjectId, error_code: u32, message: CString) {
         self.handle.post_error(object_id.id, error_code, message)
@@ -385,6 +413,9 @@ impl Handle {
     /// Creates a global of the specified interface and version and then advertises it to clients.
     ///
     /// The clients which the global is advertised to is determined by the implementation of the [`GlobalHandler`].
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
     pub fn create_global<D: 'static>(
         &self,
@@ -397,25 +428,38 @@ impl Handle {
 
     /// Disables a global object that is currently active.
     ///
-    /// The global removal will be signaled to all currently connected clients. New clients will not know of the global,
-    /// but the associated state and callbacks will not be freed. As such, clients that still try to bind the global
-    /// afterwards (because they have not yet realized it was removed) will succeed.
+    /// The global removal will be signaled to all currently connected clients. New clients will not know of
+    /// the global, but the associated state and callbacks will not be freed. As such, clients that still try
+    /// to bind the global afterwards (because they have not yet realized it was removed) will succeed.
+    ///
+    /// Invoking this method on an already disabled or removed global does nothing. It is not possible to
+    /// re-enable a disabled global, this method is meant to be invoked some time before actually removing
+    /// the global, to avoid killing clients because of a race.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
-    pub fn disable_global(&self, id: GlobalId) {
-        self.handle.disable_global(id.id)
+    pub fn disable_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.disable_global::<D>(id.id)
     }
 
     /// Removes a global object and free its ressources.
     ///
-    /// The global object will no longer be considered valid by the server, clients trying to bind it will be killed,
-    /// and the global ID is freed for re-use.
+    /// The global object will no longer be considered valid by the server, clients trying to bind it will be
+    /// killed, and the global ID is freed for re-use.
     ///
-    /// It is advised to first disable a global and wait some amount of time before removing it, to ensure all clients
-    /// are correctly aware of its removal. Note that clients will generally not expect globals that represent a capability
-    /// of the server to be removed, as opposed to globals representing peripherals (like `wl_output` or `wl_seat`).
+    /// It is advised to first disable a global and wait some amount of time before removing it, to ensure all
+    /// clients are correctly aware of its removal. Note that clients will generally not expect globals that
+    /// represent a capability of the server to be removed, as opposed to globals representing peripherals
+    /// (like `wl_output` or `wl_seat`).
+    ///
+    /// This methods does nothing if the provided `GlobalId` corresponds to an already removed global.
+    ///
+    /// **Panic:** This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
     #[inline]
-    pub fn remove_global(&self, id: GlobalId) {
-        self.handle.remove_global(id.id)
+    pub fn remove_global<D: 'static>(&self, id: GlobalId) {
+        self.handle.remove_global::<D>(id.id)
     }
 
     /// Returns information about a global.
@@ -485,8 +529,13 @@ impl<D> Backend<D> {
     ///
     /// The provided `data` will be provided to the handler of messages received from the client.
     ///
-    /// For performance reasons, use of this function should be integrated with an event loop, monitoring the
-    /// file descriptor associated with the client and only calling this method when messages are available.
+    /// For performance reasons, use of this function should be integrated with an event loop, monitoring
+    /// the file descriptor associated with the client and only calling this method when messages are
+    /// available.
+    ///
+    /// **Note:** This functionality is currently only available on the rust backend, invoking this method on
+    /// the system backend will do the same as invoking
+    /// [`Backend::dispatch_all_clients()`](Backend::dispatch_all_clients).
     #[inline]
     pub fn dispatch_single_client(
         &mut self,

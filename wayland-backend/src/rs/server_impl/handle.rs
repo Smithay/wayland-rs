@@ -225,12 +225,22 @@ impl InnerHandle {
         state.registry.create_global(interface, version, handler, &mut state.clients)
     }
 
-    pub fn disable_global(&self, id: InnerGlobalId) {
-        self.state.lock().unwrap().disable_global(id)
+    pub fn disable_global<D: 'static>(&self, id: InnerGlobalId) {
+        let mut state = self.state.lock().unwrap();
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::create_global().");
+
+        state.registry.disable_global(id, &mut state.clients)
     }
 
-    pub fn remove_global(&self, id: InnerGlobalId) {
-        self.state.lock().unwrap().remove_global(id)
+    pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
+        let mut state = self.state.lock().unwrap();
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::create_global().");
+
+        state.registry.remove_global(id, &mut state.clients)
     }
 
     pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
@@ -278,8 +288,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
-    fn disable_global(&mut self, id: InnerGlobalId);
-    fn remove_global(&mut self, id: InnerGlobalId);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
 }
 
@@ -413,15 +421,6 @@ impl<D> ErasedState for State<D> {
             client.kill(reason)
         }
     }
-
-    fn disable_global(&mut self, id: InnerGlobalId) {
-        self.registry.disable_global(id, &mut self.clients)
-    }
-
-    fn remove_global(&mut self, id: InnerGlobalId) {
-        self.registry.remove_global(id, &mut self.clients)
-    }
-
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         self.registry.get_info(id)
     }

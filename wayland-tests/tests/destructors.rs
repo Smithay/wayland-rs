@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -138,20 +138,20 @@ struct ServerUData(Arc<AtomicBool>);
 
 impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        state: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
-        data_init.init(output, ServerUData(self.destructor_called.clone()));
+        data_init.init(output, ServerUData(state.destructor_called.clone()));
     }
 }
 
 impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &ways::protocol::wl_output::WlOutput,
         _: ways::protocol::wl_output::Request,
@@ -162,7 +162,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for Server
     }
 
     fn destroyed(
-        &mut self,
+        _: &mut Self,
         _client: wayland_backend::server::ClientId,
         _resource: wayland_backend::server::ObjectId,
         data: &ServerUData,
@@ -172,7 +172,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for Server
 }
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
 impl ClientHandler {
@@ -181,14 +181,14 @@ impl ClientHandler {
     }
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

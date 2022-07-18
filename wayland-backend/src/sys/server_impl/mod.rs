@@ -2,7 +2,7 @@
 
 use std::{
     ffi::{CStr, CString},
-    os::raw::{c_char, c_void},
+    os::raw::c_void,
     os::unix::{
         io::{IntoRawFd, RawFd},
         net::UnixStream,
@@ -64,6 +64,18 @@ impl std::cmp::PartialEq for InnerObjectId {
 }
 
 impl std::cmp::Eq for InnerObjectId {}
+
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.ptr.hash(state);
+        self.alive
+            .as_ref()
+            .map(|arc| &**arc as *const AtomicBool)
+            .unwrap_or(std::ptr::null())
+            .hash(state);
+    }
+}
 
 impl std::fmt::Display for InnerObjectId {
     #[cfg_attr(coverage, no_coverage)]
@@ -177,6 +189,12 @@ impl std::cmp::PartialEq for InnerClientId {
 
 impl std::cmp::Eq for InnerClientId {}
 
+impl std::hash::Hash for InnerClientId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (&*self.alive as *const AtomicBool).hash(state)
+    }
+}
+
 /// The ID of a global
 #[derive(Debug, Clone)]
 pub struct InnerGlobalId {
@@ -194,6 +212,12 @@ impl std::cmp::PartialEq for InnerGlobalId {
 }
 
 impl std::cmp::Eq for InnerGlobalId {}
+
+impl std::hash::Hash for InnerGlobalId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (&*self.alive as *const AtomicBool).hash(state)
+    }
+}
 
 #[repr(C)]
 struct ResourceUserData<D> {
@@ -246,6 +270,7 @@ impl<D> InnerBackend<D> {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
 
+        #[cfg(feature = "log")]
         unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
@@ -321,9 +346,9 @@ impl<D> InnerBackend<D> {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_dispatch, evl_ptr, 0)
         });
 
-        for (object, client_id, object_id) in
-            self.state.lock().unwrap().pending_destructors.drain(..)
-        {
+        let pending_destructors =
+            std::mem::take(&mut self.state.lock().unwrap().pending_destructors);
+        for (object, client_id, object_id) in pending_destructors {
             object.destroyed(data, client_id, object_id);
         }
 
@@ -346,7 +371,9 @@ impl<D> Drop for State<D> {
 
         let known_globals = std::mem::take(&mut self.known_globals);
         for global in known_globals {
-            self.remove_global(global);
+            unsafe {
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, global.ptr);
+            }
         }
 
         unsafe {
@@ -550,10 +577,13 @@ impl InnerHandle {
         version: u32,
         handler: Arc<dyn GlobalHandler<D>>,
     ) -> InnerGlobalId {
-        let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
-            .downcast_mut::<State<D>>()
-            .expect("Wrong type parameter passed to Handle::set_object_data().");
+        let display = {
+            let mut state = self.state.lock().unwrap();
+            let state = (&mut *state as &mut dyn ErasedState)
+                .downcast_mut::<State<D>>()
+                .expect("Wrong type parameter passed to Handle::create_global().");
+            state.display
+        };
 
         let alive = Arc::new(AtomicBool::new(true));
 
@@ -569,17 +599,17 @@ impl InnerHandle {
             ptr: std::ptr::null_mut(),
         }));
 
-        let ret = unsafe {
+        let ret = HANDLE.set(&(self.state.clone(), std::ptr::null_mut()), || unsafe {
             ffi_dispatch!(
                 WAYLAND_SERVER_HANDLE,
                 wl_global_create,
-                state.display,
+                display,
                 interface_ptr,
                 version as i32,
                 udata as *mut c_void,
                 global_bind::<D>
             )
-        };
+        });
 
         if ret.is_null() {
             // free the user data as global creation failed
@@ -593,17 +623,68 @@ impl InnerHandle {
             (*udata).ptr = ret;
         }
 
+        let mut state = self.state.lock().unwrap();
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::create_global().");
+
         let id = InnerGlobalId { ptr: ret, alive };
         state.known_globals.push(id.clone());
         id
     }
 
-    pub fn disable_global(&self, id: InnerGlobalId) {
-        self.state.lock().unwrap().disable_global(id)
+    pub fn disable_global<D: 'static>(&self, id: InnerGlobalId) {
+        // check that `D` is correct
+        {
+            let mut state = self.state.lock().unwrap();
+            let _state = (&mut *state as &mut dyn ErasedState)
+                .downcast_mut::<State<D>>()
+                .expect("Wrong type parameter passed to Handle::create_global().");
+        }
+
+        if !id.alive.load(Ordering::Acquire) {
+            return;
+        }
+
+        let udata = unsafe {
+            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
+                as *mut GlobalUserData<D>)
+        };
+
+        // libwayland will abort if wl_global_remove is called more than once.
+        // This means we do nothing if the global is already disabled
+        if !udata.disabled {
+            udata.disabled = true;
+
+            // send the global_remove
+            HANDLE.set(&(self.state.clone(), std::ptr::null_mut()), || unsafe {
+                ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_remove, id.ptr);
+            });
+        }
     }
 
-    pub fn remove_global(&self, id: InnerGlobalId) {
-        self.state.lock().unwrap().remove_global(id)
+    pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
+        {
+            let mut state = self.state.lock().unwrap();
+            let state = (&mut *state as &mut dyn ErasedState)
+                .downcast_mut::<State<D>>()
+                .expect("Wrong type parameter passed to Handle::create_global().");
+            state.known_globals.retain(|g| g != &id);
+        }
+
+        if !id.alive.load(Ordering::Acquire) {
+            return;
+        }
+
+        let udata = unsafe {
+            Box::from_raw(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
+                as *mut GlobalUserData<D>)
+        };
+        udata.alive.store(false, Ordering::Release);
+
+        HANDLE.set(&(self.state.clone(), std::ptr::null_mut()), || unsafe {
+            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, id.ptr);
+        });
     }
 
     pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
@@ -666,8 +747,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
-    fn disable_global(&mut self, id: InnerGlobalId);
-    fn remove_global(&mut self, id: InnerGlobalId);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
     fn display_ptr(&self) -> *mut wl_display;
@@ -853,7 +932,8 @@ impl<D: 'static> ErasedState for State<D> {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
@@ -976,40 +1056,6 @@ impl<D: 'static> ErasedState for State<D> {
 
         unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_destroy, client_id.ptr);
-        }
-    }
-
-    fn disable_global(&mut self, id: InnerGlobalId) {
-        if !id.alive.load(Ordering::Acquire) {
-            return;
-        }
-
-        let udata = unsafe {
-            &mut *(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
-                as *mut GlobalUserData<D>)
-        };
-        udata.disabled = true;
-
-        unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_remove, id.ptr);
-        }
-    }
-
-    fn remove_global(&mut self, id: InnerGlobalId) {
-        self.known_globals.retain(|g| g != &id);
-
-        if !id.alive.load(Ordering::Acquire) {
-            return;
-        }
-
-        let udata = unsafe {
-            Box::from_raw(ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_get_user_data, id.ptr)
-                as *mut GlobalUserData<D>)
-        };
-        udata.alive.store(false, Ordering::Release);
-
-        unsafe {
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, id.ptr);
         }
     }
 
@@ -1153,6 +1199,14 @@ unsafe extern "C" fn global_filter<D: 'static>(
     global: *const wl_global,
     _: *mut c_void,
 ) -> bool {
+    if !HANDLE.is_set() {
+        // This happens if we are invoked during the global shutdown
+        // at this point, we really don't care what we send to clients,
+        // the compositor is shutting down anyway so they're all going to be killed
+        // thus return false, so that nothing is sent to anybody
+        return false;
+    }
+
     // Safety: skip processing globals that do not belong to us
     let is_known_global = HANDLE.with(|&(ref state_arc, _)| {
         let guard = state_arc.lock().unwrap();
@@ -1231,7 +1285,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     let message_desc = match interface.requests.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            crate::log_error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
             return -1;
         }
     };
@@ -1257,16 +1311,20 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Str(_) => {
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland is valid
-                let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                parsed_args.push(Argument::Str(Box::new(cstr.into())));
+                if !ptr.is_null() {
+                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
+                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                } else {
+                    parsed_args.push(Argument::Str(None));
+                }
             }
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_resource };
+                let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
                 if !obj.is_null() {
                     // retrieve the object relevant info
                     let obj_id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, obj);
                     // check if this is a local or distant proxy
-                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
                     let ret = ffi_dispatch!(
                         WAYLAND_SERVER_HANDLE,
                         wl_resource_instance_of,
@@ -1436,8 +1494,9 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
     }
 }
 
+#[cfg(feature = "log")]
 extern "C" {
-    fn wl_log_trampoline_to_rust_server(fmt: *const c_char, list: *const c_void);
+    fn wl_log_trampoline_to_rust_server(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 
 struct UninitObjectData;

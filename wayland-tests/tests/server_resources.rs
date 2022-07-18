@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use ways::{
     protocol::{wl_compositor, wl_output},
@@ -200,7 +200,7 @@ fn get_resource() {
 }
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
 impl ClientHandler {
@@ -209,14 +209,14 @@ impl ClientHandler {
     }
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [ClientOutput]);
@@ -227,15 +227,15 @@ struct ServerHandler {
 
 impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        state: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
         _: &(),
         data_init: &mut ways::DataInit<'_, Self>,
     ) {
-        let output = data_init.init(output, UData(1000 + self.outputs.len()));
-        self.outputs.push(output);
+        let output = data_init.init(output, UData(1000 + state.outputs.len()));
+        state.outputs.push(output);
     }
 }
 
@@ -243,7 +243,7 @@ struct UData(usize);
 
 impl ways::Dispatch<wl_output::WlOutput, UData> for ServerHandler {
     fn request(
-        &mut self,
+        _: &mut Self,
         _: &ways::Client,
         _: &wl_output::WlOutput,
         _: wl_output::Request,

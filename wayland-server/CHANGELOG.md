@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.1.0-beta.8
+
+#### Breaking changes
+
+- `Display::null_id()` has been removed, instead use `ObjectId::null()`.
+- The traits `DelegateDispatch` and `DelegeteGlobalDispatch` have been removed, their functionnality being
+  fused into more generic versions of the `Dispatch` and `GlobalDispatch` traits.
+- `DisplayHandle::disable_global()` and `DisplayHandle::remove_global()` now require the state type parameter,
+  like `create_global`. This is required for compatibility with libwayland 1.21.
+- The `socket` module has been flattened into crate root.
+
+#### Additions
+
+- Introduce the `log` cargo feature to control logging behavior.
+
 ## 0.30.0-beta.4
 
 #### Breaking changes

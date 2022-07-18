@@ -11,17 +11,30 @@
 //! libraries are loaded dynamically at runtime, so that your executable does not link them and
 //! can gracefully handle their absence (for example by falling back to X11).
 //!
-//! Additionnaly the default backends are reexported as toplevel `client` and `server` modules
+//! Additionally the default backends are reexported as toplevel `client` and `server` modules
 //! in this crate. For both client and server, the default backend is the system one if the
-//! associated cargo feature is enabled, and the rust one otherwise. Using these reexports is the
-//! recommended way to use the crate.
+//! associated cargo feature is enabled, and the rust one otherwise.
 //!
-//! Both backends have the exact same API, except that the system backend additionnaly provides
-//! functions related to FFI.
+//! Using these reexports is the recommended way to use the crate:
+//! - If you don't need the `*_system` features, an other crate enabling them will not impact your code in
+//!   any way as both backends have the same API (the system backend only has more methods)
+//! - If your code needs to do FFI, you just need to directly depend on `wayland-backend` with the
+//!   appropriate `*_system` feature enabled, and all the other crates in your dependency tree will
+//!   automatically use the `sys` backend.
+//!
+//! Both the `wayland-client` and `wayland-server` crates follow this principle, so everything will "Just
+//! Work" when using them.
+//!
+//! ## Logging
+//!
+//! This crate can generate some runtime error message (notably when a protocol error occurs). By default
+//! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
+//! piped through the `log` crate.
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage, feature(no_coverage))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub extern crate smallvec;
 
@@ -37,7 +50,18 @@ macro_rules! message {
     }
 }
 
+// internal imports for dispatching logging depending on the `log` feature
+#[cfg(feature = "log")]
+#[allow(unused_imports)]
+use log::{debug as log_debug, error as log_error, info as log_info, warn as log_warn};
+#[cfg(not(feature = "log"))]
+#[allow(unused_imports)]
+use std::{
+    eprintln as log_error, eprintln as log_warn, eprintln as log_info, eprintln as log_debug,
+};
+
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "client_system", feature = "server_system"))))]
 pub mod sys;
 
 pub mod rs;
@@ -65,6 +89,7 @@ mod types;
  * They'll be optimized out when unused.
  */
 
+#[cfg(feature = "log")]
 #[no_mangle]
 extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
@@ -72,6 +97,7 @@ extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
     log::error!("{}", text);
 }
 
+#[cfg(feature = "log")]
 #[no_mangle]
 extern "C" fn wl_log_rust_logger_server(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };

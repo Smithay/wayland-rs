@@ -206,6 +206,13 @@
       <arg name="ter" type="object" interface="tertiary" />
     </request>
 
+    <request name="newid_and_allow_null" since="5">
+      <description summary="a newid request that also takes allow null arg"></description>
+      <arg name="quad" type="new_id" interface="quad" />
+      <arg name="sec" type="object" interface="secondary" allow-null="true" />
+      <arg name="ter" type="object" interface="tertiary" />
+    </request>
+
     <event name="many_args_evt">
       <description summary="an event with every possible non-object arg"></description>
       <arg name="unsigned_int" type="uint" summary="an unsigned int" />

@@ -10,6 +10,8 @@ pub mod wl_callback {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_DONE_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
@@ -126,22 +128,44 @@ pub mod test_global {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_MANY_ARGS_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_SECONDARY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_TERTIARY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_TERTIARY_OPCODE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_LINK_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_LINK_OPCODE: u32 = 3u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 4u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_REVERSE_LINK_OPCODE: u32 = 5u32;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u32 = 6u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_MANY_ARGS_EVT_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ACK_SECONDARY_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_ACK_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_CYCLE_QUAD_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_CYCLE_QUAD_OPCODE: u32 = 2u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -176,6 +200,12 @@ pub mod test_global {
         Destroy,
         #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
         ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
+        #[doc = "a newid request that also takes allow null arg\n\n\n\nOnly available since version 5 of the interface"]
+        NewidAndAllowNull {
+            quad: New<super::quad::Quad>,
+            sec: Option<super::secondary::Secondary>,
+            ter: super::tertiary::Tertiary,
+        },
     }
     #[derive(Debug)]
     #[non_exhaustive]
@@ -273,8 +303,10 @@ pub mod test_global {
                                 signed_int: *signed_int,
                                 fixed_point: (*fixed_point as f64) / 256.,
                                 number_array: *number_array.clone(),
-                                some_text: String::from_utf8_lossy(some_text.as_bytes())
-                                    .into_owned(),
+                                some_text: String::from_utf8_lossy(
+                                    some_text.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 file_descriptor: *file_descriptor,
                             },
                         ))
@@ -424,6 +456,63 @@ pub mod test_global {
                         Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
                     }
                 }
+                6u16 => {
+                    if let [Argument::NewId(quad), Argument::Object(sec), Argument::Object(ter)] =
+                        &msg.args[..]
+                    {
+                        Ok((
+                            me,
+                            Request::NewidAndAllowNull {
+                                quad: New::wrap(
+                                    match <super::quad::Quad as Resource>::from_id(
+                                        conn,
+                                        quad.clone(),
+                                    ) {
+                                        Ok(p) => p,
+                                        Err(_) => {
+                                            return Err(DispatchError::BadMessage {
+                                                msg,
+                                                interface: Self::interface().name,
+                                            })
+                                        }
+                                    },
+                                ),
+                                sec: if sec.is_null() {
+                                    None
+                                } else {
+                                    Some(
+                                        match <super::secondary::Secondary as Resource>::from_id(
+                                            conn,
+                                            sec.clone(),
+                                        ) {
+                                            Ok(p) => p,
+                                            Err(_) => {
+                                                return Err(DispatchError::BadMessage {
+                                                    msg,
+                                                    interface: Self::interface().name,
+                                                })
+                                            }
+                                        },
+                                    )
+                                },
+                                ter: match <super::tertiary::Tertiary as Resource>::from_id(
+                                    conn,
+                                    ter.clone(),
+                                ) {
+                                    Ok(p) => p,
+                                    Err(_) => {
+                                        return Err(DispatchError::BadMessage {
+                                            msg,
+                                            interface: Self::interface().name,
+                                        })
+                                    }
+                                },
+                            },
+                        ))
+                    } else {
+                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                    }
+                }
                 _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
             }
         }
@@ -448,7 +537,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Box::new(std::ffi::CString::new(some_text).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
                         Argument::Fd(file_descriptor)
                     ],
                 }),
@@ -465,7 +554,7 @@ pub mod test_global {
                         if let Some(obj) = old_quad {
                             Argument::Object(Resource::id(&obj))
                         } else {
-                            Argument::Object(conn.null_id())
+                            Argument::Object(ObjectId::null())
                         }
                     ],
                 }),
@@ -531,6 +620,8 @@ pub mod secondary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -639,6 +730,8 @@ pub mod tertiary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -747,6 +840,8 @@ pub mod quad {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {

@@ -3,7 +3,6 @@ use std::{
     ffi::{OsStr, OsString},
     fs::File,
     io,
-    ops::Range,
     os::unix::{
         io::{AsRawFd, FromRawFd, RawFd},
         net::{UnixListener, UnixStream},
@@ -17,20 +16,59 @@ use nix::{
     unistd::unlink,
 };
 
+/// An utility representing a unix socket on which your compositor is listening for new clients
 #[derive(Debug)]
 pub struct ListeningSocket {
     listener: UnixListener,
     _lock: File,
     socket_path: PathBuf,
     lock_path: PathBuf,
-    socket_name: OsString,
+    socket_name: Option<OsString>,
 }
 
 impl ListeningSocket {
+    /// Attempt to bind a listening socket with given name
+    ///
+    /// This method will acquire an associate lockfile. The socket will be created in the
+    /// directory pointed to by the `XDG_RUNTIME_DIR` environment variable.
     pub fn bind<S: AsRef<OsStr>>(socket_name: S) -> Result<Self, BindError> {
         let runtime_dir: PathBuf =
             env::var("XDG_RUNTIME_DIR").map_err(|_| BindError::RuntimeDirNotSet)?.into();
         let socket_path = runtime_dir.join(socket_name.as_ref());
+        let mut socket = Self::bind_absolute(socket_path)?;
+        socket.socket_name = Some(socket_name.as_ref().into());
+        Ok(socket)
+    }
+
+    /// Attempt to bind a listening socket from a sequence of names
+    ///
+    /// This method will repeatedly try to bind sockets in teh form `{basename}-{n}` for values of `n`
+    /// yielded from the provided range and returns the first one that succeeds.
+    ///
+    /// This method will acquire an associate lockfile. The socket will be created in the
+    /// directory pointed to by the `XDG_RUNTIME_DIR` environment variable.
+    pub fn bind_auto(
+        basename: &str,
+        range: impl IntoIterator<Item = usize>,
+    ) -> Result<Self, BindError> {
+        for i in range {
+            // early return on any error except AlreadyInUse
+            match Self::bind(&format!("{}-{}", basename, i)) {
+                Ok(socket) => return Ok(socket),
+                Err(BindError::RuntimeDirNotSet) => return Err(BindError::RuntimeDirNotSet),
+                Err(BindError::PermissionDenied) => return Err(BindError::PermissionDenied),
+                Err(BindError::Io(e)) => return Err(BindError::Io(e)),
+                Err(BindError::AlreadyInUse) => {}
+            }
+        }
+        Err(BindError::AlreadyInUse)
+    }
+
+    /// Attempt to bind a listening socket with given name
+    ///
+    /// The socket will be created at the specified path, and this method will acquire an associatet lockfile
+    /// alongside it.
+    pub fn bind_absolute(socket_path: PathBuf) -> Result<Self, BindError> {
         let lock_path = socket_path.with_extension("lock");
 
         // open the lockfile
@@ -69,29 +107,12 @@ impl ListeningSocket {
 
         listener.set_nonblocking(true).map_err(BindError::Io)?;
 
-        Ok(Self {
-            listener,
-            _lock,
-            socket_path,
-            lock_path,
-            socket_name: socket_name.as_ref().to_owned(),
-        })
+        Ok(Self { listener, _lock, socket_path, lock_path, socket_name: None })
     }
 
-    pub fn bind_auto(basename: &str, range: Range<usize>) -> Result<Self, BindError> {
-        for i in range {
-            // early return on any error except AlreadyInUse
-            match Self::bind(&format!("{}-{}", basename, i)) {
-                Ok(socket) => return Ok(socket),
-                Err(BindError::RuntimeDirNotSet) => return Err(BindError::RuntimeDirNotSet),
-                Err(BindError::PermissionDenied) => return Err(BindError::PermissionDenied),
-                Err(BindError::Io(e)) => return Err(BindError::Io(e)),
-                Err(BindError::AlreadyInUse) => {}
-            }
-        }
-        Err(BindError::AlreadyInUse)
-    }
-
+    /// Try to accept a new connection to the listening socket
+    ///
+    /// This method will never block, and return `Ok(None)` if no new connection is available.
     #[must_use = "the client must be initialized by the display using `Display::insert_client` or else the client will hang forever"]
     pub fn accept(&self) -> io::Result<Option<UnixStream>> {
         match self.listener.accept() {
@@ -102,8 +123,11 @@ impl ListeningSocket {
     }
 
     /// Returns the name of the listening socket.
-    pub fn socket_name(&self) -> &OsStr {
-        &self.socket_name
+    ///
+    /// Will only be [`Some`] if that socket was created with [`bind`](ListeningSocket::bind) or
+    /// [`bind_auto`](ListeningSocket::bind_auto).
+    pub fn socket_name(&self) -> Option<&OsStr> {
+        self.socket_name.as_deref()
     }
 }
 
@@ -127,14 +151,19 @@ impl Drop for ListeningSocket {
     }
 }
 
+/// Error that can occur when trying to bind a [`ListeningSocket`]
 #[derive(Debug, thiserror::Error)]
 pub enum BindError {
+    /// The Environment variable `XDG_RUNTIME_DIR` is not set
     #[error("Environment variable XDG_RUNTIME_DIR is not set")]
     RuntimeDirNotSet,
+    /// The application was not able to create a file in `XDG_RUNTIME_DIR`
     #[error("Could not write to XDG_RUNTIME_DIR")]
     PermissionDenied,
+    /// The requested socket name is already in use
     #[error("Requested socket name is already in use")]
     AlreadyInUse,
+    /// Some other IO error occured
     #[error("I/O error: {0}")]
     Io(#[source] io::Error),
 }

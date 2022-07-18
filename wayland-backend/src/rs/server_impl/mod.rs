@@ -66,8 +66,16 @@ impl PartialEq for InnerObjectId {
 
 impl std::cmp::Eq for InnerObjectId {}
 
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.serial.hash(state);
+        self.client_id.hash(state);
+    }
+}
+
 /// An id of a client connected to the server.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InnerClientId {
     id: u32,
     serial: u32,
@@ -84,7 +92,7 @@ impl InnerClientId {
 }
 
 /// The ID of a global
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InnerGlobalId {
     id: u32,
     serial: u32,

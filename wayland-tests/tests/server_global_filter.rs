@@ -5,7 +5,7 @@ extern crate wayland_sys;
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use ways::protocol::{wl_compositor, wl_output, wl_shm};
 
@@ -51,7 +51,7 @@ fn global_filter() {
     // if a regular client received it, it would panic as the server destroyed an
     // unknown global
 
-    server.display.handle().remove_global(privileged_output);
+    server.display.handle().remove_global::<ServerHandler>(privileged_output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
@@ -103,7 +103,7 @@ fn global_filter_try_force() {
 }
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
 impl ClientHandler {
@@ -112,14 +112,14 @@ impl ClientHandler {
     }
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [
@@ -132,7 +132,7 @@ struct ServerHandler;
 
 impl ways::GlobalDispatch<wl_compositor::WlCompositor, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_compositor::WlCompositor>,
@@ -149,7 +149,7 @@ impl ways::GlobalDispatch<wl_compositor::WlCompositor, ()> for ServerHandler {
 
 impl ways::GlobalDispatch<wl_shm::WlShm, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_shm::WlShm>,
@@ -166,7 +166,7 @@ impl ways::GlobalDispatch<wl_shm::WlShm, ()> for ServerHandler {
 
 impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
     fn bind(
-        &mut self,
+        _: &mut Self,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<wl_output::WlOutput>,

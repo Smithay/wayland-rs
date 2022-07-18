@@ -127,8 +127,11 @@ pub fn write_to_buffers(
             Argument::Int(i) => payload = write_buf(i as u32, old_payload)?,
             Argument::Uint(u) => payload = write_buf(u, old_payload)?,
             Argument::Fixed(f) => payload = write_buf(f as u32, old_payload)?,
-            Argument::Str(ref s) => {
+            Argument::Str(Some(ref s)) => {
                 payload = write_array_to_payload(s.as_bytes_with_nul(), old_payload)?;
+            }
+            Argument::Str(None) => {
+                payload = write_array_to_payload(&[], old_payload)?;
             }
             Argument::Object(o) => payload = write_buf(o, old_payload)?,
             Argument::NewId(n) => payload = write_buf(n, old_payload)?,
@@ -221,9 +224,13 @@ pub fn parse_message<'a, 'b>(
                         ArgumentType::Str(_) => read_array_from_payload(front as usize, tail)
                             .and_then(|(v, rest)| {
                                 tail = rest;
-                                match CStr::from_bytes_with_nul(v) {
-                                    Ok(s) => Ok(Argument::Str(Box::new(s.into()))),
-                                    Err(_) => Err(MessageParseError::Malformed),
+                                if !v.is_empty() {
+                                    match CStr::from_bytes_with_nul(v) {
+                                        Ok(s) => Ok(Argument::Str(Some(Box::new(s.into())))),
+                                        Err(_) => Err(MessageParseError::Malformed),
+                                    }
+                                } else {
+                                    Ok(Argument::Str(None))
                                 }
                             }),
                         ArgumentType::Object(_) => Ok(Argument::Object(front)),
@@ -325,7 +332,7 @@ mod tests {
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(Box::new(CString::new(&b"I like trains!"[..]).unwrap())),
+                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
                 Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
                 Argument::Object(88),
                 Argument::NewId(56),

@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 
 use quote::{format_ident, quote, ToTokens};
@@ -78,7 +80,7 @@ impl ToTokens for Enum {
             enum_decl = quote! {
                 #doc_attr
                 #[repr(u32)]
-                #[derive(Copy, Clone, Debug, PartialEq)]
+                #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
                 #[non_exhaustive]
                 pub enum #ident {
                     #(#variants,)*
@@ -119,21 +121,29 @@ impl ToTokens for Enum {
     }
 }
 
-pub(crate) fn gen_since_constants(requests: &[Message], events: &[Message]) -> TokenStream {
-    let req_constants = requests.iter().map(|msg| {
-        let cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
+pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> TokenStream {
+    let req_constants = requests.iter().enumerate().map(|(opcode, msg)| {
+        let since_cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
+        let opcode_cstname = format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
+        let opcode = opcode as u32;
         quote! {
             /// The minimal object version supporting this request
-            pub const #cstname: u32 = #since;
+            pub const #since_cstname: u32 = #since;
+            /// The wire opcode for this request
+            pub const #opcode_cstname: u32 = #opcode;
         }
     });
-    let evt_constants = events.iter().map(|msg| {
-        let cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
+    let evt_constants = events.iter().enumerate().map(|(opcode, msg)| {
+        let since_cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
+        let opcode_cstname = format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
+        let opcode = opcode as u32;
         quote! {
             /// The minimal object version supporting this event
-            pub const #cstname: u32 = #since;
+            pub const #since_cstname: u32 = #since;
+            /// The wire opcode for this event
+            pub const #opcode_cstname: u32 = #opcode;
         }
     });
 
@@ -152,16 +162,18 @@ pub(crate) fn gen_message_enum(
     let variants = messages.iter().map(|msg| {
         let mut docs = String::new();
         if let Some((ref short, ref long)) = msg.description {
-            docs += &format!("{}\n\n{}\n", short, long.trim());
+            write!(docs, "{}\n\n{}\n", short, long.trim()).unwrap();
         }
         if let Some(Type::Destructor) = msg.typ {
-            docs += &format!(
+            write!(
+                docs,
                 "\nThis is a destructor, once {} this object cannot be used any longer.",
                 if receiver { "received" } else { "sent" },
-            );
+            )
+            .unwrap()
         }
         if msg.since > 1 {
-            docs += &format!("\nOnly available since version {} of the interface", msg.since);
+            write!(docs, "\nOnly available since version {} of the interface", msg.since).unwrap();
         }
 
         let doc_attr = to_doc_attr(&docs);
@@ -317,20 +329,13 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                     Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name: *#arg_name },
                     Type::Fixed => quote!{ #arg_name: (*#arg_name as f64) / 256.},
                     Type::String => {
-                        let string_conversion = quote! {
-                            String::from_utf8_lossy(#arg_name.as_bytes()).into_owned()
-                        };
-
                         if arg.allow_null {
                             quote! {
-                                #arg_name: {
-                                    let s = #string_conversion;
-                                    if s.len() == 0 { None } else { Some(s) }
-                                }
+                                #arg_name: #arg_name.as_ref().map(|s| String::from_utf8_lossy(s.as_bytes()).into_owned())
                             }
                         } else {
                             quote! {
-                                #arg_name: #string_conversion
+                                #arg_name: String::from_utf8_lossy(#arg_name.as_ref().unwrap().as_bytes()).into_owned()
                             }
                         }
                     },
@@ -456,9 +461,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Fixed => quote! { Argument::Fixed((#arg_name * 256.) as i32) },
                 Type::Object => if arg.allow_null {
                     if side == Side::Server {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(conn.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
                     } else {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(Connection::null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
                     }
                 } else if side == Side::Server {
                     quote!{ Argument::Object(Resource::id(&#arg_name)) }
@@ -471,9 +476,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     quote! { Argument::Array(Box::new(#arg_name)) }
                 },
                 Type::String => if arg.allow_null {
-                    quote! { if let Some(string) = #arg_name { Argument::Str(Box::new(std::ffi::CString::new(string).unwrap())) } else { Argument::Str(Box::new(std::ffi::CString::new(Vec::new()).unwrap())) }}
+                    quote! { Argument::Str(#arg_name.map(|s| Box::new(std::ffi::CString::new(s).unwrap()))) }
                 } else {
-                    quote! { Argument::Str(Box::new(std::ffi::CString::new(#arg_name).unwrap())) }
+                    quote! { Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name).unwrap()))) }
                 },
                 Type::NewId => if side == Side::Client {
                     if let Some(ref created_interface) = arg.interface {
@@ -482,22 +487,22 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         quote! { {
                             let my_info = conn.object_info(self.id())?;
                             child_spec = Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version));
-                            Argument::NewId(Connection::null_id())
+                            Argument::NewId(ObjectId::null())
                         } }
                     } else {
                         quote! {
-                            Argument::Str(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())),
+                            Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap()))),
                             Argument::Uint(#arg_name.1),
                             {
                                 child_spec = Some((#arg_name.0, #arg_name.1));
-                                Argument::NewId(Connection::null_id())
+                                Argument::NewId(ObjectId::null())
                             }
                         }
                     }
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(conn.null_id()) } }
+                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(ObjectId::null()) } }
                     } else {
                         quote!{ Argument::NewId(Resource::id(&#arg_name)) }
                     }

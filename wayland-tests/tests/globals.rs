@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
@@ -15,7 +15,7 @@ fn simple_global() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -37,7 +37,7 @@ fn multi_versions() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -59,7 +59,7 @@ fn dynamic_global() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -76,7 +76,7 @@ fn dynamic_global() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 3);
 
-    server.display.handle().remove_global(output);
+    server.display.handle().remove_global::<ServerHandler>(output);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 2);
@@ -85,7 +85,6 @@ fn dynamic_global() {
 #[test]
 fn range_instantiate() {
     use wayc::{
-        globals::BindError,
         protocol::{wl_compositor::WlCompositor, wl_output::WlOutput, wl_shell::WlShell},
         Proxy,
     };
@@ -94,7 +93,7 @@ fn range_instantiate() {
     server.display.handle().create_global::<ServerHandler, ServerShell, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -118,7 +117,7 @@ fn range_instantiate() {
             5..6,
             ()
         ),
-        Err(BindError::WrongVersion {
+        Err(globals::BindError::WrongVersion {
             interface: "wl_compositor",
             requested: Range { start: 5, end: 6 },
             got: 4
@@ -131,7 +130,7 @@ fn range_instantiate() {
             1..4,
             ()
         ),
-        Err(BindError::MissingGlobal { interface: "wl_output" })
+        Err(globals::BindError::MissingGlobal { interface: "wl_output" })
     ));
 }
 
@@ -150,7 +149,7 @@ fn wrong_global() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(4, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -170,7 +169,7 @@ fn wrong_global_version() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -189,7 +188,7 @@ fn invalid_global_version() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -208,7 +207,7 @@ fn wrong_global_id() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -227,7 +226,7 @@ fn two_step_binding() {
     server.display.handle().create_global::<ServerHandler, ServerCompositor, _>(1, ());
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler { globals: wayc::globals::GlobalList::new() };
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
     let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
 
@@ -257,17 +256,17 @@ server_ignore_impl!(ServerHandler => [ServerCompositor, ServerShell, ServerOutpu
 server_ignore_global_impl!(ServerHandler => [ServerCompositor, ServerShell, ServerOutput]);
 
 struct ClientHandler {
-    globals: wayc::globals::GlobalList,
+    globals: globals::GlobalList,
 }
 
-impl AsMut<wayc::globals::GlobalList> for ClientHandler {
-    fn as_mut(&mut self) -> &mut wayc::globals::GlobalList {
+impl AsMut<globals::GlobalList> for ClientHandler {
+    fn as_mut(&mut self) -> &mut globals::GlobalList {
         &mut self.globals
     }
 }
 
 wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => wayc::globals::GlobalList
+    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
 );
 
 client_ignore_impl!(ClientHandler => [

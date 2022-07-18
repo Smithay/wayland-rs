@@ -10,7 +10,7 @@ pub mod wl_display {
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[repr(u32)]
-    #[derive(Copy, Clone, Debug, PartialEq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[non_exhaustive]
     pub enum Error {
         #[doc = "server couldn't find object"]
@@ -41,12 +41,20 @@ pub mod wl_display {
     }
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_SYNC_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_SYNC_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_REGISTRY_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_REGISTRY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ERROR_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_ERROR_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DELETE_ID_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_DELETE_ID_OPCODE: u32 = 1u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -155,7 +163,10 @@ pub mod wl_display {
                             Event::Error {
                                 object_id: object_id.clone(),
                                 code: *code,
-                                message: String::from_utf8_lossy(message.as_bytes()).into_owned(),
+                                message: String::from_utf8_lossy(
+                                    message.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                             },
                         ))
                     } else {
@@ -184,7 +195,7 @@ pub mod wl_display {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::wl_callback::WlCallback::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
@@ -194,7 +205,7 @@ pub mod wl_display {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::wl_registry::WlRegistry::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
@@ -252,10 +263,16 @@ pub mod wl_registry {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_BIND_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_GLOBAL_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_GLOBAL_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_GLOBAL_REMOVE_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_GLOBAL_REMOVE_OPCODE: u32 = 1u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -366,8 +383,10 @@ pub mod wl_registry {
                             me,
                             Event::Global {
                                 name: *name,
-                                interface: String::from_utf8_lossy(interface.as_bytes())
-                                    .into_owned(),
+                                interface: String::from_utf8_lossy(
+                                    interface.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 version: *version,
                             },
                         ))
@@ -395,11 +414,11 @@ pub mod wl_registry {
                     let mut child_spec = None;
                     let args = smallvec::smallvec![
                         Argument::Uint(name),
-                        Argument::Str(Box::new(std::ffi::CString::new(id.0.name).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(id.0.name).unwrap()))),
                         Argument::Uint(id.1),
                         {
                             child_spec = Some((id.0, id.1));
-                            Argument::NewId(Connection::null_id())
+                            Argument::NewId(ObjectId::null())
                         }
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
@@ -439,6 +458,8 @@ pub mod wl_callback {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_DONE_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
@@ -555,22 +576,44 @@ pub mod test_global {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_MANY_ARGS_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_SECONDARY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_TERTIARY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_GET_TERTIARY_OPCODE: u32 = 2u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_LINK_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_LINK_OPCODE: u32 = 3u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 4u32;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_REVERSE_LINK_OPCODE: u32 = 5u32;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u32 = 6u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_MANY_ARGS_EVT_OPCODE: u32 = 0u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ACK_SECONDARY_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_ACK_SECONDARY_OPCODE: u32 = 1u32;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_CYCLE_QUAD_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_CYCLE_QUAD_OPCODE: u32 = 2u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -599,6 +642,11 @@ pub mod test_global {
         Destroy,
         #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
         ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
+        #[doc = "a newid request that also takes allow null arg\n\n\n\nOnly available since version 5 of the interface"]
+        NewidAndAllowNull {
+            sec: Option<super::secondary::Secondary>,
+            ter: super::tertiary::Tertiary,
+        },
     }
     #[derive(Debug)]
     #[non_exhaustive]
@@ -707,8 +755,10 @@ pub mod test_global {
                                 signed_int: *signed_int,
                                 fixed_point: (*fixed_point as f64) / 256.,
                                 number_array: *number_array.clone(),
-                                some_text: String::from_utf8_lossy(some_text.as_bytes())
-                                    .into_owned(),
+                                some_text: String::from_utf8_lossy(
+                                    some_text.as_ref().unwrap().as_bytes(),
+                                )
+                                .into_owned(),
                                 file_descriptor: *file_descriptor,
                             },
                         ))
@@ -803,7 +853,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Box::new(std::ffi::CString::new(some_text).unwrap())),
+                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
                         Argument::Fd(file_descriptor)
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
@@ -814,7 +864,7 @@ pub mod test_global {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::secondary::Secondary::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
@@ -824,7 +874,7 @@ pub mod test_global {
                         let my_info = conn.object_info(self.id())?;
                         child_spec =
                             Some((super::tertiary::Tertiary::interface(), my_info.version));
-                        Argument::NewId(Connection::null_id())
+                        Argument::NewId(ObjectId::null())
                     }];
                     Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
                 }
@@ -835,7 +885,7 @@ pub mod test_global {
                         if let Some(obj) = ter {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(Connection::null_id())
+                            Argument::Object(ObjectId::null())
                         },
                         Argument::Uint(time)
                     ];
@@ -852,11 +902,28 @@ pub mod test_global {
                         if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
-                            Argument::Object(Connection::null_id())
+                            Argument::Object(ObjectId::null())
                         },
                         Argument::Object(Proxy::id(&ter))
                     ];
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
+                }
+                Request::NewidAndAllowNull { sec, ter } => {
+                    let mut child_spec = None;
+                    let args = smallvec::smallvec![
+                        {
+                            let my_info = conn.object_info(self.id())?;
+                            child_spec = Some((super::quad::Quad::interface(), my_info.version));
+                            Argument::NewId(ObjectId::null())
+                        },
+                        if let Some(obj) = sec {
+                            Argument::Object(Proxy::id(&obj))
+                        } else {
+                            Argument::Object(ObjectId::null())
+                        },
+                        Argument::Object(Proxy::id(&ter))
+                    ];
+                    Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
                 }
             }
         }
@@ -971,6 +1038,26 @@ pub mod test_global {
                 None,
             );
         }
+        #[doc = "a newid request that also takes allow null arg"]
+        #[allow(clippy::too_many_arguments)]
+        pub fn newid_and_allow_null<
+            U: Send + Sync + 'static,
+            D: Dispatch<super::quad::Quad, U> + 'static,
+        >(
+            &self,
+            sec: Option<&super::secondary::Secondary>,
+            ter: &super::tertiary::Tertiary,
+            qh: &QueueHandle<D>,
+            udata: U,
+        ) -> Result<super::quad::Quad, InvalidId> {
+            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
+            let ret = conn.send_request(
+                self,
+                Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
+                Some(qh.make_data::<super::quad::Quad, U>(udata)),
+            )?;
+            Proxy::from_id(&conn, ret)
+        }
     }
 }
 pub mod secondary {
@@ -984,6 +1071,8 @@ pub mod secondary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -1106,6 +1195,8 @@ pub mod tertiary {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -1228,6 +1319,8 @@ pub mod quad {
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {

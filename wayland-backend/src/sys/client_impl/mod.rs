@@ -3,7 +3,7 @@
 use std::{
     collections::HashSet,
     ffi::CStr,
-    os::raw::{c_char, c_int, c_void},
+    os::raw::{c_int, c_void},
     os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -62,6 +62,18 @@ impl std::cmp::PartialEq for InnerObjectId {
 }
 
 impl std::cmp::Eq for InnerObjectId {}
+
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.ptr.hash(state);
+        self.alive
+            .as_ref()
+            .map(|arc| &**arc as *const AtomicBool)
+            .unwrap_or(std::ptr::null())
+            .hash(state);
+    }
+}
 
 impl InnerObjectId {
     pub fn is_null(&self) -> bool {
@@ -184,6 +196,10 @@ impl InnerBackend {
     pub fn downgrade(&self) -> WeakInnerBackend {
         WeakInnerBackend { inner: Arc::downgrade(&self.inner) }
     }
+
+    pub fn display_ptr(&self) -> *mut wl_display {
+        self.inner.state.lock().unwrap().display
+    }
 }
 
 impl WeakInnerBackend {
@@ -207,6 +223,7 @@ impl InnerBackend {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
         }
         // set the log trampoline
+        #[cfg(feature = "log")]
         unsafe {
             ffi_dispatch!(
                 WAYLAND_CLIENT_HANDLE,
@@ -265,6 +282,10 @@ impl InnerBackend {
             Ok(())
         }
     }
+
+    pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
+        self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
+    }
 }
 
 impl ConnectionState {
@@ -309,7 +330,7 @@ impl ConnectionState {
         } else {
             WaylandError::Io(err)
         };
-        log::error!("{}", err);
+        crate::log_error!("{}", err);
         self.last_error = Some(err.clone());
         err
     }
@@ -569,7 +590,8 @@ impl InnerBackend {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(ref s) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
@@ -767,7 +789,7 @@ unsafe extern "C" fn dispatcher_func(
     let message_desc = match interface.events.get(opcode as usize) {
         Some(desc) => desc,
         None => {
-            log::error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
+            crate::log_error!("Unknown event opcode {} for interface {}.", opcode, interface.name);
             return -1;
         }
     };
@@ -793,8 +815,12 @@ unsafe extern "C" fn dispatcher_func(
             ArgumentType::Str(_) => {
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland must be valid
-                let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                parsed_args.push(Argument::Str(Box::new(cstr.into())));
+                if !ptr.is_null() {
+                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
+                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                } else {
+                    parsed_args.push(Argument::Str(None));
+                }
             }
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_proxy };
@@ -811,7 +837,7 @@ unsafe extern "C" fn dispatcher_func(
                                 as *mut ProxyUserData)
                         };
                         if !same_interface(next_interface, obj_udata.interface) {
-                            log::error!(
+                            crate::log_error!(
                                 "Received object {}@{} in {}.{} but expected interface {}.",
                                 obj_udata.interface.name,
                                 obj_id,
@@ -856,7 +882,7 @@ unsafe extern "C" fn dispatcher_func(
                 // this is a newid, it needs to be initialized
                 if !obj.is_null() {
                     let child_interface = message_desc.child_interface.unwrap_or_else(|| {
-                        log::warn!(
+                        crate::log_warn!(
                             "Event {}.{} creates an anonymous object.",
                             interface.name,
                             opcode
@@ -952,8 +978,9 @@ unsafe extern "C" fn dispatcher_func(
     0
 }
 
+#[cfg(feature = "log")]
 extern "C" {
-    fn wl_log_trampoline_to_rust_client(fmt: *const c_char, list: *const c_void);
+    fn wl_log_trampoline_to_rust_client(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 
 impl Drop for ConnectionState {

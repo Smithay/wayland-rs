@@ -21,7 +21,6 @@ use smallvec::SmallVec;
 
 use super::{
     client::*,
-    debug::DisplaySlice,
     map::{Object, ObjectMap, SERVER_ID_LIMIT},
     socket::{BufferedSocket, Socket},
     wire::MessageParseError,
@@ -54,6 +53,13 @@ impl std::cmp::PartialEq for InnerObjectId {
 }
 
 impl std::cmp::Eq for InnerObjectId {}
+
+impl std::hash::Hash for InnerObjectId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.serial.hash(state);
+        self.id.hash(state);
+    }
+}
 
 impl fmt::Display for InnerObjectId {
     #[cfg_attr(coverage, no_coverage)]
@@ -399,7 +405,13 @@ impl InnerBackend {
                 &args,
             );
         }
-        log::debug!("Sending {}.{} ({})", id, message_desc.name, DisplaySlice(&args));
+        #[cfg(feature = "log")]
+        crate::log_debug!(
+            "Sending {}.{} ({})",
+            id,
+            message_desc.name,
+            super::debug::DisplaySlice(&args)
+        );
 
         // Send the message
 
@@ -477,6 +489,11 @@ impl InnerBackend {
             })
             .unwrap_or(Err(InvalidId))
     }
+
+    // Nothing to do here, we don't have an inner queue
+    pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
+        Ok(0)
+    }
 }
 
 impl ProtocolState {
@@ -497,7 +514,7 @@ impl ProtocolState {
     #[inline]
     fn store_and_return_error(&mut self, err: impl Into<WaylandError>) -> WaylandError {
         let err = err.into();
-        log::error!("{}", err);
+        crate::log_error!("{}", err);
         self.last_error = Some(err.clone());
         err
     }
@@ -531,7 +548,7 @@ impl ProtocolState {
         match message.opcode {
             0 => {
                 // wl_display.error
-                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(ref message)] =
+                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(Some(ref message))] =
                     message.args[..]
                 {
                     let object = self.map.find(obj);
@@ -748,7 +765,13 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
 
         // unlock the mutex while we invoke the user callback
         std::mem::drop(guard);
-        log::debug!("Dispatching {}.{} ({})", id, receiver.version, DisplaySlice(&args));
+        #[cfg(feature = "log")]
+        crate::log_debug!(
+            "Dispatching {}.{} ({})",
+            id,
+            receiver.version,
+            super::debug::DisplaySlice(&args)
+        );
         let ret = receiver
             .data
             .user_data
