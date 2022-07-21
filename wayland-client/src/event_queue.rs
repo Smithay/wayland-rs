@@ -164,7 +164,8 @@ where
 /// ```
 #[macro_export]
 macro_rules! event_created_child {
-    ($selftype:ty, $iface:ty, [$($opcode:expr => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+    // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
+    ($selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>
@@ -180,7 +181,7 @@ macro_rules! event_created_child {
                 },
             }
         }
-    }
+    };
 }
 
 type QueueCallback<State> = fn(
