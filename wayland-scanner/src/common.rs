@@ -126,24 +126,24 @@ pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> Tok
         let since_cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
         let opcode_cstname = format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
-        let opcode = opcode as u32;
+        let opcode = opcode as u16;
         quote! {
             /// The minimal object version supporting this request
             pub const #since_cstname: u32 = #since;
             /// The wire opcode for this request
-            pub const #opcode_cstname: u32 = #opcode;
+            pub const #opcode_cstname: u16 = #opcode;
         }
     });
     let evt_constants = events.iter().enumerate().map(|(opcode, msg)| {
         let since_cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
         let opcode_cstname = format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
-        let opcode = opcode as u32;
+        let opcode = opcode as u16;
         quote! {
             /// The minimal object version supporting this event
             pub const #since_cstname: u32 = #since;
             /// The wire opcode for this event
-            pub const #opcode_cstname: u32 = #opcode;
+            pub const #opcode_cstname: u16 = #opcode;
         }
     });
 

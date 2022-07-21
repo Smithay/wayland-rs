@@ -389,7 +389,7 @@ impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ()> for Client
     }
 
     wayc::event_created_child!(ClientHandler, wayc::protocol::wl_data_device::WlDataDevice, [
-        0 => (ClientDO, ())
+        wayc::protocol::wl_data_device::EVT_DATA_OFFER_OPCODE => (ClientDO, ())
     ]);
 }
 
