@@ -27,9 +27,9 @@ pub enum ArgumentType {
     /// Id of a wayland object
     Object(AllowNull),
     /// Id of a newly created wayland object
-    NewId(AllowNull),
+    NewId,
     /// Vec<u8>
-    Array(AllowNull),
+    Array,
     /// A file descriptor argument. Represented by a [`RawFd`].
     Fd,
 }
@@ -78,8 +78,8 @@ impl<Id> Argument<Id> {
             Self::Fixed(_) => ArgumentType::Fixed,
             Self::Str(_) => ArgumentType::Str(AllowNull::Yes),
             Self::Object(_) => ArgumentType::Object(AllowNull::Yes),
-            Self::NewId(_) => ArgumentType::NewId(AllowNull::Yes),
-            Self::Array(_) => ArgumentType::Array(AllowNull::Yes),
+            Self::NewId(_) => ArgumentType::NewId,
+            Self::Array(_) => ArgumentType::Array,
             Self::Fd(_) => ArgumentType::Fd,
         }
     }

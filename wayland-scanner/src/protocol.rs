@@ -135,7 +135,7 @@ pub enum Type {
 
 impl Type {
     pub fn nullable(self) -> bool {
-        matches!(self, Type::String | Type::Object | Type::NewId | Type::Array)
+        matches!(self, Type::String | Type::Object)
     }
 
     pub fn common_type(self) -> TokenStream {

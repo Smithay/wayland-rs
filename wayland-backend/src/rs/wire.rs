@@ -216,32 +216,33 @@ pub fn parse_message<'a, 'b>(
                     Err(MessageParseError::MissingFD)
                 }
             } else if let Some((&front, mut tail)) = payload.split_first() {
-                let arg =
-                    match *argtype {
-                        ArgumentType::Int => Ok(Argument::Int(front as i32)),
-                        ArgumentType::Uint => Ok(Argument::Uint(front)),
-                        ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
-                        ArgumentType::Str(_) => read_array_from_payload(front as usize, tail)
-                            .and_then(|(v, rest)| {
-                                tail = rest;
-                                if !v.is_empty() {
-                                    match CStr::from_bytes_with_nul(v) {
-                                        Ok(s) => Ok(Argument::Str(Some(Box::new(s.into())))),
-                                        Err(_) => Err(MessageParseError::Malformed),
-                                    }
-                                } else {
-                                    Ok(Argument::Str(None))
+                let arg = match *argtype {
+                    ArgumentType::Int => Ok(Argument::Int(front as i32)),
+                    ArgumentType::Uint => Ok(Argument::Uint(front)),
+                    ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
+                    ArgumentType::Str(_) => {
+                        read_array_from_payload(front as usize, tail).and_then(|(v, rest)| {
+                            tail = rest;
+                            if !v.is_empty() {
+                                match CStr::from_bytes_with_nul(v) {
+                                    Ok(s) => Ok(Argument::Str(Some(Box::new(s.into())))),
+                                    Err(_) => Err(MessageParseError::Malformed),
                                 }
-                            }),
-                        ArgumentType::Object(_) => Ok(Argument::Object(front)),
-                        ArgumentType::NewId(_) => Ok(Argument::NewId(front)),
-                        ArgumentType::Array(_) => read_array_from_payload(front as usize, tail)
-                            .map(|(v, rest)| {
-                                tail = rest;
-                                Argument::Array(Box::new(v.into()))
-                            }),
-                        ArgumentType::Fd => unreachable!(),
-                    };
+                            } else {
+                                Ok(Argument::Str(None))
+                            }
+                        })
+                    }
+                    ArgumentType::Object(_) => Ok(Argument::Object(front)),
+                    ArgumentType::NewId => Ok(Argument::NewId(front)),
+                    ArgumentType::Array => {
+                        read_array_from_payload(front as usize, tail).map(|(v, rest)| {
+                            tail = rest;
+                            Argument::Array(Box::new(v.into()))
+                        })
+                    }
+                    ArgumentType::Fd => unreachable!(),
+                };
                 payload = tail;
                 arg
             } else {
@@ -348,9 +349,9 @@ mod tests {
                 ArgumentType::Uint,
                 ArgumentType::Fixed,
                 ArgumentType::Str(AllowNull::No),
-                ArgumentType::Array(AllowNull::No),
+                ArgumentType::Array,
                 ArgumentType::Object(AllowNull::No),
-                ArgumentType::NewId(AllowNull::No),
+                ArgumentType::NewId,
                 ArgumentType::Int,
             ],
             &fd_buffer[..],
