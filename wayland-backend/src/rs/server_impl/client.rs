@@ -167,7 +167,7 @@ impl<D> Client<D> {
                         if !same_interface(child_interface, object.interface) {
                             panic!("Event {}@{}.{} expects a newid argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, child_interface.name, object.interface.name);
                         }
-                    } else if !matches!(message_desc.signature[i], ArgumentType::NewId(AllowNull::Yes)) {
+                    } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
                     }
                     Argument::Object(o.id.id)

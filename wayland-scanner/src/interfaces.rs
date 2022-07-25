@@ -64,7 +64,7 @@ fn build_messagedesc_list(list: &[Message]) -> TokenStream {
                 quote! {
                     wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
                     wayland_backend::protocol::ArgumentType::Uint,
-                    wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)
+                    wayland_backend::protocol::ArgumentType::NewId
                 }
             } else {
                 let typ = arg.typ.common_type();

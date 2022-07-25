@@ -394,9 +394,9 @@ mod tests {
             ArgumentType::Uint,
             ArgumentType::Fixed,
             ArgumentType::Str(AllowNull::No),
-            ArgumentType::Array(AllowNull::No),
+            ArgumentType::Array,
             ArgumentType::Object(AllowNull::No),
-            ArgumentType::NewId(AllowNull::No),
+            ArgumentType::NewId,
             ArgumentType::Int,
         ];
 

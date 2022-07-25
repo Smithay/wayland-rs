@@ -980,10 +980,7 @@ impl<D: 'static> ErasedState for State<D> {
                         if !same_interface(child_interface, o.id.interface) {
                             panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, child_interface.name, o.id.interface.name);
                         }
-                    } else if !matches!(
-                        message_desc.signature[i],
-                        ArgumentType::NewId(AllowNull::Yes)
-                    ) {
+                    } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!(
                             "Event {}@{}.{} expects an non-null object argument.",
                             id.interface.name, id.id, message_desc.name
@@ -1301,7 +1298,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
             ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
             ArgumentType::Fd => parsed_args.push(Argument::Fd(unsafe { (*args.add(i)).h })),
-            ArgumentType::Array(_) => {
+            ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the wl_array provided by libwayland is valid
                 let content =
@@ -1373,7 +1370,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     }))
                 }
             }
-            ArgumentType::NewId(_) => {
+            ArgumentType::NewId => {
                 let new_id = unsafe { (*args.add(i)).n };
                 // create the object
                 if new_id != 0 {

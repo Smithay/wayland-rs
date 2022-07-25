@@ -13,7 +13,7 @@ pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface = wayland_
     requests: &[
         wayland_backend::protocol::MessageDesc {
             name: "sync",
-            signature: &[wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)],
+            signature: &[wayland_backend::protocol::ArgumentType::NewId],
             since: 1u32,
             is_destructor: false,
             child_interface: Some(&WL_CALLBACK_INTERFACE),
@@ -21,7 +21,7 @@ pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface = wayland_
         },
         wayland_backend::protocol::MessageDesc {
             name: "get_registry",
-            signature: &[wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)],
+            signature: &[wayland_backend::protocol::ArgumentType::NewId],
             since: 1u32,
             is_destructor: false,
             child_interface: Some(&WL_REGISTRY_INTERFACE),
@@ -99,7 +99,7 @@ pub static WL_REGISTRY_INTERFACE: wayland_backend::protocol::Interface = wayland
             wayland_backend::protocol::ArgumentType::Uint,
             wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
             wayland_backend::protocol::ArgumentType::Uint,
-            wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No),
+            wayland_backend::protocol::ArgumentType::NewId,
         ],
         since: 1u32,
         is_destructor: false,
@@ -196,7 +196,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
                 wayland_backend::protocol::ArgumentType::Uint,
                 wayland_backend::protocol::ArgumentType::Int,
                 wayland_backend::protocol::ArgumentType::Fixed,
-                wayland_backend::protocol::ArgumentType::Array(wayland_backend::protocol::AllowNull::No),
+                wayland_backend::protocol::ArgumentType::Array,
                 wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
                 wayland_backend::protocol::ArgumentType::Fd,
             ],
@@ -207,7 +207,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
         },
         wayland_backend::protocol::MessageDesc {
             name: "get_secondary",
-            signature: &[wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)],
+            signature: &[wayland_backend::protocol::ArgumentType::NewId],
             since: 2u32,
             is_destructor: false,
             child_interface: Some(&SECONDARY_INTERFACE),
@@ -215,7 +215,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
         },
         wayland_backend::protocol::MessageDesc {
             name: "get_tertiary",
-            signature: &[wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No)],
+            signature: &[wayland_backend::protocol::ArgumentType::NewId],
             since: 3u32,
             is_destructor: false,
             child_interface: Some(&TERTIARY_INTERFACE),
@@ -259,9 +259,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
         wayland_backend::protocol::MessageDesc {
             name: "newid_and_allow_null",
             signature: &[
-                wayland_backend::protocol::ArgumentType::NewId(
-                    wayland_backend::protocol::AllowNull::No,
-                ),
+                wayland_backend::protocol::ArgumentType::NewId,
                 wayland_backend::protocol::ArgumentType::Object(
                     wayland_backend::protocol::AllowNull::Yes,
                 ),
@@ -282,7 +280,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
             wayland_backend::protocol::ArgumentType::Uint,
             wayland_backend::protocol::ArgumentType::Int,
             wayland_backend::protocol::ArgumentType::Fixed,
-            wayland_backend::protocol::ArgumentType::Array(wayland_backend::protocol::AllowNull::No),
+            wayland_backend::protocol::ArgumentType::Array,
             wayland_backend::protocol::ArgumentType::Str(wayland_backend::protocol::AllowNull::No),
             wayland_backend::protocol::ArgumentType::Fd,
         ],
@@ -302,7 +300,7 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface = wayland
     wayland_backend::protocol::MessageDesc {
         name: "cycle_quad",
         signature: &[
-            wayland_backend::protocol::ArgumentType::NewId(wayland_backend::protocol::AllowNull::No),
+            wayland_backend::protocol::ArgumentType::NewId,
             wayland_backend::protocol::ArgumentType::Object(wayland_backend::protocol::AllowNull::Yes),
         ],
         since: 1u32,

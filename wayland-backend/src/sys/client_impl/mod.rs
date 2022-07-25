@@ -524,7 +524,7 @@ impl InnerBackend {
         let child_spec = if message_desc
             .signature
             .iter()
-            .any(|arg| matches!(arg, ArgumentType::NewId(_)))
+            .any(|arg| matches!(arg, ArgumentType::NewId))
         {
             if let Some((iface, version)) = child_spec {
                 if let Some(child_interface) = message_desc.child_interface {
@@ -805,7 +805,7 @@ unsafe extern "C" fn dispatcher_func(
             ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
             ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
             ArgumentType::Fd => parsed_args.push(Argument::Fd(unsafe { (*args.add(i)).h })),
-            ArgumentType::Array(_) => {
+            ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the array provided by libwayland must be valid
                 let content =
@@ -877,7 +877,7 @@ unsafe extern "C" fn dispatcher_func(
                     }))
                 }
             }
-            ArgumentType::NewId(_) => {
+            ArgumentType::NewId => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_proxy };
                 // this is a newid, it needs to be initialized
                 if !obj.is_null() {

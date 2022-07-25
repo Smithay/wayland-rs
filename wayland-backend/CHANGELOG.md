@@ -12,6 +12,7 @@
   segfaults that previously occurred dereferencing the null pointer in the system backend.
 - server: `disable_global` and `remove_global` now require the state type parameter, like `create_global`.
   This is required for compatibility with libwayland 1.21.
+- `ArgumentType::Array` and `ArgumentType::NewId` no longer take a `AllowNull` and are never nullable.
 
 #### Additions
 

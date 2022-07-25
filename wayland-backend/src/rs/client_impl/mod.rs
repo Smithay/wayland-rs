@@ -312,7 +312,7 @@ impl InnerBackend {
         let child_spec = if message_desc
             .signature
             .iter()
-            .any(|arg| matches!(arg, ArgumentType::NewId(_)))
+            .any(|arg| matches!(arg, ArgumentType::NewId))
         {
             if let Some((iface, version)) = child_spec {
                 if let Some(child_interface) = message_desc.child_interface {
