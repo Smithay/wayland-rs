@@ -8,6 +8,10 @@
   objects with invalid IDs of failing with `InvalidId`.  This matches the
   behavior of non-object-creating requests (which also ignore the error).
 
+#### Additions
+
+- `QueueFreezeGuard` for avoiding race conditions while constructing objects.
+
 ## 0.1.0-beta.8
 
 #### Breaking changes

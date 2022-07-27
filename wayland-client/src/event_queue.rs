@@ -1,12 +1,10 @@
 use std::any::Any;
+use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::pin::Pin;
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
 use std::task;
 
-use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures_core::stream::Stream;
 use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
@@ -312,25 +310,32 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// }
 /// ```
 pub struct EventQueue<State> {
-    rx: UnboundedReceiver<QueueEvent<State>>,
     handle: QueueHandle<State>,
     conn: Connection,
+}
+
+#[derive(Debug)]
+struct EventQueueInner<State> {
+    queue: VecDeque<QueueEvent<State>>,
+    freeze_count: usize,
+    waker: Option<task::Waker>,
 }
 
 impl<State> std::fmt::Debug for EventQueue<State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EventQueue")
-            .field("rx", &self.rx)
-            .field("handle", &self.handle)
-            .finish_non_exhaustive()
+        f.debug_struct("EventQueue").field("handle", &self.handle).finish_non_exhaustive()
     }
 }
 
 impl<State> EventQueue<State> {
     pub(crate) fn new(conn: Connection) -> Self {
-        let (tx, rx) = unbounded();
-        Self { rx, handle: QueueHandle { tx }, conn }
+        let inner = Arc::new(Mutex::new(EventQueueInner {
+            queue: VecDeque::new(),
+            freeze_count: 0,
+            waker: None,
+        }));
+        Self { handle: QueueHandle { inner }, conn }
     }
 
     /// Get a [`QueueHandle`] for this event queue
@@ -344,8 +349,10 @@ impl<State> EventQueue<State> {
     /// the read APIs on [`Connection`](crate::Connection), or when reading is done from an other thread.
     /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
     /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
+    ///
+    /// Note: this may block if another thread has frozen the queue.
     pub fn dispatch_pending(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
+        Self::dispatching_impl(&self.conn, &self.handle, data)
     }
 
     /// Block waiting for events and dispatch them
@@ -356,12 +363,12 @@ impl<State> EventQueue<State> {
     ///
     /// A simple app event loop can consist of invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        let dispatched = Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)?;
+        let dispatched = Self::dispatching_impl(&self.conn, &self.handle, data)?;
         if dispatched > 0 {
             Ok(dispatched)
         } else {
             crate::conn::blocking_dispatch_impl(self.conn.backend())?;
-            Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
+            Self::dispatching_impl(&self.conn, &self.handle, data)
         }
     }
 
@@ -418,7 +425,6 @@ impl<State> EventQueue<State> {
 
     fn dispatching_impl(
         backend: &Connection,
-        rx: &mut UnboundedReceiver<QueueEvent<State>>,
         qhandle: &QueueHandle<State>,
         data: &mut State,
     ) -> Result<usize, DispatchError> {
@@ -431,11 +437,23 @@ impl<State> EventQueue<State> {
         let _ = backend.backend.dispatch_inner_queue();
 
         let mut dispatched = 0;
-        while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
+        while let Some(QueueEvent(cb, msg, odata)) = Self::try_next(&qhandle.inner) {
             cb(backend, msg, data, odata, qhandle)?;
             dispatched += 1;
         }
         Ok(dispatched)
+    }
+
+    fn try_next(inner: &Mutex<EventQueueInner<State>>) -> Option<QueueEvent<State>> {
+        let mut lock = inner.lock().unwrap();
+        if lock.freeze_count != 0 && !lock.queue.is_empty() {
+            let waker = Arc::new(DispatchWaker { cond: Condvar::new() });
+            while lock.freeze_count != 0 {
+                lock.waker = Some(waker.clone().into());
+                lock = waker.cond.wait(lock).unwrap();
+            }
+        }
+        lock.queue.pop_front()
     }
 
     /// Attempt to dispatch events from this queue, registering the current task for wakeup if no
@@ -492,36 +510,54 @@ impl<State> EventQueue<State> {
             if let Err(e) = self.conn.backend.dispatch_inner_queue() {
                 return task::Poll::Ready(Err(e.into()));
             }
-            match Pin::new(&mut self.rx).poll_next(cx) {
-                task::Poll::Pending => return task::Poll::Pending,
-                task::Poll::Ready(None) => {
-                    // We never close the channel, and we hold a valid sender in self.handle.tx, so
-                    // our event stream will never reach an end.
-                    unreachable!("Got end of stream while holding a valid sender");
-                }
-                task::Poll::Ready(Some(QueueEvent(cb, msg, odata))) => {
-                    cb(&self.conn, msg, data, odata, &self.handle)?
-                }
+            let mut lock = self.handle.inner.lock().unwrap();
+            if lock.freeze_count != 0 {
+                lock.waker = Some(cx.waker().clone());
+                return task::Poll::Pending;
             }
+            let QueueEvent(cb, msg, odata) = if let Some(elt) = lock.queue.pop_front() {
+                elt
+            } else {
+                lock.waker = Some(cx.waker().clone());
+                return task::Poll::Pending;
+            };
+            drop(lock);
+            cb(&self.conn, msg, data, odata, &self.handle)?
         }
+    }
+}
+
+struct DispatchWaker {
+    cond: Condvar,
+}
+
+impl task::Wake for DispatchWaker {
+    fn wake(self: Arc<Self>) {
+        self.cond.notify_all()
     }
 }
 
 /// A handle representing an [`EventQueue`], used to assign objects upon creation.
 pub struct QueueHandle<State> {
-    tx: UnboundedSender<QueueEvent<State>>,
+    inner: Arc<Mutex<EventQueueInner<State>>>,
+}
+
+/// A handle that temporarily pauses event processing on an [`EventQueue`].
+#[derive(Debug)]
+pub struct QueueFreezeGuard<'a, State> {
+    qh: &'a QueueHandle<State>,
 }
 
 impl<State> std::fmt::Debug for QueueHandle<State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("QueueHandle").field("tx", &self.tx).finish()
+        f.debug_struct("QueueHandle").field("inner", &Arc::as_ptr(&self.inner)).finish()
     }
 }
 
 impl<State> Clone for QueueHandle<State> {
     fn clone(&self) -> Self {
-        Self { tx: self.tx.clone() }
+        Self { inner: self.inner.clone() }
     }
 }
 
@@ -543,6 +579,27 @@ impl<State: 'static> QueueHandle<State> {
             udata: user_data,
             _phantom: PhantomData,
         })
+    }
+
+    /// Temporarily block processing on this queue.
+    ///
+    /// This will cause the associated queue to block (or return `NotReady` to poll) until all
+    /// [`QueueFreezeGuard`]s associated with the queue are dropped.
+    pub fn freeze(&self) -> QueueFreezeGuard<State> {
+        self.inner.lock().unwrap().freeze_count += 1;
+        QueueFreezeGuard { qh: self }
+    }
+}
+
+impl<'a, State> Drop for QueueFreezeGuard<'a, State> {
+    fn drop(&mut self) {
+        let mut lock = self.qh.inner.lock().unwrap();
+        lock.freeze_count -= 1;
+        if lock.freeze_count == 0 && !lock.queue.is_empty() {
+            if let Some(waker) = lock.waker.take() {
+                waker.wake();
+            }
+        }
     }
 }
 
@@ -583,8 +640,12 @@ where
             .then(|| State::event_created_child(msg.opcode, &self.handle));
 
         let func = queue_callback::<I, U, State>;
-        if self.handle.tx.unbounded_send(QueueEvent(func, msg, self.clone())).is_err() {
-            crate::log_error!("Event received for EventQueue after it was dropped.");
+        let mut lock = self.handle.inner.lock().unwrap();
+        lock.queue.push_back(QueueEvent(func, msg, self.clone()));
+        if lock.freeze_count == 0 {
+            if let Some(waker) = lock.waker.take() {
+                waker.wake();
+            }
         }
         new_data
     }
