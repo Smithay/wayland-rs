@@ -2,10 +2,7 @@ use std::any::Any;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::sync::{atomic::Ordering, Arc};
 use std::task;
 
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
@@ -376,24 +373,20 @@ impl<State> EventQueue<State> {
     /// This function may be useful during initial setup of your app. This function may also be useful
     /// where you need to guarantee all requests prior to calling this function are completed.
     pub fn roundtrip(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        let done = Arc::new(AtomicBool::new(false));
+        let done = Arc::new(SyncData::default());
 
-        {
-            let display = self.conn.display();
-            let cb_done = done.clone();
-            let sync_data = Arc::new(SyncData { done: cb_done });
-            self.conn
-                .send_request(
-                    &display,
-                    crate::protocol::wl_display::Request::Sync {},
-                    Some(sync_data),
-                )
-                .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
-        }
+        let display = self.conn.display();
+        self.conn
+            .send_request(
+                &display,
+                crate::protocol::wl_display::Request::Sync {},
+                Some(done.clone()),
+            )
+            .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
 
         let mut dispatched = 0;
 
-        while !done.load(Ordering::Acquire) {
+        while !done.done.load(Ordering::Acquire) {
             dispatched += self.blocking_dispatch(data)?;
         }
 

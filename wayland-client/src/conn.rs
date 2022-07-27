@@ -151,22 +151,18 @@ impl Connection {
     ///
     /// See [`EventQueue::roundtrip()`] for a version that includes the dispatching of the event queue.
     pub fn roundtrip(&self) -> Result<usize, WaylandError> {
-        let done = Arc::new(AtomicBool::new(false));
-        {
-            let display = self.display();
-            let cb_done = done.clone();
-            let sync_data = Arc::new(SyncData { done: cb_done });
-            self.send_request(
-                &display,
-                crate::protocol::wl_display::Request::Sync {},
-                Some(sync_data),
-            )
-            .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
-        }
+        let done = Arc::new(SyncData::default());
+        let display = self.display();
+        self.send_request(
+            &display,
+            crate::protocol::wl_display::Request::Sync {},
+            Some(done.clone()),
+        )
+        .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
 
         let mut dispatched = 0;
 
-        while !done.load(Ordering::Acquire) {
+        while !done.done.load(Ordering::Acquire) {
             dispatched += blocking_dispatch_impl(self.backend.clone())?;
         }
 
@@ -262,8 +258,9 @@ pub enum ConnectError {
     wl_callback object data for wl_display.sync
 */
 
+#[derive(Default)]
 pub(crate) struct SyncData {
-    pub(crate) done: Arc<AtomicBool>,
+    pub(crate) done: AtomicBool,
 }
 
 impl ObjectData for SyncData {
