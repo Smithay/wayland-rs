@@ -269,7 +269,7 @@ impl ObjectData for SyncData {
         _handle: &Backend,
         _msg: wayland_backend::protocol::Message<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
-        self.done.store(true, Ordering::Release);
+        self.done.store(true, Ordering::Relaxed);
         None
     }
 

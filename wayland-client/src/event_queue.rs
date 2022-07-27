@@ -386,7 +386,7 @@ impl<State> EventQueue<State> {
 
         let mut dispatched = 0;
 
-        while !done.done.load(Ordering::Acquire) {
+        while !done.done.load(Ordering::Relaxed) {
             dispatched += self.blocking_dispatch(data)?;
         }
 
