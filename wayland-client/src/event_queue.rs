@@ -363,13 +363,22 @@ impl<State> EventQueue<State> {
     ///
     /// A simple app event loop can consist of invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        let dispatched = Self::dispatching_impl(&self.conn, &self.handle, data)?;
+        let dispatched = self.dispatch_pending(data)?;
         if dispatched > 0 {
-            Ok(dispatched)
-        } else {
-            crate::conn::blocking_dispatch_impl(self.conn.backend())?;
-            Self::dispatching_impl(&self.conn, &self.handle, data)
+            return Ok(dispatched);
         }
+
+        let guard = self.conn.prepare_read()?;
+
+        // we need to check the queue again, just in case another thread did a read between
+        // dispatch_pending and prepare_read
+        if self.handle.inner.lock().unwrap().queue.is_empty() {
+            crate::conn::blocking_read(guard)?;
+        } else {
+            drop(guard);
+        }
+
+        self.dispatch_pending(data)
     }
 
     /// Synchronous roundtrip

@@ -122,25 +122,9 @@ impl Connection {
     /// their event queues using [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
     ///
     /// If you don't need to manage multiple event sources, see
-    /// [`blocking_dispatch()`](Connection::blocking_read) for a simpler mechanism. [`EventQueue`] has an
-    /// identical method for convenience.
+    /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
     pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
         self.backend.prepare_read()
-    }
-
-    /// Block until events are received from the server
-    ///
-    /// This will flush the outgoing socket, and then block until events are received from the
-    /// server and read them. You'll then need to invoke
-    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending) to dispatch them on
-    /// their respective event queues. Alternatively,
-    /// [`EventQueue::blocking_dispatch()`](EventQueue::blocking_dispatch) does the same thing as this
-    /// method but also dispatches the pending messages on the queue it was invoked.
-    ///
-    /// If you created objects bypassing the event queues with direct [`ObjectData`] callbacks, those
-    /// callbacks will be invoked (if those objects received any events) before this method returns.
-    pub fn blocking_read(&self) -> Result<usize, WaylandError> {
-        blocking_dispatch_impl(self.backend.clone())
     }
 
     /// Do a roundtrip to the server
@@ -162,8 +146,23 @@ impl Connection {
 
         let mut dispatched = 0;
 
-        while !done.done.load(Ordering::Acquire) {
-            dispatched += blocking_dispatch_impl(self.backend.clone())?;
+        loop {
+            self.backend.flush()?;
+
+            // first, prepare the read
+            let guard = self.backend.prepare_read()?;
+
+            // If another thread processed events prior to prepare_read, we might already be done.
+            if done.done.load(Ordering::Relaxed) {
+                break;
+            }
+
+            dispatched += blocking_read(guard)?;
+
+            // see if the successful read included our callback
+            if done.done.load(Ordering::Relaxed) {
+                break;
+            }
         }
 
         Ok(dispatched)
@@ -209,18 +208,13 @@ impl Connection {
     }
 }
 
-pub(crate) fn blocking_dispatch_impl(backend: Backend) -> Result<usize, WaylandError> {
-    backend.flush()?;
+pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandError> {
+    let mut fds = [nix::poll::PollFd::new(
+        guard.connection_fd(),
+        nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
+    )];
 
-    // first, prepare the read
-    let guard = backend.prepare_read()?;
-
-    // there is nothing to dispatch, wait for readiness
     loop {
-        let mut fds = [nix::poll::PollFd::new(
-            guard.connection_fd(),
-            nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
-        )];
         match nix::poll::poll(&mut fds, -1) {
             Ok(_) => break,
             Err(nix::errno::Errno::EINTR) => continue,
@@ -231,8 +225,7 @@ pub(crate) fn blocking_dispatch_impl(backend: Backend) -> Result<usize, WaylandE
     // at this point the fd is ready
     match guard.read() {
         Ok(n) => Ok(n),
-        // if we are still "wouldblock", that means that there was a dispatch from an other
-        // thread with the C-based backend, spuriously return 0.
+        // if we are still "wouldblock", just return 0; the caller will retry.
         Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => Ok(0),
         Err(e) => Err(e),
     }
