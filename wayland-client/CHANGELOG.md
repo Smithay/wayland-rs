@@ -5,8 +5,10 @@
 #### Breaking changes
 
 - Requests that create new objects now produce inert proxies when called on
-  objects with invalid IDs of failing with `InvalidId`.  This matches the
-  behavior of non-object-creating requests (which also ignore the error).
+  objects with invalid IDs instead of failing with `InvalidId`.  This matches
+  the behavior of non-object-creating requests (which also ignore the error).
+
+- `Connection::blocking_dispatch` has been removed; use `EventQueue::blocking_dispatch`.
 
 #### Additions
 
