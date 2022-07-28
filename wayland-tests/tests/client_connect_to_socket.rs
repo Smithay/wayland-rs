@@ -23,7 +23,7 @@ fn main() {
 
     let mut client_data = ClientHandler::new();
 
-    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_data, &mut ServerData).unwrap();
     // check that we connected to the right compositor

@@ -16,7 +16,7 @@ fn client_receive_generic_error() {
 
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 

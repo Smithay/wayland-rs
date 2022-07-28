@@ -27,7 +27,7 @@ fn data_offer() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -40,7 +40,7 @@ fn data_offer() {
         .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
-    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -73,7 +73,7 @@ fn server_id_reuse() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -86,7 +86,7 @@ fn server_id_reuse() {
         .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
-    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -154,7 +154,7 @@ fn server_created_race() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -167,7 +167,7 @@ fn server_created_race() {
         .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
-    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -217,7 +217,7 @@ fn creation_destruction_race() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -232,11 +232,11 @@ fn creation_destruction_race() {
 
     // client creates two data devices
 
-    let client_dd1 = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    let client_dd1 = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     let s_dd1 = server_ddata.data_device.take().unwrap();
 
-    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
     let s_dd2 = server_ddata.data_device.take().unwrap();
 
@@ -288,7 +288,7 @@ fn creation_destruction_queue_dispatch_race() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -301,7 +301,7 @@ fn creation_destruction_queue_dispatch_race() {
         .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
         .unwrap();
 
-    let client_dd = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ()).unwrap();
+    let client_dd = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 

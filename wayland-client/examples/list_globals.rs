@@ -52,7 +52,7 @@ fn main() {
     // This method takes two arguments: a handle to the queue the newly created
     // wl_registry will be assigned to, and the user-data that should be associated
     // with this registry (here it is () as we don't need user-data).
-    let _registry = display.get_registry(&qh, ()).unwrap();
+    let _registry = display.get_registry(&qh, ());
 
     // At this point everything is ready, and we just need to wait to receive the events
     // from the wl_registry, our callback will print the advertized globals.

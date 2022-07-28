@@ -93,9 +93,7 @@ impl GlobalList {
             }
 
             if version.contains(&desc.version) {
-                return Ok(registry
-                    .bind::<I, U, D>(desc.name, desc.version, qh, user_data)
-                    .expect("invalid wl_registry"));
+                return Ok(registry.bind::<I, U, D>(desc.name, desc.version, qh, user_data));
             } else {
                 return Err(BindError::WrongVersion {
                     interface: I::interface().name,

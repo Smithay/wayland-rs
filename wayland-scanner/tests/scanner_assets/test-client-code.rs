@@ -145,6 +145,10 @@ pub mod wl_display {
             let backend = conn.backend().downgrade();
             Ok(WlDisplay { id, data, version, backend })
         }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlDisplay { id: ObjectId::null(), data: None, version: 0, backend }
+        }
         fn parse_event(
             conn: &Connection,
             msg: Message<ObjectId>,
@@ -219,14 +223,12 @@ pub mod wl_display {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::wl_callback::WlCallback, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::wl_callback::WlCallback {
+            self.send_constructor(
                 Request::Sync {},
-                Some(qh.make_data::<super::wl_callback::WlCallback, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::wl_callback::WlCallback, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         #[allow(clippy::too_many_arguments)]
@@ -237,14 +239,12 @@ pub mod wl_display {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::wl_registry::WlRegistry, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::wl_registry::WlRegistry {
+            self.send_constructor(
                 Request::GetRegistry {},
-                Some(qh.make_data::<super::wl_registry::WlRegistry, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::wl_registry::WlRegistry, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -363,6 +363,10 @@ pub mod wl_registry {
             let backend = conn.backend().downgrade();
             Ok(WlRegistry { id, data, version, backend })
         }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlRegistry { id: ObjectId::null(), data: None, version: 0, backend }
+        }
         fn parse_event(
             conn: &Connection,
             msg: Message<ObjectId>,
@@ -429,14 +433,12 @@ pub mod wl_registry {
             version: u32,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<I, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> I {
+            self.send_constructor(
                 Request::Bind { name, id: (I::interface(), version) },
-                Some(qh.make_data::<I, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<I, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -529,6 +531,10 @@ pub mod wl_callback {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(WlCallback { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlCallback { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -725,6 +731,10 @@ pub mod test_global {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(TestGlobal { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            TestGlobal { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -954,14 +964,12 @@ pub mod test_global {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::secondary::Secondary, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::secondary::Secondary {
+            self.send_constructor(
                 Request::GetSecondary {},
-                Some(qh.make_data::<super::secondary::Secondary, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::secondary::Secondary, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_tertiary<
@@ -971,14 +979,12 @@ pub mod test_global {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::tertiary::Tertiary, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::tertiary::Tertiary {
+            self.send_constructor(
                 Request::GetTertiary {},
-                Some(qh.make_data::<super::tertiary::Tertiary, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::tertiary::Tertiary, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[doc = "link a secondary and a tertiary"]
         #[allow(clippy::too_many_arguments)]
@@ -1037,14 +1043,12 @@ pub mod test_global {
             ter: &super::tertiary::Tertiary,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::quad::Quad, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::quad::Quad {
+            self.send_constructor(
                 Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
-                Some(qh.make_data::<super::quad::Quad, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::quad::Quad, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -1133,6 +1137,10 @@ pub mod secondary {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(Secondary { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Secondary { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1255,6 +1263,10 @@ pub mod tertiary {
             let backend = conn.backend().downgrade();
             Ok(Tertiary { id, data, version, backend })
         }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Tertiary { id: ObjectId::null(), data: None, version: 0, backend }
+        }
         fn parse_event(
             conn: &Connection,
             msg: Message<ObjectId>,
@@ -1375,6 +1387,10 @@ pub mod quad {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(Quad { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Quad { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
