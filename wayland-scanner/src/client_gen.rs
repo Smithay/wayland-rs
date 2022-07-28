@@ -137,6 +137,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     Ok(#iface_name { id, data, version, backend })
                 }
 
+                #[inline]
+                fn inert(backend: WeakBackend) -> Self {
+                    #iface_name { id: ObjectId::null(), data: None, version: 0, backend }
+                }
+
                 fn parse_event(conn: &Connection, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
                     #parse_body
                 }
@@ -237,16 +242,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<U: Send + Sync + 'static, D: Dispatch<super::#created_iface_mod::#created_iface_type, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> Result<super::#created_iface_mod::#created_iface_type, InvalidId> {
-                        let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-                        let ret = conn.send_request(
-                            self,
+                    pub fn #method_name<U: Send + Sync + 'static, D: Dispatch<super::#created_iface_mod::#created_iface_type, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> super::#created_iface_mod::#created_iface_type {
+                        self.send_constructor(
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<super::#created_iface_mod::#created_iface_type, U>(udata))
-                        )?;
-                        Proxy::from_id(&conn, ret)
+                            qh.make_data::<super::#created_iface_mod::#created_iface_type, U>(udata),
+                        ).unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
                     }
                 }
             },
@@ -255,16 +257,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> Result<I, InvalidId> {
-                        let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-                        let ret = conn.send_request(
-                            self,
+                    pub fn #method_name<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> I {
+                        self.send_constructor(
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            Some(qh.make_data::<I, U>(udata)),
-                        )?;
-                        Proxy::from_id(&conn, ret)
+                            qh.make_data::<I, U>(udata),
+                        ).unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
                     }
                 }
             },

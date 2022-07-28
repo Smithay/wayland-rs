@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- Requests that create new objects now produce inert proxies when called on
+  objects with invalid IDs of failing with `InvalidId`.  This matches the
+  behavior of non-object-creating requests (which also ignore the error).
+
 ## 0.1.0-beta.8
 
 #### Breaking changes

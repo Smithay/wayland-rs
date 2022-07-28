@@ -23,7 +23,7 @@ fn main() {
     // connect the client
     let mut client = TestClient::new_from_env();
     let mut client_data = ClientHandler::new();
-    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ());
 
     // setup server-side
     let client_stream = listening.accept().unwrap().unwrap();
