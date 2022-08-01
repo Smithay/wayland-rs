@@ -167,7 +167,7 @@ where
 #[macro_export]
 macro_rules! event_created_child {
     // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
-    ($selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>
@@ -706,27 +706,25 @@ impl ObjectData for TemporaryData {
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [ $($interface: ty : $user_data: ty),* $(,)?] => $dispatch_to: ty) => {
-        $(
-            impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
-                fn event(
-                    state: &mut Self,
-                    proxy: &$interface,
-                    event: <$interface as $crate::Proxy>::Event,
-                    data: &$user_data,
-                    conn: &$crate::Connection,
-                    qhandle: &$crate::QueueHandle<Self>,
-                ) {
-                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event(state, proxy, event, data, conn, qhandle)
-                }
-
-                fn event_created_child(
-                    opcode: u16,
-                    qhandle: &$crate::QueueHandle<Self>
-                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
-                }
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
+            fn event(
+                state: &mut Self,
+                proxy: &$interface,
+                event: <$interface as $crate::Proxy>::Event,
+                data: &$udata,
+                conn: &$crate::Connection,
+                qhandle: &$crate::QueueHandle<Self>,
+            ) {
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::event(state, proxy, event, data, conn, qhandle)
             }
-        )*
+
+            fn event_created_child(
+                opcode: u16,
+                qhandle: &$crate::QueueHandle<Self>
+            ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::event_created_child(opcode, qhandle)
+            }
+        }
     };
 }
