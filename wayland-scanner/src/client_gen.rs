@@ -102,7 +102,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>()).map(|data| &data.udata)
+                    self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
                 }
 
                 fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
