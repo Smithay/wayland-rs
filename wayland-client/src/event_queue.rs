@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::convert::Infallible;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -530,23 +531,6 @@ impl<State> Clone for QueueHandle<State> {
     }
 }
 
-pub(crate) struct QueueSender<State> {
-    func: QueueCallback<State>,
-    pub(crate) handle: QueueHandle<State>,
-}
-
-pub(crate) trait ErasedQueueSender<I> {
-    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>);
-}
-
-impl<I: Proxy, State> ErasedQueueSender<I> for QueueSender<State> {
-    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
-        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
-            crate::log_error!("Event received for EventQueue after it was dropped.");
-        }
-    }
-}
-
 impl<State: 'static> QueueHandle<State> {
     /// Create an object data associated with this event queue
     ///
@@ -560,34 +544,11 @@ impl<State: 'static> QueueHandle<State> {
     where
         State: Dispatch<I, U, State>,
     {
-        let sender: Box<dyn ErasedQueueSender<I> + Send + Sync> =
-            Box::new(QueueSender { func: queue_callback::<I, U, State>, handle: self.clone() });
-
-        let has_creating_event =
-            I::interface().events.iter().any(|desc| desc.child_interface.is_some());
-
-        let odata_maker = if has_creating_event {
-            let qhandle = self.clone();
-            Box::new(move |msg: &Message<ObjectId>| {
-                for arg in &msg.args {
-                    match arg {
-                        Argument::NewId(id) if id.is_null() => {
-                            return None;
-                        }
-                        Argument::NewId(_) => {
-                            return Some(<State as Dispatch<I, U, State>>::event_created_child(
-                                msg.opcode, &qhandle,
-                            ));
-                        }
-                        _ => continue,
-                    }
-                }
-                None
-            }) as Box<_>
-        } else {
-            Box::new(|_: &Message<ObjectId>| None) as Box<_>
-        };
-        Arc::new(QueueProxyData { sender, odata_maker, udata: user_data })
+        Arc::new(QueueProxyData::<I, U, State> {
+            handle: self.clone(),
+            udata: user_data,
+            _phantom: PhantomData,
+        })
     }
 }
 
@@ -608,21 +569,30 @@ fn queue_callback<
     Ok(())
 }
 
-type ObjectDataFactory = dyn Fn(&Message<ObjectId>) -> Option<Arc<dyn ObjectData>> + Send + Sync;
-
 /// The [`ObjectData`] implementation used by Wayland proxies, integrating with [`Dispatch`]
-pub struct QueueProxyData<I: Proxy, U> {
-    pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
-    odata_maker: Box<ObjectDataFactory>,
+pub struct QueueProxyData<I: Proxy, U, State> {
+    handle: QueueHandle<State>,
     /// The user data associated with this object
     pub udata: U,
+    _phantom: PhantomData<fn(&I)>,
 }
 
-impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
+impl<I: Proxy + 'static, U: Send + Sync + 'static, State> ObjectData for QueueProxyData<I, U, State>
+where
+    State: Dispatch<I, U, State> + 'static,
+{
     fn event(self: Arc<Self>, _: &Backend, msg: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
-        let ret = (self.odata_maker)(&msg);
-        self.sender.send(msg, self.clone());
-        ret
+        let new_data = msg
+            .args
+            .iter()
+            .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
+            .then(|| State::event_created_child(msg.opcode, &self.handle));
+
+        let func = queue_callback::<I, U, State>;
+        if self.handle.tx.unbounded_send(QueueEvent(func, msg, self.clone())).is_err() {
+            crate::log_error!("Event received for EventQueue after it was dropped.");
+        }
+        new_data
     }
 
     fn destroyed(&self, _: ObjectId) {}
@@ -632,7 +602,7 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
     }
 }
 
-impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
+impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, U, State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
