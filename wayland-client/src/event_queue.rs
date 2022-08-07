@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::convert::Infallible;
 use std::pin::Pin;
 use std::sync::{
@@ -603,16 +604,8 @@ fn queue_callback<
     qhandle: &QueueHandle<State>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let proxy_data =
-        (&*odata).downcast_ref::<QueueProxyData<I, U>>().expect("Wrong user_data value for object");
-    <State as Dispatch<I, U, State>>::event(
-        data,
-        &proxy,
-        event,
-        &proxy_data.udata,
-        handle,
-        qhandle,
-    );
+    let udata = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
+    <State as Dispatch<I, U, State>>::event(data, &proxy, event, udata, handle, qhandle);
     Ok(())
 }
 
@@ -634,6 +627,10 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData
     }
 
     fn destroyed(&self, _: ObjectId) {}
+
+    fn data_as_any(&self) -> &dyn Any {
+        &self.udata
+    }
 }
 
 impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {

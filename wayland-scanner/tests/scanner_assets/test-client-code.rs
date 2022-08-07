@@ -112,10 +112,7 @@ pub mod wl_display {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -333,10 +330,7 @@ pub mod wl_registry {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -503,10 +497,7 @@ pub mod wl_callback {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -702,10 +693,7 @@ pub mod test_global {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1113,10 +1101,7 @@ pub mod secondary {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1237,10 +1222,7 @@ pub mod tertiary {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1361,10 +1343,7 @@ pub mod quad {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()

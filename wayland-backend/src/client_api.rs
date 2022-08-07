@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     fmt,
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
@@ -37,6 +38,15 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ObjectData").finish_non_exhaustive()
+    }
+
+    /// Helper for accessing user data
+    ///
+    /// This function is used to back the `Proxy::data` function in `wayland_client`.  By default,
+    /// it returns `self` (via Downcast), but this may be overridden to allow downcasting user data
+    /// without needing to have access to the full type.
+    fn data_as_any(&self) -> &dyn Any {
+        self.as_any()
     }
 }
 
