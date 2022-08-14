@@ -24,6 +24,7 @@ bitflags = "1.0"
 [features]
 client = ["wayland-client", "wayland-protocols/client"]
 server = ["wayland-server", "wayland-protocols/server"]
+unstable_protocols = []
 
 [package.metadata.docs.rs]
 all-features = true
