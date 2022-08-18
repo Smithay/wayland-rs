@@ -186,7 +186,7 @@ pub struct ProtocolError {
 pub const INLINE_ARGS: usize = 4;
 
 /// Represents a message that has been sent from some object.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message<Id> {
     /// The id of the object that sent the message.
     pub sender_id: Id,
