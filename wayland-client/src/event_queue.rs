@@ -791,3 +791,60 @@ macro_rules! delegate_dispatch {
         }
     };
 }
+
+/// A helper macro which delegates a set of [`Dispatch`] implementations for proxies to a static handler.
+///
+/// # Usage
+///
+/// This macro is useful to implement [`Dispatch`] for interfaces where events are unimportant to
+/// the current application and can be ignored.
+///
+/// # Example
+///
+/// ```
+/// use wayland_client::{delegate_noop, protocol::{wl_data_offer, wl_subcompositor}};
+///
+/// /// The application state
+/// struct ExampleApp {
+///     // ...
+/// }
+///
+/// // Ignore all events for this interface:
+/// delegate_noop!(ExampleApp: ignore wl_data_offer::WlDataOffer);
+///
+/// // This interface should not emit events:
+/// delegate_noop!(ExampleApp: wl_subcompositor::WlSubcompositor);
+/// ```
+///
+/// This last example will execute `unreachable!()` if the interface emits any events.
+#[macro_export]
+macro_rules! delegate_noop {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+            fn event(
+                _: &mut Self,
+                _: &$interface,
+                _: <$interface as $crate::Proxy>::Event,
+                _: &(),
+                _: &$crate::Connection,
+                _: &$crate::QueueHandle<Self>,
+            ) {
+                unreachable!();
+            }
+        }
+    };
+
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+            fn event(
+                _: &mut Self,
+                _: &$interface,
+                _: <$interface as $crate::Proxy>::Event,
+                _: &(),
+                _: &$crate::Connection,
+                _: &$crate::QueueHandle<Self>,
+            ) {
+            }
+        }
+    };
+}
