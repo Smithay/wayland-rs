@@ -89,7 +89,6 @@ pub mod zwp_input_method_v2 {
     wayland_protocol!("./protocols/input-method-unstable-v2.xml", [wayland_protocols::wp::text_input::zv3]);
 }
 
-#[cfg(feature = "unstable_protocols")]
 pub mod zwp_virtual_keyboard_v1 {
     //! Virtual keyboard v1 unstable
     //!
