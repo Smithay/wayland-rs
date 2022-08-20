@@ -76,7 +76,7 @@ impl_client_objectdata!(client_sys);
 expand_test!(destructor_request, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
@@ -137,7 +137,7 @@ expand_test!(destructor_request, {
 expand_test!(destructor_cleanup, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     let server_data = Arc::new(ServerData(AtomicBool::new(false)));
