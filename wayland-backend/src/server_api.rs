@@ -100,9 +100,9 @@ downcast_rs::impl_downcast!(sync GlobalHandler<D>);
 /// A trait representing your data associated to a client
 pub trait ClientData: downcast_rs::DowncastSync {
     /// Notification that the client was initialized
-    fn initialized(&self, client_id: ClientId);
+    fn initialized(&self, _client_id: ClientId) {}
     /// Notification that the client is disconnected
-    fn disconnected(&self, client_id: ClientId, reason: DisconnectReason);
+    fn disconnected(&self, _client_id: ClientId, _reason: DisconnectReason) {}
     /// Helper for forwarding a Debug implementation of your `ClientData` type
     ///
     /// By default will just print `GlobalHandler { ... }`
@@ -118,6 +118,8 @@ impl std::fmt::Debug for dyn ClientData {
         self.debug(f)
     }
 }
+
+impl ClientData for () {}
 
 downcast_rs::impl_downcast!(sync ClientData);
 

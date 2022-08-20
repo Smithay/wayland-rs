@@ -37,7 +37,7 @@ impl client_sys::ObjectData for SyncData {
 expand_test!(sync, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request
@@ -70,7 +70,7 @@ expand_test!(sync, {
 expand_test!(panic test_bad_placeholder, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request
@@ -103,7 +103,7 @@ expand_test!(panic test_bad_placeholder, {
 expand_test!(panic test_bad_signature, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
-    let _client_id = server.handle().insert_client(rx, Arc::new(DoNothingData)).unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
     // send the request

@@ -18,6 +18,7 @@
 - client: introduce `Backend::dispatch_inner_queue()` meant for ensuring a system backend in guest mode can
   still process events event it does not control reading the socket.
 - introduce the `log` cargo feature to control logging behavior
+- A dummy implementation of ClientData is now provided through `()` and all trait methods are optional
 
 ## 0.1.0-beta.7
 
