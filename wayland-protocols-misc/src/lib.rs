@@ -1,5 +1,5 @@
 //! This crate provides Wayland object definitions for various orphan or deprecated protocol extensions.
-//! 
+//!
 //! This crate provides bindings for protocols that are generally not officially supported,
 //! but are *de facto* used by a non-negligible number of projets in the wayland ecosystem.
 //!
@@ -67,7 +67,7 @@ pub mod gtk_primary_selection {
 
 pub mod zwp_input_method_v2 {
     //! Input method v2 unstable
-    //! 
+    //!
     //! This protocol allows applications to act as input methods for compositors.
     //!
     //! An input method context is used to manage the state of the input method.
@@ -89,7 +89,6 @@ pub mod zwp_input_method_v2 {
     wayland_protocol!("./protocols/input-method-unstable-v2.xml", [wayland_protocols::wp::text_input::zv3]);
 }
 
-#[cfg(feature = "unstable_protocols")]
 pub mod zwp_virtual_keyboard_v1 {
     //! Virtual keyboard v1 unstable
     //!
