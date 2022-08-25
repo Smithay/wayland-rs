@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: ['1.41.0', 'stable', 'beta']
+        rust: ['1.46.0', 'stable', 'beta']
         features: ['', 'client_native', 'server_native', 'both_native']
       
     runs-on: ubuntu-latest
@@ -43,10 +43,6 @@ jobs:
 
       - name: Runtime directory
         run: sh -c 'mkdir -p $XDG_RUNTIME_DIR'
-
-      - name: Freeze bitflags on 1.41.0
-        if: ${{ matrix.rust == '1.41.0' }}
-        run: cargo update --precise bitflags:1.2.1
 
       - name: Coverage
         uses: actions-rs/tarpaulin@v0.1
