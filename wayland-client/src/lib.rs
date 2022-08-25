@@ -219,7 +219,7 @@ pub mod protocol {
 }
 
 /// Trait representing a Wayland interface
-pub trait Proxy: Sized {
+pub trait Proxy: Clone + std::fmt::Debug + Sized {
     /// The event enum for this interface
     type Event;
     /// The request enum for this interface
