@@ -22,7 +22,7 @@ use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
 /// The Wayland connection
 ///
 /// This is the main type representing your connection to the Wayland server, though most of the interaction
-/// with the protocol are actually done using other types. The two main an simple app as for the
+/// with the protocol are actually done using other types. The two main uses a simple app has for the
 /// [`Connection`] are:
 ///
 /// - Obtaining the initial [`WlDisplay`] through the [`display()`](Connection::display) method.
