@@ -1,11 +1,9 @@
 //! Wayland socket manipulation
 
+use std::io::{IoSlice, IoSliceMut};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 
-use nix::{
-    sys::{socket, uio},
-    Result as NixResult,
-};
+use nix::{sys::socket, Result as NixResult};
 
 use crate::wire::{ArgumentType, Message, MessageParseError, MessageWriteError};
 
@@ -33,12 +31,14 @@ impl Socket {
     /// slice should not be longer than `MAX_BYTES_OUT` otherwise the receiving
     /// end may lose some data.
     pub fn send_msg(&self, bytes: &[u8], fds: &[RawFd]) -> NixResult<()> {
-        let iov = [uio::IoVec::from_slice(bytes)];
+        let flags = socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_NOSIGNAL;
+        let iov = [IoSlice::new(bytes)];
+
         if !fds.is_empty() {
             let cmsgs = [socket::ControlMessage::ScmRights(fds)];
-            socket::sendmsg(self.fd, &iov, &cmsgs, socket::MsgFlags::MSG_DONTWAIT, None)?;
+            socket::sendmsg::<()>(self.fd, &iov, &cmsgs, flags, None)?;
         } else {
-            socket::sendmsg(self.fd, &iov, &[], socket::MsgFlags::MSG_DONTWAIT, None)?;
+            socket::sendmsg::<()>(self.fd, &iov, &[], flags, None)?;
         };
         Ok(())
     }
@@ -56,13 +56,15 @@ impl Socket {
     /// be lost.
     pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut [RawFd]) -> NixResult<(usize, usize)> {
         let mut cmsg = cmsg_space!([RawFd; MAX_FDS_OUT]);
-        let iov = [uio::IoVec::from_mut_slice(buffer)];
+        let mut iov = [IoSliceMut::new(buffer)];
 
-        let msg = socket::recvmsg(
+        let msg = socket::recvmsg::<()>(
             self.fd,
-            &iov[..],
+            &mut iov[..],
             Some(&mut cmsg),
-            socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_CMSG_CLOEXEC,
+            socket::MsgFlags::MSG_DONTWAIT
+                | socket::MsgFlags::MSG_CMSG_CLOEXEC
+                | socket::MsgFlags::MSG_NOSIGNAL,
         )?;
 
         let mut fd_count = 0;
