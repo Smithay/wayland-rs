@@ -127,7 +127,7 @@ use std::{
 };
 
 /// Trait representing a Wayland interface
-pub trait Resource: Sized {
+pub trait Resource: Clone + std::fmt::Debug + Sized {
     /// The event enum for this interface
     type Event;
     /// The request enum for this interface
