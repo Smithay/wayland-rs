@@ -8,7 +8,7 @@ use wayland_backend::{
 use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
 
 /// A struct representing a Wayland client connected to your compositor.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Client {
     pub(crate) id: ClientId,
     pub(crate) data: Arc<dyn ClientData>,
