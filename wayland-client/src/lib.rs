@@ -189,6 +189,8 @@ pub mod backend {
     pub use wayland_backend::smallvec;
 }
 
+pub mod global;
+
 pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
