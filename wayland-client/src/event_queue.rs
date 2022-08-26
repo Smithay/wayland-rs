@@ -753,20 +753,6 @@ impl ObjectData for TemporaryData {
 ///
 /// assert_is_registry_delegate::<ExampleApp>();
 /// ```
-///
-/// You may also delegate multiple proxies to a single type. This is especially useful for handling multiple
-/// related protocols in the same modular component.
-///
-/// For example, a type which can dispatch both the `wl_output` and `xdg_output` protocols may be used as a
-/// delegate:
-///
-/// ```ignore
-/// # // This is not tested because xdg_output is in wayland-protocols.
-/// delegate_dispatch!(ExampleApp: [
-///     wl_output::WlOutput: OutputData,
-///     xdg_output::XdgOutput: XdgOutputData,
-/// ] => OutputDelegate);
-/// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
     ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
