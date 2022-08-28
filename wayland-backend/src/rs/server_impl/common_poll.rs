@@ -33,7 +33,7 @@ pub struct InnerBackend<D: 'static> {
 
 impl<D> InnerBackend<D> {
     pub fn new() -> Result<Self, InitError> {
-        #[cfg(any(target_os = "linux", target_os="android"))]
+        #[cfg(any(target_os = "linux", target_os = "android"))]
         let poll_fd = epoll_create1(EpollCreateFlags::EPOLL_CLOEXEC)
             .map_err(Into::into)
             .map_err(InitError::Io)?;
@@ -72,7 +72,7 @@ impl<D> InnerBackend<D> {
         ret
     }
 
-    #[cfg(any(target_os = "linux", target_os="android"))]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
