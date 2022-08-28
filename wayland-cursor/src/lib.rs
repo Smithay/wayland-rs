@@ -375,7 +375,7 @@ pub struct FrameAndDuration {
 
 /// Create a shared file descriptor in memory.
 fn create_shm_fd() -> IoResult<RawFd> {
-    // Only try memfd on linux kernel systems.
+    // Only try memfd on systems that provide it, (like Linux, Android)
     #[cfg(any(target_os = "linux", target_os = "android"))]
     loop {
         match memfd::memfd_create(
