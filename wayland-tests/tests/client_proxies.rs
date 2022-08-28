@@ -19,7 +19,7 @@ fn proxy_equals() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -62,7 +62,7 @@ fn proxy_user_data() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -106,7 +106,7 @@ fn dead_proxies() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -153,7 +153,7 @@ fn dead_object_argument() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -176,7 +176,7 @@ fn dead_object_argument() {
         )
         .unwrap();
 
-    compositor.create_surface(&client.event_queue.handle(), ()).unwrap();
+    compositor.create_surface(&client.event_queue.handle(), ());
     output.release();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();

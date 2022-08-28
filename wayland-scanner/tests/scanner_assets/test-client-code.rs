@@ -42,19 +42,19 @@ pub mod wl_display {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_SYNC_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_SYNC_OPCODE: u32 = 0u32;
+    pub const REQ_SYNC_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_REGISTRY_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_GET_REGISTRY_OPCODE: u32 = 1u32;
+    pub const REQ_GET_REGISTRY_OPCODE: u16 = 1u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ERROR_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_ERROR_OPCODE: u32 = 0u32;
+    pub const EVT_ERROR_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DELETE_ID_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_DELETE_ID_OPCODE: u32 = 1u32;
+    pub const EVT_DELETE_ID_OPCODE: u16 = 1u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -112,10 +112,7 @@ pub mod wl_display {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -147,6 +144,10 @@ pub mod wl_display {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(WlDisplay { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlDisplay { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -222,14 +223,12 @@ pub mod wl_display {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::wl_callback::WlCallback, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::wl_callback::WlCallback {
+            self.send_constructor(
                 Request::Sync {},
-                Some(qh.make_data::<super::wl_callback::WlCallback, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::wl_callback::WlCallback, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         #[allow(clippy::too_many_arguments)]
@@ -240,14 +239,12 @@ pub mod wl_display {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::wl_registry::WlRegistry, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::wl_registry::WlRegistry {
+            self.send_constructor(
                 Request::GetRegistry {},
-                Some(qh.make_data::<super::wl_registry::WlRegistry, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::wl_registry::WlRegistry, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -264,15 +261,15 @@ pub mod wl_registry {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_BIND_OPCODE: u32 = 0u32;
+    pub const REQ_BIND_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_GLOBAL_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_GLOBAL_OPCODE: u32 = 0u32;
+    pub const EVT_GLOBAL_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_GLOBAL_REMOVE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_GLOBAL_REMOVE_OPCODE: u32 = 1u32;
+    pub const EVT_GLOBAL_REMOVE_OPCODE: u16 = 1u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -333,10 +330,7 @@ pub mod wl_registry {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -368,6 +362,10 @@ pub mod wl_registry {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(WlRegistry { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlRegistry { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -435,14 +433,12 @@ pub mod wl_registry {
             version: u32,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<I, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> I {
+            self.send_constructor(
                 Request::Bind { name, id: (I::interface(), version) },
-                Some(qh.make_data::<I, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<I, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -459,7 +455,7 @@ pub mod wl_callback {
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_DONE_OPCODE: u32 = 0u32;
+    pub const EVT_DONE_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
@@ -503,10 +499,7 @@ pub mod wl_callback {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -538,6 +531,10 @@ pub mod wl_callback {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(WlCallback { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            WlCallback { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -577,43 +574,43 @@ pub mod test_global {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_MANY_ARGS_OPCODE: u32 = 0u32;
+    pub const REQ_MANY_ARGS_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_SECONDARY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_GET_SECONDARY_OPCODE: u32 = 1u32;
+    pub const REQ_GET_SECONDARY_OPCODE: u16 = 1u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_GET_TERTIARY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_GET_TERTIARY_OPCODE: u32 = 2u32;
+    pub const REQ_GET_TERTIARY_OPCODE: u16 = 2u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_LINK_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_LINK_OPCODE: u32 = 3u32;
+    pub const REQ_LINK_OPCODE: u16 = 3u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 4u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_DESTROY_OPCODE: u32 = 4u32;
+    pub const REQ_DESTROY_OPCODE: u16 = 4u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_REVERSE_LINK_SINCE: u32 = 5u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_REVERSE_LINK_OPCODE: u32 = 5u32;
+    pub const REQ_REVERSE_LINK_OPCODE: u16 = 5u16;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u32 = 6u32;
+    pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u16 = 6u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_MANY_ARGS_EVT_OPCODE: u32 = 0u32;
+    pub const EVT_MANY_ARGS_EVT_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_ACK_SECONDARY_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_ACK_SECONDARY_OPCODE: u32 = 1u32;
+    pub const EVT_ACK_SECONDARY_OPCODE: u16 = 1u16;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_CYCLE_QUAD_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
-    pub const EVT_CYCLE_QUAD_OPCODE: u32 = 2u32;
+    pub const EVT_CYCLE_QUAD_OPCODE: u16 = 2u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -702,10 +699,7 @@ pub mod test_global {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -737,6 +731,10 @@ pub mod test_global {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(TestGlobal { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            TestGlobal { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -966,14 +964,12 @@ pub mod test_global {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::secondary::Secondary, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::secondary::Secondary {
+            self.send_constructor(
                 Request::GetSecondary {},
-                Some(qh.make_data::<super::secondary::Secondary, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::secondary::Secondary, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[allow(clippy::too_many_arguments)]
         pub fn get_tertiary<
@@ -983,14 +979,12 @@ pub mod test_global {
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::tertiary::Tertiary, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::tertiary::Tertiary {
+            self.send_constructor(
                 Request::GetTertiary {},
-                Some(qh.make_data::<super::tertiary::Tertiary, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::tertiary::Tertiary, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[doc = "link a secondary and a tertiary"]
         #[allow(clippy::too_many_arguments)]
@@ -1049,14 +1043,12 @@ pub mod test_global {
             ter: &super::tertiary::Tertiary,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> Result<super::quad::Quad, InvalidId> {
-            let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-            let ret = conn.send_request(
-                self,
+        ) -> super::quad::Quad {
+            self.send_constructor(
                 Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
-                Some(qh.make_data::<super::quad::Quad, U>(udata)),
-            )?;
-            Proxy::from_id(&conn, ret)
+                qh.make_data::<super::quad::Quad, U>(udata),
+            )
+            .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
     }
 }
@@ -1072,7 +1064,7 @@ pub mod secondary {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
+    pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -1113,10 +1105,7 @@ pub mod secondary {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1148,6 +1137,10 @@ pub mod secondary {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(Secondary { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Secondary { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1196,7 +1189,7 @@ pub mod tertiary {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
+    pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -1237,10 +1230,7 @@ pub mod tertiary {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1272,6 +1262,10 @@ pub mod tertiary {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(Tertiary { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Tertiary { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1320,7 +1314,7 @@ pub mod quad {
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
-    pub const REQ_DESTROY_OPCODE: u32 = 0u32;
+    pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
@@ -1361,10 +1355,7 @@ pub mod quad {
         }
         #[inline]
         fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<QueueProxyData<Self, U>>())
-                .map(|data| &data.udata)
+            self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
         }
         fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
             self.data.as_ref()
@@ -1396,6 +1387,10 @@ pub mod quad {
             let data = conn.get_object_data(id.clone()).ok();
             let backend = conn.backend().downgrade();
             Ok(Quad { id, data, version, backend })
+        }
+        #[inline]
+        fn inert(backend: WeakBackend) -> Self {
+            Quad { id: ObjectId::null(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,

@@ -17,7 +17,7 @@ fn main() {
     let qhandle = event_queue.handle();
 
     let display = conn.display();
-    display.get_registry(&qhandle, ()).unwrap();
+    display.get_registry(&qhandle, ());
 
     let mut state = State {
         running: true,
@@ -56,10 +56,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
         if let wl_registry::Event::Global { name, interface, .. } = event {
             match &interface[..] {
                 "wl_compositor" => {
-                    let compositor = registry
-                        .bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ())
-                        .unwrap();
-                    let surface = compositor.create_surface(qh, ()).unwrap();
+                    let compositor =
+                        registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
+                    let surface = compositor.create_surface(qh, ());
                     state.base_surface = Some(surface);
 
                     if state.wm_base.is_some() && state.xdg_surface.is_none() {
@@ -67,26 +66,23 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ()).unwrap();
+                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());
 
                     let (init_w, init_h) = (320, 240);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
-                    let pool = shm
-                        .create_pool(file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ())
-                        .unwrap();
-                    let buffer = pool
-                        .create_buffer(
-                            0,
-                            init_w as i32,
-                            init_h as i32,
-                            (init_w * 4) as i32,
-                            wl_shm::Format::Argb8888,
-                            qh,
-                            (),
-                        )
-                        .unwrap();
+                    let pool =
+                        shm.create_pool(file.as_raw_fd(), (init_w * init_h * 4) as i32, qh, ());
+                    let buffer = pool.create_buffer(
+                        0,
+                        init_w as i32,
+                        init_h as i32,
+                        (init_w * 4) as i32,
+                        wl_shm::Format::Argb8888,
+                        qh,
+                        (),
+                    );
                     state.buffer = Some(buffer.clone());
 
                     if state.configured {
@@ -96,11 +92,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ()).unwrap();
+                    registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
                 }
                 "xdg_wm_base" => {
-                    let wm_base =
-                        registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ()).unwrap();
+                    let wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ());
                     state.wm_base = Some(wm_base);
 
                     if state.base_surface.is_some() && state.xdg_surface.is_none() {
@@ -200,8 +195,8 @@ impl State {
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
-        let xdg_surface = wm_base.get_xdg_surface(base_surface, qh, ()).unwrap();
-        let toplevel = xdg_surface.get_toplevel(qh, ()).unwrap();
+        let xdg_surface = wm_base.get_xdg_surface(base_surface, qh, ());
+        let toplevel = xdg_surface.get_toplevel(qh, ());
         toplevel.set_title("A fantastic window!".into());
 
         base_surface.commit();
@@ -272,7 +267,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for State {
     ) {
         if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                seat.get_keyboard(qh, ()).unwrap();
+                seat.get_keyboard(qh, ());
             }
         }
     }

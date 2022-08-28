@@ -17,7 +17,7 @@ fn simple_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -39,7 +39,7 @@ fn multi_versions() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -61,7 +61,7 @@ fn dynamic_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 1);
@@ -95,7 +95,7 @@ fn range_instantiate() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -151,12 +151,12 @@ fn wrong_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
-    registry.bind::<WlOutput, _, _>(1, 1, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlOutput, _, _>(1, 1, &client.event_queue.handle(), ());
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -171,11 +171,11 @@ fn wrong_global_version() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // instantiate a global with wrong version, this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(1, 2, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(1, 2, &client.event_queue.handle(), ());
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -190,11 +190,11 @@ fn invalid_global_version() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(1, 0, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(1, 0, &client.event_queue.handle(), ());
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -209,11 +209,11 @@ fn wrong_global_id() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(3, 1, &client.event_queue.handle(), ()).unwrap();
+    registry.bind::<WlCompositor, _, _>(3, 1, &client.event_queue.handle(), ());
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -228,7 +228,7 @@ fn two_step_binding() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 

@@ -100,18 +100,6 @@ fn send_sync_server_sys() {
  */
 struct DoNothingData;
 
-// Server Client Data
-
-impl server_rs::ClientData for DoNothingData {
-    fn initialized(&self, _: server_rs::ClientId) {}
-    fn disconnected(&self, _: server_rs::ClientId, _: server_rs::DisconnectReason) {}
-}
-
-impl server_sys::ClientData for DoNothingData {
-    fn initialized(&self, _: server_sys::ClientId) {}
-    fn disconnected(&self, _: server_sys::ClientId, _: server_rs::DisconnectReason) {}
-}
-
 // Server Global Handler
 
 impl<D> server_rs::GlobalHandler<D> for DoNothingData {

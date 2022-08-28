@@ -29,7 +29,7 @@ fn attach_null() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // Initial sync
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -43,7 +43,7 @@ fn attach_null() {
             (),
         )
         .unwrap();
-    let surface = compositor.create_surface(&client.event_queue.handle(), ()).unwrap();
+    let surface = compositor.create_surface(&client.event_queue.handle(), ());
     surface.attach(None, 0, 0);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -68,7 +68,7 @@ fn attach_buffer() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     // Initial sync
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -86,9 +86,8 @@ fn attach_buffer() {
     let mut file = tempfile::tempfile().unwrap();
     write!(file, "I like trains!").unwrap();
     file.flush().unwrap();
-    let pool = shm.create_pool(file.as_raw_fd(), 42, &client.event_queue.handle(), ()).unwrap();
-    let buffer =
-        pool.create_buffer(0, 0, 0, 0, Format::Argb8888, &client.event_queue.handle(), ()).unwrap();
+    let pool = shm.create_pool(file.as_raw_fd(), 42, &client.event_queue.handle(), ());
+    let buffer = pool.create_buffer(0, 0, 0, 0, Format::Argb8888, &client.event_queue.handle(), ());
 
     let compositor = client_ddata
         .globals
@@ -99,7 +98,7 @@ fn attach_buffer() {
             (),
         )
         .unwrap();
-    let surface = compositor.create_surface(&client.event_queue.handle(), ()).unwrap();
+    let surface = compositor.create_surface(&client.event_queue.handle(), ());
     surface.attach(Some(&buffer), 0, 0);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();

@@ -17,7 +17,7 @@ fn xdg_ping() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 

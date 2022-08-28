@@ -1,13 +1,10 @@
+use std::any::Any;
+use std::collections::VecDeque;
 use std::convert::Infallible;
-use std::pin::Pin;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::marker::PhantomData;
+use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
 use std::task;
 
-use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures_core::stream::Stream;
 use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
@@ -164,7 +161,8 @@ where
 /// ```
 #[macro_export]
 macro_rules! event_created_child {
-    ($selftype:ty, $iface:ty, [$($opcode:expr => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+    // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>
@@ -180,7 +178,7 @@ macro_rules! event_created_child {
                 },
             }
         }
-    }
+    };
 }
 
 type QueueCallback<State> = fn(
@@ -312,25 +310,32 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// }
 /// ```
 pub struct EventQueue<State> {
-    rx: UnboundedReceiver<QueueEvent<State>>,
     handle: QueueHandle<State>,
     conn: Connection,
+}
+
+#[derive(Debug)]
+struct EventQueueInner<State> {
+    queue: VecDeque<QueueEvent<State>>,
+    freeze_count: usize,
+    waker: Option<task::Waker>,
 }
 
 impl<State> std::fmt::Debug for EventQueue<State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EventQueue")
-            .field("rx", &self.rx)
-            .field("handle", &self.handle)
-            .finish_non_exhaustive()
+        f.debug_struct("EventQueue").field("handle", &self.handle).finish_non_exhaustive()
     }
 }
 
 impl<State> EventQueue<State> {
     pub(crate) fn new(conn: Connection) -> Self {
-        let (tx, rx) = unbounded();
-        Self { rx, handle: QueueHandle { tx }, conn }
+        let inner = Arc::new(Mutex::new(EventQueueInner {
+            queue: VecDeque::new(),
+            freeze_count: 0,
+            waker: None,
+        }));
+        Self { handle: QueueHandle { inner }, conn }
     }
 
     /// Get a [`QueueHandle`] for this event queue
@@ -344,8 +349,10 @@ impl<State> EventQueue<State> {
     /// the read APIs on [`Connection`](crate::Connection), or when reading is done from an other thread.
     /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
     /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
+    ///
+    /// Note: this may block if another thread has frozen the queue.
     pub fn dispatch_pending(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
+        Self::dispatching_impl(&self.conn, &self.handle, data)
     }
 
     /// Block waiting for events and dispatch them
@@ -356,13 +363,22 @@ impl<State> EventQueue<State> {
     ///
     /// A simple app event loop can consist of invoking this method in a loop.
     pub fn blocking_dispatch(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        let dispatched = Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)?;
+        let dispatched = self.dispatch_pending(data)?;
         if dispatched > 0 {
-            Ok(dispatched)
-        } else {
-            crate::conn::blocking_dispatch_impl(self.conn.backend())?;
-            Self::dispatching_impl(&self.conn, &mut self.rx, &self.handle, data)
+            return Ok(dispatched);
         }
+
+        let guard = self.conn.prepare_read()?;
+
+        // we need to check the queue again, just in case another thread did a read between
+        // dispatch_pending and prepare_read
+        if self.handle.inner.lock().unwrap().queue.is_empty() {
+            crate::conn::blocking_read(guard)?;
+        } else {
+            drop(guard);
+        }
+
+        self.dispatch_pending(data)
     }
 
     /// Synchronous roundtrip
@@ -373,24 +389,20 @@ impl<State> EventQueue<State> {
     /// This function may be useful during initial setup of your app. This function may also be useful
     /// where you need to guarantee all requests prior to calling this function are completed.
     pub fn roundtrip(&mut self, data: &mut State) -> Result<usize, DispatchError> {
-        let done = Arc::new(AtomicBool::new(false));
+        let done = Arc::new(SyncData::default());
 
-        {
-            let display = self.conn.display();
-            let cb_done = done.clone();
-            let sync_data = Arc::new(SyncData { done: cb_done });
-            self.conn
-                .send_request(
-                    &display,
-                    crate::protocol::wl_display::Request::Sync {},
-                    Some(sync_data),
-                )
-                .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
-        }
+        let display = self.conn.display();
+        self.conn
+            .send_request(
+                &display,
+                crate::protocol::wl_display::Request::Sync {},
+                Some(done.clone()),
+            )
+            .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
 
         let mut dispatched = 0;
 
-        while !done.load(Ordering::Acquire) {
+        while !done.done.load(Ordering::Relaxed) {
             dispatched += self.blocking_dispatch(data)?;
         }
 
@@ -422,7 +434,6 @@ impl<State> EventQueue<State> {
 
     fn dispatching_impl(
         backend: &Connection,
-        rx: &mut UnboundedReceiver<QueueEvent<State>>,
         qhandle: &QueueHandle<State>,
         data: &mut State,
     ) -> Result<usize, DispatchError> {
@@ -435,11 +446,23 @@ impl<State> EventQueue<State> {
         let _ = backend.backend.dispatch_inner_queue();
 
         let mut dispatched = 0;
-        while let Ok(Some(QueueEvent(cb, msg, odata))) = rx.try_next() {
+        while let Some(QueueEvent(cb, msg, odata)) = Self::try_next(&qhandle.inner) {
             cb(backend, msg, data, odata, qhandle)?;
             dispatched += 1;
         }
         Ok(dispatched)
+    }
+
+    fn try_next(inner: &Mutex<EventQueueInner<State>>) -> Option<QueueEvent<State>> {
+        let mut lock = inner.lock().unwrap();
+        if lock.freeze_count != 0 && !lock.queue.is_empty() {
+            let waker = Arc::new(DispatchWaker { cond: Condvar::new() });
+            while lock.freeze_count != 0 {
+                lock.waker = Some(waker.clone().into());
+                lock = waker.cond.wait(lock).unwrap();
+            }
+        }
+        lock.queue.pop_front()
     }
 
     /// Attempt to dispatch events from this queue, registering the current task for wakeup if no
@@ -496,53 +519,54 @@ impl<State> EventQueue<State> {
             if let Err(e) = self.conn.backend.dispatch_inner_queue() {
                 return task::Poll::Ready(Err(e.into()));
             }
-            match Pin::new(&mut self.rx).poll_next(cx) {
-                task::Poll::Pending => return task::Poll::Pending,
-                task::Poll::Ready(None) => {
-                    // We never close the channel, and we hold a valid sender in self.handle.tx, so
-                    // our event stream will never reach an end.
-                    unreachable!("Got end of stream while holding a valid sender");
-                }
-                task::Poll::Ready(Some(QueueEvent(cb, msg, odata))) => {
-                    cb(&self.conn, msg, data, odata, &self.handle)?
-                }
+            let mut lock = self.handle.inner.lock().unwrap();
+            if lock.freeze_count != 0 {
+                lock.waker = Some(cx.waker().clone());
+                return task::Poll::Pending;
             }
+            let QueueEvent(cb, msg, odata) = if let Some(elt) = lock.queue.pop_front() {
+                elt
+            } else {
+                lock.waker = Some(cx.waker().clone());
+                return task::Poll::Pending;
+            };
+            drop(lock);
+            cb(&self.conn, msg, data, odata, &self.handle)?
         }
+    }
+}
+
+struct DispatchWaker {
+    cond: Condvar,
+}
+
+impl task::Wake for DispatchWaker {
+    fn wake(self: Arc<Self>) {
+        self.cond.notify_all()
     }
 }
 
 /// A handle representing an [`EventQueue`], used to assign objects upon creation.
 pub struct QueueHandle<State> {
-    tx: UnboundedSender<QueueEvent<State>>,
+    inner: Arc<Mutex<EventQueueInner<State>>>,
+}
+
+/// A handle that temporarily pauses event processing on an [`EventQueue`].
+#[derive(Debug)]
+pub struct QueueFreezeGuard<'a, State> {
+    qh: &'a QueueHandle<State>,
 }
 
 impl<State> std::fmt::Debug for QueueHandle<State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("QueueHandle").field("tx", &self.tx).finish()
+        f.debug_struct("QueueHandle").field("inner", &Arc::as_ptr(&self.inner)).finish()
     }
 }
 
 impl<State> Clone for QueueHandle<State> {
     fn clone(&self) -> Self {
-        Self { tx: self.tx.clone() }
-    }
-}
-
-pub(crate) struct QueueSender<State> {
-    func: QueueCallback<State>,
-    pub(crate) handle: QueueHandle<State>,
-}
-
-pub(crate) trait ErasedQueueSender<I> {
-    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>);
-}
-
-impl<I: Proxy, State> ErasedQueueSender<I> for QueueSender<State> {
-    fn send(&self, msg: Message<ObjectId>, odata: Arc<dyn ObjectData>) {
-        if self.handle.tx.unbounded_send(QueueEvent(self.func, msg, odata)).is_err() {
-            crate::log_error!("Event received for EventQueue after it was dropped.");
-        }
+        Self { inner: self.inner.clone() }
     }
 }
 
@@ -559,34 +583,32 @@ impl<State: 'static> QueueHandle<State> {
     where
         State: Dispatch<I, U, State>,
     {
-        let sender: Box<dyn ErasedQueueSender<I> + Send + Sync> =
-            Box::new(QueueSender { func: queue_callback::<I, U, State>, handle: self.clone() });
+        Arc::new(QueueProxyData::<I, U, State> {
+            handle: self.clone(),
+            udata: user_data,
+            _phantom: PhantomData,
+        })
+    }
 
-        let has_creating_event =
-            I::interface().events.iter().any(|desc| desc.child_interface.is_some());
+    /// Temporarily block processing on this queue.
+    ///
+    /// This will cause the associated queue to block (or return `NotReady` to poll) until all
+    /// [`QueueFreezeGuard`]s associated with the queue are dropped.
+    pub fn freeze(&self) -> QueueFreezeGuard<State> {
+        self.inner.lock().unwrap().freeze_count += 1;
+        QueueFreezeGuard { qh: self }
+    }
+}
 
-        let odata_maker = if has_creating_event {
-            let qhandle = self.clone();
-            Box::new(move |msg: &Message<ObjectId>| {
-                for arg in &msg.args {
-                    match arg {
-                        Argument::NewId(id) if id.is_null() => {
-                            return None;
-                        }
-                        Argument::NewId(_) => {
-                            return Some(<State as Dispatch<I, U, State>>::event_created_child(
-                                msg.opcode, &qhandle,
-                            ));
-                        }
-                        _ => continue,
-                    }
-                }
-                None
-            }) as Box<_>
-        } else {
-            Box::new(|_: &Message<ObjectId>| None) as Box<_>
-        };
-        Arc::new(QueueProxyData { sender, odata_maker, udata: user_data })
+impl<'a, State> Drop for QueueFreezeGuard<'a, State> {
+    fn drop(&mut self) {
+        let mut lock = self.qh.inner.lock().unwrap();
+        lock.freeze_count -= 1;
+        if lock.freeze_count == 0 && !lock.queue.is_empty() {
+            if let Some(waker) = lock.waker.take() {
+                waker.wake();
+            }
+        }
     }
 }
 
@@ -602,40 +624,49 @@ fn queue_callback<
     qhandle: &QueueHandle<State>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let proxy_data =
-        (&*odata).downcast_ref::<QueueProxyData<I, U>>().expect("Wrong user_data value for object");
-    <State as Dispatch<I, U, State>>::event(
-        data,
-        &proxy,
-        event,
-        &proxy_data.udata,
-        handle,
-        qhandle,
-    );
+    let udata = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
+    <State as Dispatch<I, U, State>>::event(data, &proxy, event, udata, handle, qhandle);
     Ok(())
 }
 
-type ObjectDataFactory = dyn Fn(&Message<ObjectId>) -> Option<Arc<dyn ObjectData>> + Send + Sync;
-
 /// The [`ObjectData`] implementation used by Wayland proxies, integrating with [`Dispatch`]
-pub struct QueueProxyData<I: Proxy, U> {
-    pub(crate) sender: Box<dyn ErasedQueueSender<I> + Send + Sync>,
-    odata_maker: Box<ObjectDataFactory>,
+pub struct QueueProxyData<I: Proxy, U, State> {
+    handle: QueueHandle<State>,
     /// The user data associated with this object
     pub udata: U,
+    _phantom: PhantomData<fn(&I)>,
 }
 
-impl<I: Proxy + 'static, U: Send + Sync + 'static> ObjectData for QueueProxyData<I, U> {
+impl<I: Proxy + 'static, U: Send + Sync + 'static, State> ObjectData for QueueProxyData<I, U, State>
+where
+    State: Dispatch<I, U, State> + 'static,
+{
     fn event(self: Arc<Self>, _: &Backend, msg: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
-        let ret = (self.odata_maker)(&msg);
-        self.sender.send(msg, self.clone());
-        ret
+        let new_data = msg
+            .args
+            .iter()
+            .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
+            .then(|| State::event_created_child(msg.opcode, &self.handle));
+
+        let func = queue_callback::<I, U, State>;
+        let mut lock = self.handle.inner.lock().unwrap();
+        lock.queue.push_back(QueueEvent(func, msg, self.clone()));
+        if lock.freeze_count == 0 {
+            if let Some(waker) = lock.waker.take() {
+                waker.wake();
+            }
+        }
+        new_data
     }
 
     fn destroyed(&self, _: ObjectId) {}
+
+    fn data_as_any(&self) -> &dyn Any {
+        &self.udata
+    }
 }
 
-impl<I: Proxy, U: std::fmt::Debug> std::fmt::Debug for QueueProxyData<I, U> {
+impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, U, State> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
@@ -738,27 +769,25 @@ impl ObjectData for TemporaryData {
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($dispatch_from: ty: [ $($interface: ty : $user_data: ty),* $(,)?] => $dispatch_to: ty) => {
-        $(
-            impl $crate::Dispatch<$interface, $user_data> for $dispatch_from {
-                fn event(
-                    state: &mut Self,
-                    proxy: &$interface,
-                    event: <$interface as $crate::Proxy>::Event,
-                    data: &$user_data,
-                    conn: &$crate::Connection,
-                    qhandle: &$crate::QueueHandle<Self>,
-                ) {
-                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event(state, proxy, event, data, conn, qhandle)
-                }
-
-                fn event_created_child(
-                    opcode: u16,
-                    qhandle: &$crate::QueueHandle<Self>
-                ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
-                    <$dispatch_to as $crate::Dispatch<$interface, $user_data, Self>>::event_created_child(opcode, qhandle)
-                }
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
+            fn event(
+                state: &mut Self,
+                proxy: &$interface,
+                event: <$interface as $crate::Proxy>::Event,
+                data: &$udata,
+                conn: &$crate::Connection,
+                qhandle: &$crate::QueueHandle<Self>,
+            ) {
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::event(state, proxy, event, data, conn, qhandle)
             }
-        )*
+
+            fn event_created_child(
+                opcode: u16,
+                qhandle: &$crate::QueueHandle<Self>
+            ) -> ::std::sync::Arc<dyn $crate::backend::ObjectData> {
+                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::event_created_child(opcode, qhandle)
+            }
+        }
     };
 }

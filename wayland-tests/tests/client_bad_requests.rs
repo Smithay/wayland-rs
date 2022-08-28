@@ -15,7 +15,7 @@ fn constructor_dead() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -31,7 +31,7 @@ fn constructor_dead() {
 
     seat.release();
 
-    assert!(seat.get_pointer(&client.event_queue.handle(), ()).is_err());
+    assert!(seat.get_pointer(&client.event_queue.handle(), ()).id().is_null());
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn send_constructor_wrong_type() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ()).unwrap();
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
