@@ -291,7 +291,7 @@ impl<D> Client<D> {
         }));
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     pub(crate) fn get_credentials(&self) -> Credentials {
         use std::os::unix::io::AsRawFd;
         let creds = nix::sys::socket::getsockopt(
@@ -302,7 +302,7 @@ impl<D> Client<D> {
         Credentials { pid: creds.pid(), uid: creds.uid(), gid: creds.gid() }
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     // for now this only works on linux
     pub(crate) fn get_credentials(&self) -> Credentials {
         Credentials { pid: 0, uid: 0, gid: 0 }
