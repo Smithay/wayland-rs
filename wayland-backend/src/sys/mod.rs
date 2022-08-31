@@ -123,7 +123,7 @@ impl server::ObjectId {
         interface: &'static crate::protocol::Interface,
         ptr: *mut wayland_sys::server::wl_resource,
     ) -> Result<Self, server::InvalidId> {
-        Ok(Self { id: unsafe { server_impl::InnerObjectId::from_ptr(interface, ptr) }? })
+        Ok(Self { id: unsafe { server_impl::InnerObjectId::from_ptr(Some(interface), ptr) }? })
     }
 
     /// Returns the pointer that represents this object.
