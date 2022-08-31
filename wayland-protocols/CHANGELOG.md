@@ -9,7 +9,7 @@
 - Bump wayland-protocols to 1.26
   - `xdg-shell` is now version 5, introducing wm capabilities.
   - A new staging protocol, `single-pixel-buffer`.
-  - Events in the following protocols now have properly labeled destructors (TODO: Do these count as breaking?):
+  - Events in the following protocols now have properly labeled destructors:
     - `wp-linux-explicit-synchronization`
     - `wp-presentation-time`
     - `wp-drm-lease`
