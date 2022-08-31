@@ -28,6 +28,8 @@ pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) 
 pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
 pub type wl_display_global_filter_func_t =
     unsafe extern "C" fn(*const wl_client, *const wl_global, *mut c_void) -> bool;
+pub type wl_client_for_each_resource_iterator_func_t =
+    unsafe extern "C" fn(*mut wl_resource, *mut c_void) -> c_int;
 
 #[repr(C)]
 pub struct wl_listener {
@@ -55,6 +57,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_resource_create(*mut wl_client, *const wl_interface, c_int, u32) -> *mut wl_resource,
         fn wl_client_get_link(*mut wl_client) -> *mut wl_list,
         fn wl_client_from_link(*mut wl_list) -> *mut wl_client,
+        fn wl_client_for_each_resource(*mut wl_client, wl_client_for_each_resource_iterator_func_t, *mut c_void) -> (),
     // wl_display
         fn wl_client_create(*mut wl_display, c_int) -> *mut wl_client,
         fn wl_display_create() -> *mut wl_display,
