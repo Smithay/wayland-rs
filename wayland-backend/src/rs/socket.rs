@@ -251,7 +251,6 @@ impl BufferedSocket {
                     Ok((msg, rest_data, rest_fds)) => {
                         (msg, data.len() - rest_data.len(), fds.len() - rest_fds.len())
                     }
-                    // TODO: gracefully handle wayland messages split across unix messages ?
                     Err(e) => return Err(e),
                 }
             } else {
