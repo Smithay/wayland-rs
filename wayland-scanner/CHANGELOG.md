@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.9
+
 - Migrate from xml-rs to quick-xml
 
 ## 0.30.0-beta.6

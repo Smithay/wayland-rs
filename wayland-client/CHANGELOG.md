@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.9
+
 #### Breaking changes
 
 - Requests that create new objects now produce inert proxies when called on
@@ -14,7 +16,7 @@
 
 - `QueueFreezeGuard` for avoiding race conditions while constructing objects.
 
-## 0.1.0-beta.8
+## 0.30.0-beta.8
 
 #### Breaking changes
 

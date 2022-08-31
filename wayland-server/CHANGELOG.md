@@ -2,11 +2,13 @@
 
 ## Unreleased
 
+## 0.30.0-beta.9
+
 #### Additions
 
 - `Client` is now `Clone`
 
-## 0.1.0-beta.8
+## 0.30.0-beta.8
 
 #### Breaking changes
 

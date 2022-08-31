@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.9
+
 ### Additions
 
 - Bump wayland-protocols to 1.26
@@ -13,7 +15,7 @@
     - `wp-drm-lease`
     - `wp-fullscreen-shell`
 
-#### 0.30.0-beta.1
+## 0.30.0-beta.1
 
 ### Breaking Changes
 
