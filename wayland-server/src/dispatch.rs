@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use wayland_backend::server::{ClientId, ObjectData, ObjectId};
+use wayland_backend::{
+    protocol::ProtocolError,
+    server::{ClientId, DisconnectReason, ObjectData, ObjectId},
+};
 
 use crate::{Client, DisplayHandle, Resource};
 
@@ -208,11 +211,24 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
             }
         };
 
+        let (sender_id, opcode) = (msg.sender_id.protocol_id(), msg.opcode);
+
         let (resource, request) = match I::parse_request(&dhandle, msg) {
             Ok(v) => v,
             Err(e) => {
                 crate::log_warn!("Dispatching error encountered: {:?}, killing client.", e);
-                // TODO: Kill client
+                handle.kill_client(
+                    client.id(),
+                    DisconnectReason::ProtocolError(ProtocolError {
+                        code: 1,
+                        object_id: 0,
+                        object_interface: "wl_display".into(),
+                        message: format!(
+                            "Malformed request received for id {} and opcode {}.",
+                            sender_id, opcode
+                        ),
+                    }),
+                );
                 return None;
             }
         };
