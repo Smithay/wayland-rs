@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Fix `EventQueue::blocking_dispatch()` not flushing the connection as it should
+
 ## 0.30.0-beta.9
 
 #### Breaking changes

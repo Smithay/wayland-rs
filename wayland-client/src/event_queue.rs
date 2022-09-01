@@ -368,6 +368,8 @@ impl<State> EventQueue<State> {
             return Ok(dispatched);
         }
 
+        self.conn.flush()?;
+
         let guard = self.conn.prepare_read()?;
 
         // we need to check the queue again, just in case another thread did a read between
