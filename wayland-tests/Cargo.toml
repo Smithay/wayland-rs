@@ -36,6 +36,9 @@ harness = false
 name = "client_dispatch"
 
 [[test]]
+name = "client_globals_helpers"
+
+[[test]]
 name = "client_proxies"
 
 [[test]]

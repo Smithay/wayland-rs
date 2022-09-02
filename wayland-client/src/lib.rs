@@ -183,6 +183,7 @@ use wayland_backend::{
 
 mod conn;
 mod event_queue;
+pub mod globals;
 
 /// Backend reexports
 pub mod backend {

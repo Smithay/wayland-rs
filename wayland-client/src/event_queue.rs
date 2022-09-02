@@ -316,10 +316,30 @@ pub struct EventQueue<State> {
 }
 
 #[derive(Debug)]
-struct EventQueueInner<State> {
+pub(crate) struct EventQueueInner<State> {
     queue: VecDeque<QueueEvent<State>>,
     freeze_count: usize,
     waker: Option<task::Waker>,
+}
+
+impl<State> EventQueueInner<State> {
+    pub(crate) fn enqueue_event<I, U>(
+        &mut self,
+        msg: Message<ObjectId, OwnedFd>,
+        odata: Arc<dyn ObjectData>,
+    ) where
+        State: Dispatch<I, U> + 'static,
+        U: Send + Sync + 'static,
+        I: Proxy + 'static,
+    {
+        let func = queue_callback::<I, U, State>;
+        self.queue.push_back(QueueEvent(func, msg, odata));
+        if self.freeze_count == 0 {
+            if let Some(waker) = self.waker.take() {
+                waker.wake();
+            }
+        }
+    }
 }
 
 impl<State> std::fmt::Debug for EventQueue<State> {
@@ -551,7 +571,7 @@ impl task::Wake for DispatchWaker {
 
 /// A handle representing an [`EventQueue`], used to assign objects upon creation.
 pub struct QueueHandle<State> {
-    inner: Arc<Mutex<EventQueueInner<State>>>,
+    pub(crate) inner: Arc<Mutex<EventQueueInner<State>>>,
 }
 
 /// A handle that temporarily pauses event processing on an [`EventQueue`].
@@ -655,14 +675,8 @@ where
             .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
             .then(|| State::event_created_child(msg.opcode, &self.handle));
 
-        let func = queue_callback::<I, U, State>;
-        let mut lock = self.handle.inner.lock().unwrap();
-        lock.queue.push_back(QueueEvent(func, msg, self.clone()));
-        if lock.freeze_count == 0 {
-            if let Some(waker) = lock.waker.take() {
-                waker.wake();
-            }
-        }
+        self.handle.inner.lock().unwrap().enqueue_event::<I, U>(msg, self.clone());
+
         new_data
     }
 
