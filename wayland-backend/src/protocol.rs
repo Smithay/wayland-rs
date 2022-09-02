@@ -84,7 +84,6 @@ impl<Id, Fd> Argument<Id, Fd> {
         }
     }
 
-    #[cfg(test)]
     fn map_fd<T>(self, f: &mut impl FnMut(Fd) -> T) -> Argument<Id, T> {
         match self {
             Self::Int(val) => Argument::Int(val),
@@ -218,7 +217,7 @@ pub struct ProtocolError {
 pub const INLINE_ARGS: usize = 4;
 
 /// Represents a message that has been sent from some object.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Message<Id, Fd> {
     /// The id of the object that sent the message.
     pub sender_id: Id,
@@ -228,9 +227,9 @@ pub struct Message<Id, Fd> {
     pub args: smallvec::SmallVec<[Argument<Id, Fd>; INLINE_ARGS]>,
 }
 
-#[cfg(test)]
 impl<Id, Fd> Message<Id, Fd> {
-    pub(crate) fn map_fd<T>(self, mut f: impl FnMut(Fd) -> T) -> Message<Id, T> {
+    /// Map some closure on all Fd contained in this message, to change the Fd generic parameter.
+    pub fn map_fd<T>(self, mut f: impl FnMut(Fd) -> T) -> Message<Id, T> {
         Message {
             sender_id: self.sender_id,
             opcode: self.opcode,
