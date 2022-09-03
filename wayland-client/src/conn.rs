@@ -68,10 +68,22 @@ impl Connection {
                 }
             }
         } else {
-            let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+            let socket_name = env::var_os("WAYLAND_DISPLAY")
                 .map(Into::<PathBuf>::into)
                 .ok_or(ConnectError::NoCompositor)?;
-            socket_path.push(env::var_os("WAYLAND_DISPLAY").ok_or(ConnectError::NoCompositor)?);
+
+            let socket_path = if socket_name.is_absolute() {
+                socket_name
+            } else {
+                let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
+                    .map(Into::<PathBuf>::into)
+                    .ok_or(ConnectError::NoCompositor)?;
+                if !socket_path.is_absolute() {
+                    return Err(ConnectError::NoCompositor);
+                }
+                socket_path.push(socket_name);
+                socket_path
+            };
 
             UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositor)?
         };
