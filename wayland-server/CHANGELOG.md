@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Ensure that `XDG_RUNTIME_DIR` is an absolute path before trying to use it
+
 ## 0.30.0-beta.9
 
 #### Additions

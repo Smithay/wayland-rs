@@ -34,6 +34,9 @@ impl ListeningSocket {
     pub fn bind<S: AsRef<OsStr>>(socket_name: S) -> Result<Self, BindError> {
         let runtime_dir: PathBuf =
             env::var("XDG_RUNTIME_DIR").map_err(|_| BindError::RuntimeDirNotSet)?.into();
+        if !runtime_dir.is_absolute() {
+            return Err(BindError::RuntimeDirNotSet);
+        }
         let socket_path = runtime_dir.join(socket_name.as_ref());
         let mut socket = Self::bind_absolute(socket_path)?;
         socket.socket_name = Some(socket_name.as_ref().into());
@@ -155,7 +158,7 @@ impl Drop for ListeningSocket {
 #[derive(Debug, thiserror::Error)]
 pub enum BindError {
     /// The Environment variable `XDG_RUNTIME_DIR` is not set
-    #[error("Environment variable XDG_RUNTIME_DIR is not set")]
+    #[error("Environment variable XDG_RUNTIME_DIR is not set or invalid")]
     RuntimeDirNotSet,
     /// The application was not able to create a file in `XDG_RUNTIME_DIR`
     #[error("Could not write to XDG_RUNTIME_DIR")]
