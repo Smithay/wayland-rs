@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- An `opcode()` method is added to message enums to retrive the opcode associated with a message variant.
+
 ## 0.30.0-beta.9
 
 - Migrate from xml-rs to quick-xml
