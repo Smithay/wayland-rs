@@ -63,6 +63,15 @@ pub mod wl_display {
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         GetRegistry {},
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Sync { .. } => 0u16,
+                Request::GetRegistry { .. } => 1u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -80,6 +89,15 @@ pub mod wl_display {
             #[doc = "deleted object ID"]
             id: u32,
         },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::Error { .. } => 0u16,
+                Event::DeleteId { .. } => 1u16,
+            }
+        }
     }
     #[doc = "core global object\n\nThe core global object.  This is a special singleton object.  It\nis used for internal Wayland protocol features.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
@@ -281,6 +299,14 @@ pub mod wl_registry {
             id: (&'static Interface, u32),
         },
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Bind { .. } => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -298,6 +324,15 @@ pub mod wl_registry {
             #[doc = "numeric name of the global object"]
             name: u32,
         },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::Global { .. } => 0u16,
+                Event::GlobalRemove { .. } => 1u16,
+            }
+        }
     }
     #[doc = "global registry object\n\nThe singleton global registry object.  The server has a number of\nglobal objects that are available to all clients.  These objects\ntypically represent an actual object in the server (for example,\nan input device) or they are singleton objects that provide\nextension functionality.\n\nWhen a client creates a registry object, the registry object\nwill emit a global event for each global currently in the\nregistry.  Globals come and go as a result of device or\nmonitor hotplugs, reconfiguration or other events, and the\nregistry will send out global and global_remove events to\nkeep the client up to date with the changes.  To mark the end\nof the initial burst of events, the client can use the\nwl_display.sync request immediately after calling\nwl_display.get_registry.\n\nA client can bind to a global object by using the bind\nrequest.  This creates a client-side handle that lets the object\nemit events to the client and lets the client invoke requests on\nthe object.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
@@ -459,6 +494,12 @@ pub mod wl_callback {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -467,6 +508,14 @@ pub mod wl_callback {
             #[doc = "request-specific data for the callback"]
             callback_data: u32,
         },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::Done { .. } => 0u16,
+            }
+        }
     }
     #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done.\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
@@ -645,6 +694,20 @@ pub mod test_global {
             ter: super::tertiary::Tertiary,
         },
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::ManyArgs { .. } => 0u16,
+                Request::GetSecondary { .. } => 1u16,
+                Request::GetTertiary { .. } => 2u16,
+                Request::Link { .. } => 3u16,
+                Request::Destroy => 4u16,
+                Request::ReverseLink { .. } => 5u16,
+                Request::NewidAndAllowNull { .. } => 6u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -667,6 +730,16 @@ pub mod test_global {
         AckSecondary { sec: super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::ManyArgsEvt { .. } => 0u16,
+                Event::AckSecondary { .. } => 1u16,
+                Event::CycleQuad { .. } => 2u16,
+            }
+        }
     }
     #[doc = "test_global\n\nSee also the [Event] enum for this interface."]
     #[derive(Debug, Clone)]
@@ -1071,9 +1144,23 @@ pub mod secondary {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 2 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "secondary\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Secondary {
@@ -1196,9 +1283,23 @@ pub mod tertiary {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "tertiary\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Tertiary {
@@ -1321,9 +1422,23 @@ pub mod quad {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "quad\n\nThis interface has no events."]
     #[derive(Debug, Clone)]
     pub struct Quad {

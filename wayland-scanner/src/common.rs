@@ -270,11 +270,34 @@ pub(crate) fn gen_message_enum(
         }
     });
 
+    let opcodes = messages.iter().enumerate().map(|(opcode, msg)| {
+        let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
+        let opcode = opcode as u16;
+        if msg.args.is_empty() {
+            quote! {
+                #name::#msg_name => #opcode
+            }
+        } else {
+            quote! {
+                #name::#msg_name { .. } => #opcode
+            }
+        }
+    });
+
     quote! {
         #[derive(Debug)]
         #[non_exhaustive]
         pub enum #name {
             #(#variants,)*
+        }
+
+        impl #name {
+            #[doc="Get the opcode number of this message"]
+            pub fn opcode(&self) -> u16 {
+                match *self {
+                    #(#opcodes,)*
+                }
+            }
         }
     }
 }

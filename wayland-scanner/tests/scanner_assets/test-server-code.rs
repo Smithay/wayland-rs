@@ -15,6 +15,12 @@ pub mod wl_callback {
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {}
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -23,6 +29,14 @@ pub mod wl_callback {
             #[doc = "request-specific data for the callback"]
             callback_data: u32
         },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::Done { .. } => 0u16,
+            }
+        }
     }
     #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done.\n\nThis interface has no requests."]
     #[derive(Debug, Clone)]
@@ -207,6 +221,20 @@ pub mod test_global {
             ter: super::tertiary::Tertiary,
         },
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::ManyArgs { .. } => 0u16,
+                Request::GetSecondary { .. } => 1u16,
+                Request::GetTertiary { .. } => 2u16,
+                Request::Link { .. } => 3u16,
+                Request::Destroy => 4u16,
+                Request::ReverseLink { .. } => 5u16,
+                Request::NewidAndAllowNull { .. } => 6u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {
@@ -229,6 +257,16 @@ pub mod test_global {
         AckSecondary { sec: super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
+    }
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::ManyArgsEvt { .. } => 0u16,
+                Event::AckSecondary { .. } => 1u16,
+                Event::CycleQuad { .. } => 2u16,
+            }
+        }
     }
     #[doc = "test_global\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
@@ -628,9 +666,23 @@ pub mod secondary {
         #[doc = "This is a destructor, once received this object cannot be used any longer.\nOnly available since version 2 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "secondary\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Secondary {
@@ -738,9 +790,23 @@ pub mod tertiary {
         #[doc = "This is a destructor, once received this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "tertiary\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Tertiary {
@@ -848,9 +914,23 @@ pub mod quad {
         #[doc = "This is a destructor, once received this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
     }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Destroy => 0u16,
+            }
+        }
+    }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event {}
+    impl Event {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {}
+        }
+    }
     #[doc = "quad\n\nSee also the [Request] enum for this interface."]
     #[derive(Debug, Clone)]
     pub struct Quad {
