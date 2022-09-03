@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- The rust backend no longer ever does a blocking flush
+
 ## 0.1.0-beta.8
 
 #### Breaking changes

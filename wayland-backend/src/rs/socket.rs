@@ -1,6 +1,6 @@
 //! Wayland socket manipulation
 
-use std::io::{IoSlice, IoSliceMut, Result as IoResult};
+use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 
 use nix::sys::socket;
@@ -143,21 +143,6 @@ impl BufferedSocket {
         Ok(())
     }
 
-    pub fn blocking_flush(&mut self) -> IoResult<()> {
-        loop {
-            match self.flush() {
-                Ok(()) => return Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
-                Err(e) => return Err(e),
-            }
-
-            nix::poll::poll(
-                &mut [nix::poll::PollFd::new(self.as_raw_fd(), nix::poll::PollFlags::POLLOUT)],
-                -1,
-            )?;
-        }
-    }
-
     // internal method
     //
     // attempts to write a message in the internal out buffers,
@@ -191,7 +176,11 @@ impl BufferedSocket {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
-            self.blocking_flush()?;
+            if let Err(e) = self.flush() {
+                if e.kind() != ErrorKind::WouldBlock {
+                    return Err(e);
+                }
+            }
             if !self.attempt_write_message(msg)? {
                 // If this fails again, this means the message is too big
                 // to be transmitted at all
