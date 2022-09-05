@@ -49,6 +49,15 @@ pub mod fake_input {
     );
 }
 
+// This protocol is disabled for now as the file is not valid XML because it does not have a XML header
+//
+// pub mod fullscreen_shell {
+//     wayland_protocol!(
+//         "./plasma-wayland-protocols/src/protocols/fullscreen-shell.xml",
+//         []
+//     );
+// }
+
 pub mod idle {
     wayland_protocol!(
         "./plasma-wayland-protocols/src/protocols/idle.xml",
@@ -119,7 +128,8 @@ pub mod plasma_virtual_desktop {
     );
 }
 
-// This protocol is disabled for now as the XML file contains stuff wayland-scanner cannot parse. 
+// This protocol is disabled for now as the XML file contains XML-escaped numerical expressions
+// which wayland-scanner cannot parse.
 //
 // pub mod plasma_window_management {
 //     wayland_protocol!(
@@ -128,6 +138,12 @@ pub mod plasma_virtual_desktop {
 //     );
 // }
 
+pub mod remote_access {
+    wayland_protocol!(
+        "./plasma-wayland-protocols/src/protocols/remote-access.xml",
+        []
+    );
+}
 
 pub mod screencast {
     pub mod v1 {
@@ -162,6 +178,38 @@ pub mod shadow {
 pub mod slide {
     wayland_protocol!(
         "./plasma-wayland-protocols/src/protocols/slide.xml",
+        []
+    );
+}
+
+// This protocol is disabled for now as the file is not valid XML because it does not have a XML header
+//
+// pub mod surface_extension {
+//     wayland_protocol!(
+//         "./plasma-wayland-protocols/src/protocols/surface-extension.xml",
+//         []
+//     );
+// }
+
+pub mod text_input {
+    pub mod v1 {
+        wayland_protocol!(
+            "./plasma-wayland-protocols/src/protocols/text-input.xml",
+            []
+        );
+    }
+
+    pub mod v2 {
+        wayland_protocol!(
+            "./plasma-wayland-protocols/src/protocols/text-input-unstable-v2.xml",
+            []
+        );
+    }
+}
+
+pub mod wayland_eglstream_controller {
+    wayland_protocol!(
+        "./plasma-wayland-protocols/src/protocols/wayland-eglstream-controller.xml",
         []
     );
 }
