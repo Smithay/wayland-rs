@@ -132,7 +132,7 @@ pub mod plasma_virtual_desktop {
 pub mod screencast {
     pub mod v1 {
         wayland_protocol!(
-            "./plasma-wayland-protocols/src/protocols/screencast.xml",
+            "./plasma-wayland-protocols/src/protocols/zkde-screencast-unstable-v1.xml",
             []
         );
     }
