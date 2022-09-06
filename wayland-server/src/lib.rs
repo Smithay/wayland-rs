@@ -75,7 +75,7 @@
 
 use wayland_backend::{
     protocol::{Interface, Message},
-    server::{ClientId, InvalidId, ObjectId},
+    server::{ClientId, InvalidId, ObjectId, WeakHandle},
 };
 
 mod client;
@@ -149,6 +149,15 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     /// The version of this object
     fn version(&self) -> u32;
 
+    /// Checks if the Wayland object associated with this proxy is still alive
+    fn is_alive(&self) -> bool {
+        if let Some(handle) = self.handle().upgrade() {
+            handle.object_info(self.id()).is_ok()
+        } else {
+            false
+        }
+    }
+
     /// Access the user-data associated with this object
     fn data<U: 'static>(&self) -> Option<&U>;
 
@@ -205,6 +214,17 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
         req: Self::Event,
     ) -> Result<Message<ObjectId>, InvalidId>;
 
+    /// Creates a weak handle to this object
+    ///
+    /// This weak handle will not keep the user-data associated with the object alive,
+    /// and can be converted back to a full resource using [`Weak::upgrade()`].
+    ///
+    /// This can be of use if you need to store resources in the used data of other objects and want
+    /// to be sure to avoid reference cycles that would cause memory leaks.
+    fn downgrade(&self) -> Weak<Self> {
+        Weak { handle: self.handle().clone(), id: self.id(), _iface: std::marker::PhantomData }
+    }
+
     #[doc(hidden)]
     fn __set_object_data(
         &mut self,
@@ -223,4 +243,45 @@ pub enum DispatchError {
         /// The interface of the object that received it
         interface: &'static str,
     },
+}
+
+/// A weak handle to a Wayland object
+///
+/// This handle does not keep the underlying user data alive, and can be converted back to a full resource
+/// using [`Weak::upgrade()`].
+#[derive(Debug, Clone)]
+pub struct Weak<I> {
+    handle: WeakHandle,
+    id: ObjectId,
+    _iface: std::marker::PhantomData<I>,
+}
+
+impl<I: Resource> Weak<I> {
+    /// Try to upgrade with weak handle back into a full resource.
+    ///
+    /// This will fail if either:
+    /// - the object represented by this handle has already been destroyed at the protocol level
+    /// - the Wayland connection has already been closed
+    pub fn upgrade(&self) -> Result<I, InvalidId> {
+        let handle = self.handle.upgrade().ok_or(InvalidId)?;
+        let d_handle = DisplayHandle::from(handle);
+        I::from_id(&d_handle, self.id.clone())
+    }
+
+    /// The underlying [`ObjectId`]
+    pub fn id(&self) -> ObjectId {
+        self.id.clone()
+    }
+}
+
+impl<I> PartialEq for Weak<I> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<I: Resource> PartialEq<I> for Weak<I> {
+    fn eq(&self, other: &I) -> bool {
+        self.id == other.id()
+    }
 }

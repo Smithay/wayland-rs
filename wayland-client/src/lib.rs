@@ -172,7 +172,7 @@
 
 use std::sync::Arc;
 use wayland_backend::{
-    client::{InvalidId, ObjectData, ObjectId, WaylandError},
+    client::{InvalidId, ObjectData, ObjectId, WaylandError, WeakBackend},
     protocol::{Interface, Message},
 };
 
@@ -233,6 +233,15 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
 
     /// The version of this object
     fn version(&self) -> u32;
+
+    /// Checks if the Wayland object associated with this proxy is still alive
+    fn is_alive(&self) -> bool {
+        if let Some(backend) = self.backend().upgrade() {
+            backend.info(self.id()).is_ok()
+        } else {
+            false
+        }
+    }
 
     /// Access the user-data associated with this object
     fn data<U: Send + Sync + 'static>(&self) -> Option<&U>;
@@ -296,6 +305,17 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
         conn: &Connection,
         req: Self::Request,
     ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId>;
+
+    /// Creates a weak handle to this object
+    ///
+    /// This weak handle will not keep the user-data associated with the object alive,
+    /// and can be converted back to a full proxy using [`Weak::upgrade()`].
+    ///
+    /// This can be of use if you need to store proxies in the used data of other objects and want
+    /// to be sure to avoid reference cycles that would cause memory leaks.
+    fn downgrade(&self) -> Weak<Self> {
+        Weak { backend: self.backend().clone(), id: self.id(), _iface: std::marker::PhantomData }
+    }
 }
 
 /// Wayland dispatching error
@@ -312,4 +332,45 @@ pub enum DispatchError {
     /// The backend generated an error
     #[error("Backend error: {0}")]
     Backend(#[from] WaylandError),
+}
+
+/// A weak handle to a Wayland object
+///
+/// This handle does not keep the underlying user data alive, and can be converted back to a full proxy
+/// using [`Weak::upgrade()`].
+#[derive(Debug, Clone)]
+pub struct Weak<I> {
+    backend: WeakBackend,
+    id: ObjectId,
+    _iface: std::marker::PhantomData<I>,
+}
+
+impl<I: Proxy> Weak<I> {
+    /// Try to upgrade with weak handle back into a full proxy.
+    ///
+    /// This will fail if either:
+    /// - the object represented by this handle has already been destroyed at the protocol level
+    /// - the Wayland connection has already been closed
+    pub fn upgrade(&self) -> Result<I, InvalidId> {
+        let backend = self.backend.upgrade().ok_or(InvalidId)?;
+        let conn = Connection::from_backend(backend);
+        I::from_id(&conn, self.id.clone())
+    }
+
+    /// The underlying [`ObjectId`]
+    pub fn id(&self) -> ObjectId {
+        self.id.clone()
+    }
+}
+
+impl<I> PartialEq for Weak<I> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<I: Proxy> PartialEq<I> for Weak<I> {
+    fn eq(&self, other: &I) -> bool {
+        self.id == other.id()
+    }
 }

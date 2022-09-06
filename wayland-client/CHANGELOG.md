@@ -5,6 +5,9 @@
 #### Additions
 
 - Support absolute paths in `WAYLAND_DISPLAY`
+- Introduce `Weak`, a helper type to store proxies without risking reference cycles
+- Introduce `Proxy::is_alive()` method checking if the protocol object referenced by a proxy is still
+  alive in the protocol state.
 
 #### Bugfixes
 
