@@ -5,7 +5,7 @@ pub mod wl_callback {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
@@ -52,6 +52,11 @@ pub mod wl_callback {
         }
     }
     impl std::cmp::Eq for WlCallback {}
+    impl PartialEq<Weak<WlCallback>> for WlCallback {
+        fn eq(&self, other: &Weak<WlCallback>) -> bool {
+            self.id == other.id()
+        }
+    }
     impl super::wayland_server::Resource for WlCallback {
         type Request = Request;
         type Event = Event;
@@ -137,7 +142,7 @@ pub mod test_global {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -282,6 +287,11 @@ pub mod test_global {
         }
     }
     impl std::cmp::Eq for TestGlobal {}
+    impl PartialEq<Weak<TestGlobal>> for TestGlobal {
+        fn eq(&self, other: &Weak<TestGlobal>) -> bool {
+            self.id == other.id()
+        }
+    }
     impl super::wayland_server::Resource for TestGlobal {
         type Request = Request;
         type Event = Event;
@@ -653,7 +663,7 @@ pub mod secondary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -697,6 +707,11 @@ pub mod secondary {
         }
     }
     impl std::cmp::Eq for Secondary {}
+    impl PartialEq<Weak<Secondary>> for Secondary {
+        fn eq(&self, other: &Weak<Secondary>) -> bool {
+            self.id == other.id()
+        }
+    }
     impl super::wayland_server::Resource for Secondary {
         type Request = Request;
         type Event = Event;
@@ -777,7 +792,7 @@ pub mod tertiary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -821,6 +836,11 @@ pub mod tertiary {
         }
     }
     impl std::cmp::Eq for Tertiary {}
+    impl PartialEq<Weak<Tertiary>> for Tertiary {
+        fn eq(&self, other: &Weak<Tertiary>) -> bool {
+            self.id == other.id()
+        }
+    }
     impl super::wayland_server::Resource for Tertiary {
         type Request = Request;
         type Event = Event;
@@ -901,7 +921,7 @@ pub mod quad {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -945,6 +965,11 @@ pub mod quad {
         }
     }
     impl std::cmp::Eq for Quad {}
+    impl PartialEq<Weak<Quad>> for Quad {
+        fn eq(&self, other: &Weak<Quad>) -> bool {
+            self.id == other.id()
+        }
+    }
     impl super::wayland_server::Resource for Quad {
         type Request = Request;
         type Event = Event;

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+#### Additions
+
+- Introduce `Weak`, a helper type to store resources without risking reference cycles
+- Introduce `Proxy::is_alive()` method checking if the protocol object referenced by a resource is still
+  alive in the protocol state.
+
 #### Bugfixes
 
 - Ensure that `XDG_RUNTIME_DIR` is an absolute path before trying to use it

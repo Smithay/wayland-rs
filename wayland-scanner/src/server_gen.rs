@@ -61,7 +61,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             use super::wayland_server::{
                 backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}, WeakHandle},
-                Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New,
+                Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New, Weak,
             };
 
             #enums
@@ -85,6 +85,13 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             }
 
             impl std::cmp::Eq for #iface_name {}
+
+            impl PartialEq<Weak<#iface_name>> for #iface_name {
+                fn eq(&self, other: &Weak<#iface_name>) -> bool {
+                    self.id == other.id()
+                }
+            }
+
 
             impl super::wayland_server::Resource for #iface_name {
                 type Request = Request;
