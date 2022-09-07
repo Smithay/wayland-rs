@@ -60,7 +60,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use std::sync::Arc;
 
             use super::wayland_server::{
-                backend::{smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}, WeakHandle},
+                backend::{
+                    smallvec, ObjectData, ObjectId, InvalidId, io_lifetimes, WeakHandle,
+                    protocol::{WEnum, Argument, Message, Interface, same_interface}
+                },
                 Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New, Weak,
             };
 
@@ -141,11 +144,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     handle.send_event(self, evt)
                 }
 
-                fn parse_request(conn: &DisplayHandle, msg: Message<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
+                fn parse_request(conn: &DisplayHandle, msg: Message<ObjectId, io_lifetimes::OwnedFd>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }
 
-                fn write_event(&self, conn: &DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId>, InvalidId> {
+                fn write_event(&self, conn: &DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
                     #write_body
                 }
 

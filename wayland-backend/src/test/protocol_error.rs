@@ -1,6 +1,5 @@
 use std::{
     ffi::CString,
-    os::unix::prelude::{FromRawFd, IntoRawFd},
     sync::{Arc, Mutex},
 };
 
@@ -115,7 +114,7 @@ expand_test!(client_wrong_id, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+    let mut socket = BufferedSocket::new(Socket::from(tx));
 
     socket
         .write_message(&Message {
@@ -141,7 +140,7 @@ expand_test!(client_wrong_opcode, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+    let mut socket = BufferedSocket::new(Socket::from(tx));
 
     socket
         .write_message(&Message {
@@ -165,7 +164,7 @@ expand_test!(client_wrong_sender, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(tx.into_raw_fd()) });
+    let mut socket = BufferedSocket::new(Socket::from(tx));
 
     socket
         .write_message(&Message {
@@ -218,7 +217,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         handle: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
-        msg: Message<server_rs::ObjectId>,
+        msg: Message<server_rs::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
         handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None
@@ -233,7 +232,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         handle: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
-        msg: Message<server_sys::ObjectId>,
+        msg: Message<server_sys::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
         handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None

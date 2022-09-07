@@ -2,7 +2,7 @@ use std::{
     env,
     io::ErrorKind,
     os::unix::net::UnixStream,
-    os::unix::prelude::FromRawFd,
+    os::unix::prelude::{AsRawFd, FromRawFd},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -12,6 +12,7 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
+    io_lifetimes::OwnedFd,
     protocol::{ObjectInfo, ProtocolError},
 };
 
@@ -222,7 +223,7 @@ impl Connection {
 
 pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandError> {
     let mut fds = [nix::poll::PollFd::new(
-        guard.connection_fd(),
+        guard.connection_fd().as_raw_fd(),
         nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
     )];
 
@@ -272,7 +273,7 @@ impl ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        _msg: wayland_backend::protocol::Message<ObjectId>,
+        _msg: wayland_backend::protocol::Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Relaxed);
         None

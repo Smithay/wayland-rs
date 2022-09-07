@@ -4,7 +4,7 @@ use std::{
     ffi::{CStr, CString},
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{IntoRawFd, RawFd},
+        io::{FromRawFd, IntoRawFd, RawFd},
         net::UnixStream,
     },
     sync::{
@@ -17,6 +17,7 @@ use crate::protocol::{
     check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
     ObjectInfo, ANONYMOUS_INTERFACE,
 };
+use io_lifetimes::{BorrowedFd, OwnedFd};
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 
@@ -344,11 +345,15 @@ impl<D> InnerBackend<D> {
         Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
-    pub fn poll_fd(&self) -> RawFd {
+    pub fn poll_fd(&self) -> BorrowedFd {
         unsafe {
             let evl_ptr =
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, self.display_ptr);
-            ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_event_loop_get_fd, evl_ptr)
+            BorrowedFd::borrow_raw(ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_get_fd,
+                evl_ptr
+            ))
         }
     }
 
@@ -527,7 +532,7 @@ impl InnerHandle {
         }
     }
 
-    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
         self.state.lock().unwrap().send_event(msg)
     }
 
@@ -766,7 +771,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
+    fn send_event(&mut self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
@@ -948,7 +953,7 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn send_event(
         &mut self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
     ) -> Result<(), InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
@@ -1341,7 +1346,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     };
 
     let mut parsed_args =
-        SmallVec::<[Argument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
+        SmallVec::<[Argument<ObjectId, OwnedFd>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
@@ -1350,7 +1355,9 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Uint => parsed_args.push(Argument::Uint(unsafe { (*args.add(i)).u })),
             ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
             ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
-            ArgumentType::Fd => parsed_args.push(Argument::Fd(unsafe { (*args.add(i)).h })),
+            ArgumentType::Fd => {
+                parsed_args.push(Argument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) }))
+            }
             ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the wl_array provided by libwayland is valid
@@ -1558,7 +1565,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: &Handle,
         _: &mut D,
         _: ClientId,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }

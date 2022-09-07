@@ -5,6 +5,8 @@ use std::{
     sync::Arc,
 };
 
+use io_lifetimes::{BorrowedFd, OwnedFd};
+
 use crate::protocol::{Interface, Message, ObjectInfo};
 
 use super::client_impl;
@@ -26,7 +28,7 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     fn event(
         self: Arc<Self>,
         backend: &Backend,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>>;
 
     /// Notification that the object has been destroyed and is no longer active
@@ -220,7 +222,7 @@ impl Backend {
     ///   is `wl_registry.bind`), the `child_spec` must be provided.
     pub fn send_request(
         &self,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, RawFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -303,7 +305,7 @@ pub struct ReadEventsGuard {
 impl ReadEventsGuard {
     /// Access the Wayland socket FD for polling
     #[inline]
-    pub fn connection_fd(&self) -> RawFd {
+    pub fn connection_fd(&self) -> BorrowedFd {
         self.guard.connection_fd()
     }
 
@@ -328,7 +330,7 @@ impl ObjectData for DumbObjectData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        _msg: Message<ObjectId>,
+        _msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
@@ -346,7 +348,7 @@ impl ObjectData for UninitObjectData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }

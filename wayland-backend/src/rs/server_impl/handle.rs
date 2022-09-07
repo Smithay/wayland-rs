@@ -1,11 +1,13 @@
 use std::{
     ffi::CString,
     os::unix::{
+        io::{AsRawFd, RawFd},
         net::UnixStream,
-        prelude::{AsRawFd, RawFd},
     },
     sync::{Arc, Mutex, Weak},
 };
+
+use io_lifetimes::OwnedFd;
 
 use crate::{
     protocol::{same_interface, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE},
@@ -24,11 +26,11 @@ pub struct State<D: 'static> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
-    pub(crate) poll_fd: RawFd,
+    pub(crate) poll_fd: OwnedFd,
 }
 
 impl<D> State<D> {
-    pub(crate) fn new(poll_fd: RawFd) -> Self {
+    pub(crate) fn new(poll_fd: OwnedFd) -> Self {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
         Self {
@@ -170,7 +172,7 @@ impl InnerHandle {
         }
     }
 
-    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
         self.state.lock().unwrap().send_event(msg)
     }
 
@@ -285,7 +287,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
+    fn send_event(&mut self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
@@ -311,7 +313,7 @@ impl<D> ErasedState for State<D> {
         let ret = {
             use nix::sys::epoll::*;
             let mut evt = EpollEvent::new(EpollFlags::EPOLLIN, id.as_u64());
-            epoll_ctl(self.poll_fd, EpollOp::EpollCtlAdd, client_fd, &mut evt)
+            epoll_ctl(self.poll_fd.as_raw_fd(), EpollOp::EpollCtlAdd, client_fd, &mut evt)
         };
 
         #[cfg(any(
@@ -331,7 +333,7 @@ impl<D> ErasedState for State<D> {
                 id.as_u64() as isize,
             );
 
-            kevent_ts(self.poll_fd, &[evt], &mut [], None).map(|_| ())
+            kevent_ts(self.poll_fd.as_raw_fd(), &[evt], &mut [], None).map(|_| ())
         };
 
         match ret {
@@ -404,7 +406,7 @@ impl<D> ErasedState for State<D> {
             .map(|arc| arc.into_any_arc())
     }
 
-    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+    fn send_event(&mut self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
         self.clients
             .get_client_mut(msg.sender_id.id.client_id.clone())?
             .send_event(msg, Some(&mut self.pending_destructors))

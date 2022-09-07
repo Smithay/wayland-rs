@@ -1,6 +1,6 @@
 //! Types and utilities for manipulating the Wayland protocol
 
-use std::{ffi::CString, os::unix::io::RawFd};
+use std::{ffi::CString, os::unix::prelude::AsRawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
 
@@ -42,9 +42,9 @@ impl ArgumentType {
 }
 
 /// Enum of possible argument of the protocol
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Debug, Clone)]
 #[allow(clippy::box_collection)]
-pub enum Argument<Id> {
+pub enum Argument<Id, Fd> {
     /// An integer argument. Represented by a [`i32`].
     Int(i32),
     /// An unsigned integer argument. Represented by a [`u32`].
@@ -66,10 +66,10 @@ pub enum Argument<Id> {
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
     Array(Box<Vec<u8>>),
     /// A file descriptor argument. Represented by a [`RawFd`].
-    Fd(RawFd),
+    Fd(Fd),
 }
 
-impl<Id> Argument<Id> {
+impl<Id, Fd> Argument<Id, Fd> {
     /// Retrieve the type of a given argument instance
     pub fn get_type(&self) -> ArgumentType {
         match *self {
@@ -83,9 +83,41 @@ impl<Id> Argument<Id> {
             Self::Fd(_) => ArgumentType::Fd,
         }
     }
+
+    #[cfg(test)]
+    fn map_fd<T>(self, f: &mut impl FnMut(Fd) -> T) -> Argument<Id, T> {
+        match self {
+            Self::Int(val) => Argument::Int(val),
+            Self::Uint(val) => Argument::Uint(val),
+            Self::Fixed(val) => Argument::Fixed(val),
+            Self::Str(val) => Argument::Str(val),
+            Self::Object(val) => Argument::Object(val),
+            Self::NewId(val) => Argument::NewId(val),
+            Self::Array(val) => Argument::Array(val),
+            Self::Fd(val) => Argument::Fd(f(val)),
+        }
+    }
 }
 
-impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
+impl<Id: PartialEq, Fd: AsRawFd> PartialEq for Argument<Id, Fd> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Int(a), Self::Int(b)) => a == b,
+            (Self::Uint(a), Self::Uint(b)) => a == b,
+            (Self::Fixed(a), Self::Fixed(b)) => a == b,
+            (Self::Str(a), Self::Str(b)) => a == b,
+            (Self::Object(a), Self::Object(b)) => a == b,
+            (Self::NewId(a), Self::NewId(b)) => a == b,
+            (Self::Array(a), Self::Array(b)) => a == b,
+            (Self::Fd(a), Self::Fd(b)) => a.as_raw_fd() == b.as_raw_fd(),
+            _ => false,
+        }
+    }
+}
+
+impl<Id: Eq, Fd: AsRawFd> Eq for Argument<Id, Fd> {}
+
+impl<Id: std::fmt::Display, Fd: AsRawFd> std::fmt::Display for Argument<Id, Fd> {
     #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -96,7 +128,7 @@ impl<Id: std::fmt::Display> std::fmt::Display for Argument<Id> {
             Self::Object(value) => write!(f, "{}", value),
             Self::NewId(value) => write!(f, "{}", value),
             Self::Array(value) => write!(f, "{:?}", value),
-            Self::Fd(value) => write!(f, "{}", value),
+            Self::Fd(value) => write!(f, "{}", value.as_raw_fd()),
         }
     }
 }
@@ -186,15 +218,34 @@ pub struct ProtocolError {
 pub const INLINE_ARGS: usize = 4;
 
 /// Represents a message that has been sent from some object.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Message<Id> {
+#[derive(Debug)]
+pub struct Message<Id, Fd> {
     /// The id of the object that sent the message.
     pub sender_id: Id,
     /// The opcode of the message.
     pub opcode: u16,
     /// The arguments of the message.
-    pub args: smallvec::SmallVec<[Argument<Id>; INLINE_ARGS]>,
+    pub args: smallvec::SmallVec<[Argument<Id, Fd>; INLINE_ARGS]>,
 }
+
+#[cfg(test)]
+impl<Id, Fd> Message<Id, Fd> {
+    pub(crate) fn map_fd<T>(self, mut f: impl FnMut(Fd) -> T) -> Message<Id, T> {
+        Message {
+            sender_id: self.sender_id,
+            opcode: self.opcode,
+            args: self.args.into_iter().map(move |arg| arg.map_fd(&mut f)).collect(),
+        }
+    }
+}
+
+impl<Id: PartialEq, Fd: AsRawFd> PartialEq for Message<Id, Fd> {
+    fn eq(&self, other: &Self) -> bool {
+        self.sender_id == other.sender_id && self.opcode == other.opcode && self.args == other.args
+    }
+}
+
+impl<Id: Eq, Fd: AsRawFd> Eq for Message<Id, Fd> {}
 
 impl std::error::Error for ProtocolError {}
 
@@ -215,7 +266,10 @@ pub fn same_interface(a: &'static Interface, b: &'static Interface) -> bool {
     std::ptr::eq(a, b) || a.name == b.name
 }
 
-pub(crate) fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argument<Id>]) -> bool {
+pub(crate) fn check_for_signature<Id, Fd>(
+    signature: &[ArgumentType],
+    args: &[Argument<Id, Fd>],
+) -> bool {
     if signature.len() != args.len() {
         return false;
     }

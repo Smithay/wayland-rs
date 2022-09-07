@@ -3,7 +3,7 @@
 use std::{
     fmt,
     os::unix::{
-        io::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
+        io::{AsRawFd, RawFd},
         net::UnixStream,
     },
     sync::{Arc, Condvar, Mutex, MutexGuard, Weak},
@@ -17,6 +17,7 @@ use crate::{
         INLINE_ARGS,
     },
 };
+use io_lifetimes::{BorrowedFd, OwnedFd};
 use smallvec::SmallVec;
 
 use super::{
@@ -143,7 +144,7 @@ impl InnerBackend {
     }
 
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
-        let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
+        let socket = BufferedSocket::new(Socket::from(stream));
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
@@ -209,8 +210,11 @@ impl InnerReadEventsGuard {
     }
 
     /// Access the Wayland socket FD for polling
-    pub fn connection_fd(&self) -> RawFd {
-        self.state.lock_protocol().socket.as_raw_fd()
+    pub fn connection_fd(&self) -> BorrowedFd {
+        let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
+        // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
+        // which is the real safety concern
+        unsafe { BorrowedFd::borrow_raw(raw_fd) }
     }
 
     /// Attempt to read events from the Wayland socket
@@ -284,7 +288,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -536,7 +540,7 @@ impl ProtocolState {
         Ok(object)
     }
 
-    fn handle_display_event(&mut self, message: Message<u32>) -> Result<(), WaylandError> {
+    fn handle_display_event(&mut self, message: Message<u32, OwnedFd>) -> Result<(), WaylandError> {
         if self.debug {
             super::debug::print_dispatched_message(
                 "wl_display",
@@ -747,12 +751,6 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
 
         // If this event is send to an already destroyed object (by the client), swallow it
         if receiver.data.client_destroyed {
-            // but close any associated FD to avoid leaking them
-            for a in args {
-                if let Argument::Fd(fd) = a {
-                    let _ = ::nix::unistd::close(fd);
-                }
-            }
             continue;
         }
 

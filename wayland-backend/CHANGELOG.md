@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `Message` is now also generic on the `Fd` type, and `io_lifetimes::OwnedFd` is used instead of `RawFd` when
+  appropriate.
+
 #### Bugfixes
 
 - The rust backend no longer ever does a blocking flush

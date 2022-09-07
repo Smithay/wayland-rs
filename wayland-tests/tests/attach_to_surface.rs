@@ -2,7 +2,7 @@ extern crate tempfile;
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 
 #[macro_use]
 mod helpers;
@@ -11,6 +11,7 @@ use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use wayc::protocol::wl_shm::Format;
 
+use wayland_backend::io_lifetimes::OwnedFd;
 use ways::protocol::wl_buffer::WlBuffer as ServerBuffer;
 
 #[test]
@@ -108,7 +109,7 @@ fn attach_buffer() {
     let shm_buffer = shm_buf.unwrap();
     assert_eq!(surface_buffer, shm_buffer);
 
-    let mut client_file = unsafe { File::from_raw_fd(shm_fd) };
+    let mut client_file = File::from(shm_fd);
     let mut contents = String::new();
     client_file.seek(SeekFrom::Start(0)).unwrap();
     client_file.read_to_string(&mut contents).unwrap();
@@ -121,7 +122,7 @@ fn attach_buffer() {
 
 struct ServerHandler {
     buffer_found: Option<Option<ServerBuffer>>,
-    fd_found: Option<(RawFd, Option<ServerBuffer>)>,
+    fd_found: Option<(OwnedFd, Option<ServerBuffer>)>,
 }
 
 impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {

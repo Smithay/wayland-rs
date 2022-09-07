@@ -8,6 +8,7 @@ use std::task;
 use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
+    io_lifetimes::OwnedFd,
     protocol::{Argument, Message},
 };
 
@@ -183,13 +184,13 @@ macro_rules! event_created_child {
 
 type QueueCallback<State> = fn(
     &Connection,
-    Message<ObjectId>,
+    Message<ObjectId, OwnedFd>,
     &mut State,
     Arc<dyn ObjectData>,
     &QueueHandle<State>,
 ) -> Result<(), DispatchError>;
 
-struct QueueEvent<State>(QueueCallback<State>, Message<ObjectId>, Arc<dyn ObjectData>);
+struct QueueEvent<State>(QueueCallback<State>, Message<ObjectId, OwnedFd>, Arc<dyn ObjectData>);
 
 impl<State> std::fmt::Debug for QueueEvent<State> {
     #[cfg_attr(coverage, no_coverage)]
@@ -620,7 +621,7 @@ fn queue_callback<
     State: Dispatch<I, U, State> + 'static,
 >(
     handle: &Connection,
-    msg: Message<ObjectId>,
+    msg: Message<ObjectId, OwnedFd>,
     data: &mut State,
     odata: Arc<dyn ObjectData>,
     qhandle: &QueueHandle<State>,
@@ -643,7 +644,11 @@ impl<I: Proxy + 'static, U: Send + Sync + 'static, State> ObjectData for QueuePr
 where
     State: Dispatch<I, U, State> + 'static,
 {
-    fn event(self: Arc<Self>, _: &Backend, msg: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
+    fn event(
+        self: Arc<Self>,
+        _: &Backend,
+        msg: Message<ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn ObjectData>> {
         let new_data = msg
             .args
             .iter()
@@ -678,7 +683,11 @@ impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, 
 struct TemporaryData;
 
 impl ObjectData for TemporaryData {
-    fn event(self: Arc<Self>, _: &Backend, _: Message<ObjectId>) -> Option<Arc<dyn ObjectData>> {
+    fn event(
+        self: Arc<Self>,
+        _: &Backend,
+        _: Message<ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
 

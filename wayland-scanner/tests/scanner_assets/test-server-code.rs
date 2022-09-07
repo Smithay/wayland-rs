@@ -2,6 +2,7 @@
 pub mod wl_callback {
     use super::wayland_server::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
@@ -101,18 +102,22 @@ pub mod wl_callback {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_event(
             &self,
             conn: &DisplayHandle,
             msg: Self::Event,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
             match msg {
                 Event::Done { callback_data } => Ok(Message {
                     sender_id: self.id.clone(),
@@ -139,6 +144,7 @@ pub mod wl_callback {
 pub mod test_global {
     use super::wayland_server::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
@@ -201,7 +207,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: io_lifetimes::OwnedFd,
         },
         #[doc = "Only available since version 2 of the interface"]
         GetSecondary {
@@ -256,7 +262,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: std::os::unix::io::RawFd,
         },
         #[doc = "acking the creation of a secondary"]
         AckSecondary { sec: super::secondary::Secondary },
@@ -336,34 +342,52 @@ pub mod test_global {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
-                        &msg.args[..]
-                    {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::Uint(unsigned_int)),
+                        Some(Argument::Int(signed_int)),
+                        Some(Argument::Fixed(fixed_point)),
+                        Some(Argument::Array(number_array)),
+                        Some(Argument::Str(some_text)),
+                        Some(Argument::Fd(file_descriptor)),
+                    ) = (
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                    ) {
                         Ok((
                             me,
                             Request::ManyArgs {
-                                unsigned_int: *unsigned_int,
-                                signed_int: *signed_int,
-                                fixed_point: (*fixed_point as f64) / 256.,
-                                number_array: *number_array.clone(),
+                                unsigned_int: unsigned_int,
+                                signed_int: signed_int,
+                                fixed_point: (fixed_point as f64) / 256.,
+                                number_array: *number_array,
                                 some_text: String::from_utf8_lossy(
                                     some_text.as_ref().unwrap().as_bytes(),
                                 )
                                 .into_owned(),
-                                file_descriptor: *file_descriptor,
+                                file_descriptor,
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 1u16 => {
-                    if let [Argument::NewId(sec)] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::NewId(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Request::GetSecondary {
@@ -375,8 +399,9 @@ pub mod test_global {
                                         Ok(p) => p,
                                         Err(_) => {
                                             return Err(DispatchError::BadMessage {
-                                                msg,
+                                                sender_id: msg.sender_id,
                                                 interface: Self::interface().name,
+                                                opcode: msg.opcode,
                                             })
                                         }
                                     },
@@ -384,11 +409,16 @@ pub mod test_global {
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 2u16 => {
-                    if let [Argument::NewId(ter)] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::NewId(ter))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Request::GetTertiary {
@@ -400,8 +430,9 @@ pub mod test_global {
                                         Ok(p) => p,
                                         Err(_) => {
                                             return Err(DispatchError::BadMessage {
-                                                msg,
+                                                sender_id: msg.sender_id,
                                                 interface: Self::interface().name,
+                                                opcode: msg.opcode,
                                             })
                                         }
                                     },
@@ -409,12 +440,20 @@ pub mod test_global {
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 3u16 => {
-                    if let [Argument::Object(sec), Argument::Object(ter), Argument::Uint(time)] =
-                        &msg.args[..]
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::Object(sec)),
+                        Some(Argument::Object(ter)),
+                        Some(Argument::Uint(time)),
+                    ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
                             me,
@@ -426,8 +465,9 @@ pub mod test_global {
                                     Ok(p) => p,
                                     Err(_) => {
                                         return Err(DispatchError::BadMessage {
-                                            msg,
+                                            sender_id: msg.sender_id,
                                             interface: Self::interface().name,
+                                            opcode: msg.opcode,
                                         })
                                     }
                                 },
@@ -442,29 +482,42 @@ pub mod test_global {
                                             Ok(p) => p,
                                             Err(_) => {
                                                 return Err(DispatchError::BadMessage {
-                                                    msg,
+                                                    sender_id: msg.sender_id,
                                                     interface: Self::interface().name,
+                                                    opcode: msg.opcode,
                                                 })
                                             }
                                         },
                                     )
                                 },
-                                time: *time,
+                                time,
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 4u16 => {
-                    if let [] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 5u16 => {
-                    if let [Argument::Object(sec), Argument::Object(ter)] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::Object(sec)), Some(Argument::Object(ter))) =
+                        (arg_iter.next(), arg_iter.next())
+                    {
                         Ok((
                             me,
                             Request::ReverseLink {
@@ -479,8 +532,9 @@ pub mod test_global {
                                             Ok(p) => p,
                                             Err(_) => {
                                                 return Err(DispatchError::BadMessage {
-                                                    msg,
+                                                    sender_id: msg.sender_id,
                                                     interface: Self::interface().name,
+                                                    opcode: msg.opcode,
                                                 })
                                             }
                                         },
@@ -493,20 +547,29 @@ pub mod test_global {
                                     Ok(p) => p,
                                     Err(_) => {
                                         return Err(DispatchError::BadMessage {
-                                            msg,
+                                            sender_id: msg.sender_id,
                                             interface: Self::interface().name,
+                                            opcode: msg.opcode,
                                         })
                                     }
                                 },
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 6u16 => {
-                    if let [Argument::NewId(quad), Argument::Object(sec), Argument::Object(ter)] =
-                        &msg.args[..]
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::NewId(quad)),
+                        Some(Argument::Object(sec)),
+                        Some(Argument::Object(ter)),
+                    ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
                             me,
@@ -519,8 +582,9 @@ pub mod test_global {
                                         Ok(p) => p,
                                         Err(_) => {
                                             return Err(DispatchError::BadMessage {
-                                                msg,
+                                                sender_id: msg.sender_id,
                                                 interface: Self::interface().name,
+                                                opcode: msg.opcode,
                                             })
                                         }
                                     },
@@ -536,8 +600,9 @@ pub mod test_global {
                                             Ok(p) => p,
                                             Err(_) => {
                                                 return Err(DispatchError::BadMessage {
-                                                    msg,
+                                                    sender_id: msg.sender_id,
                                                     interface: Self::interface().name,
+                                                    opcode: msg.opcode,
                                                 })
                                             }
                                         },
@@ -550,25 +615,34 @@ pub mod test_global {
                                     Ok(p) => p,
                                     Err(_) => {
                                         return Err(DispatchError::BadMessage {
-                                            msg,
+                                            sender_id: msg.sender_id,
                                             interface: Self::interface().name,
+                                            opcode: msg.opcode,
                                         })
                                     }
                                 },
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_event(
             &self,
             conn: &DisplayHandle,
             msg: Self::Event,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
             match msg {
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -660,6 +734,7 @@ pub mod test_global {
 pub mod secondary {
     use super::wayland_server::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
@@ -756,25 +831,34 @@ pub mod secondary {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_event(
             &self,
             conn: &DisplayHandle,
             msg: Self::Event,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
             match msg {}
         }
         fn __set_object_data(
@@ -789,6 +873,7 @@ pub mod secondary {
 pub mod tertiary {
     use super::wayland_server::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
@@ -885,25 +970,34 @@ pub mod tertiary {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_event(
             &self,
             conn: &DisplayHandle,
             msg: Self::Event,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
             match msg {}
         }
         fn __set_object_data(
@@ -918,6 +1012,7 @@ pub mod tertiary {
 pub mod quad {
     use super::wayland_server::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
@@ -1014,25 +1109,34 @@ pub mod quad {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_event(
             &self,
             conn: &DisplayHandle,
             msg: Self::Event,
-        ) -> Result<Message<ObjectId>, InvalidId> {
+        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
             match msg {}
         }
         fn __set_object_data(

@@ -1,5 +1,5 @@
 use std::{
-    os::unix::io::RawFd,
+    os::unix::io::{AsRawFd, FromRawFd},
     sync::{Arc, Mutex},
 };
 
@@ -14,6 +14,7 @@ use crate::{
     types::server::InitError,
 };
 
+use io_lifetimes::{BorrowedFd, OwnedFd};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use nix::sys::epoll::*;
 
@@ -46,7 +47,9 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
+        Ok(Self {
+            state: Arc::new(Mutex::new(State::new(unsafe { OwnedFd::from_raw_fd(poll_fd) }))),
+        })
     }
 
     pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
@@ -57,8 +60,11 @@ impl<D> InnerBackend<D> {
         Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
-    pub fn poll_fd(&self) -> RawFd {
-        self.state.lock().unwrap().poll_fd
+    pub fn poll_fd(&self) -> BorrowedFd {
+        let raw_fd = self.state.lock().unwrap().poll_fd.as_raw_fd();
+        // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
+        // which is the real safety concern
+        unsafe { BorrowedFd::borrow_raw(raw_fd) }
     }
 
     pub fn dispatch_client(
@@ -78,7 +84,7 @@ impl<D> InnerBackend<D> {
         let mut dispatched = 0;
         loop {
             let mut events = [EpollEvent::empty(); 32];
-            let nevents = epoll_wait(poll_fd, &mut events, 0)?;
+            let nevents = epoll_wait(poll_fd.as_raw_fd(), &mut events, 0)?;
 
             if nevents == 0 {
                 break;
@@ -117,7 +123,7 @@ impl<D> InnerBackend<D> {
                 0,
             ); 32];
 
-            let nevents = kevent(poll_fd, &[], &mut events, 0)?;
+            let nevents = kevent(poll_fd.as_raw_fd(), &[], &mut events, 0)?;
 
             if nevents == 0 {
                 break;
@@ -291,7 +297,7 @@ enum DispatchAction<D: 'static> {
         object: Object<Data<D>>,
         object_id: InnerObjectId,
         opcode: u16,
-        arguments: SmallVec<[Argument<ObjectId>; 4]>,
+        arguments: SmallVec<[Argument<ObjectId, OwnedFd>; 4]>,
         is_destructor: bool,
         created_id: Option<InnerObjectId>,
     },

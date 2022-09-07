@@ -2,6 +2,7 @@
 pub mod wl_display {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -174,19 +175,23 @@ pub mod wl_display {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [Argument::Object(object_id), Argument::Uint(code), Argument::Str(message)] =
-                        &msg.args[..]
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::Object(object_id)),
+                        Some(Argument::Uint(code)),
+                        Some(Argument::Str(message)),
+                    ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
                             me,
                             Event::Error {
                                 object_id: object_id.clone(),
-                                code: *code,
+                                code,
                                 message: String::from_utf8_lossy(
                                     message.as_ref().unwrap().as_bytes(),
                                 )
@@ -194,24 +199,40 @@ pub mod wl_display {
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 1u16 => {
-                    if let [Argument::Uint(id)] = &msg.args[..] {
-                        Ok((me, Event::DeleteId { id: *id }))
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::Uint(id))) = (arg_iter.next()) {
+                        Ok((me, Event::DeleteId { id }))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {
                 Request::Sync {} => {
                     let mut child_spec = None;
@@ -275,6 +296,7 @@ pub mod wl_display {
 pub mod wl_registry {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -414,44 +436,64 @@ pub mod wl_registry {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [Argument::Uint(name), Argument::Str(interface), Argument::Uint(version)] =
-                        &msg.args[..]
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::Uint(name)),
+                        Some(Argument::Str(interface)),
+                        Some(Argument::Uint(version)),
+                    ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
                             me,
                             Event::Global {
-                                name: *name,
+                                name,
                                 interface: String::from_utf8_lossy(
                                     interface.as_ref().unwrap().as_bytes(),
                                 )
                                 .into_owned(),
-                                version: *version,
+                                version,
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 1u16 => {
-                    if let [Argument::Uint(name)] = &msg.args[..] {
-                        Ok((me, Event::GlobalRemove { name: *name }))
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::Uint(name))) = (arg_iter.next()) {
+                        Ok((me, Event::GlobalRemove { name }))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {
                 Request::Bind { name, id } => {
                     let mut child_spec = None;
@@ -491,6 +533,7 @@ pub mod wl_registry {
 pub mod wl_callback {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -602,25 +645,37 @@ pub mod wl_callback {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [Argument::Uint(callback_data)] = &msg.args[..] {
-                        Ok((me, Event::Done { callback_data: *callback_data }))
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::Uint(callback_data))) = (arg_iter.next()) {
+                        Ok((me, Event::Done { callback_data }))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {}
         }
     }
@@ -629,6 +684,7 @@ pub mod wl_callback {
 pub mod test_global {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -691,7 +747,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: std::os::unix::io::RawFd,
         },
         #[doc = "Only available since version 2 of the interface"]
         GetSecondary {},
@@ -739,7 +795,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: io_lifetimes::OwnedFd,
         },
         #[doc = "acking the creation of a secondary"]
         AckSecondary { sec: super::secondary::Secondary },
@@ -831,34 +887,52 @@ pub mod test_global {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
                 0u16 => {
-                    if let [Argument::Uint(unsigned_int), Argument::Int(signed_int), Argument::Fixed(fixed_point), Argument::Array(number_array), Argument::Str(some_text), Argument::Fd(file_descriptor)] =
-                        &msg.args[..]
-                    {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (
+                        Some(Argument::Uint(unsigned_int)),
+                        Some(Argument::Int(signed_int)),
+                        Some(Argument::Fixed(fixed_point)),
+                        Some(Argument::Array(number_array)),
+                        Some(Argument::Str(some_text)),
+                        Some(Argument::Fd(file_descriptor)),
+                    ) = (
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                    ) {
                         Ok((
                             me,
                             Event::ManyArgsEvt {
-                                unsigned_int: *unsigned_int,
-                                signed_int: *signed_int,
-                                fixed_point: (*fixed_point as f64) / 256.,
-                                number_array: *number_array.clone(),
+                                unsigned_int: unsigned_int,
+                                signed_int: signed_int,
+                                fixed_point: (fixed_point as f64) / 256.,
+                                number_array: *number_array,
                                 some_text: String::from_utf8_lossy(
                                     some_text.as_ref().unwrap().as_bytes(),
                                 )
                                 .into_owned(),
-                                file_descriptor: *file_descriptor,
+                                file_descriptor,
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 1u16 => {
-                    if let [Argument::Object(sec)] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::Object(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Event::AckSecondary {
@@ -869,19 +943,27 @@ pub mod test_global {
                                     Ok(p) => p,
                                     Err(_) => {
                                         return Err(DispatchError::BadMessage {
-                                            msg,
+                                            sender_id: msg.sender_id,
                                             interface: Self::interface().name,
+                                            opcode: msg.opcode,
                                         })
                                     }
                                 },
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
                 2u16 => {
-                    if let [Argument::NewId(new_quad), Argument::Object(old_quad)] = &msg.args[..] {
+                    let mut arg_iter = msg.args.into_iter();
+                    if let (Some(Argument::NewId(new_quad)), Some(Argument::Object(old_quad))) =
+                        (arg_iter.next(), arg_iter.next())
+                    {
                         Ok((
                             me,
                             Event::CycleQuad {
@@ -892,8 +974,9 @@ pub mod test_global {
                                     Ok(p) => p,
                                     Err(_) => {
                                         return Err(DispatchError::BadMessage {
-                                            msg,
+                                            sender_id: msg.sender_id,
                                             interface: Self::interface().name,
+                                            opcode: msg.opcode,
                                         })
                                     }
                                 },
@@ -908,8 +991,9 @@ pub mod test_global {
                                             Ok(p) => p,
                                             Err(_) => {
                                                 return Err(DispatchError::BadMessage {
-                                                    msg,
+                                                    sender_id: msg.sender_id,
                                                     interface: Self::interface().name,
+                                                    opcode: msg.opcode,
                                                 })
                                             }
                                         },
@@ -918,17 +1002,28 @@ pub mod test_global {
                             },
                         ))
                     } else {
-                        Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
                     }
                 }
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {
                 Request::ManyArgs {
                     unsigned_int,
@@ -1148,6 +1243,7 @@ pub mod test_global {
 pub mod secondary {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -1256,18 +1352,25 @@ pub mod secondary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {
                 Request::Destroy {} => {
                     let mut child_spec = None;
@@ -1292,6 +1395,7 @@ pub mod secondary {
 pub mod tertiary {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -1400,18 +1504,25 @@ pub mod tertiary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId
+        > {
             match msg {
                 Request::Destroy {} => {
                     let mut child_spec = None;
@@ -1436,6 +1547,7 @@ pub mod tertiary {
 pub mod quad {
     use super::wayland_client::{
         backend::{
+            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
@@ -1544,18 +1656,25 @@ pub mod quad {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId>,
+            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             match msg.opcode {
-                _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                _ => Err(DispatchError::BadMessage {
+                    sender_id: msg.sender_id,
+                    interface: Self::interface().name,
+                    opcode: msg.opcode,
+                }),
             }
         }
         fn write_request(
             &self,
             conn: &Connection,
             msg: Self::Request,
-        ) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+        ) -> Result<
+                (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+                InvalidId
+            > {
             match msg {
                 Request::Destroy {} => {
                     let mut child_spec = None;

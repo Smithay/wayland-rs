@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use wayland_backend::client::ObjectData;
+use wayland_backend::io_lifetimes::OwnedFd;
 
 pub mod globals;
 
@@ -113,7 +114,7 @@ impl wayc::backend::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _backend: &wayc::backend::Backend,
-        _msg: self::wayc::backend::protocol::Message<wayc::backend::ObjectId>,
+        _msg: self::wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);
         None

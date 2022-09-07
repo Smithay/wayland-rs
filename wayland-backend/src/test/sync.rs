@@ -7,7 +7,7 @@ impl client_rs::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _: &client_rs::Backend,
-        msg: Message<client_rs::ObjectId>,
+        msg: Message<client_rs::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn client_rs::ObjectData>> {
         assert_eq!(msg.opcode, 0);
         assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
@@ -22,7 +22,7 @@ impl client_sys::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _: &client_sys::Backend,
-        msg: Message<client_sys::ObjectId>,
+        msg: Message<client_sys::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn client_sys::ObjectData>> {
         assert_eq!(msg.opcode, 0);
         assert!(matches!(&msg.args[..], [Argument::Uint(_)]));

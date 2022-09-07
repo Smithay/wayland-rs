@@ -1,5 +1,6 @@
 use std::{
     ffi::{CStr, CString},
+    os::unix::io::AsRawFd,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -12,7 +13,13 @@ struct ServerData(AtomicBool);
 macro_rules! serverdata_impls {
     ($server_backend:tt) => {
         impl $server_backend::ObjectData<()> for ServerData {
-            fn request(self: Arc<Self>, _: &$server_backend::Handle, _: &mut (), _: $server_backend::ClientId, msg: Message<$server_backend::ObjectId>)
+            fn request(
+                self: Arc<Self>,
+                _: &$server_backend::Handle,
+                _: &mut (),
+                _: $server_backend::ClientId,
+                msg: Message<$server_backend::ObjectId, OwnedFd>
+            )
                 -> Option<Arc<dyn $server_backend::ObjectData<()>>>
             {
                 assert_eq!(msg.opcode, 0);
@@ -25,7 +32,7 @@ macro_rules! serverdata_impls {
                     assert_eq!(&**a, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
                     assert_eq!(&***s, CStr::from_bytes_with_nul(b"I like trains\0").unwrap());
                     // compare the fd to stdin
-                    let stat1 = ::nix::sys::stat::fstat(*fd).unwrap();
+                    let stat1 = ::nix::sys::stat::fstat(fd.as_raw_fd()).unwrap();
                     let stat2 = ::nix::sys::stat::fstat(0).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);
@@ -76,7 +83,11 @@ struct ClientData(AtomicBool);
 macro_rules! clientdata_impls {
     ($client_backend:tt) => {
         impl $client_backend::ObjectData for ClientData {
-            fn event(self: Arc<Self>, _handle: & $client_backend::Backend, msg: Message<$client_backend::ObjectId>) -> Option<Arc<dyn $client_backend::ObjectData>> {
+            fn event(
+                self: Arc<Self>,
+                _handle: & $client_backend::Backend,
+                msg: Message<$client_backend::ObjectId, OwnedFd>
+            ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
                 if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(Some(ref s)), Argument::Fd(fd)] =
                     &msg.args[..]
@@ -87,7 +98,7 @@ macro_rules! clientdata_impls {
                     assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
                     assert_eq!(&***s, CStr::from_bytes_with_nul(b"I want cake\0").unwrap());
                     // compare the fd to stdout
-                    let stat1 = ::nix::sys::stat::fstat(*fd).unwrap();
+                    let stat1 = ::nix::sys::stat::fstat(fd.as_raw_fd()).unwrap();
                     let stat2 = ::nix::sys::stat::fstat(1).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);

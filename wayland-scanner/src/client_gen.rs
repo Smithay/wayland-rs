@@ -55,7 +55,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use std::sync::Arc;
 
             use super::wayland_client::{
-                backend::{Backend, WeakBackend, smallvec, ObjectData, ObjectId, InvalidId, protocol::{WEnum, Argument, Message, Interface, same_interface}},
+                backend::{
+                    Backend, WeakBackend, smallvec, ObjectData, ObjectId, InvalidId, io_lifetimes,
+                    protocol::{WEnum, Argument, Message, Interface, same_interface}
+                },
                 QueueProxyData, Proxy, Connection, Dispatch, QueueHandle, DispatchError, Weak,
             };
 
@@ -148,11 +151,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #iface_name { id: ObjectId::null(), data: None, version: 0, backend }
                 }
 
-                fn parse_event(conn: &Connection, msg: Message<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
+                fn parse_event(conn: &Connection, msg: Message<ObjectId, io_lifetimes::OwnedFd>) -> Result<(Self, Self::Event), DispatchError> {
                     #parse_body
                 }
 
-                fn write_request(&self, conn: &Connection, msg: Self::Request) -> Result<(Message<ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+                fn write_request(&self, conn: &Connection, msg: Self::Request) -> Result<(Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>), InvalidId> {
                     #write_body
                 }
             }
