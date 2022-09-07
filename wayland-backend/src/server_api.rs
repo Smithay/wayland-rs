@@ -1,9 +1,11 @@
 use std::{
     ffi::CString,
     fmt,
-    os::unix::{net::UnixStream, prelude::RawFd},
+    os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
+
+use io_lifetimes::{BorrowedFd, OwnedFd};
 
 use crate::protocol::{Interface, Message, ObjectInfo};
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
@@ -27,7 +29,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
         handle: &Handle,
         data: &mut D,
         client_id: ClientId,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(&self, data: &mut D, client_id: ClientId, object_id: ObjectId);
@@ -360,7 +362,7 @@ impl Handle {
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
     #[inline]
-    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
         self.handle.send_event(msg)
     }
 
@@ -521,7 +523,7 @@ impl<D> Backend<D> {
     ///
     /// The file descriptor should not be used for any other purpose than monitoring it.
     #[inline]
-    pub fn poll_fd(&self) -> RawFd {
+    pub fn poll_fd(&self) -> BorrowedFd {
         self.backend.poll_fd()
     }
 
@@ -571,7 +573,7 @@ impl<D> ObjectData<D> for DumbObjectData {
         _handle: &Handle,
         _data: &mut D,
         _client_id: ClientId,
-        _msg: Message<ObjectId>,
+        _msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         unreachable!()
     }

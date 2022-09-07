@@ -1,8 +1,10 @@
 //! Wayland socket manipulation
 
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::net::UnixStream;
 
+use io_lifetimes::{AsFd, BorrowedFd, OwnedFd};
 use nix::sys::socket;
 
 use crate::protocol::{ArgumentType, Message};
@@ -21,7 +23,7 @@ pub const MAX_BYTES_OUT: usize = 4096;
 /// A wayland socket
 #[derive(Debug)]
 pub struct Socket {
-    fd: RawFd,
+    stream: UnixStream,
 }
 
 impl Socket {
@@ -38,9 +40,9 @@ impl Socket {
 
         if !fds.is_empty() {
             let cmsgs = [socket::ControlMessage::ScmRights(fds)];
-            Ok(socket::sendmsg::<()>(self.fd, &iov, &cmsgs, flags, None)?)
+            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &cmsgs, flags, None)?)
         } else {
-            Ok(socket::sendmsg::<()>(self.fd, &iov, &[], flags, None)?)
+            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &[], flags, None)?)
         }
     }
 
@@ -59,7 +61,7 @@ impl Socket {
         let mut cmsg = nix::cmsg_space!([RawFd; MAX_FDS_OUT]);
         let mut iov = [IoSliceMut::new(buffer)];
         let msg = socket::recvmsg::<()>(
-            self.fd,
+            self.stream.as_raw_fd(),
             &mut iov[..],
             Some(&mut cmsg),
             socket::MsgFlags::MSG_DONTWAIT
@@ -80,15 +82,21 @@ impl Socket {
     }
 }
 
-impl FromRawFd for Socket {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self { fd }
+impl From<UnixStream> for Socket {
+    fn from(stream: UnixStream) -> Self {
+        Self { stream }
     }
 }
 
-impl Drop for Socket {
-    fn drop(&mut self) {
-        let _ = ::nix::unistd::close(self.fd);
+impl AsFd for Socket {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.stream.as_fd()
+    }
+}
+
+impl AsRawFd for Socket {
+    fn as_raw_fd(&self) -> RawFd {
+        self.stream.as_raw_fd()
     }
 }
 
@@ -150,7 +158,7 @@ impl BufferedSocket {
     //
     // if false is returned, it means there is not enough space
     // in the buffer
-    fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
+    fn attempt_write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<bool> {
         match write_to_buffers(
             msg,
             self.out_data.get_writable_storage(),
@@ -172,7 +180,7 @@ impl BufferedSocket {
     ///
     /// If the message is too big to fit in the buffer, the error `Error::Sys(E2BIG)`
     /// will be returned.
-    pub fn write_message(&mut self, msg: &Message<u32>) -> IoResult<()> {
+    pub fn write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<()> {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
@@ -223,7 +231,7 @@ impl BufferedSocket {
     pub fn read_one_message<F>(
         &mut self,
         mut signature: F,
-    ) -> Result<Message<u32>, MessageParseError>
+    ) -> Result<Message<u32, OwnedFd>, MessageParseError>
     where
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {
@@ -257,7 +265,13 @@ impl BufferedSocket {
 
 impl AsRawFd for BufferedSocket {
     fn as_raw_fd(&self) -> RawFd {
-        self.socket.fd
+        self.socket.as_raw_fd()
+    }
+}
+
+impl AsFd for BufferedSocket {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.socket.as_fd()
     }
 }
 
@@ -328,7 +342,8 @@ mod tests {
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
-    use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
+    use std::os::unix::io::RawFd;
+    use std::os::unix::prelude::IntoRawFd;
 
     use smallvec::smallvec;
 
@@ -342,13 +357,16 @@ mod tests {
     //
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
-    fn assert_eq_msgs(msg1: &Message<u32>, msg2: &Message<u32>) {
+    fn assert_eq_msgs<Fd: AsRawFd + std::fmt::Debug>(
+        msg1: &Message<u32, Fd>,
+        msg2: &Message<u32, Fd>,
+    ) {
         assert_eq!(msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
-            if let (&Argument::Fd(fd1), &Argument::Fd(fd2)) = (arg1, arg2) {
-                assert!(same_file(fd1, fd2));
+            if let (Argument::Fd(fd1), Argument::Fd(fd2)) = (arg1, arg2) {
+                assert!(same_file(fd1.as_raw_fd(), fd2.as_raw_fd()));
             } else {
                 assert_eq!(arg1, arg2);
             }
@@ -372,8 +390,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
-        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+        let mut client = BufferedSocket::new(Socket::from(client));
+        let mut server = BufferedSocket::new(Socket::from(server));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -401,7 +419,7 @@ mod tests {
                 })
                 .unwrap();
 
-        assert_eq_msgs(&msg, &ret_msg);
+        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
     }
 
     #[test]
@@ -416,8 +434,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
-        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+        let mut client = BufferedSocket::new(Socket::from(client));
+        let mut server = BufferedSocket::new(Socket::from(server));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -436,12 +454,12 @@ mod tests {
                     }
                 })
                 .unwrap();
-        assert_eq_msgs(&msg, &ret_msg);
+        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
     }
 
     #[test]
     fn write_read_cycle_multiple() {
-        let messages = [
+        let messages = vec![
             Message {
                 sender_id: 42,
                 opcode: 0,
@@ -475,8 +493,8 @@ mod tests {
         ];
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
-        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+        let mut client = BufferedSocket::new(Socket::from(client));
+        let mut server = BufferedSocket::new(Socket::from(server));
 
         for msg in &messages {
             client.write_message(msg).unwrap();
@@ -496,8 +514,8 @@ mod tests {
             recv_msgs.push(message);
         }
         assert_eq!(recv_msgs.len(), 3);
-        for (msg1, msg2) in messages.iter().zip(recv_msgs.iter()) {
-            assert_eq_msgs(msg1, msg2);
+        for (msg1, msg2) in messages.into_iter().zip(recv_msgs.into_iter()) {
+            assert_eq_msgs(&msg1.map_fd(|fd| fd.as_raw_fd()), &msg2.map_fd(IntoRawFd::into_raw_fd));
         }
     }
 
@@ -514,8 +532,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(unsafe { Socket::from_raw_fd(client.into_raw_fd()) });
-        let mut server = BufferedSocket::new(unsafe { Socket::from_raw_fd(server.into_raw_fd()) });
+        let mut client = BufferedSocket::new(Socket::from(client));
+        let mut server = BufferedSocket::new(Socket::from(server));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -536,6 +554,6 @@ mod tests {
                 })
                 .unwrap();
 
-        assert_eq_msgs(&msg, &ret_msg);
+        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
     }
 }

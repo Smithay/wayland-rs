@@ -4,7 +4,10 @@ use std::{
     collections::HashSet,
     ffi::CStr,
     os::raw::{c_int, c_void},
-    os::unix::{io::RawFd, net::UnixStream, prelude::IntoRawFd},
+    os::unix::{
+        io::{FromRawFd, IntoRawFd, RawFd},
+        net::UnixStream,
+    },
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard, Weak,
@@ -18,6 +21,7 @@ use crate::{
         ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
     },
 };
+use io_lifetimes::{BorrowedFd, OwnedFd};
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 
@@ -421,8 +425,14 @@ impl InnerReadEventsGuard {
         Ok(Self { inner: backend.inner, display, done: false })
     }
 
-    pub fn connection_fd(&self) -> RawFd {
-        unsafe { ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_get_fd, self.display) }
+    pub fn connection_fd(&self) -> BorrowedFd {
+        unsafe {
+            BorrowedFd::borrow_raw(ffi_dispatch!(
+                WAYLAND_CLIENT_HANDLE,
+                wl_display_get_fd,
+                self.display
+            ))
+        }
     }
 
     pub fn read(mut self) -> Result<usize, WaylandError> {
@@ -492,7 +502,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -795,7 +805,7 @@ unsafe extern "C" fn dispatcher_func(
     };
 
     let mut parsed_args =
-        SmallVec::<[Argument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
+        SmallVec::<[Argument<ObjectId, OwnedFd>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
@@ -804,7 +814,9 @@ unsafe extern "C" fn dispatcher_func(
             ArgumentType::Uint => parsed_args.push(Argument::Uint(unsafe { (*args.add(i)).u })),
             ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
             ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
-            ArgumentType::Fd => parsed_args.push(Argument::Fd(unsafe { (*args.add(i)).h })),
+            ArgumentType::Fd => {
+                parsed_args.push(Argument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) }))
+            }
             ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the array provided by libwayland must be valid

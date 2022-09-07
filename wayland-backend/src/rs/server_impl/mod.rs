@@ -12,6 +12,7 @@ mod registry;
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 pub use common_poll::InnerBackend;
 pub use handle::{InnerHandle, WeakInnerHandle};
+use io_lifetimes::OwnedFd;
 
 use super::server::*;
 
@@ -120,7 +121,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: &Handle,
         _: &mut D,
         _: ClientId,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {:?}", msg);
     }

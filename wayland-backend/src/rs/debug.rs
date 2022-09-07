@@ -2,6 +2,7 @@
 
 use std::{
     fmt::Display,
+    os::unix::prelude::AsRawFd,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -11,11 +12,11 @@ use crate::protocol::Argument;
 ///
 /// [timestamp] <- interface@id.msg_name(args)
 #[cfg_attr(coverage, no_coverage)]
-pub fn print_dispatched_message<Id: Display>(
+pub fn print_dispatched_message<Id: Display, Fd: AsRawFd>(
     interface: &str,
     id: u32,
     msg_name: &str,
-    args: &[Argument<Id>],
+    args: &[Argument<Id, Fd>],
 ) {
     // Add timestamp to output.
     print_timestamp();
@@ -30,11 +31,11 @@ pub fn print_dispatched_message<Id: Display>(
 ///
 /// [timestamp] -> interface@id.msg_name(args)
 #[cfg_attr(coverage, no_coverage)]
-pub fn print_send_message<Id: Display>(
+pub fn print_send_message<Id: Display, Fd: AsRawFd>(
     interface: &str,
     id: u32,
     msg_name: &str,
-    args: &[Argument<Id>],
+    args: &[Argument<Id, Fd>],
 ) {
     // Add timestamp to output.
     print_timestamp();

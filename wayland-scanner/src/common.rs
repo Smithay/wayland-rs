@@ -194,7 +194,13 @@ pub(crate) fn gen_message_enum(
                         Type::Fixed => quote! { f64 },
                         Type::String => quote! { String },
                         Type::Array => quote! { Vec<u8> },
-                        Type::Fd => quote! { ::std::os::unix::io::RawFd },
+                        Type::Fd => {
+                            if receiver {
+                                quote! { io_lifetimes::OwnedFd }
+                            } else {
+                                quote! { std::os::unix::io::RawFd }
+                            }
+                        }
                         Type::Object => {
                             if let Some(ref iface) = arg.interface {
                                 let iface_mod = Ident::new(iface, Span::call_site());
@@ -331,26 +337,28 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                 Span::call_site(),
             );
             match arg.typ {
-                Type::Uint => quote!{ Argument::Uint(#arg_name) },
-                Type::Int => quote!{ Argument::Int(#arg_name) },
-                Type::String => quote!{ Argument::Str(#arg_name) },
-                Type::Fixed => quote!{ Argument::Fixed(#arg_name) },
-                Type::Array => quote!{ Argument::Array(#arg_name) },
-                Type::Object => quote!{ Argument::Object(#arg_name) },
-                Type::NewId => quote!{ Argument::NewId(#arg_name) },
-                Type::Fd => quote!{ Argument::Fd(#arg_name) },
+                Type::Uint => quote!{ Some(Argument::Uint(#arg_name)) },
+                Type::Int => quote!{ Some(Argument::Int(#arg_name)) },
+                Type::String => quote!{ Some(Argument::Str(#arg_name)) },
+                Type::Fixed => quote!{ Some(Argument::Fixed(#arg_name)) },
+                Type::Array => quote!{ Some(Argument::Array(#arg_name)) },
+                Type::Object => quote!{ Some(Argument::Object(#arg_name)) },
+                Type::NewId => quote!{ Some(Argument::NewId(#arg_name)) },
+                Type::Fd => quote!{ Some(Argument::Fd(#arg_name)) },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });
 
+        let args_iter = msg.args.iter().map(|_| quote!{ arg_iter.next() });
+
         let arg_names = msg.args.iter().map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
             if arg.enum_.is_some() {
-                quote! { #arg_name: From::from(*#arg_name as u32) }
+                quote! { #arg_name: From::from(#arg_name as u32) }
             } else {
                 match arg.typ {
-                    Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name: *#arg_name },
-                    Type::Fixed => quote!{ #arg_name: (*#arg_name as f64) / 256.},
+                    Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name },
+                    Type::Fixed => quote!{ #arg_name: (#arg_name as f64) / 256.},
                     Type::String => {
                         if arg.allow_null {
                             quote! {
@@ -369,7 +377,11 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             quote! {
                                 match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(conn, #arg_name.clone()) {
                                     Ok(p) => p,
-                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                                    Err(_) => return Err(DispatchError::BadMessage {
+                                        sender_id: msg.sender_id,
+                                        interface: Self::interface().name,
+                                        opcode: msg.opcode
+                                    }),
                                 }
                             }
                         } else {
@@ -392,7 +404,11 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                             quote! {
                                 match <super::#created_iface_mod::#created_iface_type as #object_type>::from_id(conn, #arg_name.clone()) {
                                     Ok(p) => p,
-                                    Err(_) => return Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+                                    Err(_) => return Err(DispatchError::BadMessage {
+                                        sender_id: msg.sender_id,
+                                        interface: Self::interface().name,
+                                        opcode: msg.opcode,
+                                    }),
                                 }
                             }
                         } else if side == Side::Server {
@@ -422,9 +438,9 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                     },
                     Type::Array => {
                         if arg.allow_null {
-                            quote! { if #arg_name.len() == 0 { None } else { Some(*#arg_name.clone()) } }
+                            quote! { if #arg_name.len() == 0 { None } else { Some(*#arg_name) } }
                         } else {
-                            quote! { #arg_name: *#arg_name.clone() }
+                            quote! { #arg_name: *#arg_name }
                         }
                     },
                     Type::Destructor => unreachable!(),
@@ -434,10 +450,11 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         quote! {
             #opcode => {
-                if let [#(#args_pat),*] = &msg.args[..] {
+                let mut arg_iter = msg.args.into_iter();
+                if let (#(#args_pat),*) = (#(#args_iter),*) {
                     Ok((me, #msg_type::#msg_name { #(#arg_names),* }))
                 } else {
-                    Err(DispatchError::BadMessage { msg, interface: Self::interface().name })
+                    Err(DispatchError::BadMessage { sender_id: msg.sender_id, interface: Self::interface().name, opcode: msg.opcode })
                 }
             }
         }
@@ -447,7 +464,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
         let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
         match msg.opcode {
             #(#match_arms),*
-            _ => Err(DispatchError::BadMessage { msg, interface: Self::interface().name }),
+            _ => Err(DispatchError::BadMessage { sender_id: msg.sender_id, interface: Self::interface().name, opcode: msg.opcode }),
         }
     }
 }

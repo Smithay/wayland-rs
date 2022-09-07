@@ -38,6 +38,7 @@
 #![cfg_attr(coverage, feature(no_coverage))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub extern crate io_lifetimes;
 pub extern crate smallvec;
 
 /// Helper macro for quickly making a [`Message`](crate::protocol::Message)

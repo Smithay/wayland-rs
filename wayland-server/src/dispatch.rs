@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use wayland_backend::{
+    io_lifetimes::OwnedFd,
     protocol::ProtocolError,
     server::{ClientId, DisconnectReason, ObjectData, ObjectId},
 };
@@ -200,7 +201,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         handle: &wayland_backend::server::Handle,
         data: &mut D,
         client_id: wayland_backend::server::ClientId,
-        msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId>,
+        msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         let dhandle = DisplayHandle::from(handle.clone());
         let client = match Client::from_id(&dhandle, client_id) {

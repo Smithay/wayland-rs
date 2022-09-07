@@ -70,7 +70,7 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 handle: &$client_backend::Backend,
-                msg: Message<$client_backend::ObjectId>,
+                msg: Message<$client_backend::ObjectId, OwnedFd>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 2);
                 if self.0.load(Ordering::SeqCst) == 0 {

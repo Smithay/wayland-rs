@@ -1,11 +1,10 @@
 //! Types and routines used to manipulate arguments from the wire format
 
-use std::ffi::CStr;
-use std::io::Result as IoResult;
-use std::os::unix::io::RawFd;
+use std::os::unix::io::{FromRawFd, RawFd};
 use std::ptr;
+use std::{ffi::CStr, os::unix::prelude::AsRawFd};
 
-use nix::Error as NixError;
+use io_lifetimes::{BorrowedFd, OwnedFd};
 
 use crate::protocol::{Argument, ArgumentType, Message};
 
@@ -72,7 +71,7 @@ impl std::fmt::Display for MessageParseError {
 ///
 /// Any serialized Fd will be `dup()`-ed in the process
 pub fn write_to_buffers(
-    msg: &Message<u32>,
+    msg: &Message<u32, RawFd>,
     payload: &mut [u32],
     mut fds: &mut [RawFd],
 ) -> Result<(usize, usize), MessageWriteError> {
@@ -115,9 +114,7 @@ pub fn write_to_buffers(
 
     let (header, mut payload) = payload.split_at_mut(2);
 
-    // we store all fds we dup-ed in this, which will auto-close
-    // them on drop, if any of the `?` early-returns
-    let mut pending_fds = FdStore::new();
+    let mut pending_fds = Vec::new();
 
     // write the contents in the buffer
     for arg in &msg.args {
@@ -140,17 +137,22 @@ pub fn write_to_buffers(
             }
             Argument::Fd(fd) => {
                 let old_fds = fds;
-                let dup_fd = dup_fd_cloexec(fd).map_err(MessageWriteError::DupFdFailed)?;
+                let dup_fd = unsafe { BorrowedFd::borrow_raw(fd) }
+                    .try_clone_to_owned()
+                    .map_err(MessageWriteError::DupFdFailed)?;
+                let raw_dup_fd = dup_fd.as_raw_fd();
                 pending_fds.push(dup_fd);
-                fds = write_buf(dup_fd, old_fds)?;
+                fds = write_buf(raw_dup_fd, old_fds)?;
                 payload = old_payload;
             }
         }
     }
 
-    // we reached here, all writing was successful
-    // no FD needs to be closed
-    pending_fds.clear();
+    // if we reached here, the whole message was written successfully, we can drop the pending_fds they
+    // don't need to be closed, sendmsg will take ownership of them
+    for fd in pending_fds {
+        std::mem::forget(fd);
+    }
 
     let wrote_size = (free_size - payload.len()) * 4;
     header[0] = msg.sender_id;
@@ -170,7 +172,7 @@ pub fn parse_message<'a, 'b>(
     raw: &'a [u32],
     signature: &[ArgumentType],
     fds: &'b [RawFd],
-) -> Result<(Message<u32>, &'a [u32], &'b [RawFd]), MessageParseError> {
+) -> Result<(Message<u32, OwnedFd>, &'a [u32], &'b [RawFd]), MessageParseError> {
     // helper function to read arrays
     fn read_array_from_payload(
         array_len: usize,
@@ -211,7 +213,7 @@ pub fn parse_message<'a, 'b>(
                 // don't consume input but fd
                 if let Some((&front, tail)) = fds.split_first() {
                     fds = tail;
-                    Ok(Argument::Fd(front))
+                    Ok(Argument::Fd(unsafe { OwnedFd::from_raw_fd(front) }))
                 } else {
                     Err(MessageParseError::MissingFD)
                 }
@@ -255,72 +257,12 @@ pub fn parse_message<'a, 'b>(
     Ok((msg, rest, fds))
 }
 
-/// Duplicate a `RawFd` and set the CLOEXEC flag on the copy
-pub fn dup_fd_cloexec(fd: RawFd) -> IoResult<RawFd> {
-    use nix::fcntl;
-    match fcntl::fcntl(fd, fcntl::FcntlArg::F_DUPFD_CLOEXEC(0)) {
-        Ok(newfd) => Ok(newfd),
-        Err(NixError::EINVAL) => {
-            // F_DUPFD_CLOEXEC is not recognized, kernel too old, fallback
-            // to setting CLOEXEC manually
-            let newfd = fcntl::fcntl(fd, fcntl::FcntlArg::F_DUPFD(0))?;
-
-            let flags = fcntl::fcntl(newfd, fcntl::FcntlArg::F_GETFD);
-            let result = flags
-                .map(|f| fcntl::FdFlag::from_bits(f).unwrap() | fcntl::FdFlag::FD_CLOEXEC)
-                .and_then(|f| fcntl::fcntl(newfd, fcntl::FcntlArg::F_SETFD(f)));
-            match result {
-                Ok(_) => {
-                    // setting the O_CLOEXEC worked
-                    Ok(newfd)
-                }
-                Err(e) => {
-                    // something went wrong in F_GETFD or F_SETFD
-                    let _ = ::nix::unistd::close(newfd);
-                    Err(e.into())
-                }
-            }
-        }
-        Err(e) => Err(e.into()),
-    }
-}
-
-/*
- * utility struct that closes every FD it contains on drop
- */
-
-struct FdStore {
-    fds: Vec<RawFd>,
-}
-
-impl FdStore {
-    fn new() -> Self {
-        Self { fds: Vec::new() }
-    }
-    fn push(&mut self, fd: RawFd) {
-        self.fds.push(fd);
-    }
-    fn clear(&mut self) {
-        self.fds.clear();
-    }
-}
-
-impl Drop for FdStore {
-    fn drop(&mut self) {
-        use nix::unistd::close;
-        for fd in self.fds.drain(..) {
-            // not much can be done if we can't close that anyway...
-            let _ = close(fd);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::protocol::AllowNull;
     use smallvec::smallvec;
-    use std::ffi::CString;
+    use std::{ffi::CString, os::unix::io::IntoRawFd};
 
     #[test]
     fn into_from_raw_cycle() {
@@ -357,6 +299,6 @@ mod tests {
             &fd_buffer[..],
         )
         .unwrap();
-        assert_eq!(rebuilt, msg);
+        assert_eq!(rebuilt.map_fd(IntoRawFd::into_raw_fd), msg);
     }
 }

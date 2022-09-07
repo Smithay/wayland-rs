@@ -1,9 +1,6 @@
 use std::{
     ffi::CString,
-    os::unix::{
-        io::{FromRawFd, IntoRawFd},
-        net::UnixStream,
-    },
+    os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
 
@@ -17,6 +14,7 @@ use crate::{
     types::server::{DisconnectReason, InvalidId},
 };
 
+use io_lifetimes::OwnedFd;
 use smallvec::SmallVec;
 
 use crate::rs::{
@@ -31,7 +29,7 @@ use super::{
     ObjectId, UninitObjectData,
 };
 
-type ArgSmallVec = SmallVec<[Argument<ObjectId>; INLINE_ARGS]>;
+type ArgSmallVec<Fd> = SmallVec<[Argument<ObjectId, Fd>; INLINE_ARGS]>;
 
 #[repr(u32)]
 #[allow(dead_code)]
@@ -67,7 +65,7 @@ impl<D> Client<D> {
         debug: bool,
         data: Arc<dyn ClientData>,
     ) -> Self {
-        let socket = BufferedSocket::new(unsafe { Socket::from_raw_fd(stream.into_raw_fd()) });
+        let socket = BufferedSocket::new(Socket::from(stream));
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
@@ -106,7 +104,7 @@ impl<D> Client<D> {
 
     pub(crate) fn send_event(
         &mut self,
-        Message { sender_id: object_id, opcode, args }: Message<ObjectId>,
+        Message { sender_id: object_id, opcode, args }: Message<ObjectId, RawFd>,
         pending_destructors: Option<&mut Vec<super::handle::PendingDestructor<D>>>,
     ) -> Result<(), InvalidId> {
         if self.killed {
@@ -329,7 +327,10 @@ impl<D> Client<D> {
         })
     }
 
-    pub(crate) fn next_request(&mut self) -> std::io::Result<(Message<u32>, Object<Data<D>>)> {
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn next_request(
+        &mut self,
+    ) -> std::io::Result<(Message<u32, OwnedFd>, Object<Data<D>>)> {
         if self.killed {
             return Err(nix::errno::Errno::EPIPE.into());
         }
@@ -397,7 +398,7 @@ impl<D> Client<D> {
 
     pub(crate) fn handle_display_request(
         &mut self,
-        message: Message<u32>,
+        message: Message<u32, OwnedFd>,
         registry: &mut Registry<D>,
     ) {
         match message.opcode {
@@ -475,7 +476,7 @@ impl<D> Client<D> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn handle_registry_request(
         &mut self,
-        message: Message<u32>,
+        message: Message<u32, OwnedFd>,
         registry: &mut Registry<D>,
     ) -> Option<(InnerClientId, InnerGlobalId, InnerObjectId, Arc<dyn GlobalHandler<D>>)> {
         match message.opcode {
@@ -546,8 +547,8 @@ impl<D> Client<D> {
     pub(crate) fn process_request(
         &mut self,
         object: &Object<Data<D>>,
-        message: Message<u32>,
-    ) -> Option<(ArgSmallVec, bool, Option<InnerObjectId>)> {
+        message: Message<u32, OwnedFd>,
+    ) -> Option<(ArgSmallVec<OwnedFd>, bool, Option<InnerObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
         // Convert the arguments and create the new object if applicable
         let mut new_args = SmallVec::with_capacity(message.args.len());

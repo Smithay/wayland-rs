@@ -75,6 +75,7 @@
 
 use std::hash::{Hash, Hasher};
 use wayland_backend::{
+    io_lifetimes::OwnedFd,
     protocol::{Interface, Message},
     server::{ClientId, InvalidId, ObjectId, WeakHandle},
 };
@@ -93,6 +94,7 @@ pub use socket::{BindError, ListeningSocket};
 
 /// Backend reexports
 pub mod backend {
+    pub use wayland_backend::io_lifetimes;
     pub use wayland_backend::protocol;
     pub use wayland_backend::server::{
         Backend, ClientData, ClientId, Credentials, DisconnectReason, GlobalHandler, GlobalId,
@@ -202,7 +204,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     /// wayland-scanner.
     fn parse_request(
         dh: &DisplayHandle,
-        msg: Message<ObjectId>,
+        msg: Message<ObjectId, OwnedFd>,
     ) -> Result<(Self, Self::Request), DispatchError>;
 
     /// Serialize an event for this object
@@ -213,7 +215,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
         &self,
         dh: &DisplayHandle,
         req: Self::Event,
-    ) -> Result<Message<ObjectId>, InvalidId>;
+    ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId>;
 
     /// Creates a weak handle to this object
     ///
@@ -237,12 +239,14 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
 #[derive(thiserror::Error, Debug)]
 pub enum DispatchError {
     /// The received message does not match the specification for the object's interface.
-    #[error("Bad message for interface {interface} : {msg:?}")]
+    #[error("Bad message for object {interface}@{sender_id} on opcode {opcode}")]
     BadMessage {
-        /// The received message
-        msg: Message<ObjectId>,
-        /// The interface of the object that received it
+        /// The id of the target object
+        sender_id: ObjectId,
+        /// The interface of the target object
         interface: &'static str,
+        /// The opcode number
+        opcode: u16,
     },
 }
 

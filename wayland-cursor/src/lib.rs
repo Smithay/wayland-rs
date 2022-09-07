@@ -60,6 +60,7 @@ use nix::unistd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use {nix::sys::memfd, std::ffi::CStr};
 
+use wayland_client::backend::io_lifetimes::OwnedFd;
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{self, Format, WlShm};
@@ -431,7 +432,7 @@ impl ObjectData for IgnoreObjectData {
     fn event(
         self: Arc<Self>,
         _: &wayland_client::backend::Backend,
-        _: wayland_client::backend::protocol::Message<wayland_client::backend::ObjectId>,
+        _: wayland_client::backend::protocol::Message<wayland_client::backend::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         None
     }

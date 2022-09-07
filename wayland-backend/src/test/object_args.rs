@@ -17,7 +17,7 @@ macro_rules! impl_server_objectdata {
                 handle: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                msg: Message<$server_backend::ObjectId>,
+                msg: Message<$server_backend::ObjectId, OwnedFd>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 if msg.opcode == 1 {
                     assert_eq!(
@@ -97,7 +97,7 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 handle: &$client_backend::Backend,
-                msg: Message<$client_backend::ObjectId>,
+                msg: Message<$client_backend::ObjectId, OwnedFd>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 1);
                 if let [Argument::Object(secondary)] = &msg.args[..] {
