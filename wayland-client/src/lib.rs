@@ -170,7 +170,10 @@
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage, feature(no_coverage))]
 
-use std::sync::Arc;
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 use wayland_backend::{
     client::{InvalidId, ObjectData, ObjectId, WaylandError, WeakBackend},
     protocol::{Interface, Message},
@@ -366,6 +369,14 @@ impl<I: Proxy> Weak<I> {
 impl<I> PartialEq for Weak<I> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl<I> Eq for Weak<I> {}
+
+impl<I> Hash for Weak<I> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
