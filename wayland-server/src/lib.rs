@@ -73,6 +73,7 @@
 //! using `ObjectId::from_ptr()`, and then make the resources using [`Resource::from_id`].
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 
+use std::hash::{Hash, Hasher};
 use wayland_backend::{
     protocol::{Interface, Message},
     server::{ClientId, InvalidId, ObjectId, WeakHandle},
@@ -277,6 +278,14 @@ impl<I: Resource> Weak<I> {
 impl<I> PartialEq for Weak<I> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl<I> Eq for Weak<I> {}
+
+impl<I> Hash for Weak<I> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
