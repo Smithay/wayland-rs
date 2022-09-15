@@ -39,7 +39,7 @@ scoped_thread_local!(static PENDING_DESTRUCTORS: *mut c_void);
 pub struct InnerObjectId {
     id: u32,
     ptr: *mut wl_resource,
-    alive: Option<Arc<AtomicBool>>,
+    alive: Arc<AtomicBool>,
     interface: &'static Interface,
 }
 
@@ -48,19 +48,7 @@ unsafe impl Sync for InnerObjectId {}
 
 impl std::cmp::PartialEq for InnerObjectId {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.alive, &other.alive) {
-            (Some(ref a), Some(ref b)) => {
-                // this is an object we manage
-                Arc::ptr_eq(a, b)
-            }
-            (None, None) => {
-                // this is an external object
-                self.ptr == other.ptr
-                    && self.id == other.id
-                    && same_interface(self.interface, other.interface)
-            }
-            _ => false,
-        }
+        Arc::ptr_eq(&self.alive, &other.alive)
     }
 }
 
@@ -70,11 +58,7 @@ impl std::hash::Hash for InnerObjectId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
         self.ptr.hash(state);
-        self.alive
-            .as_ref()
-            .map(|arc| &**arc as *const AtomicBool)
-            .unwrap_or(std::ptr::null())
-            .hash(state);
+        (&*self.alive as *const AtomicBool).hash(state);
     }
 }
 
@@ -102,19 +86,13 @@ impl InnerObjectId {
     }
 
     pub fn same_client_as(&self, other: &Self) -> bool {
-        let my_client_ptr = match self.alive {
-            Some(ref alive) if !alive.load(Ordering::Acquire) => {
-                return false;
-            }
-            _ => unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr) },
-        };
-        let other_client_ptr = match other.alive {
-            Some(ref alive) if !alive.load(Ordering::Acquire) => {
-                return false;
-            }
-            _ => unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr) },
-        };
-
+        if !self.alive.load(Ordering::Acquire) || !other.alive.load(Ordering::Acquire) {
+            return false;
+        }
+        let my_client_ptr =
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, self.ptr) };
+        let other_client_ptr =
+            unsafe { ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_client, other.ptr) };
         my_client_ptr == other_client_ptr
     }
 
@@ -159,7 +137,7 @@ impl InnerObjectId {
             //
             let udata = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_user_data, ptr)
                 as *mut ResourceUserData<()>;
-            let alive = Some(unsafe { (*udata).alive.clone() });
+            let alive = unsafe { (*udata).alive.clone() };
             let udata_iface = unsafe { (*udata).interface };
             if let Some(iface) = interface {
                 if !same_interface(iface, udata_iface) {
@@ -179,19 +157,64 @@ impl InnerObjectId {
             if ptr_iface_name != provided_iface_name {
                 return Err(InvalidId);
             }
-            Ok(InnerObjectId { id, ptr, alive: None, interface })
+            // On external resource, we use the wl_resource_add_destroy_listener mechanism to track their liveness
+            let listener = ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_get_destroy_listener,
+                ptr,
+                external_resource_destroy_notify
+            );
+            let alive = if listener.is_null() {
+                // The listener needs to be initialized
+                let alive = Arc::new(AtomicBool::new(true));
+                let data = Box::into_raw(Box::new(ExternalResourceData { alive: alive.clone() }));
+                let listener = signal::rust_listener_create(external_resource_destroy_notify);
+                // Safety: we just created listener and client_data, they are valid
+                unsafe {
+                    signal::rust_listener_set_user_data(listener, data as *mut c_void);
+                }
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_resource_add_destroy_listener,
+                    ptr,
+                    listener
+                );
+                alive
+            } else {
+                unsafe {
+                    let data =
+                        signal::rust_listener_get_user_data(listener) as *mut ExternalResourceData;
+                    (*data).alive.clone()
+                }
+            };
+            Ok(InnerObjectId { id, ptr, alive, interface })
         } else {
             Err(InvalidId)
         }
     }
 
     pub fn as_ptr(&self) -> *mut wl_resource {
-        if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+        if self.alive.load(Ordering::Acquire) {
             self.ptr
         } else {
             std::ptr::null_mut()
         }
     }
+}
+
+struct ExternalResourceData {
+    alive: Arc<AtomicBool>,
+}
+
+unsafe extern "C" fn external_resource_destroy_notify(listener: *mut wl_listener, _: *mut c_void) {
+    // Safety: if this function is invoked by libwayland its arguments must be valid
+    let data = unsafe {
+        Box::from_raw(signal::rust_listener_get_user_data(listener) as *mut ExternalResourceData)
+    };
+    unsafe {
+        signal::rust_listener_destroy(listener);
+    }
+    data.alive.store(false, Ordering::Release);
 }
 
 /// An id of a client connected to the server.
@@ -526,7 +549,7 @@ impl InnerHandle {
             id: InnerObjectId {
                 ptr: std::ptr::null_mut(),
                 id: 0,
-                alive: None,
+                alive: Arc::new(AtomicBool::new(false)),
                 interface: &ANONYMOUS_INTERFACE,
             },
         }
@@ -546,7 +569,22 @@ impl InnerHandle {
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::get_object_data().");
 
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let iface_c_ptr =
+            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let is_managed = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_instance_of,
+                id.ptr,
+                iface_c_ptr,
+                &RUST_MANAGED as *const u8 as *const _
+            ) != 0
+        };
+        if !is_managed {
             return Err(InvalidId);
         }
 
@@ -576,7 +614,22 @@ impl InnerHandle {
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::set_object_data().");
 
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let iface_c_ptr =
+            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let is_managed = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_instance_of,
+                id.ptr,
+                iface_c_ptr,
+                &RUST_MANAGED as *const u8 as *const _
+            ) != 0
+        };
+        if !is_managed {
             return Err(InvalidId);
         }
 
@@ -783,7 +836,7 @@ downcast_rs::impl_downcast!(ErasedState);
 
 impl<D: 'static> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
 
@@ -815,7 +868,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
-        if !id.alive.map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
 
@@ -939,7 +992,22 @@ impl<D: 'static> ErasedState for State<D> {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(false) {
+        if !id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        let iface_c_ptr =
+            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let is_managed = unsafe {
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_resource_instance_of,
+                id.ptr,
+                iface_c_ptr,
+                &RUST_MANAGED as *const u8 as *const _
+            ) != 0
+        };
+        if !is_managed {
             return Err(InvalidId);
         }
 
@@ -955,8 +1023,7 @@ impl<D: 'static> ErasedState for State<D> {
         &mut self,
         Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
     ) -> Result<(), InvalidId> {
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
-        {
+        if !id.alive.load(Ordering::Acquire) || id.ptr.is_null() {
             return Err(InvalidId);
         }
 
@@ -995,7 +1062,7 @@ impl<D: 'static> ErasedState for State<D> {
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
-                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+                        if !id.alive.load(Ordering::Acquire) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
@@ -1021,7 +1088,7 @@ impl<D: 'static> ErasedState for State<D> {
                 }
                 Argument::NewId(ref o) => {
                     if !o.id.ptr.is_null() {
-                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+                        if !id.alive.load(Ordering::Acquire) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
@@ -1077,7 +1144,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: CString) {
-        if !id.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+        if !id.alive.load(Ordering::Acquire) {
             return;
         }
 
@@ -1318,7 +1385,7 @@ unsafe fn init_resource<D: 'static>(
         Some(resource_destructor::<D>)
     );
 
-    (InnerObjectId { interface, alive: Some(alive), id, ptr: resource }, udata)
+    (InnerObjectId { interface, alive, id, ptr: resource }, udata)
 }
 
 unsafe extern "C" fn resource_dispatcher<D: 'static>(
@@ -1378,57 +1445,16 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_resource };
                 let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
-                if !obj.is_null() {
-                    // retrieve the object relevant info
-                    let obj_id = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_resource_get_id, obj);
-                    // check if this is a local or distant proxy
-                    let ret = ffi_dispatch!(
-                        WAYLAND_SERVER_HANDLE,
-                        wl_resource_instance_of,
-                        obj,
-                        next_interface.c_ptr.unwrap(),
-                        &RUST_MANAGED as *const u8 as *const c_void
-                    );
-                    if ret == 0 {
-                        // distant
-                        parsed_args.push(Argument::Object(ObjectId {
-                            id: InnerObjectId {
-                                alive: None,
-                                id: obj_id,
-                                ptr: obj,
-                                interface: next_interface,
-                            },
-                        }));
-                    } else {
-                        // local
-                        // Safety: the object is local and thus has valid user data
-                        let obj_udata = unsafe {
-                            &mut *(ffi_dispatch!(
-                                WAYLAND_SERVER_HANDLE,
-                                wl_resource_get_user_data,
-                                obj
-                            ) as *mut ResourceUserData<D>)
-                        };
-                        parsed_args.push(Argument::Object(ObjectId {
-                            id: InnerObjectId {
-                                alive: Some(obj_udata.alive.clone()),
-                                ptr: obj,
-                                id: obj_id,
-                                interface: obj_udata.interface,
-                            },
-                        }));
+                let id = if !obj.is_null() {
+                    ObjectId {
+                        id: unsafe { InnerObjectId::from_ptr(Some(next_interface), obj) }
+                            .expect("Received an invalid ID when parsing a message."),
                     }
                 } else {
                     // libwayland-server.so checks nulls for us
-                    parsed_args.push(Argument::Object(ObjectId {
-                        id: InnerObjectId {
-                            alive: None,
-                            id: 0,
-                            ptr: std::ptr::null_mut(),
-                            interface: &ANONYMOUS_INTERFACE,
-                        },
-                    }))
-                }
+                    InnerHandle::null_id()
+                };
+                parsed_args.push(Argument::Object(id))
             }
             ArgumentType::NewId => {
                 let new_id = unsafe { (*args.add(i)).n };
@@ -1453,14 +1479,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     created = Some((child_id.clone(), child_data_ptr));
                     parsed_args.push(Argument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(Argument::NewId(ObjectId {
-                        id: InnerObjectId {
-                            alive: None,
-                            id: 0,
-                            ptr: std::ptr::null_mut(),
-                            interface: &ANONYMOUS_INTERFACE,
-                        },
-                    }))
+                    parsed_args.push(Argument::NewId(InnerHandle::null_id()))
                 }
             }
         }
@@ -1471,7 +1490,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ptr: resource,
             id: resource_id,
             interface: udata.interface,
-            alive: Some(udata.alive.clone()),
+            alive: udata.alive.clone(),
         },
     };
 
@@ -1526,12 +1545,8 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
         alive: Arc::new(AtomicBool::new(false)),
     });
     udata.alive.store(false, Ordering::Release);
-    let object_id = InnerObjectId {
-        interface: udata.interface,
-        ptr: resource,
-        alive: Some(udata.alive.clone()),
-        id,
-    };
+    let object_id =
+        InnerObjectId { interface: udata.interface, ptr: resource, alive: udata.alive.clone(), id };
     if HANDLE.is_set() {
         HANDLE.with(|&(_, data_ptr)| {
             // Safety: the data pointer have been set by outside code and are valid

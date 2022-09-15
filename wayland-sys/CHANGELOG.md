@@ -2,16 +2,20 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Server-side, fix the prototype of `wl_resource_add_destroy_listener`
+
 ## 0.30.0-alpha10
 
-### Changes
+#### Changes
 
 - The `ffi_dispatch!` macro no longer requires a trailing comma when invoking functions without
   any argument.
 
 ## 0.30.0-alpha1
 
-### Changes
+#### Changes
 
 - Errors when dynamiclaly loading the system libraries are now logged to `log` rather than
   printed using `eprintln!`.
