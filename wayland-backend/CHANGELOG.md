@@ -9,7 +9,8 @@
 
 #### Bugfixes
 
-- The rust backend no longer ever does a blocking flush
+- The rust backend no longer ever does a blocking flush.
+- Server-side sys backend is now able to track liveness of external objects.
 
 ## 0.1.0-beta.8
 
