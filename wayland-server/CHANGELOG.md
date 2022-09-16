@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.10
+
 #### Additions
 
 - Introduce `Weak`, a helper type to store resources without risking reference cycles

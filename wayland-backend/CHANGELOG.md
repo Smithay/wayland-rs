@@ -1,5 +1,7 @@
 # CHANGELOG: wayland-backend
 
+## 0.1.0-beta.10
+
 ## Unreleased
 
 #### Breaking changes
