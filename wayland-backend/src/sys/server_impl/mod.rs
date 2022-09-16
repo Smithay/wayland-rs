@@ -1109,9 +1109,10 @@ impl<D: 'static> ErasedState for State<D> {
             udata.data.disconnected(ClientId { id: client_id.clone() }, reason);
         }
 
-        unsafe {
+        // wl_client_destroy invokes destructors
+        PENDING_DESTRUCTORS.set(&(&mut self.pending_destructors as *mut _ as *mut _), || unsafe {
             ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_client_destroy, client_id.ptr);
-        }
+        });
     }
 
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
