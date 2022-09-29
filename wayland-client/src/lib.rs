@@ -5,7 +5,7 @@
 //! This crate is structured around four main objects: the [`Connection`] and [`EventQueue`] structs,
 //! proxies (objects implementing the [`Proxy`] trait), and the [`Dispatch`] trait.
 //!
-//! The [`Connection`] is the heart of this crate, it represents you connection to the Wayland server, and
+//! The [`Connection`] is the heart of this crate, it represents your connection to the Wayland server, and
 //! you'll generally initialize it using the [`Connection::connect_to_env()`](Connection::connect_to_env)
 //! method, which will attempt to open a Wayland connection following the configuration specified by the
 //! environment.
@@ -15,7 +15,7 @@
 //! of a state struct with several [`Dispatch`] implementations (see below).
 //!
 //! Each of the Wayland object you can manipulate is represented by a struct implementing the [`Proxy`]
-//! trait. Thos structs are automatically generated from the wayland XML protocol specification. This crate
+//! trait. Those structs are automatically generated from the wayland XML protocol specification. This crate
 //! provides the types generated from the core protocol in the [`protocol`] module. For other standard
 //! protocols, see the `wayland-protocols` crate.
 //!
