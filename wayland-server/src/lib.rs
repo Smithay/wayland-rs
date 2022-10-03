@@ -269,6 +269,8 @@ impl<I: Resource> Weak<I> {
     /// - the Wayland connection has already been closed
     pub fn upgrade(&self) -> Result<I, InvalidId> {
         let handle = self.handle.upgrade().ok_or(InvalidId)?;
+        // Check if the object has been destroyed
+        handle.object_info(self.id.clone())?;
         let d_handle = DisplayHandle::from(handle);
         I::from_id(&d_handle, self.id.clone())
     }
