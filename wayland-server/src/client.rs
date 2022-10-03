@@ -29,7 +29,7 @@ impl Client {
     ///
     /// Returns [`None`] if the provided `Data` type parameter is not the correct one.
     pub fn get_data<Data: ClientData + 'static>(&self) -> Option<&Data> {
-        (&*self.data).downcast_ref()
+        (*self.data).downcast_ref()
     }
 
     /// Access the pid/uid/gid of this client
