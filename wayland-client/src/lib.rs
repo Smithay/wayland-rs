@@ -362,6 +362,8 @@ impl<I: Proxy> Weak<I> {
     /// - the Wayland connection has already been closed
     pub fn upgrade(&self) -> Result<I, InvalidId> {
         let backend = self.backend.upgrade().ok_or(InvalidId)?;
+        // Check if the object has been destroyed
+        backend.info(self.id.clone())?;
         let conn = Connection::from_backend(backend);
         I::from_id(&conn, self.id.clone())
     }
