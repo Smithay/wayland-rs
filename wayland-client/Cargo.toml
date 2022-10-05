@@ -25,3 +25,6 @@ log = { version = "0.4", optional = true }
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 futures-util = "0.3"
 tempfile = "3.2"
+gtk4 = { version = "0.4.8" }
+gdk4-wayland = { version = "0.4.8", features = ["wayland_crate", "v4_4", "egl"] }
+wayland-backend = { path = "../wayland-backend", features = ["client_system"] }
