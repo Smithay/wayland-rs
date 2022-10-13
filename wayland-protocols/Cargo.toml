@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.30.0-beta.11"
+version = "0.30.0-beta.12"
 documentation = "https://docs.rs/wayland-protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -12,10 +12,10 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
-wayland-scanner = { version = "=0.30.0-beta.11", path = "../wayland-scanner" }
-wayland-backend = { version = "=0.1.0-beta.11", path = "../wayland-backend" }
-wayland-client = { version = "=0.30.0-beta.11", path = "../wayland-client", optional = true }
-wayland-server = { version = "=0.30.0-beta.11", path = "../wayland-server", optional = true }
+wayland-scanner = { version = "=0.30.0-beta.12", path = "../wayland-scanner" }
+wayland-backend = { version = "=0.1.0-beta.12", path = "../wayland-backend" }
+wayland-client = { version = "=0.30.0-beta.12", path = "../wayland-client", optional = true }
+wayland-server = { version = "=0.30.0-beta.12", path = "../wayland-server", optional = true }
 bitflags = "1.0"
 
 [features]
