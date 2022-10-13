@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.11
+
 #### Bugfixes
 
 - `Weak::upgrade` now checks if the object has been destroyed

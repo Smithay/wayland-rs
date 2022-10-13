@@ -1,6 +1,6 @@
 [package]
 name = "wayland-sys"
-version = "0.30.0-beta.10"
+version = "0.30.0-beta.11"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-sys/"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
