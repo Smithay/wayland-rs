@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `Resource::client_id` has been replaced by `Resource::client` making the owning `Client`
+   of a `Resource` accessible without a roundtrip to `DisplayHandle`
+
 ## 0.30.0-beta.11
 
 #### Bugfixes
