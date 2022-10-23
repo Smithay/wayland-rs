@@ -77,7 +77,7 @@ use std::hash::{Hash, Hasher};
 use wayland_backend::{
     io_lifetimes::OwnedFd,
     protocol::{Interface, Message},
-    server::{ClientId, InvalidId, ObjectId, WeakHandle},
+    server::{InvalidId, ObjectId, WeakHandle},
 };
 
 mod client;
@@ -142,11 +142,14 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     /// The ID of this object
     fn id(&self) -> ObjectId;
 
-    /// The ID of the client owning this object
+    /// The client owning this object
     ///
     /// Returns [`None`] if the object is no longer alive.
-    fn client_id(&self) -> Option<ClientId> {
-        self.handle().upgrade().and_then(|dh| dh.get_client(self.id()).ok())
+    fn client(&self) -> Option<Client> {
+        let handle = self.handle().upgrade()?;
+        let client_id = handle.get_client(self.id()).ok()?;
+        let dh = DisplayHandle::from(handle);
+        Client::from_id(&dh, client_id).ok()
     }
 
     /// The version of this object
