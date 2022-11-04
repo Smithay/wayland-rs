@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.13
+
 #### Breaking changes
 
 - `Resource::client_id` has been replaced by `Resource::client` making the owning `Client`
