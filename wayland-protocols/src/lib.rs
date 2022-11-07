@@ -9,11 +9,12 @@
 //!
 //! ## Protocol categories
 //!
-//! The protocols provided in this crate are grouped in 3 main categories:
+//! The protocols provided in this crate are grouped in 4 main categories:
 //!
 //! - The [`wp`] module contains general purpose wayland protocols
 //! - The [`xdg`] module contains protocols specifically related to window management
-//! - The [`ext`] module contains protocols that do not fit into the two previous categories.
+//! - The [`xwayland`] module contains protocols used by xwayland.
+//! - The [`ext`] module contains protocols that do not fit into the three previous categories.
 //!
 //! ## Staging protocols
 //!
@@ -52,3 +53,4 @@ mod protocol_macro;
 pub mod ext;
 pub mod wp;
 pub mod xdg;
+pub mod xwayland;

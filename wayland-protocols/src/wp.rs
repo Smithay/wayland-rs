@@ -3,6 +3,20 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 #[cfg(feature = "staging")]
+pub mod content_type {
+    //! This protocol allows a client to describe the kind of content a surface
+    //! will display, to allow the compositor to optimize its behavior for it.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/content-type/content-type-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
 pub mod drm_lease {
     //! This protocol is used by Wayland compositors which act as Direct
     //! Renderering Manager (DRM) masters to lease DRM resources to Wayland
@@ -364,44 +378,4 @@ pub mod viewporter {
     //! dimensions from the size of the buffer.
 
     wayland_protocol!("./protocols/stable/viewporter/viewporter.xml", []);
-}
-
-#[cfg(feature = "unstable")]
-pub mod xwayland_keyboard_grab {
-    //! Protocol for grabbing the keyboard from Xwayland
-    //!
-    //! This protocol is application-specific to meet the needs of the X11
-    //! protocol through Xwayland. It provides a way for Xwayland to request
-    //! all keyboard events to be forwarded to a surface even when the
-    //! surface does not have keyboard focus.
-    //!
-    //! In the X11 protocol, a client may request an "active grab" on the
-    //! keyboard. On success, all key events are reported only to the
-    //! grabbing X11 client. For details, see XGrabKeyboard(3).
-    //!
-    //! The core Wayland protocol does not have a notion of an active
-    //! keyboard grab. When running in Xwayland, X11 applications may
-    //! acquire an active grab inside Xwayland but that cannot be translated
-    //! to the Wayland compositor who may set the input focus to some other
-    //! surface. In doing so, it breaks the X11 client assumption that all
-    //! key events are reported to the grabbing client.
-    //!
-    //! This protocol specifies a way for Xwayland to request all keyboard
-    //! be directed to the given surface. The protocol does not guarantee
-    //! that the compositor will honor this request and it does not
-    //! prescribe user interfaces on how to handle the respond. For example,
-    //! a compositor may inform the user that all key events are now
-    //! forwarded to the given client surface, or it may ask the user for
-    //! permission to do so.
-    //!
-    //! Compositors are required to restrict access to this application
-    //! specific protocol to Xwayland alone.
-
-    /// Unstable version 1
-    pub mod zv1 {
-        wayland_protocol!(
-            "./protocols/unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml",
-            []
-        );
-    }
 }
