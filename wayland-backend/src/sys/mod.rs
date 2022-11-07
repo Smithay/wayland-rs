@@ -97,6 +97,19 @@ impl client::Backend {
     }
 }
 
+// SAFETY:
+// - The display_ptr will not change for the lifetime of the backend.
+// - The display_ptr will be valid, either because we have created the pointer or the caller which created the
+//   backend has ensured the pointer is valid when `Backend::from_foreign_display` was called.
+#[cfg(feature = "raw-window-handle")]
+unsafe impl raw_window_handle::HasRawDisplayHandle for client::Backend {
+    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+        let mut handle = raw_window_handle::WaylandDisplayHandle::empty();
+        handle.display = self.display_ptr().cast();
+        raw_window_handle::RawDisplayHandle::Wayland(handle)
+    }
+}
+
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
 ///
 /// The main entrypoint is the [`Backend::new`](server::Backend::new) method.
