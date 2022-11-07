@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Additions
+
+- Bump wayland-protocols to 1.29
+  - `xdg-shell` has some new error values, however the version was not bumped:
+    - `xdg_wm_base::Error::Unresponsive`
+    - `xdg_surface::Error::InvalidSize`
+    - `xdg_toplevel::Error::InvalidSize`
+    - `xdg_toplevel::Error::InvalidParent`
+  - A some new staging protocols:
+    - `ext-idle-notify`
+    - `wp-content-type`
+    - `xwayland_shell_v1`
+
 ## 0.30.0-beta.9
 
 ### Additions

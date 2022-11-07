@@ -3,6 +3,19 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 #[cfg(feature = "staging")]
+pub mod idle_notify {
+    //! This protocol allows clients to monitor user idle status.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-idle-notify/ext-idle-notify-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
 pub mod session_lock {
     //! This protocol allows for a privileged Wayland client to lock the session
     //! and display arbitrary graphics while the session is locked.
