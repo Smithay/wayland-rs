@@ -30,6 +30,13 @@
 //! This crate can generate some runtime error message (notably when a protocol error occurs). By default
 //! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
 //! piped through the `log` crate.
+//!
+//! ## raw-window-handle integration
+//!
+//! This crate can implement [`HasRawWindowHandle`](raw_window_handle::HasRawWindowHandle) for the client
+//! module [`Backend`](client::Backend) type if you activate the `raw-window-handle` feature.
+//!
+//! Note that the `client_system` feature must also be enabled for the implementation to be activated.
 
 #![forbid(improper_ctypes)]
 #![deny(unsafe_op_in_unsafe_fn)]
