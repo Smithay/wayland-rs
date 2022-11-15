@@ -16,9 +16,9 @@ fn main() {
     assert!(wayc::Connection::connect_to_env().is_err());
 
     // setup a listening server
-    let listening = ways::ListeningSocket::bind(&SOCKET_NAME).unwrap();
+    let listening = ways::ListeningSocket::bind(SOCKET_NAME).unwrap();
 
-    ::std::env::set_var("WAYLAND_DISPLAY", &SOCKET_NAME);
+    ::std::env::set_var("WAYLAND_DISPLAY", SOCKET_NAME);
 
     // connect the client
     let mut client = TestClient::new_from_env();

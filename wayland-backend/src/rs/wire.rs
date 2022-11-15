@@ -93,7 +93,7 @@ pub fn write_to_buffers(
         payload: &'a mut [u32],
     ) -> Result<&'a mut [u32], MessageWriteError> {
         let array_len = array.len();
-        let word_len = array_len / 4 + if array_len % 4 != 0 { 1 } else { 0 };
+        let word_len = array_len / 4 + usize::from(array_len % 4 != 0);
         // need enough space to store the whole array with padding and a size header
         if payload.len() < 1 + word_len {
             return Err(MessageWriteError::BufferTooSmall);
@@ -178,7 +178,7 @@ pub fn parse_message<'a, 'b>(
         array_len: usize,
         payload: &[u32],
     ) -> Result<(&[u8], &[u32]), MessageParseError> {
-        let word_len = array_len / 4 + if array_len % 4 != 0 { 1 } else { 0 };
+        let word_len = array_len / 4 + usize::from(array_len % 4 != 0);
         if word_len > payload.len() {
             return Err(MessageParseError::MissingData);
         }

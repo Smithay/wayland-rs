@@ -240,7 +240,7 @@ impl GlobalListContents {
     /// of this function. This allows you to process the list without making a copy.
     pub fn with_list<T, F: FnOnce(&[Global]) -> T>(&self, f: F) -> T {
         let guard = self.contents.lock().unwrap();
-        f(&**guard)
+        f(&guard)
     }
 
     /// Get a copy of the contents of the list of globals.

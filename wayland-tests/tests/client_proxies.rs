@@ -91,7 +91,7 @@ fn proxy_user_data() {
     assert!(compositor1.data::<usize>() == Some(&0xDEADBEEF));
     assert!(compositor2.data::<usize>() == Some(&0xBADC0FFE));
     assert!(compositor3.data::<usize>() == Some(&0xDEADBEEF));
-    assert!(compositor1.data::<u32>() == None);
+    assert!(compositor1.data::<u32>().is_none());
 }
 
 #[test]

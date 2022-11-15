@@ -27,12 +27,20 @@ use super::{free_arrays, server::*, RUST_MANAGED};
 
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 
-scoped_thread_local!(static HANDLE: (Arc<Mutex<dyn ErasedState + Send>>, *mut c_void));
+scoped_thread_local! {
+    // scoped_tls does not allow unsafe_op_in_unsafe_fn internally
+    #[allow(unsafe_op_in_unsafe_fn)]
+    static HANDLE: (Arc<Mutex<dyn ErasedState + Send>>, *mut c_void)
+}
 
 type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, ClientId, ObjectId);
 
 // Pointer is &mut Vec<PendingDestructor<D>>
-scoped_thread_local!(static PENDING_DESTRUCTORS: *mut c_void);
+scoped_thread_local! {
+    // scoped_tls does not allow unsafe_op_in_unsafe_fn internally
+    #[allow(unsafe_op_in_unsafe_fn)]
+    static PENDING_DESTRUCTORS: *mut c_void
+}
 
 /// An id of an object on a wayland server.
 #[derive(Clone)]

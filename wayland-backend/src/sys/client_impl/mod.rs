@@ -33,7 +33,11 @@ use super::{free_arrays, RUST_MANAGED};
 
 use super::client::*;
 
-scoped_thread_local!(static BACKEND: Backend);
+scoped_thread_local! {
+    // scoped_tls does not allow unsafe_op_in_unsafe_fn internally
+    #[allow(unsafe_op_in_unsafe_fn)]
+    static BACKEND: Backend
+}
 
 /// An ID representing a Wayland object
 #[derive(Clone)]
