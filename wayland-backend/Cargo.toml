@@ -13,11 +13,11 @@ readme = "README.md"
 build = "build.rs"
 
 [dependencies]
-wayland-sys = { version = "=0.30.0-beta.13", path = "../wayland-sys", features = [] }
+wayland-sys = { version = "0.30.0", path = "../wayland-sys", features = [] }
 log = { version = "0.4", optional = true }
 scoped-tls = "1.0"
 downcast-rs = "1.2"
-io-lifetimes = "=1.0.0-rc1"
+io-lifetimes = "1.0.0"
 
 [dependencies.smallvec]
 version = "1.9"

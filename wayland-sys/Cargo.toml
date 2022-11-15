@@ -1,6 +1,6 @@
 [package]
 name = "wayland-sys"
-version = "0.30.0-beta.13"
+version = "0.30.0"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-sys/"
 authors = ["Victor Berger <victor.berger@m4x.org>"]
@@ -14,7 +14,7 @@ readme = "README.md"
 dlib = { version = "0.5" }
 libc = { version = "0.2", optional = true }
 lazy_static = { version = "1.4", optional = true }
-memoffset = { version = "0.6.4", optional = true }
+memoffset = { version = "0.7", optional = true }
 log = "0.4"
 
 [build-dependencies]

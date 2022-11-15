@@ -1,8 +1,10 @@
 # CHANGELOG: wayland-sys
 
-## 0.30.0-beta.10
-
 ## Unreleased
+
+## 0.30.0
+
+## 0.30.0-beta.10
 
 #### Bugfixes
 
