@@ -6,7 +6,8 @@ unmaintained = "deny"
 notice = "deny"
 
 [bans]
-multiple-versions = "deny"
+# nix lags nehind on memoffset
+#multiple-versions = "deny"
 deny = [
 ]
 skip = [
