@@ -218,7 +218,7 @@ impl BufferedSocket {
             return Err(::nix::errno::Errno::EPIPE.into());
         }
         // advance the storage
-        self.in_data.advance(in_bytes / 4 + if in_bytes % 4 > 0 { 1 } else { 0 });
+        self.in_data.advance(in_bytes / 4 + usize::from(in_bytes % 4 > 0));
         self.in_fds.advance(in_fds);
         Ok(())
     }

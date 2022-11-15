@@ -31,7 +31,8 @@
 //! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
 //! piped through the `log` crate.
 
-#![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
+#![forbid(improper_ctypes)]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs, missing_debug_implementations)]
 // The api modules are imported two times each, this is not accidental
 #![allow(clippy::duplicate_mod)]
