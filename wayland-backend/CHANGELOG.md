@@ -1,8 +1,11 @@
 # CHANGELOG: wayland-backend
 
-## 0.1.0-beta.10
-
 ## Unreleased
+
+#### Bugfixes
+- In rust backend, retry read if message is incomplete, instead of `Malformed` error.
+
+## 0.1.0-beta.10
 
 #### Breaking changes
 
