@@ -198,8 +198,10 @@ pub fn parse_message<'a, 'b>(
     let opcode = (word_2 & 0x0000_FFFF) as u16;
     let len = (word_2 >> 16) as usize / 4;
 
-    if len < 2 || len > raw.len() {
+    if len < 2 {
         return Err(MessageParseError::Malformed);
+    } else if len > raw.len() {
+        return Err(MessageParseError::MissingData);
     }
 
     let (mut payload, rest) = raw.split_at(len);
