@@ -4,6 +4,10 @@
 
 ### Additions
 
+- Bump wayland-protocols to 1.30
+  - A new staging protocol:
+    - `tearing-control-v1`
+
 - Bump wayland-protocols to 1.29
   - `xdg-shell` has some new error values, however the version was not bumped:
     - `xdg_wm_base::Error::Unresponsive`

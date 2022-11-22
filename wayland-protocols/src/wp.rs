@@ -53,6 +53,23 @@ pub mod drm_lease {
     }
 }
 
+#[cfg(feature = "staging")]
+pub mod tearing_control {
+    //! This protocol provides a way for clients to indicate whether
+    //! or not their content is suitable for this kind of presentation.
+    //!
+    //! For some use cases like games or drawing tablets it can make sense to reduce
+    //! latency by accepting tearing with the use of asynchronous page flips.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/tearing-control/tearing-control-v1.xml",
+            []
+        );
+    }
+}
+
 #[cfg(feature = "unstable")]
 pub mod fullscreen_shell {
     //! Fullscreen shell protocol
