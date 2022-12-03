@@ -20,6 +20,7 @@ nix = { version = "0.25.0", default-features = false }
 futures-channel = "0.3.16"
 futures-core = "0.3"
 log = { version = "0.4", optional = true }
+calloop = { version = "0.10.3", optional = true }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
