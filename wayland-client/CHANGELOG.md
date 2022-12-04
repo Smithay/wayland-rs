@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- Introduce `WaylandSource`, an adapter to insert an `EventQueue` into a
+  calloop `EventLoop`, hidden under the new `calloop` cargo feature
+
 ## 0.30.0-beta.11
 
 #### Bugfixes
