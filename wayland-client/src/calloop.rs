@@ -1,11 +1,6 @@
 //! Utilities for using an [`EventQueue`] from wayland-client with an event loop that performs polling with
 //! [`calloop`](https://crates.io/crates/calloop).
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![warn(missing_docs, missing_debug_implementations)]
-#![forbid(unsafe_op_in_unsafe_fn)]
-#![allow(clippy::new_without_default)]
-
 use std::{
     io,
     os::unix::io::{AsRawFd, RawFd},
