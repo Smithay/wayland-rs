@@ -16,12 +16,12 @@ use wayland_backend::client::{ReadEventsGuard, WaylandError};
 
 /// An adapter to insert an [`EventQueue`] into a calloop [`EventLoop`](calloop::EventLoop).
 ///
-/// This type implements [`EventSource`] which generates an event whenever events on the display need to be
+/// This type implements [`EventSource`] which generates an event whenever events on the event queue need to be
 /// dispatched. The event queue available in the callback calloop registers may be used to dispatch pending
 /// events using [`EventQueue::dispatch_pending`].
 ///
 /// [`WaylandSource::insert`] can be used to insert this source into an event loop and automatically dispatch
-/// pending events on the display.
+/// pending events on the event queue.
 #[derive(Debug)]
 pub struct WaylandSource<D> {
     queue: EventQueue<D>,
