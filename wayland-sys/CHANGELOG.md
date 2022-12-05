@@ -4,6 +4,10 @@
 
 ## 0.30.0
 
+#### Bugfixes
+
+- Fix UB in `rust_listener_create`
+
 ## 0.30.0-beta.10
 
 #### Bugfixes

@@ -202,7 +202,7 @@ pub mod signal {
 
     macro_rules! container_of(
         ($ptr: expr, $container: ident, $field: ident) => {
-            ($ptr as *mut u8).offset(-(memoffset::offset_of!($container, $field) as isize)) as *mut $container
+            ($ptr as *mut u8).sub(memoffset::offset_of!($container, $field)) as *mut $container
         }
     );
 
@@ -283,7 +283,8 @@ pub mod signal {
             user_data: ptr::null_mut(),
         }));
 
-        unsafe { &mut (*data).listener as *mut wl_listener }
+        // SAFETY: data is a valid pointer for `ListenerWithUserData`.
+        unsafe { std::ptr::addr_of_mut!((*data).listener) }
     }
 
     pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
