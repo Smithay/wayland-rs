@@ -283,7 +283,7 @@ pub mod signal {
             user_data: ptr::null_mut(),
         }));
 
-        unsafe { &mut (*data).listener as *mut wl_listener }
+        unsafe { addr_of_mut!((*data).listener) }
     }
 
     pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
