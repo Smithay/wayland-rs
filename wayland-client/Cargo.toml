@@ -18,13 +18,12 @@ wayland-scanner = { version = "=0.30.0-beta.14", path = "../wayland-scanner" }
 bitflags = "1.2"
 thiserror = "1.0.2"
 nix = { version = "0.25.0", default-features = false }
-futures-channel = "0.3.16"
-futures-core = "0.3"
 log = { version = "0.4", optional = true }
 calloop = { version = "0.10.3", optional = true }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
+futures-channel = "0.3.16"
 futures-util = "0.3"
 tempfile = "3.2"
 
