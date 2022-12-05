@@ -283,6 +283,7 @@ pub mod signal {
             user_data: ptr::null_mut(),
         }));
 
+        // SAFETY: data is a valid pointer for `ListenerWithUserData`.
         unsafe { addr_of_mut!((*data).listener) }
     }
 
