@@ -1,5 +1,5 @@
 use std::{
-    env,
+    env, fmt,
     io::ErrorKind,
     os::unix::net::UnixStream,
     os::unix::prelude::{AsRawFd, FromRawFd},
@@ -245,19 +245,34 @@ pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandErro
 }
 
 /// An error when trying to establish a Wayland connection.
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum ConnectError {
     /// The wayland library could not be loaded.
-    #[error("The wayland library could not be loaded")]
     NoWaylandLib,
 
     /// Could not find wayland compositor
-    #[error("Could not find wayland compositor")]
     NoCompositor,
 
     /// `WAYLAND_SOCKET` was set but contained garbage
-    #[error("WAYLAND_SOCKET was set but contained garbage")]
     InvalidFd,
+}
+
+impl std::error::Error for ConnectError {}
+
+impl fmt::Display for ConnectError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConnectError::NoWaylandLib => {
+                write!(f, "The wayland library could not be loaded")
+            }
+            ConnectError::NoCompositor => {
+                write!(f, "Could not find wayland compositor")
+            }
+            ConnectError::InvalidFd => {
+                write!(f, "WAYLAND_SOCKET was set but contained garbage")
+            }
+        }
+    }
 }
 
 /*

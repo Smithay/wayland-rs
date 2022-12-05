@@ -53,6 +53,7 @@
 //! ```
 
 use std::{
+    fmt,
     ops::RangeInclusive,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -186,27 +187,70 @@ impl GlobalList {
 }
 
 /// An error that may occur when initializing the global list.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum GlobalError {
     /// The backend generated an error
-    #[error("Backend error: {0}")]
-    Backend(#[from] WaylandError),
+    Backend(WaylandError),
 
     /// An invalid object id was acted upon.
-    #[error(transparent)]
-    InvalidId(#[from] InvalidId),
+    InvalidId(InvalidId),
+}
+
+impl std::error::Error for GlobalError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            GlobalError::Backend(source) => Some(source),
+            GlobalError::InvalidId(source) => std::error::Error::source(source),
+        }
+    }
+}
+
+impl std::fmt::Display for GlobalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            GlobalError::Backend(source) => {
+                write!(f, "Backend error: {source}")
+            }
+            GlobalError::InvalidId(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl From<WaylandError> for GlobalError {
+    fn from(source: WaylandError) -> Self {
+        GlobalError::Backend(source)
+    }
+}
+
+impl From<InvalidId> for GlobalError {
+    fn from(source: InvalidId) -> Self {
+        GlobalError::InvalidId(source)
+    }
 }
 
 /// An error that occurs when a binding a global fails.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum BindError {
     /// The requested version of the global is not supported.
-    #[error("the requested version of the global is not supported")]
     UnsupportedVersion,
 
     /// The requested global was not found in the registry.
-    #[error("the requested global was not found in the registry")]
     NotPresent,
+}
+
+impl std::error::Error for BindError {}
+
+impl fmt::Display for BindError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BindError::UnsupportedVersion {} => {
+                write!(f, "the requested version of the global is not supported")
+            }
+            BindError::NotPresent {} => {
+                write!(f, "the requested global was not found in the registry")
+            }
+        }
+    }
 }
 
 /// Description of a global.

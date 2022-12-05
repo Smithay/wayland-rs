@@ -179,6 +179,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::{
+    fmt,
     hash::{Hash, Hasher},
     os::unix::io::RawFd,
     sync::Arc,
@@ -339,10 +340,9 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
 }
 
 /// Wayland dispatching error
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum DispatchError {
     /// The received message does not match the specification for the object's interface.
-    #[error("Bad message for object {interface}@{sender_id} on opcode {opcode}")]
     BadMessage {
         /// The id of the target object
         sender_id: ObjectId,
@@ -352,8 +352,35 @@ pub enum DispatchError {
         opcode: u16,
     },
     /// The backend generated an error
-    #[error("Backend error: {0}")]
-    Backend(#[from] WaylandError),
+    Backend(WaylandError),
+}
+
+impl std::error::Error for DispatchError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DispatchError::BadMessage { .. } => Option::None,
+            DispatchError::Backend(source) => Some(source),
+        }
+    }
+}
+
+impl fmt::Display for DispatchError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DispatchError::BadMessage { sender_id, interface, opcode } => {
+                write!(f, "Bad message for object {interface}@{sender_id} on opcode {opcode}")
+            }
+            DispatchError::Backend(source) => {
+                write!(f, "Backend error: {source}")
+            }
+        }
+    }
+}
+
+impl From<WaylandError> for DispatchError {
+    fn from(source: WaylandError) -> Self {
+        DispatchError::Backend(source)
+    }
 }
 
 /// A weak handle to a Wayland object
