@@ -284,7 +284,7 @@ pub mod signal {
         }));
 
         // SAFETY: data is a valid pointer for `ListenerWithUserData`.
-        unsafe { addr_of_mut!((*data).listener) }
+        unsafe { std::ptr::addr_of_mut!((*data).listener) }
     }
 
     pub unsafe fn rust_listener_get_user_data(listener: *mut wl_listener) -> *mut c_void {
