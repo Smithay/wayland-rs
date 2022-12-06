@@ -450,7 +450,6 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         quote! {
             #opcode => {
-                let mut arg_iter = msg.args.into_iter();
                 if let (#(#args_pat),*) = (#(#args_iter),*) {
                     Ok((me, #msg_type::#msg_name { #(#arg_names),* }))
                 } else {
@@ -462,6 +461,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
     quote! {
         let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+        let mut arg_iter = msg.args.into_iter();
         match msg.opcode {
             #(#match_arms),*
             _ => Err(DispatchError::BadMessage { sender_id: msg.sender_id, interface: Self::interface().name, opcode: msg.opcode }),

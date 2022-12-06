@@ -105,6 +105,7 @@ pub mod wl_callback {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage {
                     sender_id: msg.sender_id,
@@ -349,9 +350,9 @@ pub mod test_global {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::Uint(unsigned_int)),
                         Some(Argument::Int(signed_int)),
@@ -390,7 +391,6 @@ pub mod test_global {
                     }
                 }
                 1u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::NewId(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
@@ -421,7 +421,6 @@ pub mod test_global {
                     }
                 }
                 2u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::NewId(ter))) = (arg_iter.next()) {
                         Ok((
                             me,
@@ -452,7 +451,6 @@ pub mod test_global {
                     }
                 }
                 3u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::Object(sec)),
                         Some(Argument::Object(ter)),
@@ -506,7 +504,6 @@ pub mod test_global {
                     }
                 }
                 4u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
@@ -518,7 +515,6 @@ pub mod test_global {
                     }
                 }
                 5u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::Object(sec)), Some(Argument::Object(ter))) =
                         (arg_iter.next(), arg_iter.next())
                     {
@@ -568,7 +564,6 @@ pub mod test_global {
                     }
                 }
                 6u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::NewId(quad)),
                         Some(Argument::Object(sec)),
@@ -844,9 +839,9 @@ pub mod secondary {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
@@ -983,9 +978,9 @@ pub mod tertiary {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
@@ -1122,9 +1117,9 @@ pub mod quad {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let () = () {
                         Ok((me, Request::Destroy {}))
                     } else {
