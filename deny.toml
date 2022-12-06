@@ -23,6 +23,7 @@ allow = [
     "MIT",
     "ISC",
     "BSD-3-Clause",
+    "Zlib",
     # Used in unicode-ident, which is used by syn and proc-macro2.
     #
     # Do watch https://github.com/rust-lang/rust/issues/98116 for future progress on this
