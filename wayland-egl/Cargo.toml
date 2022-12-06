@@ -1,9 +1,9 @@
 [package]
 name = "wayland-egl"
-version = "0.30.0-beta.13"
+version = "0.30.0-beta.14"
 documentation = "https://docs.rs/wayland-egl/"
 repository = "https://github.com/smithay/wayland-rs"
-authors = ["Victor Berger <victor.berger@m4x.org>"]
+authors = ["Elinor Berger <elinor@safaradeg.net>"]
 license = "MIT"
 edition = "2018"
 categories = ["gui", "api-bindings"]
@@ -12,6 +12,6 @@ description = "Bindings to libwayland-egl."
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "=0.1.0-beta.13", path = "../wayland-backend", features = ["client_system"] }
+wayland-backend = { version = "=0.1.0-beta.14", path = "../wayland-backend", features = ["client_system"] }
 wayland-sys = { version = "0.30.0", path="../wayland-sys", features = ["egl"] }
 thiserror = "1.0.30"

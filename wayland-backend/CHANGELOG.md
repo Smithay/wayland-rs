@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0-beta.14
+
 #### Bugfixes
+
 - In rust backend, retry read if message is incomplete, instead of `Malformed` error.
 
 ## 0.1.0-beta.10

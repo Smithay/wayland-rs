@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.14
+
 ### Additions
 
 - Update wlr-protocols

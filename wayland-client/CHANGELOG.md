@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.14
+
 #### Additions
 
 - Introduce `WaylandSource`, an adapter to insert an `EventQueue` into a

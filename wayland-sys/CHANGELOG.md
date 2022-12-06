@@ -2,11 +2,13 @@
 
 ## Unreleased
 
-## 0.30.0
+## 0.30.1
 
 #### Bugfixes
 
 - Fix UB in `rust_listener_create`
+
+## 0.30.0
 
 ## 0.30.0-beta.10
 

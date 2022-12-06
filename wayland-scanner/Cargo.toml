@@ -1,7 +1,7 @@
 [package]
 name = "wayland-scanner"
-version = "0.30.0-beta.13"
-authors = ["Victor Berger <victor.berger@m4x.org>"]
+version = "0.30.0-beta.14"
+authors = ["Elinor Berger <elinor@safaradeg.net>"]
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-scanner/"
 description = "Wayland Scanner for generating rust APIs from XML wayland protocol files."
