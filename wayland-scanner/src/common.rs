@@ -491,6 +491,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Some(format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name))
             }
         });
+        let mut child_spec = None;
         let args = msg.args.iter().flat_map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
 
@@ -524,14 +525,17 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     if let Some(ref created_interface) = arg.interface {
                         let created_iface_mod = Ident::new(created_interface, Span::call_site());
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
-                        vec![
-                            quote! { {
-                                let my_info = conn.object_info(self.id())?;
-                                child_spec = Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version));
-                                Argument::NewId(ObjectId::null())
-                            } }
-                        ]
+                        assert!(child_spec.is_none());
+                        child_spec = Some(quote! { {
+                            let my_info = conn.object_info(self.id())?;
+                            Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version))
+                        } });
+                        vec![quote! { Argument::NewId(ObjectId::null()) }]
                     } else {
+                        assert!(child_spec.is_none());
+                        child_spec = Some(quote! {
+                            Some((#arg_name.0, #arg_name.1))
+                        });
                         vec![
                             quote! {
                                 Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())))
@@ -539,10 +543,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                             quote! {
                                 Argument::Uint(#arg_name.1)
                             },
-                            quote! { {
-                                child_spec = Some((#arg_name.0, #arg_name.1));
+                            quote! {
                                 Argument::NewId(ObjectId::null())
-                            } },
+                            },
                         ]
                     }
                 } else {
@@ -576,9 +579,10 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
             }
         };
         if side == Side::Client {
+            let child_spec = child_spec.unwrap_or_else(|| quote! { None });
             quote! {
                 #msg_type::#msg_name { #(#arg_names),* } => {
-                    let mut child_spec = None;
+                    let child_spec = #child_spec;
                     let args = #args;
                     Ok((Message {
                         sender_id: self.id.clone(),

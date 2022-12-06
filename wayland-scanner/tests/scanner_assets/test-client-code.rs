@@ -235,33 +235,31 @@ pub mod wl_display {
         > {
             match msg {
                 Request::Sync {} => {
-                    let mut child_spec = None;
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((
+                            super::wl_callback::WlCallback::interface(),
+                            my_info.version,
+                        ))
+                    };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push({
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec = Some((
-                                super::wl_callback::WlCallback::interface(),
-                                my_info.version,
-                            ));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
                 Request::GetRegistry {} => {
-                    let mut child_spec = None;
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((
+                            super::wl_registry::WlRegistry::interface(),
+                            my_info.version,
+                        ))
+                    };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push({
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec = Some((
-                                super::wl_registry::WlRegistry::interface(),
-                                my_info.version,
-                            ));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
@@ -508,7 +506,7 @@ pub mod wl_registry {
         > {
             match msg {
                 Request::Bind { name, id } => {
-                    let mut child_spec = None;
+                    let child_spec = Some((id.0, id.1));
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::Uint(name));
@@ -516,10 +514,7 @@ pub mod wl_registry {
                             std::ffi::CString::new(id.0.name).unwrap(),
                         ))));
                         vec.push(Argument::Uint(id.1));
-                        vec.push({
-                            child_spec = Some((id.0, id.1));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
@@ -1049,7 +1044,7 @@ pub mod test_global {
                     some_text,
                     file_descriptor,
                 } => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = smallvec::SmallVec::from_vec(vec![
                         Argument::Uint(unsigned_int),
                         Argument::Int(signed_int),
@@ -1061,35 +1056,31 @@ pub mod test_global {
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
                 Request::GetSecondary {} => {
-                    let mut child_spec = None;
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((super::secondary::Secondary::interface(), my_info.version))
+                    };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push({
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec =
-                                Some((super::secondary::Secondary::interface(), my_info.version));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
                 Request::GetTertiary {} => {
-                    let mut child_spec = None;
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((super::tertiary::Tertiary::interface(), my_info.version))
+                    };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push({
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec =
-                                Some((super::tertiary::Tertiary::interface(), my_info.version));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
                 }
                 Request::Link { sec, ter, time } => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::Object(Proxy::id(&sec)));
@@ -1104,12 +1095,12 @@ pub mod test_global {
                     Ok((Message { sender_id: self.id.clone(), opcode: 3u16, args }, child_spec))
                 }
                 Request::Destroy {} => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 4u16, args }, child_spec))
                 }
                 Request::ReverseLink { sec, ter } => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(if let Some(obj) = sec {
@@ -1123,14 +1114,13 @@ pub mod test_global {
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
                 }
                 Request::NewidAndAllowNull { sec, ter } => {
-                    let mut child_spec = None;
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((super::quad::Quad::interface(), my_info.version))
+                    };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push({
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec = Some((super::quad::Quad::interface(), my_info.version));
-                            Argument::NewId(ObjectId::null())
-                        });
+                        vec.push(Argument::NewId(ObjectId::null()));
                         vec.push(if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
@@ -1403,7 +1393,7 @@ pub mod secondary {
         > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
@@ -1555,7 +1545,7 @@ pub mod tertiary {
         > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
@@ -1707,7 +1697,7 @@ pub mod quad {
         > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
+                    let child_spec = None;
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
