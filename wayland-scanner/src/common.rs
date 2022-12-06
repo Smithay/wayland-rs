@@ -556,13 +556,30 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });
+        let args = if msg.args.is_empty() {
+            quote! {
+                smallvec::SmallVec::new()
+            }
+        } else if msg.args.len() <= 4 {
+            // Note: Keep in sync with `wayland_backend::protocol::INLINE_ARGS`.
+            // Fits in SmallVec inline capacity
+            quote! { {
+                let mut vec = smallvec::SmallVec::new();
+                #(
+                    vec.push(#args);
+                )*
+                vec
+            } }
+        } else {
+            quote! {
+                smallvec::SmallVec::from_vec(vec![#(#args),*])
+            }
+        };
         if side == Side::Client {
             quote! {
                 #msg_type::#msg_name { #(#arg_names),* } => {
                     let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        #(#args),*
-                    ];
+                    let args = #args;
                     Ok((Message {
                         sender_id: self.id.clone(),
                         opcode: #opcode,
@@ -575,9 +592,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: #opcode,
-                    args: smallvec::smallvec![
-                        #(#args),*
-                    ]
+                    args: #args,
                 })
             }
         }

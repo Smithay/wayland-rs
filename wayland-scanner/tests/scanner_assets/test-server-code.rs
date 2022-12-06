@@ -122,7 +122,11 @@ pub mod wl_callback {
                 Event::Done { callback_data } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 0u16,
-                    args: smallvec::smallvec![Argument::Uint(callback_data)],
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(callback_data));
+                        vec
+                    },
                 }),
             }
         }
@@ -654,31 +658,37 @@ pub mod test_global {
                 } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 0u16,
-                    args: smallvec::smallvec![
+                    args: smallvec::SmallVec::from_vec(vec![
                         Argument::Uint(unsigned_int),
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
                         Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
-                        Argument::Fd(file_descriptor)
-                    ],
+                        Argument::Fd(file_descriptor),
+                    ]),
                 }),
                 Event::AckSecondary { sec } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 1u16,
-                    args: smallvec::smallvec![Argument::Object(Resource::id(&sec))],
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Object(Resource::id(&sec)));
+                        vec
+                    },
                 }),
                 Event::CycleQuad { new_quad, old_quad } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: 2u16,
-                    args: smallvec::smallvec![
-                        Argument::NewId(Resource::id(&new_quad)),
-                        if let Some(obj) = old_quad {
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(Resource::id(&new_quad)));
+                        vec.push(if let Some(obj) = old_quad {
                             Argument::Object(Resource::id(&obj))
                         } else {
                             Argument::Object(ObjectId::null())
-                        }
-                    ],
+                        });
+                        vec
+                    },
                 }),
             }
         }
