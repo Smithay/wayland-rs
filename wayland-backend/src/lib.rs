@@ -37,7 +37,8 @@
 // The api modules are imported two times each, this is not accidental
 #![allow(clippy::duplicate_mod)]
 #![cfg_attr(coverage, feature(no_coverage))]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+// Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub extern crate io_lifetimes;
 pub extern crate smallvec;
@@ -65,7 +66,6 @@ use std::{
 };
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "client_system", feature = "server_system"))))]
 pub mod sys;
 
 pub mod rs;
