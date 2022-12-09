@@ -28,6 +28,8 @@
 //! if the feature `dlopen` is absent, as we link against the library directly in that case.
 #![allow(non_camel_case_types)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
+// Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 // If compiling with neither the `client` or `server` feature (non-sensical but
 // it's what happens when running `cargo test --all` from the workspace root),
