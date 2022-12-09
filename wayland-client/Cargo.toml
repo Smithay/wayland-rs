@@ -26,3 +26,7 @@ calloop = { version = "0.10.3", optional = true }
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 futures-util = "0.3"
 tempfile = "3.2"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
