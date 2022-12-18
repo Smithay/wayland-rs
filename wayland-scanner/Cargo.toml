@@ -22,3 +22,7 @@ quick-xml = "0.23"
 
 [dev-dependencies]
 similar = "2"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
