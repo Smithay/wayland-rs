@@ -56,7 +56,7 @@ impl ListeningSocket {
     ) -> Result<Self, BindError> {
         for i in range {
             // early return on any error except AlreadyInUse
-            match Self::bind(&format!("{}-{}", basename, i)) {
+            match Self::bind(format!("{}-{}", basename, i)) {
                 Ok(socket) => return Ok(socket),
                 Err(BindError::RuntimeDirNotSet) => return Err(BindError::RuntimeDirNotSet),
                 Err(BindError::PermissionDenied) => return Err(BindError::PermissionDenied),
