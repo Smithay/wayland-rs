@@ -70,6 +70,36 @@ pub mod tearing_control {
     }
 }
 
+#[cfg(feature = "staging")]
+pub mod fractional_scale {
+    //! This protocol allows a compositor to suggest for surfaces to render at
+    //! fractional scales.
+    //!
+    //! A client can submit scaled content by utilizing wp_viewport. This is done by
+    //! creating a wp_viewport object for the surface and setting the destination
+    //! rectangle to the surface size before the scale factor is applied.
+    //!
+    //! The buffer size is calculated by multiplying the surface size by the
+    //! intended scale.
+    //!
+    //! The wl_surface buffer scale should remain set to 1.
+    //!
+    //! If a surface has a surface-local size of 100 px by 50 px and wishes to
+    //! submit buffers with a scale of 1.5, then a buffer of 150px by 75 px should
+    //! be used and the wp_viewport destination rectangle should be 100 px by 50 px.
+    //!
+    //! For toplevel surfaces, the size is rounded halfway away from zero. The
+    //! rounding algorithm for subsurface position and size is not defined.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/fractional-scale/fractional-scale-v1.xml",
+            []
+        );
+    }
+}
+
 #[cfg(feature = "unstable")]
 pub mod fullscreen_shell {
     //! Fullscreen shell protocol

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Additions
+
+- Bump wayland-protocols to 1.31
+  - A new staging protocol:
+    - `fractional-scale-v1`
+
 ## 0.30.0-beta.14
 
 ### Additions

@@ -30,6 +30,13 @@
 //! This crate can generate some runtime error message (notably when a protocol error occurs). By default
 //! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
 //! piped through the `log` crate.
+//!
+//! ## raw-window-handle integration
+//!
+//! This crate can implement [`HasRawWindowHandle`](raw_window_handle::HasRawWindowHandle) for the client
+//! module [`Backend`](client::Backend) type if you activate the `raw-window-handle` feature.
+//!
+//! Note that the `client_system` feature must also be enabled for the implementation to be activated.
 
 #![forbid(improper_ctypes)]
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -37,7 +44,8 @@
 // The api modules are imported two times each, this is not accidental
 #![allow(clippy::duplicate_mod)]
 #![cfg_attr(coverage, feature(no_coverage))]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+// Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub extern crate io_lifetimes;
 pub extern crate smallvec;
@@ -65,7 +73,6 @@ use std::{
 };
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "client_system", feature = "server_system"))))]
 pub mod sys;
 
 pub mod rs;

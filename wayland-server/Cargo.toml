@@ -20,3 +20,7 @@ log = { version = "0.4", optional = true }
 nix = { version = "0.25.0", default-features = false }
 downcast-rs = "1.2"
 io-lifetimes = "1.0.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

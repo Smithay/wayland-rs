@@ -72,6 +72,8 @@
 //! If you need to receive pointers from FFI, you can make [`ObjectId`]s from the `*mut wl_resource` pointers
 //! using `ObjectId::from_ptr()`, and then make the resources using [`Resource::from_id`].
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
+// Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::hash::{Hash, Hasher};
 use wayland_backend::{

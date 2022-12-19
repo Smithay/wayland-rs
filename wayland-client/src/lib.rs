@@ -175,6 +175,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage, feature(no_coverage))]
+// Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::{
     hash::{Hash, Hasher},
