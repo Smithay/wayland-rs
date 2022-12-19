@@ -10,6 +10,7 @@ use std::{
     path::PathBuf,
 };
 
+use io_lifetimes::{AsFd, BorrowedFd};
 use nix::{
     fcntl::{flock, open, FlockArg, OFlag},
     sys::stat::{lstat, Mode},
@@ -144,6 +145,19 @@ impl AsRawFd for ListeningSocket {
     /// to get a stream to the new client.
     fn as_raw_fd(&self) -> RawFd {
         self.listener.as_raw_fd()
+    }
+}
+
+impl AsFd for ListeningSocket {
+    /// Returns a file descriptor that may be polled for readiness.
+    ///
+    /// This file descriptor may be polled using apis such as epoll and kqueue to be told when a client has
+    /// found the socket and is trying to connect.
+    ///
+    /// When the polling system reports the file descriptor is ready, you can use [`ListeningSocket::accept`]
+    /// to get a stream to the new client.
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.listener.as_fd()
     }
 }
 
