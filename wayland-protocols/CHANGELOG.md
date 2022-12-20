@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.30.0-beta.15
+
 ### Additions
 
 - Bump wayland-protocols to 1.31
