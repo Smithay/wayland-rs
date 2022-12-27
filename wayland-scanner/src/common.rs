@@ -450,7 +450,6 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         quote! {
             #opcode => {
-                let mut arg_iter = msg.args.into_iter();
                 if let (#(#args_pat),*) = (#(#args_iter),*) {
                     Ok((me, #msg_type::#msg_name { #(#arg_names),* }))
                 } else {
@@ -462,6 +461,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
     quote! {
         let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+        let mut arg_iter = msg.args.into_iter();
         match msg.opcode {
             #(#match_arms),*
             _ => Err(DispatchError::BadMessage { sender_id: msg.sender_id, interface: Self::interface().name, opcode: msg.opcode }),
@@ -491,72 +491,99 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Some(format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name))
             }
         });
-        let args = msg.args.iter().map(|arg| {
+        let mut child_spec = None;
+        let args = msg.args.iter().flat_map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
 
             match arg.typ {
-                Type::Int => if arg.enum_.is_some() { quote!{ Argument::Int(Into::<u32>::into(#arg_name) as i32) } } else { quote!{ Argument::Int(#arg_name) } },
-                Type::Uint => if arg.enum_.is_some() { quote!{ Argument::Uint(#arg_name.into()) } } else { quote!{ Argument::Uint(#arg_name) } },
-                Type::Fd => quote!{ Argument::Fd(#arg_name) },
-                Type::Fixed => quote! { Argument::Fixed((#arg_name * 256.) as i32) },
+                Type::Int => vec![if arg.enum_.is_some() { quote!{ Argument::Int(Into::<u32>::into(#arg_name) as i32) } } else { quote!{ Argument::Int(#arg_name) } }],
+                Type::Uint => vec![if arg.enum_.is_some() { quote!{ Argument::Uint(#arg_name.into()) } } else { quote!{ Argument::Uint(#arg_name) } }],
+                Type::Fd => vec![quote!{ Argument::Fd(#arg_name) }],
+                Type::Fixed => vec![quote! { Argument::Fixed((#arg_name * 256.) as i32) }],
                 Type::Object => if arg.allow_null {
                     if side == Side::Server {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(ObjectId::null()) } }]
                     } else {
-                        quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(ObjectId::null()) } }
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(ObjectId::null()) } }]
                     }
                 } else if side == Side::Server {
-                    quote!{ Argument::Object(Resource::id(&#arg_name)) }
+                    vec![quote!{ Argument::Object(Resource::id(&#arg_name)) }]
                 } else {
-                    quote!{ Argument::Object(Proxy::id(&#arg_name)) }
+                    vec![quote!{ Argument::Object(Proxy::id(&#arg_name)) }]
                 },
                 Type::Array => if arg.allow_null {
-                    quote! { if let Some(array) = #arg_name { Argument::Array(Box::new(array)) } else { Argument::Array(Box::new(Vec::new()))}}
+                    vec![quote! { if let Some(array) = #arg_name { Argument::Array(Box::new(array)) } else { Argument::Array(Box::new(Vec::new()))}}]
                 } else {
-                    quote! { Argument::Array(Box::new(#arg_name)) }
+                    vec![quote! { Argument::Array(Box::new(#arg_name)) }]
                 },
                 Type::String => if arg.allow_null {
-                    quote! { Argument::Str(#arg_name.map(|s| Box::new(std::ffi::CString::new(s).unwrap()))) }
+                    vec![quote! { Argument::Str(#arg_name.map(|s| Box::new(std::ffi::CString::new(s).unwrap()))) }]
                 } else {
-                    quote! { Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name).unwrap()))) }
+                    vec![quote! { Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name).unwrap()))) }]
                 },
                 Type::NewId => if side == Side::Client {
                     if let Some(ref created_interface) = arg.interface {
                         let created_iface_mod = Ident::new(created_interface, Span::call_site());
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
-                        quote! { {
+                        assert!(child_spec.is_none());
+                        child_spec = Some(quote! { {
                             let my_info = conn.object_info(self.id())?;
-                            child_spec = Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version));
-                            Argument::NewId(ObjectId::null())
-                        } }
+                            Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version))
+                        } });
+                        vec![quote! { Argument::NewId(ObjectId::null()) }]
                     } else {
-                        quote! {
-                            Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap()))),
-                            Argument::Uint(#arg_name.1),
-                            {
-                                child_spec = Some((#arg_name.0, #arg_name.1));
+                        assert!(child_spec.is_none());
+                        child_spec = Some(quote! {
+                            Some((#arg_name.0, #arg_name.1))
+                        });
+                        vec![
+                            quote! {
+                                Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())))
+                            },
+                            quote! {
+                                Argument::Uint(#arg_name.1)
+                            },
+                            quote! {
                                 Argument::NewId(ObjectId::null())
-                            }
-                        }
+                            },
+                        ]
                     }
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(ObjectId::null()) } }
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(ObjectId::null()) } }]
                     } else {
-                        quote!{ Argument::NewId(Resource::id(&#arg_name)) }
+                        vec![quote!{ Argument::NewId(Resource::id(&#arg_name)) }]
                     }
                 },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });
+        let args = if msg.args.is_empty() {
+            quote! {
+                smallvec::SmallVec::new()
+            }
+        } else if msg.args.len() <= 4 {
+            // Note: Keep in sync with `wayland_backend::protocol::INLINE_ARGS`.
+            // Fits in SmallVec inline capacity
+            quote! { {
+                let mut vec = smallvec::SmallVec::new();
+                #(
+                    vec.push(#args);
+                )*
+                vec
+            } }
+        } else {
+            quote! {
+                smallvec::SmallVec::from_vec(vec![#(#args),*])
+            }
+        };
         if side == Side::Client {
+            let child_spec = child_spec.unwrap_or_else(|| quote! { None });
             quote! {
                 #msg_type::#msg_name { #(#arg_names),* } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        #(#args),*
-                    ];
+                    let child_spec = #child_spec;
+                    let args = #args;
                     Ok((Message {
                         sender_id: self.id.clone(),
                         opcode: #opcode,
@@ -569,9 +596,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
                     sender_id: self.id.clone(),
                     opcode: #opcode,
-                    args: smallvec::smallvec![
-                        #(#args),*
-                    ]
+                    args: #args,
                 })
             }
         }

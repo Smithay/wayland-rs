@@ -178,9 +178,9 @@ pub mod wl_display {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::Object(object_id)),
                         Some(Argument::Uint(code)),
@@ -207,7 +207,6 @@ pub mod wl_display {
                     }
                 }
                 1u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::Uint(id))) = (arg_iter.next()) {
                         Ok((me, Event::DeleteId { id }))
                     } else {
@@ -231,27 +230,37 @@ pub mod wl_display {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {
                 Request::Sync {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![{
+                    let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        child_spec =
-                            Some((super::wl_callback::WlCallback::interface(), my_info.version));
-                        Argument::NewId(ObjectId::null())
-                    }];
+                        Some((
+                            super::wl_callback::WlCallback::interface(),
+                            my_info.version,
+                        ))
+                    };
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
                 Request::GetRegistry {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![{
+                    let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        child_spec =
-                            Some((super::wl_registry::WlRegistry::interface(), my_info.version));
-                        Argument::NewId(ObjectId::null())
-                    }];
+                        Some((
+                            super::wl_registry::WlRegistry::interface(),
+                            my_info.version,
+                        ))
+                    };
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
             }
@@ -439,9 +448,9 @@ pub mod wl_registry {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::Uint(name)),
                         Some(Argument::Str(interface)),
@@ -468,7 +477,6 @@ pub mod wl_registry {
                     }
                 }
                 1u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::Uint(name))) = (arg_iter.next()) {
                         Ok((me, Event::GlobalRemove { name }))
                     } else {
@@ -492,20 +500,21 @@ pub mod wl_registry {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {
                 Request::Bind { name, id } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        Argument::Uint(name),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(id.0.name).unwrap()))),
-                        Argument::Uint(id.1),
-                        {
-                            child_spec = Some((id.0, id.1));
-                            Argument::NewId(ObjectId::null())
-                        }
-                    ];
+                    let child_spec = Some((id.0, id.1));
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(name));
+                        vec.push(Argument::Str(Some(Box::new(
+                            std::ffi::CString::new(id.0.name).unwrap(),
+                        ))));
+                        vec.push(Argument::Uint(id.1));
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
             }
@@ -648,9 +657,9 @@ pub mod wl_callback {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::Uint(callback_data))) = (arg_iter.next()) {
                         Ok((me, Event::Done { callback_data }))
                     } else {
@@ -674,7 +683,7 @@ pub mod wl_callback {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {}
         }
@@ -890,9 +899,9 @@ pub mod test_global {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (
                         Some(Argument::Uint(unsigned_int)),
                         Some(Argument::Int(signed_int)),
@@ -911,8 +920,8 @@ pub mod test_global {
                         Ok((
                             me,
                             Event::ManyArgsEvt {
-                                unsigned_int: unsigned_int,
-                                signed_int: signed_int,
+                                unsigned_int,
+                                signed_int,
                                 fixed_point: (fixed_point as f64) / 256.,
                                 number_array: *number_array,
                                 some_text: String::from_utf8_lossy(
@@ -931,7 +940,6 @@ pub mod test_global {
                     }
                 }
                 1u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::Object(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
@@ -960,7 +968,6 @@ pub mod test_global {
                     }
                 }
                 2u16 => {
-                    let mut arg_iter = msg.args.into_iter();
                     if let (Some(Argument::NewId(new_quad)), Some(Argument::Object(old_quad))) =
                         (arg_iter.next(), arg_iter.next())
                     {
@@ -1022,7 +1029,7 @@ pub mod test_global {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {
                 Request::ManyArgs {
@@ -1033,82 +1040,91 @@ pub mod test_global {
                     some_text,
                     file_descriptor,
                 } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
+                    let child_spec = None;
+                    let args = smallvec::SmallVec::from_vec(vec![
                         Argument::Uint(unsigned_int),
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
                         Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
-                        Argument::Fd(file_descriptor)
-                    ];
+                        Argument::Fd(file_descriptor),
+                    ]);
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
                 Request::GetSecondary {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![{
+                    let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        child_spec =
-                            Some((super::secondary::Secondary::interface(), my_info.version));
-                        Argument::NewId(ObjectId::null())
-                    }];
+                        Some((super::secondary::Secondary::interface(), my_info.version))
+                    };
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
                 Request::GetTertiary {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![{
+                    let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        child_spec =
-                            Some((super::tertiary::Tertiary::interface(), my_info.version));
-                        Argument::NewId(ObjectId::null())
-                    }];
+                        Some((super::tertiary::Tertiary::interface(), my_info.version))
+                    };
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
                 }
                 Request::Link { sec, ter, time } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        Argument::Object(Proxy::id(&sec)),
-                        if let Some(obj) = ter {
+                    let child_spec = None;
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Object(Proxy::id(&sec)));
+                        vec.push(if let Some(obj) = ter {
                             Argument::Object(Proxy::id(&obj))
                         } else {
                             Argument::Object(ObjectId::null())
-                        },
-                        Argument::Uint(time)
-                    ];
+                        });
+                        vec.push(Argument::Uint(time));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 3u16, args }, child_spec))
                 }
                 Request::Destroy {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![];
+                    let child_spec = None;
+                    let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 4u16, args }, child_spec))
                 }
                 Request::ReverseLink { sec, ter } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        if let Some(obj) = sec {
+                    let child_spec = None;
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
                             Argument::Object(ObjectId::null())
-                        },
-                        Argument::Object(Proxy::id(&ter))
-                    ];
+                        });
+                        vec.push(Argument::Object(Proxy::id(&ter)));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
                 }
                 Request::NewidAndAllowNull { sec, ter } => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![
-                        {
-                            let my_info = conn.object_info(self.id())?;
-                            child_spec = Some((super::quad::Quad::interface(), my_info.version));
-                            Argument::NewId(ObjectId::null())
-                        },
-                        if let Some(obj) = sec {
+                    let child_spec = {
+                        let my_info = conn.object_info(self.id())?;
+                        Some((super::quad::Quad::interface(), my_info.version))
+                    };
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::NewId(ObjectId::null()));
+                        vec.push(if let Some(obj) = sec {
                             Argument::Object(Proxy::id(&obj))
                         } else {
                             Argument::Object(ObjectId::null())
-                        },
-                        Argument::Object(Proxy::id(&ter))
-                    ];
+                        });
+                        vec.push(Argument::Object(Proxy::id(&ter)));
+                        vec
+                    };
                     Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
                 }
             }
@@ -1355,6 +1371,7 @@ pub mod secondary {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage {
                     sender_id: msg.sender_id,
@@ -1369,12 +1386,12 @@ pub mod secondary {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![];
+                    let child_spec = None;
+                    let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
             }
@@ -1507,6 +1524,7 @@ pub mod tertiary {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage {
                     sender_id: msg.sender_id,
@@ -1521,12 +1539,12 @@ pub mod tertiary {
             msg: Self::Request,
         ) -> Result<
             (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-            InvalidId
+            InvalidId,
         > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![];
+                    let child_spec = None;
+                    let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
             }
@@ -1659,6 +1677,7 @@ pub mod quad {
             msg: Message<ObjectId, io_lifetimes::OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
+            let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 _ => Err(DispatchError::BadMessage {
                     sender_id: msg.sender_id,
@@ -1672,13 +1691,13 @@ pub mod quad {
             conn: &Connection,
             msg: Self::Request,
         ) -> Result<
-                (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
-                InvalidId
-            > {
+            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            InvalidId,
+        > {
             match msg {
                 Request::Destroy {} => {
-                    let mut child_spec = None;
-                    let args = smallvec::smallvec![];
+                    let child_spec = None;
+                    let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
             }

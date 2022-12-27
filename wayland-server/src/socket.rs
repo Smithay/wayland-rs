@@ -169,18 +169,38 @@ impl Drop for ListeningSocket {
 }
 
 /// Error that can occur when trying to bind a [`ListeningSocket`]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum BindError {
     /// The Environment variable `XDG_RUNTIME_DIR` is not set
-    #[error("Environment variable XDG_RUNTIME_DIR is not set or invalid")]
     RuntimeDirNotSet,
     /// The application was not able to create a file in `XDG_RUNTIME_DIR`
-    #[error("Could not write to XDG_RUNTIME_DIR")]
     PermissionDenied,
     /// The requested socket name is already in use
-    #[error("Requested socket name is already in use")]
     AlreadyInUse,
     /// Some other IO error occured
-    #[error("I/O error: {0}")]
-    Io(#[source] io::Error),
+    Io(io::Error),
+}
+
+impl std::error::Error for BindError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            BindError::RuntimeDirNotSet => None,
+            BindError::PermissionDenied => None,
+            BindError::AlreadyInUse => None,
+            BindError::Io(source) => Some(source),
+        }
+    }
+}
+
+impl std::fmt::Display for BindError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BindError::RuntimeDirNotSet => {
+                write!(f, "Environment variable XDG_RUNTIME_DIR is not set or invalid")
+            }
+            BindError::PermissionDenied => write!(f, "Could not write to XDG_RUNTIME_DIR"),
+            BindError::AlreadyInUse => write!(f, "Requested socket name is already in use"),
+            BindError::Io(source) => write!(f, "I/O error: {source}"),
+        }
+    }
 }

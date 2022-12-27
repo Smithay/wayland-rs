@@ -38,8 +38,6 @@
 
 use std::{ffi::OsString, path::PathBuf};
 
-use syn::{parse_macro_input, LitStr};
-
 mod c_interfaces;
 mod client_gen;
 mod common;
@@ -47,12 +45,13 @@ mod interfaces;
 mod parse;
 mod protocol;
 mod server_gen;
+mod token;
 mod util;
 
 /// Proc-macro for generating low-level interfaces associated with an XML specification
 #[proc_macro]
 pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path: OsString = parse_macro_input!(stream as LitStr).value().into();
+    let path: OsString = token::parse_lit_str_token(stream).into();
     let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
         let mut buf = PathBuf::from(manifest_dir);
         buf.push(path);
@@ -71,7 +70,7 @@ pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::Token
 /// Proc-macro for generating client-side API associated with an XML specification
 #[proc_macro]
 pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path: OsString = parse_macro_input!(stream as LitStr).value().into();
+    let path: OsString = token::parse_lit_str_token(stream).into();
     let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
         let mut buf = PathBuf::from(manifest_dir);
         buf.push(path);
@@ -90,7 +89,7 @@ pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::Toke
 /// Proc-macro for generating server-side API associated with an XML specification
 #[proc_macro]
 pub fn generate_server_code(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path: OsString = parse_macro_input!(stream as LitStr).value().into();
+    let path: OsString = token::parse_lit_str_token(stream).into();
     let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
         let mut buf = PathBuf::from(manifest_dir);
         buf.push(path);

@@ -75,7 +75,10 @@
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use std::hash::{Hash, Hasher};
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+};
 use wayland_backend::{
     io_lifetimes::OwnedFd,
     protocol::{Interface, Message},
@@ -241,10 +244,9 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
 }
 
 /// An error generated if an illegal request was received from a client
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum DispatchError {
     /// The received message does not match the specification for the object's interface.
-    #[error("Bad message for object {interface}@{sender_id} on opcode {opcode}")]
     BadMessage {
         /// The id of the target object
         sender_id: ObjectId,
@@ -253,6 +255,18 @@ pub enum DispatchError {
         /// The opcode number
         opcode: u16,
     },
+}
+
+impl std::error::Error for DispatchError {}
+
+impl fmt::Display for DispatchError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DispatchError::BadMessage { sender_id, interface, opcode } => {
+                write!(f, "Bad message for object {interface}@{sender_id} on opcode {opcode}",)
+            }
+        }
+    }
 }
 
 /// A weak handle to a Wayland object

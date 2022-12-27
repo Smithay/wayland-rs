@@ -10,7 +10,7 @@
 //!
 //! See [`WlEglSurface`] documentation for details.
 
-use std::os::raw::c_void;
+use std::{fmt, os::raw::c_void};
 
 use wayland_backend::client::ObjectId;
 use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
@@ -128,12 +128,21 @@ impl Drop for WlEglSurface {
 }
 
 /// EGL surface creation error.
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Surface width or height are <= 0.
-    #[error("surface width or height is <= 0")]
     InvalidSize,
     /// Passed surface object is not a surface.
-    #[error("object id is not a surface")]
     InvalidId,
+}
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::InvalidSize => write!(f, "surface width or height is <= 0"),
+            Error::InvalidId => write!(f, "object id is not a surface"),
+        }
+    }
 }
