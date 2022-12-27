@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0 -- 27/12/2022
+
 ## 0.1.0-beta.14
 
 #### Bugfixes

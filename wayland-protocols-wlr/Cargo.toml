@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols-wlr"
-version = "0.1.0-beta.15"
+version = "0.1.0"
 documentation = "https://docs.rs/wayland-protocols-wlr/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -15,11 +15,11 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wayland-scanner = { version = "=0.30.0-beta.15", path = "../wayland-scanner" }
-wayland-backend = { version = "=0.1.0-beta.15", path = "../wayland-backend" }
-wayland-client = { version = "=0.30.0-beta.15", path = "../wayland-client", optional = true }
-wayland-server = { version = "=0.30.0-beta.15", path = "../wayland-server", optional = true }
-wayland-protocols = { version = "=0.30.0-beta.15", path = "../wayland-protocols"}
+wayland-scanner = { version = "0.30.0", path = "../wayland-scanner" }
+wayland-backend = { version = "0.1.0", path = "../wayland-backend" }
+wayland-client = { version = "0.30.0", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.30.0", path = "../wayland-server", optional = true }
+wayland-protocols = { version = "0.30.0", path = "../wayland-protocols"}
 bitflags = "1.0"
 
 [features]
