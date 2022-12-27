@@ -1,6 +1,6 @@
 [package]
 name = "wayland-cursor"
-version = "0.30.0-beta.14"
+version = "0.30.0-beta.15"
 documentation = "https://docs.rs/wayland-cursor/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -13,9 +13,9 @@ description = "Bindings to libwayland-cursor."
 readme = "README.md"
 
 [dependencies]
-wayland-client = { version = "=0.30.0-beta.14", path = "../wayland-client" }
+wayland-client = { version = "=0.30.0-beta.15", path = "../wayland-client" }
 xcursor = "0.3.1"
-nix = { version = "0.25.0", default-features = false, features = ["mman"] }
+nix = { version = "0.26.0", default-features = false, features = ["mman"] }
 
 [package.metadata.docs.rs]
 all-features = true
