@@ -6,7 +6,7 @@ use std::{
     os::unix::io::{AsRawFd, RawFd},
 };
 
-use crate::{DispatchError, EventQueue};
+use crate::{log_error, DispatchError, EventQueue};
 use calloop::{
     generic::Generic, EventSource, InsertError, Interest, LoopHandle, Mode, Poll, PostAction,
     Readiness, RegistrationToken, Token, TokenFactory,
@@ -145,7 +145,7 @@ impl<D> EventSource for WaylandSource<D> {
             if err.kind() != io::ErrorKind::WouldBlock {
                 // in case of error, don't prepare a read, if the error is persistent, it'll trigger in other
                 // wayland methods anyway
-                log::error!("Error trying to flush the wayland display: {}", err);
+                log_error!("Error trying to flush the wayland display: {}", err);
                 return Err(err.into());
             }
         }
@@ -186,13 +186,13 @@ impl<D> WaylandSource<D> {
                 }
 
                 Err(DispatchError::Backend(WaylandError::Protocol(err))) => {
-                    log::error!("Protocol error received on display: {}", err);
+                    log_error!("Protocol error received on display: {}", err);
 
                     break Err(Errno::EPROTO.into());
                 }
 
                 Err(DispatchError::BadMessage { interface, sender_id, opcode }) => {
-                    log::error!(
+                    log_error!(
                         "Bad message on interface \"{}\": (sender_id: {}, opcode: {})",
                         interface,
                         sender_id,
@@ -210,7 +210,7 @@ impl<D> WaylandSource<D> {
             WaylandError::Io(err) => err,
 
             WaylandError::Protocol(err) => {
-                log::error!("Protocol error received on display: {}", err);
+                log_error!("Protocol error received on display: {}", err);
                 Errno::EPROTO.into()
             }
         })
