@@ -72,7 +72,8 @@ pub mod gtk_shell {
     //! are identical to XDG shell but many compositors like Wayfire still
     //! implement it and clients appear to use it anyway. Additional features
     //! include edge constraints, DBus paths to specific elements like the menu
-    //! bar, and title bar gestures like double click.
+    //! bar, title bar gestures like double click, and modals, windows that stick
+    //! to their parent surface (used for many GTK about dialogs).
     
     wayland_protocol!("./protocols/gtk-shell.xml", []);
 }
