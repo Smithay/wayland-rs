@@ -65,6 +65,18 @@ pub mod gtk_primary_selection {
     wayland_protocol!("./protocols/gtk-primary-selection.xml", []);
 }
 
+pub mod gtk_shell {
+    //! GTK shell protocol.
+    //! 
+    //! This protocol is a GTK-specific shell extending XDG shell. Most features
+    //! are identical to XDG shell but many compositors like Wayfire still
+    //! implement it and clients appear to use it anyway. Additional features
+    //! include edge constraints, DBus paths to specific elements like the menu
+    //! bar, and title bar gestures like double click.
+    
+    wayland_protocol!("./protocols/gtk-shell.xml", []);
+}
+
 pub mod zwp_input_method_v2 {
     //! Input method v2 unstable
     //! 
