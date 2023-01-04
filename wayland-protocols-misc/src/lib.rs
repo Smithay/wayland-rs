@@ -75,7 +75,7 @@ pub mod gtk_shell {
     //! bar, title bar gestures like double click, and modals, windows that stick
     //! to their parent surface (used for many GTK about dialogs).
     
-    wayland_protocol!("./protocols/gtk-shell.xml", []);
+    wayland_protocol!("./protocols/gtk-shell.xml", [wayland_protocols::xdg::shell::toplevel]);
 }
 
 pub mod zwp_input_method_v2 {
