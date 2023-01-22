@@ -1526,7 +1526,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             (*child_udata_ptr).data = child_data;
         },
         (Some((child_id, _)), None) => {
-            // Accept a missing object data if a protocol error occured (and the object is already dead)
+            // Accept a missing object data if a protocol error occurred (and the object is already dead)
             if client_id.alive.load(Ordering::Acquire) {
                 panic!("Callback creating object {} did not provide any object data.", child_id);
             }

@@ -185,7 +185,7 @@ impl Connection {
     ///
     /// If this method returns `Some`, it means your Wayland connection is already dead.
     pub fn protocol_error(&self) -> Option<ProtocolError> {
-        match dbg!(self.backend.last_error())? {
+        match self.backend.last_error()? {
             WaylandError::Protocol(err) => Some(err),
             WaylandError::Io(_) => None,
         }

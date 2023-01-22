@@ -124,6 +124,7 @@ pub struct ResourceData<I, U> {
 
 /// A newly created object that needs to be initialized. See [`DataInit`].
 #[derive(Debug)]
+#[must_use = "The protocol object must be initialized using DataInit"]
 pub struct New<I> {
     id: I,
 }
@@ -146,6 +147,7 @@ impl<I> New<I> {
 #[derive(Debug)]
 pub struct DataInit<'a, D: 'static> {
     pub(crate) store: &'a mut Option<Arc<dyn ObjectData<D>>>,
+    pub(crate) error: &'a mut Option<(u32, String)>,
 }
 
 impl<'a, D> DataInit<'a, D> {
@@ -180,6 +182,22 @@ impl<'a, D> DataInit<'a, D> {
         let mut obj = resource.id;
         obj.__set_object_data(data.into_any_arc());
         obj
+    }
+
+    /// Post an error on an uninitialized object.
+    ///
+    /// This is only meant to be used in [`GlobalDispatch`](crate::GlobalDispatch) where a global protocol
+    /// object is instantiated.
+    pub fn post_error<I: Resource + 'static>(
+        &mut self,
+        _resource: New<I>,
+        code: impl Into<u32>,
+        error: impl Into<String>,
+    ) {
+        *self.error = Some((code.into(), error.into()));
+        // This function takes ownership of the New, ensuring the handler never sees an uninitialized
+        // protocol object.
+        // drop(_resource);
     }
 }
 
@@ -244,7 +262,8 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
             request,
             udata,
             &dhandle,
-            &mut DataInit { store: &mut new_data },
+            // The error is None since the creating object posts an error.
+            &mut DataInit { store: &mut new_data, error: &mut None },
         );
 
         new_data

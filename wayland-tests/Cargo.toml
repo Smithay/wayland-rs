@@ -64,6 +64,9 @@ name = "server_created_object"
 name = "server_global_filter"
 
 [[test]]
+name = "server_global_post_error"
+
+[[test]]
 name = "server_resources"
 
 [[test]]

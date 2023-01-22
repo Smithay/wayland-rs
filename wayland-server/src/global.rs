@@ -36,24 +36,48 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 
             .expect("Wrong object_id in GlobalHandler ?!");
 
         let mut new_data = None;
+        let mut protocol_error = None;
 
         <D as GlobalDispatch<I, U>>::bind(
             data,
             &handle,
             &client,
-            New::wrap(resource),
+            New::wrap(resource.clone()),
             &self.data,
-            &mut DataInit { store: &mut new_data },
+            &mut DataInit { store: &mut new_data, error: &mut protocol_error },
         );
 
         match new_data {
             Some(data) => data,
-            None => panic!(
-                "Bind callback for interface {} did not init new instance.",
-                I::interface().name
-            ),
+            None => match protocol_error {
+                Some((code, msg)) => {
+                    resource.post_error(code, msg);
+                    Arc::new(ProtocolErrorData)
+                }
+
+                None => panic!(
+                    "Bind callback for interface {} did not init new instance.",
+                    I::interface().name
+                ),
+            },
         }
     }
+}
+
+struct ProtocolErrorData;
+
+impl<D> ObjectData<D> for ProtocolErrorData {
+    fn request(
+        self: Arc<Self>,
+        _handle: &Handle,
+        _data: &mut D,
+        _client_id: ClientId,
+        _msg: wayland_backend::protocol::Message<ObjectId, io_lifetimes::OwnedFd>,
+    ) -> Option<Arc<dyn ObjectData<D>>> {
+        None
+    }
+
+    fn destroyed(&self, _data: &mut D, _client_id: ClientId, _object_id: ObjectId) {}
 }
 
 /// A trait which provides an implementation for handling advertisement of a global to clients with some type
