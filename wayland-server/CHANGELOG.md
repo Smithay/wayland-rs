@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `New` objects inside `GlobalDispatch` can now have errors posted using `DataInit::post_error`.
+
 ## 0.30.0 -- 27/12/2022
 
 ## 0.30.0-beta.13
