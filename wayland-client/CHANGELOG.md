@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.30.1 -- 04/02/2023
+
+#### Bugfixes
+
+- Fix compilation without the `log` feature.
+
 ## 0.30.0 -- 27/12/2022
 
 ## 0.30.0-beta.14
