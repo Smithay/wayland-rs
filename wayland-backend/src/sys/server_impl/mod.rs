@@ -430,6 +430,11 @@ impl<D> Drop for State<D> {
         let known_globals = std::mem::take(&mut self.known_globals);
         for global in known_globals {
             unsafe {
+                let _ = Box::from_raw(ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_global_get_user_data,
+                    global.ptr
+                ) as *mut GlobalUserData<D>);
                 ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_global_destroy, global.ptr);
             }
         }
