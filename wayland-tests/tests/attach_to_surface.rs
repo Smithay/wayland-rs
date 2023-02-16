@@ -1,7 +1,7 @@
 extern crate tempfile;
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, Write};
 use std::os::unix::io::AsRawFd;
 
 #[macro_use]
@@ -111,7 +111,7 @@ fn attach_buffer() {
 
     let mut client_file = File::from(shm_fd);
     let mut contents = String::new();
-    client_file.seek(SeekFrom::Start(0)).unwrap();
+    client_file.rewind().unwrap();
     client_file.read_to_string(&mut contents).unwrap();
     assert_eq!(contents, "I like trains!");
 }

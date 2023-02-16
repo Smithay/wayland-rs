@@ -1344,7 +1344,7 @@ unsafe extern "C" fn global_filter<D: 'static>(
     }
 
     // Safety: skip processing globals that do not belong to us
-    let is_known_global = HANDLE.with(|&(ref state_arc, _)| {
+    let is_known_global = HANDLE.with(|(state_arc, _)| {
         let guard = state_arc.lock().unwrap();
         guard.is_known_global(global)
     });
