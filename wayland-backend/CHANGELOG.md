@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- In sys backend, fix global data not being cleaned up on display drop.
+
 ## 0.1.0 -- 27/12/2022
 
 ## 0.1.0-beta.14
