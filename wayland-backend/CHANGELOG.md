@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.1 -- 16/02/2023
+
 #### Bugfixes
 
 - In sys backend, fix global data not being cleaned up on display drop.
