@@ -8,7 +8,7 @@ pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
     quote!(#[doc = #text])
 }
 
-pub(crate) fn description_to_doc_attr(&(ref short, ref long): &(String, String)) -> TokenStream {
+pub(crate) fn description_to_doc_attr((short, long): &(String, String)) -> TokenStream {
     to_doc_attr(&format!("{}\n\n{}", short, long))
 }
 
