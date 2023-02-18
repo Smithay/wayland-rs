@@ -95,6 +95,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
             }
 
+            impl std::borrow::Borrow<ObjectId> for #iface_name {
+                fn borrow(&self) -> &ObjectId {
+                    &self.id
+                }
+            }
 
             impl super::wayland_server::Resource for #iface_name {
                 type Request = Request;

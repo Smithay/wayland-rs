@@ -119,6 +119,11 @@ pub mod wl_display {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for WlDisplay {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_client::Proxy for WlDisplay {
         type Request = Request;
         type Event = Event;
@@ -389,6 +394,11 @@ pub mod wl_registry {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for WlRegistry {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_client::Proxy for WlRegistry {
         type Request = Request;
         type Event = Event;
@@ -596,6 +606,11 @@ pub mod wl_callback {
     impl PartialEq<Weak<WlCallback>> for WlCallback {
         fn eq(&self, other: &Weak<WlCallback>) -> bool {
             self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for WlCallback {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
         }
     }
     impl super::wayland_client::Proxy for WlCallback {
@@ -838,6 +853,11 @@ pub mod test_global {
     impl PartialEq<Weak<TestGlobal>> for TestGlobal {
         fn eq(&self, other: &Weak<TestGlobal>) -> bool {
             self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for TestGlobal {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
         }
     }
     impl super::wayland_client::Proxy for TestGlobal {
@@ -1312,6 +1332,11 @@ pub mod secondary {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for Secondary {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_client::Proxy for Secondary {
         type Request = Request;
         type Event = Event;
@@ -1465,6 +1490,11 @@ pub mod tertiary {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for Tertiary {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_client::Proxy for Tertiary {
         type Request = Request;
         type Event = Event;
@@ -1616,6 +1646,11 @@ pub mod quad {
     impl PartialEq<Weak<Quad>> for Quad {
         fn eq(&self, other: &Weak<Quad>) -> bool {
             self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for Quad {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
         }
     }
     impl super::wayland_client::Proxy for Quad {

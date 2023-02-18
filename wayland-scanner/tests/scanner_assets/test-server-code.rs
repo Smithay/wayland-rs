@@ -58,6 +58,11 @@ pub mod wl_callback {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for WlCallback {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_server::Resource for WlCallback {
         type Request = Request;
         type Event = Event;
@@ -301,6 +306,11 @@ pub mod test_global {
     impl PartialEq<Weak<TestGlobal>> for TestGlobal {
         fn eq(&self, other: &Weak<TestGlobal>) -> bool {
             self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for TestGlobal {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
         }
     }
     impl super::wayland_server::Resource for TestGlobal {
@@ -792,6 +802,11 @@ pub mod secondary {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for Secondary {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_server::Resource for Secondary {
         type Request = Request;
         type Event = Event;
@@ -931,6 +946,11 @@ pub mod tertiary {
             self.id == other.id()
         }
     }
+    impl std::borrow::Borrow<ObjectId> for Tertiary {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
     impl super::wayland_server::Resource for Tertiary {
         type Request = Request;
         type Event = Event;
@@ -1068,6 +1088,11 @@ pub mod quad {
     impl PartialEq<Weak<Quad>> for Quad {
         fn eq(&self, other: &Weak<Quad>) -> bool {
             self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for Quad {
+        fn borrow(&self) -> &ObjectId {
+            &self.id
         }
     }
     impl super::wayland_server::Resource for Quad {
