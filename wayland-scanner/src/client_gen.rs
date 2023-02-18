@@ -90,6 +90,12 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
             }
 
+            impl std::borrow::Borrow<ObjectId> for #iface_name {
+                fn borrow(&self) -> &ObjectId {
+                    &self.id
+                }
+            }
+
             impl super::wayland_client::Proxy for #iface_name {
                 type Request = Request;
                 type Event = Event;
