@@ -28,7 +28,7 @@ pub mod wl_callback {
         #[doc = "done event\n\nNotify the client when the related request is done.\n\nThis is a destructor, once sent this object cannot be used any longer."]
         Done {
             #[doc = "request-specific data for the callback"]
-            callback_data: u32
+            callback_data: u32,
         },
     }
     impl Event {
@@ -61,6 +61,11 @@ pub mod wl_callback {
     impl std::borrow::Borrow<ObjectId> for WlCallback {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for WlCallback {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_server::Resource for WlCallback {
@@ -313,6 +318,11 @@ pub mod test_global {
             &self.id
         }
     }
+    impl std::hash::Hash for TestGlobal {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
     impl super::wayland_server::Resource for TestGlobal {
         type Request = Request;
         type Event = Event;
@@ -381,8 +391,8 @@ pub mod test_global {
                         Ok((
                             me,
                             Request::ManyArgs {
-                                unsigned_int: unsigned_int,
-                                signed_int: signed_int,
+                                unsigned_int,
+                                signed_int,
                                 fixed_point: (fixed_point as f64) / 256.,
                                 number_array: *number_array,
                                 some_text: String::from_utf8_lossy(
@@ -716,23 +726,18 @@ pub mod test_global {
             some_text: String,
             file_descriptor: ::std::os::unix::io::RawFd,
         ) {
-            let _ = self.send_event(
-                Event::ManyArgsEvt {
-                    unsigned_int,
-                    signed_int,
-                    fixed_point,
-                    number_array,
-                    some_text,
-                    file_descriptor,
-                },
-            );
+            let _ = self.send_event(Event::ManyArgsEvt {
+                unsigned_int,
+                signed_int,
+                fixed_point,
+                number_array,
+                some_text,
+                file_descriptor,
+            });
         }
         #[doc = "acking the creation of a secondary"]
         #[allow(clippy::too_many_arguments)]
-        pub fn ack_secondary(
-            &self,
-            sec: &super::secondary::Secondary,
-        ) {
+        pub fn ack_secondary(&self, sec: &super::secondary::Secondary) {
             let _ = self.send_event(Event::AckSecondary { sec: sec.clone() });
         }
         #[doc = "create a new quad optionally replacing a previous one"]
@@ -742,7 +747,10 @@ pub mod test_global {
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = self.send_event(Event::CycleQuad { new_quad: new_quad.clone(), old_quad: old_quad.cloned() });
+            let _ = self.send_event(Event::CycleQuad {
+                new_quad: new_quad.clone(),
+                old_quad: old_quad.cloned(),
+            });
         }
     }
 }
@@ -805,6 +813,11 @@ pub mod secondary {
     impl std::borrow::Borrow<ObjectId> for Secondary {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for Secondary {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_server::Resource for Secondary {
@@ -951,6 +964,11 @@ pub mod tertiary {
             &self.id
         }
     }
+    impl std::hash::Hash for Tertiary {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
     impl super::wayland_server::Resource for Tertiary {
         type Request = Request;
         type Event = Event;
@@ -1093,6 +1111,11 @@ pub mod quad {
     impl std::borrow::Borrow<ObjectId> for Quad {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for Quad {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_server::Resource for Quad {

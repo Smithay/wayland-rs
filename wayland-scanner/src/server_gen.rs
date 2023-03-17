@@ -101,6 +101,12 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
             }
 
+            impl std::hash::Hash for #iface_name {
+                fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                    self.id.hash(state)
+                }
+            }
+
             impl super::wayland_server::Resource for #iface_name {
                 type Request = Request;
                 type Event = Event;

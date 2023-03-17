@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Generated protocol object types now implement `Borrow<ObjectId>`
+- Generated protocol object types now implement `Borrow<ObjectId>` and `Hash`
 
 ## 0.30.0 -- 27/12/2022
 
