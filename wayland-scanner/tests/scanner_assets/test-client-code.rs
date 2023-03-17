@@ -124,6 +124,11 @@ pub mod wl_display {
             &self.id
         }
     }
+    impl std::hash::Hash for WlDisplay {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
     impl super::wayland_client::Proxy for WlDisplay {
         type Request = Request;
         type Event = Event;
@@ -241,10 +246,7 @@ pub mod wl_display {
                 Request::Sync {} => {
                     let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        Some((
-                            super::wl_callback::WlCallback::interface(),
-                            my_info.version,
-                        ))
+                        Some((super::wl_callback::WlCallback::interface(), my_info.version))
                     };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
@@ -256,10 +258,7 @@ pub mod wl_display {
                 Request::GetRegistry {} => {
                     let child_spec = {
                         let my_info = conn.object_info(self.id())?;
-                        Some((
-                            super::wl_registry::WlRegistry::interface(),
-                            my_info.version,
-                        ))
+                        Some((super::wl_registry::WlRegistry::interface(), my_info.version))
                     };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
@@ -397,6 +396,11 @@ pub mod wl_registry {
     impl std::borrow::Borrow<ObjectId> for WlRegistry {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for WlRegistry {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_client::Proxy for WlRegistry {
@@ -611,6 +615,11 @@ pub mod wl_callback {
     impl std::borrow::Borrow<ObjectId> for WlCallback {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for WlCallback {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_client::Proxy for WlCallback {
@@ -858,6 +867,11 @@ pub mod test_global {
     impl std::borrow::Borrow<ObjectId> for TestGlobal {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for TestGlobal {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_client::Proxy for TestGlobal {
@@ -1337,6 +1351,11 @@ pub mod secondary {
             &self.id
         }
     }
+    impl std::hash::Hash for Secondary {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
     impl super::wayland_client::Proxy for Secondary {
         type Request = Request;
         type Event = Event;
@@ -1495,6 +1514,11 @@ pub mod tertiary {
             &self.id
         }
     }
+    impl std::hash::Hash for Tertiary {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
     impl super::wayland_client::Proxy for Tertiary {
         type Request = Request;
         type Event = Event;
@@ -1651,6 +1675,11 @@ pub mod quad {
     impl std::borrow::Borrow<ObjectId> for Quad {
         fn borrow(&self) -> &ObjectId {
             &self.id
+        }
+    }
+    impl std::hash::Hash for Quad {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
         }
     }
     impl super::wayland_client::Proxy for Quad {
