@@ -3,6 +3,7 @@
 ## Unreleased
 
 - `New` objects inside `GlobalDispatch` can now have errors posted using `DataInit::post_error`.
+- Updated Wayland core protocol to 1.21.92
 
 ## 0.30.0 -- 27/12/2022
 
