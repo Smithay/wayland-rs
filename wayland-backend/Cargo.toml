@@ -3,7 +3,7 @@ name = "wayland-backend"
 version = "0.1.1"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.64"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-backend/"
 license = "MIT"
@@ -23,7 +23,7 @@ raw-window-handle = { version = "0.5.0", optional = true }
 
 [dependencies.smallvec]
 version = "1.9"
-# Some additional features can be enabled since wayland-rs requires at least Rust 1.59
+# Some additional features can be enabled since wayland-rs requires at least Rust 1.64
 features = [
     "union", # 1.49
     "const_generics", # 1.51

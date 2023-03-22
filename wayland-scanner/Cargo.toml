@@ -9,7 +9,7 @@ license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.64"
 readme = "README.md"
 
 [lib]
