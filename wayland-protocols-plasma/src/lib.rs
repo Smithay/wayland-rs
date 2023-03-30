@@ -128,15 +128,12 @@ pub mod plasma_virtual_desktop {
     );
 }
 
-// This protocol is disabled for now as the XML file contains XML-escaped numerical expressions
-// which wayland-scanner cannot parse.
-//
-// pub mod plasma_window_management {
-//     wayland_protocol!(
-//         "./plasma-wayland-protocols/src/protocols/plasma-window-management.xml",
-//         []
-//     );
-// }
+pub mod plasma_window_management {
+    wayland_protocol!(
+        "./plasma-wayland-protocols/src/protocols/plasma-window-management.xml",
+        []
+    );
+}
 
 pub mod remote_access {
     wayland_protocol!(
