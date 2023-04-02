@@ -155,15 +155,9 @@ impl GlobalList {
         let (name, version) = guard
             .iter()
             // Find the with the correct interface
-            .filter_map(|Global { name, interface: interface_name, version }| {
-                // TODO: then_some
-                if interface.name == &interface_name[..] {
-                    Some((*name, *version))
-                } else {
-                    None
-                }
+            .find_map(|Global { name, interface: interface_name, version }| {
+                (interface.name == interface_name.as_str()).then_some((*name, *version))
             })
-            .next()
             .ok_or(BindError::NotPresent)?;
 
         // Test version requirements
