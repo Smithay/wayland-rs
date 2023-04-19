@@ -5,6 +5,8 @@
 #### Bugfixes
 
 - In the rust server backend, don't send `delete_id` messages for server-created objects.
+- In the system server backend, wakeup the event loop if there are pending destructors waiting
+  to be precessed.
 
 ## 0.1.1 -- 16/02/2023
 
