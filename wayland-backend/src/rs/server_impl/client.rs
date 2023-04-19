@@ -11,6 +11,7 @@ use crate::{
         ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
         INLINE_ARGS,
     },
+    rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
 };
 
@@ -207,9 +208,12 @@ impl<D> Client<D> {
     }
 
     pub(crate) fn send_delete_id(&mut self, object_id: InnerObjectId) {
-        let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
-        if self.socket.write_message(&msg).is_err() {
-            self.kill(DisconnectReason::ConnectionClosed);
+        // We should only send delete_id for objects in the client ID space
+        if object_id.id < SERVER_ID_LIMIT {
+            let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
+            if self.socket.write_message(&msg).is_err() {
+                self.kill(DisconnectReason::ConnectionClosed);
+            }
         }
         self.map.remove(object_id.id);
     }
