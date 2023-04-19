@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.2 -- 19/04/2023
+
 #### Bugfixes
 
 - In the rust server backend, don't send `delete_id` messages for server-created objects.
