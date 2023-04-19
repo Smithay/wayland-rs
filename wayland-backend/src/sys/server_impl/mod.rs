@@ -298,6 +298,7 @@ struct GlobalUserData<D> {
 pub struct State<D: 'static> {
     display: *mut wl_display,
     pending_destructors: Vec<PendingDestructor<D>>,
+    timer_source: *mut wl_event_source,
     _data: std::marker::PhantomData<fn(&mut D)>,
     known_globals: Vec<InnerGlobalId>,
 }
@@ -343,10 +344,28 @@ impl<D> InnerBackend<D> {
             );
         }
 
+        // Insert a timer we can use to force wakeups of the libwayland inner event loop
+        extern "C" fn timer_noop_cb(_: *mut c_void) -> i32 {
+            0
+        }
+
+        let timer_source = unsafe {
+            let evl = ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_get_event_loop, display);
+
+            ffi_dispatch!(
+                WAYLAND_SERVER_HANDLE,
+                wl_event_loop_add_timer,
+                evl,
+                timer_noop_cb,
+                std::ptr::null_mut()
+            )
+        };
+
         Ok(Self {
             state: Arc::new(Mutex::new(State {
                 display,
                 pending_destructors: Vec::new(),
+                timer_source,
                 _data: std::marker::PhantomData,
                 known_globals: Vec::new(),
             })),
@@ -368,6 +387,18 @@ impl<D> InnerBackend<D> {
                     ffi_dispatch!(WAYLAND_SERVER_HANDLE, wl_display_flush_clients, state.display);
                 },
             );
+        }
+        if !state.pending_destructors.is_empty() {
+            // Arm the timer to trigger a wakeup of the inner event loop in 1ms, so that the user
+            // is indicated to call dispatch_clients() and have the destructors run
+            unsafe {
+                ffi_dispatch!(
+                    WAYLAND_SERVER_HANDLE,
+                    wl_event_source_timer_update,
+                    state.timer_source,
+                    1
+                )
+            };
         }
         Ok(())
     }
