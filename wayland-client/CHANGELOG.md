@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Updated Wayland core protocol to 1.21.92
+- Updated Wayland core protocol to 1.22
 
 ## 0.30.1 -- 04/02/2023
 
