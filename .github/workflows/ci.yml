@@ -210,6 +210,12 @@ jobs:
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
 
+      - name: Fix raw-window-handle
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p raw-window-handle --precise 0.5.0
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
