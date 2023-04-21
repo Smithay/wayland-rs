@@ -908,7 +908,7 @@ impl<D: 'static> ErasedState for State<D> {
             return Err(std::io::Error::last_os_error());
         }
 
-        Ok(unsafe { init_client::<D>(ret, data) })
+        Ok(unsafe { init_client(ret, data) })
     }
 
     fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
@@ -1251,10 +1251,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 }
 
-unsafe fn init_client<D: 'static>(
-    client: *mut wl_client,
-    data: Arc<dyn ClientData>,
-) -> InnerClientId {
+unsafe fn init_client(client: *mut wl_client, data: Arc<dyn ClientData>) -> InnerClientId {
     let alive = Arc::new(AtomicBool::new(true));
     let client_data = Box::into_raw(Box::new(ClientUserData { alive: alive.clone(), data }));
 
