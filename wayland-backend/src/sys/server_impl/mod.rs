@@ -413,7 +413,8 @@ impl<D> InnerBackend<D> {
         let pending_destructors =
             std::mem::take(&mut self.state.lock().unwrap().pending_destructors);
         for (object, client_id, object_id) in pending_destructors {
-            object.destroyed(data, client_id, object_id);
+            let handle = self.handle();
+            object.clone().destroyed(&handle, data, client_id, object_id);
         }
 
         if ret < 0 {
@@ -1601,10 +1602,15 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
     let object_id =
         InnerObjectId { interface: udata.interface, ptr: resource, alive: udata.alive.clone(), id };
     if HANDLE.is_set() {
-        HANDLE.with(|&(_, data_ptr)| {
+        HANDLE.with(|&(ref state_arc, data_ptr)| {
             // Safety: the data pointer have been set by outside code and are valid
             let data = unsafe { &mut *(data_ptr as *mut D) };
-            udata.data.destroyed(data, ClientId { id: client_id }, ObjectId { id: object_id });
+            udata.data.destroyed(
+                &Handle { handle: InnerHandle { state: state_arc.clone() } },
+                data,
+                ClientId { id: client_id },
+                ObjectId { id: object_id },
+            );
         });
     } else {
         PENDING_DESTRUCTORS.with(|&pending_ptr| {
@@ -1639,7 +1645,7 @@ impl<D> ObjectData<D> for UninitObjectData {
     }
 
     #[cfg_attr(coverage, no_coverage)]
-    fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
+    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: ClientId, _: ObjectId) {}
 
     #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

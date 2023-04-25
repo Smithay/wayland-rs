@@ -24,7 +24,8 @@ macro_rules! impl_server_objectdata {
             }
 
             fn destroyed(
-                &self,
+                self: Arc<Self>,
+                _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::ObjectId,

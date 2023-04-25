@@ -111,7 +111,13 @@ pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
     /// convenience.
     ///
     /// By default this method does nothing.
-    fn destroyed(_state: &mut State, _client: ClientId, _resource: ObjectId, _data: &UserData) {}
+    fn destroyed(
+        _state: &mut State,
+        _client: wayland_backend::server::ClientId,
+        _resource: &I,
+        _data: &UserData,
+    ) {
+    }
 }
 
 /// The [`ObjectData`] implementation that is internally used by this crate
@@ -270,12 +276,20 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
     }
 
     fn destroyed(
-        &self,
+        self: Arc<Self>,
+        handle: &wayland_backend::server::Handle,
         data: &mut D,
-        client_id: wayland_backend::server::ClientId,
-        object_id: wayland_backend::server::ObjectId,
+        client_id: ClientId,
+        object_id: ObjectId,
     ) {
-        <D as Dispatch<I, U>>::destroyed(data, client_id, object_id, &self.udata)
+        let dhandle = DisplayHandle::from(handle.clone());
+        let mut resource = I::from_id(&dhandle, object_id).unwrap();
+
+        // Proxy::from_id will return an inert protocol object wrapper inside of ObjectData::destroyed,
+        // therefore manually initialize the data associated with protocol object wrapper.
+        resource.__set_object_data(self.clone());
+
+        <D as Dispatch<I, U>>::destroyed(data, client_id, &resource, &self.udata)
     }
 }
 
@@ -349,7 +363,7 @@ macro_rules! delegate_dispatch {
                 <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::request(state, client, resource, request, data, dhandle, data_init)
             }
 
-            fn destroyed(state: &mut Self, client: $crate::backend::ClientId, resource: $crate::backend::ObjectId, data: &$udata) {
+            fn destroyed(state: &mut Self, client: $crate::backend::ClientId, resource: &$interface, data: &$udata) {
                 <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::destroyed(state, client, resource, data)
             }
         }

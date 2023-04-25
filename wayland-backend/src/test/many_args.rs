@@ -43,7 +43,14 @@ macro_rules! serverdata_impls {
                 None
             }
 
-            fn destroyed(&self, _: &mut (), _: $server_backend::ClientId, _: $server_backend::ObjectId) {}
+            fn destroyed(
+                self: Arc<Self>,
+                _: &$server_backend::Handle,
+                _: &mut (),
+                _: $server_backend::ClientId,
+                _: $server_backend::ObjectId
+            ) {
+            }
         }
 
         impl $server_backend::GlobalHandler<()> for ServerData {

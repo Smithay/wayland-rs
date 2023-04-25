@@ -2,14 +2,17 @@
 
 ## Unreleased
 
-- Add `flush_clients` method to server `DisplayHandle`.
-- Implement `AsFd` for `Display` so it can easily be used in a `calloop` source.
-
 #### Breaking changes
 
 - Bump bitflags to 2.0
 - Updated wayland-backend to 0.2
 - Use `BorrowedFd<'_>` arguments instead of `RawFd`
+- `Resource::destroyed` now passes the resource type instead of the `ObjectId`.
+
+#### Additions
+
+- Add `flush_clients` method to server `DisplayHandle`.
+- Implement `AsFd` for `Display` so it can easily be used in a `calloop` source.
 
 #### Bugfixes
 
