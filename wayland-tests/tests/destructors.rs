@@ -163,8 +163,8 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for Server
 
     fn destroyed(
         _: &mut Self,
-        _client: wayland_backend::server::ClientId,
-        _resource: wayland_backend::server::ObjectId,
+        _: ways::backend::ClientId,
+        _resource: &ways::protocol::wl_output::WlOutput,
         data: &ServerUData,
     ) {
         data.0.store(true, Ordering::Release);

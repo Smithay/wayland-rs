@@ -127,7 +127,7 @@ impl<D> ObjectData<D> for UninitObjectData {
     }
 
     #[cfg_attr(coverage, no_coverage)]
-    fn destroyed(&self, _: &mut D, _: ClientId, _: ObjectId) {}
+    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: ClientId, _: ObjectId) {}
 
     #[cfg_attr(coverage, no_coverage)]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

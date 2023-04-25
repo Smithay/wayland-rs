@@ -77,7 +77,14 @@ impl<D> ObjectData<D> for ProtocolErrorData {
         None
     }
 
-    fn destroyed(&self, _data: &mut D, _client_id: ClientId, _object_id: ObjectId) {}
+    fn destroyed(
+        self: Arc<Self>,
+        _handle: &Handle,
+        _data: &mut D,
+        _client_id: ClientId,
+        _object_id: ObjectId,
+    ) {
+    }
 }
 
 /// A trait which provides an implementation for handling advertisement of a global to clients with some type

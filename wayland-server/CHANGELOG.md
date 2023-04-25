@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `Resource::destroyed` now passes the resource type instead of the `ObjectId`.
+
+#### Additions
+
 - `New` objects inside `GlobalDispatch` can now have errors posted using `DataInit::post_error`.
 - Updated Wayland core protocol to 1.22
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- server: `ObjectData::destroyed` function signature has changed to pass the `Handle` and `self` as `Arc<Self>`
+
+```diff
+fn destroyed(
+-    &self,
++    self: Arc<Self>,
++    _handle: &Handle,
+    _: &mut D,
+    _client_id: ClientId,
+    _object_id: ObjectId,
+) {
+}
+```
+
 ## 0.1.2 -- 19/04/2023
 
 #### Bugfixes

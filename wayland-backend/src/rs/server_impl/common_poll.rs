@@ -73,7 +73,8 @@ impl<D> InnerBackend<D> {
         client_id: InnerClientId,
     ) -> std::io::Result<usize> {
         let ret = self.dispatch_events_for(data, client_id);
-        let cleanup = self.state.lock().unwrap().cleanup();
+        let handle = self.handle();
+        let cleanup = self.state.lock().unwrap().cleanup(&handle);
         cleanup(data);
         ret
     }
@@ -97,7 +98,8 @@ impl<D> InnerBackend<D> {
                     dispatched += count;
                 }
             }
-            let cleanup = self.state.lock().unwrap().cleanup();
+            let handle = self.handle();
+            let cleanup = self.state.lock().unwrap().cleanup(&handle);
             cleanup(data);
         }
 
@@ -230,7 +232,8 @@ impl<D> InnerBackend<D> {
                         },
                     );
                     if is_destructor {
-                        object.data.user_data.destroyed(
+                        object.data.user_data.clone().destroyed(
+                            &handle.clone(),
                             data,
                             ClientId { id: client_id.clone() },
                             ObjectId { id: object_id.clone() },

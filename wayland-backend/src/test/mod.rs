@@ -143,7 +143,14 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
         None
     }
 
-    fn destroyed(&self, _: &mut D, _: server_rs::ClientId, _: server_rs::ObjectId) {}
+    fn destroyed(
+        self: Arc<Self>,
+        _handle: &server_rs::Handle,
+        _: &mut D,
+        _: server_rs::ClientId,
+        _: server_rs::ObjectId,
+    ) {
+    }
 }
 
 impl<D> server_sys::ObjectData<D> for DoNothingData {
@@ -157,7 +164,14 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
         None
     }
 
-    fn destroyed(&self, _: &mut D, _: server_sys::ClientId, _: server_sys::ObjectId) {}
+    fn destroyed(
+        self: Arc<Self>,
+        _handle: &server_sys::Handle,
+        _: &mut D,
+        _: server_sys::ClientId,
+        _: server_sys::ObjectId,
+    ) {
+    }
 }
 
 // Client Object Data
