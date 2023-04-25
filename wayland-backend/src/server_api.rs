@@ -31,7 +31,13 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, data: &mut D, client_id: ClientId, object_id: ObjectId);
+    fn destroyed(
+        self: Arc<Self>,
+        handle: &Handle,
+        data: &mut D,
+        client_id: ClientId,
+        object_id: ObjectId,
+    );
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
@@ -585,5 +591,12 @@ impl<D> ObjectData<D> for DumbObjectData {
     }
 
     #[cfg_attr(coverage, no_coverage)]
-    fn destroyed(&self, _: &mut D, _client_id: ClientId, _object_id: ObjectId) {}
+    fn destroyed(
+        self: Arc<Self>,
+        _handle: &Handle,
+        _: &mut D,
+        _client_id: ClientId,
+        _object_id: ObjectId,
+    ) {
+    }
 }

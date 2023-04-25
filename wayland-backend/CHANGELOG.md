@@ -10,6 +10,7 @@
   needs to be dispatched using `Backend::dispatch_inner_queue()`, instead of trying to dispatch
   it by itself. This can only happen when using the `sys` backend, and allows the crate to
   behave properly when multiple threads try to read the socket using the libwayland API.
+- server: `ObjectData::destroyed` function signature has changed to pass the `Handle` and `self` as `Arc<Self>`.
 
 #### Additions
 
