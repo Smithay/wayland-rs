@@ -22,6 +22,7 @@ calloop = { version = "0.10.5", optional = true }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
+wayland-protocols-wlr = { path = "../wayland-protocols-wlr", features = ["client"] }
 futures-channel = "0.3.16"
 futures-util = "0.3"
 tempfile = "3.2"
