@@ -681,7 +681,7 @@ impl<D> ClientStore<D> {
 
     pub(crate) fn get_client(&self, id: InnerClientId) -> Result<&Client<D>, InvalidId> {
         match self.clients.get(id.id as usize) {
-            Some(&Some(ref client)) if client.id == id => Ok(client),
+            Some(Some(ref client)) if client.id == id => Ok(client),
             _ => Err(InvalidId),
         }
     }
