@@ -37,3 +37,24 @@ pub mod session_lock {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod foreign_toplevel_list {
+    //! The purpose of this protocol is to provide protocol object handles for toplevels, possibly
+    //! originating from another client.
+    //!
+    //! This protocol is intentionally minimalistic and expects additional functionality (e.g.
+    //! creating a screencopy source from a toplevel handle, getting information about the state of
+    //! the toplevel) to be implemented in extension protocols.
+    //!
+    //! The compositor may choose to restrict this protocol to a special client launched by the
+    //! compositor itself or expose it to all clients, this is compositor policy.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml",
+            []
+        );
+    }
+}
