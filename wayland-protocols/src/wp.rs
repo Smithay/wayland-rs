@@ -299,6 +299,19 @@ pub mod single_pixel_buffer {
     }
 }
 
+#[cfg(all(feature = "staging", feature = "unstable"))]
+pub mod cursor_shape {
+    //! This protocol extension offers a simpler way for clients to set a cursor.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/cursor-shape/cursor-shape-v1.xml",
+            [crate::wp::tablet::zv2]
+        );
+    }
+}
+
 #[cfg(feature = "unstable")]
 pub mod tablet {
     //! Wayland protocol for graphics tablets
@@ -425,4 +438,30 @@ pub mod viewporter {
     //! dimensions from the size of the buffer.
 
     wayland_protocol!("./protocols/stable/viewporter/viewporter.xml", []);
+}
+
+#[cfg(feature = "staging")]
+pub mod security_context {
+    //! This interface allows a client to register a new Wayland connection to
+    //! the compositor and attach a security context to it.
+    //!
+    //! This is intended to be used by sandboxes. Sandbox engines attach a
+    //! security context to all connections coming from inside the sandbox. The
+    //! compositor can then restrict the features that the sandboxed connections
+    //! can use.
+    //!
+    //! Compositors should forbid nesting multiple security contexts by not
+    //! exposing wp_security_context_manager_v1 global to clients with a security
+    //! context attached, or by sending the nested protocol error. Nested
+    //! security contexts are dangerous because they can potentially allow
+    //! privilege escalation of a sandboxed client.
+
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/security-context/security-context-v1.xml",
+            []
+        );
+    }
 }
