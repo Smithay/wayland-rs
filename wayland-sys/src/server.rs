@@ -10,6 +10,8 @@ use libc::{gid_t, pid_t, uid_t};
 #[cfg(feature = "server")]
 use std::os::raw::c_char;
 use std::os::raw::{c_int, c_void};
+#[cfg(all(feature = "server", feature = "dlopen"))]
+use once_cell::sync::Lazy;
 
 pub enum wl_client {}
 pub enum wl_display {}
@@ -152,32 +154,30 @@ external_library!(WaylandServer, "wayland-server",
 );
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
-lazy_static::lazy_static!(
-    pub static ref WAYLAND_SERVER_OPTION: Option<WaylandServer> = {
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-server.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-server.so",
-                        "libwayland-server.so.0"];
-        for ver in &versions {
-            match unsafe { WaylandServer::open(ver) } {
-                Ok(h) => return Some(h),
-                Err(::dlib::DlError::CantOpen(_)) => continue,
-                Err(::dlib::DlError::MissingSymbol(s)) => {
-                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                    return None;
-                }
+pub static WAYLAND_SERVER_OPTION: Lazy<Option<WaylandServer>> = Lazy::new(||{
+    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+    // for libwayland-server.so but does have it with the version numbers for
+    // whatever reason.
+    //
+    // We could do some trickery with str slices but that is more trouble
+    // than its worth
+    let versions = ["libwayland-server.so",
+                    "libwayland-server.so.0"];
+    for ver in &versions {
+        match unsafe { WaylandServer::open(ver) } {
+            Ok(h) => return Some(h),
+            Err(::dlib::DlError::CantOpen(_)) => continue,
+            Err(::dlib::DlError::MissingSymbol(s)) => {
+                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                return None;
             }
         }
-        None
-    };
-    pub static ref WAYLAND_SERVER_HANDLE: &'static WaylandServer = {
-        WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded.")
-    };
-);
+    }
+    None
+});
+
+#[cfg(all(feature = "server", feature = "dlopen"))]
+pub static WAYLAND_SERVER_HANDLE: Lazy<&'static WaylandServer> = Lazy::new(|| WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded."));
 
 #[cfg(all(feature = "server", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {

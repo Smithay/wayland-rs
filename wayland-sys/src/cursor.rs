@@ -3,6 +3,8 @@
 //! The created handle is named `WAYLAND_CURSOR_HANDLE`.
 
 use crate::client::wl_proxy;
+#[cfg(feature = "dlopen")]
+use once_cell::sync::Lazy;
 use std::os::raw::{c_char, c_int, c_uint};
 
 pub enum wl_cursor_theme {}
@@ -39,33 +41,32 @@ external_library!(WaylandCursor, "wayland-cursor",
 );
 
 #[cfg(feature = "dlopen")]
-lazy_static::lazy_static!(
-    pub static ref WAYLAND_CURSOR_OPTION: Option<WaylandCursor> = {
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-client.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-cursor.so",
-                        "libwayland-cursor.so.0"];
+pub static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
+    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+    // for libwayland-client.so but does have it with the version numbers for
+    // whatever reason.
+    //
+    // We could do some trickery with str slices but that is more trouble
+    // than its worth
+    let versions = ["libwayland-cursor.so", "libwayland-cursor.so.0"];
 
-        for ver in &versions {
-            match unsafe { WaylandCursor::open(ver) } {
-                Ok(h) => return Some(h),
-                Err(::dlib::DlError::CantOpen(_)) => continue,
-                Err(::dlib::DlError::MissingSymbol(s)) => {
-                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                    return None;
-                }
+    for ver in &versions {
+        match unsafe { WaylandCursor::open(ver) } {
+            Ok(h) => return Some(h),
+            Err(::dlib::DlError::CantOpen(_)) => continue,
+            Err(::dlib::DlError::MissingSymbol(s)) => {
+                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                return None;
             }
         }
-        None
-    };
-    pub static ref WAYLAND_CURSOR_HANDLE: &'static WaylandCursor = {
-        WAYLAND_CURSOR_OPTION.as_ref().expect("Library libwayland-cursor.so could not be loaded.")
-    };
-);
+    }
+    None
+});
+
+#[cfg(feature = "dlopen")]
+pub static WAYLAND_CURSOR_HANDLE: Lazy<&'static WaylandCursor> = Lazy::new(|| {
+    WAYLAND_CURSOR_OPTION.as_ref().expect("Library libwayland-cursor.so could not be loaded.")
+});
 
 #[cfg(not(feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
