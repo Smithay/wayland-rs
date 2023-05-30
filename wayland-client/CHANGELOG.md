@@ -1,5 +1,7 @@
 # CHANGELOG: wayland-client
 
+## 0.30.2 -- 30/05/2023
+
 ## Unreleased
 
 - Updated Wayland core protocol to 1.22
