@@ -1,6 +1,6 @@
 //! Bindings to the `wayland-cursor.so` library
 //!
-//! The created handle is named `WAYLAND_CURSOR_HANDLE`.
+//! The created handle is named `wayland_cursor_handle()`.
 
 use crate::client::wl_proxy;
 #[cfg(feature = "dlopen")]
@@ -41,32 +41,40 @@ external_library!(WaylandCursor, "wayland-cursor",
 );
 
 #[cfg(feature = "dlopen")]
-pub static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
-    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-    // for libwayland-client.so but does have it with the version numbers for
-    // whatever reason.
-    //
-    // We could do some trickery with str slices but that is more trouble
-    // than its worth
-    let versions = ["libwayland-cursor.so", "libwayland-cursor.so.0"];
+pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
+    static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-client.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-cursor.so", "libwayland-cursor.so.0"];
 
-    for ver in &versions {
-        match unsafe { WaylandCursor::open(ver) } {
-            Ok(h) => return Some(h),
-            Err(::dlib::DlError::CantOpen(_)) => continue,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                return None;
+        for ver in &versions {
+            match unsafe { WaylandCursor::open(ver) } {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::CantOpen(_)) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    return None;
+                }
             }
         }
-    }
-    None
-});
+        None
+    });
+
+    WAYLAND_CURSOR_OPTION.as_ref()
+}
 
 #[cfg(feature = "dlopen")]
-pub static WAYLAND_CURSOR_HANDLE: Lazy<&'static WaylandCursor> = Lazy::new(|| {
-    WAYLAND_CURSOR_OPTION.as_ref().expect("Library libwayland-cursor.so could not be loaded.")
-});
+pub fn wayland_cursor_handle() -> &'static WaylandCursor {
+    static WAYLAND_CURSOR_HANDLE: Lazy<&'static WaylandCursor> = Lazy::new(|| {
+        wayland_cursor_option().expect("Library libwayland-cursor.so could not be loaded.")
+    });
+
+    &WAYLAND_CURSOR_HANDLE
+}
 
 #[cfg(not(feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
@@ -74,5 +82,5 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(feature = "dlopen")]
 pub fn is_lib_available() -> bool {
-    WAYLAND_CURSOR_OPTION.is_some()
+    wayland_cursor_option().is_some()
 }

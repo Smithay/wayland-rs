@@ -1,6 +1,6 @@
 //! Bindings to the client library `libwayland-client.so`
 //!
-//! The generated handle is named `WAYLAND_CLIENT_HANDLE`
+//! The generated handle is named `wayland_client_handle()`
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
@@ -86,30 +86,38 @@ external_library!(WaylandClient, "wayland-client",
 );
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
-pub static WAYLAND_CLIENT_OPTION: Lazy<Option<WaylandClient>> = Lazy::new(||{
-    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-    // for libwayland-client.so but does have it with the version numbers for
-    // whatever reason.
-    //
-    // We could do some trickery with str slices but that is more trouble
-    // than its worth
-    let versions = ["libwayland-client.so",
-                    "libwayland-client.so.0"];
-    for ver in &versions {
-        match unsafe { WaylandClient::open(ver) } {
-            Ok(h) => return Some(h),
-            Err(::dlib::DlError::CantOpen(_)) => continue,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                return None;
+pub fn wayland_client_option() -> Option<&'static WaylandClient> {
+    static WAYLAND_CLIENT_OPTION: Lazy<Option<WaylandClient>> = Lazy::new(||{
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-client.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-client.so",
+                        "libwayland-client.so.0"];
+        for ver in &versions {
+            match unsafe { WaylandClient::open(ver) } {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::CantOpen(_)) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    return None;
+                }
             }
         }
-    }
-    None
-});
+        None
+    });
+
+    WAYLAND_CLIENT_OPTION.as_ref()
+}
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
-pub static WAYLAND_CLIENT_HANDLE: Lazy<&'static WaylandClient> = Lazy::new(|| WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-client.so could not be loaded."));
+pub fn wayland_client_handle() -> &'static WaylandClient {
+    static WAYLAND_CLIENT_HANDLE: Lazy<&'static WaylandClient> = Lazy::new(|| wayland_client_option().expect("Library libwayland-client.so could not be loaded."));
+
+    &WAYLAND_CLIENT_HANDLE
+}
 
 #[cfg(all(feature = "client", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {
@@ -117,5 +125,5 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
-    WAYLAND_CLIENT_OPTION.is_some()
+    wayland_client_option().is_some()
 }

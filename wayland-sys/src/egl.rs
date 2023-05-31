@@ -2,7 +2,7 @@
 //!
 //! This lib allows to create EGL surfaces out of wayland surfaces.
 //!
-//! The created handle is named `WAYLAND_EGl_HANDLE`.
+//! The created handle is named `wayland_egl_handle()`.
 
 use crate::client::wl_proxy;
 #[cfg(feature = "dlopen")]
@@ -20,32 +20,39 @@ external_library!(WaylandEgl, "wayland-egl",
 );
 
 #[cfg(feature = "dlopen")]
-pub static WAYLAND_EGL_OPTION: Lazy<Option<WaylandEgl>> = Lazy::new(|| {
-    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-    // for libwayland-client.so but does have it with the version numbers for
-    // whatever reason.
-    //
-    // We could do some trickery with str slices but that is more trouble
-    // than its worth
-    let versions = ["libwayland-egl.so", "libwayland-egl.so.1"];
+pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
+    static WAYLAND_EGL_OPTION: Lazy<Option<WaylandEgl>> = Lazy::new(|| {
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-client.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-egl.so", "libwayland-egl.so.1"];
 
-    for ver in &versions {
-        match unsafe { WaylandEgl::open(ver) } {
-            Ok(h) => return Some(h),
-            Err(::dlib::DlError::CantOpen(_)) => continue,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                return None;
+        for ver in &versions {
+            match unsafe { WaylandEgl::open(ver) } {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::CantOpen(_)) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    return None;
+                }
             }
         }
-    }
-    None
-});
+        None
+    });
+
+    WAYLAND_EGL_OPTION.as_ref()
+}
 
 #[cfg(feature = "dlopen")]
-pub static WAYLAND_EGL_HANDLE: Lazy<&'static WaylandEgl> = Lazy::new(|| {
-    WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
-});
+pub fn wayland_egl_handle() -> &'static WaylandEgl {
+    static WAYLAND_EGL_HANDLE: Lazy<&'static WaylandEgl> =
+        Lazy::new(|| wayland_egl_option().expect("Library libwayland-egl.so could not be loaded."));
+
+    &WAYLAND_EGL_HANDLE
+}
 
 #[cfg(not(feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
@@ -53,5 +60,5 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(feature = "dlopen")]
 pub fn is_lib_available() -> bool {
-    WAYLAND_EGL_OPTION.is_some()
+    wayland_egl_option().is_some()
 }

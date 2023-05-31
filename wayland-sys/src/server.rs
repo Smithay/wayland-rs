@@ -1,6 +1,6 @@
 //! Bindings to the client library `libwayland-server.so`
 //!
-//! The generated handle is named `WAYLAND_SERVER_HANDLE`
+//! The generated handle is named `wayland_server_handle()`
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
@@ -154,30 +154,38 @@ external_library!(WaylandServer, "wayland-server",
 );
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
-pub static WAYLAND_SERVER_OPTION: Lazy<Option<WaylandServer>> = Lazy::new(||{
-    // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-    // for libwayland-server.so but does have it with the version numbers for
-    // whatever reason.
-    //
-    // We could do some trickery with str slices but that is more trouble
-    // than its worth
-    let versions = ["libwayland-server.so",
-                    "libwayland-server.so.0"];
-    for ver in &versions {
-        match unsafe { WaylandServer::open(ver) } {
-            Ok(h) => return Some(h),
-            Err(::dlib::DlError::CantOpen(_)) => continue,
-            Err(::dlib::DlError::MissingSymbol(s)) => {
-                log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
-                return None;
+pub fn wayland_server_option() -> Option<&'static WaylandServer> {
+    static WAYLAND_SERVER_OPTION: Lazy<Option<WaylandServer>> = Lazy::new(||{
+        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
+        // for libwayland-server.so but does have it with the version numbers for
+        // whatever reason.
+        //
+        // We could do some trickery with str slices but that is more trouble
+        // than its worth
+        let versions = ["libwayland-server.so",
+                        "libwayland-server.so.0"];
+        for ver in &versions {
+            match unsafe { WaylandServer::open(ver) } {
+                Ok(h) => return Some(h),
+                Err(::dlib::DlError::CantOpen(_)) => continue,
+                Err(::dlib::DlError::MissingSymbol(s)) => {
+                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    return None;
+                }
             }
         }
-    }
-    None
-});
+        None
+    });
+
+    WAYLAND_SERVER_OPTION.as_ref()
+}
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
-pub static WAYLAND_SERVER_HANDLE: Lazy<&'static WaylandServer> = Lazy::new(|| WAYLAND_SERVER_OPTION.as_ref().expect("Library libwayland-server.so could not be loaded."));
+pub fn wayland_server_handle() -> &'static WaylandServer {
+    static WAYLAND_SERVER_HANDLE: Lazy<&'static WaylandServer> = Lazy::new(|| wayland_server_option().expect("Library libwayland-server.so could not be loaded."));
+
+    &WAYLAND_SERVER_HANDLE
+}
 
 #[cfg(all(feature = "server", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {
@@ -185,14 +193,14 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(all(feature = "server", feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
-    WAYLAND_SERVER_OPTION.is_some()
+    wayland_server_option().is_some()
 }
 
 #[cfg(feature = "server")]
 pub mod signal {
     #![allow(clippy::cast_ptr_alignment, clippy::missing_safety_doc)]
     #[cfg(feature = "dlopen")]
-    use super::WAYLAND_SERVER_HANDLE as WSH;
+    use super::wayland_server_handle as wsh;
     #[cfg(not(feature = "dlopen"))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};
@@ -230,13 +238,13 @@ pub mod signal {
 
     pub unsafe fn wl_signal_init(signal: *mut wl_signal) {
         // Safety: signal is a valid initialized wl_signal
-        ffi_dispatch!(WSH, wl_list_init, unsafe { &mut (*signal).listener_list });
+        ffi_dispatch!(wsh(), wl_list_init, unsafe { &mut (*signal).listener_list });
     }
 
     pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
         // Safety: signal and listener are valid pointers
         ffi_dispatch!(
-            WSH,
+            wsh(),
             wl_list_insert,
             unsafe { (*signal).listener_list.prev },
             unsafe { &mut (*listener).link }

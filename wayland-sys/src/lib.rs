@@ -19,7 +19,7 @@
 //! use wayland_sys::client::*;
 //!
 //! let display_ptr = unsafe {
-//!         ffi_dispatch!(WAYLAND_CLIENT_HANDLE, wl_display_connect, ::std::ptr::null())
+//!         ffi_dispatch!(wayland_client_handle(), wl_display_connect, ::std::ptr::null())
 //! };
 //! ```
 //!
@@ -61,7 +61,7 @@ pub use libc::{gid_t, pid_t, uid_t};
 #[cfg(feature = "dlopen")]
 #[macro_export]
 macro_rules! ffi_dispatch(
-    ($handle: ident, $func: ident $(, $arg: expr)* $(,)?) => (
+    ($handle: expr, $func: ident $(, $arg: expr)* $(,)?) => (
         ($handle.$func)($($arg),*)
     )
 );
@@ -69,7 +69,7 @@ macro_rules! ffi_dispatch(
 #[cfg(not(feature = "dlopen"))]
 #[macro_export]
 macro_rules! ffi_dispatch(
-    ($handle: ident, $func: ident $(, $arg: expr)* $(,)?) => (
+    ($handle: expr, $func: ident $(, $arg: expr)* $(,)?) => (
         $func($($arg),*)
     )
 );
