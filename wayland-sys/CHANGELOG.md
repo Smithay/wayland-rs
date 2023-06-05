@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.31.0 -- 05/06/2023
+
 #### Breaking changes
 
 - `WAYLAND_*_OPTION` and `WAYLAND_*_HANDLE` are now functions with the same name:
