@@ -43,6 +43,7 @@ fn proxy_equals() {
         )
         .unwrap();
 
+    #[allow(clippy::redundant_clone)]
     let compositor3 = compositor1.clone();
 
     assert!(compositor1 == compositor3);
@@ -86,6 +87,7 @@ fn proxy_user_data() {
         )
         .unwrap();
 
+    #[allow(clippy::redundant_clone)]
     let compositor3 = compositor1.clone();
 
     assert!(compositor1.data::<usize>() == Some(&0xDEADBEEF));
@@ -122,6 +124,7 @@ fn dead_proxies() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
+    #[allow(clippy::redundant_clone)]
     let output2 = output.clone();
 
     assert!(output == output2);

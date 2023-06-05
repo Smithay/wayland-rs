@@ -47,10 +47,8 @@
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-#[allow(missing_docs)]
-pub extern crate io_lifetimes;
-#[allow(missing_docs)]
-pub extern crate smallvec;
+pub use io_lifetimes;
+pub use smallvec;
 
 /// Helper macro for quickly making a [`Message`](crate::protocol::Message)
 #[macro_export]
