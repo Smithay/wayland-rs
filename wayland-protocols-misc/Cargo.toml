@@ -20,7 +20,7 @@ wayland-backend = { version = "0.1.0", path = "../wayland-backend" }
 wayland-client = { version = "0.30.0", path = "../wayland-client", optional = true }
 wayland-server = { version = "0.30.0", path = "../wayland-server", optional = true }
 wayland-protocols = { version = "0.30.0", path = "../wayland-protocols", features=["unstable"] }
-bitflags = "1.0"
+bitflags = "2"
 
 [features]
 client = ["wayland-client", "wayland-protocols/client"]

@@ -40,6 +40,7 @@ impl ToTokens for Enum {
             enum_decl = quote! {
                 bitflags::bitflags! {
                     #doc_attr
+                    #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
                     pub struct #ident: u32 {
                         #(#entries)*
                     }

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- Bump bitflags to 2.0
+
 ### Additions
 
 - Introduce protocol `kde-plasma-window-management`.
