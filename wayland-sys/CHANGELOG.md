@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `WAYLAND_*_OPTION` and `WAYLAND_*_HANDLE` are now functions with the same name:
+  `wayland_*_option()` and `wayland_*_handle()`.
+
 ## 0.30.1
 
 #### Bugfixes

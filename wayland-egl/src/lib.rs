@@ -71,7 +71,7 @@ impl WlEglSurface {
         if width <= 0 || height <= 0 {
             return Err(Error::InvalidSize);
         }
-        let ptr = ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_create, surface, width, height);
+        let ptr = ffi_dispatch!(wayland_egl_handle(), wl_egl_window_create, surface, width, height);
         if ptr.is_null() {
             panic!("egl window allocation failed");
         }
@@ -84,7 +84,7 @@ impl WlEglSurface {
         let mut h = 0i32;
         unsafe {
             ffi_dispatch!(
-                WAYLAND_EGL_HANDLE,
+                wayland_egl_handle(),
                 wl_egl_window_get_attached_size,
                 self.ptr,
                 &mut w as *mut i32,
@@ -102,7 +102,15 @@ impl WlEglSurface {
     /// direction of the resizing if necessary.
     pub fn resize(&self, width: i32, height: i32, dx: i32, dy: i32) {
         unsafe {
-            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_resize, self.ptr, width, height, dx, dy)
+            ffi_dispatch!(
+                wayland_egl_handle(),
+                wl_egl_window_resize,
+                self.ptr,
+                width,
+                height,
+                dx,
+                dy
+            )
         }
     }
 
@@ -122,7 +130,7 @@ unsafe impl Send for WlEglSurface {}
 impl Drop for WlEglSurface {
     fn drop(&mut self) {
         unsafe {
-            ffi_dispatch!(WAYLAND_EGL_HANDLE, wl_egl_window_destroy, self.ptr);
+            ffi_dispatch!(wayland_egl_handle(), wl_egl_window_destroy, self.ptr);
         }
     }
 }

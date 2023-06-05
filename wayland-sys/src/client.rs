@@ -1,9 +1,11 @@
 //! Bindings to the client library `libwayland-client.so`
 //!
-//! The generated handle is named `WAYLAND_CLIENT_HANDLE`
+//! The generated handle is named `wayland_client_handle()`
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
+#[cfg(all(feature = "client", feature = "dlopen"))]
+use once_cell::sync::Lazy;
 #[cfg(feature = "client")]
 use super::common::*;
 #[cfg(feature = "client")]
@@ -84,8 +86,8 @@ external_library!(WaylandClient, "wayland-client",
 );
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
-lazy_static::lazy_static!(
-    pub static ref WAYLAND_CLIENT_OPTION: Option<WaylandClient> = {
+pub fn wayland_client_option() -> Option<&'static WaylandClient> {
+    static WAYLAND_CLIENT_OPTION: Lazy<Option<WaylandClient>> = Lazy::new(||{
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-client.so but does have it with the version numbers for
         // whatever reason.
@@ -105,11 +107,17 @@ lazy_static::lazy_static!(
             }
         }
         None
-    };
-    pub static ref WAYLAND_CLIENT_HANDLE: &'static WaylandClient = {
-        WAYLAND_CLIENT_OPTION.as_ref().expect("Library libwayland-client.so could not be loaded.")
-    };
-);
+    });
+
+    WAYLAND_CLIENT_OPTION.as_ref()
+}
+
+#[cfg(all(feature = "client", feature = "dlopen"))]
+pub fn wayland_client_handle() -> &'static WaylandClient {
+    static WAYLAND_CLIENT_HANDLE: Lazy<&'static WaylandClient> = Lazy::new(|| wayland_client_option().expect("Library libwayland-client.so could not be loaded."));
+
+    &WAYLAND_CLIENT_HANDLE
+}
 
 #[cfg(all(feature = "client", not(feature = "dlopen")))]
 pub fn is_lib_available() -> bool {
@@ -117,5 +125,5 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
-    WAYLAND_CLIENT_OPTION.is_some()
+    wayland_client_option().is_some()
 }

@@ -2,9 +2,11 @@
 //!
 //! This lib allows to create EGL surfaces out of wayland surfaces.
 //!
-//! The created handle is named `WAYLAND_EGl_HANDLE`.
+//! The created handle is named `wayland_egl_handle()`.
 
 use crate::client::wl_proxy;
+#[cfg(feature = "dlopen")]
+use once_cell::sync::Lazy;
 use std::os::raw::c_int;
 
 pub enum wl_egl_window {}
@@ -18,16 +20,15 @@ external_library!(WaylandEgl, "wayland-egl",
 );
 
 #[cfg(feature = "dlopen")]
-lazy_static::lazy_static!(
-    pub static ref WAYLAND_EGL_OPTION: Option<WaylandEgl> = {
+pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
+    static WAYLAND_EGL_OPTION: Lazy<Option<WaylandEgl>> = Lazy::new(|| {
         // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
         // for libwayland-client.so but does have it with the version numbers for
         // whatever reason.
         //
         // We could do some trickery with str slices but that is more trouble
         // than its worth
-        let versions = ["libwayland-egl.so",
-                        "libwayland-egl.so.1"];
+        let versions = ["libwayland-egl.so", "libwayland-egl.so.1"];
 
         for ver in &versions {
             match unsafe { WaylandEgl::open(ver) } {
@@ -40,11 +41,18 @@ lazy_static::lazy_static!(
             }
         }
         None
-    };
-    pub static ref WAYLAND_EGL_HANDLE: &'static WaylandEgl = {
-        WAYLAND_EGL_OPTION.as_ref().expect("Library libwayland-egl.so could not be loaded.")
-    };
-);
+    });
+
+    WAYLAND_EGL_OPTION.as_ref()
+}
+
+#[cfg(feature = "dlopen")]
+pub fn wayland_egl_handle() -> &'static WaylandEgl {
+    static WAYLAND_EGL_HANDLE: Lazy<&'static WaylandEgl> =
+        Lazy::new(|| wayland_egl_option().expect("Library libwayland-egl.so could not be loaded."));
+
+    &WAYLAND_EGL_HANDLE
+}
 
 #[cfg(not(feature = "dlopen"))]
 pub fn is_lib_available() -> bool {
@@ -52,5 +60,5 @@ pub fn is_lib_available() -> bool {
 }
 #[cfg(feature = "dlopen")]
 pub fn is_lib_available() -> bool {
-    WAYLAND_EGL_OPTION.is_some()
+    wayland_egl_option().is_some()
 }
