@@ -2,9 +2,11 @@
 
 ## Unreleased
 
+# 0.30.1 -- 2023-06-17
+
 - Generated protocol object types now implement `Borrow<ObjectId>` and `Hash`
 
-## 0.30.0 -- 27/12/2022
+## 0.30.0 -- 2022-12-27
 
 ## 0.30.0-beta.10
 
