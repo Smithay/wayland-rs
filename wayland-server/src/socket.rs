@@ -1,11 +1,12 @@
 use std::{
     env,
     ffi::{OsStr, OsString},
-    fs::File,
+    fs::{self, File},
     io,
     os::unix::{
         io::{AsRawFd, FromRawFd, RawFd},
         net::{UnixListener, UnixStream},
+        prelude::MetadataExt,
     },
     path::PathBuf,
 };
@@ -74,21 +75,48 @@ impl ListeningSocket {
     /// alongside it.
     pub fn bind_absolute(socket_path: PathBuf) -> Result<Self, BindError> {
         let lock_path = socket_path.with_extension("lock");
+        let mut _lock;
 
-        // open the lockfile
-        let lock_fd = open(
-            &lock_path,
-            OFlag::O_CREAT | OFlag::O_CLOEXEC | OFlag::O_RDWR,
-            Mode::S_IRUSR | Mode::S_IWUSR | Mode::S_IRGRP | Mode::S_IWGRP,
-        )
-        .map_err(|_| BindError::PermissionDenied)?;
+        // The locking code uses a loop to avoid an open()-flock() race condition, described in more
+        // detail in the comment below. The implementation roughtly follows the one from libbsd:
+        //
+        // https://gitlab.freedesktop.org/libbsd/libbsd/-/blob/73b25a8f871b3a20f6ff76679358540f95d7dbfd/src/flopen.c#L71
+        loop {
+            // open the lockfile
+            let lock_fd = open(
+                &lock_path,
+                OFlag::O_CREAT | OFlag::O_CLOEXEC | OFlag::O_RDWR,
+                Mode::S_IRUSR | Mode::S_IWUSR | Mode::S_IRGRP | Mode::S_IWGRP,
+            )
+            .map_err(|_| BindError::PermissionDenied)?;
 
-        // SAFETY: We have just opened the file descriptor.
-        let _lock = unsafe { File::from_raw_fd(lock_fd) };
+            // SAFETY: We have just opened the file descriptor.
+            _lock = unsafe { File::from_raw_fd(lock_fd) };
 
-        // lock the lockfile
-        if flock(lock_fd, FlockArg::LockExclusiveNonblock).is_err() {
-            return Err(BindError::AlreadyInUse);
+            // lock the lockfile
+            if flock(lock_fd, FlockArg::LockExclusiveNonblock).is_err() {
+                return Err(BindError::AlreadyInUse);
+            }
+
+            // Verify that the file we locked is the same as the file on disk. An unlucky unlink()
+            // from a different thread which happens right between our open() and flock() may
+            // result in us successfully locking a now-nonexistent file, with another thread locking
+            // the same-named but newly created lock file, then both threads will think they have
+            // exclusive access to the same socket. To prevent this, check that we locked the actual
+            // currently existing file.
+            let fd_meta = _lock.metadata().map_err(BindError::Io)?;
+            let on_disk_meta = match fs::metadata(&lock_path) {
+                Ok(meta) => meta,
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                    // This can happen during the aforementioned race condition.
+                    continue;
+                }
+                Err(err) => return Err(BindError::Io(err)),
+            };
+
+            if fd_meta.dev() == on_disk_meta.dev() && fd_meta.ino() == on_disk_meta.ino() {
+                break;
+            }
         }
 
         // check if an old socket exists, and cleanup if relevant
