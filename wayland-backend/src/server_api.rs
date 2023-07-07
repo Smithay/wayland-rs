@@ -480,6 +480,13 @@ impl Handle {
     ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         self.handle.get_global_handler(id.id)
     }
+
+    /// Flushes pending events destined for a client.
+    ///
+    /// If no client is specified, all pending events are flushed to all clients.
+    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        self.handle.flush(client)
+    }
 }
 
 /// A backend object that represents the state of a wayland server.

@@ -259,6 +259,10 @@ impl InnerHandle {
             .expect("Wrong type parameter passed to Handle::get_global_handler().");
         state.registry.get_handler(id)
     }
+
+    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        self.state.lock().unwrap().flush(client)
+    }
 }
 
 pub(crate) trait ErasedState: downcast_rs::Downcast {
@@ -291,6 +295,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
 }
 
 downcast_rs::impl_downcast!(ErasedState);
@@ -425,5 +430,9 @@ impl<D> ErasedState for State<D> {
     }
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         self.registry.get_info(id)
+    }
+
+    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        self.flush(client)
     }
 }

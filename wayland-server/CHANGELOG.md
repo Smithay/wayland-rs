@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `flush_clients` method to server `DisplayHandle`.
+
 #### Breaking changes
 
 - Bump bitflags to 2.0
