@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add `flush_clients` method to server `DisplayHandle`.
+- Implement `AsFd` for `Display` so it can easily be used in a `calloop` source.
 
 #### Breaking changes
 
