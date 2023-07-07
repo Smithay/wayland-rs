@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `flush` method to server `Handle`.
+
 ## 0.2.0 -- 2023-07-13
 
 #### Breaking changes

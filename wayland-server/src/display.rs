@@ -184,6 +184,11 @@ impl DisplayHandle {
     ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
         self.handle.get_object_data_any(id)
     }
+
+    /// Flush outgoing buffers into their respective sockets.
+    pub fn flush_clients(&mut self) -> std::io::Result<()> {
+        self.handle.flush(None)
+    }
 }
 
 impl From<Handle> for DisplayHandle {

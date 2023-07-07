@@ -374,33 +374,7 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
-        let mut state = self.state.lock().unwrap();
-        if let Some(ClientId { id: client_id }) = client {
-            if client_id.alive.load(Ordering::Acquire) {
-                unsafe { ffi_dispatch!(wayland_server_handle(), wl_client_flush, client_id.ptr) }
-            }
-        } else {
-            // wl_display_flush_clients might invoke destructors
-            PENDING_DESTRUCTORS.set(
-                &(&mut state.pending_destructors as *mut _ as *mut _),
-                || unsafe {
-                    ffi_dispatch!(wayland_server_handle(), wl_display_flush_clients, state.display);
-                },
-            );
-        }
-        if !state.pending_destructors.is_empty() {
-            // Arm the timer to trigger a wakeup of the inner event loop in 1ms, so that the user
-            // is indicated to call dispatch_clients() and have the destructors run
-            unsafe {
-                ffi_dispatch!(
-                    wayland_server_handle(),
-                    wl_event_source_timer_update,
-                    state.timer_source,
-                    1
-                )
-            };
-        }
-        Ok(())
+        self.state.lock().unwrap().flush(client)
     }
 
     pub fn handle(&self) -> Handle {
@@ -838,6 +812,10 @@ impl InnerHandle {
         Ok(udata.handler.clone())
     }
 
+    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        self.state.lock().unwrap().flush(client)
+    }
+
     pub fn display_ptr(&self) -> *mut wl_display {
         self.state.lock().unwrap().display_ptr()
     }
@@ -874,6 +852,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
+    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
     fn display_ptr(&self) -> *mut wl_display;
 }
 
@@ -1247,6 +1226,35 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool {
         self.known_globals.iter().any(|ginfo| (ginfo.ptr as *const wl_global) == global_ptr)
+    }
+
+    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+        if let Some(ClientId { id: client_id }) = client {
+            if client_id.alive.load(Ordering::Acquire) {
+                unsafe { ffi_dispatch!(wayland_server_handle(), wl_client_flush, client_id.ptr) }
+            }
+        } else {
+            // wl_display_flush_clients might invoke destructors
+            PENDING_DESTRUCTORS.set(
+                &(&mut self.pending_destructors as *mut _ as *mut _),
+                || unsafe {
+                    ffi_dispatch!(wayland_server_handle(), wl_display_flush_clients, self.display);
+                },
+            );
+        }
+        if !self.pending_destructors.is_empty() {
+            // Arm the timer to trigger a wakeup of the inner event loop in 1ms, so that the user
+            // is indicated to call dispatch_clients() and have the destructors run
+            unsafe {
+                ffi_dispatch!(
+                    wayland_server_handle(),
+                    wl_event_source_timer_update,
+                    self.timer_source,
+                    1
+                )
+            };
+        }
+        Ok(())
     }
 
     fn display_ptr(&self) -> *mut wl_display {
