@@ -156,14 +156,7 @@ external_library!(WaylandServer, "wayland-server",
 #[cfg(all(feature = "server", feature = "dlopen"))]
 pub fn wayland_server_option() -> Option<&'static WaylandServer> {
     static WAYLAND_SERVER_OPTION: Lazy<Option<WaylandServer>> = Lazy::new(||{
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-server.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-server.so",
-                        "libwayland-server.so.0"];
+        let versions = ["libwayland-server.so.0", "libwayland-server.so"];
         for ver in &versions {
             match unsafe { WaylandServer::open(ver) } {
                 Ok(h) => return Some(h),

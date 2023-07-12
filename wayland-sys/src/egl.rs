@@ -22,13 +22,7 @@ external_library!(WaylandEgl, "wayland-egl",
 #[cfg(feature = "dlopen")]
 pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
     static WAYLAND_EGL_OPTION: Lazy<Option<WaylandEgl>> = Lazy::new(|| {
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-client.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-egl.so", "libwayland-egl.so.1"];
+        let versions = ["libwayland-egl.so.1", "libwayland-egl.so"];
 
         for ver in &versions {
             match unsafe { WaylandEgl::open(ver) } {
