@@ -2,7 +2,14 @@
 
 ## Unreleased
 
-## 0.30.0 -- 27/12/2022
+## 0.30.1 -- 2023-07-13
+
+### Additions
+
+- Bump wayland-protocols to 1.32
+  - new staging protocols: `foreign_toplevel_list`, `cursor_shape` and `security_context`
+
+## 0.30.0 -- 2022-12-27
 
 ## 0.30.0-beta.15
 
