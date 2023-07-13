@@ -196,10 +196,11 @@ impl Connection {
     pub fn send_request<I: Proxy>(
         &self,
         proxy: &I,
-        request: I::Request,
+        request: I::Request<'_>,
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
         let (msg, child_spec) = proxy.write_request(self, request)?;
+        let msg = msg.map_fd(|fd| fd.as_raw_fd());
         self.backend.send_request(msg, data, child_spec)
     }
 

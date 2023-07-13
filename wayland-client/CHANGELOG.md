@@ -8,6 +8,7 @@
 - Updated wayland-backend to 0.2
 - Calloop integration is now removed, to avoid tying wayland-client to it you can use the
   `calloop-wayland-source` crate instead
+- Use `BorrowedFd<'_>` arguments instead of `RawFd`
 
 ## 0.30.2 -- 30/05/2023
 

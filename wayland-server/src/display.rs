@@ -1,5 +1,5 @@
 use std::{
-    os::unix::io::{AsFd, BorrowedFd},
+    os::unix::io::{AsFd, AsRawFd, BorrowedFd},
     os::unix::net::UnixStream,
     sync::Arc,
 };
@@ -172,8 +172,13 @@ impl DisplayHandle {
     ///
     /// This is intended to be a low-level method. You can alternatively use the methods on the
     /// type representing your object, or [`Resource::send_event()`], which may be more convenient.
-    pub fn send_event<I: Resource>(&self, resource: &I, event: I::Event) -> Result<(), InvalidId> {
+    pub fn send_event<I: Resource>(
+        &self,
+        resource: &I,
+        event: I::Event<'_>,
+    ) -> Result<(), InvalidId> {
         let msg = resource.write_event(self, event)?;
+        let msg = msg.map_fd(|fd| fd.as_raw_fd());
         self.handle.send_event(msg)
     }
 

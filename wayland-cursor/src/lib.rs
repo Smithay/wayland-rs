@@ -49,8 +49,7 @@ use std::env;
 use std::fs::File;
 use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
-use std::os::unix::io::OwnedFd;
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{AsFd, FromRawFd, OwnedFd, RawFd};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -145,7 +144,7 @@ impl CursorTheme {
 
         let pool_id = conn.send_request(
             &shm,
-            wl_shm::Request::CreatePool { fd: file.as_raw_fd(), size: INITIAL_POOL_SIZE },
+            wl_shm::Request::CreatePool { fd: file.as_fd(), size: INITIAL_POOL_SIZE },
             Some(Arc::new(IgnoreObjectData)),
         )?;
         let pool = WlShmPool::from_id(conn, pool_id)?;

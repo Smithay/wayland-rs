@@ -24,18 +24,21 @@ pub mod wl_callback {
     }
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Event {
+    pub enum Event<'a> {
         #[doc = "done event\n\nNotify the client when the related request is done.\n\nThis is a destructor, once sent this object cannot be used any longer."]
         Done {
             #[doc = "request-specific data for the callback"]
             callback_data: u32,
         },
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Event {
+    impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Event::Done { .. } => 0u16,
+                Event::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -70,7 +73,7 @@ pub mod wl_callback {
     }
     impl super::wayland_server::Resource for WlCallback {
         type Request = Request;
-        type Event = Event;
+        type Event<'event> = Event<'event>;
         #[inline]
         fn interface() -> &'static Interface {
             &super::WL_CALLBACK_INTERFACE
@@ -106,7 +109,7 @@ pub mod wl_callback {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(WlCallback { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
             let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
             handle.send_event(self, evt)
         }
@@ -124,11 +127,11 @@ pub mod wl_callback {
                 }),
             }
         }
-        fn write_event(
+        fn write_event<'a>(
             &self,
             conn: &DisplayHandle,
-            msg: Self::Event,
-        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
             match msg {
                 Event::Done { callback_data } => Ok(Message {
                     sender_id: self.id.clone(),
@@ -139,6 +142,7 @@ pub mod wl_callback {
                         vec
                     },
                 }),
+                Event::__phantom_lifetime { .. } => unreachable!(),
             }
         }
         fn __set_object_data(
@@ -263,7 +267,7 @@ pub mod test_global {
     }
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Event {
+    pub enum Event<'a> {
         #[doc = "an event with every possible non-object arg"]
         ManyArgsEvt {
             #[doc = "an unsigned int"]
@@ -277,20 +281,23 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: std::os::unix::io::RawFd,
+            file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
         #[doc = "acking the creation of a secondary"]
         AckSecondary { sec: super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Event {
+    impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Event::ManyArgsEvt { .. } => 0u16,
                 Event::AckSecondary { .. } => 1u16,
                 Event::CycleQuad { .. } => 2u16,
+                Event::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -325,7 +332,7 @@ pub mod test_global {
     }
     impl super::wayland_server::Resource for TestGlobal {
         type Request = Request;
-        type Event = Event;
+        type Event<'event> = Event<'event>;
         #[inline]
         fn interface() -> &'static Interface {
             &super::TEST_GLOBAL_INTERFACE
@@ -361,7 +368,7 @@ pub mod test_global {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(TestGlobal { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
             let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
             handle.send_event(self, evt)
         }
@@ -657,11 +664,11 @@ pub mod test_global {
                 }),
             }
         }
-        fn write_event(
+        fn write_event<'a>(
             &self,
             conn: &DisplayHandle,
-            msg: Self::Event,
-        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
             match msg {
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -705,6 +712,7 @@ pub mod test_global {
                         vec
                     },
                 }),
+                Event::__phantom_lifetime { .. } => unreachable!(),
             }
         }
         fn __set_object_data(
@@ -724,7 +732,7 @@ pub mod test_global {
             fixed_point: f64,
             number_array: Vec<u8>,
             some_text: String,
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let _ = self.send_event(Event::ManyArgsEvt {
                 unsigned_int,
@@ -784,11 +792,16 @@ pub mod secondary {
     }
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Event {}
-    impl Event {
+    pub enum Event<'a> {
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+    }
+    impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
     }
     #[doc = "secondary\n\nSee also the [Request] enum for this interface."]
@@ -822,7 +835,7 @@ pub mod secondary {
     }
     impl super::wayland_server::Resource for Secondary {
         type Request = Request;
-        type Event = Event;
+        type Event<'event> = Event<'event>;
         #[inline]
         fn interface() -> &'static Interface {
             &super::SECONDARY_INTERFACE
@@ -858,7 +871,7 @@ pub mod secondary {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Secondary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
             let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
             handle.send_event(self, evt)
         }
@@ -887,12 +900,14 @@ pub mod secondary {
                 }),
             }
         }
-        fn write_event(
+        fn write_event<'a>(
             &self,
             conn: &DisplayHandle,
-            msg: Self::Event,
-        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
-            match msg {}
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+            match msg {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
         fn __set_object_data(
             &mut self,
@@ -933,11 +948,16 @@ pub mod tertiary {
     }
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Event {}
-    impl Event {
+    pub enum Event<'a> {
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+    }
+    impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
     }
     #[doc = "tertiary\n\nSee also the [Request] enum for this interface."]
@@ -971,7 +991,7 @@ pub mod tertiary {
     }
     impl super::wayland_server::Resource for Tertiary {
         type Request = Request;
-        type Event = Event;
+        type Event<'event> = Event<'event>;
         #[inline]
         fn interface() -> &'static Interface {
             &super::TERTIARY_INTERFACE
@@ -1007,7 +1027,7 @@ pub mod tertiary {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Tertiary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
             let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
             handle.send_event(self, evt)
         }
@@ -1036,12 +1056,14 @@ pub mod tertiary {
                 }),
             }
         }
-        fn write_event(
+        fn write_event<'a>(
             &self,
             conn: &DisplayHandle,
-            msg: Self::Event,
-        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
-            match msg {}
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+            match msg {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
         fn __set_object_data(
             &mut self,
@@ -1082,11 +1104,16 @@ pub mod quad {
     }
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Event {}
-    impl Event {
+    pub enum Event<'a> {
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+    }
+    impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
     }
     #[doc = "quad\n\nSee also the [Request] enum for this interface."]
@@ -1120,7 +1147,7 @@ pub mod quad {
     }
     impl super::wayland_server::Resource for Quad {
         type Request = Request;
-        type Event = Event;
+        type Event<'event> = Event<'event>;
         #[inline]
         fn interface() -> &'static Interface {
             &super::QUAD_INTERFACE
@@ -1156,7 +1183,7 @@ pub mod quad {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Quad { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
             let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
             handle.send_event(self, evt)
         }
@@ -1185,12 +1212,14 @@ pub mod quad {
                 }),
             }
         }
-        fn write_event(
+        fn write_event<'a>(
             &self,
             conn: &DisplayHandle,
-            msg: Self::Event,
-        ) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
-            match msg {}
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+            match msg {
+                Event::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
         fn __set_object_data(
             &mut self,
