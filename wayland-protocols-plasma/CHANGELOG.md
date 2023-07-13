@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- Bump bitflags to 2.0
+- Updated wayland-backend to 0.2
+
 ### Additions
 
 - Introduce protocol `kde-plasma-window-management`.

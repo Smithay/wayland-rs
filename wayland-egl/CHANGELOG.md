@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-## 0.30.1 -- 2023-07-13
+## 0.31.0 -- 2023-07-13
+
+#### Breaking changes
 
 - Update wayland-sys to 0.31
 

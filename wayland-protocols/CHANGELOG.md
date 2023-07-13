@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- Bump bitflags to 2.0
+- Updated wayland-backend to 0.2
+
 ## 0.30.1 -- 2023-07-13
 
 ### Additions
