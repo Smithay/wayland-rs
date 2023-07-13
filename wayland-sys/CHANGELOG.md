@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.31.1 -- 2023-07-13
+
+#### Bugfixes
+
+- When using dlopen, try the soname of the library first.
+
+## 0.31.0 -- 2023-06-05
+
 #### Breaking changes
 
 - `WAYLAND_*_OPTION` and `WAYLAND_*_HANDLE` are now functions with the same name:

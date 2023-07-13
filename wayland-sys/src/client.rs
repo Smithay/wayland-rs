@@ -88,14 +88,7 @@ external_library!(WaylandClient, "wayland-client",
 #[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn wayland_client_option() -> Option<&'static WaylandClient> {
     static WAYLAND_CLIENT_OPTION: Lazy<Option<WaylandClient>> = Lazy::new(||{
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-client.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-client.so",
-                        "libwayland-client.so.0"];
+        let versions = ["libwayland-client.so.0", "libwayland-client.so"];
         for ver in &versions {
             match unsafe { WaylandClient::open(ver) } {
                 Ok(h) => return Some(h),

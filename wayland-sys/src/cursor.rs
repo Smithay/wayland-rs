@@ -43,13 +43,7 @@ external_library!(WaylandCursor, "wayland-cursor",
 #[cfg(feature = "dlopen")]
 pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
     static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
-        // This is a workaround for Ubuntu 17.04, which doesn't have a bare symlink
-        // for libwayland-client.so but does have it with the version numbers for
-        // whatever reason.
-        //
-        // We could do some trickery with str slices but that is more trouble
-        // than its worth
-        let versions = ["libwayland-cursor.so", "libwayland-cursor.so.0"];
+        let versions = ["libwayland-cursor.so.0", "libwayland-cursor.so"];
 
         for ver in &versions {
             match unsafe { WaylandCursor::open(ver) } {
