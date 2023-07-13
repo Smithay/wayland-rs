@@ -13,7 +13,7 @@ rust-version = "1.59"
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.1.0", path = "../wayland-backend" }
+wayland-backend = { version = "0.2.0", path = "../wayland-backend" }
 wayland-scanner = { version = "0.30.0", path = "../wayland-scanner" }
 bitflags = "1.2"
 log = { version = "0.4", optional = true }

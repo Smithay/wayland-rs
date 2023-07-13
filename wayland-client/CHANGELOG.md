@@ -1,8 +1,12 @@
 # CHANGELOG: wayland-client
 
-## 0.30.2 -- 30/05/2023
-
 ## Unreleased
+
+#### Breaking changes
+
+- Updated wayland-backend to 0.2
+
+## 0.30.2 -- 30/05/2023
 
 - Updated Wayland core protocol to 1.22
 

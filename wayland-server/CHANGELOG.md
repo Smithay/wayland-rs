@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- Updated wayland-backend to 0.2
+
 ## 0.30.1 -- 30/05/2023
 
 - `New` objects inside `GlobalDispatch` can now have errors posted using `DataInit::post_error`.

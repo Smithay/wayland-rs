@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- Updated wayland-backend to 0.2
+
 ### Additions
 
 - Introduce protocol `kde-plasma-window-management`.
