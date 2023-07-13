@@ -1,6 +1,7 @@
 use std::{fs::File, os::unix::prelude::AsRawFd};
 
 use wayland_client::{
+    delegate_noop,
     protocol::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
@@ -108,70 +109,12 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
     }
 }
 
-impl Dispatch<wl_compositor::WlCompositor, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_compositor::WlCompositor,
-        _: wl_compositor::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        // wl_compositor has no event
-    }
-}
-
-impl Dispatch<wl_surface::WlSurface, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_surface::WlSurface,
-        _: wl_surface::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        // we ignore wl_surface events in this example
-    }
-}
-
-impl Dispatch<wl_shm::WlShm, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_shm::WlShm,
-        _: wl_shm::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        // we ignore wl_shm events in this example
-    }
-}
-
-impl Dispatch<wl_shm_pool::WlShmPool, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_shm_pool::WlShmPool,
-        _: wl_shm_pool::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        // we ignore wl_shm_pool events in this example
-    }
-}
-
-impl Dispatch<wl_buffer::WlBuffer, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_buffer::WlBuffer,
-        _: wl_buffer::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        // we ignore wl_buffer events in this example
-    }
-}
+// Ignore events from these object types in this example.
+delegate_noop!(State: wl_compositor::WlCompositor);
+delegate_noop!(State: wl_surface::WlSurface);
+delegate_noop!(State: wl_shm::WlShm);
+delegate_noop!(State: wl_shm_pool::WlShmPool);
+delegate_noop!(State: wl_buffer::WlBuffer);
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
     use std::{cmp::min, io::Write};
