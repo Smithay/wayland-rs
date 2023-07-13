@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- Bump bitflags to 2.0
+
 # 0.30.1 -- 2023-06-17
 
 - Generated protocol object types now implement `Borrow<ObjectId>` and `Hash`
