@@ -7,6 +7,10 @@
 - Bump bitflags to 2.0
 - Updated wayland-backend to 0.2
 
+#### Bugfixes
+
+- Fixed a lockfile race condition in `ListeningSocket`.
+
 ## 0.30.1 -- 30/05/2023
 
 - `New` objects inside `GlobalDispatch` can now have errors posted using `DataInit::post_error`.
