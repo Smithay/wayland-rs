@@ -158,18 +158,6 @@
 //!   method (see `wayland-backend` docs), and then make it into a [`Connection`] using
 //!   [`Connection::from_backend()`]. Similarly, you can make [`ObjectId`]s from the `*mut wl_proxy` pointers
 //!   using `ObjectId::from_ptr()`, and then make the proxies using [`Proxy::from_id`].
-//!
-//! ### Integration with the `calloop` crate
-//!
-//! If you use an event loop provided by the [`calloop`](https://docs.rs/calloop/) crate
-//! you can activate the `calloop` feature and use [`WaylandSource`]
-//! as an event source for the [`EventLoop`](::calloop::EventLoop).
-//!
-//! ## Logging
-//!
-//! This crate can generate some runtime error message (notably when a protocol error occurs). By default
-//! those messages are printed to stderr. If you activate the `log` cargo feature, they will instead be
-//! piped through the `log` crate.
 
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs, missing_debug_implementations)]
@@ -209,11 +197,6 @@ pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
 pub use event_queue::{Dispatch, EventQueue, QueueFreezeGuard, QueueHandle, QueueProxyData};
-
-#[cfg(feature = "calloop")]
-mod calloop;
-#[cfg(feature = "calloop")]
-pub use crate::calloop::WaylandSource;
 
 // internal imports for dispatching logging depending on the `log` feature
 #[cfg(feature = "log")]

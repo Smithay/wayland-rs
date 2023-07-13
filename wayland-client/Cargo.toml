@@ -18,7 +18,6 @@ wayland-scanner = { version = "0.30.0", path = "../wayland-scanner" }
 bitflags = "2"
 nix = { version = "0.26.0", default-features = false }
 log = { version = "0.4", optional = true }
-calloop = { version = "0.10.6", optional = true }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
