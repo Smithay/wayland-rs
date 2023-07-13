@@ -216,6 +216,12 @@ jobs:
           command: update
           args: -p raw-window-handle --precise 0.5.0
 
+      - name: Fix log
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p log --precise 0.4.17
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
