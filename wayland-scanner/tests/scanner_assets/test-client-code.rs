@@ -58,18 +58,21 @@ pub mod wl_display {
     pub const EVT_DELETE_ID_OPCODE: u16 = 1u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "asynchronous roundtrip\n\nThe sync request asks the server to emit the 'done' event\non the returned wl_callback object.  Since requests are\nhandled in-order and events are delivered in-order, this can\nbe used as a barrier to ensure all previous requests and the\nresulting events have been handled.\n\nThe object returned by this request will be destroyed by the\ncompositor after the callback is fired and as such the client must not\nattempt to use it after that point.\n\nThe callback_data passed in the callback is the event serial."]
         Sync {},
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         GetRegistry {},
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Sync { .. } => 0u16,
                 Request::GetRegistry { .. } => 1u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -130,7 +133,7 @@ pub mod wl_display {
         }
     }
     impl super::wayland_client::Proxy for WlDisplay {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -154,7 +157,7 @@ pub mod wl_display {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -162,7 +165,7 @@ pub mod wl_display {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -234,12 +237,12 @@ pub mod wl_display {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -267,6 +270,7 @@ pub mod wl_display {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -330,7 +334,7 @@ pub mod wl_registry {
     pub const EVT_GLOBAL_REMOVE_OPCODE: u16 = 1u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
         Bind {
             #[doc = "unique numeric name of the object"]
@@ -338,12 +342,15 @@ pub mod wl_registry {
             #[doc = "bounded object"]
             id: (&'static Interface, u32),
         },
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Bind { .. } => 0u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -404,7 +411,7 @@ pub mod wl_registry {
         }
     }
     impl super::wayland_client::Proxy for WlRegistry {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -428,7 +435,7 @@ pub mod wl_registry {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -436,7 +443,7 @@ pub mod wl_registry {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -508,12 +515,12 @@ pub mod wl_registry {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -531,6 +538,7 @@ pub mod wl_registry {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -569,11 +577,16 @@ pub mod wl_callback {
     pub const EVT_DONE_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {}
-    impl Request {
+    pub enum Request<'a> {
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+    }
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
-            match *self {}
+            match *self {
+                Request::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
     }
     #[derive(Debug)]
@@ -623,7 +636,7 @@ pub mod wl_callback {
         }
     }
     impl super::wayland_client::Proxy for WlCallback {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -647,7 +660,7 @@ pub mod wl_callback {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -655,7 +668,7 @@ pub mod wl_callback {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -701,15 +714,17 @@ pub mod wl_callback {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
-            match msg {}
+            match msg {
+                Request::__phantom_lifetime { .. } => unreachable!(),
+            }
         }
     }
     impl WlCallback {}
@@ -766,7 +781,7 @@ pub mod test_global {
     pub const EVT_CYCLE_QUAD_OPCODE: u16 = 2u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "a request with every possible non-object arg"]
         ManyArgs {
             #[doc = "an unsigned int"]
@@ -780,7 +795,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: std::os::unix::io::RawFd,
+            file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
         #[doc = "Only available since version 2 of the interface"]
         GetSecondary {},
@@ -797,8 +812,10 @@ pub mod test_global {
             sec: Option<super::secondary::Secondary>,
             ter: super::tertiary::Tertiary,
         },
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
@@ -809,6 +826,7 @@ pub mod test_global {
                 Request::Destroy => 4u16,
                 Request::ReverseLink { .. } => 5u16,
                 Request::NewidAndAllowNull { .. } => 6u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -875,7 +893,7 @@ pub mod test_global {
         }
     }
     impl super::wayland_client::Proxy for TestGlobal {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -899,7 +917,7 @@ pub mod test_global {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -907,7 +925,7 @@ pub mod test_global {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -1057,12 +1075,12 @@ pub mod test_global {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -1161,6 +1179,7 @@ pub mod test_global {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1174,7 +1193,7 @@ pub mod test_global {
             fixed_point: f64,
             number_array: Vec<u8>,
             some_text: String,
-            file_descriptor: ::std::os::unix::io::RawFd,
+            file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let backend = match self.backend.upgrade() {
                 Some(b) => b,
@@ -1306,15 +1325,18 @@ pub mod secondary {
     pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 2 of the interface"]
         Destroy,
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1357,7 +1379,7 @@ pub mod secondary {
         }
     }
     impl super::wayland_client::Proxy for Secondary {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -1381,7 +1403,7 @@ pub mod secondary {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -1389,7 +1411,7 @@ pub mod secondary {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -1424,12 +1446,12 @@ pub mod secondary {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -1438,6 +1460,7 @@ pub mod secondary {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1469,15 +1492,18 @@ pub mod tertiary {
     pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1520,7 +1546,7 @@ pub mod tertiary {
         }
     }
     impl super::wayland_client::Proxy for Tertiary {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -1544,7 +1570,7 @@ pub mod tertiary {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -1552,7 +1578,7 @@ pub mod tertiary {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -1587,12 +1613,12 @@ pub mod tertiary {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -1601,6 +1627,7 @@ pub mod tertiary {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1632,15 +1659,18 @@ pub mod quad {
     pub const REQ_DESTROY_OPCODE: u16 = 0u16;
     #[derive(Debug)]
     #[non_exhaustive]
-    pub enum Request {
+    pub enum Request<'a> {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
+        #[doc(hidden)]
+        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
     }
-    impl Request {
+    impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }
@@ -1683,7 +1713,7 @@ pub mod quad {
         }
     }
     impl super::wayland_client::Proxy for Quad {
-        type Request = Request;
+        type Request<'request> = Request<'request>;
         type Event = Event;
         #[inline]
         fn interface() -> &'static Interface {
@@ -1707,7 +1737,7 @@ pub mod quad {
         fn backend(&self) -> &WeakBackend {
             &self.backend
         }
-        fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+        fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
             let id = conn.send_request(self, req, None)?;
             debug_assert!(id.is_null());
@@ -1715,7 +1745,7 @@ pub mod quad {
         }
         fn send_constructor<I: Proxy>(
             &self,
-            req: Self::Request,
+            req: Self::Request<'_>,
             data: Arc<dyn ObjectData>,
         ) -> Result<I, InvalidId> {
             let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
@@ -1750,12 +1780,12 @@ pub mod quad {
                 }),
             }
         }
-        fn write_request(
+        fn write_request<'a>(
             &self,
             conn: &Connection,
-            msg: Self::Request,
+            msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>),
+            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
             InvalidId,
         > {
             match msg {
@@ -1764,6 +1794,7 @@ pub mod quad {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
+                Request::__phantom_lifetime { .. } => unreachable!(),
             }
         }
     }

@@ -9,6 +9,7 @@
 
 - Bump bitflags to 2.0
 - Updated wayland-backend to 0.2
+- Use `BorrowedFd<'_>` arguments instead of `RawFd`
 
 #### Bugfixes
 

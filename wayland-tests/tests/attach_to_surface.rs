@@ -2,8 +2,7 @@ extern crate tempfile;
 
 use std::fs::File;
 use std::io::{Read, Seek, Write};
-use std::os::fd::OwnedFd;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{AsFd, OwnedFd};
 
 #[macro_use]
 mod helpers;
@@ -87,7 +86,7 @@ fn attach_buffer() {
     let mut file = tempfile::tempfile().unwrap();
     write!(file, "I like trains!").unwrap();
     file.flush().unwrap();
-    let pool = shm.create_pool(file.as_raw_fd(), 42, &client.event_queue.handle(), ());
+    let pool = shm.create_pool(file.as_fd(), 42, &client.event_queue.handle(), ());
     let buffer = pool.create_buffer(0, 0, 0, 0, Format::Argb8888, &client.event_queue.handle(), ());
 
     let compositor = client_ddata

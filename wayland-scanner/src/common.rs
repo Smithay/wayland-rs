@@ -160,29 +160,33 @@ pub(crate) fn gen_message_enum(
     receiver: bool,
     messages: &[Message],
 ) -> TokenStream {
-    let variants = messages.iter().map(|msg| {
-        let mut docs = String::new();
-        if let Some((ref short, ref long)) = msg.description {
-            write!(docs, "{}\n\n{}\n", short, long.trim()).unwrap();
-        }
-        if let Some(Type::Destructor) = msg.typ {
-            write!(
-                docs,
-                "\nThis is a destructor, once {} this object cannot be used any longer.",
-                if receiver { "received" } else { "sent" },
-            )
-            .unwrap()
-        }
-        if msg.since > 1 {
-            write!(docs, "\nOnly available since version {} of the interface", msg.since).unwrap();
-        }
+    let variants = messages
+        .iter()
+        .map(|msg| {
+            let mut docs = String::new();
+            if let Some((ref short, ref long)) = msg.description {
+                write!(docs, "{}\n\n{}\n", short, long.trim()).unwrap();
+            }
+            if let Some(Type::Destructor) = msg.typ {
+                write!(
+                    docs,
+                    "\nThis is a destructor, once {} this object cannot be used any longer.",
+                    if receiver { "received" } else { "sent" },
+                )
+                .unwrap()
+            }
+            if msg.since > 1 {
+                write!(docs, "\nOnly available since version {} of the interface", msg.since)
+                    .unwrap();
+            }
 
-        let doc_attr = to_doc_attr(&docs);
-        let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
-        let msg_variant_decl = if msg.args.is_empty() {
-            msg_name.into_token_stream()
-        } else {
-            let fields = msg.args.iter().flat_map(|arg| {
+            let doc_attr = to_doc_attr(&docs);
+            let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
+            let msg_variant_decl =
+                if msg.args.is_empty() {
+                    msg_name.into_token_stream()
+                } else {
+                    let fields = msg.args.iter().flat_map(|arg| {
                 let field_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 let field_type_inner = if let Some(ref enu) = arg.enum_ {
@@ -199,7 +203,7 @@ pub(crate) fn gen_message_enum(
                             if receiver {
                                 quote! { OwnedFd }
                             } else {
-                                quote! { std::os::unix::io::RawFd }
+                                quote! { std::os::unix::io::BorrowedFd<'a> }
                             }
                         }
                         Type::Object => {
@@ -264,18 +268,19 @@ pub(crate) fn gen_message_enum(
                 })
             });
 
-            quote! {
-                #msg_name {
-                    #(#fields,)*
-                }
-            }
-        };
+                    quote! {
+                        #msg_name {
+                            #(#fields,)*
+                        }
+                    }
+                };
 
-        quote! {
-            #doc_attr
-            #msg_variant_decl
-        }
-    });
+            quote! {
+                #doc_attr
+                #msg_variant_decl
+            }
+        })
+        .collect::<Vec<_>>();
 
     let opcodes = messages.iter().enumerate().map(|(opcode, msg)| {
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
@@ -291,18 +296,33 @@ pub(crate) fn gen_message_enum(
         }
     });
 
+    // Placeholder to allow generic argument to be added later, without ABI
+    // break.
+    // TODO Use never type.
+    let (generic, phantom_variant, phantom_case) = if !receiver {
+        (
+            quote! { 'a },
+            quote! { #[doc(hidden)] __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> } },
+            quote! { #name::__phantom_lifetime { .. } => unreachable!() },
+        )
+    } else {
+        (quote! {}, quote! {}, quote! {})
+    };
+
     quote! {
         #[derive(Debug)]
         #[non_exhaustive]
-        pub enum #name {
+        pub enum #name<#generic> {
             #(#variants,)*
+            #phantom_variant
         }
 
-        impl #name {
+        impl<#generic> #name<#generic> {
             #[doc="Get the opcode number of this message"]
             pub fn opcode(&self) -> u16 {
                 match *self {
                     #(#opcodes,)*
+                    #phantom_case
                 }
             }
         }
@@ -604,7 +624,8 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
     });
     quote! {
         match msg {
-            #(#arms),*
+            #(#arms,)*
+            #msg_type::__phantom_lifetime { .. } => unreachable!()
         }
     }
 }

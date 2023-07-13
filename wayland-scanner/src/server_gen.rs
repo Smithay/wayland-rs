@@ -110,7 +110,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             impl super::wayland_server::Resource for #iface_name {
                 type Request = Request;
-                type Event = Event;
+                type Event<'event> = Event<'event>;
 
                 #[inline]
                 fn interface() -> &'static Interface{
@@ -151,7 +151,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     Ok(#iface_name { id, data, version, handle: conn.backend_handle().downgrade() })
                 }
 
-                fn send_event(&self, evt: Self::Event) -> Result<(), InvalidId> {
+                fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
                     let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
                     handle.send_event(self, evt)
                 }
@@ -160,7 +160,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #parse_body
                 }
 
-                fn write_event(&self, conn: &DisplayHandle, msg: Self::Event) -> Result<Message<ObjectId, std::os::unix::io::RawFd>, InvalidId> {
+                fn write_event<'a>(&self, conn: &DisplayHandle, msg: Self::Event<'a>) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
                     #write_body
                 }
 
@@ -214,7 +214,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                                 quote! { Vec<u8> }
                             }
                         }
-                        Type::Fd => quote! { ::std::os::unix::io::RawFd },
+                        Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },
                         Type::Object | Type::NewId => {
                             let iface = arg.interface.as_ref().unwrap();
                             let iface_mod = Ident::new(iface, Span::call_site());

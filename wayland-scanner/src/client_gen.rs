@@ -104,7 +104,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             }
 
             impl super::wayland_client::Proxy for #iface_name {
-                type Request = Request;
+                type Request<'request> = Request<'request>;
                 type Event = Event;
 
                 #[inline]
@@ -135,14 +135,14 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     &self.backend
                 }
 
-                fn send_request(&self, req: Self::Request) -> Result<(), InvalidId> {
+                fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
                     let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                     let id = conn.send_request(self, req, None)?;
                     debug_assert!(id.is_null());
                     Ok(())
                 }
 
-                fn send_constructor<I: Proxy>(&self, req: Self::Request, data: Arc<dyn ObjectData>) -> Result<I, InvalidId> {
+                fn send_constructor<I: Proxy>(&self, req: Self::Request<'_>, data: Arc<dyn ObjectData>) -> Result<I, InvalidId> {
                     let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
                     let id = conn.send_request(self, req, Some(data))?;
                     Proxy::from_id(&conn, id)
@@ -168,7 +168,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #parse_body
                 }
 
-                fn write_request(&self, conn: &Connection, msg: Self::Request) -> Result<(Message<ObjectId, std::os::unix::io::RawFd>, Option<(&'static Interface, u32)>), InvalidId> {
+                fn write_request<'a>(&self, conn: &Connection, msg: Self::Request<'a>) -> Result<(Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>), InvalidId> {
                     #write_body
                 }
             }
@@ -212,7 +212,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Type::Fixed => quote! { f64 },
                     Type::String => if arg.allow_null { quote!{ Option<String> } } else { quote!{ String } },
                     Type::Array => if arg.allow_null { quote!{ Option<Vec<u8>> } } else { quote!{ Vec<u8> } },
-                    Type::Fd => quote! { ::std::os::unix::io::RawFd },
+                    Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },
                     Type::Object => {
                         let iface = arg.interface.as_ref().unwrap();
                         let iface_mod = Ident::new(iface, Span::call_site());
