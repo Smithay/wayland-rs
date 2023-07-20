@@ -39,7 +39,10 @@ impl Socket {
     /// slice should not be longer than `MAX_BYTES_OUT` otherwise the receiving
     /// end may lose some data.
     pub fn send_msg(&self, bytes: &[u8], fds: &[OwnedFd]) -> IoResult<usize> {
+        #[cfg(not(target_os = "macos"))]
         let flags = SendFlags::DONTWAIT | SendFlags::NOSIGNAL;
+        #[cfg(target_os = "macos")]
+        let flags = SendFlags::DONTWAIT;
 
         if !fds.is_empty() {
             let iov = [IoSlice::new(bytes)];
@@ -66,15 +69,15 @@ impl Socket {
     /// slice `MAX_FDS_OUT` long, otherwise some data of the received message may
     /// be lost.
     pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut VecDeque<OwnedFd>) -> IoResult<usize> {
+        #[cfg(not(target_os = "macos"))]
+        let flags = RecvFlags::DONTWAIT | RecvFlags::CMSG_CLOEXEC;
+        #[cfg(target_os = "macos")]
+        let flags = RecvFlags::DONTWAIT;
+
         let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
         let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
         let mut iov = [IoSliceMut::new(buffer)];
-        let msg = recvmsg(
-            &self.stream,
-            &mut iov[..],
-            &mut cmsg_buffer,
-            RecvFlags::DONTWAIT | RecvFlags::CMSG_CLOEXEC,
-        )?;
+        let msg = recvmsg(&self.stream, &mut iov[..], &mut cmsg_buffer, flags)?;
 
         let received_fds = cmsg_buffer
             .drain()
@@ -84,12 +87,21 @@ impl Socket {
             })
             .flatten();
         fds.extend(received_fds);
+        #[cfg(target_os = "macos")]
+        for fd in fds.iter() {
+            if let Ok(flags) = rustix::io::fcntl_getfd(fd) {
+                let _ = rustix::io::fcntl_setfd(fd, flags | rustix::io::FdFlags::CLOEXEC);
+            }
+        }
         Ok(msg.bytes)
     }
 }
 
 impl From<UnixStream> for Socket {
     fn from(stream: UnixStream) -> Self {
+        // macOS doesn't have MSG_NOSIGNAL, but has SO_NOSIGPIPE instead
+        #[cfg(target_os = "macos")]
+        let _ = rustix::net::sockopt::set_socket_nosigpipe(&stream, true);
         Self { stream }
     }
 }
