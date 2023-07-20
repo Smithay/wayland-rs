@@ -22,7 +22,8 @@ use rustix::event::epoll;
     target_os = "dragonfly",
     target_os = "freebsd",
     target_os = "netbsd",
-    target_os = "openbsd"
+    target_os = "openbsd",
+    target_os = "macos"
 ))]
 use rustix::event::kqueue::*;
 use smallvec::SmallVec;
@@ -43,7 +44,8 @@ impl<D> InnerBackend<D> {
             target_os = "dragonfly",
             target_os = "freebsd",
             target_os = "netbsd",
-            target_os = "openbsd"
+            target_os = "openbsd",
+            target_os = "macos"
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
@@ -108,7 +110,8 @@ impl<D> InnerBackend<D> {
         target_os = "dragonfly",
         target_os = "freebsd",
         target_os = "netbsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "macos"
     ))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         use std::time::Duration;
