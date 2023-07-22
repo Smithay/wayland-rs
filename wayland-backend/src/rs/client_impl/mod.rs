@@ -2,6 +2,7 @@
 
 use std::{
     fmt,
+    os::fd::{BorrowedFd, OwnedFd},
     os::unix::{
         io::{AsRawFd, RawFd},
         net::UnixStream,
@@ -17,7 +18,6 @@ use crate::{
         INLINE_ARGS,
     },
 };
-use io_lifetimes::{BorrowedFd, OwnedFd};
 use smallvec::SmallVec;
 
 use super::{

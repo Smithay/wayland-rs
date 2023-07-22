@@ -169,12 +169,12 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
+    os::fd::OwnedFd,
     os::unix::io::RawFd,
     sync::Arc,
 };
 use wayland_backend::{
     client::{InvalidId, ObjectData, ObjectId, WaylandError, WeakBackend},
-    io_lifetimes::OwnedFd,
     protocol::{Interface, Message},
 };
 

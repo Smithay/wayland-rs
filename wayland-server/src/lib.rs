@@ -78,9 +78,9 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
+    os::fd::OwnedFd,
 };
 use wayland_backend::{
-    io_lifetimes::OwnedFd,
     protocol::{Interface, Message},
     server::{InvalidId, ObjectId, WeakHandle},
 };

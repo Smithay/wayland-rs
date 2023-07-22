@@ -1,8 +1,7 @@
 #![allow(dead_code, non_snake_case)]
 
+use std::os::fd::OwnedFd;
 use std::sync::Arc;
-
-use io_lifetimes::OwnedFd;
 
 use crate::protocol::{Argument, Message};
 

@@ -2,13 +2,13 @@
 pub mod wl_display {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[repr(u32)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -185,7 +185,7 @@ pub mod wl_display {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -309,13 +309,13 @@ pub mod wl_display {
 pub mod wl_registry {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -459,7 +459,7 @@ pub mod wl_registry {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -556,13 +556,13 @@ pub mod wl_registry {
 pub mod wl_callback {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -678,7 +678,7 @@ pub mod wl_callback {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -717,13 +717,13 @@ pub mod wl_callback {
 pub mod test_global {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -828,7 +828,7 @@ pub mod test_global {
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
-            file_descriptor: io_lifetimes::OwnedFd,
+            file_descriptor: OwnedFd,
         },
         #[doc = "acking the creation of a secondary"]
         AckSecondary { sec: super::secondary::Secondary },
@@ -930,7 +930,7 @@ pub mod test_global {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1293,13 +1293,13 @@ pub mod test_global {
 pub mod secondary {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -1412,7 +1412,7 @@ pub mod secondary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1456,13 +1456,13 @@ pub mod secondary {
 pub mod tertiary {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1575,7 +1575,7 @@ pub mod tertiary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1619,13 +1619,13 @@ pub mod tertiary {
 pub mod quad {
     use super::wayland_client::{
         backend::{
-            io_lifetimes,
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
+    use std::os::fd::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1738,7 +1738,7 @@ pub mod quad {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, io_lifetimes::OwnedFd>,
+            msg: Message<ObjectId, OwnedFd>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();

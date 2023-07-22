@@ -39,7 +39,7 @@ The documentation for the releases can be found on [docs.rs](https://docs.rs/):
 
 ## Requirements
 
-Requires at least rust 1.59.0 to be used, and version 1.15 of the wayland system libraries if using the
+Requires at least rust 1.63.0 to be used, and version 1.15 of the wayland system libraries if using the
 system backend.
 
 ## Chat and support

@@ -2,6 +2,7 @@ extern crate tempfile;
 
 use std::fs::File;
 use std::io::{Read, Seek, Write};
+use std::os::fd::OwnedFd;
 use std::os::unix::io::AsRawFd;
 
 #[macro_use]
@@ -11,7 +12,6 @@ use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use wayc::protocol::wl_shm::Format;
 
-use wayland_backend::io_lifetimes::OwnedFd;
 use ways::protocol::wl_buffer::WlBuffer as ServerBuffer;
 
 #[test]

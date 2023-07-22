@@ -1,10 +1,10 @@
 //! Wayland socket manipulation
 
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
+use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 
-use io_lifetimes::{AsFd, BorrowedFd, OwnedFd};
 use nix::sys::socket;
 
 use crate::protocol::{ArgumentType, Message};

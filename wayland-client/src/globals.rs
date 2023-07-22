@@ -55,6 +55,7 @@
 use std::{
     fmt,
     ops::RangeInclusive,
+    os::fd::OwnedFd,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -63,7 +64,6 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, WaylandError},
-    io_lifetimes::OwnedFd,
     protocol::Message,
 };
 

@@ -1,5 +1,6 @@
 //! Server-side rust implementation of a Wayland protocol backend
 
+use std::os::fd::OwnedFd;
 use std::{fmt, sync::Arc};
 
 use crate::protocol::{same_interface, Interface, Message};
@@ -12,7 +13,6 @@ mod registry;
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 pub use common_poll::InnerBackend;
 pub use handle::{InnerHandle, WeakInnerHandle};
-use io_lifetimes::OwnedFd;
 
 use super::server::*;
 
