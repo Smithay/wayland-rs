@@ -1,11 +1,10 @@
 use std::{
     ffi::CString,
     fmt,
+    os::fd::{BorrowedFd, OwnedFd},
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
-
-use io_lifetimes::{BorrowedFd, OwnedFd};
 
 use crate::protocol::{Interface, Message, ObjectInfo};
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};

@@ -6,12 +6,12 @@
 pub extern crate wayland_client as wayc;
 pub extern crate wayland_server as ways;
 
+use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use wayland_backend::client::ObjectData;
-use wayland_backend::io_lifetimes::OwnedFd;
 
 pub mod globals;
 

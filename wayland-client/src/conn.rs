@@ -1,6 +1,7 @@
 use std::{
     env, fmt,
     io::ErrorKind,
+    os::fd::OwnedFd,
     os::unix::net::UnixStream,
     os::unix::prelude::{AsRawFd, FromRawFd},
     path::PathBuf,
@@ -12,7 +13,6 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
-    io_lifetimes::OwnedFd,
     protocol::{ObjectInfo, ProtocolError},
 };
 

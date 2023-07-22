@@ -2,6 +2,7 @@
 
 use std::{
     ffi::{CStr, CString},
+    os::fd::{BorrowedFd, OwnedFd},
     os::raw::{c_int, c_void},
     os::unix::{
         io::{FromRawFd, IntoRawFd, RawFd},
@@ -17,7 +18,6 @@ use crate::protocol::{
     check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
     ObjectInfo, ANONYMOUS_INTERFACE,
 };
-use io_lifetimes::{BorrowedFd, OwnedFd};
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 

@@ -1,11 +1,10 @@
 use std::{
     any::Any,
     fmt,
+    os::fd::{BorrowedFd, OwnedFd},
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
-
-use io_lifetimes::{BorrowedFd, OwnedFd};
 
 use crate::protocol::{Interface, Message, ObjectInfo};
 

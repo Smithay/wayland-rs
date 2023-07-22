@@ -1,7 +1,7 @@
+use std::os::fd::OwnedFd;
 use std::sync::Arc;
 
 use wayland_backend::{
-    io_lifetimes::OwnedFd,
     protocol::ProtocolError,
     server::{ClientId, DisconnectReason, ObjectData, ObjectId},
 };

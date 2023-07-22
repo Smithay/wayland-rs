@@ -49,6 +49,7 @@ use std::env;
 use std::fs::File;
 use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
+use std::os::fd::OwnedFd;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -60,7 +61,6 @@ use nix::unistd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use {nix::sys::memfd, std::ffi::CStr};
 
-use wayland_client::backend::io_lifetimes::OwnedFd;
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{self, Format, WlShm};

@@ -3,6 +3,7 @@ use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     io,
+    os::fd::{AsFd, BorrowedFd},
     os::unix::{
         io::{AsRawFd, FromRawFd, RawFd},
         net::{UnixListener, UnixStream},
@@ -11,7 +12,6 @@ use std::{
     path::PathBuf,
 };
 
-use io_lifetimes::{AsFd, BorrowedFd};
 use nix::{
     fcntl::{flock, open, FlockArg, OFlag},
     sys::stat::{lstat, Mode},

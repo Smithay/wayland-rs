@@ -1,5 +1,6 @@
 use std::{
     ffi::CString,
+    os::fd::OwnedFd,
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
@@ -15,7 +16,6 @@ use crate::{
     types::server::{DisconnectReason, InvalidId},
 };
 
-use io_lifetimes::OwnedFd;
 use smallvec::SmallVec;
 
 use crate::rs::{

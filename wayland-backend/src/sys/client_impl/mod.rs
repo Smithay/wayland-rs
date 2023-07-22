@@ -3,6 +3,7 @@
 use std::{
     collections::HashSet,
     ffi::CStr,
+    os::fd::{BorrowedFd, OwnedFd},
     os::raw::{c_int, c_void},
     os::unix::{
         io::{FromRawFd, IntoRawFd, RawFd},
@@ -21,7 +22,6 @@ use crate::{
         ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
     },
 };
-use io_lifetimes::{BorrowedFd, OwnedFd};
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 

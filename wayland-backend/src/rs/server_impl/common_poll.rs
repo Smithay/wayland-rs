@@ -1,4 +1,5 @@
 use std::{
+    os::fd::{BorrowedFd, OwnedFd},
     os::unix::io::{AsRawFd, FromRawFd},
     sync::{Arc, Mutex},
 };
@@ -14,7 +15,6 @@ use crate::{
     types::server::InitError,
 };
 
-use io_lifetimes::{BorrowedFd, OwnedFd};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use nix::sys::epoll::*;
 

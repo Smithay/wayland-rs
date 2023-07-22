@@ -197,7 +197,7 @@ pub(crate) fn gen_message_enum(
                         Type::Array => quote! { Vec<u8> },
                         Type::Fd => {
                             if receiver {
-                                quote! { io_lifetimes::OwnedFd }
+                                quote! { OwnedFd }
                             } else {
                                 quote! { std::os::unix::io::RawFd }
                             }

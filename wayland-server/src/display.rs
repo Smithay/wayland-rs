@@ -1,7 +1,10 @@
-use std::{os::unix::net::UnixStream, sync::Arc};
+use std::{
+    os::fd::{AsFd, BorrowedFd},
+    os::unix::net::UnixStream,
+    sync::Arc,
+};
 
 use wayland_backend::{
-    io_lifetimes::{AsFd, BorrowedFd},
     protocol::ObjectInfo,
     server::{Backend, ClientData, GlobalId, Handle, InitError, InvalidId, ObjectId},
 };

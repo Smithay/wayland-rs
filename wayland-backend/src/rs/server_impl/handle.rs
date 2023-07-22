@@ -1,13 +1,12 @@
 use std::{
     ffi::CString,
+    os::fd::OwnedFd,
     os::unix::{
         io::{AsRawFd, RawFd},
         net::UnixStream,
     },
     sync::{Arc, Mutex, Weak},
 };
-
-use io_lifetimes::OwnedFd;
 
 use crate::{
     protocol::{same_interface, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE},
