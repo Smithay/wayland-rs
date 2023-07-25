@@ -110,11 +110,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
 }
 
 // Ignore events from these object types in this example.
-delegate_noop!(State: wl_compositor::WlCompositor);
-delegate_noop!(State: wl_surface::WlSurface);
-delegate_noop!(State: wl_shm::WlShm);
-delegate_noop!(State: wl_shm_pool::WlShmPool);
-delegate_noop!(State: wl_buffer::WlBuffer);
+delegate_noop!(State: ignore wl_compositor::WlCompositor);
+delegate_noop!(State: ignore wl_surface::WlSurface);
+delegate_noop!(State: ignore wl_shm::WlShm);
+delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
+delegate_noop!(State: ignore wl_buffer::WlBuffer);
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
     use std::{cmp::min, io::Write};
