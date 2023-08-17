@@ -45,7 +45,7 @@ fn main() {
 
     // Create an event queue for our event processing
     let mut event_queue = conn.new_event_queue();
-    // An get its handle to associated new objects to it
+    // And get its handle to associated new objects to it
     let qh = event_queue.handle();
 
     // Create a wl_registry object by sending the wl_display.get_registry request
