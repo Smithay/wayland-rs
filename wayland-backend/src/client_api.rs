@@ -251,27 +251,24 @@ impl Backend {
     /// This is the first step for actually reading events from the Wayland socket. See
     /// [`ReadEventsGuard`] for how to use it.
     ///
-    /// This call will not block, but event callbacks may be invoked in the process
-    /// of preparing the guard.
-    ///
-    /// If it returns an error, you Wayland connection is already dead.
+    /// This call will not block, but may return `None` if the inner queue of the backend needs to
+    /// be dispatched. In which case you should invoke
+    /// [`dispatch_inner_queue()`](Backend::dispatch_inner_queue).
     #[inline]
-    pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
+    #[must_use]
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
         client_impl::InnerReadEventsGuard::try_new(self.backend.clone())
             .map(|guard| ReadEventsGuard { guard })
     }
 
     /// Dispatches the inner queue of this backend if necessary
     ///
-    /// This function is only relevant when using the system backend that was created from an external
-    /// display. In this case, it is possible that some other part of the program already takes care
-    /// of reading the wayland socket and you should not touch it, and thus you cannot use
-    /// [`prepare_read()`](Backend::prepare_read). In this situation, this method will ensure that this
-    /// [`Backend`] still correctly processes its messages.
-    ///
-    /// When using the rust backend, or when using the system backend where you own the connection, this
-    /// function will do nothing. It is thus safe to unconditionnaly invoke it at some point in your library
-    /// code to ensure you support all use cases, for example.
+    /// This function actually only does something when using the system backend. It dispaches an inner
+    /// queue that the backend uses to wrap `libwayland`. While this dispatching is generally done in
+    /// [`ReadEventsGuard::read()`](ReadEventsGuard::read), if multiple threads are interacting with the
+    /// Wayland socket it can happen that this queue was filled by another thread. In that case
+    /// [`prepare_read()`](Backend::prepare_read) will return `None`, and you should invoke
+    /// this function instead of using the [`ReadEventsGuard`]
     ///
     /// Returns the number of messages that were dispatched to their `ObjectData` callbacks.
     #[inline]

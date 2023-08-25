@@ -204,9 +204,9 @@ impl InnerReadEventsGuard {
     ///
     /// This call will not block, but event callbacks may be invoked in the process
     /// of preparing the guard.
-    pub fn try_new(backend: InnerBackend) -> Result<Self, WaylandError> {
+    pub fn try_new(backend: InnerBackend) -> Option<Self> {
         backend.state.lock_read().prepared_reads += 1;
-        Ok(Self { state: backend.state, done: false })
+        Some(Self { state: backend.state, done: false })
     }
 
     /// Access the Wayland socket FD for polling
