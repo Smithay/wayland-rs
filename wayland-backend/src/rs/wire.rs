@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn into_from_raw_cycle() {
         let mut bytes_buffer = vec![0; 1024];
-        let mut fd_buffer = vec![0; 10];
+        let mut fd_buffer = [0; 10];
 
         let msg = Message {
             sender_id: 42,

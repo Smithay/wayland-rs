@@ -5,6 +5,7 @@
 #### Breaking changes
 
 - Bump bitflags to 2.0
+- Remove `io-lifetimes` from the generated code following wayland-backend 0.3 dropping it.
 
 # 0.30.1 -- 2023-06-17
 

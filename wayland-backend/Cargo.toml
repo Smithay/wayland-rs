@@ -3,7 +3,7 @@ name = "wayland-backend"
 version = "0.2.0"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.65"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-backend/"
 license = "MIT"
@@ -18,12 +18,11 @@ wayland-sys = { version = "0.31.0", path = "../wayland-sys", features = [] }
 log = { version = "0.4", optional = true }
 scoped-tls = "1.0"
 downcast-rs = "1.2"
-io-lifetimes = "2"
 raw-window-handle = { version = "0.5.0", optional = true }
 
 [dependencies.smallvec]
 version = "1.9"
-# Some additional features can be enabled since wayland-rs requires at least Rust 1.59
+# Some additional features can be enabled since wayland-rs requires at least Rust 1.65
 features = [
     "union", # 1.49
     "const_generics", # 1.51
@@ -48,7 +47,7 @@ cc = "1.0"
 wayland-scanner = { path = "../wayland-scanner"}
 wayland-sys = { path = "../wayland-sys", features = ["client", "server"] }
 concat-idents = "1.1"
-env_logger = "0.9"
+env_logger = "0.10"
 
 [features]
 client_system = ["wayland-sys/client"]

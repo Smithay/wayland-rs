@@ -47,8 +47,6 @@
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-/// Reexport of the `io_lifetimes` crate, which is part of `wayland-backend`'s public API.
-pub extern crate io_lifetimes;
 /// Reexport of the `smallvec` crate, which is part of `wayland-backend`'s public API.
 pub extern crate smallvec;
 

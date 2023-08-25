@@ -8,7 +8,7 @@ description = "FFI bindings to the various libwayland-*.so libraries. You should
 license = "MIT"
 categories = ["external-ffi-bindings"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.65"
 readme = "README.md"
 
 [dependencies]
