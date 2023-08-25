@@ -3,8 +3,8 @@
 use std::{
     collections::HashSet,
     ffi::CStr,
-    os::fd::{BorrowedFd, OwnedFd},
     os::raw::{c_int, c_void},
+    os::unix::io::{BorrowedFd, OwnedFd},
     os::unix::{
         io::{FromRawFd, IntoRawFd, RawFd},
         net::UnixStream,

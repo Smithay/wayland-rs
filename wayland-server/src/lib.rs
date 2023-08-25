@@ -78,7 +78,7 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    os::fd::OwnedFd,
+    os::unix::io::OwnedFd,
 };
 use wayland_backend::{
     protocol::{Interface, Message},

@@ -1,4 +1,4 @@
-use std::os::fd::OwnedFd;
+use std::os::unix::io::OwnedFd;
 use std::sync::Arc;
 
 use wayland_backend::server::{

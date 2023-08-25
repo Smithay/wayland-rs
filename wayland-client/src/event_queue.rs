@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::os::fd::OwnedFd;
+use std::os::unix::io::OwnedFd;
 use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
 use std::task;
 

@@ -58,7 +58,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         #mod_doc
         pub mod #mod_name {
             use std::sync::Arc;
-            use std::os::fd::OwnedFd;
+            use std::os::unix::io::OwnedFd;
 
             use super::wayland_server::{
                 backend::{

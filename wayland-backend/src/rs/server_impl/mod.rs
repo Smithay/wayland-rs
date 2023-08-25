@@ -1,6 +1,6 @@
 //! Server-side rust implementation of a Wayland protocol backend
 
-use std::os::fd::OwnedFd;
+use std::os::unix::io::OwnedFd;
 use std::{fmt, sync::Arc};
 
 use crate::protocol::{same_interface, Interface, Message};

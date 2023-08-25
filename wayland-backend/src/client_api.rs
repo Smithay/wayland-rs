@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     fmt,
-    os::fd::{BorrowedFd, OwnedFd},
+    os::unix::io::{BorrowedFd, OwnedFd},
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };

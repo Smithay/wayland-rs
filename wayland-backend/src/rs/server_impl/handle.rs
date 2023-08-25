@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    os::fd::OwnedFd,
+    os::unix::io::OwnedFd,
     os::unix::{
         io::{AsRawFd, RawFd},
         net::UnixStream,

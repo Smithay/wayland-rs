@@ -55,7 +55,7 @@
 use std::{
     fmt,
     ops::RangeInclusive,
-    os::fd::OwnedFd,
+    os::unix::io::OwnedFd,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
