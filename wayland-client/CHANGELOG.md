@@ -6,7 +6,8 @@
 
 - Bump bitflags to 2.0
 - Updated wayland-backend to 0.2
-- Calloop integration is now removed, to avoid tying wayland-client to it
+- Calloop integration is now removed, to avoid tying wayland-client to it you can use the
+  `calloop-wayland-source` crate instead
 
 ## 0.30.2 -- 30/05/2023
 

@@ -399,36 +399,24 @@ pub struct InnerReadEventsGuard {
 }
 
 impl InnerReadEventsGuard {
-    pub fn try_new(backend: InnerBackend) -> Result<Self, WaylandError> {
+    pub fn try_new(backend: InnerBackend) -> Option<Self> {
         let (display, evq) = {
             let guard = backend.lock_state();
             (guard.display, guard.evq)
         };
-        let dispatcher = backend.inner.dispatch_lock.lock().unwrap();
-        // do the prepare_read() and dispatch as necessary
-        loop {
-            let ret = unsafe {
-                if evq.is_null() {
-                    ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read, display)
-                } else {
-                    ffi_dispatch!(
-                        wayland_client_handle(),
-                        wl_display_prepare_read_queue,
-                        display,
-                        evq
-                    )
-                }
-            };
-            if ret < 0 {
-                dispatcher.dispatch_pending(backend.inner.clone())?;
-            } else {
-                break;
-            }
-        }
-        std::mem::drop(dispatcher);
 
-        // prepare_read is done, we are ready
-        Ok(Self { inner: backend.inner, display, done: false })
+        let ret = unsafe {
+            if evq.is_null() {
+                ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read, display)
+            } else {
+                ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read_queue, display, evq)
+            }
+        };
+        if ret < 0 {
+            None
+        } else {
+            Some(Self { inner: backend.inner, display, done: false })
+        }
     }
 
     pub fn connection_fd(&self) -> BorrowedFd {

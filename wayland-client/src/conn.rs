@@ -136,7 +136,8 @@ impl Connection {
     ///
     /// If you don't need to manage multiple event sources, see
     /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
-    pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
+    #[must_use]
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
         self.backend.prepare_read()
     }
 
@@ -162,15 +163,11 @@ impl Connection {
         loop {
             self.backend.flush()?;
 
-            // first, prepare the read
-            let guard = self.backend.prepare_read()?;
-
-            // If another thread processed events prior to prepare_read, we might already be done.
-            if done.done.load(Ordering::Relaxed) {
-                break;
+            if let Some(guard) = self.backend.prepare_read() {
+                dispatched += blocking_read(guard)?;
+            } else {
+                dispatched += self.backend.dispatch_inner_queue()?;
             }
-
-            dispatched += blocking_read(guard)?;
 
             // see if the successful read included our callback
             if done.done.load(Ordering::Relaxed) {

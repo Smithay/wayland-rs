@@ -391,14 +391,8 @@ impl<State> EventQueue<State> {
 
         self.conn.flush()?;
 
-        let guard = self.conn.prepare_read()?;
-
-        // we need to check the queue again, just in case another thread did a read between
-        // dispatch_pending and prepare_read
-        if self.handle.inner.lock().unwrap().queue.is_empty() {
+        if let Some(guard) = self.conn.prepare_read() {
             crate::conn::blocking_read(guard)?;
-        } else {
-            drop(guard);
         }
 
         self.dispatch_pending(data)
@@ -439,11 +433,15 @@ impl<State> EventQueue<State> {
     /// you'll then need to dispatch them from the event queue using
     /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
     ///
+    /// If this method returns `None`, you should invoke ['dispatch_pending()`](EventQueue::dispatch_pending)
+    /// before trying to invoke it again.
+    ///
     /// If you don't need to manage multiple event sources, see
     /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
     ///
     /// This method is identical to [`Connection::prepare_read()`].
-    pub fn prepare_read(&self) -> Result<ReadEventsGuard, WaylandError> {
+    #[must_use]
+    pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
         self.conn.prepare_read()
     }
 

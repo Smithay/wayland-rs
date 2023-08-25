@@ -6,6 +6,10 @@
 
 - MSRV bumped to 1.65
 - `io-lifetimes` is no longer a (public) dependency
+- The `Backend::prepare_read()` method now returns `None` if the inner queue of the backend
+  needs to be dispatched using `Backend::dispatch_inner_queue()`, instead of trying to dispatch
+  it by itself. This can only happen when using the `sys` backend, and allows the crate to
+  behave properly when multiple threads try to read the socket using the libwayland API.
 
 #### Additions
 
