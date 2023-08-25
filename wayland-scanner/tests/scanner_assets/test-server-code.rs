@@ -8,7 +8,7 @@ pub mod wl_callback {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -165,7 +165,7 @@ pub mod test_global {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -763,7 +763,7 @@ pub mod secondary {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -912,7 +912,7 @@ pub mod tertiary {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1061,7 +1061,7 @@ pub mod quad {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]

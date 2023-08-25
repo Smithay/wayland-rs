@@ -1,7 +1,7 @@
 use std::{
     env, fmt,
     io::ErrorKind,
-    os::fd::OwnedFd,
+    os::unix::io::OwnedFd,
     os::unix::net::UnixStream,
     os::unix::prelude::{AsRawFd, FromRawFd},
     path::PathBuf,

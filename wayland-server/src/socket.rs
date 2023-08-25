@@ -3,7 +3,7 @@ use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     io,
-    os::fd::{AsFd, BorrowedFd},
+    os::unix::io::{AsFd, BorrowedFd},
     os::unix::{
         io::{AsRawFd, FromRawFd, RawFd},
         net::{UnixListener, UnixStream},

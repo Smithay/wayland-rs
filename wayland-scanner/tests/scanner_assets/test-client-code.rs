@@ -8,7 +8,7 @@ pub mod wl_display {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[repr(u32)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -315,7 +315,7 @@ pub mod wl_registry {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -562,7 +562,7 @@ pub mod wl_callback {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -723,7 +723,7 @@ pub mod test_global {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -1299,7 +1299,7 @@ pub mod secondary {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -1462,7 +1462,7 @@ pub mod tertiary {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1625,7 +1625,7 @@ pub mod quad {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
     use std::sync::Arc;
-    use std::os::fd::OwnedFd;
+    use std::os::unix::io::OwnedFd;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]

@@ -1,6 +1,6 @@
 //! Types and routines used to manipulate arguments from the wire format
 
-use std::os::fd::{BorrowedFd, OwnedFd};
+use std::os::unix::io::{BorrowedFd, OwnedFd};
 use std::os::unix::io::{FromRawFd, RawFd};
 use std::ptr;
 use std::{ffi::CStr, os::unix::prelude::AsRawFd};

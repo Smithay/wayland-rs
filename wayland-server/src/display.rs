@@ -1,5 +1,5 @@
 use std::{
-    os::fd::{AsFd, BorrowedFd},
+    os::unix::io::{AsFd, BorrowedFd},
     os::unix::net::UnixStream,
     sync::Arc,
 };

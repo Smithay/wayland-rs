@@ -169,7 +169,7 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    os::fd::OwnedFd,
+    os::unix::io::OwnedFd,
     os::unix::io::RawFd,
     sync::Arc,
 };
