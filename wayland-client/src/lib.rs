@@ -188,7 +188,6 @@ pub mod backend {
         Backend, InvalidId, NoWaylandLib, ObjectData, ObjectId, ReadEventsGuard, WaylandError,
         WeakBackend,
     };
-    pub use wayland_backend::io_lifetimes;
     pub use wayland_backend::protocol;
     pub use wayland_backend::smallvec;
 }

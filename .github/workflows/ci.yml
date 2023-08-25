@@ -192,7 +192,7 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.59.0
+          toolchain: 1.65.0
           override: true
           profile: minimal
           default: true
@@ -209,18 +209,6 @@ jobs:
 
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
-
-      - name: Fix raw-window-handle
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p raw-window-handle --precise 0.5.0
-
-      - name: Fix log
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p log --precise 0.4.17
 
       - name: Check
         uses: actions-rs/cargo@v1

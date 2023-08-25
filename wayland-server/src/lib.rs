@@ -99,7 +99,6 @@ pub use socket::{BindError, ListeningSocket};
 
 /// Backend reexports
 pub mod backend {
-    pub use wayland_backend::io_lifetimes;
     pub use wayland_backend::protocol;
     pub use wayland_backend::server::{
         Backend, ClientData, ClientId, Credentials, DisconnectReason, GlobalHandler, GlobalId,

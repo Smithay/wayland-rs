@@ -9,7 +9,7 @@ keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for the officials wayland protocol extensions"
 categories = ["gui", "api-bindings"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.65"
 readme = "README.md"
 
 [dependencies]

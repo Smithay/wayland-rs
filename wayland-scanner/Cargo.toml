@@ -9,7 +9,7 @@ license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
 edition = "2018"
-rust-version = "1.59"
+rust-version = "1.65"
 readme = "README.md"
 
 [lib]
@@ -18,7 +18,7 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1.0.11"
 quote = "1.0"
-quick-xml = "0.28"
+quick-xml = "0.30"
 
 [dev-dependencies]
 similar = "2"
