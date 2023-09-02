@@ -5,7 +5,7 @@
 #### Breaking changes
 
 - Bump bitflags to 2.0
-- Updated wayland-backend to 0.2
+- Updated wayland-backend to 0.3
 - Calloop integration is now removed, to avoid tying wayland-client to it you can use the
   `calloop-wayland-source` crate instead
 - Use `BorrowedFd<'_>` arguments instead of `RawFd`

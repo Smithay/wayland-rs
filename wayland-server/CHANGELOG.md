@@ -5,7 +5,7 @@
 #### Breaking changes
 
 - Bump bitflags to 2.0
-- Updated wayland-backend to 0.2
+- Updated wayland-backend to 0.3
 - Use `BorrowedFd<'_>` arguments instead of `RawFd`
 - `Resource::destroyed` now passes the resource type instead of the `ObjectId`.
 

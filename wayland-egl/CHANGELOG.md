@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- Update wayland-backend to 0.3
+
 ## 0.31.0 -- 2023-07-13
 
 #### Breaking changes
