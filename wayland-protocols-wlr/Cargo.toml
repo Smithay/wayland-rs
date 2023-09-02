@@ -19,7 +19,7 @@ wayland-scanner = { version = "0.31.0", path = "../wayland-scanner" }
 wayland-backend = { version = "0.3.0", path = "../wayland-backend" }
 wayland-client = { version = "0.31.0", path = "../wayland-client", optional = true }
 wayland-server = { version = "0.31.0", path = "../wayland-server", optional = true }
-wayland-protocols = { version = "0.30.0", path = "../wayland-protocols"}
+wayland-protocols = { version = "0.31.0", path = "../wayland-protocols"}
 bitflags = "2"
 
 [features]
