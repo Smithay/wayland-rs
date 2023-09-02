@@ -363,6 +363,16 @@ impl<D> Client<D> {
             };
 
             let obj = self.map.find(msg.sender_id).unwrap();
+
+            if self.debug {
+                super::super::debug::print_dispatched_message(
+                    obj.interface.name,
+                    msg.sender_id,
+                    obj.interface.requests.get(msg.opcode as usize).unwrap().name,
+                    &msg.args,
+                );
+            }
+
             return Ok((msg, obj));
         }
     }

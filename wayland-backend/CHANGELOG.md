@@ -16,6 +16,10 @@
 
 - Add `flush` method to server `Handle`.
 
+#### Bugfixes
+
+- Setting `WAYLAND_DEBUG` server-side now properly prints incoming requests
+
 ## 0.2.0 -- 2023-07-13
 
 #### Breaking changes
