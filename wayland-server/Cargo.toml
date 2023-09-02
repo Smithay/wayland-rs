@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 wayland-backend = { version = "0.3.0", path = "../wayland-backend" }
-wayland-scanner = { version = "0.30.0", path = "../wayland-scanner" }
+wayland-scanner = { version = "0.31.0", path = "../wayland-scanner" }
 bitflags = "2"
 log = { version = "0.4", optional = true }
 nix = { version = "0.26.0", default-features = false }
