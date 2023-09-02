@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 -- 2023-09-02
+
 ### Breaking changes
 
 - Bump bitflags to 2.0
