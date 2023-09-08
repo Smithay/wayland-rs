@@ -181,6 +181,12 @@ impl Backend {
         self.backend.flush()
     }
 
+    /// Access the Wayland socket FD for polling
+    #[inline]
+    pub fn poll_fd(&self) -> BorrowedFd {
+        self.backend.poll_fd()
+    }
+
     /// Get the object ID for the `wl_display`
     #[inline]
     pub fn display_id(&self) -> ObjectId {

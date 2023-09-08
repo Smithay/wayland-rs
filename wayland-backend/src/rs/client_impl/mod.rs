@@ -191,6 +191,13 @@ impl InnerBackend {
         }
         Ok(())
     }
+
+    pub fn poll_fd(&self) -> BorrowedFd {
+        let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
+        // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
+        // which is the real safety concern
+        unsafe { BorrowedFd::borrow_raw(raw_fd) }
+    }
 }
 
 #[derive(Debug)]

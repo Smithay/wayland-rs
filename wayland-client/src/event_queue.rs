@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::os::unix::io::OwnedFd;
+use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
 use std::task;
 
@@ -346,6 +346,13 @@ impl<State> std::fmt::Debug for EventQueue<State> {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EventQueue").field("handle", &self.handle).finish_non_exhaustive()
+    }
+}
+
+impl<State> AsFd for EventQueue<State> {
+    /// Provides fd from [`Backend::poll_fd`] for polling.
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.conn.as_fd()
     }
 }
 

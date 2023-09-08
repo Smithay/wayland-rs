@@ -3,7 +3,7 @@ use std::{
     io::ErrorKind,
     os::unix::io::OwnedFd,
     os::unix::net::UnixStream,
-    os::unix::prelude::{AsRawFd, FromRawFd},
+    os::unix::prelude::{AsFd, AsRawFd, BorrowedFd, FromRawFd},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -270,6 +270,13 @@ impl fmt::Display for ConnectError {
                 write!(f, "WAYLAND_SOCKET was set but contained garbage")
             }
         }
+    }
+}
+
+impl AsFd for Connection {
+    /// Provides fd from [`Backend::poll_fd`] for polling.
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.backend.poll_fd()
     }
 }
 
