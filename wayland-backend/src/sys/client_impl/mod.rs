@@ -293,6 +293,17 @@ impl InnerBackend {
         }
     }
 
+    pub fn poll_fd(&self) -> BorrowedFd {
+        let guard = self.lock_state();
+        unsafe {
+            BorrowedFd::borrow_raw(ffi_dispatch!(
+                wayland_client_handle(),
+                wl_display_get_fd,
+                guard.display
+            ))
+        }
+    }
+
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
     }

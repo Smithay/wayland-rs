@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Additions
+
+- Implement `AsFd` for `Connection` and `EventQueue` so they can easily be used in a
+  `calloop` source.
+
 ## 0.31.0 -- 2023-09-02
 
 #### Breaking changes

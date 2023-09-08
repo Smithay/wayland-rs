@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- client: Add `Backend::poll_fd` to return fd for polling
+
 ## 0.3.0 -- 2023-09-02
 
 #### Breaking change
