@@ -117,7 +117,7 @@ impl<Id: PartialEq, Fd: AsRawFd> PartialEq for Argument<Id, Fd> {
 impl<Id: Eq, Fd: AsRawFd> Eq for Argument<Id, Fd> {}
 
 impl<Id: std::fmt::Display, Fd: AsRawFd> std::fmt::Display for Argument<Id, Fd> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Int(value) => write!(f, "{}", value),
@@ -151,7 +151,7 @@ pub struct Interface {
 }
 
 impl std::fmt::Display for Interface {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name)
     }
@@ -250,7 +250,7 @@ impl<Id: Eq, Fd: AsRawFd> Eq for Message<Id, Fd> {}
 impl std::error::Error for ProtocolError {}
 
 impl std::fmt::Display for ProtocolError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(
             f,

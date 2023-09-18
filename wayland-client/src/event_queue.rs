@@ -119,7 +119,7 @@ where
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
     /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",
@@ -193,7 +193,7 @@ type QueueCallback<State> = fn(
 struct QueueEvent<State>(QueueCallback<State>, Message<ObjectId, OwnedFd>, Arc<dyn ObjectData>);
 
 impl<State> std::fmt::Debug for QueueEvent<State> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueEvent").field("msg", &self.1).finish_non_exhaustive()
     }
@@ -343,7 +343,7 @@ impl<State> EventQueueInner<State> {
 }
 
 impl<State> std::fmt::Debug for EventQueue<State> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EventQueue").field("handle", &self.handle).finish_non_exhaustive()
     }
@@ -579,7 +579,7 @@ pub struct QueueFreezeGuard<'a, State> {
 }
 
 impl<State> std::fmt::Debug for QueueHandle<State> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueHandle").field("inner", &Arc::as_ptr(&self.inner)).finish()
     }
@@ -686,7 +686,7 @@ where
 }
 
 impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, U, State> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()
     }

@@ -5,7 +5,7 @@ pub struct NoWaylandLib;
 impl std::error::Error for NoWaylandLib {}
 
 impl std::fmt::Display for NoWaylandLib {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         f.write_str("could not load libwayland-client.so")
     }
@@ -21,7 +21,7 @@ pub enum WaylandError {
 }
 
 impl std::error::Error for WaylandError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
             Self::Io(e) => Some(e),
@@ -31,7 +31,7 @@ impl std::error::Error for WaylandError {
 }
 
 impl std::fmt::Display for WaylandError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             Self::Io(e) => write!(f, "Io error: {}", e),
@@ -41,7 +41,7 @@ impl std::fmt::Display for WaylandError {
 }
 
 impl Clone for WaylandError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn clone(&self) -> Self {
         match self {
             Self::Protocol(e) => Self::Protocol(e.clone()),
@@ -57,14 +57,14 @@ impl Clone for WaylandError {
 }
 
 impl From<crate::protocol::ProtocolError> for WaylandError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn from(err: crate::protocol::ProtocolError) -> Self {
         Self::Protocol(err)
     }
 }
 
 impl From<std::io::Error> for WaylandError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn from(err: std::io::Error) -> Self {
         Self::Io(err)
     }
@@ -77,7 +77,7 @@ pub struct InvalidId;
 impl std::error::Error for InvalidId {}
 
 impl std::fmt::Display for InvalidId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(f, "Invalid ObjectId")
     }
