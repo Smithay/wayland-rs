@@ -41,7 +41,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ObjectData").finish_non_exhaustive()
     }
@@ -50,7 +50,7 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
 downcast_rs::impl_downcast!(sync ObjectData<D>);
 
 impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
     }
@@ -89,14 +89,14 @@ pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
     /// Helper for forwarding a Debug implementation of your `GlobalHandler` type
     ///
     /// By default will just print `GlobalHandler { ... }`
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlobalHandler").finish_non_exhaustive()
     }
 }
 
 impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
@@ -113,14 +113,14 @@ pub trait ClientData: downcast_rs::DowncastSync {
     /// Helper for forwarding a Debug implementation of your `ClientData` type
     ///
     /// By default will just print `GlobalHandler { ... }`
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClientData").finish_non_exhaustive()
     }
 }
 
 impl std::fmt::Debug for dyn ClientData {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
@@ -183,14 +183,14 @@ impl ObjectId {
 }
 
 impl fmt::Display for ObjectId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
     }
 }
 
 impl fmt::Debug for ObjectId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
     }
@@ -207,7 +207,7 @@ pub struct ClientId {
 }
 
 impl fmt::Debug for ClientId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
     }
@@ -220,7 +220,7 @@ pub struct GlobalId {
 }
 
 impl fmt::Debug for GlobalId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
     }
@@ -579,7 +579,7 @@ impl<D> Backend<D> {
 pub(crate) struct DumbObjectData;
 
 impl<D> ObjectData<D> for DumbObjectData {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn request(
         self: Arc<Self>,
         _handle: &Handle,
@@ -590,7 +590,7 @@ impl<D> ObjectData<D> for DumbObjectData {
         unreachable!()
     }
 
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn destroyed(
         self: Arc<Self>,
         _handle: &Handle,

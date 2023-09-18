@@ -21,7 +21,7 @@ pub enum InitError {
 }
 
 impl std::error::Error for InitError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
             InitError::Io(ref err) => Some(err),
@@ -31,7 +31,7 @@ impl std::error::Error for InitError {
 }
 
 impl std::fmt::Display for InitError {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             InitError::Io(ref err) => std::fmt::Display::fmt(err, f),
@@ -47,7 +47,7 @@ pub struct InvalidId;
 impl std::error::Error for InvalidId {}
 
 impl std::fmt::Display for InvalidId {
-    #[cfg_attr(coverage, no_coverage)]
+    #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         write!(f, "Invalid Id")
     }

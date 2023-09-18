@@ -43,7 +43,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 // The api modules are imported two times each, this is not accidental
 #![allow(clippy::duplicate_mod)]
-#![cfg_attr(coverage, feature(no_coverage))]
+#![cfg_attr(coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
