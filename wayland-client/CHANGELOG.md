@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.31.1 -- 2023-09-19
+
 #### Additions
 
 - Implement `AsFd` for `Connection` and `EventQueue` so they can easily be used in a
