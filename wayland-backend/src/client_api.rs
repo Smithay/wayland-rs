@@ -12,6 +12,8 @@ use super::client_impl;
 
 pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 
+use as_any::AsAny;
+
 /// A trait representing your data associated to an object
 ///
 /// You will only be given access to it as a `&` reference, so you
@@ -19,7 +21,7 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData: downcast_rs::DowncastSync {
+pub trait ObjectData: Send + Sync + AsAny {
     /// Dispatch an event for the associated object
     ///
     /// If the event has a `NewId` argument, the callback must return the object data
@@ -57,8 +59,6 @@ impl std::fmt::Debug for dyn ObjectData {
         self.debug(f)
     }
 }
-
-downcast_rs::impl_downcast!(sync ObjectData);
 
 /// An ID representing a Wayland object
 ///

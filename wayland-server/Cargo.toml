@@ -15,10 +15,10 @@ readme = "README.md"
 [dependencies]
 wayland-backend = { version = "0.3.0", path = "../wayland-backend" }
 wayland-scanner = { version = "0.31.0", path = "../wayland-scanner" }
+as-any = "0.3"
 bitflags = "2"
 log = { version = "0.4", optional = true }
 nix = { version = "0.26.0", default-features = false }
-downcast-rs = "1.2"
 io-lifetimes = "2"
 
 [package.metadata.docs.rs]

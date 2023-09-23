@@ -11,6 +11,21 @@ pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitEr
 
 use super::server_impl;
 
+use as_any::AsAny;
+
+/// Extends `AsAny` to support `Sync` traits that thus support `Arc` downcasting as well.
+pub trait IntoAnyArc: Send + Sync + AsAny {
+    /// Convert `Arc<Trait>` (where `Trait: Downcast`) to `Arc<Any>`. `Arc<Any>` can then be
+    /// further `downcast` into `Arc<ConcreteType>` where `ConcreteType` implements `Trait`.
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync>;
+}
+
+impl<T: Send + Sync + AsAny> IntoAnyArc for T {
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
+}
+
 /// A trait representing your data associated to an object
 ///
 /// You will only be given access to it as a `&` reference, so you
@@ -18,7 +33,7 @@ use super::server_impl;
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData<D>: downcast_rs::DowncastSync {
+pub trait ObjectData<D>: IntoAnyArc {
     /// Dispatch a request for the associated object
     ///
     /// If the request has a `NewId` argument, the callback must return the object data
@@ -47,8 +62,6 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
     }
 }
 
-downcast_rs::impl_downcast!(sync ObjectData<D>);
-
 impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,7 +70,7 @@ impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
 }
 
 /// A trait representing the handling of new bound globals
-pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
+pub trait GlobalHandler<D>: Send + Sync + AsAny {
     /// Check if given client is allowed to interact with given global
     ///
     /// If this function returns false, the client will not be notified of the existence
@@ -102,10 +115,8 @@ impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
     }
 }
 
-downcast_rs::impl_downcast!(sync GlobalHandler<D>);
-
 /// A trait representing your data associated to a client
-pub trait ClientData: downcast_rs::DowncastSync {
+pub trait ClientData: Send + Sync + AsAny {
     /// Notification that the client was initialized
     fn initialized(&self, _client_id: ClientId) {}
     /// Notification that the client is disconnected
@@ -127,8 +138,6 @@ impl std::fmt::Debug for dyn ClientData {
 }
 
 impl ClientData for () {}
-
-downcast_rs::impl_downcast!(sync ClientData);
 
 /// An ID representing a Wayland object
 ///

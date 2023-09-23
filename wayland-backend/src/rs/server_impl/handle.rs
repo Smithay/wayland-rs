@@ -18,6 +18,8 @@ use super::{
     InnerClientId, InnerGlobalId, InnerObjectId, ObjectData, ObjectId,
 };
 
+use as_any::Downcast;
+
 pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, InnerClientId, InnerObjectId);
 
 #[derive(Debug)]
@@ -269,7 +271,7 @@ impl InnerHandle {
     }
 }
 
-pub(crate) trait ErasedState: downcast_rs::Downcast {
+pub(crate) trait ErasedState: as_any::AsAny {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &mut self,
@@ -301,8 +303,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
 }
-
-downcast_rs::impl_downcast!(ErasedState);
 
 impl<D> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {

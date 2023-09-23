@@ -107,17 +107,17 @@ mod server {
     fn test_impls() {
         // ObjectData
         assert_impl!(
-            dyn server::ObjectData<()>: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn server::ObjectData<()>: std::fmt::Debug, Send, Sync, as_any::AsAny
         );
 
         // GlobalHandler
         assert_impl!(
-            dyn server::GlobalHandler<()>: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn server::GlobalHandler<()>: std::fmt::Debug, Send, Sync, as_any::AsAny
         );
 
         // ClientData
         assert_impl!(
-            dyn server::ClientData: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn server::ClientData: std::fmt::Debug, Send, Sync, as_any::AsAny
         );
 
         // ObjectId
@@ -150,7 +150,7 @@ mod client {
     fn test_impls() {
         // ObjectData
         assert_impl!(
-            dyn client::ObjectData: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn client::ObjectData: std::fmt::Debug, Send, Sync, as_any::AsAny
         );
 
         // ObjectId
