@@ -3,20 +3,19 @@ use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     io,
-    os::unix::io::{AsFd, BorrowedFd},
     os::unix::{
-        io::{AsRawFd, FromRawFd, RawFd},
+        fs::OpenOptionsExt,
+        io::{AsFd, BorrowedFd},
+    },
+    os::unix::{
+        io::{AsRawFd, RawFd},
         net::{UnixListener, UnixStream},
         prelude::MetadataExt,
     },
     path::PathBuf,
 };
 
-use nix::{
-    fcntl::{flock, open, FlockArg, OFlag},
-    sys::stat::{lstat, Mode},
-    unistd::unlink,
-};
+use nix::fcntl::{flock, FlockArg};
 
 /// An utility representing a unix socket on which your compositor is listening for new clients
 #[derive(Debug)]
@@ -83,18 +82,16 @@ impl ListeningSocket {
         // https://gitlab.freedesktop.org/libbsd/libbsd/-/blob/73b25a8f871b3a20f6ff76679358540f95d7dbfd/src/flopen.c#L71
         loop {
             // open the lockfile
-            let lock_fd = open(
-                &lock_path,
-                OFlag::O_CREAT | OFlag::O_CLOEXEC | OFlag::O_RDWR,
-                Mode::S_IRUSR | Mode::S_IWUSR | Mode::S_IRGRP | Mode::S_IWGRP,
-            )
-            .map_err(|_| BindError::PermissionDenied)?;
-
-            // SAFETY: We have just opened the file descriptor.
-            _lock = unsafe { File::from_raw_fd(lock_fd) };
+            _lock = File::options()
+                .create(true)
+                .read(true)
+                .write(true)
+                .mode(0o660)
+                .open(&lock_path)
+                .map_err(|_| BindError::PermissionDenied)?;
 
             // lock the lockfile
-            if flock(lock_fd, FlockArg::LockExclusiveNonblock).is_err() {
+            if flock(_lock.as_raw_fd(), FlockArg::LockExclusiveNonblock).is_err() {
                 return Err(BindError::AlreadyInUse);
             }
 
@@ -120,17 +117,17 @@ impl ListeningSocket {
         }
 
         // check if an old socket exists, and cleanup if relevant
-        match lstat(&socket_path) {
-            Err(nix::Error::ENOENT) => {
+        match socket_path.try_exists() {
+            Ok(false) => {
                 // none exist, good
             }
-            Ok(_) => {
+            Ok(true) => {
                 // one exist, remove it
-                unlink(&socket_path).map_err(|_| BindError::AlreadyInUse)?;
+                fs::remove_file(&socket_path).map_err(|_| BindError::AlreadyInUse)?;
             }
             Err(e) => {
                 // some error stat-ing the socket?
-                return Err(BindError::Io(e.into()));
+                return Err(BindError::Io(e));
             }
         }
 
@@ -191,8 +188,8 @@ impl AsFd for ListeningSocket {
 
 impl Drop for ListeningSocket {
     fn drop(&mut self) {
-        let _ = unlink(&self.socket_path);
-        let _ = unlink(&self.lock_path);
+        let _ = fs::remove_file(&self.socket_path);
+        let _ = fs::remove_file(&self.lock_path);
     }
 }
 
