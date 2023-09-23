@@ -322,7 +322,7 @@ impl ConnectionState {
     #[inline]
     fn store_and_return_error(&mut self, err: std::io::Error) -> WaylandError {
         // check if it was actually a protocol error
-        let err = if err.raw_os_error() == Some(nix::errno::Errno::EPROTO as i32) {
+        let err = if err.raw_os_error() == Some(rustix::io::Errno::PROTO.raw_os_error()) {
             let mut object_id = 0;
             let mut interface = std::ptr::null();
             let code = unsafe {

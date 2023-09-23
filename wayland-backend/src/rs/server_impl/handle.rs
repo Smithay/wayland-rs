@@ -1,10 +1,7 @@
 use std::{
     ffi::CString,
     os::unix::io::OwnedFd,
-    os::unix::{
-        io::{AsRawFd, RawFd},
-        net::UnixStream,
-    },
+    os::unix::{io::RawFd, net::UnixStream},
     sync::{Arc, Mutex, Weak},
 };
 
@@ -314,15 +311,19 @@ impl<D> ErasedState for State<D> {
         stream: UnixStream,
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId> {
-        let client_fd = stream.as_raw_fd();
         let id = self.clients.create_client(stream, data);
+        let client = self.clients.get_client(id.clone()).unwrap();
 
         // register the client to the internal epoll
         #[cfg(any(target_os = "linux", target_os = "android"))]
         let ret = {
-            use nix::sys::epoll::*;
-            let mut evt = EpollEvent::new(EpollFlags::EPOLLIN, id.as_u64());
-            epoll_ctl(self.poll_fd.as_raw_fd(), EpollOp::EpollCtlAdd, client_fd, &mut evt)
+            use rustix::event::epoll;
+            epoll::add(
+                &self.poll_fd,
+                client,
+                epoll::EventData::new_u64(id.as_u64()),
+                epoll::EventFlags::IN,
+            )
         };
 
         #[cfg(any(
@@ -332,17 +333,17 @@ impl<D> ErasedState for State<D> {
             target_os = "openbsd"
         ))]
         let ret = {
-            use nix::sys::event::*;
-            let evt = KEvent::new(
-                client_fd as usize,
-                EventFilter::EVFILT_READ,
-                EventFlag::EV_ADD | EventFlag::EV_RECEIPT,
-                FilterFlag::empty(),
-                0,
+            use rustix::event::kqueue::*;
+            use std::os::unix::io::{AsFd, AsRawFd};
+
+            let evt = Event::new(
+                EventFilter::Read(client.as_fd().as_raw_fd()),
+                EventFlags::ADD | EventFlags::RECEIPT,
                 id.as_u64() as isize,
             );
 
-            kevent_ts(self.poll_fd.as_raw_fd(), &[evt], &mut [], None).map(|_| ())
+            let mut events = Vec::new();
+            unsafe { kevent(&self.poll_fd, &[evt], &mut events, None).map(|_| ()) }
         };
 
         match ret {

@@ -6,7 +6,6 @@ use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
 use std::task;
 
-use nix::Error;
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::{Argument, Message},
@@ -424,7 +423,7 @@ impl<State> EventQueue<State> {
                 crate::protocol::wl_display::Request::Sync {},
                 Some(done.clone()),
             )
-            .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
+            .map_err(|_| WaylandError::Io(rustix::io::Errno::PIPE.into()))?;
 
         let mut dispatched = 0;
 

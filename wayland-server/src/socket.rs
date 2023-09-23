@@ -15,7 +15,7 @@ use std::{
     path::PathBuf,
 };
 
-use nix::fcntl::{flock, FlockArg};
+use rustix::fs::{flock, FlockOperation};
 
 /// An utility representing a unix socket on which your compositor is listening for new clients
 #[derive(Debug)]
@@ -91,7 +91,7 @@ impl ListeningSocket {
                 .map_err(|_| BindError::PermissionDenied)?;
 
             // lock the lockfile
-            if flock(_lock.as_raw_fd(), FlockArg::LockExclusiveNonblock).is_err() {
+            if flock(&_lock, FlockOperation::NonBlockingLockExclusive).is_err() {
                 return Err(BindError::AlreadyInUse);
             }
 

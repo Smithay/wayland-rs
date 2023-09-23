@@ -1,5 +1,5 @@
 use std::{
-    os::unix::io::{AsRawFd, FromRawFd},
+    os::unix::io::AsRawFd,
     os::unix::io::{BorrowedFd, OwnedFd},
     sync::{Arc, Mutex},
 };
@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use nix::sys::epoll::*;
+use rustix::event::epoll;
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -24,7 +24,7 @@ use nix::sys::epoll::*;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use nix::sys::event::*;
+use rustix::event::kqueue::*;
 use smallvec::SmallVec;
 
 #[derive(Debug)]
@@ -35,7 +35,7 @@ pub struct InnerBackend<D: 'static> {
 impl<D> InnerBackend<D> {
     pub fn new() -> Result<Self, InitError> {
         #[cfg(any(target_os = "linux", target_os = "android"))]
-        let poll_fd = epoll_create1(EpollCreateFlags::EPOLL_CLOEXEC)
+        let poll_fd = epoll::create(epoll::CreateFlags::CLOEXEC)
             .map_err(Into::into)
             .map_err(InitError::Io)?;
 
@@ -47,9 +47,7 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(Self {
-            state: Arc::new(Mutex::new(State::new(unsafe { OwnedFd::from_raw_fd(poll_fd) }))),
-        })
+        Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
     }
 
     pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
@@ -80,18 +78,20 @@ impl<D> InnerBackend<D> {
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
+        use std::os::unix::io::AsFd;
+
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = [EpollEvent::empty(); 32];
-            let nevents = epoll_wait(poll_fd.as_raw_fd(), &mut events, 0)?;
+            let mut events = epoll::EventVec::with_capacity(32);
+            epoll::wait(poll_fd.as_fd(), &mut events, 0)?;
 
-            if nevents == 0 {
+            if events.is_empty() {
                 break;
             }
 
-            for event in events.iter().take(nevents) {
-                let id = InnerClientId::from_u64(event.data());
+            for event in events.iter() {
+                let id = InnerClientId::from_u64(event.data.u64());
                 // remove the cb while we call it, to gracefully handle reentrancy
                 if let Ok(count) = self.dispatch_events_for(data, id) {
                     dispatched += count;
@@ -111,19 +111,13 @@ impl<D> InnerBackend<D> {
         target_os = "openbsd"
     ))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
+        use std::time::Duration;
+
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = [KEvent::new(
-                0,
-                EventFilter::EVFILT_READ,
-                EventFlag::empty(),
-                FilterFlag::empty(),
-                0,
-                0,
-            ); 32];
-
-            let nevents = kevent(poll_fd.as_raw_fd(), &[], &mut events, 0)?;
+            let mut events = Vec::with_capacity(32);
+            let nevents = unsafe { kevent(&poll_fd, &[], &mut events, Some(Duration::ZERO))? };
 
             if nevents == 0 {
                 break;

@@ -66,9 +66,9 @@ pub enum DisconnectReason {
 #[derive(Debug, Clone, Copy)]
 pub struct Credentials {
     /// pid of the client
-    pub pid: nix::libc::pid_t,
+    pub pid: rustix::process::RawPid,
     /// uid of the client
-    pub uid: nix::libc::uid_t,
+    pub uid: rustix::process::RawUid,
     /// gid of the client
-    pub gid: nix::libc::gid_t,
+    pub gid: rustix::process::RawGid,
 }
