@@ -29,15 +29,13 @@ features = [
     "const_new", # 1.51
 ]
 
-[dependencies.nix]
-version = "0.26.0"
-default-features = false
+[dependencies.rustix]
+version = "0.38.17"
 features = [
     "event",
     "fs",
-    "poll",
-    "socket",
-    "uio",
+    "net",
+    "process",
 ]
 
 [build-dependencies]

@@ -49,16 +49,17 @@ use std::env;
 use std::fs::File;
 use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
-use std::os::unix::io::{AsFd, FromRawFd, OwnedFd, RawFd};
+use std::os::unix::io::{AsFd, OwnedFd};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nix::errno::Errno;
-use nix::fcntl;
-use nix::sys::{mman, stat};
-use nix::unistd;
+use rustix::fs::Mode;
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use {nix::sys::memfd, std::ffi::CStr};
+use rustix::fs::{memfd_create, MemfdFlags};
+use rustix::io::Errno;
+use rustix::shm::{shm_open, shm_unlink, ShmOFlags};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use std::ffi::CStr;
 
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
@@ -134,7 +135,7 @@ impl CursorTheme {
 
         //  Create shm.
         let mem_fd = create_shm_fd().expect("Shm fd allocation failed");
-        let mut file = unsafe { File::from_raw_fd(mem_fd) };
+        let mut file = File::from(mem_fd);
         file.set_len(INITIAL_POOL_SIZE as u64).expect("Failed to set buffer length");
 
         // Ensure that we have the same we requested.
@@ -374,17 +375,17 @@ pub struct FrameAndDuration {
 }
 
 /// Create a shared file descriptor in memory.
-fn create_shm_fd() -> IoResult<RawFd> {
+fn create_shm_fd() -> IoResult<OwnedFd> {
     // Only try memfd on systems that provide it, (like Linux, Android)
     #[cfg(any(target_os = "linux", target_os = "android"))]
     loop {
-        match memfd::memfd_create(
+        match memfd_create(
             CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
-            memfd::MemFdCreateFlag::MFD_CLOEXEC,
+            MemfdFlags::CLOEXEC,
         ) {
             Ok(fd) => return Ok(fd),
-            Err(Errno::EINTR) => continue,
-            Err(Errno::ENOSYS) => break,
+            Err(Errno::INTR) => continue,
+            Err(Errno::NOSYS) => break,
             Err(errno) => return Err(errno.into()),
         }
     }
@@ -396,22 +397,16 @@ fn create_shm_fd() -> IoResult<RawFd> {
         sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
     );
     loop {
-        match mman::shm_open(
+        match shm_open(
             mem_file_handle.as_str(),
-            fcntl::OFlag::O_CREAT
-                | fcntl::OFlag::O_EXCL
-                | fcntl::OFlag::O_RDWR
-                | fcntl::OFlag::O_CLOEXEC,
-            stat::Mode::S_IRUSR | stat::Mode::S_IWUSR,
+            ShmOFlags::CREATE | ShmOFlags::EXCL | ShmOFlags::RDWR,
+            Mode::RUSR | Mode::WUSR,
         ) {
-            Ok(fd) => match mman::shm_unlink(mem_file_handle.as_str()) {
+            Ok(fd) => match shm_unlink(mem_file_handle.as_str()) {
                 Ok(_) => return Ok(fd),
-                Err(errno) => match unistd::close(fd) {
-                    Ok(_) => return Err(IoError::from(errno)),
-                    Err(errno) => return Err(IoError::from(errno)),
-                },
+                Err(errno) => return Err(IoError::from(errno)),
             },
-            Err(Errno::EEXIST) => {
+            Err(Errno::EXIST) => {
                 // If a file with that handle exists then change the handle
                 mem_file_handle = format!(
                     "/wayland-cursor-rs-{}",
@@ -419,7 +414,7 @@ fn create_shm_fd() -> IoResult<RawFd> {
                 );
                 continue;
             }
-            Err(Errno::EINTR) => continue,
+            Err(Errno::INTR) => continue,
             Err(errno) => return Err(IoError::from(errno)),
         }
     }

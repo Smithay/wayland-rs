@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    os::unix::io::OwnedFd,
+    os::unix::io::{AsFd, BorrowedFd, OwnedFd},
     os::unix::{io::RawFd, net::UnixStream},
     sync::Arc,
 };
@@ -295,13 +295,10 @@ impl<D> Client<D> {
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub(crate) fn get_credentials(&self) -> Credentials {
-        use std::os::unix::io::AsRawFd;
-        let creds = nix::sys::socket::getsockopt(
-            self.socket.as_raw_fd(),
-            nix::sys::socket::sockopt::PeerCredentials,
-        )
-        .expect("getsockopt failed!?");
-        Credentials { pid: creds.pid(), uid: creds.uid(), gid: creds.gid() }
+        let creds =
+            rustix::net::sockopt::get_socket_peercred(&self.socket).expect("getsockopt failed!?");
+        let pid = rustix::process::Pid::as_raw(Some(creds.pid));
+        Credentials { pid, uid: creds.uid.as_raw(), gid: creds.gid.as_raw() }
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -336,7 +333,7 @@ impl<D> Client<D> {
         &mut self,
     ) -> std::io::Result<(Message<u32, OwnedFd>, Object<Data<D>>)> {
         if self.killed {
-            return Err(nix::errno::Errno::EPIPE.into());
+            return Err(rustix::io::Errno::PIPE.into());
         }
         loop {
             let map = &self.map;
@@ -358,7 +355,7 @@ impl<D> Client<D> {
                 }
                 Err(MessageParseError::Malformed) => {
                     self.kill(DisconnectReason::ConnectionClosed);
-                    return Err(nix::errno::Errno::EPROTO.into());
+                    return Err(rustix::io::Errno::PROTO.into());
                 }
             };
 
@@ -656,6 +653,12 @@ impl<D> Client<D> {
             });
         }
         Some((new_args, message_desc.is_destructor, created_id))
+    }
+}
+
+impl<D> AsFd for Client<D> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.socket.as_fd()
     }
 }
 

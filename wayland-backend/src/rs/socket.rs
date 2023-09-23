@@ -1,11 +1,14 @@
 //! Wayland socket manipulation
 
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
-use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
+use std::slice;
 
-use nix::sys::socket;
+use rustix::net::{
+    recvmsg, sendmsg, RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags, SendAncillaryBuffer,
+    SendAncillaryMessage, SendFlags,
+};
 
 use crate::protocol::{ArgumentType, Message};
 
@@ -35,14 +38,19 @@ impl Socket {
     /// slice should not be longer than `MAX_BYTES_OUT` otherwise the receiving
     /// end may lose some data.
     pub fn send_msg(&self, bytes: &[u8], fds: &[RawFd]) -> IoResult<usize> {
-        let flags = socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_NOSIGNAL;
+        let flags = SendFlags::DONTWAIT | SendFlags::NOSIGNAL;
         let iov = [IoSlice::new(bytes)];
 
         if !fds.is_empty() {
-            let cmsgs = [socket::ControlMessage::ScmRights(fds)];
-            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &cmsgs, flags, None)?)
+            let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(fds.len()))];
+            let mut cmsg_buffer = SendAncillaryBuffer::new(&mut cmsg_space);
+            let fds =
+                unsafe { slice::from_raw_parts(fds.as_ptr() as *const BorrowedFd, fds.len()) };
+            cmsg_buffer.push(SendAncillaryMessage::ScmRights(fds));
+            Ok(sendmsg(self, &iov, &mut cmsg_buffer, flags)?)
         } else {
-            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &[], flags, None)?)
+            let mut cmsg_buffer = SendAncillaryBuffer::new(&mut []);
+            Ok(sendmsg(self, &iov, &mut cmsg_buffer, flags)?)
         }
     }
 
@@ -58,25 +66,27 @@ impl Socket {
     /// slice `MAX_FDS_OUT` long, otherwise some data of the received message may
     /// be lost.
     pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut [RawFd]) -> IoResult<(usize, usize)> {
-        let mut cmsg = nix::cmsg_space!([RawFd; MAX_FDS_OUT]);
+        let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
+        let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
         let mut iov = [IoSliceMut::new(buffer)];
-        let msg = socket::recvmsg::<()>(
-            self.stream.as_raw_fd(),
+        let msg = recvmsg(
+            &self.stream,
             &mut iov[..],
-            Some(&mut cmsg),
-            socket::MsgFlags::MSG_DONTWAIT
-                | socket::MsgFlags::MSG_CMSG_CLOEXEC
-                | socket::MsgFlags::MSG_NOSIGNAL,
+            &mut cmsg_buffer,
+            RecvFlags::DONTWAIT | RecvFlags::CMSG_CLOEXEC,
         )?;
 
         let mut fd_count = 0;
-        let received_fds = msg.cmsgs().flat_map(|cmsg| match cmsg {
-            socket::ControlMessageOwned::ScmRights(s) => s,
-            _ => Vec::new(),
-        });
+        let received_fds = cmsg_buffer
+            .drain()
+            .filter_map(|cmsg| match cmsg {
+                RecvAncillaryMessage::ScmRights(fds) => Some(fds),
+                _ => None,
+            })
+            .flatten();
         for (fd, place) in received_fds.zip(fds.iter_mut()) {
             fd_count += 1;
-            *place = fd;
+            *place = fd.into_raw_fd();
         }
         Ok((msg.bytes, fd_count))
     }
@@ -141,7 +151,7 @@ impl BufferedSocket {
             let written = self.socket.send_msg(bytes, fds)?;
             for &fd in fds {
                 // once the fds are sent, we can close them
-                let _ = ::nix::unistd::close(fd);
+                unsafe { rustix::io::close(fd) };
             }
             written
         };
@@ -192,7 +202,7 @@ impl BufferedSocket {
             if !self.attempt_write_message(msg)? {
                 // If this fails again, this means the message is too big
                 // to be transmitted at all
-                return Err(::nix::errno::Errno::E2BIG.into());
+                return Err(rustix::io::Errno::TOOBIG.into());
             }
         }
         Ok(())
@@ -215,7 +225,7 @@ impl BufferedSocket {
         };
         if in_bytes == 0 {
             // the other end of the socket was closed
-            return Err(::nix::errno::Errno::EPIPE.into());
+            return Err(rustix::io::Errno::PIPE.into());
         }
         // advance the storage
         self.in_data.advance(in_bytes / 4 + usize::from(in_bytes % 4 > 0));
@@ -342,14 +352,14 @@ mod tests {
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
-    use std::os::unix::io::RawFd;
+    use std::os::unix::io::BorrowedFd;
     use std::os::unix::prelude::IntoRawFd;
 
     use smallvec::smallvec;
 
-    fn same_file(a: RawFd, b: RawFd) -> bool {
-        let stat1 = ::nix::sys::stat::fstat(a).unwrap();
-        let stat2 = ::nix::sys::stat::fstat(b).unwrap();
+    fn same_file(a: BorrowedFd, b: BorrowedFd) -> bool {
+        let stat1 = rustix::fs::fstat(a).unwrap();
+        let stat2 = rustix::fs::fstat(b).unwrap();
         stat1.st_dev == stat2.st_dev && stat1.st_ino == stat2.st_ino
     }
 
@@ -366,7 +376,9 @@ mod tests {
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
             if let (Argument::Fd(fd1), Argument::Fd(fd2)) = (arg1, arg2) {
-                assert!(same_file(fd1.as_raw_fd(), fd2.as_raw_fd()));
+                let fd1 = unsafe { BorrowedFd::borrow_raw(fd1.as_raw_fd()) };
+                let fd2 = unsafe { BorrowedFd::borrow_raw(fd2.as_raw_fd()) };
+                assert!(same_file(fd1, fd2));
             } else {
                 assert_eq!(arg1, arg2);
             }

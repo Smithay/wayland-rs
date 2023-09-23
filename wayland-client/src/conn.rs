@@ -1,9 +1,8 @@
 use std::{
     env, fmt,
     io::ErrorKind,
-    os::unix::io::OwnedFd,
+    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
     os::unix::net::UnixStream,
-    os::unix::prelude::{AsFd, AsRawFd, BorrowedFd, FromRawFd},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -15,8 +14,6 @@ use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
     protocol::{ObjectInfo, ProtocolError},
 };
-
-use nix::{fcntl, Error};
 
 use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
 
@@ -50,21 +47,21 @@ impl Connection {
         let stream = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
             // We should connect to the provided WAYLAND_SOCKET
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+            let fd = unsafe { OwnedFd::from_raw_fd(fd) };
             // remove the variable so any child processes don't see it
             env::remove_var("WAYLAND_SOCKET");
             // set the CLOEXEC flag on this FD
-            let flags = fcntl::fcntl(fd, fcntl::FcntlArg::F_GETFD);
+            let flags = rustix::io::fcntl_getfd(&fd);
             let result = flags
-                .map(|f| fcntl::FdFlag::from_bits(f).unwrap() | fcntl::FdFlag::FD_CLOEXEC)
-                .and_then(|f| fcntl::fcntl(fd, fcntl::FcntlArg::F_SETFD(f)));
+                .map(|f| f | rustix::io::FdFlags::CLOEXEC)
+                .and_then(|f| rustix::io::fcntl_setfd(&fd, f));
             match result {
                 Ok(_) => {
                     // setting the O_CLOEXEC worked
-                    unsafe { FromRawFd::from_raw_fd(fd) }
+                    UnixStream::from(fd)
                 }
                 Err(_) => {
                     // something went wrong in F_GETFD or F_SETFD
-                    let _ = ::nix::unistd::close(fd);
                     return Err(ConnectError::InvalidFd);
                 }
             }
@@ -156,7 +153,7 @@ impl Connection {
             crate::protocol::wl_display::Request::Sync {},
             Some(done.clone()),
         )
-        .map_err(|_| WaylandError::Io(Error::EPIPE.into()))?;
+        .map_err(|_| WaylandError::Io(rustix::io::Errno::PIPE.into()))?;
 
         let mut dispatched = 0;
 
@@ -220,15 +217,16 @@ impl Connection {
 }
 
 pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandError> {
-    let mut fds = [nix::poll::PollFd::new(
-        guard.connection_fd().as_raw_fd(),
-        nix::poll::PollFlags::POLLIN | nix::poll::PollFlags::POLLERR,
+    let fd = guard.connection_fd();
+    let mut fds = [rustix::event::PollFd::new(
+        &fd,
+        rustix::event::PollFlags::IN | rustix::event::PollFlags::ERR,
     )];
 
     loop {
-        match nix::poll::poll(&mut fds, -1) {
+        match rustix::event::poll(&mut fds, -1) {
             Ok(_) => break,
-            Err(nix::errno::Errno::EINTR) => continue,
+            Err(rustix::io::Errno::INTR) => continue,
             Err(e) => return Err(WaylandError::Io(e.into())),
         }
     }

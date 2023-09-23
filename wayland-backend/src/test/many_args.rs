@@ -1,6 +1,5 @@
 use std::{
     ffi::{CStr, CString},
-    os::unix::io::AsRawFd,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -32,8 +31,8 @@ macro_rules! serverdata_impls {
                     assert_eq!(&**a, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
                     assert_eq!(&***s, CStr::from_bytes_with_nul(b"I like trains\0").unwrap());
                     // compare the fd to stdin
-                    let stat1 = ::nix::sys::stat::fstat(fd.as_raw_fd()).unwrap();
-                    let stat2 = ::nix::sys::stat::fstat(0).unwrap();
+                    let stat1 = rustix::fs::fstat(&fd).unwrap();
+                    let stat2 = rustix::fs::fstat(std::io::stdin()).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);
                 } else {
@@ -105,8 +104,8 @@ macro_rules! clientdata_impls {
                     assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
                     assert_eq!(&***s, CStr::from_bytes_with_nul(b"I want cake\0").unwrap());
                     // compare the fd to stdout
-                    let stat1 = ::nix::sys::stat::fstat(fd.as_raw_fd()).unwrap();
-                    let stat2 = ::nix::sys::stat::fstat(1).unwrap();
+                    let stat1 = rustix::fs::fstat(&fd).unwrap();
+                    let stat2 = rustix::fs::fstat(std::io::stdout()).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);
                 } else {
