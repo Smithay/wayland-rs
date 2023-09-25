@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.2 -- 2023-09-25
+
 #### Bugfixes
 
 - server/sys: Fix an issue where the backend could deadlock in some cases when sending an event that destroys

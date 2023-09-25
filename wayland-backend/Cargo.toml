@@ -1,6 +1,6 @@
 [package]
 name = "wayland-backend"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
 edition = "2018"
 rust-version = "1.65"
