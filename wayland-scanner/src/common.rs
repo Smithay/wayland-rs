@@ -302,8 +302,8 @@ pub(crate) fn gen_message_enum(
     let (generic, phantom_variant, phantom_case) = if !receiver {
         (
             quote! { 'a },
-            quote! { #[doc(hidden)] __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> } },
-            quote! { #name::__phantom_lifetime { .. } => unreachable!() },
+            quote! { #[doc(hidden)] __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()>, never: std::convert::Infallible } },
+            quote! { #name::__phantom_lifetime { never, .. } => match never {} },
         )
     } else {
         (quote! {}, quote! {}, quote! {})
@@ -625,7 +625,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
     quote! {
         match msg {
             #(#arms,)*
-            #msg_type::__phantom_lifetime { .. } => unreachable!()
+            #msg_type::__phantom_lifetime { never, .. } => match never {}
         }
     }
 }

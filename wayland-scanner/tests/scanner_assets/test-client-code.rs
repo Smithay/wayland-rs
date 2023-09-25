@@ -64,7 +64,10 @@ pub mod wl_display {
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         GetRegistry {},
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
@@ -72,7 +75,7 @@ pub mod wl_display {
             match *self {
                 Request::Sync { .. } => 0u16,
                 Request::GetRegistry { .. } => 1u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -270,7 +273,7 @@ pub mod wl_display {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -343,14 +346,17 @@ pub mod wl_registry {
             id: (&'static Interface, u32),
         },
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Bind { .. } => 0u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -538,7 +544,7 @@ pub mod wl_registry {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -579,13 +585,16 @@ pub mod wl_callback {
     #[non_exhaustive]
     pub enum Request<'a> {
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -723,7 +732,7 @@ pub mod wl_callback {
             InvalidId,
         > {
             match msg {
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -813,7 +822,10 @@ pub mod test_global {
             ter: super::tertiary::Tertiary,
         },
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
@@ -826,7 +838,7 @@ pub mod test_global {
                 Request::Destroy => 4u16,
                 Request::ReverseLink { .. } => 5u16,
                 Request::NewidAndAllowNull { .. } => 6u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1179,7 +1191,7 @@ pub mod test_global {
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1329,14 +1341,17 @@ pub mod secondary {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 2 of the interface"]
         Destroy,
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1460,7 +1475,7 @@ pub mod secondary {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1496,14 +1511,17 @@ pub mod tertiary {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1627,7 +1645,7 @@ pub mod tertiary {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1663,14 +1681,17 @@ pub mod quad {
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 3 of the interface"]
         Destroy,
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Request<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Request::Destroy => 0u16,
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1794,7 +1815,7 @@ pub mod quad {
                     let args = smallvec::SmallVec::new();
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
                 }
-                Request::__phantom_lifetime { .. } => unreachable!(),
+                Request::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
