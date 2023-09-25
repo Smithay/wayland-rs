@@ -31,14 +31,17 @@ pub mod wl_callback {
             callback_data: u32,
         },
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
                 Event::Done { .. } => 0u16,
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -142,7 +145,7 @@ pub mod wl_callback {
                         vec
                     },
                 }),
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
         fn __set_object_data(
@@ -288,7 +291,10 @@ pub mod test_global {
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
@@ -297,7 +303,7 @@ pub mod test_global {
                 Event::ManyArgsEvt { .. } => 0u16,
                 Event::AckSecondary { .. } => 1u16,
                 Event::CycleQuad { .. } => 2u16,
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -712,7 +718,7 @@ pub mod test_global {
                         vec
                     },
                 }),
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
         fn __set_object_data(
@@ -794,13 +800,16 @@ pub mod secondary {
     #[non_exhaustive]
     pub enum Event<'a> {
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -906,7 +915,7 @@ pub mod secondary {
             msg: Self::Event<'a>,
         ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
             match msg {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
         fn __set_object_data(
@@ -950,13 +959,16 @@ pub mod tertiary {
     #[non_exhaustive]
     pub enum Event<'a> {
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1062,7 +1074,7 @@ pub mod tertiary {
             msg: Self::Event<'a>,
         ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
             match msg {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
         fn __set_object_data(
@@ -1106,13 +1118,16 @@ pub mod quad {
     #[non_exhaustive]
     pub enum Event<'a> {
         #[doc(hidden)]
-        __phantom_lifetime { phantom: std::marker::PhantomData<&'a ()> },
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
     }
     impl<'a> Event<'a> {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
     }
@@ -1218,7 +1233,7 @@ pub mod quad {
             msg: Self::Event<'a>,
         ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
             match msg {
-                Event::__phantom_lifetime { .. } => unreachable!(),
+                Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
         fn __set_object_data(

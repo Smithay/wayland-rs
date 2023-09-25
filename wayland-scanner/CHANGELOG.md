@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Include an `std::convert::Infallible` in hidden `__phantom_lifetime` enum variants,
+  so they're explicitly unconstructable.
+
 ## 0.31.0 -- 2023-09-02
 
 #### Breaking changes
