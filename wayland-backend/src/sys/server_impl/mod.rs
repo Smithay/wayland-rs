@@ -1601,7 +1601,9 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
     udata.alive.store(false, Ordering::Release);
     let object_id =
         InnerObjectId { interface: udata.interface, ptr: resource, alive: udata.alive.clone(), id };
-    if HANDLE.is_set() {
+    // Due to reentrancy, it is possible that both HANDLE and PENDING_DESTRUCTORS are set at the same time
+    // If this is the case, PENDING_DESTRUCTORS should have priority
+    if !PENDING_DESTRUCTORS.is_set() {
         HANDLE.with(|&(ref state_arc, data_ptr)| {
             // Safety: the data pointer have been set by outside code and are valid
             let data = unsafe { &mut *(data_ptr as *mut D) };
