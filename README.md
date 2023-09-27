@@ -44,9 +44,5 @@ system backend.
 
 ## Chat and support
 
-For general quick questions you can get answers in the chat room.
-
-The chat room is bridged over 2 chat servers:
-
-- [`#smithay:matrix.org`](https://matrix.to/#/#smithay:matrix.org) in Matrix
-- `#smithay` on libera.chat IRC
+You can come chat about the different wayland-rs crates, both for developpement and support, in the Matrix
+chatroom [`#wayland-rs:matrix.org`](https://matrix.to/#/#wayland-rs:matrix.org).
