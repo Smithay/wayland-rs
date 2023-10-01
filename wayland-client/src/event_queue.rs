@@ -14,15 +14,15 @@ use wayland_backend::{
 
 use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 
-/// A trait providing an implementation for handling events a proxy through an [`EventQueue`].
+/// A trait for handlers of proxies' events delivered to an [`EventQueue`].
 ///
 /// ## General usage
 ///
 /// You need to implement this trait on your `State` for every type of Wayland object that will be processed
 /// by the [`EventQueue`] working with your `State`.
 ///
-/// You can have different implementations of the trait for the same interface but different `UserData` type,
-/// this way the events for a given object will be processed by the adequate implementation depending on
+/// You can have different implementations of the trait for the same interface but different `UserData` type.
+/// This way the events for a given object will be processed by the adequate implementation depending on
 /// which `UserData` was assigned to it at creation.
 ///
 /// The way this trait works is that the [`Dispatch::event()`] method will be invoked by the event queue for
@@ -40,7 +40,7 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
 /// automatically delegate their implementation to yours using the [`delegate_dispatch!`] macro.
 ///
-/// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
+/// As a result, when your implementation is instantiated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
 /// specify an interface between your module and downstream code, as illustrated in this example:
 ///
@@ -52,8 +52,8 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// struct DelegateToMe;
 ///
 /// /// The user data relevant for your implementation.
-/// /// When providing delegate implementation, it is recommended to use your own type here, even if it is
-/// /// just a unit struct: using () would cause a risk of clashing with an other such implementation.
+/// /// When providing a delegate implementation, it is recommended to use your own type here, even if it is
+/// /// just a unit struct: using () would cause a risk of clashing with another such implementation.
 /// struct MyUserData;
 ///
 /// // Now a generic implementation of Dispatch, we are generic over the last type argument instead of using
@@ -89,6 +89,8 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
 /// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
 /// trait bounds are respected as well).
+///
+/// [`delegate_dispatch!`]: crate::delegate_dispatch
 pub trait Dispatch<I, UserData, State = Self>
 where
     Self: Sized,
