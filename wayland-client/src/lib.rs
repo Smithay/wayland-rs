@@ -5,33 +5,33 @@
 //! This crate is structured around four main objects: the [`Connection`] and [`EventQueue`] structs,
 //! proxies (objects implementing the [`Proxy`] trait), and the [`Dispatch`] trait.
 //!
-//! The [`Connection`] is the heart of this crate, it represents your connection to the Wayland server, and
+//! The [`Connection`] is the heart of this crate. It represents your connection to the Wayland server, and
 //! you'll generally initialize it using the [`Connection::connect_to_env()`](Connection::connect_to_env)
 //! method, which will attempt to open a Wayland connection following the configuration specified by the
 //! environment.
 //!
 //! Once you have a [`Connection`], you can create an [`EventQueue`] from it. This [`EventQueue`] will take
-//! care of processing events from the Wayland server and delivering it to you processing logic, in the form
+//! care of processing events from the Wayland server and delivering them to your processing logic, in the form
 //! of a state struct with several [`Dispatch`] implementations (see below).
 //!
-//! Each of the Wayland object you can manipulate is represented by a struct implementing the [`Proxy`]
+//! Each of the Wayland objects you can manipulate is represented by a struct implementing the [`Proxy`]
 //! trait. Those structs are automatically generated from the wayland XML protocol specification. This crate
 //! provides the types generated from the core protocol in the [`protocol`] module. For other standard
 //! protocols, see the `wayland-protocols` crate.
 //!
 //! ## Event dispatching
 //!
-//! The core event dispatching logic provided by this crate is build around the [`EventQueue`] struct. In
+//! The core event dispatching logic provided by this crate is built around the [`EventQueue`] struct. In
 //! this paradigm, receiving and processing events is a two-step process:
 //!
-//! - First events are read from the Wayland socket, for each event the backend figures with [`EventQueue`]
+//! - First, events are read from the Wayland socket. For each event, the backend figures out which [`EventQueue`]
 //!   manages it, and enqueues the event in an internal buffer of that queue.
 //! - Then, the [`EventQueue`] empties its internal buffer by sequentially invoking the appropriate
 //!   [`Dispatch::event()`] method on the `State` value that was provided to it.
 //!
 //! The main goal of this structure is to make your `State` accessible without synchronization to most of
-//! your event-processing logic, to reduce the plumbing costs. See [`EventQueue`] documentation for
-//! explanations of how to drive your event loop using it and explanation about when and how to use multiple
+//! your event-processing logic, to reduce the plumbing costs. See [`EventQueue`]'s documentation for
+//! explanations of how to use it to drive your event loop, and when and how to use multiple
 //! event queues in your app.
 //!
 //! ### The [`Dispatch`] trait and dispatch delegation
@@ -44,21 +44,21 @@
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
 //! easier a composition mechanism is provided using the [`delegate_dispatch!`] macro. This way, another
 //! library (such as Smithay's Client Toolkit) can provide generic [`Dispatch`] implementations that you
-//! can reuse on your own app by delegating those objects to that provided implementation. See the
+//! can reuse in your own app by delegating those objects to that provided implementation. See the
 //! documentation of those traits and macro for details.
 //!
 //! ## Getting started example
 //!
 //! As an overview of how this crate is used, here is a commented example of a program that connects to the
-//! Wayland server and lists the globals this server advertized throught the `wl_registry`:
+//! Wayland server and lists the globals this server advertised through the `wl_registry`:
 //!
 //! ```rust,no_run
 //! use wayland_client::{protocol::wl_registry, Connection, Dispatch, QueueHandle};
 //! // This struct represents the state of our app. This simple app does not
-//! // need any state, by this type still supports the `Dispatch` implementations.
+//! // need any state, but this type still supports the `Dispatch` implementations.
 //! struct AppData;
 //!
-//! // Implement `Dispatch<WlRegistry, ()> for out state. This provides the logic
+//! // Implement `Dispatch<WlRegistry, ()> for our state. This provides the logic
 //! // to be able to process events for the wl_registry interface.
 //! //
 //! // The second type parameter is the user-data of our implementation. It is a
@@ -99,20 +99,20 @@
 //!
 //!     // Create an event queue for our event processing
 //!     let mut event_queue = conn.new_event_queue();
-//!     // An get its handle to associated new objects to it
+//!     // And get its handle to associate new objects to it
 //!     let qh = event_queue.handle();
 //!
-//!     // Create a wl_registry object by sending the wl_display.get_registry request
-//!     // This method takes two arguments: a handle to the queue the newly created
+//!     // Create a wl_registry object by sending the wl_display.get_registry request.
+//!     // This method takes two arguments: a handle to the queue that the newly created
 //!     // wl_registry will be assigned to, and the user-data that should be associated
 //!     // with this registry (here it is () as we don't need user-data).
 //!     let _registry = display.get_registry(&qh, ());
 //!
 //!     // At this point everything is ready, and we just need to wait to receive the events
-//!     // from the wl_registry, our callback will print the advertized globals.
-//!     println!("Advertized globals:");
+//!     // from the wl_registry. Our callback will print the advertised globals.
+//!     println!("Advertised globals:");
 //!
-//!     // To actually receive the events, we invoke the `sync_roundtrip` method. This method
+//!     // To actually receive the events, we invoke the `roundtrip` method. This method
 //!     // is special and you will generally only invoke it during the setup of your program:
 //!     // it will block until the server has received and processed all the messages you've
 //!     // sent up to now.
@@ -121,8 +121,8 @@
 //!     // wl_display.get_registry request, and as a reaction has sent us a batch of
 //!     // wl_registry.global events.
 //!     //
-//!     // `sync_roundtrip` will then empty the internal buffer of the queue it has been invoked
-//!     // on, and thus invoke our `Dispatch` implementation that prints the list of advertized
+//!     // `roundtrip` will then empty the internal buffer of the queue it has been invoked
+//!     // on, and thus invoke our `Dispatch` implementation that prints the list of advertised
 //!     // globals.
 //!     event_queue.roundtrip(&mut AppData).unwrap();
 //! }
@@ -132,11 +132,11 @@
 //!
 //! ### Bypassing [`Dispatch`]
 //!
-//! It may be that for some of your objects, handling them via the [`EventQueue`] is unpractical. For example
-//! if processing the events from those objects don't require accessing some global state, and/or you need to
-//! handle them in a context where cranking an event loop is unpractical.
+//! It may be that for some of your objects, handling them via the [`EventQueue`] is impractical. For example,
+//! if processing the events from those objects doesn't require accessing some global state, and/or you need to
+//! handle them in a context where cranking an event loop is impractical.
 //!
-//! In those contexts, this crate also provides some escape-hatches to directly interface with the low-level
+//! In those contexts, this crate also provides some escape hatches to directly interface with the low-level
 //! APIs from `wayland-backend`, allowing you to register callbacks for those objects that will be invoked
 //! whenever they receive an event and *any* event queue from the program is being dispatched. Those
 //! callbacks are more constrained: they don't get a `&mut State` reference, and must be threadsafe. See
@@ -144,7 +144,7 @@
 //!
 //! ### Interaction with FFI
 //!
-//! It can happen that you'll need to interact with Wayland states accross FFI, a typical example would be if
+//! It can happen that you'll need to interact with Wayland states accross FFI. A typical example would be if
 //! you need to use the [`raw-window-handle`](https://docs.rs/raw-window-handle/) crate.
 //!
 //! In this case, you'll need to do it in two steps, by explicitly working with `wayland-backend`, adding
@@ -152,7 +152,7 @@
 //!
 //! - If you need to send pointers to FFI, you can retrive the `*mut wl_proxy` pointers from the proxies by
 //!   first getting the [`ObjectId`](crate::backend::ObjectId) using the [`Proxy::id()`] method, and then
-//!   the `ObjectId::as_ptr()` method.
+//!   using the `ObjectId::as_ptr()` method.
 //! - If you need to receive pointers from FFI, you need to first create a
 //!   [`Backend`](crate::backend::Backend) from the `*mut wl_display` using the `from_external_display()`
 //!   method (see `wayland-backend` docs), and then make it into a [`Connection`] using
