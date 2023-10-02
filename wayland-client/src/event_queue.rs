@@ -31,7 +31,7 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 ///
 /// In the rare case of an interface with *events* creating new objects (in the core protocol, the only
 /// instance of this is the `wl_data_device.data_offer` event), you'll need to implement the
-/// [`Dispatch::event_created_child()`] method. See the [`event_created_child!`](event_created_child!) macro
+/// [`Dispatch::event_created_child()`] method. See the [`event_created_child!`](macro.event_created_child.html) macro
 /// for a simple way to do this.
 ///
 /// ## Modularity
@@ -120,7 +120,7 @@ where
     /// Method used to initialize the user-data of objects created by events
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
-    /// [`event_created_child!`](event_created_child!) macro is provided for overriding it.
+    /// [`event_created_child!`](macro.event_created_child.html) macro is provided for overriding it.
     #[cfg_attr(coverage, coverage(off))]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(

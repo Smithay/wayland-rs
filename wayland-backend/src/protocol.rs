@@ -28,9 +28,11 @@ pub enum ArgumentType {
     Object(AllowNull),
     /// Id of a newly created wayland object
     NewId,
-    /// Vec<u8>
+    /// `Vec<u8>`
     Array,
     /// A file descriptor argument. Represented by a [`RawFd`].
+    ///
+    /// [`RawFd`]: std::os::fd::RawFd
     Fd,
 }
 
@@ -60,12 +62,14 @@ pub enum Argument<Id, Fd> {
     Object(Id),
     /// Id of a newly created wayland object
     NewId(Id),
-    /// Vec<u8>
+    /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
     Array(Box<Vec<u8>>),
     /// A file descriptor argument. Represented by a [`RawFd`].
+    ///
+    /// [`RawFd`]: std::os::fd::RawFd
     Fd(Fd),
 }
 
