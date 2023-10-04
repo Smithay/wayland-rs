@@ -18,6 +18,7 @@ use crate::protocol::{
     check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
     ObjectInfo, ANONYMOUS_INTERFACE,
 };
+use as_any::Downcast;
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 
@@ -822,7 +823,7 @@ impl InnerHandle {
     }
 }
 
-pub(crate) trait ErasedState: downcast_rs::Downcast {
+pub(crate) trait ErasedState: as_any::AsAny {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &self,
@@ -856,8 +857,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
     fn display_ptr(&self) -> *mut wl_display;
 }
-
-downcast_rs::impl_downcast!(ErasedState);
 
 impl<D: 'static> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
