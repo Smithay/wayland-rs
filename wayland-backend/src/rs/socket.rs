@@ -1,7 +1,8 @@
 //! Wayland socket manipulation
 
+use std::collections::VecDeque;
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
-use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, OwnedFd, RawFd};
+use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::slice;
 
@@ -37,7 +38,7 @@ impl Socket {
     /// The `fds` slice should not be longer than `MAX_FDS_OUT`, and the `bytes`
     /// slice should not be longer than `MAX_BYTES_OUT` otherwise the receiving
     /// end may lose some data.
-    pub fn send_msg(&self, bytes: &[u8], fds: &[RawFd]) -> IoResult<usize> {
+    pub fn send_msg(&self, bytes: &[u8], fds: &[OwnedFd]) -> IoResult<usize> {
         let flags = SendFlags::DONTWAIT | SendFlags::NOSIGNAL;
 
         if !fds.is_empty() {
@@ -64,7 +65,7 @@ impl Socket {
     /// The `buffer` slice should be at least `MAX_BYTES_OUT` long and the `fds`
     /// slice `MAX_FDS_OUT` long, otherwise some data of the received message may
     /// be lost.
-    pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut [RawFd]) -> IoResult<(usize, usize)> {
+    pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut VecDeque<OwnedFd>) -> IoResult<usize> {
         let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
         let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
         let mut iov = [IoSliceMut::new(buffer)];
@@ -75,7 +76,6 @@ impl Socket {
             RecvFlags::DONTWAIT | RecvFlags::CMSG_CLOEXEC,
         )?;
 
-        let mut fd_count = 0;
         let received_fds = cmsg_buffer
             .drain()
             .filter_map(|cmsg| match cmsg {
@@ -83,11 +83,8 @@ impl Socket {
                 _ => None,
             })
             .flatten();
-        for (fd, place) in received_fds.zip(fds.iter_mut()) {
-            fd_count += 1;
-            *place = fd.into_raw_fd();
-        }
-        Ok((msg.bytes, fd_count))
+        fds.extend(received_fds);
+        Ok(msg.bytes)
     }
 }
 
@@ -119,9 +116,9 @@ impl AsRawFd for Socket {
 pub struct BufferedSocket {
     socket: Socket,
     in_data: Buffer<u32>,
-    in_fds: Buffer<RawFd>,
+    in_fds: VecDeque<OwnedFd>,
     out_data: Buffer<u32>,
-    out_fds: Buffer<RawFd>,
+    out_fds: Vec<OwnedFd>,
 }
 
 impl BufferedSocket {
@@ -130,9 +127,9 @@ impl BufferedSocket {
         Self {
             socket,
             in_data: Buffer::new(2 * MAX_BYTES_OUT / 4), // Incoming buffers are twice as big in order to be
-            in_fds: Buffer::new(2 * MAX_FDS_OUT),        // able to store leftover data if needed
+            in_fds: VecDeque::new(),                     // able to store leftover data if needed
             out_data: Buffer::new(MAX_BYTES_OUT / 4),
-            out_fds: Buffer::new(MAX_FDS_OUT),
+            out_fds: Vec::new(),
         }
     }
 
@@ -146,13 +143,7 @@ impl BufferedSocket {
             let bytes = unsafe {
                 ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
             };
-            let fds = self.out_fds.get_contents();
-            let written = self.socket.send_msg(bytes, fds)?;
-            for &fd in fds {
-                // once the fds are sent, we can close them
-                unsafe { rustix::io::close(fd) };
-            }
-            written
+            self.socket.send_msg(bytes, &self.out_fds)?
         };
         self.out_data.offset(written / 4);
         self.out_data.move_to_front();
@@ -168,14 +159,9 @@ impl BufferedSocket {
     // if false is returned, it means there is not enough space
     // in the buffer
     fn attempt_write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<bool> {
-        match write_to_buffers(
-            msg,
-            self.out_data.get_writable_storage(),
-            self.out_fds.get_writable_storage(),
-        ) {
-            Ok((bytes_out, fds_out)) => {
+        match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
+            Ok(bytes_out) => {
                 self.out_data.advance(bytes_out);
-                self.out_fds.advance(fds_out);
                 Ok(true)
             }
             Err(MessageWriteError::BufferTooSmall) => Ok(false),
@@ -212,15 +198,13 @@ impl BufferedSocket {
     pub fn fill_incoming_buffers(&mut self) -> IoResult<()> {
         // reorganize the buffers
         self.in_data.move_to_front();
-        self.in_fds.move_to_front();
         // receive a message
-        let (in_bytes, in_fds) = {
+        let in_bytes = {
             let words = self.in_data.get_writable_storage();
             let bytes = unsafe {
                 ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4)
             };
-            let fds = self.in_fds.get_writable_storage();
-            self.socket.rcv_msg(bytes, fds)?
+            self.socket.rcv_msg(bytes, &mut self.in_fds)?
         };
         if in_bytes == 0 {
             // the other end of the socket was closed
@@ -228,7 +212,6 @@ impl BufferedSocket {
         }
         // advance the storage
         self.in_data.advance(in_bytes / 4 + usize::from(in_bytes % 4 > 0));
-        self.in_fds.advance(in_fds);
         Ok(())
     }
 
@@ -244,19 +227,16 @@ impl BufferedSocket {
     where
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {
-        let (msg, read_data, read_fd) = {
+        let (msg, read_data) = {
             let data = self.in_data.get_contents();
-            let fds = self.in_fds.get_contents();
             if data.len() < 2 {
                 return Err(MessageParseError::MissingData);
             }
             let object_id = data[0];
             let opcode = (data[1] & 0x0000_FFFF) as u16;
             if let Some(sig) = signature(object_id, opcode) {
-                match parse_message(data, sig, fds) {
-                    Ok((msg, rest_data, rest_fds)) => {
-                        (msg, data.len() - rest_data.len(), fds.len() - rest_fds.len())
-                    }
+                match parse_message(data, sig, &mut self.in_fds) {
+                    Ok((msg, rest_data)) => (msg, data.len() - rest_data.len()),
                     Err(e) => return Err(e),
                 }
             } else {
@@ -266,7 +246,6 @@ impl BufferedSocket {
         };
 
         self.in_data.offset(read_data);
-        self.in_fds.offset(read_fd);
 
         Ok(msg)
     }
@@ -313,6 +292,7 @@ impl<T: Copy + Default> Buffer<T> {
     ///
     /// This only sets the counter of occupied space back to zero,
     /// allowing previous content to be overwritten.
+    #[allow(unused)]
     fn clear(&mut self) {
         self.occupied = 0;
         self.offset = 0;

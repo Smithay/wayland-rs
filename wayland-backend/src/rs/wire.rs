@@ -1,9 +1,10 @@
 //! Types and routines used to manipulate arguments from the wire format
 
+use std::collections::VecDeque;
+use std::ffi::CStr;
+use std::os::unix::io::RawFd;
 use std::os::unix::io::{BorrowedFd, OwnedFd};
-use std::os::unix::io::{FromRawFd, RawFd};
 use std::ptr;
-use std::{ffi::CStr, os::unix::prelude::AsRawFd};
 
 use crate::protocol::{Argument, ArgumentType, Message};
 
@@ -72,10 +73,9 @@ impl std::fmt::Display for MessageParseError {
 pub fn write_to_buffers(
     msg: &Message<u32, RawFd>,
     payload: &mut [u32],
-    mut fds: &mut [RawFd],
-) -> Result<(usize, usize), MessageWriteError> {
+    fds: &mut Vec<OwnedFd>,
+) -> Result<usize, MessageWriteError> {
     let orig_payload_len = payload.len();
-    let orig_fds_len = fds.len();
     // Helper function to write a u32 or a RawFd to its buffer
     fn write_buf<T>(u: T, payload: &mut [T]) -> Result<&mut [T], MessageWriteError> {
         if let Some((head, tail)) = payload.split_first_mut() {
@@ -113,8 +113,6 @@ pub fn write_to_buffers(
 
     let (header, mut payload) = payload.split_at_mut(2);
 
-    let mut pending_fds = Vec::new();
-
     // write the contents in the buffer
     for arg in &msg.args {
         // Just to make the borrow checker happy
@@ -135,28 +133,19 @@ pub fn write_to_buffers(
                 payload = write_array_to_payload(a, old_payload)?;
             }
             Argument::Fd(fd) => {
-                let old_fds = fds;
                 let dup_fd = unsafe { BorrowedFd::borrow_raw(fd) }
                     .try_clone_to_owned()
                     .map_err(MessageWriteError::DupFdFailed)?;
-                let raw_dup_fd = dup_fd.as_raw_fd();
-                pending_fds.push(dup_fd);
-                fds = write_buf(raw_dup_fd, old_fds)?;
+                fds.push(dup_fd);
                 payload = old_payload;
             }
         }
     }
 
-    // if we reached here, the whole message was written successfully, we can drop the pending_fds they
-    // don't need to be closed, sendmsg will take ownership of them
-    for fd in pending_fds {
-        std::mem::forget(fd);
-    }
-
     let wrote_size = (free_size - payload.len()) * 4;
     header[0] = msg.sender_id;
     header[1] = ((wrote_size as u32) << 16) | u32::from(msg.opcode);
-    Ok((orig_payload_len - payload.len(), orig_fds_len - fds.len()))
+    Ok(orig_payload_len - payload.len())
 }
 
 /// Attempts to parse a single wayland message with the given signature.
@@ -167,11 +156,11 @@ pub fn write_to_buffers(
 ///
 /// Errors if the message is malformed.
 #[allow(clippy::type_complexity)]
-pub fn parse_message<'a, 'b>(
+pub fn parse_message<'a>(
     raw: &'a [u32],
     signature: &[ArgumentType],
-    fds: &'b [RawFd],
-) -> Result<(Message<u32, OwnedFd>, &'a [u32], &'b [RawFd]), MessageParseError> {
+    fds: &mut VecDeque<OwnedFd>,
+) -> Result<(Message<u32, OwnedFd>, &'a [u32]), MessageParseError> {
     // helper function to read arrays
     fn read_array_from_payload(
         array_len: usize,
@@ -205,16 +194,14 @@ pub fn parse_message<'a, 'b>(
 
     let (mut payload, rest) = raw.split_at(len);
     payload = &payload[2..];
-    let mut fds = fds;
 
     let arguments = signature
         .iter()
         .map(|argtype| {
             if let ArgumentType::Fd = *argtype {
                 // don't consume input but fd
-                if let Some((&front, tail)) = fds.split_first() {
-                    fds = tail;
-                    Ok(Argument::Fd(unsafe { OwnedFd::from_raw_fd(front) }))
+                if let Some(front) = fds.pop_front() {
+                    Ok(Argument::Fd(front))
                 } else {
                     Err(MessageParseError::MissingFD)
                 }
@@ -255,7 +242,7 @@ pub fn parse_message<'a, 'b>(
         .collect::<Result<SmallVec<_>, MessageParseError>>()?;
 
     let msg = Message { sender_id, opcode, args: arguments };
-    Ok((msg, rest, fds))
+    Ok((msg, rest))
 }
 
 #[cfg(test)]
@@ -268,7 +255,7 @@ mod tests {
     #[test]
     fn into_from_raw_cycle() {
         let mut bytes_buffer = vec![0; 1024];
-        let mut fd_buffer = [0; 10];
+        let mut fd_buffer = Vec::new();
 
         let msg = Message {
             sender_id: 42,
@@ -284,9 +271,10 @@ mod tests {
             ],
         };
         // write the message to the buffers
-        write_to_buffers(&msg, &mut bytes_buffer[..], &mut fd_buffer[..]).unwrap();
+        write_to_buffers(&msg, &mut bytes_buffer[..], &mut fd_buffer).unwrap();
         // read them back
-        let (rebuilt, _, _) = parse_message(
+        let mut fd_buffer = VecDeque::from(fd_buffer);
+        let (rebuilt, _) = parse_message(
             &bytes_buffer[..],
             &[
                 ArgumentType::Uint,
@@ -297,7 +285,7 @@ mod tests {
                 ArgumentType::NewId,
                 ArgumentType::Int,
             ],
-            &fd_buffer[..],
+            &mut fd_buffer,
         )
         .unwrap();
         assert_eq!(rebuilt.map_fd(IntoRawFd::into_raw_fd), msg);
