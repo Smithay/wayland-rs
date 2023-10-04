@@ -38,11 +38,13 @@ impl Socket {
         let flags = socket::MsgFlags::MSG_DONTWAIT | socket::MsgFlags::MSG_NOSIGNAL;
         let iov = [IoSlice::new(bytes)];
 
-        if !fds.is_empty() {
-            let cmsgs = [socket::ControlMessage::ScmRights(fds)];
-            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &cmsgs, flags, None)?)
-        } else {
-            Ok(socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &[], flags, None)?)
+        let cmsgs = [socket::ControlMessage::ScmRights(fds)];
+        let cmsgs: &[_] = if !fds.is_empty() { &cmsgs } else { &[] };
+        loop {
+            let res = socket::sendmsg::<()>(self.stream.as_raw_fd(), &iov, &cmsgs, flags, None);
+            if res != Err(nix::errno::Errno::EINTR) {
+                return Ok(res?);
+            }
         }
     }
 
@@ -128,26 +130,28 @@ impl BufferedSocket {
     }
 
     /// Flush the contents of the outgoing buffer into the socket
+    ///
+    /// Returns `Ok(())` when all bytes have been flushed successfully. If it
+    /// returns `ErrorKind::WouldBlock`, at least some bytes weren't written.
     pub fn flush(&mut self) -> IoResult<()> {
-        let written = {
-            let words = self.out_data.get_contents();
-            if words.is_empty() {
-                return Ok(());
-            }
-            let bytes = unsafe {
-                ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
+        while !self.out_data.is_empty() {
+            let written = {
+                let words = self.out_data.get_contents();
+                let bytes = unsafe {
+                    ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
+                };
+                let fds = self.out_fds.get_contents();
+                let written = self.socket.send_msg(bytes, fds)?;
+                for &fd in fds {
+                    // once the fds are sent, we can close them
+                    let _ = ::nix::unistd::close(fd);
+                }
+                written
             };
-            let fds = self.out_fds.get_contents();
-            let written = self.socket.send_msg(bytes, fds)?;
-            for &fd in fds {
-                // once the fds are sent, we can close them
-                let _ = ::nix::unistd::close(fd);
-            }
-            written
-        };
-        self.out_data.offset(written / 4);
-        self.out_data.move_to_front();
-        self.out_fds.clear();
+            self.out_data.offset(written / 4);
+            self.out_data.move_to_front();
+            self.out_fds.clear();
+        }
         Ok(())
     }
 
@@ -307,6 +311,11 @@ impl<T: Copy + Default> Buffer<T> {
     fn clear(&mut self) {
         self.occupied = 0;
         self.offset = 0;
+    }
+
+    /// All occupied space has been read
+    fn is_empty(&self) -> bool {
+        self.offset >= self.occupied
     }
 
     /// Get the current contents of the occupied space of the buffer
