@@ -219,6 +219,14 @@ impl WeakInnerBackend {
     }
 }
 
+impl PartialEq for InnerBackend {
+    fn eq(&self, rhs: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &rhs.inner)
+    }
+}
+
+impl Eq for InnerBackend {}
+
 unsafe impl Send for InnerBackend {}
 unsafe impl Sync for InnerBackend {}
 

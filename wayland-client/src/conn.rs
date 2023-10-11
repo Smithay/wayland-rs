@@ -34,7 +34,7 @@ use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
 /// In case you need to plug yourself into an external Wayland connection that you don't control, you'll
 /// likely get access to it as a [`Backend`], in which case you can create a [`Connection`] from it using
 /// the [`from_backend`](Connection::from_backend) method.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Connection {
     pub(crate) backend: Backend,
 }

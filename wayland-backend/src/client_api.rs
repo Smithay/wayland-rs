@@ -129,7 +129,7 @@ impl ObjectId {
 ///
 /// This type hosts all the interface for interacting with the wayland protocol. It can be
 /// cloned, all clones refer to the same underlying connection.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Backend {
     pub(crate) backend: client_impl::InnerBackend,
 }
