@@ -138,6 +138,14 @@ impl WeakInnerBackend {
     }
 }
 
+impl PartialEq for InnerBackend {
+    fn eq(&self, rhs: &Self) -> bool {
+        Arc::ptr_eq(&self.state, &rhs.state)
+    }
+}
+
+impl Eq for InnerBackend {}
+
 impl InnerBackend {
     pub fn downgrade(&self) -> WeakInnerBackend {
         WeakInnerBackend { state: Arc::downgrade(&self.state) }
