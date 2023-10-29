@@ -168,7 +168,7 @@ impl GlobalList {
 
         // Test version requirements
         if version < version_start {
-            return Err(BindError::UnsupportedVersion);
+            return Err(BindError::UnsupportedVersion(version));
         }
 
         // To get the version to bind, take the lower of the version advertised by the server and the maximum
@@ -232,7 +232,7 @@ impl From<InvalidId> for GlobalError {
 #[derive(Debug)]
 pub enum BindError {
     /// The requested version of the global is not supported.
-    UnsupportedVersion,
+    UnsupportedVersion(u32),
 
     /// The requested global was not found in the registry.
     NotPresent,
@@ -243,8 +243,8 @@ impl std::error::Error for BindError {}
 impl fmt::Display for BindError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BindError::UnsupportedVersion {} => {
-                write!(f, "the requested version of the global is not supported")
+            BindError::UnsupportedVersion(version) => {
+                write!(f, "the available version {version} of the global is lower than the requested version")
             }
             BindError::NotPresent {} => {
                 write!(f, "the requested global was not found in the registry")
