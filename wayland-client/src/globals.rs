@@ -156,12 +156,7 @@ impl GlobalList {
             .iter()
             // Find the with the correct interface
             .find_map(|Global { name, interface: interface_name, version }| {
-                // TODO: then_some
-                if interface.name == &interface_name[..] {
-                    Some((*name, *version))
-                } else {
-                    None
-                }
+                (interface.name == &interface_name[..]).then_some((*name, *version))
             })
             .ok_or(BindError::NotPresent)?;
 
