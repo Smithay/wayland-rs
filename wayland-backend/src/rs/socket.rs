@@ -6,8 +6,8 @@ use std::os::unix::net::UnixStream;
 use std::slice;
 
 use rustix::net::{
-    recvmsg, sendmsg, RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags, SendAncillaryBuffer,
-    SendAncillaryMessage, SendFlags,
+    recvmsg, send, sendmsg, RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags,
+    SendAncillaryBuffer, SendAncillaryMessage, SendFlags,
 };
 
 use crate::protocol::{ArgumentType, Message};
@@ -39,9 +39,9 @@ impl Socket {
     /// end may lose some data.
     pub fn send_msg(&self, bytes: &[u8], fds: &[RawFd]) -> IoResult<usize> {
         let flags = SendFlags::DONTWAIT | SendFlags::NOSIGNAL;
-        let iov = [IoSlice::new(bytes)];
 
         if !fds.is_empty() {
+            let iov = [IoSlice::new(bytes)];
             let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(fds.len()))];
             let mut cmsg_buffer = SendAncillaryBuffer::new(&mut cmsg_space);
             let fds =
@@ -49,8 +49,7 @@ impl Socket {
             cmsg_buffer.push(SendAncillaryMessage::ScmRights(fds));
             Ok(sendmsg(self, &iov, &mut cmsg_buffer, flags)?)
         } else {
-            let mut cmsg_buffer = SendAncillaryBuffer::new(&mut []);
-            Ok(sendmsg(self, &iov, &mut cmsg_buffer, flags)?)
+            Ok(send(self, bytes, flags)?)
         }
     }
 
