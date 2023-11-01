@@ -10,7 +10,6 @@ mod common_poll;
 mod handle;
 mod registry;
 
-pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 pub use common_poll::InnerBackend;
 pub use handle::{InnerHandle, WeakInnerHandle};
 
