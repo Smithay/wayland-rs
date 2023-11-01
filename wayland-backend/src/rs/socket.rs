@@ -312,13 +312,7 @@ impl<T: Copy + Default> Buffer<T> {
     /// maximal write space availability
     fn move_to_front(&mut self) {
         if self.occupied > self.offset {
-            unsafe {
-                ::std::ptr::copy(
-                    &self.storage[self.offset] as *const T,
-                    &mut self.storage[0] as *mut T,
-                    self.occupied - self.offset,
-                );
-            }
+            self.storage.copy_within((self.offset)..(self.occupied), 0)
         }
         self.occupied -= self.offset;
         self.offset = 0;
