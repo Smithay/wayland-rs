@@ -192,6 +192,11 @@ pub fn parse_message<'a>(
         return Err(MessageParseError::MissingData);
     }
 
+    let fd_len = signature.iter().filter(|x| matches!(x, ArgumentType::Fd)).count();
+    if fd_len > fds.len() {
+        return Err(MessageParseError::MissingFD);
+    }
+
     let (mut payload, rest) = raw.split_at(len);
     payload = &payload[2..];
 
