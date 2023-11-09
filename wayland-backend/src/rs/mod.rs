@@ -3,7 +3,6 @@
 mod client_impl;
 mod server_impl;
 
-mod debug;
 mod map;
 pub(crate) mod socket;
 mod wire;

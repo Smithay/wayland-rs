@@ -8,6 +8,11 @@ use std::{
 
 use crate::protocol::Argument;
 
+/// The `WAYLAND_DEBUG` env variable is set to debug client.
+pub fn has_debug_client_env() -> bool {
+    matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client")
+}
+
 /// Print the dispatched message to stderr in a following format:
 ///
 /// [timestamp] <- interface@id.msg_name(args)
@@ -36,11 +41,16 @@ pub fn print_send_message<Id: Display, Fd: AsRawFd>(
     id: u32,
     msg_name: &str,
     args: &[Argument<Id, Fd>],
+    discarded: bool,
 ) {
     // Add timestamp to output.
     print_timestamp();
 
-    eprint!(" -> {}@{}.{} ({})", interface, id, msg_name, DisplaySlice(args));
+    if discarded {
+        eprint!("[discarded]");
+    }
+
+    eprint!(" -> {}@{}.{}({})", interface, id, msg_name, DisplaySlice(args));
 
     // Add a new line.
     eprintln!();
@@ -66,8 +76,10 @@ impl<'a, D: Display> Display for DisplaySlice<'a, D> {
 #[cfg_attr(coverage, coverage(off))]
 fn print_timestamp() {
     if let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH) {
-        let sc = timestamp.as_secs();
-        let ms = timestamp.subsec_micros();
-        eprint!("[{}.{:06}]", sc, ms);
+        // NOTE this is all to make timestamps the same with libwayland, so the log doesn't look
+        // out of place when sys tries to log on their own.
+        let time = (timestamp.as_secs() * 1000000 + timestamp.subsec_nanos() as u64 / 1000) as u32;
+        // NOTE annotate timestamp so we know which library emmited the log entry.
+        eprint!("[{:7}.{:03}][rs]", time / 1000, time % 1000);
     }
 }
