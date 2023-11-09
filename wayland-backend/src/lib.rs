@@ -91,6 +91,7 @@ pub use sys::server;
 mod test;
 
 mod core_interfaces;
+mod debug;
 pub mod protocol;
 mod types;
 

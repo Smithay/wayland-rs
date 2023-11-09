@@ -12,6 +12,7 @@ use std::{
 
 use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
+    debug,
     protocol::{
         check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
         ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
@@ -161,8 +162,7 @@ impl InnerBackend {
         )
         .unwrap();
 
-        let debug =
-            matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client");
+        let debug = debug::has_debug_client_env();
 
         Ok(Self {
             state: Arc::new(ConnectionState {
@@ -301,9 +301,6 @@ impl InnerBackend {
     ) -> Result<ObjectId, InvalidId> {
         let mut guard = self.state.lock_protocol();
         let object = guard.get_object(id.clone())?;
-        if object.data.client_destroyed {
-            return Err(InvalidId);
-        }
 
         let message_desc = match object.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -311,6 +308,13 @@ impl InnerBackend {
                 panic!("Unknown opcode {} for object {}@{}.", opcode, object.interface.name, id.id);
             }
         };
+
+        if object.data.client_destroyed {
+            if guard.debug {
+                debug::print_send_message(id.interface.name, id.id, message_desc.name, &args, true);
+            }
+            return Err(InvalidId);
+        }
 
         if !check_for_signature(message_desc.signature, &args) {
             panic!(
@@ -409,20 +413,16 @@ impl InnerBackend {
         }).collect::<SmallVec<[_; INLINE_ARGS]>>();
 
         if guard.debug {
-            super::debug::print_send_message(
+            debug::print_send_message(
                 object.interface.name,
                 id.id,
                 message_desc.name,
                 &args,
+                false,
             );
         }
         #[cfg(feature = "log")]
-        crate::log_debug!(
-            "Sending {}.{} ({})",
-            id,
-            message_desc.name,
-            super::debug::DisplaySlice(&args)
-        );
+        crate::log_debug!("Sending {}.{} ({})", id, message_desc.name, debug::DisplaySlice(&args));
 
         // Send the message
 
@@ -549,7 +549,7 @@ impl ProtocolState {
 
     fn handle_display_event(&mut self, message: Message<u32, OwnedFd>) -> Result<(), WaylandError> {
         if self.debug {
-            super::debug::print_dispatched_message(
+            debug::print_dispatched_message(
                 "wl_display",
                 message.sender_id,
                 if message.opcode == 0 { "error" } else { "delete_id" },
@@ -748,7 +748,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
         }
 
         if guard.debug {
-            super::debug::print_dispatched_message(
+            debug::print_dispatched_message(
                 receiver.interface.name,
                 message.sender_id,
                 message_desc.name,
@@ -775,7 +775,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
             "Dispatching {}.{} ({})",
             id,
             receiver.version,
-            super::debug::DisplaySlice(&args)
+            debug::DisplaySlice(&args)
         );
         let ret = receiver
             .data

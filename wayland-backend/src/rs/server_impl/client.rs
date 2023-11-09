@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
+    debug,
     protocol::{
         check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
         ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
@@ -135,11 +136,12 @@ impl<D> Client<D> {
         }
 
         if self.debug {
-            crate::rs::debug::print_send_message(
+            debug::print_send_message(
                 object.interface.name,
                 object_id.id.id,
                 message_desc.name,
                 &args,
+                false,
             );
         }
 
@@ -362,7 +364,7 @@ impl<D> Client<D> {
             let obj = self.map.find(msg.sender_id).unwrap();
 
             if self.debug {
-                super::super::debug::print_dispatched_message(
+                debug::print_dispatched_message(
                     obj.interface.name,
                     msg.sender_id,
                     obj.interface.requests.get(msg.opcode as usize).unwrap().name,

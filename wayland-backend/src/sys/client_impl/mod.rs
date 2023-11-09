@@ -17,6 +17,8 @@ use std::{
 
 use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
+    debug,
+    debug::has_debug_client_env,
     protocol::{
         check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
         ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
@@ -184,6 +186,7 @@ struct Dispatcher;
 struct Inner {
     state: Mutex<ConnectionState>,
     dispatch_lock: Mutex<Dispatcher>,
+    debug: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -254,6 +257,7 @@ impl InnerBackend {
                     last_error: None,
                     known_proxies: HashSet::new(),
                 }),
+                debug: has_debug_client_env(),
                 dispatch_lock: Mutex::new(Dispatcher),
             }),
         })
@@ -276,6 +280,7 @@ impl InnerBackend {
                     last_error: None,
                     known_proxies: HashSet::new(),
                 }),
+                debug: has_debug_client_env(),
                 dispatch_lock: Mutex::new(Dispatcher),
             }),
         }
@@ -512,15 +517,6 @@ impl InnerBackend {
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
         let mut guard = self.lock_state();
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
-        {
-            return Err(InvalidId);
-        }
-        let parent_version = if id.id == 1 {
-            1
-        } else {
-            unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_version, id.ptr) }
-        };
         // check that the argument list is valid
         let message_desc = match id.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -528,6 +524,21 @@ impl InnerBackend {
                 panic!("Unknown opcode {} for object {}@{}.", opcode, id.interface.name, id.id);
             }
         };
+
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
+        {
+            if self.inner.debug {
+                debug::print_send_message(id.interface.name, id.id, message_desc.name, &args, true);
+            }
+            return Err(InvalidId);
+        }
+
+        let parent_version = if id.id == 1 {
+            1
+        } else {
+            unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_version, id.ptr) }
+        };
+
         if !check_for_signature(message_desc.signature, &args) {
             panic!(
                 "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
