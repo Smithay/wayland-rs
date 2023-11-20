@@ -2,7 +2,7 @@ use std::{
     any::Any,
     fmt,
     os::unix::{
-        io::{BorrowedFd, OwnedFd, RawFd},
+        io::{BorrowedFd, OwnedFd},
         net::UnixStream,
     },
     sync::Arc,
@@ -243,7 +243,7 @@ impl Backend {
     ///   is `wl_registry.bind`), the `child_spec` must be provided.
     pub fn send_request(
         &self,
-        msg: Message<ObjectId, RawFd>,
+        msg: Message<ObjectId, BorrowedFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
