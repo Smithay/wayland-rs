@@ -3,7 +3,7 @@
 use std::{
     fmt,
     os::unix::{
-        io::{AsRawFd, BorrowedFd, OwnedFd, RawFd},
+        io::{AsRawFd, BorrowedFd, OwnedFd},
         net::UnixStream,
     },
     sync::{Arc, Condvar, Mutex, MutexGuard, Weak},
@@ -317,7 +317,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
