@@ -337,7 +337,7 @@ impl<T> From<WEnum<T>> for Result<T, WEnumError> {
     }
 }
 
-impl<T: std::convert::TryFrom<u32>> From<u32> for WEnum<T> {
+impl<T: TryFrom<u32>> From<u32> for WEnum<T> {
     /// Constructs an enum from the integer format used by the wayland protocol.
     fn from(v: u32) -> Self {
         match T::try_from(v) {

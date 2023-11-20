@@ -8,7 +8,7 @@ description = "Wayland Scanner for generating rust APIs from XML wayland protoco
 license = "MIT"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "codegen"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.65"
 readme = "README.md"
 

@@ -2,7 +2,7 @@
 name = "wayland-backend"
 version = "0.3.2"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.65"
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-backend/"
