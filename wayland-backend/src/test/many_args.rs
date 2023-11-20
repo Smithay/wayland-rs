@@ -1,5 +1,7 @@
 use std::{
     ffi::{CStr, CString},
+    io,
+    os::unix::io::AsFd,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -65,6 +67,7 @@ macro_rules! serverdata_impls {
                 _: $server_backend::GlobalId,
                 object_id: $server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
+                let stdout = io::stdout().lock();
                 handle
                     .send_event(message!(
                         object_id,
@@ -77,7 +80,7 @@ macro_rules! serverdata_impls {
                             Argument::Str(Some(Box::new(
                                 CString::new("I want cake".as_bytes()).unwrap()
                             ))),
-                            Argument::Fd(1), // stdout
+                            Argument::Fd(stdout.as_fd()),
                         ],
                     ))
                     .unwrap();
@@ -183,6 +186,7 @@ expand_test!(many_args, {
     assert!(client_data.0.load(Ordering::SeqCst));
 
     // send the many_args request
+    let stdin = io::stdin().lock();
     client
         .send_request(
             message!(
@@ -196,7 +200,7 @@ expand_test!(many_args, {
                     Argument::Str(Some(Box::new(
                         CString::new("I like trains".as_bytes()).unwrap()
                     ))),
-                    Argument::Fd(0), // stdin
+                    Argument::Fd(stdin.as_fd()),
                 ],
             ),
             None,
