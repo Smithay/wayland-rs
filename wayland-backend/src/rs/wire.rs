@@ -1,10 +1,10 @@
 //! Types and routines used to manipulate arguments from the wire format
 
 use std::collections::VecDeque;
+use std::convert::TryInto;
 use std::ffi::CStr;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::{BorrowedFd, OwnedFd};
-use std::ptr;
 
 use crate::protocol::{Argument, ArgumentType, Message};
 
@@ -72,14 +72,15 @@ impl std::fmt::Display for MessageParseError {
 /// Any serialized Fd will be `dup()`-ed in the process
 pub fn write_to_buffers(
     msg: &Message<u32, RawFd>,
-    payload: &mut [u32],
+    payload: &mut [u8],
     fds: &mut Vec<OwnedFd>,
 ) -> Result<usize, MessageWriteError> {
     let orig_payload_len = payload.len();
     // Helper function to write a u32 or a RawFd to its buffer
-    fn write_buf<T>(u: T, payload: &mut [T]) -> Result<&mut [T], MessageWriteError> {
-        if let Some((head, tail)) = payload.split_first_mut() {
-            *head = u;
+    fn write_buf(u: u32, payload: &mut [u8]) -> Result<&mut [u8], MessageWriteError> {
+        if payload.len() >= 4 {
+            let (head, tail) = payload.split_at_mut(4);
+            head.copy_from_slice(&u.to_ne_bytes());
             Ok(tail)
         } else {
             Err(MessageWriteError::BufferTooSmall)
@@ -89,62 +90,55 @@ pub fn write_to_buffers(
     // Helper function to write byte arrays in payload
     fn write_array_to_payload<'a>(
         array: &[u8],
-        payload: &'a mut [u32],
-    ) -> Result<&'a mut [u32], MessageWriteError> {
-        let array_len = array.len();
-        let word_len = array_len / 4 + usize::from(array_len % 4 != 0);
-        // need enough space to store the whole array with padding and a size header
-        if payload.len() < 1 + word_len {
+        payload: &'a mut [u8],
+    ) -> Result<&'a mut [u8], MessageWriteError> {
+        // size header
+        let payload = write_buf(array.len() as u32, payload)?;
+
+        // Handle padding
+        let len = next_multiple_of(array.len(), 4);
+
+        if payload.len() < len {
             return Err(MessageWriteError::BufferTooSmall);
         }
-        // size header
-        payload[0] = array_len as u32;
-        let (buffer_slice, rest) = payload[1..].split_at_mut(word_len);
-        unsafe {
-            ptr::copy(array.as_ptr(), buffer_slice.as_mut_ptr() as *mut u8, array_len);
-        }
+
+        let (buffer_slice, rest) = payload.split_at_mut(len);
+        buffer_slice[..array.len()].copy_from_slice(array);
         Ok(rest)
     }
 
     let free_size = payload.len();
-    if free_size < 2 {
+    if free_size < 2 * 4 {
         return Err(MessageWriteError::BufferTooSmall);
     }
 
-    let (header, mut payload) = payload.split_at_mut(2);
+    let (header, mut payload) = payload.split_at_mut(2 * 4);
 
     // write the contents in the buffer
     for arg in &msg.args {
-        // Just to make the borrow checker happy
-        let old_payload = payload;
-        match *arg {
-            Argument::Int(i) => payload = write_buf(i as u32, old_payload)?,
-            Argument::Uint(u) => payload = write_buf(u, old_payload)?,
-            Argument::Fixed(f) => payload = write_buf(f as u32, old_payload)?,
-            Argument::Str(Some(ref s)) => {
-                payload = write_array_to_payload(s.as_bytes_with_nul(), old_payload)?;
-            }
-            Argument::Str(None) => {
-                payload = write_array_to_payload(&[], old_payload)?;
-            }
-            Argument::Object(o) => payload = write_buf(o, old_payload)?,
-            Argument::NewId(n) => payload = write_buf(n, old_payload)?,
-            Argument::Array(ref a) => {
-                payload = write_array_to_payload(a, old_payload)?;
-            }
+        payload = match *arg {
+            Argument::Int(i) => write_buf(i as u32, payload)?,
+            Argument::Uint(u) => write_buf(u, payload)?,
+            Argument::Fixed(f) => write_buf(f as u32, payload)?,
+            Argument::Str(Some(ref s)) => write_array_to_payload(s.as_bytes_with_nul(), payload)?,
+            Argument::Str(None) => write_array_to_payload(&[], payload)?,
+            Argument::Object(o) => write_buf(o, payload)?,
+            Argument::NewId(n) => write_buf(n, payload)?,
+            Argument::Array(ref a) => write_array_to_payload(a, payload)?,
             Argument::Fd(fd) => {
                 let dup_fd = unsafe { BorrowedFd::borrow_raw(fd) }
                     .try_clone_to_owned()
                     .map_err(MessageWriteError::DupFdFailed)?;
                 fds.push(dup_fd);
-                payload = old_payload;
+                payload
             }
-        }
+        };
     }
 
-    let wrote_size = (free_size - payload.len()) * 4;
-    header[0] = msg.sender_id;
-    header[1] = ((wrote_size as u32) << 16) | u32::from(msg.opcode);
+    let wrote_size = free_size - payload.len();
+    header[..4].copy_from_slice(&msg.sender_id.to_ne_bytes());
+    header[4..]
+        .copy_from_slice(&(((wrote_size as u32) << 16) | u32::from(msg.opcode)).to_ne_bytes());
     Ok(orig_payload_len - payload.len())
 }
 
@@ -157,36 +151,32 @@ pub fn write_to_buffers(
 /// Errors if the message is malformed.
 #[allow(clippy::type_complexity)]
 pub fn parse_message<'a>(
-    raw: &'a [u32],
+    raw: &'a [u8],
     signature: &[ArgumentType],
     fds: &mut VecDeque<OwnedFd>,
-) -> Result<(Message<u32, OwnedFd>, &'a [u32]), MessageParseError> {
+) -> Result<(Message<u32, OwnedFd>, &'a [u8]), MessageParseError> {
     // helper function to read arrays
     fn read_array_from_payload(
         array_len: usize,
-        payload: &[u32],
-    ) -> Result<(&[u8], &[u32]), MessageParseError> {
-        let word_len = array_len / 4 + usize::from(array_len % 4 != 0);
-        if word_len > payload.len() {
+        payload: &[u8],
+    ) -> Result<(&[u8], &[u8]), MessageParseError> {
+        let len = next_multiple_of(array_len, 4);
+        if len > payload.len() {
             return Err(MessageParseError::MissingData);
         }
-        let (array_contents, rest) = payload.split_at(word_len);
-        let array = unsafe {
-            ::std::slice::from_raw_parts(array_contents.as_ptr() as *const u8, array_len)
-        };
-        Ok((array, rest))
+        Ok((&payload[..array_len], &payload[len..]))
     }
 
-    if raw.len() < 2 {
+    if raw.len() < 2 * 4 {
         return Err(MessageParseError::MissingData);
     }
 
-    let sender_id = raw[0];
-    let word_2 = raw[1];
+    let sender_id = u32::from_ne_bytes([raw[0], raw[1], raw[2], raw[3]]);
+    let word_2 = u32::from_ne_bytes([raw[4], raw[5], raw[6], raw[7]]);
     let opcode = (word_2 & 0x0000_FFFF) as u16;
-    let len = (word_2 >> 16) as usize / 4;
+    let len = (word_2 >> 16) as usize;
 
-    if len < 2 {
+    if len < 2 * 4 {
         return Err(MessageParseError::Malformed);
     } else if len > raw.len() {
         return Err(MessageParseError::MissingData);
@@ -198,7 +188,7 @@ pub fn parse_message<'a>(
     }
 
     let (mut payload, rest) = raw.split_at(len);
-    payload = &payload[2..];
+    payload = &payload[2 * 4..];
 
     let arguments = signature
         .iter()
@@ -210,7 +200,9 @@ pub fn parse_message<'a>(
                 } else {
                     Err(MessageParseError::MissingFD)
                 }
-            } else if let Some((&front, mut tail)) = payload.split_first() {
+            } else if payload.len() >= 4 {
+                let (front, mut tail) = payload.split_at(4);
+                let front = u32::from_ne_bytes(front.try_into().unwrap());
                 let arg = match *argtype {
                     ArgumentType::Int => Ok(Argument::Int(front as i32)),
                     ArgumentType::Uint => Ok(Argument::Uint(front)),
@@ -294,5 +286,13 @@ mod tests {
         )
         .unwrap();
         assert_eq!(rebuilt.map_fd(IntoRawFd::into_raw_fd), msg);
+    }
+}
+
+// Stabalized in Rust 1.73
+fn next_multiple_of(lhs: usize, rhs: usize) -> usize {
+    match lhs % rhs {
+        0 => lhs,
+        r => lhs + (rhs - r),
     }
 }

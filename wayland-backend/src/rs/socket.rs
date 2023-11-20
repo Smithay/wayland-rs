@@ -115,9 +115,9 @@ impl AsRawFd for Socket {
 #[derive(Debug)]
 pub struct BufferedSocket {
     socket: Socket,
-    in_data: Buffer<u32>,
+    in_data: Buffer<u8>,
     in_fds: VecDeque<OwnedFd>,
-    out_data: Buffer<u32>,
+    out_data: Buffer<u8>,
     out_fds: Vec<OwnedFd>,
 }
 
@@ -126,9 +126,9 @@ impl BufferedSocket {
     pub fn new(socket: Socket) -> Self {
         Self {
             socket,
-            in_data: Buffer::new(2 * MAX_BYTES_OUT / 4), // Incoming buffers are twice as big in order to be
-            in_fds: VecDeque::new(),                     // able to store leftover data if needed
-            out_data: Buffer::new(MAX_BYTES_OUT / 4),
+            in_data: Buffer::new(2 * MAX_BYTES_OUT), // Incoming buffers are twice as big in order to be
+            in_fds: VecDeque::new(),                 // able to store leftover data if needed
+            out_data: Buffer::new(MAX_BYTES_OUT),
             out_fds: Vec::new(),
         }
     }
@@ -136,16 +136,13 @@ impl BufferedSocket {
     /// Flush the contents of the outgoing buffer into the socket
     pub fn flush(&mut self) -> IoResult<()> {
         let written = {
-            let words = self.out_data.get_contents();
-            if words.is_empty() {
+            let bytes = self.out_data.get_contents();
+            if bytes.is_empty() {
                 return Ok(());
             }
-            let bytes = unsafe {
-                ::std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 4)
-            };
             self.socket.send_msg(bytes, &self.out_fds)?
         };
-        self.out_data.offset(written / 4);
+        self.out_data.offset(written);
         self.out_data.move_to_front();
         self.out_fds.clear();
         Ok(())
@@ -200,10 +197,7 @@ impl BufferedSocket {
         self.in_data.move_to_front();
         // receive a message
         let in_bytes = {
-            let words = self.in_data.get_writable_storage();
-            let bytes = unsafe {
-                ::std::slice::from_raw_parts_mut(words.as_ptr() as *mut u8, words.len() * 4)
-            };
+            let bytes = self.in_data.get_writable_storage();
             self.socket.rcv_msg(bytes, &mut self.in_fds)?
         };
         if in_bytes == 0 {
@@ -211,7 +205,7 @@ impl BufferedSocket {
             return Err(rustix::io::Errno::PIPE.into());
         }
         // advance the storage
-        self.in_data.advance(in_bytes / 4 + usize::from(in_bytes % 4 > 0));
+        self.in_data.advance(in_bytes);
         Ok(())
     }
 
@@ -229,11 +223,12 @@ impl BufferedSocket {
     {
         let (msg, read_data) = {
             let data = self.in_data.get_contents();
-            if data.len() < 2 {
+            if data.len() < 2 * 4 {
                 return Err(MessageParseError::MissingData);
             }
-            let object_id = data[0];
-            let opcode = (data[1] & 0x0000_FFFF) as u16;
+            let object_id = u32::from_ne_bytes([data[0], data[1], data[2], data[3]]);
+            let word_2 = u32::from_ne_bytes([data[4], data[5], data[6], data[7]]);
+            let opcode = (word_2 & 0x0000_FFFF) as u16;
             if let Some(sig) = signature(object_id, opcode) {
                 match parse_message(data, sig, &mut self.in_fds) {
                     Ok((msg, rest_data)) => (msg, data.len() - rest_data.len()),
