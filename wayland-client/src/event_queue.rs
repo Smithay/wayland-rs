@@ -786,8 +786,8 @@ impl ObjectData for TemporaryData {
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
+    ($(@< $( $($lt:ident )+ $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
+        impl$(< $( $($lt )+ $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
             fn event(
                 state: &mut Self,
                 proxy: &$interface,
@@ -831,13 +831,28 @@ macro_rules! delegate_dispatch {
 ///
 /// // This interface should not emit events:
 /// delegate_noop!(ExampleApp: wl_subcompositor::WlSubcompositor);
+///
+/// // Also you can do it with generic type, for example
+/// struct ExampleAppGeneric<const X: usize>;
+/// delegate_noop!(@<const X: usize> ExampleAppGeneric<X>: ignore wl_data_offer::WlDataOffer);
+/// delegate_noop!(@<const X: usize> ExampleAppGeneric<X>: wl_subcompositor::WlSubcompositor);
+///
+/// // @ is to start with generic, and for base generic type looks like below.
+/// trait E {
+///    // add code here
+/// }
+/// struct ExampleAppGeneric2<T: E> {
+///     a: T
+/// }
+/// delegate_noop!(@<T: E> ExampleAppGeneric2<T>: wl_data_offer::WlDataOffer);
+/// delegate_noop!(@<T: E> ExampleAppGeneric2<T>: ignore wl_subcompositor::WlSubcompositor);
 /// ```
 ///
 /// This last example will execute `unreachable!()` if the interface emits any events.
 #[macro_export]
 macro_rules! delegate_noop {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+    ($(@< $( $($lt:ident )+ $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty) => {
+        impl$(< $( $($lt )+ $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
             fn event(
                 _: &mut Self,
                 _: &$interface,
@@ -851,8 +866,9 @@ macro_rules! delegate_noop {
         }
     };
 
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+
+    ($(@< $( $($lt:ident )+ $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty) => {
+        impl$(< $( $($lt )+ $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
             fn event(
                 _: &mut Self,
                 _: &$interface,
@@ -864,4 +880,5 @@ macro_rules! delegate_noop {
             }
         }
     };
+
 }
