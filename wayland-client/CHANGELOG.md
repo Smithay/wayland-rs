@@ -8,6 +8,7 @@
   `D` for a particular user data type
 - Replace `delegate_noop!` with `Noop` and `NoopIgnore` types providing generic
   dispatch implementations
+- `BindError` now includes the requested and available version, or interface name that failed to bind.
 
 ## 0.31.14-- 2026-03-30
 
