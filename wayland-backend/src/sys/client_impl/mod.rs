@@ -629,7 +629,7 @@ impl InnerBackend {
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
-                        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
+                        if !o.id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
