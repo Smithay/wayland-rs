@@ -1089,7 +1089,7 @@ impl<D: 'static> ErasedState for State<D> {
                 Argument::Object(ref o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if !o.id.ptr.is_null() {
-                        if !id.alive.load(Ordering::Acquire) {
+                        if !o.id.alive.load(Ordering::Acquire) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }

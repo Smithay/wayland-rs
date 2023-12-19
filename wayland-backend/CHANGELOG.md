@@ -5,6 +5,9 @@
 ### Additions
 - client: Implement `Eq` for `Backend`
 
+#### Bugfixes
+- backend/sys: Fix error/segfault if object argument is no longer alive
+
 ## 0.3.2 -- 2023-09-25
 
 #### Bugfixes
