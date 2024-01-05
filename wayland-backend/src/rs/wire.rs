@@ -242,6 +242,14 @@ pub fn parse_message<'a>(
     Ok((msg, rest))
 }
 
+// Stabalized in Rust 1.73
+fn next_multiple_of(lhs: usize, rhs: usize) -> usize {
+    match lhs % rhs {
+        0 => lhs,
+        r => lhs + (rhs - r),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,13 +294,5 @@ mod tests {
         )
         .unwrap();
         assert_eq!(rebuilt.map_fd(IntoRawFd::into_raw_fd), msg);
-    }
-}
-
-// Stabalized in Rust 1.73
-fn next_multiple_of(lhs: usize, rhs: usize) -> usize {
-    match lhs % rhs {
-        0 => lhs,
-        r => lhs + (rhs - r),
     }
 }
