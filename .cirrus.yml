@@ -8,9 +8,6 @@ env:
 task:
   only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_PR != ''
   matrix:
-    - name: FreeBSD 12.1
-      freebsd_instance:
-        image_family: freebsd-12-1-snap
     - name: FreeBSD 13.0
       freebsd_instance:
         image_family: freebsd-13-0-snap
