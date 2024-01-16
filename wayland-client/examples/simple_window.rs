@@ -124,9 +124,7 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-
-            let color = (a << 24) + (r << 16) + (g << 8) + b;
-            buf.write_all(&color.to_ne_bytes()).unwrap();
+            buf.write_all(&[b as u8, g as u8, r as u8, a as u8]).unwrap();
         }
     }
     buf.flush().unwrap();
