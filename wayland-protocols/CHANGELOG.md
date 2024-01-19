@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bump wayland-protocols to 1.33
+  - `linux-dmabuf-unstable-v1` is now stable
+  - `linux-dmabuf-unstable-v1` version 5 requires protocol error for planes with different modifiers.
+  - A new staging protocol:
+    - `ext-transient-seat-v1`
+
 ## 0.31.0 -- 2023-09-02
 
 ### Breaking changes

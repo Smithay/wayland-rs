@@ -169,14 +169,13 @@ pub mod keyboard_shortcuts_inhibit {
     }
 }
 
-#[cfg(feature = "unstable")]
 pub mod linux_dmabuf {
     //! Linux DMA-BUF protocol
 
     /// Unstable version 1
     pub mod zv1 {
         wayland_protocol!(
-            "./protocols/unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml",
+            "./protocols/stable/linux-dmabuf/linux-dmabuf-v1.xml",
             []
         );
     }

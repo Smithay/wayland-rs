@@ -58,3 +58,33 @@ pub mod foreign_toplevel_list {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod transient_seat {
+    //! The transient seat protocol can be used by privileged clients to create
+    //! independent seats that will be removed from the compositor when the client
+    //! destroys its transient seat.
+    //!
+    //! This protocol is intended for use with virtual input protocols such as
+    //! "virtual_keyboard_unstable_v1" or "wlr_virtual_pointer_unstable_v1", both
+    //! of which allow the user to select a seat.
+    //!
+    //! The "wl_seat" global created by this protocol does not generate input events
+    //! on its own, or have any capabilities except those assigned to it by other
+    //! protocol extensions, such as the ones mentioned above.
+    //!
+    //! For example, a remote desktop server can create a seat with virtual inputs
+    //! for each remote user by following these steps for each new connection:
+    //!  * Create a transient seat
+    //!  * Wait for the transient seat to be created
+    //!  * Locate a "wl_seat" global with a matching name
+    //!  * Create virtual inputs using the resulting "wl_seat" global
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-transient-seat/ext-transient-seat-v1.xml",
+            []
+        );
+    }
+
+}
