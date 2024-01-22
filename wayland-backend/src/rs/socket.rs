@@ -6,6 +6,7 @@ use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::slice;
 
+use rustix::io::retry_on_intr;
 use rustix::net::{
     recvmsg, send, sendmsg, RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags,
     SendAncillaryBuffer, SendAncillaryMessage, SendFlags,
@@ -51,9 +52,9 @@ impl Socket {
             let fds =
                 unsafe { slice::from_raw_parts(fds.as_ptr() as *const BorrowedFd, fds.len()) };
             cmsg_buffer.push(SendAncillaryMessage::ScmRights(fds));
-            Ok(sendmsg(self, &iov, &mut cmsg_buffer, flags)?)
+            Ok(retry_on_intr(|| sendmsg(self, &iov, &mut cmsg_buffer, flags))?)
         } else {
-            Ok(send(self, bytes, flags)?)
+            Ok(retry_on_intr(|| send(self, bytes, flags))?)
         }
     }
 
@@ -77,7 +78,7 @@ impl Socket {
         let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
         let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
         let mut iov = [IoSliceMut::new(buffer)];
-        let msg = recvmsg(&self.stream, &mut iov[..], &mut cmsg_buffer, flags)?;
+        let msg = retry_on_intr(|| recvmsg(&self.stream, &mut iov[..], &mut cmsg_buffer, flags))?;
 
         let received_fds = cmsg_buffer
             .drain()
