@@ -7,6 +7,8 @@
 
 #### Bugfixes
 - backend/sys: Fix error/segfault if object argument is no longer alive
+- backend/rs: Retry send/recv on `EINTR`
+  * Matches the behavior of libwayland
 
 ## 0.3.2 -- 2023-09-25
 
