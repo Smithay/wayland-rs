@@ -3,7 +3,12 @@
 ## Unreleased
 
 #### Additions
+
 - Implement `Eq` for `Connection`
+
+#### Breaking changes
+
+- `BindError` now includes the requested and available version, or interface name that failed to bind.
 
 ## 0.31.1 -- 2023-09-19
 

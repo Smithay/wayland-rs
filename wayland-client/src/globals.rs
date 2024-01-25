@@ -115,7 +115,7 @@ impl GlobalList {
     /// version of the returned protocol object is the lower of the maximum requested version and the advertised
     /// version.
     ///
-    /// If the lower bound of the `version` is less than the version advertised by the server, then
+    /// If the lower bound of the `version` is greater than the version advertised by the server, then
     /// [`BindError::UnsupportedVersion`] is returned.
     ///
     /// ## Multi-instance/Device globals.
@@ -152,23 +152,19 @@ impl GlobalList {
 
         let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
         let guard = globals.lock().unwrap();
-        let (name, version) = guard
+        let &Global { name, version, .. } = guard
             .iter()
-            // Find the with the correct interface
-            .filter_map(|Global { name, interface: interface_name, version }| {
-                // TODO: then_some
-                if interface.name == &interface_name[..] {
-                    Some((*name, *version))
-                } else {
-                    None
-                }
-            })
-            .next()
-            .ok_or(BindError::NotPresent)?;
+            // Find the global with the correct interface
+            .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
+            .ok_or(BindError::NotPresent(interface.name))?;
 
         // Test version requirements
-        if version < version_start {
-            return Err(BindError::UnsupportedVersion);
+        if version_start > version {
+            return Err(BindError::UnsupportedVersion {
+                interface: interface.name,
+                requested: version_start,
+                available: version,
+            });
         }
 
         // To get the version to bind, take the lower of the version advertised by the server and the maximum
@@ -232,10 +228,17 @@ impl From<InvalidId> for GlobalError {
 #[derive(Debug)]
 pub enum BindError {
     /// The requested version of the global is not supported.
-    UnsupportedVersion,
+    UnsupportedVersion {
+        /// The name of the global for which the server provides a too low value.
+        interface: &'static str,
+        /// The lowest version that was requested by the caller, must be greater than [`Self::UnsupportedVersion::requested`].
+        requested: u32,
+        /// The actual verison that was available on the server, must be less than [`Self::UnsupportedVersion::requested`].
+        available: u32,
+    },
 
     /// The requested global was not found in the registry.
-    NotPresent,
+    NotPresent(&'static str),
 }
 
 impl std::error::Error for BindError {}
@@ -243,11 +246,11 @@ impl std::error::Error for BindError {}
 impl fmt::Display for BindError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BindError::UnsupportedVersion {} => {
-                write!(f, "the requested version of the global is not supported")
+            BindError::UnsupportedVersion { interface, requested, available } => {
+                write!(f, "the requested version `{requested}` of the global `{interface}` is not supported, only `{available}` is available")
             }
-            BindError::NotPresent {} => {
-                write!(f, "the requested global was not found in the registry")
+            BindError::NotPresent(name) => {
+                write!(f, "the requested global `{name}` was not found in the registry")
             }
         }
     }
