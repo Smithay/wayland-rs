@@ -472,9 +472,8 @@ impl<State> EventQueue<State> {
         //
         // We purposefully ignore the possible error, as that would make us early return in a way that might
         // lose events, and the potential socket error will be caught in other places anyway.
-        let _ = backend.backend.dispatch_inner_queue();
+        let mut dispatched = backend.backend.dispatch_inner_queue().unwrap_or_default();
 
-        let mut dispatched = 0;
         while let Some(QueueEvent(cb, msg, odata)) = Self::try_next(&qhandle.inner) {
             cb(backend, msg, data, odata, qhandle)?;
             dispatched += 1;
