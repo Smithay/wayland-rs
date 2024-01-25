@@ -6,6 +6,26 @@ use quote::{format_ident, quote, ToTokens};
 
 use crate::{protocol::*, util::*, Side};
 
+fn enum_ident(e: &Enum) -> Ident {
+    Ident::new(&snake_to_camel(&e.name), Span::call_site())
+}
+
+pub(crate) fn generate_enum_reexports_for(
+    path: &TokenStream,
+    interface: &Interface,
+) -> TokenStream {
+    interface
+        .enums
+        .iter()
+        .map(enum_ident)
+        .map(|ident| {
+            quote! {
+                pub use #path::#ident;
+            }
+        })
+        .collect()
+}
+
 pub(crate) fn generate_enums_for(interface: &Interface) -> TokenStream {
     interface.enums.iter().map(ToTokens::into_token_stream).collect()
 }
@@ -16,7 +36,7 @@ impl ToTokens for Enum {
         let enum_impl;
 
         let doc_attr = self.description.as_ref().map(description_to_doc_attr);
-        let ident = Ident::new(&snake_to_camel(&self.name), Span::call_site());
+        let ident = enum_ident(self);
 
         if self.bitfield {
             let entries = self.entries.iter().map(|entry| {
@@ -122,10 +142,54 @@ impl ToTokens for Enum {
     }
 }
 
+fn req_since(msg: &Message) -> Ident {
+    format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase())
+}
+
+fn req_opcode(msg: &Message) -> Ident {
+    format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase())
+}
+
+fn event_since(msg: &Message) -> Ident {
+    format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase())
+}
+
+fn event_opcode(msg: &Message) -> Ident {
+    format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase())
+}
+
+pub(crate) fn gen_msg_constant_reexports(
+    path: &TokenStream,
+    requests: &[Message],
+    events: &[Message],
+) -> TokenStream {
+    let req_constants = requests.iter().map(|msg| {
+        let since_cstname = req_since(msg);
+        let opcode_cstname = req_opcode(msg);
+        quote! {
+            pub use #path::#since_cstname;
+            pub use #path::#opcode_cstname;
+        }
+    });
+    let evt_constants = events.iter().map(|msg| {
+        let since_cstname = event_since(msg);
+        let opcode_cstname = event_opcode(msg);
+        quote! {
+            pub use #path::#since_cstname;
+            pub use #path::#opcode_cstname;
+        }
+    });
+
+    quote! {
+        #(#req_constants)*
+        #(#evt_constants)*
+    }
+}
+
 pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> TokenStream {
     let req_constants = requests.iter().enumerate().map(|(opcode, msg)| {
-        let since_cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
-        let opcode_cstname = format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase());
+        let since_cstname = req_since(msg);
+        let opcode_cstname = req_opcode(msg);
         let since = msg.since;
         let opcode = opcode as u16;
         quote! {
@@ -136,8 +200,8 @@ pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> Tok
         }
     });
     let evt_constants = events.iter().enumerate().map(|(opcode, msg)| {
-        let since_cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
-        let opcode_cstname = format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase());
+        let since_cstname = event_since(msg);
+        let opcode_cstname = event_opcode(msg);
         let since = msg.since;
         let opcode = opcode as u16;
         quote! {

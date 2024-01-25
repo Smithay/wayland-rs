@@ -179,6 +179,24 @@ pub mod linux_dmabuf {
             []
         );
     }
+
+    /// Stable version 1 (Aliased to zv1, as zv1 became stable without name change)
+    pub mod v1 {
+        #[cfg(feature = "client")]
+        pub mod client {
+            //! Client-side API of this protocol
+            pub use super::super::zv1::client::__interfaces;
+            use super::super::zv1::client::*;
+            wayland_scanner::__generate_aliases!("./protocols/stable/linux-dmabuf/linux-dmabuf-v1.xml");
+        }
+        #[cfg(feature = "server")]
+        pub mod server {
+            //! Server-side API of this protocol
+            pub use super::super::zv1::server::__interfaces;
+            use super::super::zv1::server::*;
+            wayland_scanner::__generate_aliases!("./protocols/stable/linux-dmabuf/linux-dmabuf-v1.xml");
+        }
+    }
 }
 
 #[cfg(feature = "unstable")]

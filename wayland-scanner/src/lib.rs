@@ -36,8 +36,12 @@
 //! }
 //! ```
 
-use std::{ffi::OsString, path::PathBuf};
+use std::{
+    ffi::{OsStr, OsString},
+    path::PathBuf,
+};
 
+mod aliases_gen;
 mod c_interfaces;
 mod client_gen;
 mod common;
@@ -48,10 +52,7 @@ mod server_gen;
 mod token;
 mod util;
 
-/// Proc-macro for generating low-level interfaces associated with an XML specification
-#[proc_macro]
-pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path: OsString = token::parse_lit_str_token(stream).into();
+fn open_file(path: &OsStr) -> protocol::Protocol {
     let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
         let mut buf = PathBuf::from(manifest_dir);
         buf.push(path);
@@ -63,26 +64,31 @@ pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::Token
         Ok(file) => file,
         Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
     };
-    let protocol = parse::parse(file);
+    parse::parse(file)
+}
+
+/// Proc-macro for generating low-level interfaces associated with an XML specification
+#[proc_macro]
+pub fn generate_interfaces(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let path: OsString = token::parse_lit_str_token(stream).into();
+    let protocol = open_file(&path);
     interfaces::generate(&protocol, true).into()
+}
+
+/// Proc-macro for generating client-side API associated with an XML specification
+#[doc(hidden)]
+#[proc_macro]
+pub fn __generate_aliases(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let path: OsString = token::parse_lit_str_token(stream).into();
+    let protocol = open_file(&path);
+    aliases_gen::generate_aliases(&protocol).into()
 }
 
 /// Proc-macro for generating client-side API associated with an XML specification
 #[proc_macro]
 pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let path: OsString = token::parse_lit_str_token(stream).into();
-    let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
-        let mut buf = PathBuf::from(manifest_dir);
-        buf.push(path);
-        buf
-    } else {
-        path.into()
-    };
-    let file = match std::fs::File::open(&path) {
-        Ok(file) => file,
-        Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
-    };
-    let protocol = parse::parse(file);
+    let protocol = open_file(&path);
     client_gen::generate_client_objects(&protocol).into()
 }
 
@@ -90,18 +96,7 @@ pub fn generate_client_code(stream: proc_macro::TokenStream) -> proc_macro::Toke
 #[proc_macro]
 pub fn generate_server_code(stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let path: OsString = token::parse_lit_str_token(stream).into();
-    let path = if let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") {
-        let mut buf = PathBuf::from(manifest_dir);
-        buf.push(path);
-        buf
-    } else {
-        path.into()
-    };
-    let file = match std::fs::File::open(&path) {
-        Ok(file) => file,
-        Err(e) => panic!("Failed to open protocol file {}: {}", path.display(), e),
-    };
-    let protocol = parse::parse(file);
+    let protocol = open_file(&path);
     server_gen::generate_server_objects(&protocol).into()
 }
 
