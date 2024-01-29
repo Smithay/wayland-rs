@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.31.1 -- 2024-01-29
+## 0.31.2 -- 2024-01-29
 
 - Bump wayland-protocols to 1.33
   - `linux-dmabuf-unstable-v1` is now stable
