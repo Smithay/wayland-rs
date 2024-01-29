@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.31.1 -- 2024-01-29
+
+- Dropped `nix` dependency in favor or `rustix`
+
 ## 0.31.0 -- 2023-09-02
 
 - Update to wayland-client 0.31
