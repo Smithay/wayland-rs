@@ -2,8 +2,15 @@
 
 ## Unreleased
 
+## 0.31.2 -- 2024-01-29
+
 #### Additions
+
 - Implement `Eq` for `Connection`
+
+#### Bugfixes
+
+- Fix a possible deadlock in `EventQueue::blocking_dispatch()`
 
 ## 0.31.1 -- 2023-09-19
 

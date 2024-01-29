@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.31.1"
+version = "0.31.2"
 documentation = "https://docs.rs/wayland-client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
