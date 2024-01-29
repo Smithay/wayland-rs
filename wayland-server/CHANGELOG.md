@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.31.1 -- 2024-01-29
+
+- Dropped `nix` dependency in favor of `rustix`
+
 ## 0.31.0 -- 2023-09-02
 
 #### Breaking changes
