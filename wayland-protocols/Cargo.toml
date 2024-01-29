@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.31.0"
+version = "0.31.1"
 documentation = "https://docs.rs/wayland-protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
