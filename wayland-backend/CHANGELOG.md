@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.3 -- 2024-01-29
+
 ### Additions
 - client: Implement `Eq` for `Backend`
 
