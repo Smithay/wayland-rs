@@ -168,7 +168,7 @@ impl BufferedSocket {
     //
     // if false is returned, it means there is not enough space
     // in the buffer
-    fn attempt_write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<bool> {
+    fn attempt_write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<bool> {
         match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
             Ok(bytes_out) => {
                 self.out_data.advance(bytes_out);
@@ -185,7 +185,7 @@ impl BufferedSocket {
     ///
     /// If the message is too big to fit in the buffer, the error `Error::Sys(E2BIG)`
     /// will be returned.
-    pub fn write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<()> {
+    pub fn write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<()> {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
@@ -333,8 +333,8 @@ mod tests {
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
+    use std::io;
     use std::os::unix::io::BorrowedFd;
-    use std::os::unix::prelude::IntoRawFd;
 
     use smallvec::smallvec;
 
@@ -348,18 +348,18 @@ mod tests {
     //
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
-    fn assert_eq_msgs<Fd: AsRawFd + std::fmt::Debug>(
-        msg1: &Message<u32, Fd>,
-        msg2: &Message<u32, Fd>,
+    fn assert_eq_msgs<Fd1: AsFd + std::fmt::Debug, Fd2: AsFd + std::fmt::Debug>(
+        msg1: Message<u32, Fd1>,
+        msg2: Message<u32, Fd2>,
     ) {
+        let msg1 = msg1.map_fd(|fd| fd.as_fd().try_clone_to_owned().unwrap());
+        let msg2 = msg2.map_fd(|fd| fd.as_fd().try_clone_to_owned().unwrap());
         assert_eq!(msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
             if let (Argument::Fd(fd1), Argument::Fd(fd2)) = (arg1, arg2) {
-                let fd1 = unsafe { BorrowedFd::borrow_raw(fd1.as_raw_fd()) };
-                let fd2 = unsafe { BorrowedFd::borrow_raw(fd2.as_raw_fd()) };
-                assert!(same_file(fd1, fd2));
+                assert!(same_file(fd1.as_fd(), fd2.as_fd()));
             } else {
                 assert_eq!(arg1, arg2);
             }
@@ -412,17 +412,19 @@ mod tests {
                 })
                 .unwrap();
 
-        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
+        assert_eq_msgs(msg, ret_msg);
     }
 
     #[test]
     fn write_read_cycle_fd() {
+        let stdin = io::stdin().lock();
+        let stdout = io::stdout().lock();
         let msg = Message {
             sender_id: 42,
             opcode: 7,
             args: smallvec![
-                Argument::Fd(1), // stdin
-                Argument::Fd(0), // stdout
+                Argument::Fd(stdin.as_fd()),
+                Argument::Fd(stdout.as_fd()),
             ],
         };
 
@@ -447,11 +449,14 @@ mod tests {
                     }
                 })
                 .unwrap();
-        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
+        assert_eq_msgs(msg, ret_msg);
     }
 
     #[test]
     fn write_read_cycle_multiple() {
+        let stdin = io::stderr().lock();
+        let stdout = io::stderr().lock();
+        let stderr = io::stderr().lock();
         let messages = vec![
             Message {
                 sender_id: 42,
@@ -465,8 +470,8 @@ mod tests {
                 sender_id: 42,
                 opcode: 1,
                 args: smallvec![
-                    Argument::Fd(1), // stdin
-                    Argument::Fd(0), // stdout
+                    Argument::Fd(stdin.as_fd()),
+                    Argument::Fd(stdout.as_fd()),
                 ],
             },
             Message {
@@ -474,7 +479,7 @@ mod tests {
                 opcode: 2,
                 args: smallvec![
                     Argument::Uint(3),
-                    Argument::Fd(2), // stderr
+                    Argument::Fd(stderr.as_fd()),
                 ],
             },
         ];
@@ -508,7 +513,7 @@ mod tests {
         }
         assert_eq!(recv_msgs.len(), 3);
         for (msg1, msg2) in messages.into_iter().zip(recv_msgs.into_iter()) {
-            assert_eq_msgs(&msg1.map_fd(|fd| fd.as_raw_fd()), &msg2.map_fd(IntoRawFd::into_raw_fd));
+            assert_eq_msgs(msg1, msg2);
         }
     }
 
@@ -547,6 +552,6 @@ mod tests {
                 })
                 .unwrap();
 
-        assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
+        assert_eq_msgs(msg, ret_msg);
     }
 }

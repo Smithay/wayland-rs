@@ -5,7 +5,7 @@ use std::{
     os::raw::{c_int, c_void},
     os::unix::io::{BorrowedFd, OwnedFd},
     os::unix::{
-        io::{FromRawFd, IntoRawFd, RawFd},
+        io::{AsRawFd, FromRawFd, IntoRawFd},
         net::UnixStream,
     },
     sync::{
@@ -575,7 +575,7 @@ impl InnerHandle {
         }
     }
 
-    pub fn send_event(&self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
         self.state.lock().unwrap().send_event(msg)
     }
 
@@ -848,7 +848,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
-    fn send_event(&mut self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId>;
+    fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
@@ -1048,7 +1048,7 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn send_event(
         &mut self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
     ) -> Result<(), InvalidId> {
         if !id.alive.load(Ordering::Acquire) || id.ptr.is_null() {
             return Err(InvalidId);
@@ -1075,7 +1075,7 @@ impl<D: 'static> ErasedState for State<D> {
                 Argument::Uint(u) => argument_list.push(wl_argument { u }),
                 Argument::Int(i) => argument_list.push(wl_argument { i }),
                 Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h }),
+                Argument::Fd(h) => argument_list.push(wl_argument { h: h.as_raw_fd() }),
                 Argument::Array(ref a) => {
                     let a = Box::new(wl_array {
                         size: a.len(),
