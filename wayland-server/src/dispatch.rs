@@ -347,10 +347,15 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 ///     }
 /// }
 /// ```
+/// This macro_rules also support to be used with generic type, it will be similiar with client one
+/// like
+/// ```ignore
+/// delegate_dispatch!(@<const X : usize> ExampleApp<X>: [wl_output::WlOutput: MyUserData] => DelegateToMe);
+/// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
+    ($(@< $( $($lt:ident )+ $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
+        impl$(< $( $($lt )+ $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
             fn request(
                 state: &mut Self,
                 client: &$crate::Client,
