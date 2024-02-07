@@ -18,6 +18,8 @@ fn main() {
     // setup a listening server
     let listening = ways::ListeningSocket::bind(SOCKET_NAME).unwrap();
 
+    // Set to empty string to ensure that we don't try to connect to it.
+    ::std::env::set_var("WAYLAND_SOCKET", "");
     ::std::env::set_var("WAYLAND_DISPLAY", SOCKET_NAME);
 
     // connect the client
