@@ -24,10 +24,12 @@
 //! `Dispatch<O, _>` for every Wayland object `O` it needs to process events for.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`delegate_dispatch!()`] macro. This way, another
+//! easier a composition mechanism is provided using [`DisplayHandle::create_delegated_global()`]. This way, another
 //! library (such as Smithay) can provide generic [`Dispatch`] implementations that you can reuse on your
-//! own app by delegating those objects to that provided implementation. See the documentation of those
-//! traits and macro for details.
+//! own app by delegating those objects to that provided implementation. See the documentation of
+//! that method for details.
+//! There is also [delegated.rs](https://github.com/Smithay/wayland-rs/blob/master/wayland-server/examples/delegated.rs) example
+//! which demonstrates how delegating works.
 //!
 //! ## Globals
 //!
@@ -92,7 +94,7 @@ mod global;
 mod socket;
 
 pub use client::Client;
-pub use dispatch::{DataInit, Dispatch, New, ResourceData};
+pub use dispatch::{DataInit, DelegatedResourceData, Dispatch, New, ResourceData};
 pub use display::{Display, DisplayHandle};
 pub use global::GlobalDispatch;
 pub use socket::{BindError, ListeningSocket};
@@ -171,6 +173,15 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
 
     /// Access the user-data associated with this object
     fn data<U: 'static>(&self) -> Option<&U>;
+
+    /// Access the user-data associated with this object
+    ///
+    /// This is a delegating variant of [`Resource::data`],
+    /// Used to acces user data assosiated with objects that are delegated to `DelegatedTo` generic type.
+    ///
+    /// Object being delegated to `DelegatedTo` means that that type is handling it's requests via
+    /// [`Dispatch`]
+    fn delegated_data<U: 'static, DelegatedTo: 'static>(&self) -> Option<&U>;
 
     /// Access the raw data associated with this object.
     ///

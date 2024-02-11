@@ -7,20 +7,24 @@ use wayland_backend::server::{
 
 use crate::{Client, DataInit, DisplayHandle, New, Resource};
 
-pub(crate) struct GlobalData<I, U, D> {
+pub(crate) struct GlobalData<I, U, D, DelegatedTo = D> {
     pub(crate) data: U,
-    pub(crate) _types: std::marker::PhantomData<(I, D)>,
+    pub(crate) _types: std::marker::PhantomData<(I, D, DelegatedTo)>,
 }
 
-unsafe impl<I, D, U: Send + Sync> Send for GlobalData<I, U, D> {}
-unsafe impl<I, D, U: Send + Sync> Sync for GlobalData<I, U, D> {}
+unsafe impl<I, D, U: Send + Sync, M> Send for GlobalData<I, U, D, M> {}
+unsafe impl<I, D, U: Send + Sync, M> Sync for GlobalData<I, U, D, M> {}
 
-impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 'static>
-    GlobalHandler<D> for GlobalData<I, U, D>
+impl<I, U, D, DelegatedTo> GlobalHandler<D> for GlobalData<I, U, D, DelegatedTo>
+where
+    I: Resource + 'static,
+    U: Send + Sync + 'static,
+    D: 'static,
+    DelegatedTo: GlobalDispatch<I, U, D> + 'static,
 {
     fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData>, _: GlobalId) -> bool {
         let client = Client { id, data: data.clone() };
-        <D as GlobalDispatch<I, U>>::can_view(client, &self.data)
+        <DelegatedTo as GlobalDispatch<I, U, D>>::can_view(client, &self.data)
     }
 
     fn bind(
@@ -39,7 +43,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 
         let mut new_data = None;
         let mut protocol_error = None;
 
-        <D as GlobalDispatch<I, U>>::bind(
+        <DelegatedTo as GlobalDispatch<I, U, D>>::bind(
             data,
             &handle,
             &client,

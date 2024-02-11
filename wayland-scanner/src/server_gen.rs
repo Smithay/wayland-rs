@@ -65,7 +65,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     smallvec, ObjectData, ObjectId, InvalidId, WeakHandle,
                     protocol::{WEnum, Argument, Message, Interface, same_interface}
                 },
-                Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New, Weak,
+                Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, DelegatedResourceData, New, Weak,
             };
 
             #enums
@@ -134,6 +134,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 #[inline]
                 fn data<U: 'static>(&self) -> Option<&U> {
                     self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>()).map(|data| &data.udata)
+                }
+
+                #[inline]
+                fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>()).map(|data| &data.udata)
                 }
 
                 #[inline]
