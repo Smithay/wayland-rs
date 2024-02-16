@@ -290,7 +290,7 @@ pub mod wl_display {
         ) -> super::wl_callback::WlCallback {
             self.send_constructor(
                 Request::Sync {},
-                qh.make_data::<super::wl_callback::WlCallback, U>(udata),
+                qh.make_data::<super::wl_callback::WlCallback, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
@@ -306,7 +306,7 @@ pub mod wl_display {
         ) -> super::wl_registry::WlRegistry {
             self.send_constructor(
                 Request::GetRegistry {},
-                qh.make_data::<super::wl_registry::WlRegistry, U>(udata),
+                qh.make_data::<super::wl_registry::WlRegistry, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
@@ -560,7 +560,7 @@ pub mod wl_registry {
         ) -> I {
             self.send_constructor(
                 Request::Bind { name, id: (I::interface(), version) },
-                qh.make_data::<I, U>(udata),
+                qh.make_data::<I, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
@@ -1236,7 +1236,7 @@ pub mod test_global {
         ) -> super::secondary::Secondary {
             self.send_constructor(
                 Request::GetSecondary {},
-                qh.make_data::<super::secondary::Secondary, U>(udata),
+                qh.make_data::<super::secondary::Secondary, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
@@ -1251,7 +1251,7 @@ pub mod test_global {
         ) -> super::tertiary::Tertiary {
             self.send_constructor(
                 Request::GetTertiary {},
-                qh.make_data::<super::tertiary::Tertiary, U>(udata),
+                qh.make_data::<super::tertiary::Tertiary, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
@@ -1315,7 +1315,7 @@ pub mod test_global {
         ) -> super::quad::Quad {
             self.send_constructor(
                 Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
-                qh.make_data::<super::quad::Quad, U>(udata),
+                qh.make_data::<super::quad::Quad, U, D>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }

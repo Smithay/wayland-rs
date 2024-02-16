@@ -68,7 +68,7 @@ fn send_constructor_wrong_type() {
                 client
                     .event_queue
                     .handle()
-                    .make_data::<wayc::protocol::wl_keyboard::WlKeyboard, _>(()),
+                    .make_data::<wayc::protocol::wl_keyboard::WlKeyboard, _, ClientHandler>(()),
             ),
         )
         .unwrap();

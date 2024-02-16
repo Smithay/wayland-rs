@@ -39,9 +39,9 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`delegate_dispatch!()`] macro.
+/// automatically delegate their implementation to yours using the `DelegateTo` generic in [`QueueHandle::make_data()`].
 ///
-/// [`delegate_dispatch!()`]: crate::delegate_dispatch!()
+/// See `wayland-client` `delegated.rs` example for more info.
 ///
 /// As a result, when your implementation is instantiated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
@@ -63,8 +63,6 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// // the default State=Self.
 /// impl<State> Dispatch<wl_registry::WlRegistry, MyUserData, State> for DelegateToMe
 /// where
-///     // State is the type which has delegated to this type, so it needs to have an impl of Dispatch itself
-///     State: Dispatch<wl_registry::WlRegistry, MyUserData>,
 ///     // If your delegate type has some internal state, it'll need to access it, and you can
 ///     // require it by adding custom trait bounds.
 ///     // In this example, we just require an AsMut implementation
@@ -96,7 +94,6 @@ pub trait Dispatch<I, UserData, State = Self>
 where
     Self: Sized,
     I: Proxy,
-    State: Dispatch<I, UserData, State>,
 {
     /// Called when an event from the server is processed
     ///
@@ -176,7 +173,7 @@ macro_rules! event_created_child {
             match opcode {
                 $(
                     $opcode => {
-                        qhandle.make_data::<$child_iface, _>({$child_udata})
+                        qhandle.make_data::<$child_iface, _, $selftype>({$child_udata})
                     },
                 )*
                 _ => {
@@ -328,16 +325,17 @@ pub(crate) struct EventQueueInner<State> {
 }
 
 impl<State> EventQueueInner<State> {
-    pub(crate) fn enqueue_event<I, U>(
+    pub(crate) fn enqueue_event<I, U, DispatchTo>(
         &mut self,
         msg: Message<ObjectId, OwnedFd>,
         odata: Arc<dyn ObjectData>,
     ) where
-        State: Dispatch<I, U> + 'static,
+        State: 'static,
+        DispatchTo: Dispatch<I, U, State> + 'static,
         U: Send + Sync + 'static,
         I: Proxy + 'static,
     {
-        let func = queue_callback::<I, U, State>;
+        let func = queue_callback::<I, U, State, DispatchTo>;
         self.queue.push_back(QueueEvent(func, msg, odata));
         if self.freeze_count == 0 {
             if let Some(waker) = self.waker.take() {
@@ -608,14 +606,35 @@ impl<State: 'static> QueueHandle<State> {
     /// This creates an implementation of [`ObjectData`] fitting for direct use with `wayland-backend` APIs
     /// that forwards all events to the event queue associated with this token, integrating the object into
     /// the [`Dispatch`]-based logic of `wayland-client`.
-    pub fn make_data<I: Proxy + 'static, U: Send + Sync + 'static>(
+    ///
+    /// Events will be dispatched via [`Dispatch`] to a `DelegateTo` generic type.
+    /// Eg.
+    /// ```ignore
+    /// struct OutputDispatcher;
+    ///
+    /// impl<D> Dispatch<WlOutput, (), D> for OutputDispatcher {
+    ///     // if `DelegateTo` of an object is set to `OutputDispatcher` events will be dispatched
+    ///     // to this impl
+    /// }
+    ///
+    /// struct SeatDispatcher;
+    ///
+    /// impl<D> Dispatch<WlSeat, (), D> for SeatDispatcher {
+    ///     // if `DelegateTo` of an object is set to `SeatDispatcher` events will be dispatched here
+    ///     // to this impl
+    /// }
+    ///
+    /// let obj1 = qh.make_data::<WlOutput, (), OutputDispatcher>(());
+    /// let obj2 = qh.make_data::<WlSeat, (), SeatDispatcher>(());
+    /// ```
+    pub fn make_data<I: Proxy + 'static, U: Send + Sync + 'static, DelegateTo>(
         &self,
         user_data: U,
     ) -> Arc<dyn ObjectData>
     where
-        State: Dispatch<I, U, State>,
+        DelegateTo: Dispatch<I, U, State> + 'static,
     {
-        Arc::new(QueueProxyData::<I, U, State> {
+        Arc::new(QueueProxyData::<I, U, State, DelegateTo> {
             handle: self.clone(),
             udata: user_data,
             _phantom: PhantomData,
@@ -647,7 +666,8 @@ impl<'a, State> Drop for QueueFreezeGuard<'a, State> {
 fn queue_callback<
     I: Proxy + 'static,
     U: Send + Sync + 'static,
-    State: Dispatch<I, U, State> + 'static,
+    State,
+    DelegateTo: Dispatch<I, U, State> + 'static,
 >(
     handle: &Connection,
     msg: Message<ObjectId, OwnedFd>,
@@ -657,21 +677,23 @@ fn queue_callback<
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
     let udata = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
-    <State as Dispatch<I, U, State>>::event(data, &proxy, event, udata, handle, qhandle);
+    <DelegateTo as Dispatch<I, U, State>>::event(data, &proxy, event, udata, handle, qhandle);
     Ok(())
 }
 
 /// The [`ObjectData`] implementation used by Wayland proxies, integrating with [`Dispatch`]
-pub struct QueueProxyData<I: Proxy, U, State> {
+pub struct QueueProxyData<I: Proxy, U, State, DispatchTo = State> {
     handle: QueueHandle<State>,
     /// The user data associated with this object
     pub udata: U,
-    _phantom: PhantomData<fn(&I)>,
+    _phantom: PhantomData<fn(&I, &DispatchTo)>,
 }
 
-impl<I: Proxy + 'static, U: Send + Sync + 'static, State> ObjectData for QueueProxyData<I, U, State>
+impl<I: Proxy + 'static, U: Send + Sync + 'static, State, DispatchTo> ObjectData
+    for QueueProxyData<I, U, State, DispatchTo>
 where
-    State: Dispatch<I, U, State> + 'static,
+    State: 'static,
+    DispatchTo: Dispatch<I, U, State> + 'static,
 {
     fn event(
         self: Arc<Self>,
@@ -682,9 +704,9 @@ where
             .args
             .iter()
             .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
-            .then(|| State::event_created_child(msg.opcode, &self.handle));
+            .then(|| DispatchTo::event_created_child(msg.opcode, &self.handle));
 
-        self.handle.inner.lock().unwrap().enqueue_event::<I, U>(msg, self.clone());
+        self.handle.inner.lock().unwrap().enqueue_event::<I, U, DispatchTo>(msg, self.clone());
 
         new_data
     }
@@ -696,7 +718,9 @@ where
     }
 }
 
-impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, U, State> {
+impl<I: Proxy, U: std::fmt::Debug, State, DispatchTo> std::fmt::Debug
+    for QueueProxyData<I, U, State, DispatchTo>
+{
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueueProxyData").field("udata", &self.udata).finish()

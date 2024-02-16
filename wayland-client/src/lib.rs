@@ -41,10 +41,14 @@
 //! managing the newly created object.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`delegate_dispatch!`] macro. This way, another
-//! library (such as Smithay's Client Toolkit) can provide generic [`Dispatch`] implementations that you
+//! easier a composition mechanism is provided. Using the [`QueueHandle<State>::make_data()`] method
+//! one is able to create object handlers manually, making it possible to specify `DispatchTo` type different
+//! from your `State`.
+//! Libraries (such as Smithay's Client Toolkit) can use that mechanism to provide generic [`Dispatch`] implementations that you
 //! can reuse in your own app by delegating those objects to that provided implementation. See the
-//! documentation of those traits and macro for details.
+//! documentation of [`QueueHandle<State>::make_data()`] for details.
+//! There is also [delegated.rs](https://github.com/Smithay/wayland-rs/blob/master/wayland-client/examples/delegated.rs) example
+//! which demonstrates how delegating works.
 //!
 //! ## Getting started example
 //!
