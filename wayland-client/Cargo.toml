@@ -12,13 +12,20 @@ keywords = ["wayland", "client"]
 description = "Bindings to the standard C implementation of the wayland protocol, client side."
 readme = "README.md"
 
+[[example]]
+name = "list_globals"
+
+[[example]]
+name = "simple_window_async"
+required-features = ["tokio"]
+
 [dependencies]
 wayland-backend = { version = "0.3.1", path = "../wayland-backend" }
 wayland-scanner = { version = "0.31.0", path = "../wayland-scanner" }
 bitflags = "2"
 rustix = { version = "0.38.0", features = ["event"] }
 log = { version = "0.4", optional = true }
-tokio = { version = "1", optional = true, default-features = false, features = ["net"] }
+tokio = { version = "1", optional = true, default-features = false, features = ["net", "rt"] }
 
 [dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
