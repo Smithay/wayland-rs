@@ -177,6 +177,8 @@ use wayland_backend::{
     protocol::{Interface, Message},
 };
 
+#[cfg(all(target_family = "unix", feature = "tokio"))]
+mod async_event_queue;
 mod conn;
 mod event_queue;
 pub mod globals;
@@ -195,6 +197,10 @@ pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
 pub use event_queue::{Dispatch, EventQueue, QueueFreezeGuard, QueueHandle, QueueProxyData};
+#[cfg(all(target_family = "unix", feature = "tokio"))]
+pub use async_event_queue::{
+    AsyncEventQueue, ConnectionExtAsync
+};
 
 // internal imports for dispatching logging depending on the `log` feature
 #[cfg(feature = "log")]
