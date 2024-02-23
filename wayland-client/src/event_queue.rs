@@ -12,6 +12,8 @@ use wayland_backend::{
 };
 
 use crate::{conn::SyncData, Connection, DispatchError, Proxy};
+#[cfg(all(target_family = "unix", feature = "tokio"))]
+use crate::AsyncEventQueue;
 
 /// A trait for handlers of proxies' events delivered to an [`EventQueue`].
 ///
@@ -354,6 +356,14 @@ impl<State> AsFd for EventQueue<State> {
     /// Provides fd from [`Backend::poll_fd`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.conn.as_fd()
+    }
+}
+
+#[cfg(all(target_family = "unix", feature = "tokio"))]
+impl<'a, State> From<AsyncEventQueue<'a, State>> for EventQueue<State> {
+    #[inline(always)]
+    fn from(async_queue: AsyncEventQueue<'a, State>) -> Self {
+        async_queue.queue
     }
 }
 

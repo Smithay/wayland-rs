@@ -1,9 +1,4 @@
-use std::{
-    error::Error,
-    fs::File,
-    os::unix::prelude::AsFd,
-    process,
-};
+use std::{error::Error, fs::File, os::unix::prelude::AsFd, process};
 
 use wayland_client::{
     delegate_noop,
@@ -11,8 +6,7 @@ use wayland_client::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
-    Connection, Dispatch, QueueHandle, WEnum,
-    ConnectionExtAsync,
+    Connection, ConnectionExtAsync, Dispatch, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -47,10 +41,8 @@ async fn real_main() -> Result<(), Box<dyn Error + 'static>> {
 fn main() {
     use tokio::runtime::Builder;
     // Create the runtime here so that we don't force tokio/macros feature on downstream users
-    let rt = Builder::new_current_thread()
-        .enable_io()
-        .build()
-        .expect("Failed to create tokio runtime");
+    let rt =
+        Builder::new_current_thread().enable_io().build().expect("Failed to create tokio runtime");
     rt.block_on(async move {
         if let Err(e) = real_main().await {
             panic!("{}", &e);

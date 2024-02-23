@@ -1,29 +1,13 @@
+use crate::{
+    conn::SyncData, protocol::wl_display, Connection, DispatchError, EventQueue, WaylandError,
+};
 use std::{
     io,
     num::NonZeroUsize,
-    sync::{
-        Arc,
-        atomic::Ordering,
-    },
-    os::fd::{
-        AsFd,
-        BorrowedFd,
-    },
+    os::fd::{AsFd, BorrowedFd},
+    sync::{atomic::Ordering, Arc},
 };
-use crate::{
-    conn::SyncData,
-    Connection,
-    EventQueue,
-    DispatchError,
-    WaylandError,
-    protocol::{
-        wl_display,
-    },
-};
-use tokio::io::{
-    unix::AsyncFd,
-    Ready,
-};
+use tokio::io::{unix::AsyncFd, Ready};
 
 /// Asynchronous version of [`EventQueue`], taking borrowed references to an [`EventQueue`],
 /// allowing for non-blocking polled asynchronous operations against the Queue using
@@ -40,21 +24,16 @@ impl<'a, State> AsyncEventQueue<'a, State> {
     /// Creates a new [`AsyncEventQueue`] from a reference to a given [`Connection`] and
     /// *synchronous* [`EventQueue`]
     #[inline]
-    pub fn new(
-        conn: &'a Connection,
-        event_queue: EventQueue<State>,
-    ) -> io::Result<Self> {
-        Ok(AsyncEventQueue {
-            queue: event_queue,
-            conn: conn,
-            afd: AsyncFd::new(conn.as_fd())?,
-        })
+    pub fn new(conn: &'a Connection, event_queue: EventQueue<State>) -> io::Result<Self> {
+        Ok(AsyncEventQueue { queue: event_queue, conn, afd: AsyncFd::new(conn.as_fd())? })
     }
 
     #[inline(always)]
-    fn dispatch_pending(&mut self, data: &mut State) -> Result<Option<NonZeroUsize>, DispatchError> {
-        self.queue.dispatch_pending(data)
-            .map(NonZeroUsize::new)
+    fn dispatch_pending(
+        &mut self,
+        data: &mut State,
+    ) -> Result<Option<NonZeroUsize>, DispatchError> {
+        self.queue.dispatch_pending(data).map(NonZeroUsize::new)
     }
 
     /// Asynchronous version of [`EventQueue::blocking_dispatch`] that uses tokio's fd-based
@@ -69,23 +48,24 @@ impl<'a, State> AsyncEventQueue<'a, State> {
             return Ok(v.get());
         }
         loop {
-            let mut guard = self.afd.readable_mut().await
+            let mut guard = self
+                .afd
+                .readable_mut()
+                .await
                 .map_err(|e| DispatchError::Backend(WaylandError::from(e)))?;
             let lock = if let Some(v) = self.queue.prepare_read() {
                 v
+            } else if let Some(v) = self.dispatch_pending(data)? {
+                return Ok(v.get());
             } else {
-                if let Some(v) = self.dispatch_pending(data)? {
-                    return Ok(v.get());
-                } else {
-                    continue;
-                }
+                continue;
             };
             let ret = match lock.read() {
                 Ok(..) => Some(self.queue.dispatch_pending(data)),
                 Err(ref e) if e.would_block() => {
                     guard.clear_ready_matching(Ready::READABLE);
                     None
-                },
+                }
                 Err(e) => Some(Err(DispatchError::from(e))),
             };
             if let Some(ret) = ret {
@@ -104,16 +84,12 @@ impl<'a, State> AsyncEventQueue<'a, State> {
     pub async fn roundtrip(&mut self, data: &mut State) -> Result<usize, DispatchError> {
         let done = Arc::new(SyncData::default());
         let display = self.conn.display();
-        self.conn.send_request(
-            &display,
-            wl_display::Request::Sync {},
-            Some(done.clone()),
-        ).map_err(|_| {
-            WaylandError::Io(rustix::io::Errno::PIPE.into())
-        })?;
+        self.conn
+            .send_request(&display, wl_display::Request::Sync {}, Some(done.clone()))
+            .map_err(|_| WaylandError::Io(rustix::io::Errno::PIPE.into()))?;
         let mut n = 0usize;
         while !done.done.load(Ordering::Relaxed) {
-            n = n + self.dispatch_single(data).await?;
+            n += self.dispatch_single(data).await?;
         }
         Ok(n)
     }
@@ -125,12 +101,12 @@ impl<'a, State> AsyncEventQueue<'a, State> {
     }
 }
 
-impl<'a, State> Into<EventQueue<State>> for AsyncEventQueue<'a, State> {
-    #[inline(always)]
-    fn into(self) -> EventQueue<State> {
-        self.queue
-    }
-}
+// impl<'a, State> Into<EventQueue<State>> for AsyncEventQueue<'a, State> {
+//     #[inline(always)]
+//     fn into(self) -> EventQueue<State> {
+//         self.queue
+//     }
+// }
 
 trait EventQueueExt<State> {
     fn flush_d(&self) -> Result<(), DispatchError>;
@@ -139,8 +115,7 @@ trait EventQueueExt<State> {
 impl<State> EventQueueExt<State> for EventQueue<State> {
     #[inline(always)]
     fn flush_d(&self) -> Result<(), DispatchError> {
-        self.flush()
-            .map_err(DispatchError::Backend)
+        self.flush().map_err(DispatchError::Backend)
     }
 }
 
@@ -148,36 +123,36 @@ impl<State> EventQueueExt<State> for EventQueue<State> {
 /// blocked
 trait MaybeBlockingError {
     /// Returns `true` if self indicates an error meaning that an operation would have blocked
-	fn would_block(&self) -> bool;
+    fn would_block(&self) -> bool;
 }
 
 impl MaybeBlockingError for io::Error {
-	#[inline(always)]
-	fn would_block(&self) -> bool {
-		use io::ErrorKind;
-		self.kind() == ErrorKind::WouldBlock
-	}
+    #[inline(always)]
+    fn would_block(&self) -> bool {
+        use io::ErrorKind;
+        self.kind() == ErrorKind::WouldBlock
+    }
 }
 
 impl MaybeBlockingError for WaylandError {
-	#[inline]
-	fn would_block(&self) -> bool {
-		match self {
-			WaylandError::Io(e) => e.would_block(),
-			_ => false
-		}
-	}
+    #[inline]
+    fn would_block(&self) -> bool {
+        match self {
+            WaylandError::Io(e) => e.would_block(),
+            _ => false,
+        }
+    }
 }
 
 /// Additional methods available on [`Connection`] when an async runtime is available
 pub trait ConnectionExtAsync {
     /// Creates a new *asynchronous* event queue, containing the downstream [`EventQueue`]
-    fn new_async_event_queue<'a, State>(&'a self) -> io::Result<AsyncEventQueue<'a, State>>;
+    fn new_async_event_queue<State>(&self) -> io::Result<AsyncEventQueue<State>>;
 }
 
 impl ConnectionExtAsync for Connection {
     #[inline]
-    fn new_async_event_queue<'a, State>(&'a self) -> io::Result<AsyncEventQueue<'a, State>> {
+    fn new_async_event_queue<State>(&self) -> io::Result<AsyncEventQueue<State>> {
         AsyncEventQueue::new(self, self.new_event_queue())
     }
 }
