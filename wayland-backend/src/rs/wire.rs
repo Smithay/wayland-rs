@@ -1,7 +1,6 @@
 //! Types and routines used to manipulate arguments from the wire format
 
 use std::collections::VecDeque;
-use std::convert::TryInto;
 use std::ffi::CStr;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::{BorrowedFd, OwnedFd};

@@ -28,8 +28,6 @@ use super::{
     wire::MessageParseError,
 };
 
-pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
-
 #[derive(Debug, Clone)]
 struct Data {
     client_destroyed: bool,
@@ -407,7 +405,7 @@ impl InnerBackend {
         // Prepare the message in a debug-compatible way
         let args = args.into_iter().map(|arg| {
             if let Argument::NewId(ObjectId { id: p }) = arg {
-                if !p.id == 0 {
+                if p.id != 0 {
                     panic!("The newid provided when sending request {}@{}.{} is not a placeholder.", object.interface.name, id.id, message_desc.name);
                 }
                 if let Some((child_id, child_serial, child_interface)) = child {

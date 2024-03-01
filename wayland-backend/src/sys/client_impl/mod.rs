@@ -29,8 +29,6 @@ use smallvec::SmallVec;
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
 
-pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
-
 use super::{free_arrays, RUST_MANAGED};
 
 use super::client::*;
