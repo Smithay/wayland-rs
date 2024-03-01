@@ -86,6 +86,7 @@ impl ListeningSocket {
                 .create(true)
                 .read(true)
                 .write(true)
+                .truncate(true)
                 .mode(0o660)
                 .open(&lock_path)
                 .map_err(|_| BindError::PermissionDenied)?;

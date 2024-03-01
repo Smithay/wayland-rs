@@ -1,5 +1,4 @@
 use std::cmp;
-use std::iter::repeat;
 
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
@@ -27,14 +26,13 @@ pub(crate) fn generate_interfaces_prefix(protocol: &Protocol) -> TokenStream {
 
     let types_null_len = Literal::usize_unsuffixed(longest_nulls);
 
-    let nulls = repeat(quote! { NULLPTR as *const wayland_backend::protocol::wl_interface })
-        .take(longest_nulls);
-
     quote! {
-        const NULLPTR: *const std::os::raw::c_void = 0 as *const std::os::raw::c_void;
-        static mut types_null: [*const wayland_backend::protocol::wl_interface; #types_null_len] = [
-            #(#nulls,)*
-        ];
+        use std::ptr::null;
+        struct SyncWrapper<T>(T);
+        unsafe impl<T> Sync for SyncWrapper<T> {}
+        static types_null: SyncWrapper<[*const wayland_backend::protocol::wl_interface; #types_null_len]> = SyncWrapper([
+            null::<wayland_backend::protocol::wl_interface>(); #types_null_len
+        ]);
     }
 }
 
@@ -47,24 +45,24 @@ pub(crate) fn generate_interface(interface: &Interface) -> TokenStream {
     let version_value = Literal::i32_unsuffixed(interface.version as i32);
     let request_count_value = Literal::i32_unsuffixed(interface.requests.len() as i32);
     let requests_value = if interface.requests.is_empty() {
-        quote! { NULLPTR as *const wayland_backend::protocol::wl_message }
+        quote! { null::<wayland_backend::protocol::wl_message>() }
     } else {
         let requests_ident = format_ident!("{}_requests", interface.name);
-        quote! { unsafe { &#requests_ident as *const _ } }
+        quote! { #requests_ident.0.as_ptr() }
     };
     let event_count_value = Literal::i32_unsuffixed(interface.events.len() as i32);
     let events_value = if interface.events.is_empty() {
-        quote! { NULLPTR as *const wayland_backend::protocol::wl_message }
+        quote! { null::<wayland_backend::protocol::wl_message>() }
     } else {
         let events_ident = format_ident!("{}_events", interface.name);
-        quote! { unsafe { &#events_ident as *const _ } }
+        quote! { #events_ident.0.as_ptr() }
     };
 
     quote! {
         #requests
         #events
 
-        pub static mut #interface_ident: wayland_backend::protocol::wl_interface = wayland_backend::protocol::wl_interface {
+        pub static #interface_ident: wayland_backend::protocol::wl_interface = wayland_backend::protocol::wl_interface {
             name: #name_value as *const u8 as *const std::os::raw::c_char,
             version: #version_value,
             request_count: #request_count_value,
@@ -89,15 +87,15 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
             let array_values = msg.args.iter().map(|arg| match (arg.typ, &arg.interface) {
                 (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
                     let interface_ident =format_ident!("{}_interface", inter);
-                    quote! { unsafe { &#interface_ident as *const wayland_backend::protocol::wl_interface } }
+                    quote! { &#interface_ident as *const wayland_backend::protocol::wl_interface }
                 }
-                _ => quote! { NULLPTR as *const wayland_backend::protocol::wl_interface },
+                _ => quote! { null::<wayland_backend::protocol::wl_interface>() },
             });
 
             Some(quote! {
-                static mut #array_ident: [*const wayland_backend::protocol::wl_interface; #array_len] = [
+                static #array_ident: SyncWrapper<[*const wayland_backend::protocol::wl_interface; #array_len]> = SyncWrapper([
                     #(#array_values,)*
-                ];
+                ]);
             })
         }
     });
@@ -118,7 +116,7 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
             wayland_backend::protocol::wl_message {
                 name: #name_value as *const u8 as *const std::os::raw::c_char,
                 signature: #signature_value as *const u8 as *const std::os::raw::c_char,
-                types: unsafe { &#types_ident as *const _ },
+                types: #types_ident.0.as_ptr(),
             }
         }
     });
@@ -126,9 +124,9 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
     quote! {
         #(#types_arrays)*
 
-        pub static mut #message_array_ident: [wayland_backend::protocol::wl_message; #message_array_len] = [
+        static #message_array_ident: SyncWrapper<[wayland_backend::protocol::wl_message; #message_array_len]> = SyncWrapper([
             #(#message_array_values,)*
-        ];
+        ]);
     }
 }
 

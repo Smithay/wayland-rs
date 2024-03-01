@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use wrapper type implementing `Sync` instead of `static mut`s.
+
 ## 0.31.1 -- 2024-01-29
 
 - Include an `std::convert::Infallible` in hidden `__phantom_lifetime` enum variants,

@@ -1,3 +1,5 @@
+#![allow(clippy::test_attr_in_doctest)]
+
 //! Tests to ensure the rust and sys types implement the same traits.
 
 /// A macro used to assert a type defined in both the rust and sys implementations of wayland-backend

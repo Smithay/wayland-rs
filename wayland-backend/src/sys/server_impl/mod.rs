@@ -25,6 +25,7 @@ use wayland_sys::{common::*, ffi_dispatch, server::*};
 
 use super::{free_arrays, server::*, RUST_MANAGED};
 
+#[allow(unused_imports)]
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 
 scoped_thread_local! {
