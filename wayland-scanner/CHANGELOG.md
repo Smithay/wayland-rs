@@ -4,6 +4,12 @@
 
 - Update `quick-xml` to 0.37
 
+#### Breaking changes
+
+- Aligned with braking changes in wayland-client and wayland-server
+  - Generate `Resource::delegated_data()`
+  - Generate additional generic for `QueueHandle::make_data()`
+
 ## 0.31.5 -- 2024-09-04
 
 - Update `quick-xml` to 0.36
