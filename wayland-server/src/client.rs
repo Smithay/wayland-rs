@@ -5,7 +5,10 @@ use wayland_backend::{
     server::{ClientData, ClientId, DisconnectReason, InvalidId, ObjectData},
 };
 
-use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
+use crate::{
+    dispatch::{DelegatedResourceData, ResourceData},
+    Dispatch, DisplayHandle, Resource,
+};
 
 /// A struct representing a Wayland client connected to your compositor.
 #[derive(Clone, Debug)]
@@ -66,6 +69,35 @@ impl Client {
             I::interface(),
             version,
             Arc::new(ResourceData::<I, U>::new(user_data)) as Arc<_>,
+        )?;
+        I::from_id(handle, id)
+    }
+
+    /// Create a new Wayland object in the protocol state of this client
+    ///
+    /// The newly created resource should be immediately sent to the client through an associated event with
+    /// a `new_id` argument. Not doing so risks corrupting the protocol state and causing protocol errors at
+    /// a later time.
+    ///
+    /// This is a delegating variant of [`Self::create_resource`], which means that all requests
+    /// related to this object will be dispatched via [`Dispatch`] to `DelegateTo` generic type,
+    /// rather than `D`.
+    pub fn create_delegated_resource<
+        I: Resource + 'static,
+        U: Send + Sync + 'static,
+        D: 'static,
+        DelegateTo: Dispatch<I, U, D> + 'static,
+    >(
+        &self,
+        handle: &DisplayHandle,
+        version: u32,
+        user_data: U,
+    ) -> Result<I, InvalidId> {
+        let id = handle.handle.create_object::<D>(
+            self.id.clone(),
+            I::interface(),
+            version,
+            Arc::new(DelegatedResourceData::<I, U, DelegateTo>::new(user_data)) as Arc<_>,
         )?;
         I::from_id(handle, id)
     }

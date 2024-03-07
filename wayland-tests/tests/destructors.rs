@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{globals, roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestClient, TestServer};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -18,20 +18,13 @@ fn resource_destructor_request() {
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler::new();
-
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let output = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
-            &client.event_queue.handle(),
-            &registry,
-            3..4,
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(&client.event_queue.handle(), 3..4, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -53,20 +46,13 @@ fn resource_destructor_cleanup() {
     let mut server_ddata = ServerHandler { destructor_called: Arc::new(AtomicBool::new(false)) };
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler::new();
-
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
-            &client.event_queue.handle(),
-            &registry,
-            3..4,
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(&client.event_queue.handle(), 3..4, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -91,20 +77,13 @@ fn client_destructor_cleanup() {
 
     let (_, mut client) =
         server.add_client_with_data(Arc::new(DestructorClientData(destructor_called.clone())));
-    let mut client_ddata = ClientHandler::new();
-
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
-            &client.event_queue.handle(),
-            &registry,
-            3..4,
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(&client.event_queue.handle(), 3..4, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -176,8 +155,9 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn new() -> ClientHandler {
-        ClientHandler { globals: Default::default() }
+    fn new(client: &TestClient<ClientHandler>) -> ClientHandler {
+        let globals = globals::GlobalList::new(&client.display, &client.event_queue.handle());
+        ClientHandler { globals }
     }
 }
 
@@ -186,10 +166,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
 
 client_ignore_impl!(ClientHandler => [
     wayc::protocol::wl_output::WlOutput

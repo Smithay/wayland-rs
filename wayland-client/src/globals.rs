@@ -344,7 +344,10 @@ where
                 .inner
                 .lock()
                 .unwrap()
-                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone())
+                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents, State>(
+                    msg,
+                    self.clone(),
+                )
         }
 
         // We do not create any objects in this event handler.

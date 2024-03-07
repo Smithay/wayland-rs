@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{globals, roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestClient, TestServer};
 
 use wayland_protocols::xdg::shell::{client as xs_client, server as xs_server};
 
@@ -15,20 +15,13 @@ fn xdg_ping() {
     let mut server_ddata = ServerHandler { received_pong: false };
 
     let (_, mut client) = server.add_client();
-    let mut client_ddata = ClientHandler::new();
-
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     client_ddata
         .globals
-        .bind::<xs_client::xdg_wm_base::XdgWmBase, _, _>(
-            &client.event_queue.handle(),
-            &registry,
-            1..2,
-            (),
-        )
+        .bind::<xs_client::xdg_wm_base::XdgWmBase, _, _>(&client.event_queue.handle(), 1..2, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -80,8 +73,9 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn new() -> ClientHandler {
-        ClientHandler { globals: Default::default() }
+    fn new(client: &TestClient<ClientHandler>) -> ClientHandler {
+        let globals = globals::GlobalList::new(&client.display, &client.event_queue.handle());
+        ClientHandler { globals }
     }
 }
 
@@ -90,10 +84,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
 
 impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ()> for ClientHandler {
     fn event(

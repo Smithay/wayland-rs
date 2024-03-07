@@ -5,10 +5,11 @@ pub mod wl_callback {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+        DelegatedResourceData, Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -97,6 +98,13 @@ pub mod wl_callback {
                 .map(|data| &data.udata)
         }
         #[inline]
+        fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -169,10 +177,11 @@ pub mod test_global {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+        DelegatedResourceData, Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -356,6 +365,13 @@ pub mod test_global {
             self.data
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
+        fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>())
                 .map(|data| &data.udata)
         }
         #[inline]
@@ -774,10 +790,11 @@ pub mod secondary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+        DelegatedResourceData, Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -865,6 +882,13 @@ pub mod secondary {
                 .map(|data| &data.udata)
         }
         #[inline]
+        fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -933,10 +957,11 @@ pub mod tertiary {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+        DelegatedResourceData, Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1024,6 +1049,13 @@ pub mod tertiary {
                 .map(|data| &data.udata)
         }
         #[inline]
+        fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -1092,10 +1124,11 @@ pub mod quad {
             protocol::{same_interface, Argument, Interface, Message, WEnum},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
-        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+        DelegatedResourceData, Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData,
+        Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1180,6 +1213,13 @@ pub mod quad {
             self.data
                 .as_ref()
                 .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
+        fn delegated_data<U: 'static, M: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<DelegatedResourceData<Self, U, M>>())
                 .map(|data| &data.udata)
         }
         #[inline]

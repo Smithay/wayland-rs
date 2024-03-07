@@ -2,7 +2,13 @@
 
 use std::ops::Range;
 
-use wayland_client::{protocol::wl_registry, Connection, Dispatch, Proxy, QueueHandle};
+use wayland_client::{
+    protocol::{
+        wl_display::{self, WlDisplay},
+        wl_registry::{self, WlRegistry},
+    },
+    Connection, Dispatch, Proxy, QueueHandle,
+};
 
 /// Description of an advertized global
 #[derive(Debug)]
@@ -24,11 +30,12 @@ pub struct GlobalDescription {
 #[derive(Debug)]
 pub struct GlobalList {
     globals: Vec<GlobalDescription>,
+    registry: WlRegistry,
 }
 
 impl<D> Dispatch<wl_registry::WlRegistry, (), D> for GlobalList
 where
-    D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<GlobalList>,
+    D: AsMut<GlobalList>,
 {
     fn event(
         handle: &mut D,
@@ -59,16 +66,22 @@ impl AsMut<GlobalList> for GlobalList {
     }
 }
 
-impl Default for GlobalList {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl GlobalList {
     /// Create a new `GlobalList`
-    pub fn new() -> Self {
-        Self { globals: Vec::new() }
+    pub fn new<D>(display: &WlDisplay, qh: &QueueHandle<D>) -> Self
+    where
+        D: AsMut<Self> + 'static,
+    {
+        let data = qh.make_data::<WlRegistry, (), Self>(());
+        let registry = display
+            .send_constructor::<WlRegistry>(wl_display::Request::GetRegistry {}, data)
+            .unwrap();
+
+        Self { globals: Vec::new(), registry }
+    }
+
+    pub fn registry(&self) -> WlRegistry {
+        self.registry.clone()
     }
 
     /// Access the list of currently advertized globals
@@ -83,7 +96,6 @@ impl GlobalList {
     pub fn bind<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
         &self,
         qh: &QueueHandle<D>,
-        registry: &wl_registry::WlRegistry,
         version: Range<u32>,
         user_data: U,
     ) -> Result<I, BindError> {
@@ -93,7 +105,7 @@ impl GlobalList {
             }
 
             if version.contains(&desc.version) {
-                return Ok(registry.bind::<I, U, D>(desc.name, desc.version, qh, user_data));
+                return Ok(self.registry.bind::<I, U, D>(desc.name, desc.version, qh, user_data));
             } else {
                 return Err(BindError::WrongVersion {
                     interface: I::interface().name,

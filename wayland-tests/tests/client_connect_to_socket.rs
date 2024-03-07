@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{globals, roundtrip, wayc, ways, DumbClientData, TestClient, TestServer};
+use helpers::{globals, roundtrip, ways, DumbClientData, TestClient, TestServer};
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 
@@ -20,10 +20,7 @@ fn main() {
     ::std::env::set_var("WAYLAND_SOCKET", format!("{}", fd2));
 
     let mut client = TestClient::new_from_env();
-
-    let mut client_data = ClientHandler::new();
-
-    client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_data = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_data, &mut ServerData).unwrap();
     // check that we connected to the right compositor
@@ -56,8 +53,9 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn new() -> ClientHandler {
-        ClientHandler { globals: Default::default() }
+    fn new(client: &TestClient<ClientHandler>) -> ClientHandler {
+        let globals = globals::GlobalList::new(&client.display, &client.event_queue.handle());
+        ClientHandler { globals }
     }
 }
 
@@ -66,7 +64,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);

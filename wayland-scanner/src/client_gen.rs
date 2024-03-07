@@ -269,7 +269,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            qh.make_data::<super::#created_iface_mod::#created_iface_type, U>(udata),
+                            qh.make_data::<super::#created_iface_mod::#created_iface_type, U, D>(udata),
                         ).unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
                     }
                 }
@@ -284,7 +284,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                             Request::#enum_variant {
                                 #(#enum_args),*
                             },
-                            qh.make_data::<I, U>(udata),
+                            qh.make_data::<I, U, D>(udata),
                         ).unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
                     }
                 }

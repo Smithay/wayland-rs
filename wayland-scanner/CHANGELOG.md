@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+#### Breaking changes
+- Aligned with braking changes in wayland-client and wayland-server
+  - Generate `Resource::delegated_data()`
+  - Generate additional generic for `QueueHandle::make_data()`
+
 ## 0.31.1 -- 2024-01-29
 
 - Include an `std::convert::Infallible` in hidden `__phantom_lifetime` enum variants,
