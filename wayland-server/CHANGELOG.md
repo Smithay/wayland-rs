@@ -4,6 +4,7 @@
 
 #### Breaking changes
 - Added `Resource::delegated_data<_, DelegatedTo>` for accessing user data of delegated objects
+- `delegate_dispatch` and `delegate_global_dispatch` Removed in favour of `DataInit::init_delegated` and `DisplayHandle::create_delegated_global`
 
 #### Additions
 - Added a way to create delegated objects, globals and resources (a way to dispatch events to types different than the main `State`)

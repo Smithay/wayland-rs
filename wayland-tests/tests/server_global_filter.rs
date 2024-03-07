@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{globals, roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestClient, TestServer};
 
 use ways::protocol::{wl_compositor, wl_output, wl_shm};
 
@@ -24,9 +24,7 @@ fn global_filter() {
     let mut server_ddata = ServerHandler;
 
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
-    let mut client_ddata = ClientHandler::new();
-
-    client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -34,9 +32,7 @@ fn global_filter() {
 
     let (_, mut priv_client) =
         server.add_client_with_data(Arc::new(MyClientData { privileged: true }));
-    let mut priv_client_ddata = ClientHandler::new();
-
-    priv_client.display.get_registry(&priv_client.event_queue.handle(), ());
+    let mut priv_client_ddata = ClientHandler::new(&priv_client);
 
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
@@ -68,17 +64,16 @@ fn global_filter_try_force() {
 
     // normal client that cannot bind the privileged global
     let (_, mut client) = server.add_client_with_data(Arc::new(MyClientData { privileged: false }));
-    let mut client_ddata = ClientHandler::new();
+    let mut client_ddata = ClientHandler::new(&client);
 
     // privileged client that can
     let (_, mut priv_client) =
         server.add_client_with_data(Arc::new(MyClientData { privileged: true }));
-    let mut priv_client_ddata = ClientHandler::new();
+    let mut priv_client_ddata = ClientHandler::new(&priv_client);
 
     // privileged client can bind it
 
-    let priv_registry = priv_client.display.get_registry(&priv_client.event_queue.handle(), ());
-    priv_registry.bind::<wayc::protocol::wl_output::WlOutput, _, _>(
+    priv_client_ddata.globals.registry().bind::<wayc::protocol::wl_output::WlOutput, _, _>(
         1,
         1,
         &priv_client.event_queue.handle(),
@@ -87,8 +82,7 @@ fn global_filter_try_force() {
     roundtrip(&mut priv_client, &mut server, &mut priv_client_ddata, &mut server_ddata).unwrap();
 
     // unprivileged client cannot
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
-    registry.bind::<wayc::protocol::wl_output::WlOutput, _, _>(
+    client_ddata.globals.registry().bind::<wayc::protocol::wl_output::WlOutput, _, _>(
         1,
         1,
         &client.event_queue.handle(),
@@ -103,8 +97,9 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn new() -> ClientHandler {
-        ClientHandler { globals: Default::default() }
+    fn new(client: &TestClient<ClientHandler>) -> ClientHandler {
+        let globals = globals::GlobalList::new(&client.display, &client.event_queue.handle());
+        ClientHandler { globals }
     }
 }
 
@@ -113,10 +108,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
 
 client_ignore_impl!(ClientHandler => [
     wayc::protocol::wl_compositor::WlCompositor,
