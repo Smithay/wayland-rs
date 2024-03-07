@@ -1,6 +1,11 @@
 # CHANGELOG: wayland-protocols
 
 ## Unreleased
+- Bump wayland-protocols to 1.34
+  - New staging protocols:
+    - `xdg-toplevel-drag-v1`
+    - `xdg-dialog-v1`
+    - `linux-drm-syncobj-v1`
 
 ## 0.31.2 -- 2024-01-29
 

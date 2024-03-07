@@ -140,3 +140,61 @@ pub mod shell {
         []
     );
 }
+
+#[cfg(feature = "staging")]
+pub mod toplevel_drag {
+    //! This protocol enhances normal drag and drop with the ability to move a
+    //! window at the same time. This allows having detachable parts of a window
+    //! that when dragged out of it become a new window and can be dragged over
+    //! an existing window to be reattached.
+    //!
+    //! A typical workflow would be when the user starts dragging on top of a
+    //! detachable part of a window, the client would create a `wl_data_source` and
+    //! a `xdg_toplevel_drag_v1` object and start the drag as normal via
+    //! `wl_data_device.start_drag`. Once the client determines that the detachable
+    //! window contents should be detached from the originating window, it creates
+    //! a new `xdg_toplevel` with these contents and issues a
+    //! `xdg_toplevel_drag_v1.attach` request before mapping it. From now on the new
+    //! window is moved by the compositor during the drag as if the client called
+    //! `xdg_toplevel.move`.
+    //!
+    //! Dragging an existing window is similar. The client creates a
+    //! `xdg_toplevel_drag_v1` object and attaches the existing toplevel before
+    //! starting the drag.
+    //!
+    //! Clients use the existing drag and drop mechanism to detect when a window
+    //! can be docked or undocked. If the client wants to snap a window into a
+    //! parent window it should delete or unmap the dragged top-level. If the
+    //! contents should be detached again it attaches a new toplevel as described
+    //! above. If a drag operation is cancelled without being dropped, clients
+    //! should revert to the previous state, deleting any newly created windows
+    //! as appropriate. When a drag operation ends as indicated by
+    //! `wl_data_source.dnd_drop_performed` the dragged toplevel window's final
+    //! position is determined as if a `xdg_toplevel_move` operation ended.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-toplevel-drag/xdg-toplevel-drag-v1.xml",
+            [crate::xdg::shell]
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
+pub mod dialog {
+    //! The `xdg_wm_dialog_v1` interface is exposed as a global object allowing
+    //! to register surfaces with a xdg_toplevel role as "dialogs" relative to
+    //! another toplevel.
+    //!
+    //! The compositor may let this relation influence how the surface is
+    //! placed, displayed or interacted with.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-dialog/xdg-dialog-v1.xml",
+            [crate::xdg::shell]
+        );
+    }
+}
