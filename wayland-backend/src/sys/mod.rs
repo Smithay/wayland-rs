@@ -105,6 +105,28 @@ unsafe impl raw_window_handle::HasRawDisplayHandle for client::Backend {
     }
 }
 
+#[cfg(all(feature = "rwh_06", feature = "client_system"))]
+impl rwh_06::HasDisplayHandle for client::Backend {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        use std::ptr::NonNull;
+
+        // SAFETY:
+        // - The display_ptr will be valid, either because we have created the pointer or the caller which created the
+        //   backend has ensured the pointer is valid when `Backend::from_foreign_display` was called.
+        let ptr = unsafe { NonNull::new_unchecked(self.display_ptr().cast()) };
+        let handle = rwh_06::WaylandDisplayHandle::new(ptr);
+        let raw = rwh_06::RawDisplayHandle::Wayland(handle);
+
+        // SAFETY:
+        // - The display_ptr will be valid, either because we have created the pointer or the caller which created the
+        //   backend has ensured the pointer is valid when `Backend::from_foreign_display` was called.
+        // - The lifetime assigned to the DisplayHandle borrows the Backend, ensuring the display pointer
+        //   is valid..
+        // - The display_ptr will not change for the lifetime of the backend.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
+}
+
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
 ///
 /// The main entrypoint is the [`Backend::new`](server::Backend::new) method.
