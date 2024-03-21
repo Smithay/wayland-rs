@@ -194,6 +194,39 @@ pub mod linux_explicit_synchronization {
     }
 }
 
+#[cfg(feature = "staging")]
+pub mod linux_drm_syncobj {
+    //! This protocol allows clients to request explicit synchronization for
+    //! buffers. It is tied to the Linux DRM synchronization object framework.
+    //!
+    //! Synchronization refers to co-ordination of pipelined operations performed
+    //! on buffers. Most GPU clients will schedule an asynchronous operation to
+    //! render to the buffer, then immediately send the buffer to the compositor
+    //! to be attached to a surface.
+    //!
+    //! With implicit synchronization, ensuring that the rendering operation is
+    //! complete before the compositor displays the buffer is an implementation
+    //! detail handled by either the kernel or userspace graphics driver.
+    //!
+    //! By contrast, with explicit synchronization, DRM synchronization object
+    //! timeline points mark when the asynchronous operations are complete. When
+    //! submitting a buffer, the client provides a timeline point which will be
+    //! waited on before the compositor accesses the buffer, and another timeline
+    //! point that the compositor will signal when it no longer needs to access the
+    //! buffer contents for the purposes of the surface commit.
+    //!
+    //! Linux DRM synchronization objects are documented at:
+    //! <https://dri.freedesktop.org/docs/drm/gpu/drm-mm.html#drm-sync-objects>
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/linux-drm-syncobj/linux-drm-syncobj-v1.xml",
+            []
+        );
+    }
+}
+
 #[cfg(feature = "unstable")]
 pub mod pointer_constraints {
     //! protocol for constraining pointer motions
