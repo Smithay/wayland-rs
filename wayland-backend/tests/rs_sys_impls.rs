@@ -10,7 +10,7 @@
 /// For example, assume you want to make sure both the rust and sys versions of `ObjectId` implement [`Debug`].
 /// The following pattern would achieve that check.
 ///
-/// ```
+/// ```no_run
 /// #[test]
 /// fn test() {
 ///     assert_impl!(server::ObjectId: std::fmt::Debug);
@@ -19,7 +19,7 @@
 ///
 /// Multiple traits may be tested by separating each trait with a comma.
 ///
-/// ```
+/// ```no_run
 /// #[test]
 /// fn test() {
 ///     assert_impl!(server::ObjectId: std::fmt::Debug, Send, Sync);
@@ -28,7 +28,7 @@
 ///
 /// For the client side, simply change the path before the name of the type.
 ///
-/// ```
+/// ```no_run
 /// #[test]
 /// fn test() {
 ///     assert_impl!(client::ObjectId: std::fmt::Debug)
@@ -47,7 +47,7 @@
 /// Finally, generics may also be tested by simply adding the generics as expected in a normal type. Do note
 /// you will need to monomorphize the type with something, such as, `()`, the unit type.
 ///
-/// ```
+/// ```no_run
 /// #[test]
 /// fn test() {
 ///     assert_impl!(server::Backend<()>: Send, Sync); // No trait

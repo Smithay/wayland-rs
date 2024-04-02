@@ -84,9 +84,9 @@ impl ListeningSocket {
             // open the lockfile
             _lock = File::options()
                 .create(true)
+                .truncate(true)
                 .read(true)
                 .write(true)
-                .truncate(true)
                 .mode(0o660)
                 .open(&lock_path)
                 .map_err(|_| BindError::PermissionDenied)?;
