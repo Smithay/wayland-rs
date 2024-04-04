@@ -140,7 +140,8 @@
 //! APIs from `wayland-backend`, allowing you to register callbacks for those objects that will be invoked
 //! whenever they receive an event and *any* event queue from the program is being dispatched. Those
 //! callbacks are more constrained: they don't get a `&mut State` reference, and must be threadsafe. See
-//! [`Proxy::send_constructor`] for details about how to assign such callbacks to objects.
+//! [`Proxy::send_constructor`] and [`ObjectData`](crate::backend::ObjectData) for details about how to
+//! assign such callbacks to objects.
 //!
 //! ### Interaction with FFI
 //!
