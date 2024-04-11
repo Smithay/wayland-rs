@@ -86,12 +86,12 @@ pub struct CursorTheme {
     fallback: Option<FallBack>,
 }
 
-struct FallBack(Box<dyn Fn(&str) -> Option<Cow<'static, [u8]>>>);
+struct FallBack(Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>>>);
 
 impl FallBack {
     fn new<F>(fallback: F) -> Self
     where
-        F: Fn(&str) -> Option<Cow<'static, [u8]>> + 'static,
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
     {
         Self(Box::new(fallback))
     }
@@ -198,7 +198,7 @@ impl CursorTheme {
                         let Some(ref fallback) = self.fallback else {
                             return None;
                         };
-                        let data = fallback.0(name)?;
+                        let data = fallback.0(name, self.size)?;
                         let images = xparser::parse_xcursor(&data)?;
                         let conn = Connection::from_backend(self.backend.upgrade()?);
                         Cursor::new(&conn, name, self, &images, self.size)
@@ -211,11 +211,22 @@ impl CursorTheme {
         }
     }
 
-    /// Set the set_callback, the return value of the fallback function should be the source of
+    /// Set the callback to load the data, the return value of the fallback function should be the source of
     /// xcursor
+    /// Same as calling the following:
+    /// ```
+    /// # use wayland_cursor::CursorTheme;
+    /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
+    /// # fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
+    /// let mut theme = CursorTheme::load_or(conn, shm, "default", size);
+    /// theme.set_callback(|name, size| {
+    ///     include_bytes!("./icons/default")
+    /// });
+    /// # }
+    /// ```
     pub fn set_callback<F>(&mut self, fallback: F)
     where
-        F: Fn(&str) -> Option<Cow<'static, [u8]>> + 'static,
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
     {
         self.fallback = Some(FallBack::new(fallback))
     }
