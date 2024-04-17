@@ -126,7 +126,7 @@ impl<Id: std::fmt::Display, Fd: AsRawFd> std::fmt::Display for Argument<Id, Fd> 
         match self {
             Self::Int(value) => write!(f, "{}", value),
             Self::Uint(value) => write!(f, "{}", value),
-            Self::Fixed(value) => write!(f, "{}", value),
+            Self::Fixed(value) => write!(f, "{:.4}", *value as f64 / 256.0),
             Self::Str(value) => write!(f, "{:?}", value),
             Self::Object(value) => write!(f, "{}", value),
             Self::NewId(value) => write!(f, "{}", value),
