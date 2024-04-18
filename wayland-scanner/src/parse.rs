@@ -27,7 +27,8 @@ macro_rules! extract_end_tag(
 );
 
 pub fn parse<S: Read>(stream: S) -> Protocol {
-    let mut reader = Reader::from_reader(BufReader::new(stream));
+    let buf_reader = BufReader::new(stream);
+    let mut reader = Reader::from_reader(buf_reader);
     reader.trim_text(true).expand_empty_elements(true);
     // Skip first <?xml ... ?> event
     let _ = reader.read_event_into(&mut Vec::new());
@@ -365,4 +366,21 @@ fn parse_entry<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Entry {
     }
 
     entry
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn xml_parse() {
+        let protocol_file =
+            std::fs::File::open("./tests/scanner_assets/test-protocol.xml").unwrap();
+        let _ = crate::parse::parse(protocol_file);
+    }
+
+    #[test]
+    fn headerless_xml_parse() {
+        let protocol_file =
+            std::fs::File::open("./tests/scanner_assets/test-headerless-protocol.xml").unwrap();
+        let _ = crate::parse::parse(protocol_file);
+    }
 }
