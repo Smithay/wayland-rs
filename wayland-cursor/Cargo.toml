@@ -13,7 +13,7 @@ description = "Bindings to libwayland-cursor."
 readme = "README.md"
 
 [dependencies]
-wayland-client = { version = "0.31.0", path = "../wayland-client" }
+wayland-client = { version = "0.31.2", path = "../wayland-client" }
 xcursor = "0.3.1"
 rustix = { version = "0.38.15", features = ["shm"] }
 
