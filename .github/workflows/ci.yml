@@ -4,6 +4,8 @@ on:
   push:
     branches:
     - master
+    tags:
+      - 'release-[0-9]+-[0-9]+-[0-9]+'
   pull_request:
 
 jobs:
@@ -429,3 +431,24 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/doc
           force_orphan: true
+
+  publish:
+    needs:
+      - format
+      - doc
+      - check-minimal
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Publish crates
+        uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CRATES_TOKEN }}
+          args: --no-verify
+          dry-run: ${{ !(github.repository == 'Smithay/wayland-rs' && startsWith(github.ref, 'refs/tags/release-')) }}
+          ignore-unpublished-changes: ${{ !(github.repository == 'Smithay/wayland-rs' && startsWith(github.ref, 'refs/tags/release-')) }}
