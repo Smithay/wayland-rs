@@ -27,11 +27,8 @@ macro_rules! extract_end_tag(
 );
 
 pub fn parse<S: Read>(stream: S) -> Protocol {
-    let buf_reader = BufReader::new(stream);
-    let mut reader = Reader::from_reader(buf_reader);
+    let mut reader = Reader::from_reader(BufReader::new(stream));
     reader.trim_text(true).expand_empty_elements(true);
-    // Skip first <?xml ... ?> event
-    let _ = reader.read_event_into(&mut Vec::new());
     parse_protocol(reader)
 }
 
@@ -53,18 +50,30 @@ fn parse_or_panic<T: FromStr>(txt: &[u8]) -> T {
     }
 }
 
-fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
-    let mut protocol = extract_from!(
-        reader => Event::Start(bytes) => {
-            assert!(bytes.name().into_inner() == b"protocol", "Missing protocol toplevel tag");
-            if let Some(attr) = bytes.attributes().filter_map(|res| res.ok()).find(|attr| attr.key.into_inner() == b"name") {
-                Protocol::new(decode_utf8_or_panic(attr.value.into_owned()))
-            } else {
-                panic!("Protocol must have a name");
-            }
+fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
+    for _ in 0..2 {
+        println!("iter");
+        match reader.read_event_into(&mut Vec::new()) {
+            Ok(Event::Decl(_)) => {
+                continue;
+            },
+            Ok(Event::Start(bytes)) => {
+                assert!(bytes.name().into_inner() == b"protocol", "Missing protocol toplevel tag");
+                if let Some(attr) = bytes.attributes().filter_map(|res| res.ok()).find(|attr| attr.key.into_inner() == b"name") {
+                    return Protocol::new(decode_utf8_or_panic(attr.value.into_owned()))
+                } else {
+                    panic!("Protocol must have a name");
+                }
+            },
+            _ => panic!("Ill-formed protocol file")
         }
-    );
+    }
+    panic!("Ill-formed protocol file");
+}
 
+fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
+    let mut protocol = init_protocol(&mut reader);
+        
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => {
