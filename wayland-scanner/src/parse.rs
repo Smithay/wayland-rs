@@ -51,8 +51,8 @@ fn parse_or_panic<T: FromStr>(txt: &[u8]) -> T {
 }
 
 fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
+    // Check two firsts lines for protocol tag
     for _ in 0..2 {
-        println!("iter");
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Decl(_)) => {
                 continue;
