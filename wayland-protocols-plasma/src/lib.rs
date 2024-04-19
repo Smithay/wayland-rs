@@ -49,14 +49,12 @@ pub mod fake_input {
     );
 }
 
-// This protocol is disabled for now as the file is not valid XML because it does not have a XML header
-//
-// pub mod fullscreen_shell {
-//     wayland_protocol!(
-//         "./plasma-wayland-protocols/src/protocols/fullscreen-shell.xml",
-//         []
-//     );
-// }
+pub mod fullscreen_shell {
+    wayland_protocol!(
+        "./plasma-wayland-protocols/src/protocols/fullscreen-shell.xml",
+        []
+    );
+}
 
 pub mod idle {
     wayland_protocol!(
@@ -179,14 +177,12 @@ pub mod slide {
     );
 }
 
-// This protocol is disabled for now as the file is not valid XML because it does not have a XML header
-//
-// pub mod surface_extension {
-//     wayland_protocol!(
-//         "./plasma-wayland-protocols/src/protocols/surface-extension.xml",
-//         []
-//     );
-// }
+pub mod surface_extension {
+    wayland_protocol!(
+        "./plasma-wayland-protocols/src/protocols/surface-extension.xml",
+        []
+    );
+}
 
 pub mod text_input {
     pub mod v1 {
