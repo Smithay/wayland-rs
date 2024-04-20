@@ -56,16 +56,20 @@ fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Decl(_)) => {
                 continue;
-            },
+            }
             Ok(Event::Start(bytes)) => {
                 assert!(bytes.name().into_inner() == b"protocol", "Missing protocol toplevel tag");
-                if let Some(attr) = bytes.attributes().filter_map(|res| res.ok()).find(|attr| attr.key.into_inner() == b"name") {
-                    return Protocol::new(decode_utf8_or_panic(attr.value.into_owned()))
+                if let Some(attr) = bytes
+                    .attributes()
+                    .filter_map(|res| res.ok())
+                    .find(|attr| attr.key.into_inner() == b"name")
+                {
+                    return Protocol::new(decode_utf8_or_panic(attr.value.into_owned()));
                 } else {
                     panic!("Protocol must have a name");
                 }
-            },
-            _ => panic!("Ill-formed protocol file")
+            }
+            _ => panic!("Ill-formed protocol file"),
         }
     }
     panic!("Ill-formed protocol file");
@@ -73,7 +77,7 @@ fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
 
 fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
     let mut protocol = init_protocol(&mut reader);
-        
+
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => {
