@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Make available protocols that based on headerless xml files.
+
 ## 0.2.0 -- 2023-09-02
 
 ### Breaking changes
