@@ -33,7 +33,7 @@
 //!
 //! ## raw-window-handle integration
 //!
-//! This crate can implement [`HasRawWindowHandle`](raw_window_handle::HasRawWindowHandle) for the client
+//! This crate can implement [`HasRawDisplayHandle`](raw_window_handle::HasRawDisplayHandle) for the client
 //! module [`Backend`](client::Backend) type if you activate the `raw-window-handle` feature.
 //!
 //! Note that the `client_system` feature must also be enabled for the implementation to be activated.
