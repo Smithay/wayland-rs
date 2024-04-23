@@ -6,6 +6,9 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(doc)]
+use std::io::ErrorKind::WouldBlock;
+
 use crate::protocol::{Interface, Message, ObjectInfo};
 
 use super::client_impl;
@@ -43,8 +46,8 @@ pub trait ObjectData: downcast_rs::DowncastSync {
 
     /// Helper for accessing user data
     ///
-    /// This function is used to back the `Proxy::data` function in `wayland_client`.  By default,
-    /// it returns `self` (via Downcast), but this may be overridden to allow downcasting user data
+    /// This function is used to back the `Proxy::data()` function in `wayland_client`.  By default,
+    /// it returns `self` (via [`Downcast`][downcast_rs::DowncastSync]), but this may be overridden to allow downcasting user data
     /// without needing to have access to the full type.
     fn data_as_any(&self) -> &dyn Any {
         self.as_any()
@@ -103,7 +106,7 @@ impl ObjectId {
     /// This object ID is always invalid, and should be used as placeholder in requests that create objects,
     /// or for request with an optional `Object` argument.
     ///
-    /// See [`Backend::send_request`](Backend::send_request) for details.
+    /// See [`Backend::send_request()`] for details.
     #[inline]
     pub fn null() -> ObjectId {
         client_impl::InnerBackend::null_id()
@@ -118,7 +121,7 @@ impl ObjectId {
     /// Return the protocol-level numerical ID of this object
     ///
     /// Protocol IDs are reused after object destruction, so this should not be used as a unique identifier,
-    /// instead use the `ObjectId` directly, it implements `Clone`, `PartialEq`, `Eq` and `Hash`.
+    /// instead use the [`ObjectId`] directly, it implements [`Clone`], [`PartialEq`], [`Eq`] and [`Hash`].
     #[inline]
     pub fn protocol_id(&self) -> u32 {
         self.id.protocol_id()
@@ -136,7 +139,7 @@ pub struct Backend {
 
 /// A weak handle to a [`Backend`]
 ///
-/// This handle behaves similarly to [`Weak`](std::sync::Weak), and can be used to keep access to
+/// This handle behaves similarly to [`Weak`][std::sync::Weak], and can be used to keep access to
 /// the backend without actually preventing it from being dropped.
 #[derive(Clone, Debug)]
 pub struct WeakBackend {
@@ -172,10 +175,10 @@ impl Backend {
     /// Flush all pending outgoing requests to the server
     ///
     /// Most errors on this method mean that the Wayland connection is no longer valid, the only
-    /// exception being an IO `WouldBlock` error. In that case it means that you should try flushing again
+    /// exception being an IO [`WouldBlock`] error. In that case it means that you should try flushing again
     /// later.
     ///
-    /// You can however expect this method returning `WouldBlock` to be very rare: it can only occur if
+    /// You can however expect this method returning [`WouldBlock`] to be very rare: it can only occur if
     /// either your client sent a lot of big messages at once, or the server is very laggy.
     pub fn flush(&self) -> Result<(), WaylandError> {
         self.backend.flush()
@@ -220,7 +223,7 @@ impl Backend {
     ///
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
-    /// - if the method creates a new object, a [`ObjectId::null()`](ObjectId::null) must be given
+    /// - if the method creates a new object, a [`ObjectId::null()`] must be given
     ///   in the argument list at the appropriate place, and a `child_spec` (interface and version)
     ///   can be provided. If one is provided, it'll be checked against the protocol spec. If the
     ///   protocol specification does not define the interface of the created object (notable example
@@ -259,7 +262,7 @@ impl Backend {
     ///
     /// This call will not block, but may return `None` if the inner queue of the backend needs to
     /// be dispatched. In which case you should invoke
-    /// [`dispatch_inner_queue()`](Backend::dispatch_inner_queue).
+    /// [`dispatch_inner_queue()`][Self::dispatch_inner_queue()].
     #[inline]
     #[must_use]
     pub fn prepare_read(&self) -> Option<ReadEventsGuard> {
@@ -271,12 +274,12 @@ impl Backend {
     ///
     /// This function actually only does something when using the system backend. It dispaches an inner
     /// queue that the backend uses to wrap `libwayland`. While this dispatching is generally done in
-    /// [`ReadEventsGuard::read()`](ReadEventsGuard::read), if multiple threads are interacting with the
+    /// [`ReadEventsGuard::read()`], if multiple threads are interacting with the
     /// Wayland socket it can happen that this queue was filled by another thread. In that case
-    /// [`prepare_read()`](Backend::prepare_read) will return `None`, and you should invoke
+    /// [`prepare_read()`][Self::prepare_read()] will return `None`, and you should invoke
     /// this function instead of using the [`ReadEventsGuard`]
     ///
-    /// Returns the number of messages that were dispatched to their `ObjectData` callbacks.
+    /// Returns the number of messages that were dispatched to their [`ObjectData`] callbacks.
     #[inline]
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         self.backend.dispatch_inner_queue()
@@ -290,12 +293,12 @@ impl Backend {
 /// threads to not be notified of new events, and sleep much longer than appropriate.
 ///
 /// This guard is provided to ensure the proper synchronization is done. The guard is created using
-/// the [`Backend::prepare_read()`](Backend::prepare_read) method. And the event reading is
-/// triggered by consuming the guard using the [`read()`](ReadEventsGuard::read) method, synchronizing
+/// the [`Backend::prepare_read()`] method. And the event reading is
+/// triggered by consuming the guard using the [`ReadEventsGuard::read()`] method, synchronizing
 /// with other threads as necessary so that only one of the threads will actually perform the socket read.
 ///
 /// If you plan to poll the Wayland socket for readiness, the file descriptor can be retrieved via
-/// the [`connection_fd`](ReadEventsGuard::connection_fd) method. Note that for the synchronization to
+/// the [`ReadEventsGuard::connection_fd()`] method. Note that for the synchronization to
 /// correctly occur, you must *always* create the `ReadEventsGuard` *before* polling the socket.
 ///
 /// Dropping the guard is valid and will cancel the prepared read.
@@ -319,7 +322,7 @@ impl ReadEventsGuard {
     /// threads will then resume their execution.
     ///
     /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
+    /// If no events are available to read from the socket, this returns a [`WouldBlock`] IO error.
     #[inline]
     pub fn read(self) -> Result<usize, WaylandError> {
         self.guard.read()

@@ -72,8 +72,8 @@ impl Client {
 
     /// Create a new Wayland object in the protocol state of this client, from an [`ObjectData`]
     ///
-    /// This is a lower-level method than [`create_resource`](Client::create_resource), in case you need to
-    /// bypass the [`Dispatch`] machinnery.
+    /// This is a lower-level method than [`create_resource()`][Self::create_resource()], in case you need to
+    /// bypass the [`Dispatch`] machinery.
     ///
     /// The newly created resource should be immediately sent to the client through an associated event with
     /// a `new_id` argument. Not doing so risks corrupting the protocol state and causing protocol errors at

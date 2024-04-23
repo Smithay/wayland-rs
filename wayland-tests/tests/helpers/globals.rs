@@ -17,7 +17,7 @@ pub struct GlobalDescription {
 
 /// A helper to retrieve a list of globals and bind them
 ///
-/// The `GlobalList` can be used as a [`Dispatch`](crate::Dispatch) target for the `wl_registry`. It
+/// The `GlobalList` can be used as a [`Dispatch`] target for the `wl_registry`. It
 /// maintains a list of globals advertized by the compositor, and provides a way to bind according to
 /// specified version requirements. It is an easy way to ensure at startup that the server advertized
 /// all the globals your app needs, and bind them all at once.

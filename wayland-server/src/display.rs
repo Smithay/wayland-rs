@@ -24,11 +24,11 @@ use crate::{
 ///
 /// The main loop of a Wayland compositor generally needs to wait on several sources of events, using
 /// tools like `epoll` (on Linux). The Wayland display can be integrated in this mechanism by getting the
-/// file descriptor as from [`.backend()`](Display::backend)[`.poll_fd()`](Backend::poll_fd) and invoking
-/// the [`dispatch_clients()`](Display::dispatch_clients) method whenever it becomes readable.
+/// file descriptor as from [`.backend()`][Self::backend()][`.poll_fd()`][Backend::poll_fd()] and invoking
+/// the [`dispatch_clients()`][Self::dispatch_clients()] method whenever it becomes readable.
 ///
 /// To ensure all clients receive the events your compositor sends them, you also need to regularly invoke
-/// the [`flush_clients()`](Display::flush_clients) method, which will write the outgoing buffers into the
+/// the [`flush_clients()`][Self::flush_clients()] method, which will write the outgoing buffers into the
 /// sockets.
 #[derive(Debug)]
 pub struct Display<State: 'static> {
@@ -153,7 +153,7 @@ impl DisplayHandle {
     /// with this global is freed, meaning clients trying to bind it will receive a protocol error.
     ///
     /// When removing a global, it is recommended to first disable it using
-    /// [`disable_global()`](DisplayHandle::disable_global) to allow some time for clients to register that
+    /// [`disable_global()`][Self::disable_global()] to allow some time for clients to register that
     /// the global is getting removed, to avoid a race where a client would be killed because it bound a global
     /// at the same as the server decided to remove it. After the global has been disabled for some time (like
     /// a few seconds) it should be safe to actually remove it.
@@ -208,7 +208,7 @@ impl DisplayHandle {
 }
 
 impl From<Handle> for DisplayHandle {
-    /// Creates a [`DisplayHandle`] using a [`Handle`](Handle) from `wayland-backend`.
+    /// Creates a [`DisplayHandle`] using a [`Handle`] from `wayland-backend`.
     fn from(handle: Handle) -> Self {
         Self { handle }
     }

@@ -9,7 +9,7 @@
 //!
 //! First of all, you need to create a [`CursorTheme`], which represents the full cursor theme.
 //!
-//! From this theme, using the [`get_cursor()`](CursorTheme::get_cursor) method, you can load a
+//! From this theme, using the [`get_cursor()`][CursorTheme::get_cursor()] method, you can load a
 //! specific [`Cursor`], which can contain several images if the cursor is animated. It also provides
 //! you with the means of querying which frame of the animation should be displayed at what time, as
 //! well as handles to the buffers containing these frames, to attach them to a wayland surface.

@@ -6,9 +6,8 @@
 //! proxies (objects implementing the [`Proxy`] trait), and the [`Dispatch`] trait.
 //!
 //! The [`Connection`] is the heart of this crate. It represents your connection to the Wayland server, and
-//! you'll generally initialize it using the [`Connection::connect_to_env()`](Connection::connect_to_env)
-//! method, which will attempt to open a Wayland connection following the configuration specified by the
-//! environment.
+//! you'll generally initialize it using the [`Connection::connect_to_env()`] method, which will
+//! attempt to open a Wayland connection following the configuration specified by the ! environment.
 //!
 //! Once you have a [`Connection`], you can create an [`EventQueue`] from it. This [`EventQueue`] will take
 //! care of processing events from the Wayland server and delivering them to your processing logic, in the form
@@ -140,7 +139,7 @@
 //! APIs from `wayland-backend`, allowing you to register callbacks for those objects that will be invoked
 //! whenever they receive an event and *any* event queue from the program is being dispatched. Those
 //! callbacks are more constrained: they don't get a `&mut State` reference, and must be threadsafe. See
-//! [`Proxy::send_constructor`] and [`ObjectData`](crate::backend::ObjectData) for details about how to
+//! [`Proxy::send_constructor()`] and [`ObjectData`] for details about how to
 //! assign such callbacks to objects.
 //!
 //! ### Interaction with FFI
@@ -152,8 +151,8 @@
 //! it to your dependencies and enabling its `client_system` feature.
 //!
 //! - If you need to send pointers to FFI, you can retrive the `*mut wl_proxy` pointers from the proxies by
-//!   first getting the [`ObjectId`](crate::backend::ObjectId) using the [`Proxy::id()`] method, and then
-//!   using the `ObjectId::as_ptr()` method.
+//!   first getting the [`ObjectId`] using the [`Proxy::id()`] method, and then
+//!   using the [`ObjectId::as_ptr()`] method.
 //  - If you need to receive pointers from FFI, you need to first create a
 //    [`Backend`][backend::Backend] from the `*mut wl_display` using
 //    [`Backend::from_external_display()`][backend::Backend::from_foreign_display()], and then
@@ -253,7 +252,7 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
     /// Access the raw data associated with this object.
     ///
     /// For objects created using the scanner-generated methods, this will be an instance of the
-    /// [QueueProxyData] type.
+    /// [`QueueProxyData`] type.
     fn object_data(&self) -> Option<&Arc<dyn ObjectData>>;
 
     /// Access the backend associated with this object
@@ -277,13 +276,13 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
     /// Send a request for this object.
     ///
     /// It is an error to use this function on requests that create objects; use
-    /// [Proxy::send_constructor] for such requests.
+    /// [`send_constructor()`][Self::send_constructor()] for such requests.
     fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId>;
 
     /// Send a request for this object that creates another object.
     ///
     /// It is an error to use this function on requests that do not create objects; use
-    /// [Proxy::send_request] for such requests.
+    /// [`send_request()`][Self::send_request()] for such requests.
     fn send_constructor<I: Proxy>(
         &self,
         req: Self::Request<'_>,

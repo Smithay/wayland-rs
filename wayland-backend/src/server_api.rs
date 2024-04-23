@@ -230,7 +230,7 @@ impl fmt::Debug for GlobalId {
 ///
 /// This type hosts most of the protocol-related functionality of the backend, and is the
 /// main entry point for manipulating Wayland objects. It can be retrieved from the backend via
-/// [`Backend::handle()`](Backend::handle) and cloned, and is given to you as argument in many callbacks.
+/// [`Backend::handle()`] and cloned, and is given to you as argument in many callbacks.
 #[derive(Clone, Debug)]
 pub struct Handle {
     pub(crate) handle: server_impl::InnerHandle,
@@ -238,7 +238,7 @@ pub struct Handle {
 
 /// A weak reference to a [`Handle`]
 ///
-/// This handle behaves similarly to [`Weak`](std::sync::Weak), and can be used to keep access to
+/// This handle behaves similarly to [`Weak`][std::sync::Weak], and can be used to keep access to
 /// the handle without actually preventing it from being dropped.
 #[derive(Clone, Debug)]
 pub struct WeakHandle {
@@ -553,7 +553,7 @@ impl<D> Backend<D> {
     ///
     /// **Note:** This functionality is currently only available on the rust backend, invoking this method on
     /// the system backend will do the same as invoking
-    /// [`Backend::dispatch_all_clients()`](Backend::dispatch_all_clients).
+    /// [`Backend::dispatch_all_clients()`].
     #[inline]
     pub fn dispatch_single_client(
         &mut self,

@@ -18,7 +18,7 @@ use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 /// Checks if the wayland-egl lib is available and can be used
 ///
 /// Trying to create an [`WlEglSurface`] while this function returns
-/// `false` will result in a panic.
+/// [`false`] will result in a panic.
 pub fn is_available() -> bool {
     is_lib_available()
 }
@@ -26,7 +26,7 @@ pub fn is_available() -> bool {
 /// EGL surface
 ///
 /// This object is a simple wrapper around a `wl_surface` to add the EGL
-/// capabilities. Just use the [`ptr()`](WlEglSurface::ptr) method once this object
+/// capabilities. Just use the [`ptr()`][WlEglSurface::ptr()] method once this object
 /// is created to get the window pointer your OpenGL library is needing to initialize
 /// the EGL context (you'll most likely need the display ptr as well, that you can
 /// get via the [`ObjectId::as_ptr()`] method on of the `wl_display` ID).
@@ -38,7 +38,7 @@ pub struct WlEglSurface {
 impl WlEglSurface {
     /// Create an EGL surface from a wayland surface
     ///
-    /// This method will check that the provided `ObjectId` is still alive and from the
+    /// This method will check that the provided [`ObjectId`] is still alive and from the
     /// correct interface (`wl_surface`).
     ///
     /// You must always destroy the [`WlEglSurface`] *before* the underling `wl_surface`

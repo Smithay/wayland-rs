@@ -46,7 +46,7 @@ impl ListeningSocket {
 
     /// Attempt to bind a listening socket from a sequence of names
     ///
-    /// This method will repeatedly try to bind sockets in teh form `{basename}-{n}` for values of `n`
+    /// This method will repeatedly try to bind sockets in the form `{basename}-{n}` for values of `n`
     /// yielded from the provided range and returns the first one that succeeds.
     ///
     /// This method will acquire an associate lockfile. The socket will be created in the
@@ -154,8 +154,8 @@ impl ListeningSocket {
 
     /// Returns the name of the listening socket.
     ///
-    /// Will only be [`Some`] if that socket was created with [`bind`](ListeningSocket::bind) or
-    /// [`bind_auto`](ListeningSocket::bind_auto).
+    /// Will only be [`Some`] if that socket was created with [`bind()`][Self::bind()] or
+    /// [`bind_auto()`][Self::bind_auto()].
     pub fn socket_name(&self) -> Option<&OsStr> {
         self.socket_name.as_deref()
     }
@@ -167,7 +167,7 @@ impl AsRawFd for ListeningSocket {
     /// This file descriptor may be polled using apis such as epoll and kqueue to be told when a client has
     /// found the socket and is trying to connect.
     ///
-    /// When the polling system reports the file descriptor is ready, you can use [`ListeningSocket::accept`]
+    /// When the polling system reports the file descriptor is ready, you can use [`accept()`][Self::accept()]
     /// to get a stream to the new client.
     fn as_raw_fd(&self) -> RawFd {
         self.listener.as_raw_fd()
@@ -180,7 +180,7 @@ impl AsFd for ListeningSocket {
     /// This file descriptor may be polled using apis such as epoll and kqueue to be told when a client has
     /// found the socket and is trying to connect.
     ///
-    /// When the polling system reports the file descriptor is ready, you can use [`ListeningSocket::accept`]
+    /// When the polling system reports the file descriptor is ready, you can use [`accept()`][Self::accept()]
     /// to get a stream to the new client.
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.listener.as_fd()
