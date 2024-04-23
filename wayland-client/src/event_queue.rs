@@ -30,14 +30,14 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 ///
 /// In the rare case of an interface with *events* creating new objects (in the core protocol, the only
 /// instance of this is the `wl_data_device.data_offer` event), you'll need to implement the
-/// [`Dispatch::event_created_child()`] method. See the [`event_created_child!`](macro.event_created_child.html) macro
+/// [`Dispatch::event_created_child()`] method. See the [`crate::event_created_child!()`] macro
 /// for a simple way to do this.
 ///
 /// ## Modularity
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`delegate_dispatch!`] macro.
+/// automatically delegate their implementation to yours using the [`crate::delegate_dispatch!()`] macro.
 ///
 /// As a result, when your implementation is instantiated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
@@ -88,8 +88,6 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
 /// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
 /// trait bounds are respected as well).
-///
-/// [`delegate_dispatch!`]: crate::delegate_dispatch
 pub trait Dispatch<I, UserData, State = Self>
 where
     Self: Sized,
@@ -119,7 +117,7 @@ where
     /// Method used to initialize the user-data of objects created by events
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
-    /// [`event_created_child!`](macro.event_created_child.html) macro is provided for overriding it.
+    /// [`crate::event_created_child!()`] macro is provided for overriding it.
     #[cfg_attr(coverage, coverage(off))]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(
@@ -205,12 +203,12 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// This is an abstraction for handling event dispatching, that allows you to ensure
 /// access to some common state `&mut State` to your event handlers.
 ///
-/// Event queues are created through [`Connection::new_event_queue()`](crate::Connection::new_event_queue).
+/// Event queues are created through [`Connection::new_event_queue()`].
 ///
 /// Upon creation, a wayland object is assigned to an event queue by passing the associated [`QueueHandle`]
 /// as argument to the method creating it. All events received by that object will be processed by that event
-/// queue, when [`dispatch_pending()`](EventQueue::dispatch_pending) or
-/// [`blocking_dispatch()`](EventQueue::blocking_dispatch) is invoked.
+/// queue, when [`dispatch_pending()`][Self::dispatch_pending()] or
+/// [`blocking_dispatch()`][Self::blocking_dispatch()] is invoked.
 ///
 /// ## Usage
 ///
@@ -239,10 +237,10 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// }
 /// ```
 ///
-/// The [`blocking_dispatch()`](EventQueue::blocking_dispatch) will wait (by putting the thread to sleep)
+/// The [`blocking_dispatch()`][Self::blocking_dispatch()] call will wait (by putting the thread to sleep)
 /// until there are some events from the server that can be processed, and all your actual app logic can be
 /// done in the callbacks of the [`Dispatch`] implementations, and in the main `loop` after the
-/// `blocking_dispatch()` call.
+/// [`blocking_dispatch()`][Self::blocking_dispatch()] call.
 ///
 /// ### Multi-thread multi-queue app
 ///
@@ -257,14 +255,14 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// If your code is some library code that will act on a Wayland connection shared by the main program, it is
 /// likely you should not trigger socket reads yourself and instead let the main app take care of it. In this
 /// case, to ensure your [`EventQueue`] still makes progress, you should regularly invoke
-/// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending) which will process the events that were
+/// [`EventQueue::dispatch_pending()`] which will process the events that were
 /// enqueued in the inner buffer of your [`EventQueue`] by the main app reading the socket.
 ///
 /// ### Integrating the event queue with other sources of events
 ///
 /// If your program needs to monitor other sources of events alongside the Wayland socket using a monitoring
 /// system like `epoll`, you can integrate the Wayland socket into this system. This is done with the help
-/// of the [`EventQueue::prepare_read()`](EventQueue::prepare_read) method. You event loop will be a bit more
+/// of the [`EventQueue::prepare_read()`] method. You event loop will be a bit more
 /// explicit:
 ///
 /// ```rust,no_run
@@ -375,9 +373,9 @@ impl<State> EventQueue<State> {
     /// Dispatch pending events
     ///
     /// Events are accumulated in the event queue internal buffer when the Wayland socket is read using
-    /// the read APIs on [`Connection`](crate::Connection), or when reading is done from an other thread.
+    /// the read APIs on [`Connection`], or when reading is done from an other thread.
     /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
-    /// the [`Dispatch`](crate::Dispatch) implementations on the provided `&mut D`.
+    /// the [`Dispatch`][crate::Dispatch] implementations on the provided `&mut D`.
     ///
     /// Note: this may block if another thread has frozen the queue.
     pub fn dispatch_pending(&mut self, data: &mut State) -> Result<usize, DispatchError> {
@@ -386,7 +384,7 @@ impl<State> EventQueue<State> {
 
     /// Block waiting for events and dispatch them
     ///
-    /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending), but if there are no
+    /// This method is similar to [`dispatch_pending()`][Self::dispatch_pending], but if there are no
     /// pending events it will also flush the connection and block waiting for the Wayland server to send an
     /// event.
     ///
@@ -439,13 +437,13 @@ impl<State> EventQueue<State> {
     /// This is needed if you plan to wait on readiness of the Wayland socket using an event
     /// loop. See the [`EventQueue`] and [`ReadEventsGuard`] docs for details. Once the events are received,
     /// you'll then need to dispatch them from the event queue using
-    /// [`EventQueue::dispatch_pending()`](EventQueue::dispatch_pending).
+    /// [`EventQueue::dispatch_pending()`].
     ///
-    /// If this method returns `None`, you should invoke ['dispatch_pending()`](EventQueue::dispatch_pending)
+    /// If this method returns [`None`], you should invoke ['dispatch_pending()`][Self::dispatch_pending]
     /// before trying to invoke it again.
     ///
     /// If you don't need to manage multiple event sources, see
-    /// [`blocking_dispatch()`](EventQueue::blocking_dispatch) for a simpler mechanism.
+    /// [`blocking_dispatch()`][Self::blocking_dispatch()] for a simpler mechanism.
     ///
     /// This method is identical to [`Connection::prepare_read()`].
     #[must_use]
@@ -496,7 +494,7 @@ impl<State> EventQueue<State> {
     /// Attempt to dispatch events from this queue, registering the current task for wakeup if no
     /// events are pending.
     ///
-    /// This method is similar to [`dispatch_pending`](EventQueue::dispatch_pending); it will not
+    /// This method is similar to [`dispatch_pending()`][Self::dispatch_pending]; it will not
     /// perform reads on the Wayland socket.  Reads on the socket by other tasks or threads will
     /// cause the current task to wake up if events are pending on this queue.
     ///
@@ -725,7 +723,7 @@ impl ObjectData for TemporaryData {
 ///
 /// # Usage
 ///
-/// For example, say you want to delegate events for [`WlRegistry`](crate::protocol::wl_registry::WlRegistry)
+/// For example, say you want to delegate events for [`WlRegistry`][crate::protocol::wl_registry::WlRegistry]
 /// to the struct `DelegateToMe` for the [`Dispatch`] documentatione example.
 ///
 /// ```

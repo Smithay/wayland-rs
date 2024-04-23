@@ -74,7 +74,7 @@ use crate::{
 
 /// Initialize a new event queue with its associated registry and retrieve the initial list of globals
 ///
-/// See [the module level documentation](self) for more.
+/// See [the module level documentation][self] for more.
 pub fn registry_queue_init<State>(
     conn: &Connection,
 ) -> Result<(GlobalList, EventQueue<State>), GlobalError>
@@ -97,7 +97,7 @@ where
 
 /// A helper for global initialization.
 ///
-/// See [the module level documentation](self) for more.
+/// See [the module level documentation][self] for more.
 #[derive(Debug)]
 pub struct GlobalList {
     registry: wl_registry::WlRegistry,
@@ -178,7 +178,7 @@ impl GlobalList {
         Ok(self.registry.bind(name, version, qh, udata))
     }
 
-    /// Returns the [`WlRegistry`](wl_registry) protocol object.
+    /// Returns the [`WlRegistry`][wl_registry] protocol object.
     ///
     /// This may be used if more direct control when creating globals is needed.
     pub fn registry(&self) -> &wl_registry::WlRegistry {

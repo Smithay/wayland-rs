@@ -26,8 +26,8 @@ unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
 /// Client-side implementation of a Wayland protocol backend using `libwayland`
 ///
 /// Entrypoints are:
-/// - [`Backend::connect`](client::Backend::connect) method if you're creating the Wayland connection
-/// - [`Backend::from_foreign_display`](client::Backend::from_foreign_display) if you're interacting with an
+/// - [`Backend::connect()`][client::Backend::connect()] method if you're creating the Wayland connection
+/// - [`Backend::from_foreign_display()`][client::Backend::from_foreign_display()] if you're interacting with an
 ///   already existing Wayland connection through FFI.
 #[cfg(any(test, feature = "client_system"))]
 #[path = "../client_api.rs"]
@@ -41,7 +41,7 @@ impl client::ObjectId {
     ///
     /// # Errors
     ///
-    /// This function returns an [`InvalidId`](client::InvalidId) error if the interface of the proxy does
+    /// This function returns an [`InvalidId`][client::InvalidId] error if the interface of the proxy does
     /// not match the provided interface.
     ///
     /// # Safety
@@ -68,15 +68,15 @@ impl client::Backend {
     /// This is useful if you are writing a library that is expected to plug itself into an existing
     /// Wayland connection.
     ///
-    /// This will initialize the [`Backend`](client::Backend) in "guest" mode, meaning it will not close the
-    /// connection on drop. After the [`Backend`](client::Backend) is dropped, if the server sends an event
+    /// This will initialize the [`Backend`][Self] in "guest" mode, meaning it will not close the
+    /// connection on drop. After the [`Backend`][Self] is dropped, if the server sends an event
     /// to an object that was created from it, that event will be silently discarded. This may lead to
     /// protocol errors if the server expects an answer to that event, as such you should make sure to
-    /// cleanup your Wayland state before dropping the [`Backend`](client::Backend).
+    /// cleanup your Wayland state before dropping the [`Backend`][Self].
     ///
     /// # Safety
     ///
-    /// You need to ensure the `*mut wl_display` remains live as long as the  [`Backend`](client::Backend)
+    /// You need to ensure the `*mut wl_display` remains live as long as the  [`Backend`][Self]
     /// (or its clones) exist.
     pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
         Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
@@ -107,7 +107,7 @@ unsafe impl raw_window_handle::HasRawDisplayHandle for client::Backend {
 
 /// Server-side implementation of a Wayland protocol backend using `libwayland`
 ///
-/// The main entrypoint is the [`Backend::new`](server::Backend::new) method.
+/// The main entrypoint is the [`Backend::new()`][server::Backend::new()] method.
 #[cfg(any(test, feature = "server_system"))]
 #[path = "../server_api.rs"]
 pub mod server;
@@ -118,7 +118,7 @@ impl server::ObjectId {
     ///
     /// # Errors
     ///
-    /// This function returns an [`InvalidId`](server::InvalidId) error if the interface of the
+    /// This function returns an [`InvalidId`][server::InvalidId] error if the interface of the
     /// resource does not match the provided interface.
     ///
     /// # Safety

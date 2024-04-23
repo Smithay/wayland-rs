@@ -24,7 +24,7 @@
 //! `Dispatch<O, _>` for every Wayland object `O` it needs to process events for.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`delegate_dispatch!`] macro. This way, another
+//! easier a composition mechanism is provided using the [`delegate_dispatch!()`] macro. This way, another
 //! library (such as Smithay) can provide generic [`Dispatch`] implementations that you can reuse on your
 //! own app by delegating those objects to that provided implementation. See the documentation of those
 //! traits and macro for details.
@@ -49,7 +49,7 @@
 //! It may be that for some of your objects, handling them via the [`Dispatch`] trait is impractical. In
 //! those contexts, this crate also provides some escape-hatches to directly interface with the low-level
 //! APIs from `wayland-backend`, allowing you to register callbacks for those objects by directly providing
-//! implementations of the backend [`ObjectData`](crate::backend::ObjectData) trait.
+//! implementations of the backend [`ObjectData`][backend::ObjectData] trait.
 //! See [`Client::create_resource_from_objdata()`] and [`DataInit::custom_init()`].
 //!
 //! ### Interaction with FFI
@@ -63,14 +63,14 @@
 //! Then, you'll generally need:
 //!
 //! - The `*mut wl_display` pointer, that you can retrieve by first retrieving the
-//!   [`Backend`](crate::backend::Backend) using [`Display::backend()`], and then invoke
+//!   [`Backend`][backend::Backend] using [`Display::backend()`], and then invoke
 //!   [`.handle()`][backend::Backend::handle()][`.display_ptr()`][backend::Handle::display_ptr()].
 //! - The `*mut wl_resource` pointers for the objects you need to share, by first getting the
-//!   [`ObjectId`](crate::backend::ObjectId) using the [`Resource::id()`] method, and then
-//!   the `ObjectId::as_ptr()` method.
+//!   [`ObjectId`] using the [`Resource::id()`] method, and then
+//!   the [`ObjectId::as_ptr()`] method.
 //!
 //! If you need to receive pointers from FFI, you can make [`ObjectId`]s from the `*mut wl_resource` pointers
-//! using `ObjectId::from_ptr()`, and then make the resources using [`Resource::from_id`].
+//! using [`ObjectId::from_ptr()`], and then make the resources using [`Resource::from_id()`].
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]

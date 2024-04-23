@@ -33,8 +33,8 @@
 //!
 //! ## raw-window-handle integration
 //!
-//! This crate can implement [`HasRawDisplayHandle`](raw_window_handle::HasRawDisplayHandle) for the client
-//! module [`Backend`](client::Backend) type if you activate the `raw-window-handle` feature.
+//! This crate can implement [`HasRawDisplayHandle`][raw_window_handle::HasRawDisplayHandle] for the client
+//! module [`Backend`][client::Backend] type if you activate the `raw-window-handle` feature.
 //!
 //! Note that the `client_system` feature must also be enabled for the implementation to be activated.
 
@@ -50,7 +50,7 @@
 /// Reexport of the `smallvec` crate, which is part of `wayland-backend`'s public API.
 pub extern crate smallvec;
 
-/// Helper macro for quickly making a [`Message`](crate::protocol::Message)
+/// Helper macro for quickly making a [`Message`][crate::protocol::Message]
 #[macro_export]
 macro_rules! message {
     ($sender_id: expr, $opcode: expr, [$($args: expr),* $(,)?] $(,)?) => {

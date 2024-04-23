@@ -14,14 +14,14 @@ use crate::{Client, DisplayHandle, Resource};
 ///  ## General usage
 ///
 /// You need to implement this trait on your `State` for every type of Wayland object that will be processed
-/// by the [`Display`](crate::Display) working with your `State`.
+/// by the [`Display`][crate::Display] working with your `State`.
 ///
 /// You can have different implementations of the trait for the same interface but different `UserData` type,
 /// this way the events for a given object will be processed by the adequate implementation depending on
 /// which `UserData` was assigned to it at creation.
 ///
 /// The way this trait works is that the [`Dispatch::request()`] method will be invoked by the
-/// [`Display`](crate::Display) for every request received by an object. Your implementation can then match
+/// [`Display`][crate::Display] for every request received by an object. Your implementation can then match
 /// on the associated [`Resource::Request`] enum and do any processing needed with that event.
 ///
 /// If the request being processed created a new object, you'll receive it as a [`New<I>`]. When that is the
@@ -31,7 +31,7 @@ use crate::{Client, DisplayHandle, Resource};
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`delegate_dispatch!`] macro.
+/// automatically delegate their implementation to yours using the [`crate::delegate_dispatch!()`] macro.
 ///
 /// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
@@ -105,7 +105,7 @@ pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
     /// Note this type only provides an immutable reference to the user data, you will need to use
     /// interior mutability to change it.
     ///
-    /// Typically a [`Mutex`](std::sync::Mutex) would be used to have interior mutability.
+    /// Typically a [`Mutex`][std::sync::Mutex] would be used to have interior mutability.
     ///
     /// You are given the [`ObjectId`] and [`ClientId`] associated with the destroyed object for cleanup
     /// convenience.
@@ -145,7 +145,7 @@ impl<I> New<I> {
 
 /// Helper to initialize client-created objects
 ///
-/// This helper is provided to you in your [`Dispatch`] and [`GlobalDispatch`](super::GlobalDispatch) to
+/// This helper is provided to you in your [`Dispatch`] and [`GlobalDispatch`][super::GlobalDispatch] to
 /// initialize objects created by the client, by assigning them their user-data (or [`ObjectData`] if you
 /// need to go this lower-level route).
 ///
@@ -176,8 +176,8 @@ impl<'a, D> DataInit<'a, D> {
     /// Set a custom [`ObjectData`] for this object
     ///
     /// This object data is not managed by `wayland-server`, as a result you will not
-    /// be able to retreive it through [`Resource::data()`](Resource::data).
-    /// Instead, you'll need to retrieve it using [`Resource::object_data()`](Resource::object_data) and
+    /// be able to retreive it through [`Resource::data()`].
+    /// Instead, you'll need to retrieve it using [`Resource::object_data()`] and
     /// handle the downcasting yourself.
     pub fn custom_init<I: Resource + 'static>(
         &mut self,
@@ -192,7 +192,7 @@ impl<'a, D> DataInit<'a, D> {
 
     /// Post an error on an uninitialized object.
     ///
-    /// This is only meant to be used in [`GlobalDispatch`](crate::GlobalDispatch) where a global protocol
+    /// This is only meant to be used in [`GlobalDispatch`][crate::GlobalDispatch] where a global protocol
     /// object is instantiated.
     pub fn post_error<I: Resource + 'static>(
         &mut self,
@@ -301,7 +301,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 ///
 /// # Usage
 ///
-/// For example, say you want to delegate events for [`WlOutput`](crate::protocol::wl_output::WlOutput)
+/// For example, say you want to delegate events for [`WlOutput`][crate::protocol::wl_output::WlOutput]
 /// to the `DelegateToMe` type from the [`Dispatch`] documentation.
 ///
 /// ```

@@ -91,7 +91,7 @@ impl<D> ObjectData<D> for ProtocolErrorData {
 /// A trait which provides an implementation for handling advertisement of a global to clients with some type
 /// of associated user data.
 ///
-/// Its behavior is similar to the [`Dispatch`](crate::Dispatch) trait.
+/// Its behavior is similar to the [`Dispatch`][crate::Dispatch] trait.
 pub trait GlobalDispatch<I: Resource, GlobalData, State = Self>: Sized {
     /// Called when a client has bound this global.
     ///
@@ -128,7 +128,7 @@ pub trait GlobalDispatch<I: Resource, GlobalData, State = Self>: Sized {
 /// A helper macro which delegates a set of [`GlobalDispatch`] implementations for a resource to some other type which
 /// provdes a generic [`GlobalDispatch`] implementation.
 ///
-/// Its usage is similar to the [`delegate_dispatch!`](crate::delegate_dispatch) macro.
+/// Its usage is similar to the [`crate::delegate_dispatch!()`] macro.
 #[macro_export]
 macro_rules! delegate_global_dispatch {
     ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
