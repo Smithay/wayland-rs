@@ -211,9 +211,12 @@ impl CursorTheme {
         }
     }
 
-    /// Set the callback to load the data, the return value of the fallback function should be the source of
-    /// xcursor
-    /// Same as calling the following:
+    /// Set a callback to load the cursor data, in case the system theme is missing a cursor that you need.
+    ///
+    /// Your callback will be invoked with he name and size of the requested cursor and should return a byte
+    /// array with the contents of an `xcursor` file, or `None` if you don't provide a fallback for this cursor.
+    ///
+    /// For example, this defines a generic fallback cursor image and uses it for all missing cursors:
     /// ```
     /// # use wayland_cursor::CursorTheme;
     /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
