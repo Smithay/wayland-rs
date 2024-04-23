@@ -9,7 +9,7 @@ This crate provides Wayland object definitions for various orphan or deprecated 
 It is meant to be used in addition to `wayland-client` or `wayland-server`.
 
 This crate provides bindings for protocols that are generally not officially supported, but are *de facto*
-used by a non-negligible number of projets in the wayland ecosystem.
+used by a non-negligible number of projects in the wayland ecosystem.
 
 The provided objects are controlled by the `client` and `server` cargo features, which respectively enable
-the generation of client-side and server-side objects
+the generation of client-side and server-side objects.
