@@ -249,7 +249,7 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// In a case where you app is multithreaded and you want to process events in multiple thread, a simple
 /// pattern is to have one [`EventQueue`] per thread processing Wayland events.
 ///
-/// With this pattern, each thread can use [`EventQueue::blocking_dispatch()`](EventQueue::blocking_dispatch
+/// With this pattern, each thread can use [`EventQueue::blocking_dispatch()`]
 /// on its own event loop, and everything will "Just Work".
 ///
 /// ### Single-queue guest library
