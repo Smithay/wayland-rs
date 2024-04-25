@@ -2,8 +2,7 @@
 
 use std::collections::VecDeque;
 use std::ffi::CStr;
-use std::os::unix::io::RawFd;
-use std::os::unix::io::{BorrowedFd, OwnedFd};
+use std::os::unix::io::{BorrowedFd, OwnedFd, RawFd};
 
 use crate::protocol::{Argument, ArgumentType, Message};
 

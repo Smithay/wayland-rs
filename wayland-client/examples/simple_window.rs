@@ -1,4 +1,4 @@
-use std::{fs::File, os::unix::prelude::AsFd};
+use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
     delegate_noop,

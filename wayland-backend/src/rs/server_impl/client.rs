@@ -1,7 +1,9 @@
 use std::{
     ffi::CString,
-    os::unix::io::{AsFd, BorrowedFd, OwnedFd},
-    os::unix::{io::RawFd, net::UnixStream},
+    os::unix::{
+        io::{AsFd, BorrowedFd, OwnedFd, RawFd},
+        net::UnixStream,
+    },
     sync::Arc,
 };
 

@@ -5,10 +5,7 @@ use std::{
     io,
     os::unix::{
         fs::OpenOptionsExt,
-        io::{AsFd, BorrowedFd},
-    },
-    os::unix::{
-        io::{AsRawFd, RawFd},
+        io::{AsFd, AsRawFd, BorrowedFd, RawFd},
         net::{UnixListener, UnixStream},
         prelude::MetadataExt,
     },

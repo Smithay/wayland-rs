@@ -1,6 +1,6 @@
 //! Types and utilities for manipulating the Wayland protocol
 
-use std::{ffi::CString, os::unix::prelude::AsRawFd};
+use std::{ffi::CString, os::unix::io::AsRawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
 

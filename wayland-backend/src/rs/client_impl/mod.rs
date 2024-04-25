@@ -2,9 +2,8 @@
 
 use std::{
     fmt,
-    os::unix::io::{BorrowedFd, OwnedFd},
     os::unix::{
-        io::{AsRawFd, RawFd},
+        io::{AsRawFd, BorrowedFd, OwnedFd, RawFd},
         net::UnixStream,
     },
     sync::{Arc, Condvar, Mutex, MutexGuard, Weak},
