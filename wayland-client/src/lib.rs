@@ -154,11 +154,12 @@
 //! - If you need to send pointers to FFI, you can retrive the `*mut wl_proxy` pointers from the proxies by
 //!   first getting the [`ObjectId`](crate::backend::ObjectId) using the [`Proxy::id()`] method, and then
 //!   using the `ObjectId::as_ptr()` method.
-//! - If you need to receive pointers from FFI, you need to first create a
-//!   [`Backend`](crate::backend::Backend) from the `*mut wl_display` using the `from_external_display()`
-//!   method (see `wayland-backend` docs), and then make it into a [`Connection`] using
-//!   [`Connection::from_backend()`]. Similarly, you can make [`ObjectId`]s from the `*mut wl_proxy` pointers
-//!   using `ObjectId::from_ptr()`, and then make the proxies using [`Proxy::from_id`].
+//  - If you need to receive pointers from FFI, you need to first create a
+//    [`Backend`][backend::Backend] from the `*mut wl_display` using
+//    [`Backend::from_external_display()`][backend::Backend::from_foreign_display()], and then
+//    make it into a [`Connection`] using [`Connection::from_backend()`]. Similarly, you can make
+//    [`ObjectId`]s from the `*mut wl_proxy` pointers using [`ObjectId::from_ptr()`], and then make
+//    the proxies using [`Proxy::from_id()`].
 
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs, missing_debug_implementations)]
