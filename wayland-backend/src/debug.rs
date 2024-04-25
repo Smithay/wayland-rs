@@ -2,7 +2,7 @@
 
 use std::{
     fmt::Display,
-    os::unix::prelude::AsRawFd,
+    os::unix::io::AsRawFd,
     time::{SystemTime, UNIX_EPOCH},
 };
 

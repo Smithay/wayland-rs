@@ -4,9 +4,8 @@ use std::{
     collections::HashSet,
     ffi::CStr,
     os::raw::{c_int, c_void},
-    os::unix::io::{BorrowedFd, OwnedFd},
     os::unix::{
-        io::{FromRawFd, IntoRawFd, RawFd},
+        io::{BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
         net::UnixStream,
     },
     sync::{

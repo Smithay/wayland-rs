@@ -333,8 +333,7 @@ mod tests {
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
 
     use std::ffi::CString;
-    use std::os::unix::io::BorrowedFd;
-    use std::os::unix::prelude::IntoRawFd;
+    use std::os::unix::io::IntoRawFd;
 
     use smallvec::smallvec;
 

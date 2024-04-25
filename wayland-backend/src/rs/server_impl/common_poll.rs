@@ -1,6 +1,5 @@
 use std::{
-    os::unix::io::AsRawFd,
-    os::unix::io::{BorrowedFd, OwnedFd},
+    os::unix::io::{AsRawFd, BorrowedFd, OwnedFd},
     sync::{Arc, Mutex},
 };
 
