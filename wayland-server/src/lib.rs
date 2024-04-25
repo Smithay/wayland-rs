@@ -64,7 +64,7 @@
 //!
 //! - The `*mut wl_display` pointer, that you can retrieve by first retrieving the
 //!   [`Backend`](crate::backend::Backend) using [`Display::backend()`], and then invoke
-//!   `Backend::display_ptr().
+//!   [`.handle()`][backend::Backend::handle()][`.display_ptr()`][backend::Handle::display_ptr()].
 //! - The `*mut wl_resource` pointers for the objects you need to share, by first getting the
 //!   [`ObjectId`](crate::backend::ObjectId) using the [`Resource::id()`] method, and then
 //!   the `ObjectId::as_ptr()` method.
