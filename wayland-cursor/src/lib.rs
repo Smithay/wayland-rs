@@ -86,7 +86,9 @@ pub struct CursorTheme {
     fallback: Option<FallBack>,
 }
 
-struct FallBack(Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>>>);
+type FallBackInner = Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>>>;
+
+struct FallBack(FallBackInner);
 
 impl FallBack {
     fn new<F>(fallback: F) -> Self
@@ -195,9 +197,7 @@ impl CursorTheme {
             None => {
                 let cursor = match self.load_cursor(name, self.size) {
                     None => {
-                        let Some(ref fallback) = self.fallback else {
-                            return None;
-                        };
+                        let fallback = self.fallback.as_ref()?;
                         let data = fallback.0(name, self.size)?;
                         let images = xparser::parse_xcursor(&data)?;
                         let conn = Connection::from_backend(self.backend.upgrade()?);
@@ -217,14 +217,15 @@ impl CursorTheme {
     /// array with the contents of an `xcursor` file, or `None` if you don't provide a fallback for this cursor.
     ///
     /// For example, this defines a generic fallback cursor image and uses it for all missing cursors:
-    /// ```
+    /// ```ignore
     /// # use wayland_cursor::CursorTheme;
     /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
     /// # fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
-    /// let mut theme = CursorTheme::load_or(conn, shm, "default", size);
-    /// theme.set_callback(|name, size| {
-    ///     include_bytes!("./icons/default")
-    /// });
+    /// #   let mut theme = CursorTheme::load_or(conn, shm, "default", size)?;
+    /// #   theme.set_callback(|name, size| {
+    /// #       include_bytes!("./icons/default")
+    /// #   });
+    /// #   Ok(theme)
     /// # }
     /// ```
     pub fn set_callback<F>(&mut self, fallback: F)
