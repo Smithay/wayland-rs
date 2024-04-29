@@ -218,15 +218,15 @@ impl CursorTheme {
     ///
     /// For example, this defines a generic fallback cursor image and uses it for all missing cursors:
     /// ```ignore
-    /// # use wayland_cursor::CursorTheme;
-    /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
-    /// # fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
-    /// #   let mut theme = CursorTheme::load_or(conn, shm, "default", size)?;
-    /// #   theme.set_callback(|name, size| {
-    /// #       include_bytes!("./icons/default")
-    /// #   });
-    /// #   Ok(theme)
-    /// # }
+    /// use wayland_cursor::CursorTheme;
+    /// use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
+    /// fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
+    ///   let mut theme = CursorTheme::load_or(conn, shm, "default", size)?;
+    ///   theme.set_callback(|name, size| {
+    ///       include_bytes!("./icons/default")
+    ///   });
+    ///   Ok(theme)
+    /// }
     /// ```
     pub fn set_callback<F>(&mut self, fallback: F)
     where
