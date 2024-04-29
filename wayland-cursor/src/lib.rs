@@ -45,7 +45,9 @@
 //! # }
 //! ```
 
+use std::borrow::Cow;
 use std::env;
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
@@ -81,6 +83,26 @@ pub struct CursorTheme {
     pool_size: i32,
     file: File,
     backend: WeakBackend,
+    fallback: Option<FallBack>,
+}
+
+type FallBackInner = Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>>>;
+
+struct FallBack(FallBackInner);
+
+impl FallBack {
+    fn new<F>(fallback: F) -> Self
+    where
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
+    {
+        Self(Box::new(fallback))
+    }
+}
+
+impl Debug for FallBack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("fallback function")
+    }
 }
 
 impl CursorTheme {
@@ -160,21 +182,57 @@ impl CursorTheme {
             pool_size: INITIAL_POOL_SIZE,
             cursors: Vec::new(),
             backend: conn.backend().downgrade(),
+            fallback: None,
         })
     }
 
     /// Retrieve a cursor from the theme.
     ///
     /// This method returns [`None`] if this cursor is not provided either by the theme, or by one of its parents.
+    ///
+    /// If a fallback is set, it will use the data from fallback
     pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
         match self.cursors.iter().position(|cursor| cursor.name == name) {
             Some(i) => Some(&self.cursors[i]),
             None => {
-                let cursor = self.load_cursor(name, self.size)?;
+                let cursor = match self.load_cursor(name, self.size) {
+                    None => {
+                        let fallback = self.fallback.as_ref()?;
+                        let data = fallback.0(name, self.size)?;
+                        let images = xparser::parse_xcursor(&data)?;
+                        let conn = Connection::from_backend(self.backend.upgrade()?);
+                        Cursor::new(&conn, name, self, &images, self.size)
+                    }
+                    Some(cursor) => cursor,
+                };
                 self.cursors.push(cursor);
                 self.cursors.iter().last()
             }
         }
+    }
+
+    /// Set a callback to load the cursor data, in case the system theme is missing a cursor that you need.
+    ///
+    /// Your callback will be invoked with he name and size of the requested cursor and should return a byte
+    /// array with the contents of an `xcursor` file, or `None` if you don't provide a fallback for this cursor.
+    ///
+    /// For example, this defines a generic fallback cursor image and uses it for all missing cursors:
+    /// ```ignore
+    /// # use wayland_cursor::CursorTheme;
+    /// # use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
+    /// # fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
+    /// #   let mut theme = CursorTheme::load_or(conn, shm, "default", size)?;
+    /// #   theme.set_callback(|name, size| {
+    /// #       include_bytes!("./icons/default")
+    /// #   });
+    /// #   Ok(theme)
+    /// # }
+    /// ```
+    pub fn set_callback<F>(&mut self, fallback: F)
+    where
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
+    {
+        self.fallback = Some(FallBack::new(fallback))
     }
 
     /// This function loads a cursor, parses it and pushes the images onto the shm pool.
