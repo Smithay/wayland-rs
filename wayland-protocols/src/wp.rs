@@ -496,3 +496,18 @@ pub mod security_context {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod alpha_modifier {
+    //! This interface allows a client to set a factor for the alpha values on a
+    //! surface, which can be used to offload such operations to the compositor,
+    //! which can in turn for example offload them to KMS.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/alpha-modifier/alpha-modifier-v1.xml",
+            []
+        );
+    }
+}
