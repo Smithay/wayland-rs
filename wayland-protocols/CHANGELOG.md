@@ -1,8 +1,10 @@
 # CHANGELOG: wayland-protocols
 
 ## Unreleased
-- Bump wayland-protocols to 1.34
+- Bump wayland-protocols to 1.36
+  - `wp-tablet-v2` is now stable
   - New staging protocols:
+    - `wp-alpha-modifier-v1`
     - `xdg-toplevel-drag-v1`
     - `xdg-dialog-v1`
     - `linux-drm-syncobj-v1`
