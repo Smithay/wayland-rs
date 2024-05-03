@@ -344,7 +344,6 @@ pub mod cursor_shape {
     }
 }
 
-#[cfg(feature = "unstable")]
 pub mod tablet {
     //! Wayland protocol for graphics tablets
     //!
