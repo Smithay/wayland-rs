@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- Add `Weak::is_alive` allowing to check if a resource is still alive.
+
 ## 0.31.1 -- 2024-01-29
 
 - Dropped `nix` dependency in favor of `rustix`
