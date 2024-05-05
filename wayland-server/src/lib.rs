@@ -160,6 +160,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     fn version(&self) -> u32;
 
     /// Checks if the Wayland object associated with this proxy is still alive
+    #[inline]
     fn is_alive(&self) -> bool {
         if let Some(handle) = self.handle().upgrade() {
             handle.object_info(self.id()).is_ok()
@@ -231,6 +232,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     ///
     /// This can be of use if you need to store resources in the used data of other objects and want
     /// to be sure to avoid reference cycles that would cause memory leaks.
+    #[inline]
     fn downgrade(&self) -> Weak<Self> {
         Weak { handle: self.handle().clone(), id: self.id(), _iface: std::marker::PhantomData }
     }
@@ -285,6 +287,7 @@ impl<I: Resource> Weak<I> {
     /// This will fail if either:
     /// - the object represented by this handle has already been destroyed at the protocol level
     /// - the Wayland connection has already been closed
+    #[inline]
     pub fn upgrade(&self) -> Result<I, InvalidId> {
         let handle = self.handle.upgrade().ok_or(InvalidId)?;
         // Check if the object has been destroyed
@@ -313,6 +316,7 @@ impl<I: Resource> Weak<I> {
 }
 
 impl<I> PartialEq for Weak<I> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
@@ -321,12 +325,14 @@ impl<I> PartialEq for Weak<I> {
 impl<I> Eq for Weak<I> {}
 
 impl<I> Hash for Weak<I> {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
 impl<I: Resource> PartialEq<I> for Weak<I> {
+    #[inline]
     fn eq(&self, other: &I) -> bool {
         self.id == other.id()
     }

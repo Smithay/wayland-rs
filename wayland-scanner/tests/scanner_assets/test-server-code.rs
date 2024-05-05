@@ -54,22 +54,26 @@ pub mod wl_callback {
         handle: WeakHandle,
     }
     impl std::cmp::PartialEq for WlCallback {
+        #[inline]
         fn eq(&self, other: &WlCallback) -> bool {
             self.id == other.id
         }
     }
     impl std::cmp::Eq for WlCallback {}
     impl PartialEq<Weak<WlCallback>> for WlCallback {
+        #[inline]
         fn eq(&self, other: &Weak<WlCallback>) -> bool {
             self.id == other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlCallback {
+        #[inline]
         fn borrow(&self) -> &ObjectId {
             &self.id
         }
     }
     impl std::hash::Hash for WlCallback {
+        #[inline]
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             self.id.hash(state)
         }
@@ -316,22 +320,26 @@ pub mod test_global {
         handle: WeakHandle,
     }
     impl std::cmp::PartialEq for TestGlobal {
+        #[inline]
         fn eq(&self, other: &TestGlobal) -> bool {
             self.id == other.id
         }
     }
     impl std::cmp::Eq for TestGlobal {}
     impl PartialEq<Weak<TestGlobal>> for TestGlobal {
+        #[inline]
         fn eq(&self, other: &Weak<TestGlobal>) -> bool {
             self.id == other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for TestGlobal {
+        #[inline]
         fn borrow(&self) -> &ObjectId {
             &self.id
         }
     }
     impl std::hash::Hash for TestGlobal {
+        #[inline]
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             self.id.hash(state)
         }
@@ -822,22 +830,26 @@ pub mod secondary {
         handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Secondary {
+        #[inline]
         fn eq(&self, other: &Secondary) -> bool {
             self.id == other.id
         }
     }
     impl std::cmp::Eq for Secondary {}
     impl PartialEq<Weak<Secondary>> for Secondary {
+        #[inline]
         fn eq(&self, other: &Weak<Secondary>) -> bool {
             self.id == other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Secondary {
+        #[inline]
         fn borrow(&self) -> &ObjectId {
             &self.id
         }
     }
     impl std::hash::Hash for Secondary {
+        #[inline]
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             self.id.hash(state)
         }
@@ -981,22 +993,26 @@ pub mod tertiary {
         handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Tertiary {
+        #[inline]
         fn eq(&self, other: &Tertiary) -> bool {
             self.id == other.id
         }
     }
     impl std::cmp::Eq for Tertiary {}
     impl PartialEq<Weak<Tertiary>> for Tertiary {
+        #[inline]
         fn eq(&self, other: &Weak<Tertiary>) -> bool {
             self.id == other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Tertiary {
+        #[inline]
         fn borrow(&self) -> &ObjectId {
             &self.id
         }
     }
     impl std::hash::Hash for Tertiary {
+        #[inline]
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             self.id.hash(state)
         }
@@ -1140,22 +1156,26 @@ pub mod quad {
         handle: WeakHandle,
     }
     impl std::cmp::PartialEq for Quad {
+        #[inline]
         fn eq(&self, other: &Quad) -> bool {
             self.id == other.id
         }
     }
     impl std::cmp::Eq for Quad {}
     impl PartialEq<Weak<Quad>> for Quad {
+        #[inline]
         fn eq(&self, other: &Weak<Quad>) -> bool {
             self.id == other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Quad {
+        #[inline]
         fn borrow(&self) -> &ObjectId {
             &self.id
         }
     }
     impl std::hash::Hash for Quad {
+        #[inline]
         fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
             self.id.hash(state)
         }
