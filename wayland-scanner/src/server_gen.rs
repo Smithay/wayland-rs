@@ -83,6 +83,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             }
 
             impl std::cmp::PartialEq for #iface_name {
+                #[inline]
                 fn eq(&self, other: &#iface_name) -> bool {
                     self.id == other.id
                 }
@@ -91,18 +92,21 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             impl std::cmp::Eq for #iface_name {}
 
             impl PartialEq<Weak<#iface_name>> for #iface_name {
+                #[inline]
                 fn eq(&self, other: &Weak<#iface_name>) -> bool {
                     self.id == other.id()
                 }
             }
 
             impl std::borrow::Borrow<ObjectId> for #iface_name {
+                #[inline]
                 fn borrow(&self) -> &ObjectId {
                     &self.id
                 }
             }
 
             impl std::hash::Hash for #iface_name {
+                #[inline]
                 fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                     self.id.hash(state)
                 }
