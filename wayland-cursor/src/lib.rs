@@ -190,7 +190,9 @@ impl CursorTheme {
     ///
     /// This method returns [`None`] if this cursor is not provided either by the theme, or by one of its parents.
     ///
-    /// If a fallback is set, it will use the data from fallback
+    /// If a [fallback is set], it will use the data from fallback.
+    ///
+    /// [fallback is set]: Self::set_fallback()
     pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
         match self.cursors.iter().position(|cursor| cursor.name == name) {
             Some(i) => Some(&self.cursors[i]),
@@ -211,10 +213,10 @@ impl CursorTheme {
         }
     }
 
-    /// Set a callback to load the cursor data, in case the system theme is missing a cursor that you need.
+    /// Set a fallback to load the cursor data, in case the system theme is missing a cursor that you need.
     ///
-    /// Your callback will be invoked with he name and size of the requested cursor and should return a byte
-    /// array with the contents of an `xcursor` file, or `None` if you don't provide a fallback for this cursor.
+    /// Your fallback will be invoked with the name and size of the requested cursor and should return a byte
+    /// array with the contents of an `xcursor` file, or [`None`] if you don't provide a fallback for this cursor.
     ///
     /// For example, this defines a generic fallback cursor image and uses it for all missing cursors:
     /// ```ignore
@@ -222,13 +224,13 @@ impl CursorTheme {
     /// use wayland_client::{Connection, backend::InvalidId, protocol::wl_shm};
     /// fn example(conn: &Connection, shm: wl_shm::WlShm, size: u32) -> Result<CursorTheme, InvalidId> {
     ///   let mut theme = CursorTheme::load_or(conn, shm, "default", size)?;
-    ///   theme.set_callback(|name, size| {
+    ///   theme.set_fallback(|name, size| {
     ///       include_bytes!("./icons/default")
     ///   });
     ///   Ok(theme)
     /// }
     /// ```
-    pub fn set_callback<F>(&mut self, fallback: F)
+    pub fn set_fallback<F>(&mut self, fallback: F)
     where
         F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
     {
