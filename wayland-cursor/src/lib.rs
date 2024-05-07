@@ -190,7 +190,7 @@ impl CursorTheme {
     ///
     /// This method returns [`None`] if this cursor is not provided either by the theme, or by one of its parents.
     ///
-    /// If a [fallback is set], it will use the data from fallback.
+    /// If a [fallback is set], it will use the data returned by the fallback.
     ///
     /// [fallback is set]: Self::set_fallback()
     pub fn get_cursor(&mut self, name: &str) -> Option<&Cursor> {
