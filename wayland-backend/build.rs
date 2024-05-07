@@ -1,4 +1,6 @@
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(coverage)");
+
     if std::env::var("CARGO_FEATURE_LOG").ok().is_some() {
         // build the client shim
         cc::Build::new().file("src/sys/client_impl/log_shim.c").compile("log_shim_client");
