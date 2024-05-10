@@ -1,6 +1,12 @@
 # CHANGELOG: wayland-protocols
 
 ## Unreleased
+
+### Breaking changes
+- `set_constraint_adjustment`/`SetConstraintAdjustment` now takes a `ConstraintAdjustment` instead of a u32.
+
+### Additions
+
 - Bump wayland-protocols to 1.36
   - `wp-tablet-v2` is now stable
   - New staging protocols:
