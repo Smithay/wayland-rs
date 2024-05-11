@@ -359,6 +359,21 @@ impl Handle {
         self.handle.create_object(client_id.id, interface, version, data)
     }
 
+    /// Destroy an object
+    ///
+    /// For most protocols, this is handled automatically when a destructor
+    /// message is sent or received.
+    ///
+    /// This corresponds to `wl_resource_destroy` in the C API.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the type parameter `D` is not same to the same type as the
+    /// one the backend was initialized with.
+    pub fn destroy_object<D: 'static>(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        self.handle.destroy_object::<D>(id)
+    }
+
     /// Send an event to the client
     ///
     /// Returns an error if the sender ID of the provided message is no longer valid.
