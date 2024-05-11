@@ -101,6 +101,17 @@ impl<D> Client<D> {
         InnerObjectId { id, serial, client_id: self.id.clone(), interface }
     }
 
+    pub(crate) fn destroy_object(
+        &mut self,
+        id: InnerObjectId,
+        pending_destructors: &mut Vec<super::handle::PendingDestructor<D>>,
+    ) -> Result<(), InvalidId> {
+        let object = self.get_object(id.clone())?;
+        pending_destructors.push((object.data.user_data.clone(), self.id.clone(), id.clone()));
+        self.send_delete_id(id.clone());
+        Ok(())
+    }
+
     pub(crate) fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         let object = self.get_object(id.clone())?;
         Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
@@ -201,7 +212,6 @@ impl<D> Client<D> {
 
         // Handle destruction if relevant
         if message_desc.is_destructor {
-            self.map.remove(object_id.id.id);
             if let Some(vec) = pending_destructors {
                 vec.push((object.data.user_data.clone(), self.id.clone(), object_id.id.clone()));
             }
@@ -378,7 +388,7 @@ impl<D> Client<D> {
         }
     }
 
-    fn get_object(&self, id: InnerObjectId) -> Result<Object<Data<D>>, InvalidId> {
+    pub(crate) fn get_object(&self, id: InnerObjectId) -> Result<Object<Data<D>>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
             return Err(InvalidId);
