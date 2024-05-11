@@ -214,6 +214,17 @@ impl Backend {
         self.backend.info(id)
     }
 
+    /// Destroy an object
+    ///
+    /// For most protocols, this is handled automatically when a destructor
+    /// message is sent or received.
+    ///
+    /// This corresponds to `wl_proxy_destroy` in the C API. Or a `_destroy`
+    /// method generated for an object without a destructor request.
+    pub fn destroy_object(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        self.backend.destroy_object(id)
+    }
+
     /// Sends a request to the server
     ///
     /// Returns an error if the sender ID of the provided message is no longer valid.

@@ -165,6 +165,15 @@ impl InnerHandle {
         Ok(ObjectId { id: client.create_object(interface, version, data) })
     }
 
+    pub fn destroy_object<D: 'static>(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::destroy_object().");
+        let client = state.clients.get_client_mut(id.id.client_id.clone())?;
+        client.destroy_object(id.id.clone(), &mut state.pending_destructors)
+    }
+
     pub fn null_id() -> ObjectId {
         ObjectId {
             id: InnerObjectId {

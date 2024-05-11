@@ -5,6 +5,9 @@
 #### Bugfixes
 
 - backend/server/rs: Send protocol error if method requires newer protocol version
+### Additions
+
+- backend: Added a `destroy_object` method
 
 ## 0.3.10 -- 2025-04-29
 
