@@ -177,7 +177,7 @@ impl Connection {
 
     /// Retrieve the protocol error that occured on the connection if any
     ///
-    /// If this method returns `Some`, it means your Wayland connection is already dead.
+    /// If this method returns [`Some`], it means your Wayland connection is already dead.
     pub fn protocol_error(&self) -> Option<ProtocolError> {
         match self.backend.last_error()? {
             WaylandError::Protocol(err) => Some(err),

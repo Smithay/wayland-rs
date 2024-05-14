@@ -151,7 +151,7 @@ pub struct WeakBackend {
 impl WeakBackend {
     /// Try to upgrade this weak handle to a [`Backend`]
     ///
-    /// Returns `None` if the associated backend was already dropped.
+    /// Returns [`None`] if the associated backend was already dropped.
     pub fn upgrade(&self) -> Option<Backend> {
         self.inner.upgrade().map(|backend| Backend { backend })
     }
@@ -262,7 +262,7 @@ impl Backend {
     /// This is the first step for actually reading events from the Wayland socket. See
     /// [`ReadEventsGuard`] for how to use it.
     ///
-    /// This call will not block, but may return `None` if the inner queue of the backend needs to
+    /// This call will not block, but may return [`None`] if the inner queue of the backend needs to
     /// be dispatched. In which case you should invoke
     /// [`dispatch_inner_queue()`][Self::dispatch_inner_queue()].
     #[inline]
@@ -278,7 +278,7 @@ impl Backend {
     /// queue that the backend uses to wrap `libwayland`. While this dispatching is generally done in
     /// [`ReadEventsGuard::read()`], if multiple threads are interacting with the
     /// Wayland socket it can happen that this queue was filled by another thread. In that case
-    /// [`prepare_read()`][Self::prepare_read()] will return `None`, and you should invoke
+    /// [`prepare_read()`][Self::prepare_read()] will return [`None`], and you should invoke
     /// this function instead of using the [`ReadEventsGuard`]
     ///
     /// Returns the number of messages that were dispatched to their [`ObjectData`] callbacks.
