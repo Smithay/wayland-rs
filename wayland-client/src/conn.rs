@@ -1,7 +1,7 @@
 use std::{
     env, fmt,
     io::ErrorKind,
-    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
+    os::unix::io::{AsFd, BorrowedFd, FromRawFd, OwnedFd},
     os::unix::net::UnixStream,
     path::PathBuf,
     sync::{
@@ -197,7 +197,6 @@ impl Connection {
         data: Option<Arc<dyn ObjectData>>,
     ) -> Result<ObjectId, InvalidId> {
         let (msg, child_spec) = proxy.write_request(self, request)?;
-        let msg = msg.map_fd(|fd| fd.as_raw_fd());
         self.backend.send_request(msg, data, child_spec)
     }
 

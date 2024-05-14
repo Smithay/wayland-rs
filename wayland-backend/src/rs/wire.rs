@@ -2,7 +2,6 @@
 
 use std::collections::VecDeque;
 use std::ffi::CStr;
-use std::os::unix::io::RawFd;
 use std::os::unix::io::{BorrowedFd, OwnedFd};
 
 use crate::protocol::{Argument, ArgumentType, Message};
@@ -70,7 +69,7 @@ impl std::fmt::Display for MessageParseError {
 ///
 /// Any serialized Fd will be `dup()`-ed in the process
 pub fn write_to_buffers(
-    msg: &Message<u32, RawFd>,
+    msg: &Message<u32, BorrowedFd>,
     payload: &mut [u8],
     fds: &mut Vec<OwnedFd>,
 ) -> Result<usize, MessageWriteError> {
@@ -125,9 +124,7 @@ pub fn write_to_buffers(
             Argument::NewId(n) => write_buf(n, payload)?,
             Argument::Array(ref a) => write_array_to_payload(a, payload)?,
             Argument::Fd(fd) => {
-                let dup_fd = unsafe { BorrowedFd::borrow_raw(fd) }
-                    .try_clone_to_owned()
-                    .map_err(MessageWriteError::DupFdFailed)?;
+                let dup_fd = fd.try_clone_to_owned().map_err(MessageWriteError::DupFdFailed)?;
                 fds.push(dup_fd);
                 payload
             }
@@ -254,7 +251,7 @@ mod tests {
     use super::*;
     use crate::protocol::AllowNull;
     use smallvec::smallvec;
-    use std::{ffi::CString, os::unix::io::IntoRawFd};
+    use std::ffi::CString;
 
     #[test]
     fn into_from_raw_cycle() {
@@ -292,6 +289,6 @@ mod tests {
             &mut fd_buffer,
         )
         .unwrap();
-        assert_eq!(rebuilt.map_fd(IntoRawFd::into_raw_fd), msg);
+        assert_eq!(rebuilt, msg.map_fd(|fd| fd.try_clone_to_owned().unwrap()));
     }
 }

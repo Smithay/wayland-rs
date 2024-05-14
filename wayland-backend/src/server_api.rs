@@ -2,7 +2,7 @@ use std::{
     ffi::CString,
     fmt,
     os::unix::io::{BorrowedFd, OwnedFd},
-    os::unix::{io::RawFd, net::UnixStream},
+    os::unix::net::UnixStream,
     sync::Arc,
 };
 
@@ -369,7 +369,7 @@ impl Handle {
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
     #[inline]
-    pub fn send_event(&self, msg: Message<ObjectId, RawFd>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
         self.handle.send_event(msg)
     }
 

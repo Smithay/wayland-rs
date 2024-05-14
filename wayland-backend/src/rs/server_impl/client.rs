@@ -1,7 +1,7 @@
 use std::{
     ffi::CString,
     os::unix::io::{AsFd, BorrowedFd, OwnedFd},
-    os::unix::{io::RawFd, net::UnixStream},
+    os::unix::net::UnixStream,
     sync::Arc,
 };
 
@@ -106,7 +106,7 @@ impl<D> Client<D> {
 
     pub(crate) fn send_event(
         &mut self,
-        Message { sender_id: object_id, opcode, args }: Message<ObjectId, RawFd>,
+        Message { sender_id: object_id, opcode, args }: Message<ObjectId, BorrowedFd>,
         pending_destructors: Option<&mut Vec<super::handle::PendingDestructor<D>>>,
     ) -> Result<(), InvalidId> {
         if self.killed {
