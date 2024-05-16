@@ -381,7 +381,7 @@ impl<State> EventQueue<State> {
     /// Events are accumulated in the event queue internal buffer when the Wayland socket is read using
     /// the read APIs on [`Connection`], or when reading is done from an other thread.
     /// This method will dispatch all such pending events by sequentially invoking their associated handlers:
-    /// the [`Dispatch`][crate::Dispatch] implementations on the provided `&mut D`.
+    /// the [`Dispatch`] implementations on the provided `&mut D`.
     ///
     /// Note: this may block if another thread has frozen the queue.
     pub fn dispatch_pending(&mut self, data: &mut State) -> Result<usize, DispatchError> {
