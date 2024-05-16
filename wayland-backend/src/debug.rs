@@ -15,7 +15,7 @@ pub fn has_debug_client_env() -> bool {
 
 /// Print the dispatched message to stderr in a following format:
 ///
-/// [timestamp] <- interface@id.msg_name(args)
+/// `[timestamp] <- interface@id.msg_name(args)`
 #[cfg_attr(coverage, coverage(off))]
 pub fn print_dispatched_message<Id: Display, Fd: AsRawFd>(
     interface: &str,
@@ -34,7 +34,7 @@ pub fn print_dispatched_message<Id: Display, Fd: AsRawFd>(
 
 /// Print the send message to stderr in a following format:
 ///
-/// [timestamp] -> interface@id.msg_name(args)
+/// `[timestamp] -> interface@id.msg_name(args)`
 #[cfg_attr(coverage, coverage(off))]
 pub fn print_send_message<Id: Display, Fd: AsRawFd>(
     interface: &str,
