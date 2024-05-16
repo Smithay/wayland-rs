@@ -30,14 +30,18 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 ///
 /// In the rare case of an interface with *events* creating new objects (in the core protocol, the only
 /// instance of this is the `wl_data_device.data_offer` event), you'll need to implement the
-/// [`Dispatch::event_created_child()`] method. See the [`crate::event_created_child!()`] macro
+/// [`Dispatch::event_created_child()`] method. See the [`event_created_child!()`] macro
 /// for a simple way to do this.
+///
+/// [`event_created_child!()`]: crate::event_created_child!()
 ///
 /// ## Modularity
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`crate::delegate_dispatch!()`] macro.
+/// automatically delegate their implementation to yours using the [`delegate_dispatch!()`] macro.
+///
+/// [`delegate_dispatch!()`]: crate::delegate_dispatch!()
 ///
 /// As a result, when your implementation is instantiated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
@@ -117,7 +121,9 @@ where
     /// Method used to initialize the user-data of objects created by events
     ///
     /// If the interface does not have any such event, you can ignore it. If not, the
-    /// [`crate::event_created_child!()`] macro is provided for overriding it.
+    /// [`event_created_child!()`] macro is provided for overriding it.
+    ///
+    /// [`event_created_child!()`]: crate::event_created_child!()
     #[cfg_attr(coverage, coverage(off))]
     fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(

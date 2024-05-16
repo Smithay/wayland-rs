@@ -31,7 +31,9 @@ use crate::{Client, DisplayHandle, Resource};
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`crate::delegate_dispatch!()`] macro.
+/// automatically delegate their implementation to yours using the [`delegate_dispatch!()`] macro.
+///
+/// [`delegate_dispatch!()`]: crate::delegate_dispatch!()
 ///
 /// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
