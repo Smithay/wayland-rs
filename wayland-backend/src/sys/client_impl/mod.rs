@@ -521,7 +521,7 @@ impl InnerBackend {
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
-        let mut guard = self.lock_state();
+        let guard = self.lock_state();
         // check that the argument list is valid
         let message_desc = match id.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -690,42 +690,8 @@ impl InnerBackend {
 
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
-            let child_alive = Arc::new(AtomicBool::new(true));
-            let child_id = ObjectId {
-                id: InnerObjectId {
-                    ptr: ret,
-                    alive: Some(child_alive.clone()),
-                    id: unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, ret) },
-                    interface: child_interface,
-                },
-            };
-            let child_udata = match data {
-                Some(data) => {
-                    Box::new(ProxyUserData { alive: child_alive, data, interface: child_interface })
-                }
-                None => {
-                    // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
-                    // main destructor given it does not yet have a proper user-data
-                    unsafe {
-                        ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, ret);
-                    }
-                    panic!(
-                        "Sending a request creating an object without providing an object data."
-                    );
-                }
-            };
-            guard.known_proxies.insert(ret);
-            unsafe {
-                ffi_dispatch!(
-                    wayland_client_handle(),
-                    wl_proxy_add_dispatcher,
-                    ret,
-                    dispatcher_func,
-                    &RUST_MANAGED as *const u8 as *const c_void,
-                    Box::into_raw(child_udata) as *mut c_void
-                );
-            }
-            child_id
+            drop(guard);
+            unsafe { self.manage_object(&child_interface, ret, data).unwrap() }
         } else {
             Self::null_id()
         };
@@ -750,7 +716,10 @@ impl InnerBackend {
                 alive.store(false, Ordering::Release);
                 udata.data.destroyed(ObjectId { id: id.clone() });
             }
+
+            let mut guard = self.lock_state();
             guard.known_proxies.remove(&id.ptr);
+
             unsafe {
                 ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, id.ptr);
             }
@@ -798,6 +767,53 @@ impl InnerBackend {
         udata.data = data;
 
         Ok(())
+    }
+
+    /// Start managing a Wayland object.
+    pub unsafe fn manage_object(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Option<Arc<dyn ObjectData>>,
+    ) -> Option<ObjectId> {
+        let mut guard = self.lock_state();
+
+        let alive = Arc::new(AtomicBool::new(true));
+        let object_id = ObjectId {
+            id: InnerObjectId {
+                ptr: proxy,
+                alive: Some(alive.clone()),
+                id: unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, proxy) },
+                interface,
+            },
+        };
+
+        let udata = match data {
+            Some(data) => Box::new(ProxyUserData { alive, data, interface }),
+            None => {
+                // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
+                // main destructor given it does not yet have a proper user-data
+                unsafe {
+                    ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, proxy);
+                }
+                panic!("Sending a request creating an object without providing an object data.");
+            }
+        };
+
+        guard.known_proxies.insert(proxy);
+
+        unsafe {
+            ffi_dispatch!(
+                wayland_client_handle(),
+                wl_proxy_add_dispatcher,
+                proxy,
+                dispatcher_func,
+                &RUST_MANAGED as *const u8 as *const c_void,
+                Box::into_raw(udata) as *mut c_void
+            );
+        }
+
+        Some(object_id)
     }
 }
 

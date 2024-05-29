@@ -19,6 +19,7 @@ use crate::{
     },
 };
 use smallvec::SmallVec;
+use wayland_sys::client::wl_proxy;
 
 use super::{
     client::*,
@@ -509,6 +510,16 @@ impl InnerBackend {
     // Nothing to do here, we don't have an inner queue
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         Ok(0)
+    }
+
+    // Importing external objects is only possible with the system backend.
+    pub unsafe fn manage_object(
+        &self,
+        _interface: &'static Interface,
+        _proxy: *mut wl_proxy,
+        _data: Option<Arc<dyn ObjectData>>,
+    ) -> Option<ObjectId> {
+        None
     }
 }
 

@@ -11,6 +11,8 @@ use std::{
 #[cfg(doc)]
 use std::io::ErrorKind::WouldBlock;
 
+use wayland_sys::client::wl_proxy;
+
 use crate::protocol::{Interface, Message, ObjectInfo};
 
 use super::client_impl;
@@ -285,6 +287,24 @@ impl Backend {
     #[inline]
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         self.backend.dispatch_inner_queue()
+    }
+
+    /// Take over handling for a proxy created by a third party.
+    ///
+    /// Returns `None` on the Rust backend.
+    ///
+    /// # Safety
+    ///
+    /// There must never be more than one party managing an object. This is only
+    /// safe to call when a third party is transferring ownership of the proxy.
+    #[inline]
+    pub unsafe fn manage_object(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Option<Arc<dyn ObjectData>>,
+    ) -> Option<ObjectId> {
+        unsafe { self.backend.manage_object(interface, proxy, data) }
     }
 }
 
