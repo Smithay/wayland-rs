@@ -564,6 +564,24 @@ impl InnerHandle {
         Ok(ObjectId { id: unsafe { init_resource(resource, interface, Some(data)).0 } })
     }
 
+    pub fn destroy_object<D: 'static>(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        let mut state = self.state.lock().unwrap();
+        // Keep this guard alive while the code is run to protect the C state
+        let state = (&mut *state as &mut dyn ErasedState)
+            .downcast_mut::<State<D>>()
+            .expect("Wrong type parameter passed to Handle::destroy_object().");
+
+        if !id.id.alive.load(Ordering::Acquire) {
+            return Err(InvalidId);
+        }
+
+        PENDING_DESTRUCTORS.set(&(&mut state.pending_destructors as *mut _ as *mut _), || unsafe {
+            ffi_dispatch!(wayland_server_handle(), wl_resource_destroy, id.id.ptr);
+        });
+
+        Ok(())
+    }
+
     pub fn null_id() -> ObjectId {
         ObjectId {
             id: InnerObjectId {

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Additions
+- backend: Added a `destroy_object` method
+
 ## 0.3.3 -- 2024-01-29
 
 ### Additions
