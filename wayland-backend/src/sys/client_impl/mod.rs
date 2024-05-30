@@ -691,7 +691,7 @@ impl InnerBackend {
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
             drop(guard);
-            unsafe { self.manage_object(&child_interface, ret, data) }
+            unsafe { self.manage_object(child_interface, ret, data) }
         } else {
             Self::null_id()
         };
