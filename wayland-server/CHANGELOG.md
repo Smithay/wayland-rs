@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.31.2 -- 2024-05-30
+
 #### Additions
 
 - Add `Weak::is_alive` allowing to check if a resource is still alive.

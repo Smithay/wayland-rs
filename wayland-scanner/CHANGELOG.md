@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.31.2 -- 2024-05-30
+
 - Use wrapper type implementing `Sync` instead of `static mut`s.
 - Add headerless xml file parsing possibility for `parse` function.
 
