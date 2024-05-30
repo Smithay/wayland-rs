@@ -691,7 +691,7 @@ impl InnerBackend {
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
             drop(guard);
-            unsafe { self.manage_object(&child_interface, ret, data).unwrap() }
+            unsafe { self.manage_object(&child_interface, ret, data) }
         } else {
             Self::null_id()
         };
@@ -775,7 +775,7 @@ impl InnerBackend {
         interface: &'static Interface,
         proxy: *mut wl_proxy,
         data: Option<Arc<dyn ObjectData>>,
-    ) -> Option<ObjectId> {
+    ) -> ObjectId {
         let mut guard = self.lock_state();
 
         let alive = Arc::new(AtomicBool::new(true));
@@ -813,7 +813,7 @@ impl InnerBackend {
             );
         }
 
-        Some(object_id)
+        object_id
     }
 }
 

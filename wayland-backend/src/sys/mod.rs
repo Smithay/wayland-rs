@@ -1,7 +1,12 @@
 //! Implementations of the Wayland backends using the system `libwayland`
 
-use crate::protocol::ArgumentType;
+use std::sync::Arc;
+
+use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
+
+use crate::client::{ObjectData, ObjectId};
+use crate::protocol::{ArgumentType, Interface};
 
 #[cfg(any(test, feature = "client_system"))]
 mod client_impl;
@@ -89,6 +94,22 @@ impl client::Backend {
     /// This pointer is only valid for the lifetime of the backend.
     pub fn display_ptr(&self) -> *mut wayland_sys::client::wl_display {
         self.backend.display_ptr()
+    }
+
+    /// Take over handling for a proxy created by a third party.
+    ///
+    /// # Safety
+    ///
+    /// There must never be more than one party managing an object. This is only
+    /// safe to call when a third party is transferring ownership of the proxy.
+    #[inline]
+    pub unsafe fn manage_object(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Option<Arc<dyn ObjectData>>,
+    ) -> ObjectId {
+        unsafe { self.backend.manage_object(interface, proxy, data) }
     }
 }
 
