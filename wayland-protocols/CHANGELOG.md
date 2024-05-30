@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 -- 2024-05-30
+
 ### Breaking changes
 - `set_constraint_adjustment`/`SetConstraintAdjustment` now takes a `ConstraintAdjustment` instead of a u32.
 

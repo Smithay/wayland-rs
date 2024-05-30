@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.4 -- 2024-05-30
+
 ### Additions
 
 - Add `rwh_06` feature for `raw-window-handle` 0.6

@@ -1,6 +1,6 @@
 [package]
 name = "wayland-server"
-version = "0.31.1"
+version = "0.31.2"
 documentation = "https://docs.rs/wayland-server/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -13,8 +13,8 @@ rust-version = "1.65"
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.3.3", path = "../wayland-backend" }
-wayland-scanner = { version = "0.31.1", path = "../wayland-scanner" }
+wayland-backend = { version = "0.3.4", path = "../wayland-backend" }
+wayland-scanner = { version = "0.31.2", path = "../wayland-scanner" }
 bitflags = "2"
 log = { version = "0.4", optional = true }
 downcast-rs = "1.2"

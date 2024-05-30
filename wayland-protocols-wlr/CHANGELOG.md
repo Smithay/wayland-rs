@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.0 -- 2024-05-30
+
+### Breaking changes
+- Updated wayland-protocols to 0.3
+
 ## 0.2.0 -- 2023-09-02
 
 ### Breaking changes
