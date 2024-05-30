@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Additions
+
+- Add `rwh_06` feature for `raw-window-handle` 0.6
+
+#### Bugfixes
+- backend/rs: `WAYLAND_DEBUG` now displays `fixed` as decimal, not integer.
+  * Matches libwayland
+
 ## 0.3.3 -- 2024-01-29
 
 ### Additions
