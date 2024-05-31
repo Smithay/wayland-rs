@@ -86,14 +86,14 @@ pub struct CursorTheme {
     fallback: Option<FallBack>,
 }
 
-type FallBackInner = Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>>>;
+type FallBackInner = Box<dyn Fn(&str, u32) -> Option<Cow<'static, [u8]>> + Send + Sync>;
 
 struct FallBack(FallBackInner);
 
 impl FallBack {
     fn new<F>(fallback: F) -> Self
     where
-        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + Send + Sync + 'static,
     {
         Self(Box::new(fallback))
     }
@@ -232,7 +232,7 @@ impl CursorTheme {
     /// ```
     pub fn set_fallback<F>(&mut self, fallback: F)
     where
-        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + 'static,
+        F: Fn(&str, u32) -> Option<Cow<'static, [u8]>> + Send + Sync + 'static,
     {
         self.fallback = Some(FallBack::new(fallback))
     }
