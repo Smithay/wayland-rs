@@ -111,7 +111,7 @@ impl client::Backend {
         &self,
         interface: &'static Interface,
         proxy: *mut wl_proxy,
-        data: Option<Arc<dyn ObjectData>>,
+        data: Arc<dyn ObjectData>,
     ) -> ObjectId {
         unsafe { self.backend.manage_object(interface, proxy, data) }
     }

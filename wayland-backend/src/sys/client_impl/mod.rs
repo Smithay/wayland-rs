@@ -690,6 +690,20 @@ impl InnerBackend {
 
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
+            let data = match data {
+                Some(data) => data,
+                None => {
+                    // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
+                    // main destructor given it does not yet have a proper user-data
+                    unsafe {
+                        ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, ret);
+                    }
+                    panic!(
+                        "Sending a request creating an object without providing an object data."
+                    );
+                }
+            };
+
             unsafe { self.manage_object_internal(child_interface, ret, data, &mut guard) }
         } else {
             Self::null_id()
@@ -772,7 +786,7 @@ impl InnerBackend {
         &self,
         interface: &'static Interface,
         proxy: *mut wl_proxy,
-        data: Option<Arc<dyn ObjectData>>,
+        data: Arc<dyn ObjectData>,
     ) -> ObjectId {
         let mut guard = self.lock_state();
         unsafe { self.manage_object_internal(interface, proxy, data, &mut guard) }
@@ -785,7 +799,7 @@ impl InnerBackend {
         &self,
         interface: &'static Interface,
         proxy: *mut wl_proxy,
-        data: Option<Arc<dyn ObjectData>>,
+        data: Arc<dyn ObjectData>,
         guard: &mut MutexGuard<ConnectionState>,
     ) -> ObjectId {
         let alive = Arc::new(AtomicBool::new(true));
@@ -798,20 +812,9 @@ impl InnerBackend {
             },
         };
 
-        let udata = match data {
-            Some(data) => Box::new(ProxyUserData { alive, data, interface }),
-            None => {
-                // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
-                // main destructor given it does not yet have a proper user-data
-                unsafe {
-                    ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, proxy);
-                }
-                panic!("Sending a request creating an object without providing an object data.");
-            }
-        };
-
         guard.known_proxies.insert(proxy);
 
+        let udata = Box::new(ProxyUserData { alive, data, interface });
         unsafe {
             ffi_dispatch!(
                 wayland_client_handle(),
