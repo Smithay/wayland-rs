@@ -521,7 +521,7 @@ impl InnerBackend {
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
-        let guard = self.lock_state();
+        let mut guard = self.lock_state();
         // check that the argument list is valid
         let message_desc = match id.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -690,8 +690,7 @@ impl InnerBackend {
 
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
-            drop(guard);
-            unsafe { self.manage_object(child_interface, ret, data) }
+            unsafe { self.manage_object_internal(child_interface, ret, data, &mut guard) }
         } else {
             Self::null_id()
         };
@@ -717,7 +716,6 @@ impl InnerBackend {
                 udata.data.destroyed(ObjectId { id: id.clone() });
             }
 
-            let mut guard = self.lock_state();
             guard.known_proxies.remove(&id.ptr);
 
             unsafe {
@@ -777,7 +775,19 @@ impl InnerBackend {
         data: Option<Arc<dyn ObjectData>>,
     ) -> ObjectId {
         let mut guard = self.lock_state();
+        unsafe { self.manage_object_internal(interface, proxy, data, &mut guard) }
+    }
 
+    /// Start managing a Wayland object.
+    ///
+    /// Opposed to [`Self::manage_object`], this does not acquire any guards.
+    unsafe fn manage_object_internal(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Option<Arc<dyn ObjectData>>,
+        guard: &mut MutexGuard<ConnectionState>,
+    ) -> ObjectId {
         let alive = Arc::new(AtomicBool::new(true));
         let object_id = ObjectId {
             id: InnerObjectId {
