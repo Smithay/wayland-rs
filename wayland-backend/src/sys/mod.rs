@@ -101,8 +101,7 @@ impl client::Backend {
     /// # Safety
     ///
     /// There must never be more than one party managing an object. This is only
-    /// safe to call when a third party gave you ownership of an uninitialized
-    /// proxy.
+    /// safe to call when a third party gave you ownership of an unmanaged proxy.
     ///
     /// The caller is also responsible for making sure the passed interface matches
     /// the proxy.
