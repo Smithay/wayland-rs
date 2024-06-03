@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+#### Additions
+
+- `Backend::manage_object` for handling foreign proxies with the sys backend
+
 ## 0.3.4 -- 2024-05-30
 
-### Additions
+#### Additions
 
 - Add `rwh_06` feature for `raw-window-handle` 0.6
 
@@ -14,7 +18,7 @@
 
 ## 0.3.3 -- 2024-01-29
 
-### Additions
+#### Additions
 - client: Implement `Eq` for `Backend`
 
 #### Bugfixes
