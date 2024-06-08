@@ -810,6 +810,10 @@ impl InnerHandle {
         self.state.lock().unwrap().global_info(id)
     }
 
+    pub fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
+        self.state.lock().unwrap().global_name(global, client)
+    }
+
     /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     pub fn get_global_handler<D: 'static>(
         &self,
@@ -871,6 +875,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
     fn display_ptr(&self) -> *mut wl_display;
@@ -1242,6 +1247,26 @@ impl<D: 'static> ErasedState for State<D> {
             version: udata.version,
             disabled: udata.disabled,
         })
+    }
+
+    fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
+        if !global.alive.load(Ordering::Acquire) {
+            return None;
+        }
+
+        if !client.alive.load(Ordering::Acquire) {
+            return None;
+        }
+
+        let name = unsafe {
+            ffi_dispatch!(wayland_server_handle(), wl_global_get_name, global.ptr, client.ptr)
+        };
+
+        if name == 0 {
+            None
+        } else {
+            Some(name)
+        }
     }
 
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool {
