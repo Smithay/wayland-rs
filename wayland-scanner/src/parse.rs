@@ -28,7 +28,9 @@ macro_rules! extract_end_tag(
 
 pub fn parse<S: Read>(stream: S) -> Protocol {
     let mut reader = Reader::from_reader(BufReader::new(stream));
-    reader.trim_text(true).expand_empty_elements(true);
+    let reader_config = reader.config_mut();
+    reader_config.trim_text(true);
+    reader_config.expand_empty_elements = true;
     parse_protocol(reader)
 }
 
