@@ -690,19 +690,8 @@ impl InnerBackend {
 
         // initialize the proxy
         let child_id = if let Some((child_interface, _)) = child_spec {
-            let child_alive = Arc::new(AtomicBool::new(true));
-            let child_id = ObjectId {
-                id: InnerObjectId {
-                    ptr: ret,
-                    alive: Some(child_alive.clone()),
-                    id: unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, ret) },
-                    interface: child_interface,
-                },
-            };
-            let child_udata = match data {
-                Some(data) => {
-                    Box::new(ProxyUserData { alive: child_alive, data, interface: child_interface })
-                }
+            let data = match data {
+                Some(data) => data,
                 None => {
                     // we destroy this proxy before panicking to avoid a leak, as it cannot be destroyed by the
                     // main destructor given it does not yet have a proper user-data
@@ -714,18 +703,8 @@ impl InnerBackend {
                     );
                 }
             };
-            guard.known_proxies.insert(ret);
-            unsafe {
-                ffi_dispatch!(
-                    wayland_client_handle(),
-                    wl_proxy_add_dispatcher,
-                    ret,
-                    dispatcher_func,
-                    &RUST_MANAGED as *const u8 as *const c_void,
-                    Box::into_raw(child_udata) as *mut c_void
-                );
-            }
-            child_id
+
+            unsafe { self.manage_object_internal(child_interface, ret, data, &mut guard) }
         } else {
             Self::null_id()
         };
@@ -750,7 +729,9 @@ impl InnerBackend {
                 alive.store(false, Ordering::Release);
                 udata.data.destroyed(ObjectId { id: id.clone() });
             }
+
             guard.known_proxies.remove(&id.ptr);
+
             unsafe {
                 ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, id.ptr);
             }
@@ -798,6 +779,54 @@ impl InnerBackend {
         udata.data = data;
 
         Ok(())
+    }
+
+    /// Start managing a Wayland object.
+    pub unsafe fn manage_object(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Arc<dyn ObjectData>,
+    ) -> ObjectId {
+        let mut guard = self.lock_state();
+        unsafe { self.manage_object_internal(interface, proxy, data, &mut guard) }
+    }
+
+    /// Start managing a Wayland object.
+    ///
+    /// Opposed to [`Self::manage_object`], this does not acquire any guards.
+    unsafe fn manage_object_internal(
+        &self,
+        interface: &'static Interface,
+        proxy: *mut wl_proxy,
+        data: Arc<dyn ObjectData>,
+        guard: &mut MutexGuard<ConnectionState>,
+    ) -> ObjectId {
+        let alive = Arc::new(AtomicBool::new(true));
+        let object_id = ObjectId {
+            id: InnerObjectId {
+                ptr: proxy,
+                alive: Some(alive.clone()),
+                id: unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, proxy) },
+                interface,
+            },
+        };
+
+        guard.known_proxies.insert(proxy);
+
+        let udata = Box::new(ProxyUserData { alive, data, interface });
+        unsafe {
+            ffi_dispatch!(
+                wayland_client_handle(),
+                wl_proxy_add_dispatcher,
+                proxy,
+                dispatcher_func,
+                &RUST_MANAGED as *const u8 as *const c_void,
+                Box::into_raw(udata) as *mut c_void
+            );
+        }
+
+        object_id
     }
 }
 
