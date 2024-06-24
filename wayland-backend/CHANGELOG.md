@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- backend/sys: client dispatching now always uses distinct event queue
+
 #### Additions
 
 - `Backend::manage_object` for handling foreign proxies with the sys backend

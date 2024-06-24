@@ -168,6 +168,7 @@ struct ProxyUserData {
 #[derive(Debug)]
 struct ConnectionState {
     display: *mut wl_display,
+    owns_display: bool,
     evq: *mut wl_event_queue,
     display_id: InnerObjectId,
     last_error: Option<WaylandError>,
@@ -247,30 +248,17 @@ impl InnerBackend {
                 wl_log_trampoline_to_rust_client
             );
         }
-        let display_alive = Arc::new(AtomicBool::new(true));
-        Ok(Self {
-            inner: Arc::new(Inner {
-                state: Mutex::new(ConnectionState {
-                    display,
-                    evq: std::ptr::null_mut(),
-                    display_id: InnerObjectId {
-                        id: 1,
-                        ptr: display as *mut wl_proxy,
-                        alive: Some(display_alive),
-                        interface: &WL_DISPLAY_INTERFACE,
-                    },
-                    last_error: None,
-                    known_proxies: HashSet::new(),
-                }),
-                debug: has_debug_client_env(),
-                dispatch_lock: Mutex::new(Dispatcher),
-            }),
-        })
+        Ok(Self::from_display(display, true))
     }
 
     pub unsafe fn from_foreign_display(display: *mut wl_display) -> Self {
+        Self::from_display(display, false)
+    }
+
+    fn from_display(display: *mut wl_display, owned: bool) -> Self {
         let evq =
             unsafe { ffi_dispatch!(wayland_client_handle(), wl_display_create_queue, display) };
+        let display_alive = owned.then(|| Arc::new(AtomicBool::new(true)));
         Self {
             inner: Arc::new(Inner {
                 state: Mutex::new(ConnectionState {
@@ -279,9 +267,10 @@ impl InnerBackend {
                     display_id: InnerObjectId {
                         id: 1,
                         ptr: display as *mut wl_proxy,
-                        alive: None,
+                        alive: display_alive,
                         interface: &WL_DISPLAY_INTERFACE,
                     },
+                    owns_display: owned,
                     last_error: None,
                     known_proxies: HashSet::new(),
                 }),
@@ -387,16 +376,7 @@ impl Dispatcher {
         // We erase the lifetime of the Handle to be able to store it in the tls,
         // it's safe as it'll only last until the end of this function call anyway
         let ret = BACKEND.set(&backend, || unsafe {
-            if evq.is_null() {
-                ffi_dispatch!(wayland_client_handle(), wl_display_dispatch_pending, display)
-            } else {
-                ffi_dispatch!(
-                    wayland_client_handle(),
-                    wl_display_dispatch_queue_pending,
-                    display,
-                    evq
-                )
-            }
+            ffi_dispatch!(wayland_client_handle(), wl_display_dispatch_queue_pending, display, evq)
         });
         if ret < 0 {
             Err(backend
@@ -427,11 +407,7 @@ impl InnerReadEventsGuard {
         };
 
         let ret = unsafe {
-            if evq.is_null() {
-                ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read, display)
-            } else {
-                ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read_queue, display, evq)
-            }
+            ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read_queue, display, evq)
         };
         if ret < 0 {
             None
@@ -648,18 +624,17 @@ impl InnerBackend {
             }
         }
 
-        let ret = if guard.evq.is_null() || child_spec.is_none() {
+        let ret = if child_spec.is_none() {
             unsafe {
                 ffi_dispatch!(
                     wayland_client_handle(),
-                    wl_proxy_marshal_array_constructor_versioned,
+                    wl_proxy_marshal_array,
                     id.ptr,
                     opcode as u32,
                     argument_list.as_mut_ptr(),
-                    child_interface_ptr,
-                    child_version
                 )
             }
+            std::ptr::null_mut()
         } else {
             // We are a guest Backend, need to use a wrapper
             unsafe {
@@ -1062,12 +1037,10 @@ impl Drop for ConnectionState {
                 ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, proxy_ptr);
             }
         }
-        if self.evq.is_null() {
+        unsafe { ffi_dispatch!(wayland_client_handle(), wl_event_queue_destroy, self.evq) }
+        if self.owns_display {
             // we own the connection, close it
             unsafe { ffi_dispatch!(wayland_client_handle(), wl_display_disconnect, self.display) }
-        } else {
-            // we don't own the connecton, just destroy the event queue
-            unsafe { ffi_dispatch!(wayland_client_handle(), wl_event_queue_destroy, self.evq) }
         }
     }
 }
