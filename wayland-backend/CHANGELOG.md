@@ -6,6 +6,10 @@
 
 - `Backend::manage_object` for handling foreign proxies with the sys backend
 
+#### Bugfixes
+
+- backend/rs: server: Fixed potential deadlock caused by dead clients
+
 ## 0.3.4 -- 2024-05-30
 
 #### Additions

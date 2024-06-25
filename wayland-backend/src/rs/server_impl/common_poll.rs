@@ -160,7 +160,37 @@ impl<D> InnerBackend<D> {
                                 return Err(e);
                             }
                         }
-                        Err(e) => return Err(e),
+                        Err(e) => {
+                            #[cfg(any(target_os = "linux", target_os = "android"))]
+                            {
+                                epoll::delete(&state.poll_fd, client)?;
+                            }
+
+                            #[cfg(any(
+                                target_os = "dragonfly",
+                                target_os = "freebsd",
+                                target_os = "netbsd",
+                                target_os = "openbsd",
+                                target_os = "macos"
+                            ))]
+                            {
+                                use rustix::event::kqueue::*;
+                                use std::os::unix::io::{AsFd, AsRawFd};
+
+                                let evt = Event::new(
+                                    EventFilter::Read(client.as_fd().as_raw_fd()),
+                                    EventFlags::DELETE,
+                                    client_id.as_u64() as isize,
+                                );
+
+                                let mut events = Vec::new();
+                                unsafe {
+                                    kevent(&state.poll_fd, &[evt], &mut events, None)
+                                        .map(|_| ())?;
+                                }
+                            }
+                            return Err(e);
+                        }
                     };
                     dispatched += 1;
                     if same_interface(object.interface, &WL_DISPLAY_INTERFACE) {
