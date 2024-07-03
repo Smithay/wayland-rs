@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.32.1"
+version = "0.32.2"
 documentation = "https://docs.rs/wayland-protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -13,10 +13,10 @@ rust-version = "1.65"
 readme = "README.md"
 
 [dependencies]
-wayland-scanner = { version = "0.31.2", path = "../wayland-scanner" }
-wayland-backend = { version = "0.3.4", path = "../wayland-backend" }
-wayland-client = { version = "0.31.3", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.31.2", path = "../wayland-server", optional = true }
+wayland-scanner = { version = "0.31.3", path = "../wayland-scanner" }
+wayland-backend = { version = "0.3.5", path = "../wayland-backend" }
+wayland-client = { version = "0.31.4", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.31.3", path = "../wayland-server", optional = true }
 bitflags = "2"
 
 [features]

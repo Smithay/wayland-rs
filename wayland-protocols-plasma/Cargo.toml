@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols-plasma"
-version = "0.3.1"
+version = "0.3.2"
 documentation = "https://docs.rs/wayland-protocols-plasma/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -15,11 +15,11 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wayland-scanner = { version = "0.31.2", path = "../wayland-scanner" }
-wayland-backend = { version = "0.3.4", path = "../wayland-backend" }
-wayland-client = { version = "0.31.3", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.31.2", path = "../wayland-server", optional = true }
-wayland-protocols = { version = "0.32.1", path = "../wayland-protocols"}
+wayland-scanner = { version = "0.31.3", path = "../wayland-scanner" }
+wayland-backend = { version = "0.3.5", path = "../wayland-backend" }
+wayland-client = { version = "0.31.4", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.31.3", path = "../wayland-server", optional = true }
+wayland-protocols = { version = "0.32.2", path = "../wayland-protocols"}
 bitflags = "2"
 
 [features]

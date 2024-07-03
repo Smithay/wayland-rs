@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- backend/sys: client dispatching now always uses distinct event queue
+## 0.3.5 -- 2024-07-03
 
 #### Additions
 
@@ -11,6 +11,7 @@
 #### Bugfixes
 
 - backend/rs: server: Fixed potential deadlock caused by dead clients
+- backend/sys: client dispatching now always uses distinct event queue
 
 ## 0.3.4 -- 2024-05-30
 

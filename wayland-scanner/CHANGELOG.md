@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.31.3 -- 2024-07-03
+
+- Update `quick-xml` to 0.34
+
 ## 0.31.2 -- 2024-05-30
 
 - Use wrapper type implementing `Sync` instead of `static mut`s.
