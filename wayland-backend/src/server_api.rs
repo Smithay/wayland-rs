@@ -580,8 +580,12 @@ impl<D> Backend<D> {
     }
 }
 
+// Workaround: Some versions of rustc throw a `struct is never constructed`-warning here,
+// if the `server_system`-feature is enabled, even though the `rs`-module makes use if it.
+#[allow(dead_code)]
 pub(crate) struct DumbObjectData;
 
+#[allow(dead_code)]
 impl<D> ObjectData<D> for DumbObjectData {
     #[cfg_attr(coverage, coverage(off))]
     fn request(
