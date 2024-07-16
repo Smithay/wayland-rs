@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.6 -- 2024-07-16
+
 ### Bugfixes
 
 - backend/rs: server: Fixed potential deadlock on object destruction
