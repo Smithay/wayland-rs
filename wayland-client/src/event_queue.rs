@@ -703,20 +703,6 @@ impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, 
     }
 }
 
-struct TemporaryData;
-
-impl ObjectData for TemporaryData {
-    fn event(
-        self: Arc<Self>,
-        _: &Backend,
-        _: Message<ObjectId, OwnedFd>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        unreachable!()
-    }
-
-    fn destroyed(&self, _: ObjectId) {}
-}
-
 /*
  * Dispatch delegation helpers
  */

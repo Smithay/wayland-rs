@@ -296,6 +296,11 @@ impl<D> InnerBackend<D> {
                             panic!("An object data was returned from a callback not creating any object");
                         }
                     }
+                    // dropping the object calls destructors from which users could call into wayland-backend again.
+                    // so lets release and relock the state again, to avoid a deadlock
+                    std::mem::drop(state);
+                    std::mem::drop(object);
+                    state = self.state.lock().unwrap();
                 }
                 DispatchAction::Bind { object, client, global, handler } => {
                     // temporarily unlock the state Mutex while this request is dispatched
