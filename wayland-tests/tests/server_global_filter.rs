@@ -1,7 +1,3 @@
-#[cfg(feature = "server_native")]
-#[macro_use]
-extern crate wayland_sys;
-
 #[macro_use]
 mod helpers;
 
