@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_PLASMA_ACTIVATION_FEEDBACK_INTERFACE","ORG_KDE_PLASMA_ACTIVATION_INTERFACE","ORG_KDE_PLASMA_WINDOW_INTERFACE","ORG_KDE_PLASMA_WINDOW_MANAGEMENT_INTERFACE","org_kde_plasma_activation_feedback_interface","org_kde_plasma_activation_interface","org_kde_plasma_window_interface","org_kde_plasma_window_management_interface"]};
