@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Bugfixes
+
+- backend/sys: Fix importing external objects with `Backend::manage_object` by
+  associating the proxy with the correct event queue
+
 ## 0.3.6 -- 2024-07-16
 
 ### Bugfixes
