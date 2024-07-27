@@ -764,7 +764,10 @@ impl InnerBackend {
         data: Arc<dyn ObjectData>,
     ) -> ObjectId {
         let mut guard = self.lock_state();
-        unsafe { self.manage_object_internal(interface, proxy, data, &mut guard) }
+        unsafe {
+            ffi_dispatch!(wayland_client_handle(), wl_proxy_set_queue, proxy, guard.evq);
+            self.manage_object_internal(interface, proxy, data, &mut guard)
+        }
     }
 
     /// Start managing a Wayland object.
