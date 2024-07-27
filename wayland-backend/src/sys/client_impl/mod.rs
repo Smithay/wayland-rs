@@ -757,6 +757,11 @@ impl InnerBackend {
     }
 
     /// Start managing a Wayland object.
+    ///
+    /// Safety: This will change the event queue the proxy is associated with.
+    /// Changing the event queue of an existing proxy is not thread-safe.
+    /// If another thread is concurrently reading the wayland socket and the
+    /// proxy already received an event it might get enqueued on the old event queue.
     pub unsafe fn manage_object(
         &self,
         interface: &'static Interface,
@@ -764,7 +769,10 @@ impl InnerBackend {
         data: Arc<dyn ObjectData>,
     ) -> ObjectId {
         let mut guard = self.lock_state();
-        unsafe { self.manage_object_internal(interface, proxy, data, &mut guard) }
+        unsafe {
+            ffi_dispatch!(wayland_client_handle(), wl_proxy_set_queue, proxy, guard.evq);
+            self.manage_object_internal(interface, proxy, data, &mut guard)
+        }
     }
 
     /// Start managing a Wayland object.
