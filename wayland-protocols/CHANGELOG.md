@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Additions
+- Bump wayland-protocols to 1.37
+  - New staging protocols:
+    * `ext-image-capture-source-v1`
+    * `ext-image-copy-capture-v1`
+    * `xdg-toplevel-icon-v1`
+
 ## 0.3.0 -- 2024-05-30
 
 ### Breaking changes

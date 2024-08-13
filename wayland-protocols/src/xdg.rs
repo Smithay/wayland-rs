@@ -198,3 +198,22 @@ pub mod dialog {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod toplevel_icon {
+    //! This protocol allows clients to set icons for their toplevel surfaces
+    //! either via the XDG icon stock (using an icon name), or from pixel data.
+    //!
+    //! A toplevel icon represents the individual toplevel (unlike the application
+    //! or launcher icon, which represents the application as a whole), and may be
+    //! shown in window switchers, window overviews and taskbars that list
+    //! individual windows.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-toplevel-icon/xdg-toplevel-icon-v1.xml",
+            [crate::xdg::shell]
+        );
+    }
+}
