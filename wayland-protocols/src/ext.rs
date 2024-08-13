@@ -88,3 +88,37 @@ pub mod transient_seat {
     }
 
 }
+
+
+#[cfg(feature = "staging")]
+pub mod image_capture_source {
+    //! This protocol serves as an intermediary between capturing protocols and
+    //! potential image capture sources such as outputs and toplevels.
+    //!
+    //! This protocol may be extended to support more image capture sources in the
+    //! future, thereby adding those image capture sources to other protocols that
+    //! use the image capture source object without having to modify those
+    //! protocols.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-image-capture-source/ext-image-capture-source-v1.xml",
+            [crate::ext::foreign_toplevel_list::v1, crate::xdg::shell]
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
+pub mod image_copy_capture {
+    //! This protocol allows clients to ask the compositor to capture image sources
+    //! such as outputs and toplevels into user submitted buffers.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml",
+            [crate::ext::image_capture_source::v1, crate::xdg::shell]
+        );
+    }
+}
