@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Update wlr-protocols
+  - `wlr-layer-shell-unstable-v1` is now version 5, with option to set exclusion edge
+
 ## 0.3.0 -- 2024-05-30
 
 ### Breaking changes
