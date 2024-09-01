@@ -8,7 +8,7 @@
 This crate provides Wayland object definitions for the WLR Wayland protocol extensions.
 It is meant to be used in addition to `wayland-client` or `wayland-server`.
 
-This crate provides bindings for the ["wlr-protocols"](https://github.com/swaywm/wlr-protocols)
+This crate provides bindings for the ["wlr-protocols"](https://gitlab.freedesktop.org/wlroots/wlr-protocols)
 extensions repository.
 
 The provided objects are controlled by the `client` and `server` cargo features, which respectively enable
