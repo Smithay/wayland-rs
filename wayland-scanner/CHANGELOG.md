@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Update `quick-xml` to 0.36
+- Allow `<!DOCTYPE>` in XML input
 
 ## 0.31.3 -- 2024-07-03
 
