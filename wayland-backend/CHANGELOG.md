@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.7 -- 2024-09-04
+
 ### Bugfixes
 
 - backend/sys: Fix importing external objects with `Backend::manage_object` by

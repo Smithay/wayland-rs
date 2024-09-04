@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.32.4 -- 2024-09-04
+
 ### Additions
 - Bump wayland-protocols to 1.37
   - New staging protocols:
@@ -9,7 +11,7 @@
     * `ext-image-copy-capture-v1`
     * `xdg-toplevel-icon-v1`
 
-## 0.3.0 -- 2024-05-30
+## 0.32.3 -- 2024-05-30
 
 ### Breaking changes
 - `set_constraint_adjustment`/`SetConstraintAdjustment` now takes a `ConstraintAdjustment` instead of a u32.
