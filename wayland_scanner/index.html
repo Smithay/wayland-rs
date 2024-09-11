@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Wayland protocol code-generation machinnery"><title>wayland_scanner - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="wayland_scanner" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../wayland_scanner/index.html">wayland_scanner</a><span class="version">0.31.5</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section><ul class="block"><li><a href="#macros">Macros</a></li></ul></section></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <a class="mod" href="#">wayland_scanner</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../src/wayland_scanner/lib.rs.html#1-141">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Wayland protocol code-generation machinnery</p>
+<p>This crate provides procedural macros for generating the rust code associated with a
+Wayland XML protocol specification, for use with the <code>wayland-client</code>, <code>wayland-server</code>
+and <code>wayland-backend</code> crates.</p>
+<p>Before trying to use this crate, you may check if the protocol extension you want to use
+is not already exposed in the <code>wayland-protocols</code> crate.</p>
+<h3 id="example-usage"><a class="doc-anchor" href="#example-usage">§</a>Example usage</h3>
+<p>Below is a template for generating the code for a custom protocol client-side. Server-side
+is identical, just replacing <code>client</code> by <code>server</code>. The path to the XML file is relative to the
+crate root.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="comment">// Generate the bindings in their own module
+</span><span class="kw">pub mod </span>my_protocol {
+    <span class="kw">use </span>wayland_client;
+    <span class="comment">// import objects from the core protocol if needed
+    </span><span class="kw">use </span>wayland_client::protocol::<span class="kw-2">*</span>;
+
+    <span class="comment">// This module hosts a low-level representation of the protocol objects
+    // you will not need to interact with it yourself, but the code generated
+    // by the generate_client_code! macro will use it
+    </span><span class="kw">pub mod </span>__interfaces {
+        <span class="comment">// import the interfaces from the core protocol if needed
+        </span><span class="kw">use </span>wayland_client::protocol::__interfaces::<span class="kw-2">*</span>;
+        <span class="macro">wayland_scanner::generate_interfaces!</span>(<span class="string">"./path/to/the/protocol.xml"</span>);
+    }
+    <span class="kw">use </span><span class="self">self</span>::__interfaces::<span class="kw-2">*</span>;
+
+    <span class="comment">// This macro generates the actual types that represent the wayland objects of
+    // your custom protocol
+    </span><span class="macro">wayland_scanner::generate_client_code!</span>(<span class="string">"./path/to/the/protocol.xml"</span>);
+}</code></pre></div>
+</div></details><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.generate_client_code.html" title="macro wayland_scanner::generate_client_code">generate_client_code</a></div><div class="desc docblock-short">Proc-macro for generating client-side API associated with an XML specification</div></li><li><div class="item-name"><a class="macro" href="macro.generate_interfaces.html" title="macro wayland_scanner::generate_interfaces">generate_interfaces</a></div><div class="desc docblock-short">Proc-macro for generating low-level interfaces associated with an XML specification</div></li><li><div class="item-name"><a class="macro" href="macro.generate_server_code.html" title="macro wayland_scanner::generate_server_code">generate_server_code</a></div><div class="desc docblock-short">Proc-macro for generating server-side API associated with an XML specification</div></li></ul></section></div></main></body></html>
