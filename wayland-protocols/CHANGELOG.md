@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bump wayland-protocols to 1.38
+  - New staging protocols:
+    * `fifo-v1`
+    * `commit-timing-v1`
+    * `xdg-system-bell-v1`
+
 ## 0.32.4 -- 2024-09-04
 
 ### Additions
