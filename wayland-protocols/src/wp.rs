@@ -487,7 +487,6 @@ pub mod security_context {
     //! security contexts are dangerous because they can potentially allow
     //! privilege escalation of a sandboxed client.
 
-
     #[allow(missing_docs)]
     pub mod v1 {
         wayland_protocol!(
@@ -507,6 +506,52 @@ pub mod alpha_modifier {
     pub mod v1 {
         wayland_protocol!(
             "./protocols/staging/alpha-modifier/alpha-modifier-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
+pub mod fifo {
+    //! When a Wayland compositor considers applying a content update,
+    //! it must ensure all the update's readiness constraints (fences, etc)
+    //! are met.
+    //!
+    //! This protocol provides a way to use the completion of a display refresh
+    //! cycle as an additional readiness constraint.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/fifo/fifo-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
+pub mod commit_timing {
+    //! When a compositor latches on to new content updates it will check for
+    //! any number of requirements of the available content updates (such as
+    //! fences of all buffers being signalled) to consider the update ready.
+    //!
+    //! This protocol provides a method for adding a time constraint to surface
+    //! content. This constraint indicates to the compositor that a content
+    //! update should be presented as closely as possible to, but not before,
+    //! a specified time.
+    //!
+    //! This protocol does not change the Wayland property that content
+    //! updates are applied in the order they are received, even when some
+    //! content updates contain timestamps and others do not.
+    //!
+    //! To provide timestamps, this global factory interface must be used to
+    //! acquire a `wp_commit_timing_v1` object for a surface, which may then be
+    //! used to provide timestamp information for commits.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/commit-timing/commit-timing-v1.xml",
             []
         );
     }

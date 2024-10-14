@@ -217,3 +217,16 @@ pub mod toplevel_icon {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod system_bell {
+    //! This global interface enables clients to ring the system bell.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-system-bell/xdg-system-bell-v1.xml",
+            []
+        );
+    }
+}
