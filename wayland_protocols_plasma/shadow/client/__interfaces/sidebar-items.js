@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_SHADOW_INTERFACE","ORG_KDE_KWIN_SHADOW_MANAGER_INTERFACE","org_kde_kwin_shadow_interface","org_kde_kwin_shadow_manager_interface"]};
