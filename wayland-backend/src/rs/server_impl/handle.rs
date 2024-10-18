@@ -1,7 +1,7 @@
 use std::{
     ffi::CString,
     os::unix::{
-        io::{OwnedFd, RawFd},
+        io::{AsFd, RawFd},
         net::UnixStream,
     },
     sync::{Arc, Mutex, Weak},
@@ -24,19 +24,19 @@ pub struct State<D: 'static> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
-    pub(crate) poll_fd: OwnedFd,
+    pub(crate) poller: polling::Poller,
 }
 
 impl<D> State<D> {
-    pub(crate) fn new(poll_fd: OwnedFd) -> Self {
+    pub(crate) fn new() -> std::io::Result<Self> {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
-        Self {
+        Ok(Self {
             clients: ClientStore::new(debug),
             registry: Registry::new(),
             pending_destructors: Vec::new(),
-            poll_fd,
-        }
+            poller: polling::Poller::new()?,
+        })
     }
 
     pub(crate) fn cleanup<'a>(&mut self) -> impl FnOnce(&super::Handle, &mut D) + 'a {
@@ -316,37 +316,9 @@ impl<D> ErasedState for State<D> {
         let id = self.clients.create_client(stream, data);
         let client = self.clients.get_client(id.clone()).unwrap();
 
-        // register the client to the internal epoll
-        #[cfg(any(target_os = "linux", target_os = "android"))]
-        let ret = {
-            use rustix::event::epoll;
-            epoll::add(
-                &self.poll_fd,
-                client,
-                epoll::EventData::new_u64(id.as_u64()),
-                epoll::EventFlags::IN,
-            )
-        };
-
-        #[cfg(any(
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "macos"
-        ))]
-        let ret = {
-            use rustix::event::kqueue::*;
-            use std::os::unix::io::{AsFd, AsRawFd};
-
-            let evt = Event::new(
-                EventFilter::Read(client.as_fd().as_raw_fd()),
-                EventFlags::ADD | EventFlags::RECEIPT,
-                id.as_u64() as isize,
-            );
-
-            let mut events = Vec::new();
-            unsafe { kevent(&self.poll_fd, &[evt], &mut events, None).map(|_| ()) }
+        // XXX 32-bit usize
+        let ret = unsafe {
+            self.poller.add(&client.as_fd(), polling::Event::writable(id.as_u64() as usize))
         };
 
         match ret {
