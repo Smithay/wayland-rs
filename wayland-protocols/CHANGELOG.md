@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.32.5 -- 2024-10-23
+
 - Bump wayland-protocols to 1.38
   - New staging protocols:
     * `fifo-v1`
