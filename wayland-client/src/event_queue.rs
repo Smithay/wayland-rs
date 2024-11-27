@@ -140,7 +140,7 @@ where
 /// initialization of the user data for event-created objects. The usage syntax is as follow:
 ///
 /// ```ignore
-/// impl Dispatch<WlFoo, FooUserData> for MyState {
+/// impl Dispatch<MyState, FooUserData> for MyState {
 ///     fn event(
 ///         &mut self,
 ///         proxy: &WlFoo,
