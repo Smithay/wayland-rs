@@ -33,4 +33,6 @@ allow = [
     # Google categorizes the license under "notice" which means it can be used (with some exceptions like
     # notices or advertising clauses): https://opensource.google/documentation/reference/thirdparty/licenses#notice
     "Unicode-DFS-2016",
+    # Unicode-DFS-2016 has been superseded by Unicode V3
+    "Unicode-3.0",
 ]
