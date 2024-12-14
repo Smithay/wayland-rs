@@ -155,7 +155,7 @@ pub struct DataInit<'a, D: 'static> {
     pub(crate) error: &'a mut Option<(u32, String)>,
 }
 
-impl<'a, D> DataInit<'a, D> {
+impl<D> DataInit<'_, D> {
     /// Initialize an object by assigning it its user-data
     pub fn init<I: Resource + 'static, U: Send + Sync + 'static>(
         &mut self,
