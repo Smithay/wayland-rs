@@ -7,3 +7,7 @@
 [submodule "wayland-protocols-plasma/plasma-wayland-protocols"]
 	path = wayland-protocols-plasma/plasma-wayland-protocols
 	url = https://github.com/KDE/plasma-wayland-protocols.git
+[submodule "wayland-protocols/wayland-protocols"]
+	path = wayland-protocols/protocols
+	url = git@gitlab.freedesktop.org:rano/wayland-protocols.git
+	branch = input-method-next
