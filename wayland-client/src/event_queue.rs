@@ -632,7 +632,7 @@ impl<State: 'static> QueueHandle<State> {
     }
 }
 
-impl<'a, State> Drop for QueueFreezeGuard<'a, State> {
+impl<State> Drop for QueueFreezeGuard<'_, State> {
     fn drop(&mut self) {
         let mut lock = self.qh.inner.lock().unwrap();
         lock.freeze_count -= 1;
