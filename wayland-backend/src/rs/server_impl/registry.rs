@@ -127,7 +127,7 @@ impl<D> Registry<D> {
         Some((target_global.interface, target_global.id.clone(), target_global.handler.clone()))
     }
 
-    pub(crate) fn cleanup(&mut self, dead_clients: &[ClientId]) {
+    pub(crate) fn cleanup(&mut self, dead_clients: &[Client<D>]) {
         self.known_registries
             .retain(|obj_id| !dead_clients.iter().any(|cid| cid.id == obj_id.client_id))
     }

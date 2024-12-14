@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bugfixes
+
+- backend/rs: Prevent a potential deadlock during client cleanup
+
 ## 0.3.7 -- 2024-09-04
 
 ### Bugfixes
