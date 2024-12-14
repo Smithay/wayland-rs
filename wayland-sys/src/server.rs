@@ -251,6 +251,7 @@ pub mod signal {
         // Safety: the signal pointer is valid
         unsafe {
             list_for_each!(l, &mut (*signal).listener_list as *mut wl_list, wl_listener, link, {
+                #[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
                 if (*l).notify == notify {
                     return l;
                 }

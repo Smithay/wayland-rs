@@ -1,7 +1,7 @@
 #[macro_use]
 mod helpers;
 
-use helpers::{globals, roundtrip, wayc, ways, TestServer};
+use helpers::{globals, roundtrip, wayc, ways, TestClient, TestServer};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -25,21 +25,14 @@ fn client_user_data() {
         has_compositor: AtomicBool::new(false),
         has_output: AtomicBool::new(false),
     }));
-    let mut client_ddata = ClientHandler::new();
-
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let mut client_ddata = ClientHandler::new(&client);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     // Instantiate the globals
     client_ddata
         .globals
-        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
-            &client.event_queue.handle(),
-            &registry,
-            1..2,
-            (),
-        )
+        .bind::<wayc::protocol::wl_output::WlOutput, _, _>(&client.event_queue.handle(), 1..2, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
@@ -54,7 +47,6 @@ fn client_user_data() {
         .globals
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
-            &registry,
             1..2,
             (),
         )
@@ -103,8 +95,9 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn new() -> ClientHandler {
-        ClientHandler { globals: Default::default() }
+    fn new(client: &TestClient<ClientHandler>) -> ClientHandler {
+        let globals = globals::GlobalList::new(&client.display, &client.event_queue.handle());
+        ClientHandler { globals }
     }
 }
 
@@ -113,10 +106,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
 
 client_ignore_impl!(ClientHandler => [
     wayc::protocol::wl_output::WlOutput,

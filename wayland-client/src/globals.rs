@@ -54,6 +54,7 @@
 
 use std::{
     fmt,
+    marker::PhantomData,
     ops::RangeInclusive,
     os::unix::io::OwnedFd,
     sync::{
@@ -81,12 +82,29 @@ pub fn registry_queue_init<State>(
 where
     State: Dispatch<wl_registry::WlRegistry, GlobalListContents> + 'static,
 {
+    registry_queue_init_delegated::<State, State>(conn)
+}
+
+/// Initialize a new event queue with its associated registry and retrieve the initial list of globals
+///
+/// This is a delegating variant of [`registry_queue_init`], it dispatches events to `DelegateTo`
+/// generic rather than to `State`.
+///
+/// See [the module level documentation][self] for more.
+pub fn registry_queue_init_delegated<State, DelegateTo>(
+    conn: &Connection,
+) -> Result<(GlobalList, EventQueue<State>), GlobalError>
+where
+    State: 'static,
+    DelegateTo: Dispatch<wl_registry::WlRegistry, GlobalListContents, State> + 'static,
+{
     let event_queue = conn.new_event_queue();
     let display = conn.display();
-    let data = Arc::new(RegistryState {
+    let data = Arc::new(RegistryState::<State, DelegateTo> {
         globals: GlobalListContents { contents: Default::default() },
         handle: event_queue.handle(),
         initial_roundtrip_done: AtomicBool::new(false),
+        _ph: PhantomData,
     });
     let registry = display.send_constructor(wl_display::Request::GetRegistry {}, data.clone())?;
     // We don't need to dispatch the event queue as for now nothing will be sent to it
@@ -140,6 +158,25 @@ impl GlobalList {
         State: Dispatch<I, U> + 'static,
         U: Send + Sync + 'static,
     {
+        self.bind_delegated::<I, State, U, State>(qh, version, udata)
+    }
+
+    /// Binds a global, returning a new protocol object associated with the global.
+    ///
+    /// This is a delegating variant of [`Self::bind`], it dispatches events to `DelegateTo`
+    /// generic rather than to `State`. Read full docs at [`Self::bind`].
+    pub fn bind_delegated<I, State, U, DelegateTo>(
+        &self,
+        qh: &QueueHandle<State>,
+        version: RangeInclusive<u32>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Send + Sync + 'static,
+        DelegateTo: Dispatch<I, U, State> + 'static,
+    {
         let version_start = *version.start();
         let version_end = *version.end();
         let interface = I::interface();
@@ -175,7 +212,13 @@ impl GlobalList {
         // requested version.
         let version = version.min(version_end);
 
-        Ok(self.registry.bind(name, version, qh, udata))
+        Ok(self
+            .registry
+            .send_constructor(
+                wl_registry::Request::Bind { name, id: (I::interface(), version) },
+                qh.make_data::<I, U, DelegateTo>(udata),
+            )
+            .unwrap())
     }
 
     /// Returns the [`WlRegistry`][wl_registry] protocol object.
@@ -293,15 +336,16 @@ impl GlobalListContents {
     }
 }
 
-struct RegistryState<State> {
+struct RegistryState<State, DelegateTo> {
     globals: GlobalListContents,
     handle: QueueHandle<State>,
     initial_roundtrip_done: AtomicBool,
+    _ph: PhantomData<fn() -> DelegateTo>,
 }
 
-impl<State: 'static> ObjectData for RegistryState<State>
+impl<State: 'static, DelegateTo: 'static> ObjectData for RegistryState<State, DelegateTo>
 where
-    State: Dispatch<wl_registry::WlRegistry, GlobalListContents>,
+    DelegateTo: Dispatch<wl_registry::WlRegistry, GlobalListContents, State>,
 {
     fn event(
         self: Arc<Self>,
@@ -344,7 +388,10 @@ where
                 .inner
                 .lock()
                 .unwrap()
-                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone())
+                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents, DelegateTo>(
+                    msg,
+                    self.clone(),
+                )
         }
 
         // We do not create any objects in this event handler.

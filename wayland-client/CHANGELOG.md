@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+#### Breaking changes
+
+- `QueueHandle::make_data` now accepts additional `DelegateTo` generic,
+  therefore allowing users to dispatch events to types different than main `State`
+- `delegate_dispatch` Removed in favour of `DelegateTo` generic on `QueueHandle::make_data`
+
+#### Additions
+
+- `globals::registry_queue_init_delegated` and `GlobalList::bind_delegated`
+
 ## 0.31.7 -- 2024-10-23
 
 - Updated Wayland core protocol to 1.23

@@ -31,11 +31,10 @@ use crate::{Client, DisplayHandle, Resource};
 ///
 /// To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
 /// that is generic over the last type argument, as illustrated below. Users will then be able to
-/// automatically delegate their implementation to yours using the [`delegate_dispatch!()`] macro.
+/// automatically delegate their implementation to yours using the [`DataInit::init_delegated()`] or
+/// [`Client::create_delegated_resource()`].
 ///
-/// [`delegate_dispatch!()`]: crate::delegate_dispatch!()
-///
-/// As a result, when your implementation is instanciated, the last type parameter `State` will be the state
+/// As a result, when your implementation is instantiated, the last type parameter `State` will be the state
 /// struct of the app using your generic implementation. You can put additional trait constraints on it to
 /// specify an interface between your module and downstream code, as illustrated in this example:
 ///
@@ -56,8 +55,6 @@ use crate::{Client, DisplayHandle, Resource};
 /// // the default State=Self.
 /// impl<State> Dispatch<wl_output::WlOutput, MyUserData, State> for DelegateToMe
 /// where
-///     // State is the type which has delegated to this type, so it needs to have an impl of Dispatch itself
-///     State: Dispatch<wl_output::WlOutput, MyUserData>,
 ///     // If your delegate type has some internal state, it'll need to access it, and you can
 ///     // require it by adding custom trait bounds.
 ///     // In this example, we just require an AsMut implementation
@@ -158,7 +155,7 @@ pub struct DataInit<'a, D: 'static> {
     pub(crate) error: &'a mut Option<(u32, String)>,
 }
 
-impl<'a, D> DataInit<'a, D> {
+impl<D> DataInit<'_, D> {
     /// Initialize an object by assigning it its user-data
     pub fn init<I: Resource + 'static, U: Send + Sync + 'static>(
         &mut self,
@@ -168,11 +165,24 @@ impl<'a, D> DataInit<'a, D> {
     where
         D: Dispatch<I, U> + 'static,
     {
-        let arc = Arc::new(ResourceData::<I, _>::new(data));
-        *self.store = Some(arc.clone() as Arc<_>);
-        let mut obj = resource.id;
-        obj.__set_object_data(arc);
-        obj
+        self.custom_init(resource, Arc::new(ResourceData::<I, _>::new(data)))
+    }
+
+    /// Initialize an object by assigning it its user-data
+    ///
+    /// This is a delegating variant of [`Self::init`], which means that all requests
+    /// related to this object will be dispatched via [`Dispatch`] to `DelegateTo` generic type,
+    /// rather than `D`.
+    pub fn init_delegated<I: Resource + 'static, U: Send + Sync + 'static, DelegateTo>(
+        &mut self,
+        resource: New<I>,
+        data: U,
+    ) -> I
+    where
+        D: 'static,
+        DelegateTo: Dispatch<I, U, D> + 'static,
+    {
+        self.custom_init(resource, Arc::new(DelegatedResourceData::<I, _, DelegateTo>::new(data)))
     }
 
     /// Set a custom [`ObjectData`] for this object
@@ -229,52 +239,9 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         client_id: wayland_backend::server::ClientId,
         msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
-        let dhandle = DisplayHandle::from(handle.clone());
-        let client = match Client::from_id(&dhandle, client_id) {
-            Ok(v) => v,
-            Err(_) => {
-                crate::log_error!("Receiving a request from a dead client ?!");
-                return None;
-            }
-        };
-
-        let (sender_id, opcode) = (msg.sender_id.protocol_id(), msg.opcode);
-
-        let (resource, request) = match I::parse_request(&dhandle, msg) {
-            Ok(v) => v,
-            Err(e) => {
-                crate::log_warn!("Dispatching error encountered: {:?}, killing client.", e);
-                handle.kill_client(
-                    client.id(),
-                    DisconnectReason::ProtocolError(ProtocolError {
-                        code: 1,
-                        object_id: 0,
-                        object_interface: "wl_display".into(),
-                        message: format!(
-                            "Malformed request received for id {} and opcode {}.",
-                            sender_id, opcode
-                        ),
-                    }),
-                );
-                return None;
-            }
-        };
-        let udata = resource.data::<U>().expect("Wrong user_data value for object");
-
-        let mut new_data = None;
-
-        <D as Dispatch<I, U>>::request(
-            data,
-            &client,
-            &resource,
-            request,
-            udata,
-            &dhandle,
-            // The error is None since the creating object posts an error.
-            &mut DataInit { store: &mut new_data, error: &mut None },
-        );
-
-        new_data
+        on_request::<I, U, D, D>(handle, data, client_id, msg, |resource| {
+            resource.data().expect("Wrong user_data value for object")
+        })
     }
 
     fn destroyed(
@@ -284,90 +251,164 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         client_id: ClientId,
         object_id: ObjectId,
     ) {
-        let dhandle = DisplayHandle::from(handle.clone());
-        let mut resource = I::from_id(&dhandle, object_id).unwrap();
-
-        // Proxy::from_id will return an inert protocol object wrapper inside of ObjectData::destroyed,
-        // therefore manually initialize the data associated with protocol object wrapper.
-        resource.__set_object_data(self.clone());
-
-        <D as Dispatch<I, U>>::destroyed(data, client_id, &resource, &self.udata)
+        on_destroyed::<Self, I, U, D, D>(
+            self.clone(),
+            &self.udata,
+            handle,
+            data,
+            client_id,
+            object_id,
+        )
     }
 }
 
-/// A helper macro which delegates a set of [`Dispatch`] implementations for a resource to some other type which
-/// provides a generic [`Dispatch`] implementation.
+/// The [`ObjectData`] implementation that is internally used by this crate
 ///
-/// This macro allows more easily delegating smaller parts of the protocol a compositor may wish to handle
-/// in a modular fashion.
+/// This is a delegating variant of [`ResourceData`],
+/// In contrast to [`ResourceData`] you have to specify `DelegatedTo` generic type that this object
+/// is delegated to.
 ///
-/// # Usage
-///
-/// For example, say you want to delegate events for [`WlOutput`][crate::protocol::wl_output::WlOutput]
-/// to the `DelegateToMe` type from the [`Dispatch`] documentation.
-///
-/// ```
-/// use wayland_server::{delegate_dispatch, protocol::wl_output};
-/// #
-/// # use wayland_server::Dispatch;
-/// #
-/// # struct DelegateToMe;
-/// #
-/// # impl<D> Dispatch<wl_output::WlOutput, (), D> for DelegateToMe
-/// # where
-/// #     D: Dispatch<wl_output::WlOutput, ()> + AsMut<DelegateToMe>,
-/// # {
-/// #     fn request(
-/// #         _state: &mut D,
-/// #         _client: &wayland_server::Client,
-/// #         _resource: &wl_output::WlOutput,
-/// #         _request: wl_output::Request,
-/// #         _data: &(),
-/// #         _dhandle: &wayland_server::DisplayHandle,
-/// #         _data_init: &mut wayland_server::DataInit<'_, D>,
-/// #     ) {
-/// #     }
-/// # }
-/// #
-/// # type MyUserData = ();
-///
-/// // ExampleApp is the type events will be dispatched to.
-///
-/// /// The application state
-/// struct ExampleApp {
-///     /// The delegate for handling wl_registry events.
-///     delegate: DelegateToMe,
-/// }
-///
-/// // Use delegate_dispatch to implement Dispatch<wl_output::WlOutput, MyUserData> for ExampleApp.
-/// delegate_dispatch!(ExampleApp: [wl_output::WlOutput: MyUserData] => DelegateToMe);
-///
-/// // DelegateToMe requires that ExampleApp implements AsMut<DelegateToMe>, so we provide the trait implementation.
-/// impl AsMut<DelegateToMe> for ExampleApp {
-///     fn as_mut(&mut self) -> &mut DelegateToMe {
-///         &mut self.delegate
-///     }
-/// }
-/// ```
-#[macro_export]
-macro_rules! delegate_dispatch {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
-            fn request(
-                state: &mut Self,
-                client: &$crate::Client,
-                resource: &$interface,
-                request: <$interface as $crate::Resource>::Request,
-                data: &$udata,
-                dhandle: &$crate::DisplayHandle,
-                data_init: &mut $crate::DataInit<'_, Self>,
-            ) {
-                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::request(state, client, resource, request, data, dhandle, data_init)
-            }
+/// Object being delegated to `DelegatedTo` means that that type is handling it's requests via
+/// [`Dispatch`]
+#[derive(Debug)]
+pub struct DelegatedResourceData<I, U, DelegatedTo> {
+    /// The user-data associated with this object
+    pub udata: U,
+    marker: std::marker::PhantomData<(I, DelegatedTo)>,
+}
 
-            fn destroyed(state: &mut Self, client: $crate::backend::ClientId, resource: &$interface, data: &$udata) {
-                <$dispatch_to as $crate::Dispatch<$interface, $udata, Self>>::destroyed(state, client, resource, data)
-            }
+impl<I, U, M> DelegatedResourceData<I, U, M> {
+    pub(crate) fn new<D>(udata: U) -> Self
+    where
+        D: 'static,
+        I: Resource + 'static,
+        M: Dispatch<I, U, D> + 'static,
+        U: Send + Sync + 'static,
+    {
+        DelegatedResourceData { udata, marker: std::marker::PhantomData::<(I, M)> }
+    }
+}
+
+unsafe impl<I, U: Send, M> Send for DelegatedResourceData<I, U, M> {}
+unsafe impl<I, U: Sync, M> Sync for DelegatedResourceData<I, U, M> {}
+
+impl<DelegatedTo, I, U, D> ObjectData<D> for DelegatedResourceData<I, U, DelegatedTo>
+where
+    I: Resource + 'static,
+    U: Send + Sync + 'static,
+    D: 'static,
+    DelegatedTo: Dispatch<I, U, D> + 'static,
+{
+    fn request(
+        self: Arc<Self>,
+        handle: &wayland_backend::server::Handle,
+        data: &mut D,
+        client_id: wayland_backend::server::ClientId,
+        msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn ObjectData<D>>> {
+        on_request::<I, U, D, DelegatedTo>(handle, data, client_id, msg, |resource| {
+            resource.delegated_data::<U, DelegatedTo>().expect("Wrong user_data value for object")
+        })
+    }
+
+    fn destroyed(
+        self: Arc<Self>,
+        handle: &wayland_backend::server::Handle,
+        data: &mut D,
+        client_id: ClientId,
+        object_id: ObjectId,
+    ) {
+        on_destroyed::<Self, I, U, D, DelegatedTo>(
+            self.clone(),
+            &self.udata,
+            handle,
+            data,
+            client_id,
+            object_id,
+        )
+    }
+}
+
+pub(crate) fn on_request<I, U, D, DelegatedTo>(
+    handle: &wayland_backend::server::Handle,
+    data: &mut D,
+    client_id: wayland_backend::server::ClientId,
+    msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId, OwnedFd>,
+    get_data: impl FnOnce(&I) -> &U,
+) -> Option<Arc<dyn ObjectData<D>>>
+where
+    I: Resource,
+    U: Send + Sync + 'static,
+    D: 'static,
+    DelegatedTo: Dispatch<I, U, D>,
+{
+    let dhandle = DisplayHandle::from(handle.clone());
+    let client = match Client::from_id(&dhandle, client_id) {
+        Ok(v) => v,
+        Err(_) => {
+            crate::log_error!("Receiving a request from a dead client ?!");
+            return None;
         }
     };
+
+    let (sender_id, opcode) = (msg.sender_id.protocol_id(), msg.opcode);
+
+    let (resource, request) = match I::parse_request(&dhandle, msg) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::log_warn!("Dispatching error encountered: {:?}, killing client.", e);
+            handle.kill_client(
+                client.id(),
+                DisconnectReason::ProtocolError(ProtocolError {
+                    code: 1,
+                    object_id: 0,
+                    object_interface: "wl_display".into(),
+                    message: format!(
+                        "Malformed request received for id {} and opcode {}.",
+                        sender_id, opcode
+                    ),
+                }),
+            );
+            return None;
+        }
+    };
+    let udata = get_data(&resource);
+
+    let mut new_data = None;
+
+    <DelegatedTo as Dispatch<I, U, D>>::request(
+        data,
+        &client,
+        &resource,
+        request,
+        udata,
+        &dhandle,
+        // The error is None since the creating object posts an error.
+        &mut DataInit { store: &mut new_data, error: &mut None },
+    );
+
+    new_data
+}
+
+pub(crate) fn on_destroyed<DATA, I, U, D, DelegatedTo>(
+    this: Arc<DATA>,
+    udata: &U,
+    handle: &wayland_backend::server::Handle,
+    data: &mut D,
+    client_id: ClientId,
+    object_id: ObjectId,
+) where
+    I: Resource,
+    U: Send + Sync + 'static,
+    DATA: Send + Sync + 'static,
+    DelegatedTo: Dispatch<I, U, D>,
+{
+    let dhandle = DisplayHandle::from(handle.clone());
+    let mut resource = I::from_id(&dhandle, object_id).unwrap();
+
+    // Proxy::from_id will return an inert protocol object wrapper inside of ObjectData::destroyed,
+    // therefore manually initialize the data associated with protocol object wrapper.
+    resource.__set_object_data(this);
+
+    <DelegatedTo as Dispatch<I, U, D>>::destroyed(data, client_id, &resource, udata)
 }

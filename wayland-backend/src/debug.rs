@@ -58,7 +58,7 @@ pub fn print_send_message<Id: Display, Fd: AsRawFd>(
 
 pub(crate) struct DisplaySlice<'a, D>(pub &'a [D]);
 
-impl<'a, D: Display> Display for DisplaySlice<'a, D> {
+impl<D: Display> Display for DisplaySlice<'_, D> {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.0.iter();

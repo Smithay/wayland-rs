@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+#### Breaking changes
+- Added `Resource::delegated_data<_, DelegatedTo>` for accessing user data of delegated objects
+- `delegate_dispatch` and `delegate_global_dispatch` Removed in favour of `DataInit::init_delegated` and `DisplayHandle::create_delegated_global`
+
+#### Additions
+- Added a way to create delegated objects, globals and resources (a way to dispatch events to types different than the main `State`)
+  - `Client::create_delegated_resource<_, _, _, DelegateTo>()`
+  - `DataInit::init_delegated<_, _, DelegateTo>()`
+  - `DisplayHandle::create_delegated_global<_, _, _, DelegateTo>()`
+
 ## 0.31.6 -- 2024-10-23
 
 - Updated Wayland core protocol to 1.23
