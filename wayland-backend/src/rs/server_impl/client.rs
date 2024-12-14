@@ -720,7 +720,7 @@ impl<D> ClientStore<D> {
     pub(crate) fn cleanup(
         &mut self,
         pending_destructors: &mut Vec<PendingDestructor<D>>,
-    ) -> SmallVec<[ClientId; 1]> {
+    ) -> SmallVec<[Client<D>; 1]> {
         let mut cleaned = SmallVec::new();
         for place in &mut self.clients {
             if place.as_ref().map(|client| client.killed).unwrap_or(false) {
@@ -728,7 +728,7 @@ impl<D> ClientStore<D> {
                 let mut client = place.take().unwrap();
                 client.queue_all_destructors(pending_destructors);
                 let _ = client.flush();
-                cleaned.push(ClientId { id: client.id });
+                cleaned.push(client);
             }
         }
         cleaned

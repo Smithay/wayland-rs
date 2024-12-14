@@ -53,6 +53,7 @@ impl<D> State<D> {
                     ObjectId { id: object_id },
                 );
             }
+            std::mem::drop(dead_clients);
         }
     }
 
