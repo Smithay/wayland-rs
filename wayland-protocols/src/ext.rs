@@ -122,3 +122,31 @@ pub mod image_copy_capture {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod data_control {
+    //! This protocol allows a privileged client to control data devices. In
+    //! particular, the client will be able to manage the current selection and take
+    //! the role of a clipboard manager.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-data-control/ext-data-control-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
+pub mod workspace {
+    //! List and control workspaces
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-workspace/ext-workspace-v1.xml",
+            []
+        );
+    }
+}
