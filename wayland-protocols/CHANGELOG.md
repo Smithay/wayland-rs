@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Bump wayland-protocols to 1.39
+  - New staging protocols:
+    * `ext-data-control-v1`
+    * `ext-workspace-v1`
+
 ## 0.32.5 -- 2024-10-23
 
 - Bump wayland-protocols to 1.38
