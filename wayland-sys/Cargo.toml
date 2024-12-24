@@ -12,21 +12,21 @@ rust-version = "1.65"
 readme = "README.md"
 
 [dependencies]
-dlib = { version = "0.5.1" }
+dlib = { version = "0.5.1", optional = true }
 libc = { version = "0.2", optional = true }
 once_cell = { version = "1.0", optional = true }
 memoffset = { version = "0.9", optional = true }
-log = "0.4"
+log = { version = "0.4", optional = true }
 
 [build-dependencies]
 pkg-config = "0.3.7"
 
 [features]
 dlopen = ["once_cell"]
-client = []
+client = ["dep:dlib", "dep:log"]
 cursor = ["client"]
 egl = ["client"]
-server = ["libc", "memoffset"]
+server = ["libc", "memoffset", "dep:dlib", "dep:log"]
 
 [package.metadata.docs.rs]
 all-features = true
