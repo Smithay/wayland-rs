@@ -12,9 +12,7 @@ pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {
     protocol
         .interfaces
         .iter()
-        .filter(|iface| {
-            iface.name != "wl_display" && iface.name != "wl_registry" && iface.name != "wl_fixes"
-        })
+        .filter(|iface| iface.name != "wl_display")
         .map(generate_objects_for)
         .collect()
 }
@@ -41,7 +39,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         &interface.events,
     );
 
-    let parse_body = crate::common::gen_parse_body(interface, Side::Server);
+    let parse_body = if interface.name == "wl_registry" {
+        quote! { unimplemented!("`wl_registry` is implemented internally in `wayland-server`") }
+    } else {
+        crate::common::gen_parse_body(interface, Side::Server)
+    };
     let write_body = crate::common::gen_write_body(interface, Side::Server);
     let methods = gen_methods(interface);
 
