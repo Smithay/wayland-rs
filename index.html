@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Wayland-rs crates</title>
+        <link rel="stylesheet" type="text/css" href="rust.css" />
+    </head>
+    <body class="rustdoc">
+        <h1 class="title">Wayland-rs crates</h1>
+        <p>This page hosts the documentation for the crates of the wayland-rs repository.</p>
+        <h2 class="title">Main crates</h2>
+        <p><a href="wayland_client"><strong>wayland-client API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_client">wayland-client crate</a>. It is the
+        core crate for writing wayland client apps.</p>
+        <p><a href="wayland_server"><strong>wayland-server API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_server">wayland-server crate</a>. It is the
+        core crate for writing wayland compositors.</p>
+        <p><a href="wayland_protocols"><strong>wayland-protocols API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_protocols">wayland-protocols crate</a>. This
+        crate provides generated bindings for various classic wayland protocol extensions. To be used
+        with wayland-client or wayland-server.</p>
+        <p><a href="wayland_commons"><strong>wayland-commons API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_commons">wayland-commons crate</a>. This
+        crate contains various type and trait definitions used by the other crates.</p>
+        <h2 class="title">Internal crates</h2>
+        <p>These crates are not meant to be used by everyone wanting to make wayland apps. You'll mostly
+        need them if you want to bind a protocol extention that is not (yet) provided by wayland-protocols.</p>
+        <p><a href="wayland_sys"><strong>wayland-sys API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_sys">wayland-sys crate</a>. It contains raw FFI bindings
+        to the C libwayland-*.so libraries.</p>
+        <p><a href="wayland_scanner"><strong>wayland-scanner API docs</strong></a>. API documentation
+        of the <a href="https://crates.io/crates/wayland_scanner">wayland-scanner crate</a>. It contains all
+        the necessary logic to parxe an XML protocol extension specification and generate the associated rust
+        code to use with wayland-client or wayland-server.</p>
+    </body>
+</html>

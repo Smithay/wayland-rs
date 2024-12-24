@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","zwp_virtual_keyboard_manager_v1","zwp_virtual_keyboard_v1"]};
