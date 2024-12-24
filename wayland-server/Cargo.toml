@@ -18,7 +18,6 @@ wayland-scanner = { version = "0.31.5", path = "../wayland-scanner" }
 bitflags = "2"
 log = { version = "0.4", optional = true }
 downcast-rs = "1.2"
-io-lifetimes = "2"
 rustix = { version = "0.38.14", features = ["fs"] }
 
 [package.metadata.docs.rs]
