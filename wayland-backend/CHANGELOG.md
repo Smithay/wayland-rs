@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Additions
+- backend: Added a `destroy_object` method
+
 ### Bugfixes
 
 - backend/rs: Prevent a potential deadlock during client cleanup
