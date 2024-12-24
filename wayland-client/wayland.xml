@@ -1832,6 +1832,9 @@
 	x and y, combined with the new surface size define in which
 	directions the surface's size changes.
 
+	The exact semantics of wl_surface.offset are role-specific. Refer to
+	the documentation of specific roles for more information.
+
 	Surface location offset is double-buffered state, see
 	wl_surface.commit.
 
@@ -1880,7 +1883,7 @@
     </event>
    </interface>
 
-  <interface name="wl_seat" version="9">
+  <interface name="wl_seat" version="10">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -2013,7 +2016,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="9">
+  <interface name="wl_pointer" version="10">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -2426,7 +2429,7 @@
     </event>
   </interface>
 
-  <interface name="wl_keyboard" version="9">
+  <interface name="wl_keyboard" version="10">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2479,6 +2482,9 @@
 	the surface argument and the keys currently logically down to the keys
 	in the keys argument. The compositor must not send this event if the
 	wl_keyboard already had an active surface immediately before this event.
+
+	Clients should not use the list of pressed keys to emulate key-press
+	events. The order of keys in the list is unspecified.
       </description>
       <arg name="serial" type="uint" summary="serial number of the enter event"/>
       <arg name="surface" type="object" interface="wl_surface" summary="surface gaining keyboard focus"/>
@@ -2505,9 +2511,18 @@
     <enum name="key_state">
       <description summary="physical key state">
 	Describes the physical state of a key that produced the key event.
+
+	Since version 10, the key can be in a "repeated" pseudo-state which
+	means the same as "pressed", but is used to signal repetition in the
+	key event.
+
+	The key may only enter the repeated state after entering the pressed
+	state and before entering the released state. This event may be
+	generated multiple times while the key is down.
       </description>
       <entry name="released" value="0" summary="key is not pressed"/>
       <entry name="pressed" value="1" summary="key is pressed"/>
+      <entry name="repeated" value="2" summary="key was repeated" since="10"/>
     </enum>
 
     <event name="key">
@@ -2530,6 +2545,11 @@
 	compositor must not send this event if state is pressed (resp. released)
 	and the key was already logically down (resp. was not logically down)
 	immediately before this event.
+
+	Since version 10, compositors may send key events with the "repeated"
+	key state when a wl_keyboard.repeat_info event with a rate argument of
+	0 has been received. This allows the compositor to take over the
+	responsibility of key repetition.
       </description>
       <arg name="serial" type="uint" summary="serial number of the key event"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
@@ -2590,7 +2610,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="9">
+  <interface name="wl_touch" version="10">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
@@ -3242,6 +3262,33 @@
 	If a surface's parent surface behaves as desynchronized, then
 	the cached state is applied on set_desync.
       </description>
+    </request>
+  </interface>
+
+  <interface name="wl_fixes" version="1">
+    <description summary="wayland protocol fixes">
+      This global fixes problems with other core-protocol interfaces that
+      cannot be fixed in these interfaces themselves.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroys this object"/>
+    </request>
+
+    <request name="destroy_registry">
+      <description summary="destroy a wl_registry">
+	This request destroys a wl_registry object.
+
+	The client should no longer use the wl_registry after making this
+	request.
+
+	The compositor will emit a wl_display.delete_id event with the object ID
+	of the registry and will no longer emit any events on the registry. The
+	client should re-use the object ID once it receives the
+	wl_display.delete_id event.
+      </description>
+      <arg name="registry" type="object" interface="wl_registry"
+	   summary="the registry to destroy"/>
     </request>
   </interface>
 
