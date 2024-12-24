@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Update `quick-xml` to 0.38
+- Generate bindings for `WlRegistry`
+  * Needed for client/server to use `wl_fixes`
 
 ## 0.31.7 -- 2025-07-28
 

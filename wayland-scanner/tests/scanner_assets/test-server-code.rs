@@ -1,3 +1,210 @@
+#[doc = "global registry object\n\nThe singleton global registry object.  The server has a number of\nglobal objects that are available to all clients.  These objects\ntypically represent an actual object in the server (for example,\nan input device) or they are singleton objects that provide\nextension functionality.\n\nWhen a client creates a registry object, the registry object\nwill emit a global event for each global currently in the\nregistry.  Globals come and go as a result of device or\nmonitor hotplugs, reconfiguration or other events, and the\nregistry will send out global and global_remove events to\nkeep the client up to date with the changes.  To mark the end\nof the initial burst of events, the client can use the\nwl_display.sync request immediately after calling\nwl_display.get_registry.\n\nA client can bind to a global object by using the bind\nrequest.  This creates a client-side handle that lets the object\nemit events to the client and lets the client invoke requests on\nthe object."]
+pub mod wl_registry {
+    use super::wayland_server::{
+        backend::{
+            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
+        },
+        Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
+    };
+    use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_BIND_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_BIND_OPCODE: u16 = 0u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_GLOBAL_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_GLOBAL_OPCODE: u16 = 0u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_GLOBAL_REMOVE_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_GLOBAL_REMOVE_OPCODE: u16 = 1u16;
+    #[derive(Debug)]
+    #[non_exhaustive]
+    pub enum Request {
+        #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
+        Bind {
+            #[doc = "unique numeric name of the object"]
+            name: u32,
+            #[doc = "bounded object"]
+            id: (String, u32, super::wayland_server::ObjectId),
+        },
+    }
+    impl Request {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Request::Bind { .. } => 0u16,
+            }
+        }
+    }
+    #[derive(Debug)]
+    #[non_exhaustive]
+    pub enum Event<'a> {
+        #[doc = "announce global object\n\nNotify the client of global objects.\n\nThe event notifies the client that a global object with\nthe given name is now available, and it implements the\ngiven version of the given interface."]
+        Global {
+            #[doc = "numeric name of the global object"]
+            name: u32,
+            #[doc = "interface implemented by the object"]
+            interface: String,
+            #[doc = "interface version"]
+            version: u32,
+        },
+        #[doc = "announce removal of global object\n\nNotify the client of removed global objects.\n\nThis event notifies the client that the global identified\nby name is no longer available.  If the client bound to\nthe global using the bind request, the client should now\ndestroy that object.\n\nThe object remains valid and requests to the object will be\nignored until the client destroys it, to avoid races between\nthe global going away and a client sending a request to it."]
+        GlobalRemove {
+            #[doc = "numeric name of the global object"]
+            name: u32,
+        },
+        #[doc(hidden)]
+        __phantom_lifetime {
+            phantom: std::marker::PhantomData<&'a ()>,
+            never: std::convert::Infallible,
+        },
+    }
+    impl<'a> Event<'a> {
+        #[doc = "Get the opcode number of this message"]
+        pub fn opcode(&self) -> u16 {
+            match *self {
+                Event::Global { .. } => 0u16,
+                Event::GlobalRemove { .. } => 1u16,
+                Event::__phantom_lifetime { never, .. } => match never {},
+            }
+        }
+    }
+    #[doc = "global registry object\n\nThe singleton global registry object.  The server has a number of\nglobal objects that are available to all clients.  These objects\ntypically represent an actual object in the server (for example,\nan input device) or they are singleton objects that provide\nextension functionality.\n\nWhen a client creates a registry object, the registry object\nwill emit a global event for each global currently in the\nregistry.  Globals come and go as a result of device or\nmonitor hotplugs, reconfiguration or other events, and the\nregistry will send out global and global_remove events to\nkeep the client up to date with the changes.  To mark the end\nof the initial burst of events, the client can use the\nwl_display.sync request immediately after calling\nwl_display.get_registry.\n\nA client can bind to a global object by using the bind\nrequest.  This creates a client-side handle that lets the object\nemit events to the client and lets the client invoke requests on\nthe object.\n\nSee also the [Request] enum for this interface."]
+    #[derive(Debug, Clone)]
+    pub struct WlRegistry {
+        id: ObjectId,
+        version: u32,
+        data: Option<Arc<dyn std::any::Any + Send + Sync + 'static>>,
+        handle: WeakHandle,
+    }
+    impl std::cmp::PartialEq for WlRegistry {
+        #[inline]
+        fn eq(&self, other: &WlRegistry) -> bool {
+            self.id == other.id
+        }
+    }
+    impl std::cmp::Eq for WlRegistry {}
+    impl PartialEq<Weak<WlRegistry>> for WlRegistry {
+        #[inline]
+        fn eq(&self, other: &Weak<WlRegistry>) -> bool {
+            self.id == other.id()
+        }
+    }
+    impl std::borrow::Borrow<ObjectId> for WlRegistry {
+        #[inline]
+        fn borrow(&self) -> &ObjectId {
+            &self.id
+        }
+    }
+    impl std::hash::Hash for WlRegistry {
+        #[inline]
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state)
+        }
+    }
+    impl super::wayland_server::Resource for WlRegistry {
+        type Request = Request;
+        type Event<'event> = Event<'event>;
+        #[inline]
+        fn interface() -> &'static Interface {
+            &super::WL_REGISTRY_INTERFACE
+        }
+        #[inline]
+        fn id(&self) -> ObjectId {
+            self.id.clone()
+        }
+        #[inline]
+        fn version(&self) -> u32 {
+            self.version
+        }
+        #[inline]
+        fn data<U: 'static>(&self) -> Option<&U> {
+            self.data
+                .as_ref()
+                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
+                .map(|data| &data.udata)
+        }
+        #[inline]
+        fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
+            self.data.as_ref()
+        }
+        fn handle(&self) -> &WeakHandle {
+            &self.handle
+        }
+        #[inline]
+        fn from_id(conn: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId> {
+            if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
+                return Err(InvalidId);
+            }
+            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(id.clone()).ok();
+            Ok(WlRegistry { id, data, version, handle: conn.backend_handle().downgrade() })
+        }
+        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
+            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
+            handle.send_event(self, evt)
+        }
+        fn parse_request(
+            conn: &DisplayHandle,
+            msg: Message<ObjectId, OwnedFd>,
+        ) -> Result<(Self, Self::Request), DispatchError> {
+            unimplemented!("`wl_registry` is implemented internally in `wayland-server`")
+        }
+        fn write_event<'a>(
+            &self,
+            conn: &DisplayHandle,
+            msg: Self::Event<'a>,
+        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+            match msg {
+                Event::Global { name, interface, version } => Ok(Message {
+                    sender_id: self.id.clone(),
+                    opcode: 0u16,
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(name));
+                        vec.push(Argument::Str(Some(Box::new(
+                            std::ffi::CString::new(interface).unwrap(),
+                        ))));
+                        vec.push(Argument::Uint(version));
+                        vec
+                    },
+                }),
+                Event::GlobalRemove { name } => Ok(Message {
+                    sender_id: self.id.clone(),
+                    opcode: 1u16,
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(name));
+                        vec
+                    },
+                }),
+                Event::__phantom_lifetime { never, .. } => match never {},
+            }
+        }
+        fn __set_object_data(
+            &mut self,
+            odata: std::sync::Arc<dyn std::any::Any + Send + Sync + 'static>,
+        ) {
+            self.data = Some(odata);
+        }
+    }
+    impl WlRegistry {
+        #[doc = "announce global object\n\nNotify the client of global objects.\n\nThe event notifies the client that a global object with\nthe given name is now available, and it implements the\ngiven version of the given interface."]
+        #[allow(clippy::too_many_arguments)]
+        pub fn global(&self, name: u32, interface: String, version: u32) {
+            let _ = self.send_event(Event::Global { name, interface, version });
+        }
+        #[doc = "announce removal of global object\n\nNotify the client of removed global objects.\n\nThis event notifies the client that the global identified\nby name is no longer available.  If the client bound to\nthe global using the bind request, the client should now\ndestroy that object.\n\nThe object remains valid and requests to the object will be\nignored until the client destroys it, to avoid races between\nthe global going away and a client sending a request to it."]
+        #[allow(clippy::too_many_arguments)]
+        pub fn global_remove(&self, name: u32) {
+            let _ = self.send_event(Event::GlobalRemove { name });
+        }
+    }
+}
 #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done."]
 pub mod wl_callback {
     use super::wayland_server::{
