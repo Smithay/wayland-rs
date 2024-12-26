@@ -8,6 +8,7 @@ use crate::types::server::{GlobalInfo, InvalidId};
 
 use super::{
     client::{Client, ClientStore},
+    handle::PendingDestructor,
     ClientId, GlobalHandler, GlobalId, InnerGlobalId, InnerObjectId, ObjectId,
 };
 
@@ -127,9 +128,17 @@ impl<D> Registry<D> {
         Some((target_global.interface, target_global.id.clone(), target_global.handler.clone()))
     }
 
-    pub(crate) fn cleanup(&mut self, dead_clients: &[Client<D>]) {
-        self.known_registries
-            .retain(|obj_id| !dead_clients.iter().any(|cid| cid.id == obj_id.client_id))
+    pub(crate) fn cleanup(
+        &mut self,
+        dead_clients: &[Client<D>],
+        pending_destructors: &[PendingDestructor<D>],
+    ) {
+        // Remote registries with client id matching any dead clients, or object
+        // id matching pending destructors.
+        self.known_registries.retain(|obj_id| {
+            !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
+                && !pending_destructors.iter().any(|(_, _, id)| id == obj_id)
+        })
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
