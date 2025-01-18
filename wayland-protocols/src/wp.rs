@@ -126,15 +126,23 @@ pub mod idle_inhibit {
     }
 }
 
-#[cfg(feature = "unstable")]
 pub mod input_method {
     //! Input method protocol
 
     /// Unstable version 1
+    #[cfg(feature = "unstable")]
     pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/input-method/input-method-unstable-v1.xml",
             []
+        );
+    }
+    /// Staging version 3
+    #[cfg(feature = "staging")]
+    pub mod v3 {
+        wayland_protocol!(
+            "./protocols/staging/input-method/input-method-v3.xml",
+            [crate::wp::text_input::v3, crate::xdg::shell]
         );
     }
 }
@@ -441,11 +449,11 @@ pub mod tablet {
     }
 }
 
-#[cfg(feature = "unstable")]
 pub mod text_input {
     //! Text input protocol
 
     /// Unstable version 1
+    #[cfg(feature = "unstable")]
     pub mod zv1 {
         wayland_protocol!(
             "./protocols/unstable/text-input/text-input-unstable-v1.xml",
@@ -454,9 +462,19 @@ pub mod text_input {
     }
 
     /// Unstable version 3
+    #[cfg(feature = "unstable")]
     pub mod zv3 {
         wayland_protocol!(
             "./protocols/unstable/text-input/text-input-unstable-v3.xml",
+            []
+        );
+    }
+
+    /// Staging version 3.2
+    #[cfg(feature = "staging")]
+    pub mod v3 {
+        wayland_protocol!(
+            "./protocols/staging/text-input/text-input-v3.xml",
             []
         );
     }
