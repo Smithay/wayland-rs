@@ -47,7 +47,7 @@ external_library!(WaylandClient, "wayland-client",
     // proxys
         fn wl_proxy_create(*mut wl_proxy, *const wl_interface) -> *mut wl_proxy,
         fn wl_proxy_destroy(*mut wl_proxy) -> (),
-        fn wl_proxy_add_listener(*mut wl_proxy, *mut extern fn(), *mut c_void) -> c_int,
+        fn wl_proxy_add_listener(*mut wl_proxy, *mut extern "C" fn(), *mut c_void) -> c_int,
         fn wl_proxy_get_listener(*mut wl_proxy) -> *const c_void,
         fn wl_proxy_add_dispatcher(*mut wl_proxy, wl_dispatcher_func_t, *const c_void, *mut c_void) -> c_int,
         fn wl_proxy_marshal_array_constructor(*mut wl_proxy, u32, *mut wl_argument, *const wl_interface) -> *mut wl_proxy,
