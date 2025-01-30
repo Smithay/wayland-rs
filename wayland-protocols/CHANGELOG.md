@@ -6,6 +6,8 @@
   - New staging protocols:
     * `ext-data-control-v1`
     * `ext-workspace-v1`
+- Bump wayland-protocols to 1.40
+  - `ext-idle-notify-v1` version 2 adds a way to ignore idle inhibitors
 
 ## 0.32.5 -- 2024-10-23
 
