@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_SLIDE_INTERFACE","ORG_KDE_KWIN_SLIDE_MANAGER_INTERFACE","org_kde_kwin_slide_interface","org_kde_kwin_slide_manager_interface"]};

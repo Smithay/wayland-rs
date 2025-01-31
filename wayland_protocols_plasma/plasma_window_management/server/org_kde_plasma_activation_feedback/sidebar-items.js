@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_ACTIVATION_OPCODE","EVT_ACTIVATION_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE"],"enum":["Event","Request"],"struct":["OrgKdePlasmaActivationFeedback"]};
