@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.32.6 -- 2025-01-31
+
 - Bump wayland-protocols to 1.39
   - New staging protocols:
     * `ext-data-control-v1`
