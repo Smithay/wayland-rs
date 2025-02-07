@@ -211,7 +211,7 @@ use std::{
 ///
 /// This module is automatically generated from the `wayland.xml` protocol specification,
 /// and contains the interface definitions for the core Wayland protocol.
-#[allow(missing_docs)]
+#[allow(missing_docs, deprecated)]
 pub mod protocol {
     use self::__interfaces::*;
     use crate as wayland_client;
