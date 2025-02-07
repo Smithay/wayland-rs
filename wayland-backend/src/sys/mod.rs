@@ -5,7 +5,6 @@ use std::sync::Arc;
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
 
-use crate::client::{ObjectData, ObjectId};
 use crate::protocol::{ArgumentType, Interface};
 
 #[cfg(any(test, feature = "client_system"))]
@@ -37,6 +36,8 @@ unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
 #[cfg(any(test, feature = "client_system"))]
 #[path = "../client_api.rs"]
 pub mod client;
+#[cfg(any(test, feature = "client_system"))]
+use client::{ObjectData, ObjectId};
 
 // API complements for FFI
 
