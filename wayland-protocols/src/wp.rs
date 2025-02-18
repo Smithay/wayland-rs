@@ -17,6 +17,58 @@ pub mod content_type {
 }
 
 #[cfg(feature = "staging")]
+pub mod color_management {
+    //! The aim of the color management extension is to allow clients to know
+    //! the color properties of outputs, and to tell the compositor about the color
+    //! properties of their content on surfaces. Doing this enables a compositor
+    //! to perform automatic color management of content for different outputs
+    //! according to how content is intended to look like.
+    //!
+    //! The color properties are represented as an image description object which
+    //! is immutable after it has been created. A wl_output always has an
+    //! associated image description that clients can observe. A wl_surface
+    //! always has an associated preferred image description as a hint chosen by
+    //! the compositor that clients can also observe. Clients can set an image
+    //! description on a wl_surface to denote the color characteristics of the
+    //! surface contents.
+    //!
+    //! An image description includes SDR and HDR colorimetry and encoding, HDR
+    //! metadata, and viewing environment parameters. An image description does
+    //! not include the properties set through color-representation extension.
+    //! It is expected that the color-representation extension is used in
+    //! conjunction with the color management extension when necessary,
+    //! particularly with the YUV family of pixel formats.
+    //!
+    //! Recommendation ITU-T H.273
+    //! "Coding-independent code points for video signal type identification"
+    //! shall be referred to as simply H.273 here.
+    //!
+    //! The color-and-hdr repository
+    //! (<https://gitlab.freedesktop.org/pq/color-and-hdr>) contains
+    //! background information on the protocol design and legacy color management.
+    //! It also contains a glossary, learning resources for digital color, tools,
+    //! samples and more.
+    //!
+    //! The terminology used in this protocol is based on common color science and
+    //! color encoding terminology where possible. The glossary in the color-and-hdr
+    //! repository shall be the authority on the definition of terms in this
+    //! protocol.
+    //!
+    //! Warning! The protocol described in this file is currently in the testing
+    //! phase. Backward compatible changes may be added together with the
+    //! corresponding interface version bump. Backward incompatible changes can
+    //! only be done by creating a new major version of the extension.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/color-management/color-management-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
 pub mod drm_lease {
     //! This protocol is used by Wayland compositors which act as Direct
     //! Renderering Manager (DRM) masters to lease DRM resources to Wayland
