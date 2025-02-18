@@ -8,7 +8,7 @@ env:
 task:
   only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_PR != ''
   matrix:
-    - name: FreeBSD 13.2
+    - name: FreeBSD 13.4
       freebsd_instance:
         image_family: freebsd-13-4-snap
  # Install Rust
