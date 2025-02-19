@@ -13,6 +13,9 @@
   * `keystate` version 5
   * `plasma-window-management` version 18
   * `zkde-screencast-unstable-v1` version 4
+- Add bindings that were missing
+  * `kde-lockscreen-overlay-v1`
+  * `kde-output-order-v1`
 
 ## 0.3.0 -- 2024-05-30
 

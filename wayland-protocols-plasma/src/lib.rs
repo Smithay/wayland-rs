@@ -79,6 +79,15 @@ pub mod keystate {
     );
 }
 
+pub mod lockscreen_overlay {
+    pub mod v1 {
+        wayland_protocol!(
+            "./plasma-wayland-protocols/src/protocols/kde-lockscreen-overlay-v1.xml",
+            []
+        );
+    }
+}
+
 pub mod output_device {
     pub mod v1 {
         wayland_protocol!(
@@ -107,6 +116,15 @@ pub mod output_management {
         wayland_protocol!(
             "./plasma-wayland-protocols/src/protocols/kde-output-management-v2.xml",
             [crate::output_device::v2]
+        );
+    }
+}
+
+pub mod output_order {
+    pub mod v1 {
+        wayland_protocol!(
+            "./plasma-wayland-protocols/src/protocols/kde-output-order-v1.xml",
+            []
         );
     }
 }
