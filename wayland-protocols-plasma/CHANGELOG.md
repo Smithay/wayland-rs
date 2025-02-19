@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Update plasma-wayland-protocols to 1.16.0
+  * New protocols:
+    - `kde-external-brightness-v1`
+    - `kde-screen-edge-v1`
+  * `appmenu` verison 2
+  * `fake-input` version 5
+  * `kde-output-device-v2` version 11
+  * `kde-output-management-v2` version 12
+  * `keystate` version 5
+  * `plasma-window-management` version 18
+  * `zkde-screencast-unstable-v1` version 4
+
 ## 0.3.0 -- 2024-05-30
 
 ### Breaking changes
