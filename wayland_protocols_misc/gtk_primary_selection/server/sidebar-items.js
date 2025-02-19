@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","gtk_primary_selection_device","gtk_primary_selection_device_manager","gtk_primary_selection_offer","gtk_primary_selection_source"]};

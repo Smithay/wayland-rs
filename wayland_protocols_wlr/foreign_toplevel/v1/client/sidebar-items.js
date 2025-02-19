@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","zwlr_foreign_toplevel_handle_v1","zwlr_foreign_toplevel_manager_v1"]};
