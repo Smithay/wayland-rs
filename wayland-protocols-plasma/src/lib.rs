@@ -111,16 +111,6 @@ pub mod output_management {
     }
 }
 
-
-pub mod primary_output {
-    pub mod v1 {
-        wayland_protocol!(
-            "./plasma-wayland-protocols/src/protocols/kde-primary-output-v1.xml",
-            []
-        );
-    }
-}
-
 pub mod plasma_shell {
     wayland_protocol!(
         "./plasma-wayland-protocols/src/protocols/plasma-shell.xml",
@@ -140,6 +130,15 @@ pub mod plasma_window_management {
         "./plasma-wayland-protocols/src/protocols/plasma-window-management.xml",
         []
     );
+}
+
+pub mod primary_output {
+    pub mod v1 {
+        wayland_protocol!(
+            "./plasma-wayland-protocols/src/protocols/kde-primary-output-v1.xml",
+            []
+        );
+    }
 }
 
 pub mod remote_access {
