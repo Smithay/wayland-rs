@@ -65,7 +65,7 @@ use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::{self, Format, WlShm};
 use wayland_client::protocol::wl_shm_pool::{self, WlShmPool};
-use wayland_client::{Connection, Proxy, WEnum};
+use wayland_client::{Connection, Proxy};
 
 use xcursor::CursorTheme as XCursorTheme;
 use xcursor::parser as xparser;
@@ -379,7 +379,7 @@ impl CursorImageBuffer {
                     width: image.width as i32,
                     height: image.height as i32,
                     stride: (image.width * 4) as i32,
-                    format: WEnum::Value(Format::Argb8888),
+                    format: Format::Argb8888,
                 },
                 Some(Arc::new(IgnoreObjectData)),
             )

@@ -58,7 +58,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use super::wayland_client::{
                 backend::{
                     Backend, WeakBackend, smallvec, ObjectData, ObjectId, InvalidId,
-                    protocol::{WEnum, Argument, Message, Interface, same_interface}
+                    protocol::{Argument, Message, Interface, same_interface}
                 },
                 QueueProxyData, Proxy, Connection, Dispatch, QueueHandle, DispatchError, Weak,
             };
@@ -215,7 +215,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
         let enum_args = request.args.iter().flat_map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
             if arg.enum_.is_some() {
-                Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+                Some(quote! { #arg_name: #arg_name })
             } else if arg.typ == Type::NewId {
                 if arg.interface.is_none() {
                     Some(quote! { #arg_name: (I::interface(), version) })

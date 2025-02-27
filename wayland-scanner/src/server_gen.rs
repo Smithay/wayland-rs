@@ -67,7 +67,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use super::wayland_server::{
                 backend::{
                     smallvec, ObjectData, ObjectId, InvalidId, WeakHandle,
-                    protocol::{WEnum, Argument, Message, Interface, same_interface}
+                    protocol::{Argument, Message, Interface, same_interface}
                 },
                 Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New, Weak,
             };
@@ -241,7 +241,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 let arg_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 if arg.enum_.is_some() {
-                    Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+                    Some(quote! { #arg_name: #arg_name })
                 } else if arg.typ == Type::Object || arg.typ == Type::NewId {
                     if arg.allow_null {
                         Some(quote! { #arg_name: #arg_name.cloned() })
