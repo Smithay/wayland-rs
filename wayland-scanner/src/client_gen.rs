@@ -26,12 +26,14 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         Side::Client,
         false,
         &interface.requests,
+        &interface.enums,
     );
     let events = crate::common::gen_message_enum(
         &format_ident!("Event"),
         Side::Client,
         true,
         &interface.events,
+        &interface.enums,
     );
 
     let parse_body = crate::common::gen_parse_body(interface, Side::Client);
@@ -232,8 +234,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
 
         let enum_args = request.args.iter().flat_map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-            if arg.enum_.is_some() {
-                Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+            if let Some(ref enu) = arg.enum_ {
+                let is_bitfield = interface.enums.iter().find(|i| i.name == *enu).is_some_and(|e| e.bitfield);
+                Some(if is_bitfield {
+                    quote! { #arg_name: #arg_name }
+                } else {
+                    quote! { #arg_name: WEnum::Value(#arg_name) }
+                })
             } else if arg.typ == Type::NewId {
                 if arg.interface.is_none() {
                     Some(quote! { #arg_name: (I::interface(), version) })
