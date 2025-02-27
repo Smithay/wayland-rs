@@ -2,7 +2,7 @@
 pub mod wl_display {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -10,18 +10,35 @@ pub mod wl_display {
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
-    #[repr(u32)]
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[non_exhaustive]
-    pub enum Error {
+    pub struct Error(pub u32);
+    impl Error {
         #[doc = "server couldn't find object"]
-        InvalidObject = 0,
+        pub const InvalidObject: Self = Self(0);
         #[doc = "method doesn't exist on the specified interface or malformed request"]
-        InvalidMethod = 1,
+        pub const InvalidMethod: Self = Self(1);
         #[doc = "server is out of memory"]
-        NoMemory = 2,
+        pub const NoMemory: Self = Self(2);
         #[doc = "implementation error in compositor"]
-        Implementation = 3,
+        pub const Implementation: Self = Self(3);
+    }
+    impl std::fmt::Debug for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match *self {
+                Self::InvalidObject => write!(f, "{}", stringify!(InvalidObject)),
+                Self::InvalidMethod => write!(f, "{}", stringify!(InvalidMethod)),
+                Self::NoMemory => write!(f, "{}", stringify!(NoMemory)),
+                Self::Implementation => write!(f, "{}", stringify!(Implementation)),
+                Self(unknown) => write!(f, "{}({})", stringify!(Error), unknown),
+            }
+        }
+    }
+    impl Error {
+        #[doc(hidden)]
+        pub fn from_bits_retain(bits: u32) -> Self {
+            Error(bits)
+        }
     }
     impl std::convert::TryFrom<u32> for Error {
         type Error = ();
@@ -37,7 +54,7 @@ pub mod wl_display {
     }
     impl std::convert::From<Error> for u32 {
         fn from(val: Error) -> u32 {
-            val as u32
+            val.0
         }
     }
     #[doc = r" The minimal object version supporting this request"]
@@ -300,7 +317,7 @@ pub mod wl_display {
 pub mod wl_registry {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -541,7 +558,7 @@ pub mod wl_registry {
 pub mod wl_callback {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -696,7 +713,7 @@ pub mod wl_callback {
 pub mod test_global {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -1263,7 +1280,7 @@ pub mod test_global {
 pub mod secondary {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -1417,7 +1434,7 @@ pub mod secondary {
 pub mod tertiary {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
@@ -1571,7 +1588,7 @@ pub mod tertiary {
 pub mod quad {
     use super::wayland_client::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,

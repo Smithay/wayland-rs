@@ -1,7 +1,7 @@
 use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
-    Connection, Dispatch, NoopIgnore, QueueHandle, WEnum,
+    Connection, Dispatch, NoopIgnore, QueueHandle,
     protocol::{wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_surface},
 };
 
@@ -198,7 +198,7 @@ impl Dispatch<wl_seat::WlSeat, State> for GlobalData {
         _: &Connection,
         qh: &QueueHandle<State>,
     ) {
-        if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event {
+        if let wl_seat::Event::Capabilities { capabilities } = event {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
                 seat.get_keyboard(qh, GlobalData);
             }

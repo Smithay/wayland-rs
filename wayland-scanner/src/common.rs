@@ -74,17 +74,36 @@ impl ToTokens for Enum {
 
                 quote! {
                     #doc_attr
-                    #variant = #value
+                    pub const #variant: Self = Self(#value);
+                }
+            });
+
+            let fmts = self.entries.iter().map(|entry| {
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
+                let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
+
+                quote! {
+                    Self::#variant => write!(f, "{}", stringify!(#variant)),
                 }
             });
 
             enum_decl = quote! {
                 #doc_attr
-                #[repr(u32)]
-                #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+                #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
                 #[non_exhaustive]
-                pub enum #ident {
-                    #(#variants,)*
+                pub struct #ident(pub u32);
+
+                impl #ident {
+                    #(#variants)*
+                }
+
+                impl std::fmt::Debug for #ident {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        match *self {
+                            #(#fmts)*
+                            Self(unknown) => write!(f, "{}({})", stringify!(#ident), unknown)
+                        }
+                    }
                 }
             };
 
@@ -99,7 +118,16 @@ impl ToTokens for Enum {
                 }
             });
 
+            // `from_bits_retain` is used so generated code can work for either enum or bitflags.
+            // But can be hidden; application code can just use enum name to construct.
             enum_impl = quote! {
+                impl #ident {
+                    #[doc(hidden)]
+                    pub fn from_bits_retain(bits: u32) -> Self {
+                        #ident(bits)
+                    }
+                }
+
                 impl std::convert::TryFrom<u32> for #ident {
                     type Error = ();
                     fn try_from(val: u32) -> Result<#ident, ()> {
@@ -111,7 +139,7 @@ impl ToTokens for Enum {
                 }
                 impl std::convert::From<#ident> for u32 {
                     fn from(val: #ident) -> u32 {
-                        val as u32
+                        val.0
                     }
                 }
             };
@@ -190,8 +218,7 @@ pub(crate) fn gen_message_enum(
                 let field_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
-                    let enum_type = enum_relname(enum_ref);
-                    quote! { WEnum<#enum_type> }
+                    enum_relname(enum_ref)
                 } else {
                     match arg.typ {
                         Type::Uint => quote! { u32 },
@@ -374,8 +401,9 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         let arg_names = msg.args.iter().map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-            if arg.enum_.is_some() {
-                quote! { #arg_name: From::from(#arg_name as u32) }
+            if let Some(enum_ref) = &arg.enum_ {
+                let enum_ident = enum_relname(enum_ref);
+                quote! { #arg_name: #enum_ident::from_bits_retain(#arg_name as u32) }
             } else {
                 match arg.typ {
                     Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name },
