@@ -7,6 +7,7 @@
 - Wrap `wl_interface` so `wayland-sys` can be a private, optional dependency
   * (This API is generally used internally by `wayland-scanner`)
 - Return `NonNull` from `as_ptr()`
+- Remove `WEnum`
 
 ## 0.3.15 -- 2026-03-30
 

@@ -191,8 +191,6 @@ pub mod backend {
     pub use wayland_backend::smallvec;
 }
 
-pub use wayland_backend::protocol::WEnum;
-
 pub use conn::{ConnectError, Connection};
 pub use event_queue::{
     Dispatch, EventQueue, Noop, NoopIgnore, QueueFreezeGuard, QueueHandle, QueueProxyData,
