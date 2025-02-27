@@ -65,6 +65,29 @@ pub struct EnumRef {
     pub name: String,
 }
 
+impl EnumRef {
+    pub fn find_enum_or_panic<'a>(
+        &self,
+        protocol: &'a Protocol,
+        current_interface: &'a Interface,
+    ) -> &'a Enum {
+        let interface = if let Some(interface_name) = &self.interface {
+            protocol
+                .interfaces
+                .iter()
+                .find(|i| i.name == *interface_name)
+                .unwrap_or_else(|| panic!("Failed to find interface '{}'", interface_name))
+        } else {
+            current_interface
+        };
+        interface
+            .enums
+            .iter()
+            .find(|i| i.name == self.name)
+            .unwrap_or_else(|| panic!("Failed to find enum '{}'", self.name))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Arg {
     pub name: String,

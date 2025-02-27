@@ -155,6 +155,8 @@ pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> Tok
 }
 
 pub(crate) fn gen_message_enum(
+    protocol: &Protocol,
+    interface: &Interface,
     name: &Ident,
     side: Side,
     receiver: bool,
@@ -182,98 +184,107 @@ pub(crate) fn gen_message_enum(
 
             let doc_attr = to_doc_attr(&docs);
             let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
-            let msg_variant_decl =
-                if msg.args.is_empty() {
-                    msg_name.into_token_stream()
-                } else {
-                    let fields = msg.args.iter().flat_map(|arg| {
-                let field_name =
-                    format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-                let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
-                    let enum_type = enum_relname(enum_ref);
-                    quote! { WEnum<#enum_type> }
-                } else {
-                    match arg.typ {
-                        Type::Uint => quote! { u32 },
-                        Type::Int => quote! { i32 },
-                        Type::Fixed => quote! { f64 },
-                        Type::String => quote! { String },
-                        Type::Array => quote! { Vec<u8> },
-                        Type::Fd => {
-                            if receiver {
-                                quote! { OwnedFd }
-                            } else {
-                                quote! { std::os::unix::io::BorrowedFd<'a> }
-                            }
+            let msg_variant_decl = if msg.args.is_empty() {
+                msg_name.into_token_stream()
+            } else {
+                let fields = msg.args.iter().flat_map(|arg| {
+                    let field_name = format_ident!(
+                        "{}{}",
+                        if is_keyword(&arg.name) { "_" } else { "" },
+                        arg.name
+                    );
+                    let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
+                        let enum_ = enum_ref.find_enum_or_panic(protocol, interface);
+                        let enum_type = enum_relname(enum_ref);
+                        if enum_.bitfield {
+                            enum_type
+                        } else {
+                            quote! { WEnum<#enum_type> }
                         }
-                        Type::Object => {
-                            if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(iface, Span::call_site());
-                                let iface_type =
-                                    Ident::new(&snake_to_camel(iface), Span::call_site());
-                                quote! { super::#iface_mod::#iface_type }
-                            } else if side == Side::Client {
-                                quote! { super::wayland_client::ObjectId }
-                            } else {
-                                quote! { super::wayland_server::ObjectId }
-                            }
-                        }
-                        Type::NewId if !receiver && side == Side::Client => {
-                            // Client-side sending does not have a pre-existing object
-                            // so skip serializing it
-                            if arg.interface.is_some() {
-                                return None;
-                            } else {
-                                quote! { (&'static Interface, u32) }
-                            }
-                        }
-                        Type::NewId => {
-                            if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(iface, Span::call_site());
-                                let iface_type =
-                                    Ident::new(&snake_to_camel(iface), Span::call_site());
-                                if receiver && side == Side::Server {
-                                    quote! { New<super::#iface_mod::#iface_type> }
+                    } else {
+                        match arg.typ {
+                            Type::Uint => quote! { u32 },
+                            Type::Int => quote! { i32 },
+                            Type::Fixed => quote! { f64 },
+                            Type::String => quote! { String },
+                            Type::Array => quote! { Vec<u8> },
+                            Type::Fd => {
+                                if receiver {
+                                    quote! { OwnedFd }
                                 } else {
+                                    quote! { std::os::unix::io::BorrowedFd<'a> }
+                                }
+                            }
+                            Type::Object => {
+                                if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type =
+                                        Ident::new(&snake_to_camel(iface), Span::call_site());
                                     quote! { super::#iface_mod::#iface_type }
-                                }
-                            } else {
-                                // bind-like function
-                                if side == Side::Client {
-                                    quote! { (String, u32, super::wayland_client::ObjectId) }
+                                } else if side == Side::Client {
+                                    quote! { super::wayland_client::ObjectId }
                                 } else {
-                                    quote! { (String, u32, super::wayland_server::ObjectId) }
+                                    quote! { super::wayland_server::ObjectId }
                                 }
                             }
+                            Type::NewId if !receiver && side == Side::Client => {
+                                // Client-side sending does not have a pre-existing object
+                                // so skip serializing it
+                                if arg.interface.is_some() {
+                                    return None;
+                                } else {
+                                    quote! { (&'static Interface, u32) }
+                                }
+                            }
+                            Type::NewId => {
+                                if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type =
+                                        Ident::new(&snake_to_camel(iface), Span::call_site());
+                                    if receiver && side == Side::Server {
+                                        quote! { New<super::#iface_mod::#iface_type> }
+                                    } else {
+                                        quote! { super::#iface_mod::#iface_type }
+                                    }
+                                } else {
+                                    // bind-like function
+                                    if side == Side::Client {
+                                        quote! { (String, u32, super::wayland_client::ObjectId) }
+                                    } else {
+                                        quote! { (String, u32, super::wayland_server::ObjectId) }
+                                    }
+                                }
+                            }
+                            Type::Destructor => {
+                                panic!("An argument cannot have type \"destructor\".")
+                            }
                         }
-                        Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+                    };
+
+                    let field_type = if arg.allow_null {
+                        quote! { Option<#field_type_inner> }
+                    } else {
+                        field_type_inner.into_token_stream()
+                    };
+
+                    let doc_attr = arg
+                        .description
+                        .as_ref()
+                        .map(description_to_doc_attr)
+                        .or_else(|| arg.summary.as_ref().map(|s| to_doc_attr(s)));
+
+                    Some(quote! {
+                        #doc_attr
+                        #field_name: #field_type
+                    })
+                });
+
+                quote! {
+                    #msg_name {
+                        #(#fields,)*
                     }
-                };
-
-                let field_type = if arg.allow_null {
-                    quote! { Option<#field_type_inner> }
-                } else {
-                    field_type_inner.into_token_stream()
-                };
-
-                let doc_attr = arg
-                    .description
-                    .as_ref()
-                    .map(description_to_doc_attr)
-                    .or_else(|| arg.summary.as_ref().map(|s| to_doc_attr(s)));
-
-                Some(quote! {
-                    #doc_attr
-                    #field_name: #field_type
-                })
-            });
-
-                    quote! {
-                        #msg_name {
-                            #(#fields,)*
-                        }
-                    }
-                };
+                }
+            };
 
             quote! {
                 #doc_attr
@@ -329,7 +340,11 @@ pub(crate) fn gen_message_enum(
     }
 }
 
-pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
+pub(crate) fn gen_parse_body(
+    protocol: &Protocol,
+    interface: &Interface,
+    side: Side,
+) -> TokenStream {
     let msgs = match side {
         Side::Client => &interface.events,
         Side::Server => &interface.requests,
@@ -374,8 +389,13 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         let arg_names = msg.args.iter().map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-            if arg.enum_.is_some() {
-                quote! { #arg_name: From::from(#arg_name as u32) }
+            if let Some(enum_ref) = &arg.enum_ {
+                let enum_ = enum_ref.find_enum_or_panic(protocol, interface);
+                if enum_.bitfield {
+                    quote! { #arg_name: bitflags::Flags::from_bits_retain(#arg_name as u32) }
+                } else {
+                    quote! { #arg_name: From::from(#arg_name as u32) }
+                }
             } else {
                 match arg.typ {
                     Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name },

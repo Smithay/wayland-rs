@@ -13,11 +13,11 @@ pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {
         .interfaces
         .iter()
         .filter(|iface| iface.name != "wl_display")
-        .map(generate_objects_for)
+        .map(|i| generate_objects_for(protocol, i))
         .collect()
 }
 
-fn generate_objects_for(interface: &Interface) -> TokenStream {
+fn generate_objects_for(protocol: &Protocol, interface: &Interface) -> TokenStream {
     let mod_name = Ident::new(&interface.name, Span::call_site());
     let mod_doc = interface.description.as_ref().map(description_to_doc_attr);
     let iface_name = Ident::new(&snake_to_camel(&interface.name), Span::call_site());
@@ -27,12 +27,16 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let msg_constants = crate::common::gen_msg_constants(&interface.requests, &interface.events);
 
     let requests = crate::common::gen_message_enum(
+        protocol,
+        interface,
         &format_ident!("Request"),
         Side::Server,
         true,
         &interface.requests,
     );
     let events = crate::common::gen_message_enum(
+        protocol,
+        interface,
         &format_ident!("Event"),
         Side::Server,
         false,
@@ -42,10 +46,10 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let parse_body = if interface.name == "wl_registry" {
         quote! { unimplemented!("`wl_registry` is implemented internally in `wayland-server`") }
     } else {
-        crate::common::gen_parse_body(interface, Side::Server)
+        crate::common::gen_parse_body(protocol, interface, Side::Server)
     };
     let write_body = crate::common::gen_write_body(interface, Side::Server);
-    let methods = gen_methods(interface);
+    let methods = gen_methods(protocol, interface);
 
     let event_ref = if interface.requests.is_empty() {
         "This interface has no requests."
@@ -179,7 +183,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     }
 }
 
-fn gen_methods(interface: &Interface) -> TokenStream {
+fn gen_methods(protocol: &Protocol, interface: &Interface) -> TokenStream {
     interface
         .events
         .iter()
@@ -240,8 +244,13 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             let enum_args = request.args.iter().flat_map(|arg| {
                 let arg_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-                if arg.enum_.is_some() {
-                    Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+                if let Some(enum_ref) = &arg.enum_ {
+                    let enum_ = enum_ref.find_enum_or_panic(protocol, interface);
+                    Some(if enum_.bitfield {
+                        quote! { #arg_name: #arg_name }
+                    } else {
+                        quote! { #arg_name: WEnum::Value(#arg_name) }
+                    })
                 } else if arg.typ == Type::Object || arg.typ == Type::NewId {
                     if arg.allow_null {
                         Some(quote! { #arg_name: #arg_name.cloned() })
