@@ -300,7 +300,7 @@ impl<D> Client<D> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub(crate) fn get_credentials(&self) -> Credentials {
         let creds =
-            rustix::net::sockopt::get_socket_peercred(&self.socket).expect("getsockopt failed!?");
+            rustix::net::sockopt::socket_peercred(&self.socket).expect("getsockopt failed!?");
         let pid = rustix::process::Pid::as_raw(Some(creds.pid));
         Credentials { pid, uid: creds.uid.as_raw(), gid: creds.gid.as_raw() }
     }
