@@ -59,7 +59,7 @@ use rustix::fs::Mode;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use rustix::fs::{memfd_create, MemfdFlags};
 use rustix::io::Errno;
-use rustix::shm::{shm_open, shm_unlink, ShmOFlags};
+use rustix::shm;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use std::ffi::CStr;
 
@@ -457,12 +457,12 @@ fn create_shm_fd() -> IoResult<OwnedFd> {
         sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
     );
     loop {
-        match shm_open(
+        match shm::open(
             mem_file_handle.as_str(),
-            ShmOFlags::CREATE | ShmOFlags::EXCL | ShmOFlags::RDWR,
+            shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR,
             Mode::RUSR | Mode::WUSR,
         ) {
-            Ok(fd) => match shm_unlink(mem_file_handle.as_str()) {
+            Ok(fd) => match shm::unlink(mem_file_handle.as_str()) {
                 Ok(_) => return Ok(fd),
                 Err(errno) => return Err(IoError::from(errno)),
             },
