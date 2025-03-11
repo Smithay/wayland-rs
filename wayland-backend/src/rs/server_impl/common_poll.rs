@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use rustix::event::epoll;
+use rustix::event::{epoll, Timespec};
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -84,8 +84,8 @@ impl<D> InnerBackend<D> {
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = epoll::EventVec::with_capacity(32);
-            epoll::wait(poll_fd.as_fd(), &mut events, 0)?;
+            let mut events = Vec::<epoll::Event>::with_capacity(32);
+            epoll::wait(poll_fd.as_fd(), &mut events, Some(&Timespec::default()))?;
 
             if events.is_empty() {
                 break;
