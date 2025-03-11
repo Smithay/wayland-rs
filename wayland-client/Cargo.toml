@@ -16,7 +16,7 @@ readme = "README.md"
 wayland-backend = { version = "0.3.10", path = "../wayland-backend" }
 wayland-scanner = { version = "0.31.6", path = "../wayland-scanner" }
 bitflags = "2"
-rustix = { version = "0.38.0", features = ["event"] }
+rustix = { version = "1.0.2", features = ["event"] }
 log = { version = "0.4", optional = true }
 
 [dev-dependencies]

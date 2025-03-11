@@ -224,7 +224,7 @@ pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandErro
     )];
 
     loop {
-        match rustix::event::poll(&mut fds, -1) {
+        match rustix::event::poll(&mut fds, None) {
             Ok(_) => break,
             Err(rustix::io::Errno::INTR) => continue,
             Err(e) => return Err(WaylandError::Io(e.into())),
