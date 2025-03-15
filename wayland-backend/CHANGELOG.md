@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- backend/sys: Prevent send_request being called in parallel with dispatch_pending
+
 #### Additions
 
 - backend/client_sys: `ReadEventsGuard::read_without_dispatch` for just reading the events without dispatch
