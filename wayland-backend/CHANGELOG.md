@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bugfixes
+
+- backend/sys: Prevent send_request being called in parallel with dispatch_pending
+
 ## 0.3.8 -- 2025-01-31
 
 ### Bugfixes
