@@ -205,6 +205,10 @@ impl InnerBackend {
         self.inner.state.lock().unwrap()
     }
 
+    fn lock_dispatcher(&self) -> MutexGuard<Dispatcher> {
+        self.inner.dispatch_lock.lock().unwrap()
+    }
+
     pub fn downgrade(&self) -> WeakInnerBackend {
         WeakInnerBackend { inner: Arc::downgrade(&self.inner) }
     }
@@ -505,6 +509,7 @@ impl InnerBackend {
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
+        let mut dispatch_lock = self.inner.dispatch_lock.lock().unwrap();
         let mut guard = self.lock_state();
         // check that the argument list is valid
         let message_desc = match id.interface.requests.get(opcode as usize) {
@@ -687,7 +692,15 @@ impl InnerBackend {
                 }
             };
 
-            unsafe { self.manage_object_internal(child_interface, ret, data, &mut guard) }
+            unsafe {
+                self.manage_object_internal(
+                    child_interface,
+                    ret,
+                    data,
+                    &mut guard,
+                    &mut dispatch_lock,
+                )
+            }
         } else {
             Self::null_id()
         };
@@ -776,10 +789,11 @@ impl InnerBackend {
         proxy: *mut wl_proxy,
         data: Arc<dyn ObjectData>,
     ) -> ObjectId {
+        let mut guard_dispatch = self.lock_dispatcher();
         let mut guard = self.lock_state();
         unsafe {
             ffi_dispatch!(wayland_client_handle(), wl_proxy_set_queue, proxy, guard.evq);
-            self.manage_object_internal(interface, proxy, data, &mut guard)
+            self.manage_object_internal(interface, proxy, data, &mut guard, &mut guard_dispatch)
         }
     }
 
@@ -792,6 +806,7 @@ impl InnerBackend {
         proxy: *mut wl_proxy,
         data: Arc<dyn ObjectData>,
         guard: &mut MutexGuard<ConnectionState>,
+        _guard_dispatch: &mut MutexGuard<Dispatcher>,
     ) -> ObjectId {
         let alive = Arc::new(AtomicBool::new(true));
         let object_id = ObjectId {
