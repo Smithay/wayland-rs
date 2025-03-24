@@ -5,6 +5,8 @@
 - Bump wayland-protocols to 1.41
   - New staging protocol:
     * `color-management-v1`
+- Bump wayland-protocols to 1.42
+  - New versions of `tablet-v2` and `cursor-shape-v1`
 
 ## 0.32.6 -- 2025-01-31
 
