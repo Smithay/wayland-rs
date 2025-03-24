@@ -23,7 +23,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     let iface_name = Ident::new(&snake_to_camel(&interface.name), Span::call_site());
     let iface_const_name = format_ident!("{}_INTERFACE", interface.name.to_ascii_uppercase());
 
-    let enums = crate::common::generate_enums_for(interface);
+    let enums = crate::common::generate_enums_for(interface, Side::Server);
     let msg_constants = crate::common::gen_msg_constants(&interface.requests, &interface.events);
 
     let requests = crate::common::gen_message_enum(
