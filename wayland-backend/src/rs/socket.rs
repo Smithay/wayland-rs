@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
+use std::mem::MaybeUninit;
 use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::slice;
@@ -47,7 +48,8 @@ impl Socket {
 
         if !fds.is_empty() {
             let iov = [IoSlice::new(bytes)];
-            let mut cmsg_space = vec![0; rustix::cmsg_space!(ScmRights(fds.len()))];
+            let mut cmsg_space =
+                vec![MaybeUninit::uninit(); rustix::cmsg_space!(ScmRights(fds.len()))];
             let mut cmsg_buffer = SendAncillaryBuffer::new(&mut cmsg_space);
             let fds =
                 unsafe { slice::from_raw_parts(fds.as_ptr() as *const BorrowedFd, fds.len()) };
@@ -75,7 +77,7 @@ impl Socket {
         #[cfg(target_os = "macos")]
         let flags = RecvFlags::DONTWAIT;
 
-        let mut cmsg_space = [0; rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
+        let mut cmsg_space = [MaybeUninit::uninit(); rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
         let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
         let mut iov = [IoSliceMut::new(buffer)];
         let msg = retry_on_intr(|| recvmsg(&self.stream, &mut iov[..], &mut cmsg_buffer, flags))?;
