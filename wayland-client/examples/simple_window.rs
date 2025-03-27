@@ -55,7 +55,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
         qh: &QueueHandle<Self>,
     ) {
         if let wl_registry::Event::Global { name, interface, .. } = event {
-            match &interface[..] {
+            let interface = String::from_utf8_lossy(interface.to_bytes());
+            match interface.as_ref() {
                 "wl_compositor" => {
                     let compositor =
                         registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
@@ -137,7 +138,7 @@ impl State {
 
         let xdg_surface = wm_base.get_xdg_surface(base_surface, qh, ());
         let toplevel = xdg_surface.get_toplevel(qh, ());
-        toplevel.set_title("A fantastic window!".into());
+        toplevel.set_title(std::ffi::CString::new("A fantastic window!").unwrap().into());
 
         base_surface.commit();
 

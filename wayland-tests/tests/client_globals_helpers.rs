@@ -199,7 +199,7 @@ impl wayc::Dispatch<wl_registry::WlRegistry, GlobalListContents> for ClientHandl
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
             assert_eq!(name, 3);
-            assert_eq!(interface, "wl_output");
+            assert_eq!(String::from_utf8_lossy(interface.to_bytes()), "wl_output");
             assert_eq!(version, 2);
             state.0 = true;
         } else if let wl_registry::Event::GlobalRemove { name } = event {
