@@ -862,7 +862,8 @@ unsafe extern "C" fn dispatcher_func(
                 // Safety: the c-string provided by libwayland must be valid
                 if !ptr.is_null() {
                     let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                    // TODO: to_owned could be removed if using Cow<'_, CStr>, its lifetime is within the scope.
+                    parsed_args.push(Argument::Str(Some(Box::new(cstr.to_owned().into()))));
                 } else {
                     parsed_args.push(Argument::Str(None));
                 }

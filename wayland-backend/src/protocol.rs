@@ -1,6 +1,6 @@
 //! Types and utilities for manipulating the Wayland protocol
 
-use std::{ffi::CString, os::unix::io::AsRawFd};
+use std::{borrow::Cow, ffi::CStr, os::unix::io::AsRawFd};
 
 pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
 
@@ -22,7 +22,7 @@ pub enum ArgumentType {
     Uint,
     /// A signed fixed point number with 1/256 precision
     Fixed,
-    /// A string. This is represented as a [`CString`] in a message.
+    /// A string. This is represented as a [`Cow<'static, CStr>`] in a message.
     Str(AllowNull),
     /// Id of a wayland object
     Object(AllowNull),
@@ -53,11 +53,11 @@ pub enum Argument<Id, Fd> {
     Uint(u32),
     /// A signed fixed point number with 1/256 precision
     Fixed(i32),
-    /// CString
+    /// `Cow<'static, CStr>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Option<Box<CString>>),
+    Str(Option<Box<Cow<'static, CStr>>>),
     /// Id of a wayland object
     Object(Id),
     /// Id of a newly created wayland object
