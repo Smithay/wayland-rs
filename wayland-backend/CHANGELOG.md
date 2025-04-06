@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- backend/client_sys: `ReadEventsGuard::read_without_dispatch` for just reading the events without dispatch
+
 ## 0.3.8 -- 2025-01-31
 
 ### Bugfixes

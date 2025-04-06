@@ -117,6 +117,19 @@ impl client::Backend {
     }
 }
 
+#[cfg(any(test, feature = "client_system"))]
+impl client::ReadEventsGuard {
+    /// The same as [`read`], but doesn't dispatch events.
+    ///
+    /// To dispatch them, use [`dispatch_inner_queue`].
+    ///
+    /// [`read`]: client::ReadEventsGuard::read
+    /// [`dispatch_inner_queue`]: client::Backend::dispatch_inner_queue
+    pub fn read_without_dispatch(mut self) -> Result<(), client::WaylandError> {
+        self.guard.read_non_dispatch()
+    }
+}
+
 // SAFETY:
 // - The display_ptr will not change for the lifetime of the backend.
 // - The display_ptr will be valid, either because we have created the pointer or the caller which created the

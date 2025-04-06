@@ -430,6 +430,12 @@ impl InnerReadEventsGuard {
     }
 
     pub fn read(mut self) -> Result<usize, WaylandError> {
+        self.read_non_dispatch()?;
+        // The read occured, dispatch pending events.
+        self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
+    }
+
+    pub fn read_non_dispatch(&mut self) -> Result<(), WaylandError> {
         self.done = true;
         let ret =
             unsafe { ffi_dispatch!(wayland_client_handle(), wl_display_read_events, self.display) };
@@ -442,8 +448,7 @@ impl InnerReadEventsGuard {
                 .unwrap()
                 .store_if_not_wouldblock_and_return_error(std::io::Error::last_os_error()))
         } else {
-            // the read occured, dispatch pending events
-            self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
+            Ok(())
         }
     }
 }
