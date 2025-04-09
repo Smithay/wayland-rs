@@ -7,6 +7,10 @@
     * `color-management-v1`
 - Bump wayland-protocols to 1.42
   - New versions of `tablet-v2` and `cursor-shape-v1`
+- Bump wayland-protocols to 1.43
+  - New staging protocol:
+    * `xdg-toplevel-tag-v1`
+  - `xdg-shell` version 7 adds edge constraints
 
 ## 0.32.6 -- 2025-01-31
 
