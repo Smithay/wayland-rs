@@ -219,6 +219,29 @@ pub mod toplevel_icon {
 }
 
 #[cfg(feature = "staging")]
+pub mod toplevel_tag {
+    //! In order to make some window properties like position, size,
+    //! "always on top" or user defined rules for window behavior persistent, the
+    //! compositor needs some way to identify windows even after the application
+    //! has been restarted.
+    //! This protocol allows clients to make this possible by setting a tag for
+    //! toplevels.
+    //!
+    //! Warning! The protocol described in this file is currently in the testing
+    //! phase. Backward compatible changes may be added together with the
+    //! corresponding interface version bump. Backward incompatible changes can
+    //! only be done by creating a new major version of the extension.
+
+    /// Version 1
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/xdg-toplevel-tag/xdg-toplevel-tag-v1.xml",
+            [crate::xdg::shell]
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
 pub mod system_bell {
     //! This global interface enables clients to ring the system bell.
 
