@@ -243,10 +243,10 @@ impl std::error::Error for BindError {}
 impl fmt::Display for BindError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BindError::UnsupportedVersion {} => {
+            BindError::UnsupportedVersion => {
                 write!(f, "the requested version of the global is not supported")
             }
-            BindError::NotPresent {} => {
+            BindError::NotPresent => {
                 write!(f, "the requested global was not found in the registry")
             }
         }
