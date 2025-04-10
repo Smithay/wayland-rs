@@ -8,6 +8,7 @@ use std::{
         io::{BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
         net::UnixStream,
     },
+    ptr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard, Weak,
@@ -59,7 +60,7 @@ impl std::cmp::PartialEq for InnerObjectId {
             }
             (None, None) => {
                 // this is an external (un-managed) object
-                self.ptr == other.ptr
+                ptr::eq(self.ptr, other.ptr)
                     && self.id == other.id
                     && same_interface(self.interface, other.interface)
             }
@@ -119,8 +120,10 @@ impl InnerObjectId {
         let id = ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, ptr);
 
         // Test if the proxy is managed by us.
-        let is_rust_managed = ffi_dispatch!(wayland_client_handle(), wl_proxy_get_listener, ptr)
-            == &RUST_MANAGED as *const u8 as *const _;
+        let is_rust_managed = ptr::eq(
+            ffi_dispatch!(wayland_client_handle(), wl_proxy_get_listener, ptr),
+            &RUST_MANAGED as *const u8 as *const _,
+        );
 
         let alive = if is_rust_managed {
             // Safety: the object is rust_managed, so its user-data pointer must be valid
@@ -876,7 +879,7 @@ unsafe extern "C" fn dispatcher_func(
                     let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
                     let listener =
                         ffi_dispatch!(wayland_client_handle(), wl_proxy_get_listener, obj);
-                    if listener == &RUST_MANAGED as *const u8 as *const c_void {
+                    if ptr::eq(listener, &RUST_MANAGED as *const u8 as *const c_void) {
                         // Safety: the object is rust-managed, its user-data must be valid
                         let obj_udata = unsafe {
                             &*(ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, obj)

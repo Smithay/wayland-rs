@@ -190,7 +190,7 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let xdg_toplevel::Event::Close {} = event {
+        if let xdg_toplevel::Event::Close = event {
             state.running = false;
         }
     }
