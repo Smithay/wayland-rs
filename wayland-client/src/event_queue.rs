@@ -772,6 +772,26 @@ impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, 
 /// }
 ///
 /// assert_is_registry_delegate::<ExampleApp>();
+///
+/// // This macro can also be applied to a generic type using the `@<>` syntax:
+///
+/// /// The application state
+/// struct GenericApp<T: Copy> {
+///     /// The delegate for handling wl_registry events.
+///     delegate: DelegateToMe,
+///     app_data: T,
+/// }
+///
+/// delegate_dispatch!(@<T: Copy> GenericApp<T>: [wl_registry::WlRegistry: MyUserData] => DelegateToMe);
+///
+/// impl<T: Copy> AsMut<DelegateToMe> for GenericApp<T> {
+///     fn as_mut(&mut self) -> &mut DelegateToMe {
+///         &mut self.delegate
+///     }
+/// }
+///
+/// // Assert that the above setup applies to a concrete GenericApp type
+/// assert_is_registry_delegate::<GenericApp<u32>>();
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
