@@ -716,7 +716,7 @@ impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, 
 /// # Usage
 ///
 /// For example, say you want to delegate events for [`WlRegistry`][crate::protocol::wl_registry::WlRegistry]
-/// to the struct `DelegateToMe` for the [`Dispatch`] documentatione example.
+/// to the struct `DelegateToMe` for the [`Dispatch`] documentation example.
 ///
 /// ```
 /// use wayland_client::{delegate_dispatch, protocol::wl_registry};
