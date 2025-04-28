@@ -69,6 +69,33 @@ pub mod color_management {
 }
 
 #[cfg(feature = "staging")]
+pub mod color_representation {
+    //! This protocol extension delivers the metadata required to define alpha mode,
+    //! the color model, sub-sampling and quantization range used when interpreting
+    //! buffer contents. The main use case is defining how the YCbCr family of pixel
+    //! formats convert to RGB.
+    //!
+    //! Note that this protocol does not define the colorimetry of the resulting RGB
+    //! channels / tristimulus values. Without the help of other extensions the
+    //! resulting colorimetry is therefore implementation defined.
+    //!
+    //! If this extension is not used, the color representation used is compositor
+    //! implementation defined.
+    //!
+    //! Recommendation ITU-T H.273
+    //! "Coding-independent code points for video signal type identification"
+    //! shall be referred to as simply H.273 here.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/color-representation/color-representation-v1.xml",
+            []
+        );
+    }
+}
+
+#[cfg(feature = "staging")]
 pub mod drm_lease {
     //! This protocol is used by Wayland compositors which act as Direct
     //! Renderering Manager (DRM) masters to lease DRM resources to Wayland
