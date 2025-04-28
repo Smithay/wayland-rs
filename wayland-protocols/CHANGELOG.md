@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.32.7 -- 2025-04-28
+
 - Bump wayland-protocols to 1.41
   - New staging protocol:
     * `color-management-v1`
