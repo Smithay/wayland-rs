@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.7 -- 2025-04-28
+
 - Update plasma-wayland-protocols to 1.16.0
   * New protocols:
     - `kde-external-brightness-v1`
