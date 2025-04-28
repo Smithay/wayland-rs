@@ -11,6 +11,9 @@
   - New staging protocol:
     * `xdg-toplevel-tag-v1`
   - `xdg-shell` version 7 adds edge constraints
+- Bump wayland-protocols to 1.44
+  - New staging protocol:
+    * `color-representation-v1`
 
 ## 0.32.6 -- 2025-01-31
 
