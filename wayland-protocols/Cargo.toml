@@ -1,6 +1,6 @@
 [package]
 name = "wayland-protocols"
-version = "0.32.7"
+version = "0.32.8"
 documentation = "https://docs.rs/wayland-protocols/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -14,9 +14,9 @@ readme = "README.md"
 
 [dependencies]
 wayland-scanner = { version = "0.31.6", path = "../wayland-scanner" }
-wayland-backend = { version = "0.3.9", path = "../wayland-backend" }
-wayland-client = { version = "0.31.9", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.31.8", path = "../wayland-server", optional = true }
+wayland-backend = { version = "0.3.10", path = "../wayland-backend" }
+wayland-client = { version = "0.31.10", path = "../wayland-client", optional = true }
+wayland-server = { version = "0.31.9", path = "../wayland-server", optional = true }
 bitflags = "2"
 
 [features]

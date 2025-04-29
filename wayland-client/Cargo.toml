@@ -1,6 +1,6 @@
 [package]
 name = "wayland-client"
-version = "0.31.9"
+version = "0.31.10"
 documentation = "https://docs.rs/wayland-client/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -13,7 +13,7 @@ description = "Bindings to the standard C implementation of the wayland protocol
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.3.9", path = "../wayland-backend" }
+wayland-backend = { version = "0.3.10", path = "../wayland-backend" }
 wayland-scanner = { version = "0.31.6", path = "../wayland-scanner" }
 bitflags = "2"
 rustix = { version = "0.38.0", features = ["event"] }
