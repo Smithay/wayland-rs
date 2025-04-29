@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Bugfixes
+
+- Freeze when dispatching within the queue dispatch on the same thread with system lib
+
 ## 0.3.9 -- 2025-04-28
 
 #### Bugfixes
