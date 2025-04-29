@@ -148,17 +148,52 @@ impl BufferedSocket {
 
     /// Flush the contents of the outgoing buffer into the socket
     pub fn flush(&mut self) -> IoResult<()> {
-        let written = {
-            let bytes = self.out_data.get_contents();
-            if bytes.is_empty() {
-                return Ok(());
+        let bytes = self.out_data.get_contents();
+        let fds = &self.out_fds;
+        let mut written_bytes = 0;
+        let mut written_fds = 0;
+        let mut ret = Ok(());
+        while written_bytes < bytes.len() {
+            let mut bytes_to_write = &bytes[written_bytes..];
+            let mut fds_to_write = &fds[written_fds..];
+            if fds_to_write.len() > MAX_FDS_OUT {
+                // While we need to send more than MAX_FDS_OUT fds,
+                // send them with separate send_msg calls in MAX_FDS_OUT sized chunks
+                // together with 1 byte of normal data.
+                // This achieves the same that libwayland does in wl_connection_flush
+                // and ensures that all file descriptors are sent
+                // before we run out of bytes of normal data to send.
+                bytes_to_write = &bytes_to_write[..1];
+                fds_to_write = &fds_to_write[..MAX_FDS_OUT];
             }
-            self.socket.send_msg(bytes, &self.out_fds)?
-        };
-        self.out_data.offset(written);
+            if bytes_to_write.len() > MAX_BYTES_OUT {
+                // Also ensure the MAX_BYTES_OUT limit, this stays redundant as long
+                // as self.out_data has a fixed MAX_BYTES_OUT size and cannot grow.
+                bytes_to_write = &bytes_to_write[..MAX_BYTES_OUT];
+            }
+            match self.socket.send_msg(bytes_to_write, fds_to_write) {
+                Ok(0) => {
+                    // This branch should be unreachable because
+                    // a non-zero sized send or sendmsg should never return 0
+                    written_fds += fds_to_write.len();
+                    break;
+                }
+                Ok(count) => {
+                    written_bytes += count;
+                    written_fds += fds_to_write.len();
+                }
+                Err(error) => {
+                    ret = Err(error);
+                    break;
+                }
+            }
+        }
+        // Either the flush is done or got an error, so clean up and
+        // remove the data and the fds which were sent form the outgoing buffers
+        self.out_data.offset(written_bytes);
         self.out_data.move_to_front();
-        self.out_fds.clear();
-        Ok(())
+        self.out_fds.drain(..written_fds);
+        ret
     }
 
     // internal method
