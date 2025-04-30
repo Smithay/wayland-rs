@@ -23,6 +23,9 @@ client_system = ["wayland-backend/client_system"]
 name = "attach_to_surface"
 
 [[test]]
+name = "backend_socket_out_limits"
+
+[[test]]
 name = "client_bad_requests"
 
 [[test]]
