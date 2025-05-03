@@ -15,7 +15,7 @@ readme = "README.md"
 [dependencies]
 wayland-client = { version = "0.31.10", path = "../wayland-client" }
 xcursor = "0.3.1"
-rustix = { version = "0.38.15", features = ["shm"] }
+rustix = { version = "1.0.2", features = ["shm"] }
 
 [package.metadata.docs.rs]
 all-features = true
