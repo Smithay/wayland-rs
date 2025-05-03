@@ -231,7 +231,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: Vec<u8>,
             #[doc = "some text"]
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             #[doc = "a file descriptor"]
             file_descriptor: OwnedFd,
         },
@@ -286,7 +286,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: Vec<u8>,
             #[doc = "some text"]
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             #[doc = "a file descriptor"]
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
@@ -416,10 +416,7 @@ pub mod test_global {
                                 signed_int,
                                 fixed_point: (fixed_point as f64) / 256.,
                                 number_array: *number_array,
-                                some_text: String::from_utf8_lossy(
-                                    some_text.as_ref().unwrap().as_bytes(),
-                                )
-                                .into_owned(),
+                                some_text: *some_text.unwrap(),
                                 file_descriptor,
                             },
                         ))
@@ -699,7 +696,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
+                        Argument::Str(Some(Box::new(some_text))),
                         Argument::Fd(file_descriptor),
                     ]),
                 }),
@@ -745,7 +742,7 @@ pub mod test_global {
             signed_int: i32,
             fixed_point: f64,
             number_array: Vec<u8>,
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let _ = self.send_event(Event::ManyArgsEvt {

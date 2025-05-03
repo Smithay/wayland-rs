@@ -118,7 +118,7 @@ pub fn write_to_buffers(
             Argument::Int(i) => write_buf(i as u32, payload)?,
             Argument::Uint(u) => write_buf(u, payload)?,
             Argument::Fixed(f) => write_buf(f as u32, payload)?,
-            Argument::Str(Some(ref s)) => write_array_to_payload(s.as_bytes_with_nul(), payload)?,
+            Argument::Str(Some(ref s)) => write_array_to_payload(s.to_bytes_with_nul(), payload)?,
             Argument::Str(None) => write_array_to_payload(&[], payload)?,
             Argument::Object(o) => write_buf(o, payload)?,
             Argument::NewId(n) => write_buf(n, payload)?,
@@ -210,7 +210,8 @@ pub fn parse_message<'a>(
                             tail = rest;
                             if !v.is_empty() {
                                 match CStr::from_bytes_with_nul(v) {
-                                    Ok(s) => Ok(Argument::Str(Some(Box::new(s.into())))),
+                                    // TODO: to_owned could be remove if using Cow<'_, CStr>, its lifetime is within the BufferedSocket.
+                                    Ok(s) => Ok(Argument::Str(Some(Box::new(s.to_owned().into())))),
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
                             } else {
@@ -266,7 +267,7 @@ mod tests {
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
+                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap().into()))),
                 Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
                 Argument::Object(88),
                 Argument::NewId(56),

@@ -41,7 +41,11 @@ where
         let me = handle.as_mut();
         match event {
             wl_registry::Event::Global { name, interface, version } => {
-                me.globals.push(GlobalDescription { name, interface, version });
+                me.globals.push(GlobalDescription {
+                    name,
+                    interface: String::from_utf8_lossy(interface.to_bytes()).into_owned(),
+                    version,
+                });
             }
             wl_registry::Event::GlobalRemove { name } => {
                 me.globals.retain(|desc| desc.name != name);

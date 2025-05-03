@@ -70,7 +70,7 @@ macro_rules! serverdata_impls {
                             Argument::Int(-53),
                             Argument::Fixed(9823),
                             Argument::Array(Box::new(vec![10, 20, 30, 40, 50, 60, 70, 80, 90])),
-                            Argument::Str(Some(Box::new(CString::new("I want cake".as_bytes()).unwrap()))),
+                            Argument::Str(Some(Box::new(CString::new("I want cake".as_bytes()).unwrap().into()))),
                             Argument::Fd(1), // stdout
                         ],
                     ))
@@ -153,7 +153,9 @@ expand_test!(many_args, {
                 [
                     Argument::Uint(1),
                     Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes())
+                            .unwrap()
+                            .into(),
                     ))),
                     Argument::Uint(1),
                     Argument::NewId(client_backend::ObjectId::null()),
@@ -182,7 +184,7 @@ expand_test!(many_args, {
                     Argument::Fixed(4589),
                     Argument::Array(Box::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9])),
                     Argument::Str(Some(Box::new(
-                        CString::new("I like trains".as_bytes()).unwrap()
+                        CString::new("I like trains".as_bytes()).unwrap().into()
                     ))),
                     Argument::Fd(0), // stdin
                 ],
