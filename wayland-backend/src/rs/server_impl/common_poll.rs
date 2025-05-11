@@ -118,7 +118,7 @@ impl<D> InnerBackend<D> {
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = Vec::with_capacity(32);
+            let mut events = Vec::<Event>::with_capacity(32);
             let nevents = unsafe { kevent(&poll_fd, &[], &mut events, Some(Duration::ZERO))? };
 
             if nevents == 0 {
@@ -180,10 +180,10 @@ impl<D> InnerBackend<D> {
                                 let evt = Event::new(
                                     EventFilter::Read(client.as_fd().as_raw_fd()),
                                     EventFlags::DELETE,
-                                    client_id.as_u64() as isize,
+                                    client_id.as_u64() as *mut _,
                                 );
 
-                                let mut events = Vec::new();
+                                let mut events = Vec::<Event>::new();
                                 unsafe {
                                     kevent(&state.poll_fd, &[evt], &mut events, None)
                                         .map(|_| ())?;
