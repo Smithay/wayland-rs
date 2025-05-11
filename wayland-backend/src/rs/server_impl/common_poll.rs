@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use rustix::event::epoll;
+use rustix::event::{epoll, Timespec};
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -84,8 +84,8 @@ impl<D> InnerBackend<D> {
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = epoll::EventVec::with_capacity(32);
-            epoll::wait(poll_fd.as_fd(), &mut events, 0)?;
+            let mut events = Vec::<epoll::Event>::with_capacity(32);
+            epoll::wait(poll_fd.as_fd(), &mut events, Some(&Timespec::default()))?;
 
             if events.is_empty() {
                 break;
@@ -118,7 +118,7 @@ impl<D> InnerBackend<D> {
         let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = Vec::with_capacity(32);
+            let mut events = Vec::<Event>::with_capacity(32);
             let nevents = unsafe { kevent(&poll_fd, &[], &mut events, Some(Duration::ZERO))? };
 
             if nevents == 0 {
@@ -180,10 +180,10 @@ impl<D> InnerBackend<D> {
                                 let evt = Event::new(
                                     EventFilter::Read(client.as_fd().as_raw_fd()),
                                     EventFlags::DELETE,
-                                    client_id.as_u64() as isize,
+                                    client_id.as_u64() as *mut _,
                                 );
 
-                                let mut events = Vec::new();
+                                let mut events = Vec::<Event>::new();
                                 unsafe {
                                     kevent(&state.poll_fd, &[evt], &mut events, None)
                                         .map(|_| ())?;
