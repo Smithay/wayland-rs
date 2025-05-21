@@ -26,7 +26,7 @@ pub struct wl_interface {
 
 impl fmt::Debug for wl_interface {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "wl_interface@{:p}", self)
+        write!(f, "wl_interface@{self:p}")
     }
 }
 

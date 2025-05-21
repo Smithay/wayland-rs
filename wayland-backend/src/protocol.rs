@@ -124,13 +124,13 @@ impl<Id: std::fmt::Display, Fd: AsRawFd> std::fmt::Display for Argument<Id, Fd> 
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Int(value) => write!(f, "{}", value),
-            Self::Uint(value) => write!(f, "{}", value),
+            Self::Int(value) => write!(f, "{value}"),
+            Self::Uint(value) => write!(f, "{value}"),
             Self::Fixed(value) => write!(f, "{:.4}", *value as f64 / 256.0),
-            Self::Str(value) => write!(f, "{:?}", value),
-            Self::Object(value) => write!(f, "{}", value),
-            Self::NewId(value) => write!(f, "{}", value),
-            Self::Array(value) => write!(f, "{:?}", value),
+            Self::Str(value) => write!(f, "{value:?}"),
+            Self::Object(value) => write!(f, "{value}"),
+            Self::NewId(value) => write!(f, "{value}"),
+            Self::Array(value) => write!(f, "{value:?}"),
             Self::Fd(value) => write!(f, "{}", value.as_raw_fd()),
         }
     }

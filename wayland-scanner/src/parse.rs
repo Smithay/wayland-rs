@@ -93,7 +93,7 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                             Ok(Event::CData(copyright)) => {
                                 String::from_utf8(copyright.into_inner().into()).ok()
                             }
-                            e => panic!("Ill-formed protocol file: {:?}", e),
+                            e => panic!("Ill-formed protocol file: {e:?}"),
                         };
 
                         extract_end_tag!(reader => "copyright");
@@ -124,7 +124,7 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
             }
             // ignore comments
             Ok(Event::Comment(_)) => {}
-            e => panic!("Ill-formed protocol file: unexpected token {:?}", e),
+            e => panic!("Ill-formed protocol file: unexpected token {e:?}"),
         }
     }
 
@@ -184,7 +184,7 @@ fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (
             }
             Ok(Event::End(bytes)) if bytes.name().into_inner() == b"description" => break,
             Ok(Event::Comment(_)) => {}
-            e => panic!("Ill-formed protocol file: {:?}", e),
+            e => panic!("Ill-formed protocol file: {e:?}"),
         }
     }
 

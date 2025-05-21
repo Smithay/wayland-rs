@@ -243,7 +243,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         let (resource, request) = match I::parse_request(&dhandle, msg) {
             Ok(v) => v,
             Err(e) => {
-                crate::log_warn!("Dispatching error encountered: {:?}, killing client.", e);
+                crate::log_warn!("Dispatching error encountered: {e:?}, killing client.");
                 handle.kill_client(
                     client.id(),
                     DisconnectReason::ProtocolError(ProtocolError {
@@ -251,8 +251,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
                         object_id: 0,
                         object_interface: "wl_display".into(),
                         message: format!(
-                            "Malformed request received for id {} and opcode {}.",
-                            sender_id, opcode
+                            "Malformed request received for id {sender_id} and opcode {opcode}."
                         ),
                     }),
                 );

@@ -530,7 +530,7 @@ impl ProtocolState {
     #[inline]
     fn store_and_return_error(&mut self, err: impl Into<WaylandError>) -> WaylandError {
         let err = err.into();
-        crate::log_error!("{}", err);
+        crate::log_error!("{err}");
         self.last_error = Some(err.clone());
         err
     }
@@ -678,7 +678,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                                     code: 0,
                                     object_id: 0,
                                     object_interface: "".into(),
-                                    message: format!("Unknown object {}.", o),
+                                    message: format!("Unknown object {o}."),
                                 });
                                 return Err(guard.store_and_return_error(err));
                             }
@@ -814,7 +814,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
             }
             (None, None) => {}
             (Some(child_id), None) => {
-                panic!("Callback creating object {} did not provide any object data.", child_id);
+                panic!("Callback creating object {child_id} did not provide any object data.");
             }
             (None, Some(_)) => {
                 panic!("An object data was returned from a callback not creating any object");

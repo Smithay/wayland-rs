@@ -158,7 +158,7 @@ impl std::fmt::Display for InnerObjectId {
 impl std::fmt::Debug for InnerObjectId {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ObjectId({})", self)
+        write!(f, "ObjectId({self})")
     }
 }
 
@@ -353,7 +353,7 @@ impl ConnectionState {
         } else {
             WaylandError::Io(err)
         };
-        crate::log_error!("{}", err);
+        crate::log_error!("{err}");
         self.last_error = Some(err.clone());
         err
     }
@@ -1021,7 +1021,7 @@ unsafe extern "C" fn dispatcher_func(
             }
         }
         (Some((child_id, _)), None) => {
-            panic!("Callback creating object {} did not provide any object data.", child_id);
+            panic!("Callback creating object {child_id} did not provide any object data.");
         }
         (None, Some(_)) => {
             panic!("An object data was returned from a callback not creating any object");

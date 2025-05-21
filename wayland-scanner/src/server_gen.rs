@@ -49,7 +49,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         "See also the [Request] enum for this interface."
     };
     let docs = match &interface.description {
-        Some((short, long)) => format!("{}\n\n{}\n\n{}", short, long, event_ref),
+        Some((short, long)) => format!("{short}\n\n{long}\n\n{event_ref}"),
         None => format!("{}\n\n{}", interface.name, event_ref),
     };
     let doc_attr = to_doc_attr(&docs);

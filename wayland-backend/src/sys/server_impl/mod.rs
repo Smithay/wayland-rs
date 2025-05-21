@@ -80,7 +80,7 @@ impl std::fmt::Display for InnerObjectId {
 impl std::fmt::Debug for InnerObjectId {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ObjectId({})", self)
+        write!(f, "ObjectId({self})")
     }
 }
 
@@ -1226,7 +1226,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool {
-        self.known_globals.iter().any(|ginfo| (ginfo.ptr as *const wl_global) == global_ptr)
+        self.known_globals.iter().any(|ginfo| std::ptr::eq(ginfo.ptr, global_ptr))
     }
 
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
@@ -1573,7 +1573,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
         (Some((child_id, _)), None) => {
             // Accept a missing object data if a protocol error occurred (and the object is already dead)
             if client_id.alive.load(Ordering::Acquire) {
-                panic!("Callback creating object {} did not provide any object data.", child_id);
+                panic!("Callback creating object {child_id} did not provide any object data.");
             }
         }
         (None, Some(_)) => {
@@ -1643,7 +1643,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: ClientId,
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
-        panic!("Received a message on an uninitialized object: {:?}", msg);
+        panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
     #[cfg_attr(coverage, coverage(off))]
