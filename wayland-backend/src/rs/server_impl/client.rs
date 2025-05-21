@@ -429,7 +429,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, callback_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {}.", new_id)).unwrap(),
+                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                         );
                         return;
                     }
@@ -465,7 +465,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, registry_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {}.", new_id)).unwrap(),
+                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                         );
                         return;
                     }
@@ -512,7 +512,7 @@ impl<D> Client<D> {
                         if let Err(()) = self.map.insert_at(new_id, object) {
                             self.post_display_error(
                                 DisplayError::InvalidObject,
-                                CString::new(format!("Invalid new_id: {}.", new_id)).unwrap(),
+                                CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                             );
                             return None;
                         }
@@ -586,7 +586,7 @@ impl<D> Client<D> {
                             None => {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
-                                    CString::new(format!("Unknown id: {}.", o)).unwrap()
+                                    CString::new(format!("Unknown id: {o}.")).unwrap()
                                 );
                                 return None;
                             }
@@ -647,7 +647,7 @@ impl<D> Client<D> {
                         // abort parsing, this is an unrecoverable error
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {}.", new_id)).unwrap()
+                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap()
                         );
                         return None;
                     }

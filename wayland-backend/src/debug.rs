@@ -63,10 +63,10 @@ impl<D: Display> Display for DisplaySlice<'_, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.0.iter();
         if let Some(val) = it.next() {
-            write!(f, "{}", val)?;
+            write!(f, "{val}")?;
         }
         for val in it {
-            write!(f, ", {}", val)?;
+            write!(f, ", {val}")?;
         }
         Ok(())
     }

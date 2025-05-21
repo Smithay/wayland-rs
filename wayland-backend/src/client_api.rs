@@ -357,7 +357,7 @@ impl ObjectData for UninitObjectData {
         _handle: &Backend,
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
-        panic!("Received a message on an uninitialized object: {:?}", msg);
+        panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
     #[cfg_attr(coverage, coverage(off))]

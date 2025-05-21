@@ -286,8 +286,7 @@ impl<D> InnerBackend<D> {
                             if let Ok(client) = state.clients.get_client(client_id.clone()) {
                                 if !client.killed {
                                     panic!(
-                                        "Callback creating object {} did not provide any object data.",
-                                        child_id
+                                        "Callback creating object {child_id} did not provide any object data."
                                     );
                                 }
                             }

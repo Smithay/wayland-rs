@@ -123,7 +123,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: ClientId,
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
-        panic!("Received a message on an uninitialized object: {:?}", msg);
+        panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
     #[cfg_attr(coverage, coverage(off))]

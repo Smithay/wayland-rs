@@ -9,7 +9,7 @@ pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
 }
 
 pub(crate) fn description_to_doc_attr((short, long): &(String, String)) -> TokenStream {
-    to_doc_attr(&format!("{}\n\n{}", short, long))
+    to_doc_attr(&format!("{short}\n\n{long}"))
 }
 
 pub fn is_keyword(txt: &str) -> bool {

@@ -68,7 +68,7 @@ fn parse_lit_str_cooked(mut s: &str) -> String {
                             continue 'outer;
                         }
                     },
-                    b => panic!("unexpected byte {:?} after \\ character in byte literal", b),
+                    b => panic!("unexpected byte {b:?} after \\ character in byte literal"),
                 }
             }
             b'\r' => {
@@ -162,7 +162,7 @@ fn backslash_u(mut s: &str) -> (char, &str) {
     if let Some(ch) = char::from_u32(ch) {
         (ch, s)
     } else {
-        panic!("character code {:x} is not a valid unicode character", ch);
+        panic!("character code {ch:x} is not a valid unicode character");
     }
 }
 
@@ -179,7 +179,7 @@ pub fn parse_lit_str_token(mut stream: proc_macro::TokenStream) -> String {
                 stream = group.stream();
                 continue;
             }
-            _ => panic!("expected string argument found `{:?}`", token),
+            _ => panic!("expected string argument found `{token:?}`"),
         };
         return parse_lit_str(&literal.to_string());
     }

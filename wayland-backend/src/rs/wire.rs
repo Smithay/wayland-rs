@@ -29,8 +29,7 @@ impl std::fmt::Display for MessageWriteError {
             Self::DupFdFailed(e) => {
                 write!(
                     f,
-                    "The message contains a file descriptor that could not be dup()-ed ({}).",
-                    e
+                    "The message contains a file descriptor that could not be dup()-ed ({e})."
                 )
             }
         }

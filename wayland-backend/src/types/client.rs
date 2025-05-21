@@ -34,7 +34,7 @@ impl std::fmt::Display for WaylandError {
     #[cfg_attr(coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            Self::Io(e) => write!(f, "Io error: {}", e),
+            Self::Io(e) => write!(f, "Io error: {e}"),
             Self::Protocol(e) => std::fmt::Display::fmt(e, f),
         }
     }
