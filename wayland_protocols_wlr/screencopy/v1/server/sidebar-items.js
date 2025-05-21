@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","zwlr_screencopy_frame_v1","zwlr_screencopy_manager_v1"]};
