@@ -346,8 +346,8 @@ impl<D> ErasedState for State<D> {
                 id.as_u64() as *mut _,
             );
 
-            let mut events = Vec::<Event>::new();
-            unsafe { kevent(&self.poll_fd, &[evt], &mut events, None).map(|_| ()) }
+            let events: &mut [Event] = &mut [];
+            unsafe { kevent(&self.poll_fd, &[evt], events, None).map(|_| ()) }
         };
 
         match ret {
