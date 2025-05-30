@@ -82,6 +82,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_display_add_client_created_listener(*mut wl_display, *mut wl_listener) -> (),
         fn wl_display_set_global_filter(*mut wl_display, wl_display_global_filter_func_t, *mut c_void) -> (),
         fn wl_display_get_client_list(*mut wl_display) -> *mut wl_list,
+        fn wl_display_set_default_max_buffer_size(*mut wl_display, usize) -> (),
     // wl_event_loop
         fn wl_event_loop_create() -> *mut wl_event_loop,
         fn wl_event_loop_destroy(*mut wl_event_loop) -> (),
