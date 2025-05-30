@@ -14,17 +14,6 @@ use crate::{
     types::server::InitError,
 };
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
-use rustix::event::epoll;
-
-#[cfg(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "macos"
-))]
-use rustix::event::kqueue::*;
 use smallvec::SmallVec;
 
 #[derive(Debug)]
@@ -34,21 +23,8 @@ pub struct InnerBackend<D: 'static> {
 
 impl<D> InnerBackend<D> {
     pub fn new() -> Result<Self, InitError> {
-        #[cfg(any(target_os = "linux", target_os = "android"))]
-        let poll_fd = epoll::create(epoll::CreateFlags::CLOEXEC)
-            .map_err(Into::into)
-            .map_err(InitError::Io)?;
-
-        #[cfg(any(
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "macos"
-        ))]
-        let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
-
-        Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
+        let state = State::new().map_err(Into::into).map_err(InitError::Io)?;
+        Ok(Self { state: Arc::new(Mutex::new(state)) })
     }
 
     pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
@@ -60,7 +36,7 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn poll_fd(&self) -> BorrowedFd {
-        let raw_fd = self.state.lock().unwrap().poll_fd.as_raw_fd();
+        let raw_fd = self.state.lock().unwrap().poller.as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
         unsafe { BorrowedFd::borrow_raw(raw_fd) }
@@ -77,56 +53,18 @@ impl<D> InnerBackend<D> {
         ret
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
-        use std::os::unix::io::AsFd;
-
-        let poll_fd = self.poll_fd();
         let mut dispatched = 0;
         loop {
-            let mut events = epoll::EventVec::with_capacity(32);
-            epoll::wait(poll_fd.as_fd(), &mut events, 0)?;
+            let mut events = polling::Events::new(); // TODO with capacity?
+            self.state.lock().unwrap().poller.wait(&mut events, Some(std::time::Duration::ZERO))?;
 
             if events.is_empty() {
                 break;
             }
 
             for event in events.iter() {
-                let id = InnerClientId::from_u64(event.data.u64());
-                // remove the cb while we call it, to gracefully handle reentrancy
-                if let Ok(count) = self.dispatch_events_for(data, id) {
-                    dispatched += count;
-                }
-            }
-            let cleanup = self.state.lock().unwrap().cleanup();
-            cleanup(&self.handle(), data);
-        }
-
-        Ok(dispatched)
-    }
-
-    #[cfg(any(
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "macos"
-    ))]
-    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
-        use std::time::Duration;
-
-        let poll_fd = self.poll_fd();
-        let mut dispatched = 0;
-        loop {
-            let mut events = Vec::with_capacity(32);
-            let nevents = unsafe { kevent(&poll_fd, &[], &mut events, Some(Duration::ZERO))? };
-
-            if nevents == 0 {
-                break;
-            }
-
-            for event in events.iter().take(nevents) {
-                let id = InnerClientId::from_u64(event.udata() as u64);
+                let id = InnerClientId::from_u64(event.key as u64);
                 // remove the cb while we call it, to gracefully handle reentrancy
                 if let Ok(count) = self.dispatch_events_for(data, id) {
                     dispatched += count;
@@ -161,34 +99,7 @@ impl<D> InnerBackend<D> {
                             }
                         }
                         Err(e) => {
-                            #[cfg(any(target_os = "linux", target_os = "android"))]
-                            {
-                                epoll::delete(&state.poll_fd, client)?;
-                            }
-
-                            #[cfg(any(
-                                target_os = "dragonfly",
-                                target_os = "freebsd",
-                                target_os = "netbsd",
-                                target_os = "openbsd",
-                                target_os = "macos"
-                            ))]
-                            {
-                                use rustix::event::kqueue::*;
-                                use std::os::unix::io::{AsFd, AsRawFd};
-
-                                let evt = Event::new(
-                                    EventFilter::Read(client.as_fd().as_raw_fd()),
-                                    EventFlags::DELETE,
-                                    client_id.as_u64() as isize,
-                                );
-
-                                let mut events = Vec::new();
-                                unsafe {
-                                    kevent(&state.poll_fd, &[evt], &mut events, None)
-                                        .map(|_| ())?;
-                                }
-                            }
+                            let _ = state.poller.delete(client);
                             return Err(e);
                         }
                     };
