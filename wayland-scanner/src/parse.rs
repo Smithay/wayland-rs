@@ -198,6 +198,7 @@ fn parse_request<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Messa
             b"name" => request.name = decode_utf8_or_panic(attr.value.into_owned()),
             b"type" => request.typ = Some(parse_type(&attr.value)),
             b"since" => request.since = parse_or_panic(&attr.value),
+            b"deprecated-since" => request.deprecated_since = Some(parse_or_panic(&attr.value)),
             _ => {}
         }
     }
@@ -258,6 +259,7 @@ fn parse_event<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Message
             b"name" => event.name = decode_utf8_or_panic(attr.value.into_owned()),
             b"type" => event.typ = Some(parse_type(&attr.value)),
             b"since" => event.since = parse_or_panic(&attr.value),
+            b"deprecated-since" => event.deprecated_since = Some(parse_or_panic(&attr.value)),
             _ => {}
         }
     }
@@ -355,6 +357,7 @@ fn parse_entry<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Entry {
                 };
             }
             b"since" => entry.since = parse_or_panic(&attr.value),
+            b"deprecated-since" => entry.deprecated_since = Some(parse_or_panic(&attr.value)),
             b"summary" => {
                 entry.summary = Some(
                     String::from_utf8_lossy(&attr.value)
