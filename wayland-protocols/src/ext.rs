@@ -150,3 +150,17 @@ pub mod workspace {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod background_effect {
+    //! This protocol provides a way to improve visuals of translucent surfaces
+    //! by applying effects like blur to the background behind them.
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/ext-background-effect/ext-background-effect-v1.xml",
+            []
+        );
+    }
+}
