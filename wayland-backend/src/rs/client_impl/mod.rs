@@ -111,11 +111,11 @@ pub struct ConnectionState {
 }
 
 impl ConnectionState {
-    fn lock_protocol(&self) -> MutexGuard<ProtocolState> {
+    fn lock_protocol(&self) -> MutexGuard<'_, ProtocolState> {
         self.protocol.lock().unwrap()
     }
 
-    fn lock_read(&self) -> MutexGuard<ReadingState> {
+    fn lock_read(&self) -> MutexGuard<'_, ReadingState> {
         self.read.lock().unwrap()
     }
 }
@@ -197,7 +197,7 @@ impl InnerBackend {
         Ok(())
     }
 
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
@@ -222,7 +222,7 @@ impl InnerReadEventsGuard {
     }
 
     /// Access the Wayland socket FD for polling
-    pub fn connection_fd(&self) -> BorrowedFd {
+    pub fn connection_fd(&self) -> BorrowedFd<'_> {
         let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
