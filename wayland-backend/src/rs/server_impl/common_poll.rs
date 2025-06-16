@@ -321,6 +321,8 @@ impl<D> InnerBackend<D> {
         }
         Ok(dispatched)
     }
+
+    pub fn set_max_buffer_size(&self, _: usize) {}
 }
 
 enum DispatchAction<D: 'static> {
