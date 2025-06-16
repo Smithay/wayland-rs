@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_IDLE_INTERFACE","ORG_KDE_KWIN_IDLE_TIMEOUT_INTERFACE","org_kde_kwin_idle_interface","org_kde_kwin_idle_timeout_interface"]};
