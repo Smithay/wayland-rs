@@ -16,6 +16,10 @@
 - Bump wayland-protocols to 1.44
   - New staging protocol:
     * `color-representation-v1`
+- Bump wayland-protocols to 1.45
+  - New staging protocols:
+    * `ext-background-effect-v1`
+    * `pointer-warp-v1`
 
 ## 0.32.6 -- 2025-01-31
 

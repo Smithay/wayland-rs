@@ -635,3 +635,28 @@ pub mod commit_timing {
         );
     }
 }
+
+#[cfg(feature = "staging")]
+pub mod pointer_warp {
+    //! This global interface allows applications to request the pointer to be
+    //! moved to a position relative to a wl_surface.
+
+    //! Note that if the desired behavior is to constrain the pointer to an area
+    //! or lock it to a position, this protocol does not provide a reliable way
+    //! to do that. The pointer constraint and pointer lock protocols should be
+    //! used for those use cases instead.
+
+    //! Warning! The protocol described in this file is currently in the testing
+    //! phase. Backward compatible changes may be added together with the
+    //! corresponding interface version bump. Backward incompatible changes can
+    //! only be done by creating a new major version of the extension.
+
+
+    #[allow(missing_docs)]
+    pub mod v1 {
+        wayland_protocol!(
+            "./protocols/staging/pointer-warp/pointer-warp-v1.xml",
+            []
+        );
+    }
+}
