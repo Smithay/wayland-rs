@@ -539,7 +539,7 @@ impl<D> Backend<D> {
     ///
     /// The file descriptor should not be used for any other purpose than monitoring it.
     #[inline]
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         self.backend.poll_fd()
     }
 

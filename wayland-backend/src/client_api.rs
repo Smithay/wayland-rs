@@ -188,7 +188,7 @@ impl Backend {
 
     /// Access the Wayland socket FD for polling
     #[inline]
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         self.backend.poll_fd()
     }
 
@@ -312,7 +312,7 @@ pub struct ReadEventsGuard {
 impl ReadEventsGuard {
     /// Access the Wayland socket FD for polling
     #[inline]
-    pub fn connection_fd(&self) -> BorrowedFd {
+    pub fn connection_fd(&self) -> BorrowedFd<'_> {
         self.guard.connection_fd()
     }
 

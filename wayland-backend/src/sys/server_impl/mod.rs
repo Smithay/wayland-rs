@@ -381,7 +381,7 @@ impl<D> InnerBackend<D> {
         Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         unsafe {
             let evl_ptr =
                 ffi_dispatch!(wayland_server_handle(), wl_display_get_event_loop, self.display_ptr);

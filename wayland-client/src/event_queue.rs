@@ -626,7 +626,7 @@ impl<State: 'static> QueueHandle<State> {
     ///
     /// This will cause the associated queue to block (or return `NotReady` to poll) until all
     /// [`QueueFreezeGuard`]s associated with the queue are dropped.
-    pub fn freeze(&self) -> QueueFreezeGuard<State> {
+    pub fn freeze(&self) -> QueueFreezeGuard<'_, State> {
         self.inner.lock().unwrap().freeze_count += 1;
         QueueFreezeGuard { qh: self }
     }

@@ -59,7 +59,7 @@ impl<D> InnerBackend<D> {
         Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         let raw_fd = self.state.lock().unwrap().poll_fd.as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
