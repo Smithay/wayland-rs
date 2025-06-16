@@ -156,6 +156,15 @@ pub mod background_effect {
     //! This protocol provides a way to improve visuals of translucent surfaces
     //! by applying effects like blur to the background behind them.
 
+    //! The capabilities are send when the global is bound, and every time they
+    //! change. Note that when the capability goes away, the corresponding effect
+    //! is no longer applied by the compositor, even if it was set before.
+
+    //! Warning! The protocol described in this file is currently in the testing
+    //! phase. Backward compatible changes may be added together with the
+    //! corresponding interface version bump. Backward incompatible changes can
+    //! only be done by creating a new major version of the extension.
+
     #[allow(missing_docs)]
     pub mod v1 {
         wayland_protocol!(
