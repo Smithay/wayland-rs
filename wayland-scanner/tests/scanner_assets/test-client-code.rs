@@ -89,7 +89,7 @@ pub mod wl_display {
             #[doc = "error code"]
             code: u32,
             #[doc = "error description"]
-            message: String,
+            message: std::borrow::Cow<'static, std::ffi::CStr>,
         },
         #[doc = "acknowledge object ID deletion\n\nThis event is used internally by the object ID management\nlogic. When a client deletes an object that it had created,\nthe server will send this event to acknowledge that it has\nseen the delete request. When the client receives this event,\nit will know that it can safely reuse the object ID."]
         DeleteId {
@@ -208,10 +208,7 @@ pub mod wl_display {
                             Event::Error {
                                 object_id: object_id.clone(),
                                 code,
-                                message: String::from_utf8_lossy(
-                                    message.as_ref().unwrap().as_bytes(),
-                                )
-                                .into_owned(),
+                                message: *message.unwrap(),
                             },
                         ))
                     } else {
@@ -368,7 +365,7 @@ pub mod wl_registry {
             #[doc = "numeric name of the global object"]
             name: u32,
             #[doc = "interface implemented by the object"]
-            interface: String,
+            interface: std::borrow::Cow<'static, std::ffi::CStr>,
             #[doc = "interface version"]
             version: u32,
         },
@@ -484,17 +481,7 @@ pub mod wl_registry {
                         Some(Argument::Uint(version)),
                     ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
-                        Ok((
-                            me,
-                            Event::Global {
-                                name,
-                                interface: String::from_utf8_lossy(
-                                    interface.as_ref().unwrap().as_bytes(),
-                                )
-                                .into_owned(),
-                                version,
-                            },
-                        ))
+                        Ok((me, Event::Global { name, interface: *interface.unwrap(), version }))
                     } else {
                         Err(DispatchError::BadMessage {
                             sender_id: msg.sender_id,
@@ -536,7 +523,7 @@ pub mod wl_registry {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::Uint(name));
                         vec.push(Argument::Str(Some(Box::new(
-                            std::ffi::CString::new(id.0.name).unwrap(),
+                            std::ffi::CString::new(id.0.name).unwrap().into(),
                         ))));
                         vec.push(Argument::Uint(id.1));
                         vec.push(Argument::NewId(ObjectId::null()));
@@ -802,7 +789,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: Vec<u8>,
             #[doc = "some text"]
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             #[doc = "a file descriptor"]
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
@@ -856,7 +843,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: Vec<u8>,
             #[doc = "some text"]
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             #[doc = "a file descriptor"]
             file_descriptor: OwnedFd,
         },
@@ -988,10 +975,7 @@ pub mod test_global {
                                 signed_int,
                                 fixed_point: (fixed_point as f64) / 256.,
                                 number_array: *number_array,
-                                some_text: String::from_utf8_lossy(
-                                    some_text.as_ref().unwrap().as_bytes(),
-                                )
-                                .into_owned(),
+                                some_text: *some_text.unwrap(),
                                 file_descriptor,
                             },
                         ))
@@ -1110,7 +1094,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
+                        Argument::Str(Some(Box::new(some_text))),
                         Argument::Fd(file_descriptor),
                     ]);
                     Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
@@ -1204,7 +1188,7 @@ pub mod test_global {
             signed_int: i32,
             fixed_point: f64,
             number_array: Vec<u8>,
-            some_text: String,
+            some_text: std::borrow::Cow<'static, std::ffi::CStr>,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let backend = match self.backend.upgrade() {

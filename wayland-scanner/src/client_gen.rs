@@ -210,7 +210,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Type::Uint => quote! { u32 },
                     Type::Int => quote! { i32 },
                     Type::Fixed => quote! { f64 },
-                    Type::String => if arg.allow_null { quote!{ Option<String> } } else { quote!{ String } },
+                    Type::String => if arg.allow_null { quote!{ Option<std::borrow::Cow<'static, std::ffi::CStr>> } } else { quote!{ std::borrow::Cow<'static, std::ffi::CStr> } },
                     Type::Array => if arg.allow_null { quote!{ Option<Vec<u8>> } } else { quote!{ Vec<u8> } },
                     Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },
                     Type::Object => {
@@ -329,7 +329,8 @@ mod tests {
         let reference = crate::format_rust_code(&reference);
 
         if reference != generated {
-            let diff = similar::TextDiff::from_lines(&reference, &generated);
+            let diff: similar::TextDiff<'_, '_, '_, str> =
+                similar::TextDiff::from_lines(&reference, &generated);
             print!("{}", diff.unified_diff().context_radius(10).header("reference", "generated"));
             panic!("Generated does not match reference!")
         }

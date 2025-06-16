@@ -1,6 +1,8 @@
 #[macro_use]
 mod helpers;
 
+use std::ffi::CString;
+
 use helpers::{globals, roundtrip, wayc, ways, TestServer};
 
 use ways::protocol::wl_data_device::WlDataDevice as ServerDD;
@@ -186,7 +188,7 @@ fn server_created_race() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    offer.offer("text".into());
+    offer.offer(CString::new("text").unwrap().into());
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -195,7 +197,7 @@ fn server_created_race() {
     // now the client will conccurently destroy the object as the server sends an event to it
     // this should not crash and the events to the zombie object should be silently dropped
 
-    offer.offer("utf8".into());
+    offer.offer(CString::new("utf8").unwrap().into());
     let client_do = client_ddata.data_offer.take().unwrap();
     client_do.destroy();
 
@@ -404,7 +406,7 @@ impl wayc::Dispatch<ClientDO, ()> for ClientHandler {
     ) {
         match event {
             wayc::protocol::wl_data_offer::Event::Offer { mime_type } => {
-                state.received = Some(mime_type);
+                state.received = Some(String::from_utf8_lossy(mime_type.to_bytes()).into_owned());
             }
             _ => unimplemented!(),
         }
