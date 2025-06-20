@@ -61,14 +61,14 @@ impl std::hash::Hash for InnerObjectId {
 }
 
 impl fmt::Display for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
 impl fmt::Debug for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ObjectId({}, {})", self, self.serial)
     }
