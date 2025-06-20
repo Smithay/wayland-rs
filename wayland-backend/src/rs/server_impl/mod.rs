@@ -43,14 +43,14 @@ impl InnerObjectId {
 }
 
 impl fmt::Display for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}[{}]", self.interface.name, self.id, self.client_id.id)
     }
 }
 
 impl fmt::Debug for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ObjectId({}, {})", self, self.serial)
     }
@@ -106,7 +106,7 @@ pub(crate) struct Data<D: 'static> {
 }
 
 impl<D> Clone for Data<D> {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn clone(&self) -> Self {
         Self { user_data: self.user_data.clone(), serial: self.serial }
     }
@@ -115,7 +115,7 @@ impl<D> Clone for Data<D> {
 struct UninitObjectData;
 
 impl<D> ObjectData<D> for UninitObjectData {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn request(
         self: Arc<Self>,
         _: &Handle,
@@ -126,10 +126,10 @@ impl<D> ObjectData<D> for UninitObjectData {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: ClientId, _: ObjectId) {}
 
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()
     }

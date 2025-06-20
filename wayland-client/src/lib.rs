@@ -163,7 +163,7 @@
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(coverage, feature(coverage_attribute))]
+#![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
