@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","zwp_input_method_keyboard_grab_v2","zwp_input_method_manager_v2","zwp_input_method_v2","zwp_input_popup_surface_v2"]};

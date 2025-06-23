@@ -1,0 +1,1 @@
+searchState.loadedDescShard("wayland_scanner", 0, "Wayland protocol code-generation machinnery\nProc-macro for generating client-side API associated with …\nProc-macro for generating low-level interfaces associated …\nProc-macro for generating server-side API associated with …")
