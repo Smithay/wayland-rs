@@ -423,6 +423,17 @@ impl<D> InnerBackend<D> {
             Ok(ret as usize)
         }
     }
+
+    pub fn set_max_buffer_size(&mut self, max_buffer_size: usize) {
+        unsafe {
+            ffi_dispatch!(
+                wayland_server_handle(),
+                wl_display_set_default_max_buffer_size,
+                self.display_ptr,
+                max_buffer_size
+            );
+        }
+    }
 }
 
 impl<D> Drop for State<D> {
