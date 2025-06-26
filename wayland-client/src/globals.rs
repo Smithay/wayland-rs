@@ -328,7 +328,11 @@ where
             match event {
                 wl_registry::Event::Global { name, interface, version } => {
                     let mut guard = self.globals.contents.lock().unwrap();
-                    guard.push(Global { name, interface, version });
+                    guard.push(Global {
+                        name,
+                        interface: String::from_utf8_lossy(interface.to_bytes()).into_owned(),
+                        version,
+                    });
                 }
 
                 wl_registry::Event::GlobalRemove { name: remove } => {

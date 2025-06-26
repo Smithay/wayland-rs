@@ -282,7 +282,7 @@ impl<D> Client<D> {
                 [
                     Argument::Object(ObjectId { id: object_id.clone() }),
                     Argument::Uint(error_code),
-                    Argument::Str(Some(Box::new(message))),
+                    Argument::Str(Some(Box::new(message.into()))),
                 ],
             ),
             // wl_display.error is not a destructor, this argument will not be used
