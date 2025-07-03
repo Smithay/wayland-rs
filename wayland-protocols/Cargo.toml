@@ -24,6 +24,7 @@ client = ["wayland-client"]
 server = ["wayland-server"]
 staging = []
 unstable = []
+experimental = ["unstable"]
 
 [package.metadata.docs.rs]
 all-features = true

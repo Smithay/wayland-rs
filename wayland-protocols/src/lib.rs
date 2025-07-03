@@ -14,6 +14,7 @@
 //! - The [`wp`] module contains general purpose wayland protocols
 //! - The [`xdg`] module contains protocols specifically related to window management
 //! - The [`xwayland`] module contains protocols used by xwayland.
+//! - The [`xx`] module, if the cargo feature `experimental` is enabled, contains experimental protocols.
 //! - The [`ext`] module contains protocols that do not fit into the three previous categories.
 //!
 //! ## Staging protocols
@@ -36,6 +37,14 @@
 //! are still under that umbrella. We can expect them to be replaced by staging and stable protocols in the
 //! long term, but in the meantime you can enable them with the `unstable` cargo feature.
 //!
+//! ## Experimental protocols
+//!
+//! The cargo feature `experimental` enables the generation of the experimental protocols.
+//!
+//! Those protocols are ready for wider testing, but they may change often and in incompatible ways, or disappear altogether. Software using them should implement the latest version only.
+//!
+//! It is expected that they eventually get promoted to staging or removed.
+//!
 //! ## Other protocols
 //!
 //! Additionally, more protocol extensions are provided here:
@@ -54,3 +63,5 @@ pub mod ext;
 pub mod wp;
 pub mod xdg;
 pub mod xwayland;
+#[cfg(feature = "experimental")]
+pub mod xx;
