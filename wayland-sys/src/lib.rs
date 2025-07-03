@@ -27,6 +27,8 @@
 //! `is_lib_available()` which returns whether the library could be loaded. They always return true
 //! if the feature `dlopen` is absent, as we link against the library directly in that case.
 #![allow(non_camel_case_types)]
+// Allow the existing usage
+#![allow(clippy::uninlined_format_args)]
 #![forbid(improper_ctypes, unsafe_op_in_unsafe_fn)]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]

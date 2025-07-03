@@ -151,6 +151,8 @@ client_ignore_impl!(ClientHandler => [
 // Use a modified version of helpers::roundtrip here
 // which gracefully handles ErrorKind::WouldBlock from socket reads and flushes
 // to enable testing with the large amount of Wayland messages this test requires
+// Allow the existing usage
+#[allow(clippy::uninlined_format_args)]
 fn roundtrip<CD: 'static, SD: 'static>(
     client: &mut TestClient<CD>,
     server: &mut TestServer<SD>,
