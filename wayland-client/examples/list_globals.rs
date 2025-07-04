@@ -15,6 +15,8 @@ struct AppData;
 // In this example, we just use () as we don't have any value to associate. See
 // the `Dispatch` documentation for more details about this.
 impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
+    // Allow the existing usage
+    #[allow(clippy::uninlined_format_args)]
     fn event(
         _: &mut Self,
         _: &wl_registry::WlRegistry,

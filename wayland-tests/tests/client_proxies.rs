@@ -266,6 +266,8 @@ impl wayc::Dispatch<wayc::protocol::wl_compositor::WlCompositor, usize> for Clie
     }
 }
 
+// Allow the existing usage
+#[allow(clippy::uninlined_format_args)]
 impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ()> for ClientHandler {
     fn event(
         state: &mut Self,

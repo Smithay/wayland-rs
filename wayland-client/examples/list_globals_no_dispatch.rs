@@ -13,6 +13,8 @@ struct RegistryData(Arc<Connection>);
 // ObjectData for our registry. This is required to receive events
 // (specifically, the wl_registry.global events) after our wl_registry.get_registry request.
 impl backend::ObjectData for RegistryData {
+    // Allow the existing usage
+    #[allow(clippy::uninlined_format_args)]
     fn event(
         self: Arc<Self>,
         _: &Backend,

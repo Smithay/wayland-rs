@@ -8,6 +8,8 @@ use ways::protocol::wl_output::WlOutput as ServerOutput;
 use std::os::unix::io::IntoRawFd;
 use std::sync::Arc;
 
+// Allow the existing usage
+#[allow(clippy::uninlined_format_args)]
 fn main() {
     let mut server = TestServer::new();
     server.display.handle().create_global::<ServerData, ServerOutput, _>(2, ());
