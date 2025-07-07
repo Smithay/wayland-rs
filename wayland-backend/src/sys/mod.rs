@@ -36,8 +36,6 @@ unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
 #[cfg(any(test, feature = "client_system"))]
 #[path = "../client_api.rs"]
 pub mod client;
-#[cfg(any(test, feature = "client_system"))]
-use client::{ObjectData, ObjectId};
 
 // API complements for FFI
 
@@ -111,8 +109,8 @@ impl client::Backend {
         &self,
         interface: &'static Interface,
         proxy: *mut wl_proxy,
-        data: Arc<dyn ObjectData>,
-    ) -> ObjectId {
+        data: Arc<dyn crate::sys::client::ObjectData>,
+    ) -> crate::sys::client::ObjectId {
         unsafe { self.backend.manage_object(interface, proxy, data) }
     }
 }
