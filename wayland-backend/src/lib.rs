@@ -110,7 +110,7 @@ mod types;
 extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
     let text = cstr.to_string_lossy();
-    log::error!("{}", text);
+    log::error!("{text}");
 }
 
 #[cfg(feature = "log")]
@@ -118,5 +118,5 @@ extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
 extern "C" fn wl_log_rust_logger_server(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
     let text = cstr.to_string_lossy();
-    log::error!("{}", text);
+    log::error!("{text}");
 }

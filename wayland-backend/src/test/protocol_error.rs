@@ -105,7 +105,7 @@ expand_test!(protocol_error, {
                 assert_eq!(err.message, "I don't like you.");
             }
         }
-        _ => panic!("Bad ret: {:?}", ret),
+        _ => panic!("Bad ret: {ret:?}"),
     }
 });
 

@@ -279,7 +279,7 @@ impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ()> for ClientHandler
             assert!(conn.get_object_data(output.id()).is_err());
             state.entered = true;
         } else {
-            panic!("Unexpected event: {:?}", event);
+            panic!("Unexpected event: {event:?}");
         }
     }
 }
