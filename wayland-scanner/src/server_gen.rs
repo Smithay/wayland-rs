@@ -12,7 +12,9 @@ pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {
     protocol
         .interfaces
         .iter()
-        .filter(|iface| iface.name != "wl_display" && iface.name != "wl_registry")
+        .filter(|iface| {
+            iface.name != "wl_display" && iface.name != "wl_registry" && iface.name != "wl_fixes"
+        })
         .map(generate_objects_for)
         .collect()
 }
