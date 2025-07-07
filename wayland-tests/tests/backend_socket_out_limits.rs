@@ -194,7 +194,7 @@ fn roundtrip<CD: 'static, SD: 'static>(
                     return Err(wayc::backend::WaylandError::Io(e));
                 }
             }
-            Err(e) => panic!("{:?}", e),
+            Err(e) => panic!("{e:?}"),
         };
         match server.display.flush_clients() {
             Ok(_) => {}
@@ -204,7 +204,7 @@ fn roundtrip<CD: 'static, SD: 'static>(
                     return Err(wayc::backend::WaylandError::Io(e));
                 }
             }
-            Err(e) => panic!("{:?}", e),
+            Err(e) => panic!("{e:?}"),
         }
         // dispatch all client-side
         client.event_queue.dispatch_pending(client_ddata).unwrap();

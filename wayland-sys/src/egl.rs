@@ -29,7 +29,7 @@ pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
                 Ok(h) => return Some(h),
                 Err(::dlib::DlError::CantOpen(_)) => continue,
                 Err(::dlib::DlError::MissingSymbol(s)) => {
-                    log::error!("Found library {} cannot be used: symbol {} is missing.", ver, s);
+                    log::error!("Found library {ver} cannot be used: symbol {s} is missing.");
                     return None;
                 }
             }
