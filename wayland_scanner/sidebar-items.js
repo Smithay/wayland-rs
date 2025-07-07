@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["generate_client_code","generate_interfaces","generate_server_code"]};
