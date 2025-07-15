@@ -1,5 +1,6 @@
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(coverage)");
+    println!("cargo:rustc-check-cfg=cfg(unstable_coverage)");
 
     if std::env::var("CARGO_FEATURE_LOG").ok().is_some() {
         // build the client shim

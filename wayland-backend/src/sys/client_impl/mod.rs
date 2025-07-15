@@ -149,14 +149,14 @@ impl InnerObjectId {
 }
 
 impl std::fmt::Display for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
 impl std::fmt::Debug for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ObjectId({self})")
     }

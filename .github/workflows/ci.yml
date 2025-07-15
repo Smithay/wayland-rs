@@ -286,7 +286,7 @@ jobs:
           args: --workspace --exclude 'wayland-tests'
         env:
           LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
-          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage"
+          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage --cfg unstable_coverage"
 
       - name: Coverage
         run: grcov . --binary-path ./target/debug -s . -t lcov --branch --llvm --ignore-not-existing --ignore 'wayland-backend/src/test/*' --ignore '*/examples/*' --ignore '*/tests/*' --ignore '*/.cargo/registry/*' --excl-br-start "mod tests \{" --excl-start "mod tests \{" --excl-br-line "#\[derive\(" --excl-line "#\[derive\(" -o lcov.info
@@ -370,7 +370,7 @@ jobs:
           args: -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}"
         env:
           LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
-          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage"
+          RUSTFLAGS: "-Cinstrument-coverage --cfg coverage --cfg unstable_coverage"
       
       - name: Coverage
         run: grcov . --binary-path ./target/debug -s . -t lcov --branch --llvm --ignore-not-existing --ignore 'wayland-tests/*' --ignore '*/examples/*' --ignore '*/tests/*' --ignore '*/.cargo/registry/*' --excl-br-start "mod tests \{" --excl-start "mod tests \{" --excl-br-line "#\[derive\(" --excl-line "#\[derive\(" -o lcov.info
