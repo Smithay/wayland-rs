@@ -79,12 +79,20 @@
 
         This event serves the purpose of providing the compositor with an
         active input method.
+        
+        This event provides a keyboard to receive events intended for the text input surface. See the keyboard_consume request.
 
         This event resets all state associated with previous enable, disable,
         surrounding_text, text_change_cause, and content_type events, as well
         as the state associated with set_preedit_string, commit_string, and
+<<<<<<< HEAD
         delete_surrounding_text requests, and destroys any existing input_popup_surface objects.
         In addition, it marks the xx_input_method_v1 object as active.
+=======
+        delete_surrounding_text requests. It marks the
+        xx_input_method_v1 object as active. It makes any existing
+        zwp_input_popup_surface_v2 objects visible.
+>>>>>>> fcb305f (input method: Add keyboard handling)
 
         The surrounding_text, and content_type events must follow before the
         next done event if the text input supports the respective
@@ -93,6 +101,7 @@
         State set with this event is double-buffered. It will get applied on
         the next xx_input_method_v1.done event, and stay valid until changed.
       </description>
+      <arg name="keyboard" type="wl_keyboard" since="2" />
     </event>
 
     <event name="deactivate">
@@ -276,6 +285,98 @@
       <arg name="after_length" type="uint"/>
     </request>
 
+    <enum name="keyboard_consume_action">
+      <entry name="start" value="0" summary="begin consuming keys"/>
+      <entry name="stop" value="1" summary="pause consuming keys"/>
+    </enum>
+    
+    <request name="keyboard_consume" since="2">
+      <description summary="consume key down or up event">
+        This requst controls the filtering of input events reaching the application.
+        
+        Whenever the input method is activated, the compositor must start sending it keyboard events intended for the text-input client, so that the input method can be controlled using a keyboard.
+        Traditionally, from the user perspective, input methods receive keys as if they were an overlay: keys which are interesting to the nput method gain a special input method meaning, all others work as usual.
+        Together with the wl_keyboard provided in .activate, this request makes this possible by letting the input method indicate which events it is interested in.
+
+        Splitting one stream of keyboard events between two destination contains a tension: on one hand, both destinations may be interested in the actual buttons being pressed, and on the other hand, most of the time the abstract event they are interested in is the keysym delivered in response to user action. The concept of key repetition is based on that second understanding. Any solution trying to send key events must be aware of the repetition in order to provide a user experience similar to using a single application, that is, not having multiple first-repetition delays after pressing a key.
+        
+        Here, this is solved by making both destinations (input method and compositor or text input client) conceptually swap the "ownership" of the current state of the keyboard. A switch in ownership, from the perspective of the user, keeps the continuity of key presses and doesn't trigger an extra repetition or an extra delay.
+        
+        For this, the input method may choose in which time slices it "owns" the keyboard. To do this, the input method must respond to every key press or release event with the keyboard_consume event indicating the selected owneship: action.start means that the input method takes the ownership, action.pause means that the text input client does. The "skip_repetitions" argument discloses exactly which time slice the request applies to, with "0" meaning immediately.
+        
+        This event may be sent multiple times with the same serial to indicate the taking or releasing of ownership as needed.
+        Time slices begin counting from the time of the first .keyboard_consume request. The compositor must respond with an error "too late" if the indicated time slice is in the past.
+        
+        The input method may send requests for events in the future, but it's advised not to act on those events until the indicated time passes, in case the state changes, e.g the key is released.
+        
+        On the change of a keymap or delay properties, all requested ownership changes are invalidated and the current event is owned by the text input client again.
+
+
+        There are two main architectures on the compositor side to make this approach work:
+        
+        1. Without the text-input client in the events path.
+
+        keyboard
+              V
+        compositor -> input method
+              |                           |
+        [key events]      [ownership requests]
+             V                      /
+        compositor     /_ 
+              |
+        [filtered events]
+              V
+        client
+
+        This method offers low delay and doesn't require client support. On the other hand, it requires the compositor to send synthetic events and alter key repetition delay values.
+        
+        Consider the situation where the user holds the A key, and the [i]nput method is interested in every other repetition. The rest go to the [t]ext input client: "itititit".
+        
+        The sequence of events for this would look similar to:
+        
+        1. c->i: wl_key(A, down, 0)
+        2. i->c: consume(0, start, 0)
+        [some time possibly passes]
+        3. i->c: consume(0, stop, 1)
+        [about the delay time passes]
+        4. c->t: set_delay(0)
+        5. c->t: wl_key(A, down, 0)
+        6. c->t: set_delay(original value)
+        [maybe time passes]
+        7. i->c: consume(0, start, 2)
+        8. i->c: consume(0, stop, 3)
+        [time approximatly equal to 1 delay + 2 repetitions passes]
+        9. c->t: set_delay(0)
+        10. c->t: wl_key(A, down, 0)   ---- this is the synthetic event
+        11. c->t: set_delay(original value)
+
+        
+        2. Without the text-input client in the events path.
+        
+        In ths architecture, the client is responsible for filtering events:
+        
+        keyboard
+              V
+        compositor -> input method
+              |                           |
+        [key events]      [ownership requests]
+             V                      /
+        compositor     /_ 
+              |
+        [key events and indcators]
+              V
+        client
+
+        The responsibility to control repetition is on the client. The client is aware that it shares the keyboard with the input method and it must filter the keyboard events in the same way as the input method.
+        
+        
+        Other architectures are possible, e.g. one where events first arrive at the clients, but they are not described here because it's not clear to the author what advantages they might provide.
+      </description>
+      <arg name="serial" type="uint"/>
+      <arg name="action" type="uint" enum="keyboard_consume_action"/>
+      <arg name="skip_repetitions" type="uint" summary="skip this many repetitions since the event appeared"/>
+    </request>
+    
     <request name="commit">
       <description summary="apply state">
         Apply state changes from commit_string, set_preedit_string and
@@ -346,6 +447,7 @@
     </request>
   </interface>
 
+<<<<<<< HEAD
   <interface name="xx_input_popup_surface_v2" version="1">
     <description summary="popup surface">
       An input method popup surface is a short-lived, temporary surface.
@@ -786,6 +888,8 @@
     </request>
   </interface>
 
+=======
+>>>>>>> fcb305f (input method: Add keyboard handling)
   <interface name="xx_input_method_manager_v2" version="2">
     <description summary="input method manager">
       The input method manager allows the client to become the input method on
