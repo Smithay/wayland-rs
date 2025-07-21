@@ -2,7 +2,7 @@
 name = "wayland-protocols-experimental"
 # The major version updates every time the protocols are pulled from wayland-protocols.
 # That's because experimental protocols version bumps are incompatible by definition.
-version = "20250703.0.1"
+version = "20250721.0.1"
 documentation = "https://docs.rs/wayland-protocols-experimental/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
