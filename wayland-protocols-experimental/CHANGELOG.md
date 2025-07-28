@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 20250721.0.1 -- 2025-07-28
+
 ### Additions
 
 - Introduce protocol `session_management-v1`,
