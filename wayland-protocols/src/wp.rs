@@ -514,7 +514,7 @@ pub mod tablet {
     /// Unstable version 2
     pub mod zv2 {
         wayland_protocol!(
-            "./protocols/unstable/tablet/tablet-unstable-v2.xml",
+            "./protocols/stable/tablet/tablet-v2.xml",
             []
         );
     }
