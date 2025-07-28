@@ -1,6 +1,6 @@
 [package]
 name = "wayland-scanner"
-version = "0.31.6"
+version = "0.31.7"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
 repository = "https://github.com/smithay/wayland-rs"
 documentation = "https://docs.rs/wayland-scanner/"
