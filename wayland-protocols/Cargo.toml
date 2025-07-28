@@ -11,6 +11,20 @@ categories = ["gui", "api-bindings"]
 edition = "2021"
 rust-version = "1.65"
 readme = "README.md"
+include = [
+    "/src/**/*.rs",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE.txt",
+    "/protocols/stable/*/*.xml",
+    "/protocols/staging/*/*.xml",
+    "/protocols/unstable/*/*.xml",
+    # Exclude old version of stabalized protocols
+    "!/protocols/unstable/xdg-shell/xdg-shell-unstable-v5.xml",
+    "!/protocols/unstable/xdg-shell/xdg-shell-unstable-v6.xml",
+    "!/protocols/unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml",
+    "!/protocols/unstable/tablet/tablet-unstable-v2.xml",
+]
 
 [dependencies]
 wayland-scanner = { version = "0.31.6", path = "../wayland-scanner" }
