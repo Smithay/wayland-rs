@@ -88,7 +88,7 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                         // parse the copyright
                         let copyright = match reader.read_event_into(&mut Vec::new()) {
                             Ok(Event::Text(copyright)) => {
-                                copyright.unescape().ok().map(|x| x.to_string())
+                                copyright.decode().ok().map(|x| x.to_string())
                             }
                             Ok(Event::CData(copyright)) => {
                                 String::from_utf8(copyright.into_inner().into()).ok()
@@ -180,7 +180,7 @@ fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (
                 if !description.is_empty() {
                     description.push_str("\n\n");
                 }
-                description.push_str(&bytes.unescape().unwrap_or_default())
+                description.push_str(&bytes.decode().unwrap_or_default())
             }
             Ok(Event::End(bytes)) if bytes.name().into_inner() == b"description" => break,
             Ok(Event::Comment(_)) => {}
