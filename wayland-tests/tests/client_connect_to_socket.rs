@@ -17,7 +17,7 @@ fn main() {
     let my_client = server.display.handle().insert_client(s1, Arc::new(DumbClientData)).unwrap();
 
     let fd2 = s2.into_raw_fd();
-    ::std::env::set_var("WAYLAND_SOCKET", format!("{}", fd2));
+    ::std::env::set_var("WAYLAND_SOCKET", format!("{fd2}"));
 
     let mut client = TestClient::new_from_env();
 

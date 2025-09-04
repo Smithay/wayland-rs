@@ -41,7 +41,7 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
     /// By default will just print `ObjectData { ... }`
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ObjectData").finish_non_exhaustive()
     }
@@ -57,7 +57,7 @@ pub trait ObjectData: downcast_rs::DowncastSync {
 }
 
 impl std::fmt::Debug for dyn ObjectData {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
     }
@@ -77,7 +77,7 @@ pub struct ObjectId {
 }
 
 impl fmt::Display for ObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
@@ -85,7 +85,7 @@ impl fmt::Display for ObjectId {
 }
 
 impl fmt::Debug for ObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.id.fmt(f)
@@ -188,7 +188,7 @@ impl Backend {
 
     /// Access the Wayland socket FD for polling
     #[inline]
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         self.backend.poll_fd()
     }
 
@@ -312,7 +312,7 @@ pub struct ReadEventsGuard {
 impl ReadEventsGuard {
     /// Access the Wayland socket FD for polling
     #[inline]
-    pub fn connection_fd(&self) -> BorrowedFd {
+    pub fn connection_fd(&self) -> BorrowedFd<'_> {
         self.guard.connection_fd()
     }
 
@@ -333,7 +333,7 @@ impl ReadEventsGuard {
 pub(crate) struct DumbObjectData;
 
 impl ObjectData for DumbObjectData {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
@@ -342,7 +342,7 @@ impl ObjectData for DumbObjectData {
         unreachable!()
     }
 
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn destroyed(&self, _object_id: ObjectId) {
         unreachable!()
     }
@@ -351,7 +351,7 @@ impl ObjectData for DumbObjectData {
 pub(crate) struct UninitObjectData;
 
 impl ObjectData for UninitObjectData {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
@@ -360,10 +360,10 @@ impl ObjectData for UninitObjectData {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn destroyed(&self, _object_id: ObjectId) {}
 
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UninitObjectData").finish()
     }

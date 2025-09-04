@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.32.9 -- 2025-07-28
+
+- Bump wayland-protocols to 1.45
+  - New staging protocols:
+    * `ext-background-effect-v1`
+    * `pointer-warp-v1`
+
 ## 0.32.7 -- 2025-04-28
 
 - Bump wayland-protocols to 1.41

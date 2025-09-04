@@ -343,11 +343,11 @@ impl<D> ErasedState for State<D> {
             let evt = Event::new(
                 EventFilter::Read(client.as_fd().as_raw_fd()),
                 EventFlags::ADD | EventFlags::RECEIPT,
-                id.as_u64() as isize,
+                id.as_u64() as *mut _,
             );
 
-            let mut events = Vec::new();
-            unsafe { kevent(&self.poll_fd, &[evt], &mut events, None).map(|_| ()) }
+            let events: &mut [Event] = &mut [];
+            unsafe { kevent(&self.poll_fd, &[evt], events, None).map(|_| ()) }
         };
 
         match ret {

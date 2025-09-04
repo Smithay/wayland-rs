@@ -24,7 +24,7 @@ impl backend::ObjectData for RegistryData {
         // Similar to the dispatch example, we only care about the global event and
         // will print out the received globals.
         if let wl_registry::Event::Global { name, interface, version } = event {
-            println!("[{}] {} (v{})", name, interface, version);
+            println!("[{name}] {interface} (v{version})");
         }
         None
     }

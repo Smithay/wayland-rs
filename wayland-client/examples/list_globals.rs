@@ -27,7 +27,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
         // `global` event, which signals a new available global.
         // When receiving this event, we just print its characteristics in this example.
         if let wl_registry::Event::Global { name, interface, version } = event {
-            println!("[{}] {} (v{})", name, interface, version);
+            println!("[{name}] {interface} (v{version})");
         }
     }
 }

@@ -501,8 +501,10 @@
     <event name="release">
       <description summary="compositor releases buffer">
 	Sent when this wl_buffer is no longer used by the compositor.
-	The client is now free to reuse or destroy this buffer and its
-	backing storage.
+
+	For more information on when release events may or may not be sent,
+	and what consequences it has, please see the description of
+	wl_surface.attach.
 
 	If a client receives a release event before the frame callback
 	requested in the same wl_surface.commit that attaches this
@@ -1504,7 +1506,8 @@
 	the delivery of wl_buffer.release events becomes undefined. A well
 	behaved client should not rely on wl_buffer.release events in this
 	case. Alternatively, a client could create multiple wl_buffer objects
-	from the same backing storage or use wp_linux_buffer_release.
+	from the same backing storage or use a protocol extension providing
+	per-commit release notifications.
 
 	Destroying the wl_buffer after wl_buffer.release does not change
 	the surface contents. Destroying the wl_buffer before wl_buffer.release
@@ -1832,6 +1835,9 @@
 	x and y, combined with the new surface size define in which
 	directions the surface's size changes.
 
+	The exact semantics of wl_surface.offset are role-specific. Refer to
+	the documentation of specific roles for more information.
+
 	Surface location offset is double-buffered state, see
 	wl_surface.commit.
 
@@ -1880,7 +1886,7 @@
     </event>
    </interface>
 
-  <interface name="wl_seat" version="9">
+  <interface name="wl_seat" version="10">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -1908,9 +1914,10 @@
 
     <event name="capabilities">
       <description summary="seat capabilities changed">
-	This is emitted whenever a seat gains or loses the pointer,
-	keyboard or touch capabilities.  The argument is a capability
-	enum containing the complete set of capabilities this seat has.
+	This is sent on binding to the seat global or whenever a seat gains
+	or loses the pointer, keyboard or touch capabilities.
+	The argument is a capability enum containing the complete set of
+	capabilities this seat has.
 
 	When the pointer capability is added, a client may create a
 	wl_pointer object using the wl_seat.get_pointer request. This object
@@ -1992,9 +1999,9 @@
 	The same seat names are used for all clients. Thus, the name can be
 	shared across processes to refer to a specific wl_seat global.
 
-	The name event is sent after binding to the seat global. This event is
-	only sent once per seat object, and the name does not change over the
-	lifetime of the wl_seat global.
+	The name event is sent after binding to the seat global, and should be sent
+	before announcing capabilities. This event only sent once per seat object,
+	and the name does not change over the lifetime of the wl_seat global.
 
 	Compositors may re-use the same seat name if the wl_seat global is
 	destroyed and re-created later.
@@ -2013,7 +2020,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="9">
+  <interface name="wl_pointer" version="10">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -2426,7 +2433,7 @@
     </event>
   </interface>
 
-  <interface name="wl_keyboard" version="9">
+  <interface name="wl_keyboard" version="10">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2479,6 +2486,9 @@
 	the surface argument and the keys currently logically down to the keys
 	in the keys argument. The compositor must not send this event if the
 	wl_keyboard already had an active surface immediately before this event.
+
+	Clients should not use the list of pressed keys to emulate key-press
+	events. The order of keys in the list is unspecified.
       </description>
       <arg name="serial" type="uint" summary="serial number of the enter event"/>
       <arg name="surface" type="object" interface="wl_surface" summary="surface gaining keyboard focus"/>
@@ -2505,9 +2515,18 @@
     <enum name="key_state">
       <description summary="physical key state">
 	Describes the physical state of a key that produced the key event.
+
+	Since version 10, the key can be in a "repeated" pseudo-state which
+	means the same as "pressed", but is used to signal repetition in the
+	key event.
+
+	The key may only enter the repeated state after entering the pressed
+	state and before entering the released state. This event may be
+	generated multiple times while the key is down.
       </description>
       <entry name="released" value="0" summary="key is not pressed"/>
       <entry name="pressed" value="1" summary="key is pressed"/>
+      <entry name="repeated" value="2" summary="key was repeated" since="10"/>
     </enum>
 
     <event name="key">
@@ -2530,6 +2549,11 @@
 	compositor must not send this event if state is pressed (resp. released)
 	and the key was already logically down (resp. was not logically down)
 	immediately before this event.
+
+	Since version 10, compositors may send key events with the "repeated"
+	key state when a wl_keyboard.repeat_info event with a rate argument of
+	0 has been received. This allows the compositor to take over the
+	responsibility of key repetition.
       </description>
       <arg name="serial" type="uint" summary="serial number of the key event"/>
       <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
@@ -2590,7 +2614,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="9">
+  <interface name="wl_touch" version="10">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
@@ -3242,6 +3266,33 @@
 	If a surface's parent surface behaves as desynchronized, then
 	the cached state is applied on set_desync.
       </description>
+    </request>
+  </interface>
+
+  <interface name="wl_fixes" version="1">
+    <description summary="wayland protocol fixes">
+      This global fixes problems with other core-protocol interfaces that
+      cannot be fixed in these interfaces themselves.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroys this object"/>
+    </request>
+
+    <request name="destroy_registry">
+      <description summary="destroy a wl_registry">
+	This request destroys a wl_registry object.
+
+	The client should no longer use the wl_registry after making this
+	request.
+
+	The compositor will emit a wl_display.delete_id event with the object ID
+	of the registry and will no longer emit any events on the registry. The
+	client should re-use the object ID once it receives the
+	wl_display.delete_id event.
+      </description>
+      <arg name="registry" type="object" interface="wl_registry"
+	   summary="the registry to destroy"/>
     </request>
   </interface>
 

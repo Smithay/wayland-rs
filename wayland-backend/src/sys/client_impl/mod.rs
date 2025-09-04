@@ -149,14 +149,14 @@ impl InnerObjectId {
 }
 
 impl std::fmt::Display for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.interface.name, self.id)
     }
 }
 
 impl std::fmt::Debug for InnerObjectId {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ObjectId({self})")
     }
@@ -201,7 +201,7 @@ pub struct WeakInnerBackend {
 }
 
 impl InnerBackend {
-    fn lock_state(&self) -> MutexGuard<ConnectionState> {
+    fn lock_state(&self) -> MutexGuard<'_, ConnectionState> {
         self.inner.state.lock().unwrap()
     }
 
@@ -295,7 +295,7 @@ impl InnerBackend {
         }
     }
 
-    pub fn poll_fd(&self) -> BorrowedFd {
+    pub fn poll_fd(&self) -> BorrowedFd<'_> {
         let guard = self.lock_state();
         unsafe {
             BorrowedFd::borrow_raw(ffi_dispatch!(
@@ -419,7 +419,7 @@ impl InnerReadEventsGuard {
         }
     }
 
-    pub fn connection_fd(&self) -> BorrowedFd {
+    pub fn connection_fd(&self) -> BorrowedFd<'_> {
         unsafe {
             BorrowedFd::borrow_raw(ffi_dispatch!(
                 wayland_client_handle(),

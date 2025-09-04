@@ -47,7 +47,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 // The api modules are imported two times each, this is not accidental
 #![allow(clippy::duplicate_mod)]
-#![cfg_attr(coverage, feature(coverage_attribute))]
+#![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
@@ -110,7 +110,7 @@ mod types;
 extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
     let text = cstr.to_string_lossy();
-    log::error!("{}", text);
+    log::error!("{text}");
 }
 
 #[cfg(feature = "log")]
@@ -118,5 +118,5 @@ extern "C" fn wl_log_rust_logger_client(msg: *const std::os::raw::c_char) {
 extern "C" fn wl_log_rust_logger_server(msg: *const std::os::raw::c_char) {
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg) };
     let text = cstr.to_string_lossy();
-    log::error!("{}", text);
+    log::error!("{text}");
 }

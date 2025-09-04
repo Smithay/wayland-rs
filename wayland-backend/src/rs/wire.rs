@@ -20,7 +20,7 @@ pub enum MessageWriteError {
 impl std::error::Error for MessageWriteError {}
 
 impl std::fmt::Display for MessageWriteError {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             Self::BufferTooSmall => {
@@ -50,7 +50,7 @@ pub enum MessageParseError {
 impl std::error::Error for MessageParseError {}
 
 impl std::fmt::Display for MessageParseError {
-    #[cfg_attr(coverage, coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match *self {
             Self::MissingFD => {
