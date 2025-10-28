@@ -162,6 +162,7 @@ mod tests {
             GlobalDispatch, New,
         };
 
+        #[allow(dead_code)]
         struct DelegateToMe;
 
         impl<D> Dispatch<wl_output::WlOutput, (), D> for DelegateToMe
@@ -196,6 +197,7 @@ mod tests {
             }
         }
 
+        #[allow(dead_code)]
         struct ExampleApp {
             delegate: DelegateToMe,
         }
@@ -217,6 +219,7 @@ mod tests {
             GlobalDispatch, New,
         };
 
+        #[allow(dead_code)]
         struct DelegateToMe<A>(A);
 
         impl<A, D> Dispatch<wl_output::WlOutput, (), D> for DelegateToMe<A>
@@ -253,6 +256,7 @@ mod tests {
             }
         }
 
+        #[allow(dead_code)]
         struct ExampleApp<A> {
             delegate: DelegateToMe<A>,
         }
