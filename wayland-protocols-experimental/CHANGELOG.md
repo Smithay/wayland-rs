@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Additions
+
+- Introduce protocol `text-input-v3`.
+
 ## 20250721.0.1 -- 2025-07-28
 
 ### Additions

@@ -40,3 +40,14 @@ pub mod input_method {
         );
     }
 }
+
+pub mod text_input {
+    //! This protocol allows applications to receive text composition events.
+    #[allow(missing_docs)]
+    pub mod v3 {
+        wayland_protocol!(
+            "./protocols/xx-text-input/xx-text-input-v3.xml",
+            []
+        );
+    }
+}
