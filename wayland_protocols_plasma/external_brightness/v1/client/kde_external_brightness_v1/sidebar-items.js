@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["REQ_CREATE_BRIGHTNESS_CONTROL_OPCODE","REQ_CREATE_BRIGHTNESS_CONTROL_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE"],"enum":["Event","Request"],"struct":["KdeExternalBrightnessV1"]};

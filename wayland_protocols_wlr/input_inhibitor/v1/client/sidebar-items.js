@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","zwlr_input_inhibit_manager_v1","zwlr_input_inhibitor_v1"]};
