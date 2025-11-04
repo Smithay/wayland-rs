@@ -74,3 +74,6 @@ name = "server_resources"
 
 [[test]]
 name = "xdg_shell_ping"
+
+[[test]]
+name = "buffer_size"
