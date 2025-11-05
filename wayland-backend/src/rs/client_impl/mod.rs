@@ -304,9 +304,13 @@ impl InnerBackend {
         guard
             .map
             .with(id.id.id, |obj| {
+                if obj.data.client_destroyed {
+                    return Err(InvalidId);
+                }
                 obj.data.client_destroyed = true;
+                Ok(())
             })
-            .unwrap();
+            .unwrap()?;
         object.data.user_data.destroyed(id.clone());
         Ok(())
     }
