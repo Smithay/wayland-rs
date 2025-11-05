@@ -499,6 +499,43 @@ impl InnerBackend {
         }
     }
 
+    fn destroy_object_inner(&self, guard: &mut MutexGuard<ConnectionState>, id: &ObjectId) {
+        if let Some(ref alive) = id.id.alive {
+            let udata = unsafe {
+                Box::from_raw(ffi_dispatch!(
+                    wayland_client_handle(),
+                    wl_proxy_get_user_data,
+                    id.id.ptr
+                ) as *mut ProxyUserData)
+            };
+            unsafe {
+                ffi_dispatch!(
+                    wayland_client_handle(),
+                    wl_proxy_set_user_data,
+                    id.id.ptr,
+                    std::ptr::null_mut()
+                );
+            }
+            alive.store(false, Ordering::Release);
+            udata.data.destroyed(id.clone());
+        }
+
+        guard.known_proxies.remove(&id.id.ptr);
+
+        unsafe {
+            ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, id.id.ptr);
+        }
+    }
+
+    pub fn destroy_object(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        if !id.id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
+            return Err(InvalidId);
+        }
+
+        self.destroy_object_inner(&mut self.lock_state(), id);
+        Ok(())
+    }
+
     pub fn send_request(
         &self,
         Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
@@ -693,31 +730,7 @@ impl InnerBackend {
         };
 
         if message_desc.is_destructor {
-            if let Some(ref alive) = id.alive {
-                let udata = unsafe {
-                    Box::from_raw(ffi_dispatch!(
-                        wayland_client_handle(),
-                        wl_proxy_get_user_data,
-                        id.ptr
-                    ) as *mut ProxyUserData)
-                };
-                unsafe {
-                    ffi_dispatch!(
-                        wayland_client_handle(),
-                        wl_proxy_set_user_data,
-                        id.ptr,
-                        std::ptr::null_mut()
-                    );
-                }
-                alive.store(false, Ordering::Release);
-                udata.data.destroyed(ObjectId { id: id.clone() });
-            }
-
-            guard.known_proxies.remove(&id.ptr);
-
-            unsafe {
-                ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, id.ptr);
-            }
+            self.destroy_object_inner(&mut guard, &ObjectId { id })
         }
 
         Ok(child_id)

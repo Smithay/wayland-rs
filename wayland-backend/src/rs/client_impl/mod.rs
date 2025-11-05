@@ -298,6 +298,19 @@ impl InnerBackend {
         ObjectId { id: InnerObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE } }
     }
 
+    pub fn destroy_object(&self, id: &ObjectId) -> Result<(), InvalidId> {
+        let mut guard = self.state.lock_protocol();
+        let object = guard.get_object(id.id.clone())?;
+        guard
+            .map
+            .with(id.id.id, |obj| {
+                obj.data.client_destroyed = true;
+            })
+            .unwrap();
+        object.data.user_data.destroyed(id.clone());
+        Ok(())
+    }
+
     pub fn send_request(
         &self,
         Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
