@@ -104,7 +104,7 @@ pub mod image_capture_source {
     pub mod v1 {
         wayland_protocol!(
             "./protocols/staging/ext-image-capture-source/ext-image-capture-source-v1.xml",
-            [crate::ext::foreign_toplevel_list::v1, crate::xdg::shell]
+            [crate::ext::foreign_toplevel_list::v1, crate::xdg::shell, crate::ext::workspace::v1]
         );
     }
 }
