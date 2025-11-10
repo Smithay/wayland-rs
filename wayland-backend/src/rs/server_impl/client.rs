@@ -565,6 +565,23 @@ impl<D> Client<D> {
         message: Message<u32, OwnedFd>,
     ) -> Option<(ArgSmallVec<OwnedFd>, bool, Option<InnerObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
+
+        if message_desc.since > object.version {
+            self.post_display_error(
+                DisplayError::InvalidMethod,
+                CString::new(format!(
+                    "invalid method {} (since {} < {}), object {}#{}",
+                    message.opcode,
+                    object.version,
+                    message_desc.since,
+                    object.interface.name,
+                    message.sender_id
+                ))
+                .unwrap(),
+            );
+            return None;
+        }
+
         // Convert the arguments and create the new object if applicable
         let mut new_args = SmallVec::with_capacity(message.args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
