@@ -204,7 +204,7 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
     }
 }
 
-/// An event queue
+/// An event queue.
 ///
 /// This is an abstraction for handling event dispatching, that allows you to ensure
 /// access to some common state `&mut State` to your event handlers.
@@ -230,7 +230,7 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// let mut event_queue = connection.new_event_queue();
 ///
 /// /*
-///  * Here your initial setup
+///  * Here is your initial setup
 ///  */
 /// struct State {
 ///     exit: bool
