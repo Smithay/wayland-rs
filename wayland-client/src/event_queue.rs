@@ -232,10 +232,10 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// /*
 ///  * Here your initial setup
 ///  */
-/// # struct State {
-/// #     exit: bool
-/// # }
-/// # let mut state = State { exit: false };
+/// struct State {
+///     exit: bool
+/// }
+/// let mut state = State { exit: false };
 ///
 /// // And the main loop:
 /// while !state.exit {
