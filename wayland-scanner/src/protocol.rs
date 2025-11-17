@@ -43,13 +43,21 @@ pub struct Message {
     pub name: String,
     pub typ: Option<Type>,
     pub since: u32,
+    pub deprecated_since: Option<u32>,
     pub description: Option<(String, String)>,
     pub args: Vec<Arg>,
 }
 
 impl Message {
     pub fn new() -> Message {
-        Message { name: String::new(), typ: None, since: 1, description: None, args: Vec::new() }
+        Message {
+            name: String::new(),
+            typ: None,
+            since: 1,
+            deprecated_since: None,
+            description: None,
+            args: Vec::new(),
+        }
     }
 
     pub fn all_null(&self) -> bool {
@@ -110,13 +118,21 @@ pub struct Entry {
     pub name: String,
     pub value: u32,
     pub since: u16,
+    pub deprecated_since: Option<u16>,
     pub description: Option<(String, String)>,
     pub summary: Option<String>,
 }
 
 impl Entry {
     pub fn new() -> Entry {
-        Entry { name: String::new(), value: 0, since: 1, description: None, summary: None }
+        Entry {
+            name: String::new(),
+            value: 0,
+            since: 1,
+            deprecated_since: None,
+            description: None,
+            summary: None,
+        }
     }
 }
 
