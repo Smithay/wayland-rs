@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["KDE_AUTO_HIDE_SCREEN_EDGE_V1_INTERFACE","KDE_SCREEN_EDGE_MANAGER_V1_INTERFACE","kde_auto_hide_screen_edge_v1_interface","kde_screen_edge_manager_v1_interface"]};
