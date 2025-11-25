@@ -317,3 +317,65 @@ expand_test!(protocol_error_in_request_without_object_init, {
     // the server should not panic, and gracefull accept that the user did not provide any object data for
     // the already destroyed object
 });
+
+expand_test!(protocol_version_check, {
+    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let mut server = server_backend::Backend::new().unwrap();
+    let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
+
+    let object_id = Arc::new(Mutex::new(None));
+
+    // Prepare a global
+    server.handle().create_global(
+        &interfaces::TEST_GLOBAL_INTERFACE,
+        2,
+        Arc::new(ServerData(object_id.clone())),
+    );
+
+    let mut socket = BufferedSocket::new(Socket::from(tx));
+
+    socket
+        .write_message(&Message {
+            sender_id: 1,
+            opcode: 1,
+            args: smallvec::smallvec![Argument::NewId(2),],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+
+    socket
+        .write_message(&Message {
+            sender_id: 2,
+            opcode: 0,
+            args: smallvec::smallvec![
+                Argument::Uint(1),
+                Argument::Str(Some(Box::new(
+                    CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap()
+                ))),
+                Argument::Uint(2),
+                Argument::NewId(3),
+            ],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+
+    socket
+        .write_message(&Message {
+            sender_id: 3,
+            opcode: 2,
+            args: smallvec::smallvec![Argument::NewId(4),],
+        })
+        .unwrap();
+    socket.flush().unwrap();
+
+    server.dispatch_all_clients(&mut ()).unwrap();
+    server.flush(None).unwrap();
+
+    // server should have killed us due to the error, but it might send us that error first
+    let ret = socket.fill_incoming_buffers().and_then(|_| socket.fill_incoming_buffers());
+    assert!(ret.is_err());
+});
