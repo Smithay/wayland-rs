@@ -6,25 +6,39 @@ use quote::{format_ident, quote, ToTokens};
 
 use crate::{protocol::*, util::*, Side};
 
-pub(crate) fn generate_enums_for(interface: &Interface) -> TokenStream {
-    interface.enums.iter().map(ToTokens::into_token_stream).collect()
+pub(crate) fn generate_enums_for(interface: &Interface, side: Side) -> TokenStream {
+    interface.enums.iter().map(|enu| EnumSide(enu, side)).map(ToTokens::into_token_stream).collect()
 }
 
-impl ToTokens for Enum {
+struct EnumSide<'a>(&'a Enum, Side);
+
+impl ToTokens for EnumSide<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        let EnumSide(enu, side) = *self;
+
         let enum_decl;
         let enum_impl;
 
-        let doc_attr = self.description.as_ref().map(description_to_doc_attr);
-        let ident = Ident::new(&snake_to_camel(&self.name), Span::call_site());
+        let doc_attr = enu.description.as_ref().map(description_to_doc_attr);
+        let ident = Ident::new(&snake_to_camel(&enu.name), Span::call_site());
 
-        if self.bitfield {
-            let entries = self.entries.iter().map(|entry| {
+        if enu.bitfield {
+            let entries = enu.entries.iter().map(|entry| {
                 let doc_attr = entry
                     .description
                     .as_ref()
                     .map(description_to_doc_attr)
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
+
+                // Deprecations are only for the client side since servers need to be backwards compatible
+                let deprecated_attr = (side == Side::Client)
+                    .then(|| {
+                        entry.deprecated_since.map(|since| {
+                            let note = format!("Deprecated since version {since} of the interface");
+                            quote! { #[deprecated = #note] }
+                        })
+                    })
+                    .flatten();
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
                 let ident = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
@@ -33,6 +47,7 @@ impl ToTokens for Enum {
 
                 quote! {
                     #doc_attr
+                    #deprecated_attr
                     const #ident = #value;
                 }
             });
@@ -60,12 +75,22 @@ impl ToTokens for Enum {
                 }
             };
         } else {
-            let variants = self.entries.iter().map(|entry| {
+            let variants = enu.entries.iter().map(|entry| {
                 let doc_attr = entry
                     .description
                     .as_ref()
                     .map(description_to_doc_attr)
                     .or_else(|| entry.summary.as_ref().map(|s| to_doc_attr(s)));
+
+                // Deprecations are only for the client side since servers need to be backwards compatible
+                let deprecated_attr = (side == Side::Client)
+                    .then(|| {
+                        entry.deprecated_since.map(|since| {
+                            let note = format!("Deprecated since version {since} of the interface");
+                            quote! { #[deprecated = #note] }
+                        })
+                    })
+                    .flatten();
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
                 let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
@@ -74,6 +99,7 @@ impl ToTokens for Enum {
 
                 quote! {
                     #doc_attr
+                    #deprecated_attr
                     #variant = #value
                 }
             });
@@ -88,7 +114,7 @@ impl ToTokens for Enum {
                 }
             };
 
-            let match_arms = self.entries.iter().map(|entry| {
+            let match_arms = enu.entries.iter().map(|entry| {
                 let value = Literal::u32_unsuffixed(entry.value);
 
                 let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
@@ -181,6 +207,17 @@ pub(crate) fn gen_message_enum(
             }
 
             let doc_attr = to_doc_attr(&docs);
+
+            // Deprecations are only for the client side since servers need to be backwards compatible
+            let deprecated_attr = (side == Side::Client)
+                .then(|| {
+                    msg.deprecated_since.map(|since| {
+                        let note = format!("Deprecated since version {since} of the interface");
+                        quote! { #[deprecated = #note] }
+                    })
+                })
+                .flatten();
+
             let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
             let msg_variant_decl =
                 if msg.args.is_empty() {
@@ -277,6 +314,7 @@ pub(crate) fn gen_message_enum(
 
             quote! {
                 #doc_attr
+                #deprecated_attr
                 #msg_variant_decl
             }
         })
