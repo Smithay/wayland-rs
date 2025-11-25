@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","org_kde_plasma_virtual_desktop","org_kde_plasma_virtual_desktop_management"]};
