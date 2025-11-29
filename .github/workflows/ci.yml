@@ -212,6 +212,18 @@ jobs:
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
 
+      - name: Downgrade libloading
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p libloading --precise 0.8.8
+
+      - name: Downgrade quote
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p quote --precise 1.0.41
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:

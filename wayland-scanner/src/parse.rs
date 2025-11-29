@@ -9,23 +9,6 @@ use quick_xml::{
     Reader,
 };
 
-macro_rules! extract_from(
-    ($it: expr => $pattern: pat => $result: tt) => (
-        match $it.read_event_into(&mut Vec::new()) {
-            Ok($pattern) => { $result },
-            e => panic!("Ill-formed protocol file: {:?}", e)
-        }
-    )
-);
-
-macro_rules! extract_end_tag(
-    ($it: expr => $tag: expr) => (
-        extract_from!($it => Event::End(bytes) => {
-            assert!(bytes.name().into_inner() == $tag.as_bytes(), "Ill-formed protocol file");
-        });
-    )
-);
-
 pub fn parse<S: Read>(stream: S) -> Protocol {
     let mut reader = Reader::from_reader(BufReader::new(stream));
     let reader_config = reader.config_mut();
@@ -86,18 +69,45 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                 match bytes.name().into_inner() {
                     b"copyright" => {
                         // parse the copyright
-                        let copyright = match reader.read_event_into(&mut Vec::new()) {
-                            Ok(Event::Text(copyright)) => {
-                                copyright.unescape().ok().map(|x| x.to_string())
+                        let mut copyright = String::new();
+                        loop {
+                            match reader.read_event_into(&mut Vec::new()) {
+                                Ok(Event::Text(text)) => {
+                                    if let Ok(text) = text.decode() {
+                                        copyright.push_str(&text);
+                                    }
+                                }
+                                Ok(Event::CData(cdata)) => {
+                                    if let Ok(cdata) = String::from_utf8(cdata.into_inner().into())
+                                    {
+                                        copyright.push_str(&cdata);
+                                    }
+                                }
+                                Ok(Event::GeneralRef(byte_ref)) => {
+                                    if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
+                                        copyright.push(c);
+                                    } else if let Ok(content) = byte_ref.xml_content() {
+                                        if let Some(s) =
+                                            quick_xml::escape::resolve_xml_entity(&content)
+                                        {
+                                            copyright.push_str(s);
+                                        }
+                                    }
+                                }
+                                Ok(Event::End(bytes)) => {
+                                    assert!(
+                                        bytes.name().into_inner() == "copyright".as_bytes(),
+                                        "Ill-formed protocol file"
+                                    );
+                                    break;
+                                }
+                                e => {
+                                    panic!("Ill-formed protocol file: {e:?}");
+                                }
                             }
-                            Ok(Event::CData(copyright)) => {
-                                String::from_utf8(copyright.into_inner().into()).ok()
-                            }
-                            e => panic!("Ill-formed protocol file: {e:?}"),
-                        };
+                        }
 
-                        extract_end_tag!(reader => "copyright");
-                        protocol.copyright = copyright
+                        protocol.copyright = Some(copyright)
                     }
                     b"interface" => {
                         protocol.interfaces.push(parse_interface(&mut reader, bytes.attributes()));
@@ -180,7 +190,7 @@ fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (
                 if !description.is_empty() {
                     description.push_str("\n\n");
                 }
-                description.push_str(&bytes.unescape().unwrap_or_default())
+                description.push_str(&bytes.decode().unwrap_or_default())
             }
             Ok(Event::End(bytes)) if bytes.name().into_inner() == b"description" => break,
             Ok(Event::Comment(_)) => {}
