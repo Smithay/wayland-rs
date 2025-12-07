@@ -36,7 +36,18 @@ pub mod input_method {
     pub mod v1 {
         wayland_protocol!(
             "./protocols/xx-input-method/xx-input-method-v2.xml",
-            [wayland_protocols::wp::text_input::zv3]
+            [crate::text_input::v3]
+        );
+    }
+}
+
+pub mod keyboard_filter {
+    //! This protocol allows applications to intercept and filter keyboard events.
+    #[allow(missing_docs)]
+    pub mod v3 {
+        wayland_protocol!(
+            "./protocols/xx-keyboard-filter/xx-keyboard-filter-v1.xml",
+            [crate::input_method::v1]
         );
     }
 }

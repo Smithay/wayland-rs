@@ -47,7 +47,7 @@
     mechanism is discouraged.
   </description>
 
-  <interface name="xx_input_method_v1" version="2">
+  <interface name="xx_input_method_v1" version="3">
     <description summary="input method">
       An input method object allows for clients to compose text.
 
@@ -168,7 +168,7 @@
 
         The initial value of cause is input_method.
       </description>
-      <arg name="cause" type="uint" enum="zwp_text_input_v3.change_cause"/>
+      <arg name="cause" type="uint" enum="xx_text_input_v3.change_cause"/>
     </event>
 
     <event name="content_type">
@@ -183,8 +183,38 @@
         The initial value for hint is none, and the initial value for purpose
         is normal.
       </description>
-      <arg name="hint" type="uint" enum="zwp_text_input_v3.content_hint"/>
-      <arg name="purpose" type="uint" enum="zwp_text_input_v3.content_purpose"/>
+      <arg name="hint" type="uint" enum="xx_text_input_v3.content_hint"/>
+      <arg name="purpose" type="uint" enum="xx_text_input_v3.content_purpose"/>
+    </event>
+    
+    <event name="set_available_actions" since="3">
+      <description summary="announce the available actions">
+        Announces the actions available for the currently active text input.
+
+        Values set with this event are double-buffered. They will get applied
+        on the next .done event.
+        They get reset to the initial value on the next committed deactivate event.
+
+        The initial value is an empty set: no actions are available.
+
+        Values in the available_actions array come from text-input-v3.action.
+      </description>
+      <arg name="available_actions" type="array" summary="available actions"/>
+    </event>
+
+    <event name="announce_supported_features" since="3">
+      <description summary="announce extra supported features">
+        Notifies the input method what the currently active text input client is able to do.
+
+        This event should come within the same .done sequence as .activate. Otherwise, the input method may ignore it.
+        
+        Values set with this event are double-buffered. They will get applied
+        on the next .done event.
+        They get reset to initial on the next committed deactivate event.
+
+        The initial value for features is none.
+      </description>
+      <arg name="features" type="uint" enum="xx_text_input_v3.supported_features"/>
     </event>
 
     <event name="done">
@@ -208,6 +238,18 @@
         Neither current nor pending state are modified unless noted otherwise.
       </description>
     </event>
+
+    <request name="perform_action" since="3">
+      <description summary="perform action">
+        Perform an action on this text input.
+
+        Values set with this event are double-buffered. They must be applied
+        and reset to initial on the next commit request.
+
+        The initial value of action is none.
+      </description>
+      <arg name="action" type="uint" enum="xx_text_input_v3.action" summary="action to perform"/>
+    </request>
 
     <request name="commit_string">
       <description summary="commit string">
@@ -283,6 +325,34 @@
       <arg name="after_length" type="uint"/>
     </request>
 
+    <request name="move_cursor" since="3">
+      <description summary="move cursor and change selection">
+        Unselects text, moves the cursor and selects text.
+
+        This is equivalent to dragging the mouse over some text: it deselects whatever might be currently selected and selects a new range of text.
+        
+        The offsets used in arguments are in bytes relative to the current cursor position. Cursor is the new position of the cursor, and anchor is the opposite end of selection. If there's no selection, anchor should be equal to cursor.
+        
+        The offsets do not take preedit contents into account, nor is preedit changed in any way with this request.
+        
+        Both cursor and anchor must fall on code point boundaries, otherwise text input client may ignore the request. It is therefore not recommended for an input method to move any of them beyond the text received in surrounding_text.
+        
+        When surrounding_text is not supported, the offsets must not be interpreted as bytes, but as some human-readable unit at least as big as a code point, for example a grapheme.
+
+        The cursor and anchor arguments can also take the following special values:
+        BEGINNING := 0x8000_0000 = i32::MIN
+        END := 0x7fff_ffff = i32::MAX
+        meaning, respectively, the beginning and the end of of all text in the input field.
+
+        Values set with this event are double-buffered. They must be applied
+        and reset to initial on the next commit request.
+
+        The initial values of both cursor and anchor are 0.
+      </description>
+      <arg name="cursor" type="int"/>
+      <arg name="anchor" type="int"/>
+    </request>
+    
     <request name="commit">
       <description summary="apply state">
         Apply state changes from commit_string, set_preedit_string and
@@ -298,10 +368,14 @@
         1. Replace existing preedit string with the cursor.
         2. Delete requested surrounding text.
         3. Insert commit string with the cursor at its end.
-        4. Calculate surrounding text to send.
-        5. Insert new preedit text in cursor position.
-        6. Place cursor inside preedit text.
+        4. Move the cursor and selection.
+        5. Calculate surrounding text to send.
+        6. Insert new preedit text in cursor position.
+        7. Place cursor inside preedit text.
+        8. Perform the requested action.
 
+        Note that the input method can not receive more than 4000 bytes of selection text, which might be the case for example when the entire document is selected. Nevertheless, the text input must delete the entire selected range before inserting the commit string.
+        
         The serial number reflects the last state of the xx_input_method_v1
         object known to the client. The value of the serial argument must be
         equal to the number of done events already issued by that object. When
@@ -793,7 +867,7 @@
     </request>
   </interface>
 
-  <interface name="xx_input_method_manager_v2" version="2">
+  <interface name="xx_input_method_manager_v2" version="3">
     <description summary="input method manager">
       The input method manager allows the client to become the input method on
       a chosen seat.
