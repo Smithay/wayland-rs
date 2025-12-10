@@ -1,6 +1,7 @@
 use std::ffi::CString;
 
 use crate::protocol::Message;
+use crate::types::client::InvalidId;
 
 use super::*;
 
@@ -116,7 +117,7 @@ expand_test!(destroy_global, {
     client.destroy_object(&test_global_id).unwrap();
 });
 
-expand_test!(panic destroy_twice, {
+expand_test!(destroy_twice, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
@@ -162,11 +163,10 @@ expand_test!(panic destroy_twice, {
     server.flush(None).unwrap();
     client.prepare_read().unwrap().read().unwrap();
     client.destroy_object(&test_global_id).unwrap();
-    // FIXME: not sure if this should fail or not
-    client.destroy_object(&test_global_id).unwrap();
+    assert_eq!(client.destroy_object(&test_global_id), Err(InvalidId));
 });
 
-expand_test!(panic destroy_flush_destroy, {
+expand_test!(destroy_flush_destroy, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
@@ -217,12 +217,12 @@ expand_test!(panic destroy_flush_destroy, {
     client.flush().unwrap();
     server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
-    client.prepare_read().unwrap().read().unwrap();
+    let _ = client.prepare_read().unwrap().read();
 
-    client.destroy_object(&test_global_id).unwrap();
+    assert_eq!(client.destroy_object(&test_global_id), Err(InvalidId));
 });
 
-expand_test!(panic destroy_then_message, {
+expand_test!(destroy_then_message, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let mut server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
@@ -273,20 +273,18 @@ expand_test!(panic destroy_then_message, {
     client.flush().unwrap();
     server.dispatch_all_clients(&mut ()).unwrap();
     server.flush(None).unwrap();
-    client.prepare_read().unwrap().read().unwrap();
+    let _ = client.prepare_read().unwrap().read();
 
-    client
-        .send_request(
+    assert_eq!(
+        client.send_request(
             message!(
                 test_global_id.clone(),
                 2,
-                [
-                    Argument::Object(client_backend::ObjectId::null()),
-                    Argument::Uint(1),
-                ],
+                [Argument::Object(client_backend::ObjectId::null()), Argument::Uint(1),],
             ),
             None,
             None,
-        )
-        .unwrap();
+        ),
+        Err(InvalidId)
+    );
 });
