@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE","REQ_GET_SESSION_OPCODE","REQ_GET_SESSION_SINCE"],"enum":["Error","Event","Reason","Request"],"struct":["XxSessionManagerV1"]};
