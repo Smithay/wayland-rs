@@ -100,6 +100,48 @@ fn buffer_size_client() {
     // roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
 }
 
+#[test]
+fn buffer_size_increase() {
+    let mut server = TestServer::new();
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
+
+    server.display.backend().set_max_buffer_size(1024 * 32);
+
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
+
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+
+    let mut server_handler = ServerHandler::default();
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
+
+    let seat = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
+        .unwrap();
+
+    let _pointer = seat.get_pointer(&client.event_queue.handle(), ());
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
+
+    // Send too many Wayland events to buffer
+    let server_pointer = server_handler.pointer.as_ref().unwrap().clone();
+    for _ in 0..10_000 {
+        server_pointer.motion(0, 0., 0.);
+    }
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
+}
+
 /*
  * Client handler
  */
