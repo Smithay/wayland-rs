@@ -224,6 +224,12 @@ jobs:
           command: update
           args: -p quote --precise 1.0.41
 
+      - name: Downgrade log
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p log --precise 0.4.28
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
