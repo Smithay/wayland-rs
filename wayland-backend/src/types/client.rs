@@ -71,7 +71,7 @@ impl From<std::io::Error> for WaylandError {
 }
 
 /// An error generated when trying to act on an invalid `ObjectId`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InvalidId;
 
 impl std::error::Error for InvalidId {}
