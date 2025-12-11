@@ -10,7 +10,7 @@ use super::{
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     protocol::{same_interface, Argument, Message},
-    rs::map::Object,
+    rs::{map::Object, DEFAULT_MAX_BUFFER_SIZE},
     types::server::InitError,
 };
 
@@ -328,7 +328,11 @@ impl<D> InnerBackend<D> {
     }
 
     #[allow(dead_code)]
-    pub fn set_default_max_buffer_size(&self, _: usize) {}
+    pub fn set_default_max_buffer_size(&self, size: usize) {
+        let size =
+            size.checked_next_power_of_two().unwrap_or(usize::MAX).max(DEFAULT_MAX_BUFFER_SIZE);
+        self.state.lock().unwrap().default_max_buffer_size = size;
+    }
 }
 
 enum DispatchAction<D: 'static> {

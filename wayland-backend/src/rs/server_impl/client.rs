@@ -68,8 +68,9 @@ impl<D> Client<D> {
         id: InnerClientId,
         debug: bool,
         data: Arc<dyn ClientData>,
+        buffer_size: usize,
     ) -> Self {
-        let socket = BufferedSocket::new(Socket::from(stream), false);
+        let socket = BufferedSocket::new(Socket::from(stream), Some(buffer_size));
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
@@ -709,6 +710,7 @@ impl<D> ClientStore<D> {
         &mut self,
         stream: UnixStream,
         data: Arc<dyn ClientData>,
+        buffer_size: usize,
     ) -> InnerClientId {
         let serial = self.next_serial();
         // Find the next free place
@@ -722,7 +724,7 @@ impl<D> ClientStore<D> {
 
         let id = InnerClientId { id: id as u32, serial };
 
-        *place = Some(Client::new(stream, id.clone(), self.debug, data));
+        *place = Some(Client::new(stream, id.clone(), self.debug, data, buffer_size));
 
         id
     }
