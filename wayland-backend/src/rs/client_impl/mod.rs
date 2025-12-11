@@ -150,7 +150,7 @@ impl InnerBackend {
     }
 
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
-        let socket = BufferedSocket::new(Socket::from(stream), true);
+        let socket = BufferedSocket::new(Socket::from(stream), None);
         let mut map = ObjectMap::new();
         map.insert_at(
             1,

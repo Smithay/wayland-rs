@@ -323,7 +323,11 @@ impl<D> InnerBackend<D> {
         Ok(dispatched)
     }
 
-    pub fn set_max_buffer_size(&self, _: usize) {}
+    pub fn set_max_buffer_size(&self, size: usize) {
+        // TODO: round
+        // TODO handling of 0?
+        self.state.lock().unwrap().default_max_buffer_size = size;
+    }
 }
 
 enum DispatchAction<D: 'static> {

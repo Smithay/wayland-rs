@@ -139,14 +139,15 @@ pub struct BufferedSocket {
 
 impl BufferedSocket {
     /// Wrap a Socket into a Buffered Socket
-    pub fn new(socket: Socket, unbounded: bool) -> Self {
+    pub fn new(socket: Socket, buffer_size: Option<usize>) -> Self {
         Self {
             socket,
-            in_data: Buffer::new(2 * MAX_BYTES_OUT), // Incoming buffers are twice as big in order to be
-            in_fds: VecDeque::new(),                 // able to store leftover data if needed
-            out_data: Buffer::new(MAX_BYTES_OUT),
+            // TODO const for default size
+            in_data: Buffer::new(2 * buffer_size.unwrap_or(4096)), // Incoming buffers are twice as big in order to be
+            in_fds: VecDeque::new(), // able to store leftover data if needed
+            out_data: Buffer::new(buffer_size.unwrap_or(4096)),
             out_fds: Vec::new(),
-            unbounded,
+            unbounded: buffer_size.is_none(),
         }
     }
 
@@ -437,8 +438,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(4096));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(4096));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -481,8 +482,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(4096));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(4096));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -540,8 +541,8 @@ mod tests {
         ];
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(4096));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(4096));
 
         for msg in &messages {
             client.write_message(msg).unwrap();
@@ -579,8 +580,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(4096));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(4096));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
