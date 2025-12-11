@@ -14,6 +14,7 @@ use rustix::net::{
 };
 
 use crate::protocol::{ArgumentType, Message};
+use crate::rs::DEFAULT_MAX_BUFFER_SIZE;
 
 use super::wire::{parse_message, write_to_buffers, MessageParseError, MessageWriteError};
 
@@ -134,19 +135,19 @@ pub struct BufferedSocket {
     in_fds: VecDeque<OwnedFd>,
     out_data: Buffer<u8>,
     out_fds: Vec<OwnedFd>,
-    unbounded: bool,
+    max_buffer_size: Option<usize>,
 }
 
 impl BufferedSocket {
     /// Wrap a Socket into a Buffered Socket
-    pub fn new(socket: Socket, unbounded: bool) -> Self {
+    pub fn new(socket: Socket, max_buffer_size: Option<usize>) -> Self {
         Self {
             socket,
-            in_data: Buffer::new(MAX_BYTES_OUT),
+            in_data: Buffer::new(DEFAULT_MAX_BUFFER_SIZE),
             in_fds: VecDeque::new(),
-            out_data: Buffer::new(MAX_BYTES_OUT),
+            out_data: Buffer::new(DEFAULT_MAX_BUFFER_SIZE),
             out_fds: Vec::new(),
-            unbounded,
+            max_buffer_size,
         }
     }
 
@@ -217,7 +218,7 @@ impl BufferedSocket {
                 }
                 Err(MessageWriteError::BufferTooSmall) => {
                     self.out_fds.truncate(fds_len);
-                    if !self.unbounded {
+                    if self.max_buffer_size.is_some_and(|s| s <= self.out_data.storage.len()) {
                         return Ok(false);
                     }
                     self.out_data.increase_capacity();
@@ -437,8 +438,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -481,8 +482,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -540,8 +541,8 @@ mod tests {
         ];
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
         for msg in &messages {
             client.write_message(msg).unwrap();
@@ -579,8 +580,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client), false);
-        let mut server = BufferedSocket::new(Socket::from(server), false);
+        let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
+        let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();

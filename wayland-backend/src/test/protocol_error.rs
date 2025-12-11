@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::rs::socket::{BufferedSocket, Socket};
+use crate::rs::{
+    socket::{BufferedSocket, Socket},
+    DEFAULT_MAX_BUFFER_SIZE,
+};
 
 use super::*;
 
@@ -114,7 +117,7 @@ expand_test!(client_wrong_id, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx), false);
+    let mut socket = BufferedSocket::new(Socket::from(tx), Some(DEFAULT_MAX_BUFFER_SIZE));
 
     socket
         .write_message(&Message {
@@ -140,7 +143,7 @@ expand_test!(client_wrong_opcode, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx), false);
+    let mut socket = BufferedSocket::new(Socket::from(tx), Some(DEFAULT_MAX_BUFFER_SIZE));
 
     socket
         .write_message(&Message {
@@ -164,7 +167,7 @@ expand_test!(client_wrong_sender, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx), false);
+    let mut socket = BufferedSocket::new(Socket::from(tx), Some(DEFAULT_MAX_BUFFER_SIZE));
 
     socket
         .write_message(&Message {
@@ -332,7 +335,7 @@ expand_test!(protocol_version_check, {
         Arc::new(ServerData(object_id.clone())),
     );
 
-    let mut socket = BufferedSocket::new(Socket::from(tx), false);
+    let mut socket = BufferedSocket::new(Socket::from(tx), Some(DEFAULT_MAX_BUFFER_SIZE));
 
     socket
         .write_message(&Message {
