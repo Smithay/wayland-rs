@@ -53,6 +53,55 @@ fn buffer_size() {
     }
 }
 
+// TODO: Enable if libwayland >= 1.23.0
+#[cfg(not(feature = "client_system"))]
+#[test]
+fn buffer_size_client() {
+    let mut server = TestServer::new();
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
+
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
+
+    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+
+    let mut server_handler = ServerHandler::default();
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
+
+    let seat = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
+            &client.event_queue.handle(),
+            &registry,
+            1..2,
+            (),
+        )
+        .unwrap();
+
+    let pointer = seat.get_pointer(&client.event_queue.handle(), ());
+
+    // Send too many Wayland events to buffer for default server buffer
+    for _ in 0..10_000 {
+        pointer.set_cursor(0, None, 0, 0);
+    }
+
+    while let Err(wayc::backend::WaylandError::Io(err)) = client.conn.flush() {
+        if err.kind() == ErrorKind::WouldBlock {
+            server.answer(&mut server_handler);
+        } else {
+            break;
+        }
+    }
+    server.answer(&mut server_handler);
+    client.conn.flush().unwrap();
+
+    // roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
+}
+
 /*
  * Client handler
  */
