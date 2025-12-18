@@ -69,7 +69,7 @@ impl<D> Client<D> {
         debug: bool,
         data: Arc<dyn ClientData>,
     ) -> Self {
-        let socket = BufferedSocket::new(Socket::from(stream));
+        let socket = BufferedSocket::new(Socket::from(stream), false);
         let mut map = ObjectMap::new();
         map.insert_at(
             1,
