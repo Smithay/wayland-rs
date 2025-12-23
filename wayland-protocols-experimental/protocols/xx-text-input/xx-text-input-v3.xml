@@ -47,7 +47,7 @@
     interface version number is reset.
   </description>
 
-  <interface name="xx_text_input_v3" version="1">
+  <interface name="xx_text_input_v3" version="2">
     <description summary="text input">
       The xx_text_input_v3 interface represents text input and input methods
       associated with a seat. It provides enter/leave events to follow the
@@ -103,7 +103,8 @@
         This request resets all state associated with previous enable, disable,
         set_surrounding_text, set_text_change_cause, set_content_type, and
         set_cursor_rectangle requests, as well as the state associated with
-        preedit_string, commit_string, and delete_surrounding_text events.
+        preedit_string, commit_string, delete_surrounding_text, and action
+        events.
 
         The set_surrounding_text, set_content_type and set_cursor_rectangle
         requests must follow if the text input supports the necessary
@@ -401,11 +402,49 @@
       <arg name="after_length" type="uint" summary="length of text after current cursor position"/>
     </event>
 
+    <event name="move_cursor" since="2">
+      <description summary="move cursor and change selection">
+        Unselects text, moves the cursor and selects text.
+
+        This is equivalent to dragging the mouse over some text: it deselects whatever might be currently selected and selects a new range of text.
+
+        The offsets used in arguments are in bytes relative to the current cursor position. Cursor is the new position of the cursor, and anchor is the opposite end of selection. If there's no selection, anchor should be equal to cursor.
+        In terms of dragging the mouse, the anchor is the start, and cursor the end.
+        
+        The offsets do not take preedit contents into account, nor is preedit changed in any way with this request.
+        
+        Both cursor and anchor must fall on code point boundaries, otherwise text input client may ignore the request. It is therefore not recommended for an input method to move any of them beyond the text received in surrounding_text.
+        <!-- Code point boundary checking must happen in the application because no one else is obliged to track the contents.
+        There are two ways to handle it:
+        
+        1. add a request from the application informing the compositor of the mistake, so that the compositor can send an error and crash the input method, giving it the chance to reset and go back to normal
+        2. just ignore the request and hope the input method can resynchronize through surrounding_text
+        
+        Choosing 2. because it's easier to implement.
+        -->
+
+        When surrounding_text is not supported, the offsets must not be interpreted as bytes, but as some human-readable unit at least as big as a code point, for example a grapheme.
+        
+        The cursor and anchor arguments can also take the following special values:
+        BEGINNING := 0x8000_0000 = i32::MIN
+        END := 0x7fff_ffff = i32::MAX
+        meaning, respectively, the beginning and the end of of all text in the input field.
+
+        Values set with this event are double-buffered. They must be applied
+        and reset to initial on the next commit request.
+
+        The initial values of both cursor and anchor are 0.
+      </description>
+      <arg name="cursor" type="int"/>
+      <arg name="anchor" type="int"/>
+    </event>
+    
     <event name="done">
       <description summary="apply changes">
         Instruct the application to apply changes to state requested by the
-        preedit_string, commit_string and delete_surrounding_text events. The
-        state relating to these events is double-buffered, and each one
+        preedit_string, commit_string delete_surrounding_text, and action
+        events.
+        The state relating to these events is double-buffered, and each one
         modifies the pending state. This event replaces the current state with
         the pending state.
 
@@ -415,9 +454,11 @@
         1. Replace existing preedit string with the cursor.
         2. Delete requested surrounding text.
         3. Insert commit string with the cursor at its end.
-        4. Calculate surrounding text to send.
-        5. Insert new preedit text in cursor position.
-        6. Place cursor inside preedit text.
+        4. Move the cursor and selection.
+        5. Calculate surrounding text to send.
+        6. Insert new preedit text in cursor position.
+        7. Place cursor inside preedit text.
+        8. Perform the requested action.
 
         The serial number reflects the last state of the xx_text_input_v3
         object known to the compositor. The value of the serial argument must
@@ -433,9 +474,86 @@
       </description>
       <arg name="serial" type="uint"/>
     </event>
+
+    <enum name="action" since="2">
+      <description summary="action">
+        A possible action to perform on a text input.
+      </description>
+      <!-- Notably missing: moving cursor, deleting and setting a selection. They are nicer to use as part of the text manipulation interface: ranges can be selected there.
+      Exceptions: the IME doesn't know where lines start or end. The IME will not get to see the entire 4MB document so it can't select all through the text interface. But this doesn't seem urgent. -->
+
+      <!-- types of finish actions are better communicated as a hint: this triggers a URL navigation, this sends a search query, this sends a message, etc. The input method can then choose the appropriate buttons to display -->
+      <entry name="finish" value="0">
+        <description summary="trigger appropriate action for the completion of editing">
+          This should be triggered when the user is done with editing the field and wants to move on. For example, the query was typed and the user wants the search result. Or the name was entered and the address needs to be typed next.
+
+          The action to perform depends on the application, and should match the value of the current content_purpose.
+
+          All clients SHOULD implement this action. Without it, on-screen keyboards don't work as expected.
+        </description>
+      </entry>
+    </enum>
+    
+    <event name="perform_action" since="2">
+      <description summary="action performed">
+        The input method issued an action to perform on this text input.
+
+        Values set with this event are double-buffered. They must be applied
+        and reset to initial on the next .done event.
+
+        The initial value of action is none.
+      </description>
+      <arg name="action" type="uint" enum="action" summary="action performed"/>
+    </event>
+
+    <request name="set_available_actions" since="2">
+      <description summary="announce the available actions">
+        Announces the actions available for the currently active text input.
+
+        Values set with this event are double-buffered. They will get applied
+        on the next .done event.
+        They get reset to the initial value on the next committed deactivate event.
+
+        The initial value is an empty set: no actions are available.
+        
+        Values in the available_actions array come from text-input-v3.action.
+      </description>
+      <!-- Removed the protocol error on none and duplicates because a client has no interest in crashing for slight compositor misbehaviour. Ignoring extraneous values should not be a problem for any half-competent library. -->
+      <arg name="available_actions" type="array" summary="available actions"/>
+      <!-- Should this be a bitmap instead of an array? 32 generic actions should be enough, and client-specific actions would need a new protocol anyway -->
+    </request>
+    
+    <enum name="supported_features" bitfield="true" since="2">
+      <description summary="possible supported features">
+        Client functionality over the baseline that isn't indicated implicitly.
+
+        This does not include events coming with .enable: when the input method receives such an event, it is clear the text input supports it, e.g. content_type, available_actions.
+
+        Baseline functionality like commit_string, set_preedit_string must always be supported for the protocol to be useful.
+        
+        The flags match text-input protocol versions, but should be kept general enough to support other protocols.
+      </description>
+      <entry name="none" value="0x0" summary="no extra functionality supported"/>
+      <entry name="move_cursor" value="0x1" summary="the move_cursor request"/>
+    </enum>
+    
+    <request name="announce_supported_features" since="2">
+      <description summary="announce extra supported features">
+        Notifies the input method what the currently active text input client is able to do.
+
+        This event should come within the same .done sequence as .activate. Otherwise, the input method may ignore it.
+        
+        Values set with this event are double-buffered. They will get applied
+        on the next .done event.
+        They get reset to initial on the next committed deactivate event.
+
+        The initial value for features is none.
+      </description>
+      <arg name="features" type="uint" enum="xx_text_input_v3.supported_features"/>
+    </request>
   </interface>
 
-  <interface name="xx_text_input_manager_v3" version="1">
+  <interface name="xx_text_input_manager_v3" version="2">
     <description summary="text input manager">
       A factory for text-input objects. This object is a global singleton.
     </description>
