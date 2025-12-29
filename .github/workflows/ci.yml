@@ -230,6 +230,12 @@ jobs:
           command: update
           args: -p log --precise 0.4.28
 
+      - name: Downgrade proc-macro2
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: -p proc-macro2 --precise 1.0.103
+
       - name: Check
         uses: actions-rs/cargo@v1
         with:
