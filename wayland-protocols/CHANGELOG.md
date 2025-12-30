@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.32.10 -- 2025-12-30
+
 - Bump wayland-protocols to 1.46
 - Bump wayland-protocols to 1.47
 

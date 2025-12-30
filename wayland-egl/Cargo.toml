@@ -1,6 +1,6 @@
 [package]
 name = "wayland-egl"
-version = "0.32.8"
+version = "0.32.9"
 documentation = "https://docs.rs/wayland-egl/"
 repository = "https://github.com/smithay/wayland-rs"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
@@ -13,8 +13,8 @@ description = "Bindings to libwayland-egl."
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.3.11", path = "../wayland-backend", features = ["client_system"] }
-wayland-sys = { version = "0.31.7", path="../wayland-sys", features = ["egl"] }
+wayland-backend = { version = "0.3.12", path = "../wayland-backend", features = ["client_system"] }
+wayland-sys = { version = "0.31.8", path="../wayland-sys", features = ["egl"] }
 
 [package.metadata.docs.rs]
 all-features = true
