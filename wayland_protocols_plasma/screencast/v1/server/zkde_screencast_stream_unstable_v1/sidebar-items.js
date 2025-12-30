@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_CLOSED_OPCODE","EVT_CLOSED_SINCE","EVT_CREATED_OPCODE","EVT_CREATED_SINCE","EVT_FAILED_OPCODE","EVT_FAILED_SINCE","REQ_CLOSE_OPCODE","REQ_CLOSE_SINCE"],"enum":["Event","Request"],"struct":["ZkdeScreencastStreamUnstableV1"]};
