@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 20251230.0.1 -- 2025-12-30
+
 ### Additions
 
 - Introduce protocol `text-input-v3`.

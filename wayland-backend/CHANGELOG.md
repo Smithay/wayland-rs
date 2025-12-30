@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.12 -- 2025-12-30
+
 #### Bugfixes
 
 - backend/server/rs: Send protocol error if method requires newer protocol version
