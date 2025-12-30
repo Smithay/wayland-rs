@@ -1,9 +1,6 @@
-exclude = ["wayland-tests"]
-
 [advisories]
-vulnerability = "deny"
-unmaintained = "deny"
-notice = "deny"
+version = 2
+unmaintained = "all"
 
 [bans]
 # nix lags nehind on memoffset
@@ -14,9 +11,7 @@ skip = [
 ]
 
 [licenses]
-unlicensed = "deny"
-allow-osi-fsf-free = "neither"
-copyleft = "deny"
+version = 2
 confidence-threshold = 0.93 # We want really high confidence when inferring licenses from text
 allow = [
     "Apache-2.0",
@@ -36,3 +31,6 @@ allow = [
     # Unicode-DFS-2016 has been superseded by Unicode V3
     "Unicode-3.0",
 ]
+
+[graph]
+exclude = ["wayland-tests"]
