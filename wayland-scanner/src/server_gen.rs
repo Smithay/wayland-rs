@@ -31,12 +31,14 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         Side::Server,
         true,
         &interface.requests,
+        &interface.enums,
     );
     let events = crate::common::gen_message_enum(
         &format_ident!("Event"),
         Side::Server,
         false,
         &interface.events,
+        &interface.enums,
     );
 
     let parse_body = if interface.name == "wl_registry" {
@@ -245,8 +247,14 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             let enum_args = request.args.iter().flat_map(|arg| {
                 let arg_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-                if arg.enum_.is_some() {
-                    Some(quote! { #arg_name: WEnum::Value(#arg_name) })
+                if let Some(ref enu) = arg.enum_ {
+                    let is_bitfield =
+                        interface.enums.iter().find(|i| i.name == *enu).is_some_and(|e| e.bitfield);
+                    Some(if is_bitfield {
+                        quote! { #arg_name: #arg_name }
+                    } else {
+                        quote! { #arg_name: WEnum::Value(#arg_name) }
+                    })
                 } else if arg.typ == Type::Object || arg.typ == Type::NewId {
                     if arg.allow_null {
                         Some(quote! { #arg_name: #arg_name.cloned() })
