@@ -49,7 +49,7 @@
 #![allow(clippy::duplicate_mod)]
 #![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Reexport of the `smallvec` crate, which is part of `wayland-backend`'s public API.
 pub extern crate smallvec;
