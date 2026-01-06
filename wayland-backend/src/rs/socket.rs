@@ -134,17 +134,19 @@ pub struct BufferedSocket {
     in_fds: VecDeque<OwnedFd>,
     out_data: Buffer<u8>,
     out_fds: Vec<OwnedFd>,
+    unbounded: bool,
 }
 
 impl BufferedSocket {
     /// Wrap a Socket into a Buffered Socket
-    pub fn new(socket: Socket) -> Self {
+    pub fn new(socket: Socket, unbounded: bool) -> Self {
         Self {
             socket,
             in_data: Buffer::new(2 * MAX_BYTES_OUT), // Incoming buffers are twice as big in order to be
             in_fds: VecDeque::new(),                 // able to store leftover data if needed
             out_data: Buffer::new(MAX_BYTES_OUT),
             out_fds: Vec::new(),
+            unbounded,
         }
     }
 
@@ -206,13 +208,24 @@ impl BufferedSocket {
     // if false is returned, it means there is not enough space
     // in the buffer
     fn attempt_write_message(&mut self, msg: &Message<u32, RawFd>) -> IoResult<bool> {
-        match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
-            Ok(bytes_out) => {
-                self.out_data.advance(bytes_out);
-                Ok(true)
+        let fds_len = self.out_fds.len();
+        loop {
+            match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
+                Ok(bytes_out) => {
+                    self.out_data.advance(bytes_out);
+                    return Ok(true);
+                }
+                Err(MessageWriteError::BufferTooSmall) => {
+                    self.out_fds.truncate(fds_len);
+                    if !self.unbounded {
+                        return Ok(false);
+                    }
+                    self.out_data.increase_capacity();
+                }
+                Err(MessageWriteError::DupFdFailed(e)) => {
+                    return Err(e);
+                }
             }
-            Err(MessageWriteError::BufferTooSmall) => Ok(false),
-            Err(MessageWriteError::DupFdFailed(e)) => Err(e),
         }
     }
 
@@ -333,6 +346,11 @@ impl<T: Copy + Default> Buffer<T> {
         self.offset += bytes;
     }
 
+    fn increase_capacity(&mut self) {
+        let new_len = self.storage.len() * 2;
+        self.storage.resize_with(new_len, Default::default);
+    }
+
     /// Clears the contents of the buffer
     ///
     /// This only sets the counter of occupied space back to zero,
@@ -419,8 +437,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client));
-        let mut server = BufferedSocket::new(Socket::from(server));
+        let mut client = BufferedSocket::new(Socket::from(client), false);
+        let mut server = BufferedSocket::new(Socket::from(server), false);
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -463,8 +481,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client));
-        let mut server = BufferedSocket::new(Socket::from(server));
+        let mut client = BufferedSocket::new(Socket::from(client), false);
+        let mut server = BufferedSocket::new(Socket::from(server), false);
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
@@ -522,8 +540,8 @@ mod tests {
         ];
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client));
-        let mut server = BufferedSocket::new(Socket::from(server));
+        let mut client = BufferedSocket::new(Socket::from(client), false);
+        let mut server = BufferedSocket::new(Socket::from(server), false);
 
         for msg in &messages {
             client.write_message(msg).unwrap();
@@ -561,8 +579,8 @@ mod tests {
         };
 
         let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
-        let mut client = BufferedSocket::new(Socket::from(client));
-        let mut server = BufferedSocket::new(Socket::from(server));
+        let mut client = BufferedSocket::new(Socket::from(client), false);
+        let mut server = BufferedSocket::new(Socket::from(server), false);
 
         client.write_message(&msg).unwrap();
         client.flush().unwrap();
