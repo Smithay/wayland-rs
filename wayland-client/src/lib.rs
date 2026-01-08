@@ -321,6 +321,31 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
     }
 }
 
+/// Trait for instances of [`Proxy`] that have destructors
+pub trait ProxyDestroy: Proxy {
+    /// Sends the destructor request to the proxy, which is usually called `.destroy()`
+    fn call_proxy_destructor(&self);
+}
+
+/// Wrap a [`ProxyDestroy`] instance to automatically call the destructor on
+/// drop.
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct DestroyOnDrop<T: ProxyDestroy>(T);
+
+impl<T: ProxyDestroy> Drop for DestroyOnDrop<T> {
+    fn drop(&mut self) {
+        self.0.call_proxy_destructor();
+    }
+}
+
+impl<T: ProxyDestroy> std::ops::Deref for DestroyOnDrop<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
 /// Wayland dispatching error
 #[derive(Debug)]
 pub enum DispatchError {
