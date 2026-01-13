@@ -39,7 +39,7 @@ fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
     // Check two firsts lines for protocol tag
     for _ in 0..3 {
         match reader.read_event_into(&mut Vec::new()) {
-            Ok(Event::Decl(_) | Event::DocType(_)) => {
+            Ok(Event::Decl(_) | Event::DocType(_) | Event::Comment(_)) => {
                 continue;
             }
             Ok(Event::Start(bytes)) => {
