@@ -244,7 +244,7 @@ impl InnerHandle {
         let mut state = self.state.lock().unwrap();
         let state = (&mut *state as &mut dyn ErasedState)
             .downcast_mut::<State<D>>()
-            .expect("Wrong type parameter passed to Handle::create_global().");
+            .expect("Wrong type parameter passed to Handle::disable_global().");
 
         state.registry.disable_global(id, &mut state.clients)
     }
@@ -253,7 +253,7 @@ impl InnerHandle {
         let mut state = self.state.lock().unwrap();
         let state = (&mut *state as &mut dyn ErasedState)
             .downcast_mut::<State<D>>()
-            .expect("Wrong type parameter passed to Handle::create_global().");
+            .expect("Wrong type parameter passed to Handle::remove_global().");
 
         state.registry.remove_global(id, &mut state.clients)
     }
