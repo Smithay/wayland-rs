@@ -30,6 +30,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_display_cancel_read(*mut wl_display) -> (),
         fn wl_display_dispatch(*mut wl_display) -> c_int,
         fn wl_display_dispatch_pending(*mut wl_display) -> c_int,
+       fn  wl_display_set_max_buffer_size(*mut wl_display, usize) -> (),
     // error handling
         fn wl_display_get_error(*mut wl_display) -> c_int,
         fn wl_display_get_protocol_error(*mut wl_display, *mut *const wl_interface, *mut u32) -> u32,
