@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Macro used to override `Dispatch::event_created_child()`"><title>event_created_child in wayland_client - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="wayland_client" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">event_created_child</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../wayland_client/index.html">wayland_<wbr>client</a><span class="version">0.31.12</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">wayland_client</a></div><h1>Macro <span class="macro">event_<wbr>created_<wbr>child</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/wayland_client/event_queue.rs.html#169-188">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! event_created_child {
+    ($(@&lt; $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ &gt;)? $selftype:ty, $iface:ty, [$($opcode:pat =&gt; ($child_iface:ty, $child_udata:expr)),* $(,)?]) =&gt; { ... };
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Macro used to override <a href="trait.Dispatch.html#method.event_created_child" title="associated function wayland_client::Dispatch::event_created_child"><code>Dispatch::event_created_child()</code></a></p>
+<p>Use this macro inside the <a href="trait.Dispatch.html" title="trait wayland_client::Dispatch"><code>Dispatch</code></a> implementation to override this method, to implement the
+initialization of the user data for event-created objects. The usage syntax is as follow:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">impl </span>Dispatch&lt;WlFoo, FooUserData&gt; <span class="kw">for </span>MyState {
+    <span class="kw">fn </span>event(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        proxy: <span class="kw-2">&amp;</span>WlFoo,
+        event: FooEvent,
+        data: <span class="kw-2">&amp;</span>FooUserData,
+        connhandle: <span class="kw-2">&amp;mut </span>ConnectionHandle,
+        qhandle: <span class="kw-2">&amp;</span>QueueHandle&lt;MyState&gt;
+    ) {
+        <span class="comment">/* ... */
+    </span>}
+
+    <span class="macro">event_created_child!</span>(MyState, WlFoo, [
+    <span class="comment">// there can be multiple lines if this interface has multiple object-creating event
+        </span>EVT_CREATE_BAR =&gt; (WlBar, BarUserData::new()),
+    <span class="comment">//  ~~~~~~~~~~~~~~     ~~~~~  ~~~~~~~~~~~~~~~~~~
+    //    |                  |      |
+    //    |                  |      +-- an expression whose evaluation produces the
+    //    |                  |          user data value
+    //    |                  +-- the type of the newly created object
+    //    +-- the opcode of the event that creates a new object, constants for those are
+    //        generated alongside the `WlFoo` type in the `wl_foo` module
+    </span>]);
+}</code></pre></div></div></details></section></div></main></body></html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A trait for handlers of proxies’ events delivered to an `EventQueue`."><title>Dispatch in wayland_client - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="wayland_client" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Dispatch</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../wayland_client/index.html">wayland_<wbr>client</a><span class="version">0.31.12</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Dispatch</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#general-usage" title="General usage">General usage</a></li><li><a href="#modularity" title="Modularity">Modularity</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.event" title="event">event</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.event_created_child" title="event_created_child">event_created_child</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate wayland_<wbr>client</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">wayland_client</a></div><h1>Trait <span class="trait">Dispatch</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/wayland_client/event_queue.rs.html#95-135">Source</a> </span></div><pre class="rust item-decl"><code>pub trait Dispatch&lt;I, UserData, State = Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,
+    I: <a class="trait" href="trait.Proxy.html" title="trait wayland_client::Proxy">Proxy</a>,
+    State: <a class="trait" href="trait.Dispatch.html" title="trait wayland_client::Dispatch">Dispatch</a>&lt;I, UserData, State&gt;,</div>{
+    // Required method
+    fn <a href="#tymethod.event" class="fn">event</a>(
+        state: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;mut State</a>,
+        proxy: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;I</a>,
+        event: I::<a class="associatedtype" href="trait.Proxy.html#associatedtype.Event" title="type wayland_client::Proxy::Event">Event</a>,
+        data: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;UserData</a>,
+        conn: &amp;<a class="struct" href="struct.Connection.html" title="struct wayland_client::Connection">Connection</a>,
+        qhandle: &amp;<a class="struct" href="struct.QueueHandle.html" title="struct wayland_client::QueueHandle">QueueHandle</a>&lt;State&gt;,
+    );
+
+    // Provided method
+    fn <a href="#method.event_created_child" class="fn">event_created_child</a>(
+        opcode: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u16.html">u16</a>,
+        _qhandle: &amp;<a class="struct" href="struct.QueueHandle.html" title="struct wayland_client::QueueHandle">QueueHandle</a>&lt;State&gt;,
+    ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/sync/struct.Arc.html" title="struct alloc::sync::Arc">Arc</a>&lt;dyn <a class="trait" href="backend/trait.ObjectData.html" title="trait wayland_client::backend::ObjectData">ObjectData</a>&gt; { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait for handlers of proxies’ events delivered to an <a href="struct.EventQueue.html" title="struct wayland_client::EventQueue"><code>EventQueue</code></a>.</p>
+<h3 id="general-usage"><a class="doc-anchor" href="#general-usage">§</a>General usage</h3>
+<p>You need to implement this trait on your <code>State</code> for every type of Wayland object that will be processed
+by the <a href="struct.EventQueue.html" title="struct wayland_client::EventQueue"><code>EventQueue</code></a> working with your <code>State</code>.</p>
+<p>You can have different implementations of the trait for the same interface but different <code>UserData</code> type.
+This way the events for a given object will be processed by the adequate implementation depending on
+which <code>UserData</code> was assigned to it at creation.</p>
+<p>The way this trait works is that the <a href="trait.Dispatch.html#tymethod.event" title="associated function wayland_client::Dispatch::event"><code>Dispatch::event()</code></a> method will be invoked by the event queue for
+every event received by an object associated to this event queue. Your implementation can then match on
+the associated <a href="trait.Proxy.html#associatedtype.Event" title="associated type wayland_client::Proxy::Event"><code>Proxy::Event</code></a> enum and do any processing needed with that event.</p>
+<p>In the rare case of an interface with <em>events</em> creating new objects (in the core protocol, the only
+instance of this is the <code>wl_data_device.data_offer</code> event), you’ll need to implement the
+<a href="trait.Dispatch.html#method.event_created_child" title="associated function wayland_client::Dispatch::event_created_child"><code>Dispatch::event_created_child()</code></a> method. See the <a href="macro.event_created_child.html" title="macro wayland_client::event_created_child"><code>event_created_child!()</code></a> macro
+for a simple way to do this.</p>
+<h3 id="modularity"><a class="doc-anchor" href="#modularity">§</a>Modularity</h3>
+<p>To provide generic handlers for downstream usage, it is possible to make an implementation of the trait
+that is generic over the last type argument, as illustrated below. Users will then be able to
+automatically delegate their implementation to yours using the <a href="macro.delegate_dispatch.html" title="macro wayland_client::delegate_dispatch"><code>delegate_dispatch!()</code></a> macro.</p>
+<p>As a result, when your implementation is instantiated, the last type parameter <code>State</code> will be the state
+struct of the app using your generic implementation. You can put additional trait constraints on it to
+specify an interface between your module and downstream code, as illustrated in this example:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>wayland_client::{protocol::wl_registry, Dispatch};
+
+<span class="doccomment">/// The type we want to delegate to
+</span><span class="kw">struct </span>DelegateToMe;
+
+<span class="doccomment">/// The user data relevant for your implementation.
+/// When providing a delegate implementation, it is recommended to use your own type here, even if it is
+/// just a unit struct: using () would cause a risk of clashing with another such implementation.
+</span><span class="kw">struct </span>MyUserData;
+
+<span class="comment">// Now a generic implementation of Dispatch, we are generic over the last type argument instead of using
+// the default State=Self.
+</span><span class="kw">impl</span>&lt;State&gt; Dispatch&lt;wl_registry::WlRegistry, MyUserData, State&gt; <span class="kw">for </span>DelegateToMe
+<span class="kw">where
+    </span><span class="comment">// State is the type which has delegated to this type, so it needs to have an impl of Dispatch itself
+    </span>State: Dispatch&lt;wl_registry::WlRegistry, MyUserData&gt;,
+    <span class="comment">// If your delegate type has some internal state, it'll need to access it, and you can
+    // require it by adding custom trait bounds.
+    // In this example, we just require an AsMut implementation
+    </span>State: AsMut&lt;DelegateToMe&gt;,
+{
+    <span class="kw">fn </span>event(
+        state: <span class="kw-2">&amp;mut </span>State,
+        _proxy: <span class="kw-2">&amp;</span>wl_registry::WlRegistry,
+        _event: wl_registry::Event,
+        _udata: <span class="kw-2">&amp;</span>MyUserData,
+        _conn: <span class="kw-2">&amp;</span>wayland_client::Connection,
+        _qhandle: <span class="kw-2">&amp;</span>wayland_client::QueueHandle&lt;State&gt;,
+    ) {
+        <span class="comment">// Here the delegate may handle incoming events as it pleases.
+
+        // For example, it retrives its state and does some processing with it
+        </span><span class="kw">let </span>me: <span class="kw-2">&amp;mut </span>DelegateToMe = state.as_mut();
+        <span class="comment">// do something with `me` ...
+    </span>}
+}</code></pre></div>
+<p><strong>Note:</strong> Due to limitations in Rust’s trait resolution algorithm, a type providing a generic
+implementation of <a href="trait.Dispatch.html" title="trait wayland_client::Dispatch"><code>Dispatch</code></a> cannot be used directly as the dispatching state, as rustc
+currently fails to understand that it also provides <code>Dispatch&lt;I, U, Self&gt;</code> (assuming all other
+trait bounds are respected as well).</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.event" class="method"><a class="src rightside" href="../src/wayland_client/event_queue.rs.html#112-119">Source</a><h4 class="code-header">fn <a href="#tymethod.event" class="fn">event</a>(
+    state: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;mut State</a>,
+    proxy: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;I</a>,
+    event: I::<a class="associatedtype" href="trait.Proxy.html#associatedtype.Event" title="type wayland_client::Proxy::Event">Event</a>,
+    data: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;UserData</a>,
+    conn: &amp;<a class="struct" href="struct.Connection.html" title="struct wayland_client::Connection">Connection</a>,
+    qhandle: &amp;<a class="struct" href="struct.QueueHandle.html" title="struct wayland_client::QueueHandle">QueueHandle</a>&lt;State&gt;,
+)</h4></section></summary><div class="docblock"><p>Called when an event from the server is processed</p>
+<p>This method contains your logic for processing events, which can vary wildly from an object to the
+other. You are given as argument:</p>
+<ul>
+<li>a proxy representing the object that received this event</li>
+<li>the event itself as the <a href="trait.Proxy.html#associatedtype.Event" title="associated type wayland_client::Proxy::Event"><code>Proxy::Event</code></a> enum (which you’ll need to match against)</li>
+<li>a reference to the <code>UserData</code> that was associated with that object on creation</li>
+<li>a reference to the <a href="struct.Connection.html" title="struct wayland_client::Connection"><code>Connection</code></a> in case you need to access it</li>
+<li>a reference to a <a href="struct.QueueHandle.html" title="struct wayland_client::QueueHandle"><code>QueueHandle</code></a> associated with the <a href="struct.EventQueue.html" title="struct wayland_client::EventQueue"><code>EventQueue</code></a> currently processing events, in
+case you need to create new objects that you want associated to the same <a href="struct.EventQueue.html" title="struct wayland_client::EventQueue"><code>EventQueue</code></a>.</li>
+</ul>
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.event_created_child" class="method"><a class="src rightside" href="../src/wayland_client/event_queue.rs.html#128-134">Source</a><h4 class="code-header">fn <a href="#method.event_created_child" class="fn">event_created_child</a>(
+    opcode: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u16.html">u16</a>,
+    _qhandle: &amp;<a class="struct" href="struct.QueueHandle.html" title="struct wayland_client::QueueHandle">QueueHandle</a>&lt;State&gt;,
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/sync/struct.Arc.html" title="struct alloc::sync::Arc">Arc</a>&lt;dyn <a class="trait" href="backend/trait.ObjectData.html" title="trait wayland_client::backend::ObjectData">ObjectData</a>&gt;</h4></section></summary><div class="docblock"><p>Method used to initialize the user-data of objects created by events</p>
+<p>If the interface does not have any such event, you can ignore it. If not, the
+<a href="macro.event_created_child.html" title="macro wayland_client::event_created_child"><code>event_created_child!()</code></a> macro is provided for overriding it.</p>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.93.0/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety", so this trait is not object safe.</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../trait.impl/wayland_client/event_queue/trait.Dispatch.js" async></script></section></div></main></body></html>
