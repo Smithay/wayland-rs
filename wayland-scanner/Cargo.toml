@@ -18,7 +18,7 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1.0.11"
 quote = "1.0"
-quick-xml = "0.38.3"
+quick-xml = "0.39"
 
 [dev-dependencies]
 similar = "2"
