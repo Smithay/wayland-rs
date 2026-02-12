@@ -42,7 +42,7 @@ jobs:
 
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
@@ -65,7 +65,7 @@ jobs:
 
       - name: Get cargo-cache latest version
         id: cargocacheversion
-        run: echo "::set-output name=version::$(cargo search 'cargo-cache' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+        run: echo "version=$(cargo search 'cargo-cache' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)" >> $GITHUB_OUTPUT
 
       - name: Cargo binaries cache
         uses: actions/cache@v4
@@ -90,7 +90,7 @@ jobs:
 
       - name: Get rustc version for caching
         id: rustcversion
-        run: echo "::set-output name=version::$(rustc --version | cut -d ' ' -f 2)"
+        run: echo "version=$(rustc --version | cut -d ' ' -f 2)" >> $GITHUB_OUTPUT
 
       - name: Build cache
         uses: actions/cache@v4
@@ -133,7 +133,7 @@ jobs:
 
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
@@ -180,7 +180,7 @@ jobs:
 
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
@@ -201,7 +201,7 @@ jobs:
 
       - name: Get rustc version for caching
         id: rustcversion
-        run: echo "::set-output name=version::$(rustc --version | cut -d ' ' -f 2)"
+        run: echo "version=$(rustc --version | cut -d ' ' -f 2)" >> $GITHUB_OUTPUT
 
       - name: Build cache
         uses: actions/cache@v4
@@ -257,7 +257,7 @@ jobs:
 
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
@@ -286,7 +286,7 @@ jobs:
 
       - name: Get grcov latest version
         id: grcovversion
-        run: echo "::set-output name=version::$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+        run: echo "version=$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)" >> $GITHUB_OUTPUT
       
       - name: grcov cache
         uses: actions/cache@v4
@@ -341,7 +341,7 @@ jobs:
       
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
@@ -370,7 +370,7 @@ jobs:
 
       - name: Get grcov latest version
         id: grcovversion
-        run: echo "::set-output name=version::$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)"
+        run: echo "version=$(cargo search 'grcov' --limit 1 | head -n 1 | cut -d ' ' -f 3 | cut -d '"' -f 2)" >> $GITHUB_OUTPUT
       
       - name: grcov cache
         uses: actions/cache@v4
@@ -419,7 +419,7 @@ jobs:
 
       - name: Get date for registry cache
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Cargo registry cache
         uses: actions/cache@v4
