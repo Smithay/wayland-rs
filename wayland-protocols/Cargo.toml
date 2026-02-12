@@ -9,7 +9,7 @@ keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for the officials wayland protocol extensions"
 categories = ["gui", "api-bindings"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 readme = "README.md"
 include = [
     "/src/**/*.rs",

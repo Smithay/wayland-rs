@@ -9,7 +9,7 @@ keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for the Plasma wayland protocol extensions"
 categories = ["gui", "api-bindings"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -194,7 +194,7 @@ jobs:
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.65.0
+          toolchain: 1.71.0
           override: true
           profile: minimal
           default: true
@@ -211,30 +211,6 @@ jobs:
 
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
-
-      - name: Downgrade libloading
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p libloading --precise 0.8.8
-
-      - name: Downgrade quote
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p quote --precise 1.0.41
-
-      - name: Downgrade log
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p log --precise 0.4.28
-
-      - name: Downgrade proc-macro2
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p proc-macro2 --precise 1.0.103
 
       - name: Check
         uses: actions-rs/cargo@v1
