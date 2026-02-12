@@ -2,7 +2,7 @@
 name = "wayland-tests"
 version = "0.1.9"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 publish = false
 autotests = false
 
