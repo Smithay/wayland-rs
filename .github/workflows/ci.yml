@@ -18,19 +18,12 @@ jobs:
           submodules: recursive
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
           components: rustfmt
-          default: true
 
       - name: Format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
   clippy-check:
     runs-on: ubuntu-latest
@@ -55,13 +48,9 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
           components: clippy
-          default: true
 
       - name: Get cargo-cache latest version
         id: cargocacheversion
@@ -77,16 +66,10 @@ jobs:
           key: ${{ runner.os }}-cargo-binaries-${{ steps.cargocacheversion.outputs.version }}
 
       - name: Install cargo-cache
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-cache --version ${{ steps.cargocacheversion.outputs.version }}
+        run: cargo install cargo-cache --version ${{ steps.cargocacheversion.outputs.version }}
 
       - name: Clean cargo cache of old items
-        uses: actions-rs/cargo@v1
-        with:
-          command: cache
-          args: clean-unref
+        run: cargo cache clean-unref
 
       - name: Get rustc version for caching
         id: rustcversion
@@ -102,10 +85,7 @@ jobs:
         run: sudo apt-get install libwayland-dev
 
       - name: Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all --all-features --all-targets -- -D warnings
+        run: cargo clippy --all --all-features --all-targets -- -D warnings
 
   cargo-deny:
     runs-on: ubuntu-latest
@@ -145,27 +125,16 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
-          default: true
+        uses: dtolnay/rust-toolchain@nightly
 
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
 
       - name: Downgrade to minimal dependencies
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -Z minimal-versions
+        run: cargo update -Z minimal-versions
 
       - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --all-features
+        run: cargo check --all --all-features
   
   msrv:
     needs:
@@ -192,12 +161,7 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.71.0
-          override: true
-          profile: minimal
-          default: true
+        uses: dtolnay/rust-toolchain@1.71.0
 
       - name: Get rustc version for caching
         id: rustcversion
@@ -213,10 +177,7 @@ jobs:
         run: sudo apt-get install libwayland-dev
 
       - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --all-features
+        run: cargo check --all --all-features
   
   coverage-main:
     needs:
@@ -248,11 +209,8 @@ jobs:
         run: sudo apt-get install libwayland-dev
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
-          override: true
-          default: true
           components: llvm-tools-preview, rustfmt
 
       - name: Runtime directory
@@ -274,16 +232,10 @@ jobs:
           key: ${{ runner.os }}-grcov-${{ steps.grcovversion.outputs.version }}
 
       - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov --version ${{ steps.grcovversion.outputs.version }}
+        run: cargo install grcov --version ${{ steps.grcovversion.outputs.version }}
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --exclude 'wayland-tests'
+        run: cargo test --workspace --exclude 'wayland-tests'
         env:
           LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
           RUSTFLAGS: "-Cinstrument-coverage --cfg coverage --cfg unstable_coverage"
@@ -332,11 +284,8 @@ jobs:
         run: sudo apt-get install libwayland-dev
       
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
-          override: true
-          default: true
           components: llvm-tools-preview, rustfmt
 
       - name: Runtime directory
@@ -358,16 +307,10 @@ jobs:
           key: ${{ runner.os }}-grcov-${{ steps.grcovversion.outputs.version }}
 
       - name: Install grcov
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: grcov --version ${{ steps.grcovversion.outputs.version }}
+        run: cargo install grcov --version ${{ steps.grcovversion.outputs.version }}
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}"
+        run: cargo test -p wayland-tests --features "${{ matrix.client_feature }} ${{ matrix.server_feature}}"
         env:
           LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
           RUSTFLAGS: "-Cinstrument-coverage --cfg coverage --cfg unstable_coverage"
@@ -407,21 +350,15 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
 
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: System dependencies
         run: sudo apt-get install libwayland-client0 libwayland-server0
 
       - name: Build Documentation
-        uses: actions-rs/cargo@v1
         env:
           RUSTDOCFLAGS: -Dwarnings
-        with:
-          command: doc
-          args: --all --no-deps --all-features
+        run: cargo doc --all --no-deps --all-features
 
       - name: Setup index
         run: cp ./doc/index.html ./doc/rust.css ./target/doc/
@@ -445,10 +382,7 @@ jobs:
         with:
           submodules: recursive
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Publish crates
         uses: katyo/publish-crates@v2
         with:
