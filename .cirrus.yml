@@ -10,7 +10,7 @@ task:
   matrix:
     - name: FreeBSD 13.5
       freebsd_instance:
-        image_family: freebsd-13-5-snap
+        image_family: freebsd-13-5
  # Install Rust
   setup_script:
     - fetch https://sh.rustup.rs -o rustup.sh
