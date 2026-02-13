@@ -8,7 +8,7 @@ use std::{
         io::{BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
         net::UnixStream,
     },
-    ptr,
+    ptr::{self, NonNull},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard, Weak,
@@ -144,6 +144,16 @@ impl InnerObjectId {
             self.ptr
         } else {
             std::ptr::null_mut()
+        }
+    }
+
+    pub fn display_ptr(&self) -> Result<NonNull<wl_display>, InvalidId> {
+        if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            let ptr =
+                unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_display, self.ptr) };
+            NonNull::new(ptr).ok_or(InvalidId)
+        } else {
+            Err(InvalidId)
         }
     }
 }
