@@ -65,6 +65,14 @@ impl client::ObjectId {
     pub fn as_ptr(&self) -> *mut wayland_sys::client::wl_proxy {
         self.id.as_ptr()
     }
+
+    /// Get the underlying display pointer for this object.
+    ///
+    /// This pointer is associated with the original display this object
+    /// belongs to.
+    pub fn display_ptr(&self) -> *mut wayland_sys::client::wl_display {
+        self.id.display_ptr()
+    }
 }
 
 #[cfg(any(test, feature = "client_system"))]

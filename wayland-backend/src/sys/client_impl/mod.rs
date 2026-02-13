@@ -146,6 +146,14 @@ impl InnerObjectId {
             std::ptr::null_mut()
         }
     }
+
+    pub fn display_ptr(&self) -> *mut wl_display {
+        if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
+            unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_display, self.ptr) }
+        } else {
+            std::ptr::null_mut()
+        }
+    }
 }
 
 impl std::fmt::Display for InnerObjectId {
