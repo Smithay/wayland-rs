@@ -28,6 +28,7 @@
 - Updated wayland-backend to 0.3
 - Use `BorrowedFd<'_>` arguments instead of `RawFd`
 - `Resource::destroyed` now passes the resource type instead of the `ObjectId`.
+- Make `delegate_dispatch` usable for constGeneric type.
 
 #### Additions
 
