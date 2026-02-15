@@ -496,6 +496,15 @@ impl Handle {
         self.handle.global_info(id.id)
     }
 
+    /// Get the name of the global.
+    ///
+    /// - `client` Client for which to look up the global.
+    #[doc(alias = "wl_global_get_name")]
+    #[inline]
+    pub fn global_name(&self, global: GlobalId, client: ClientId) -> Option<u32> {
+        self.handle.global_name(global.id, client.id)
+    }
+
     /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     #[inline]
     pub fn get_global_handler<D: 'static>(

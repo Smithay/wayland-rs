@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     client::ClientStore, registry::Registry, ClientData, ClientId, Credentials, GlobalHandler,
-    InnerClientId, InnerGlobalId, InnerObjectId, ObjectData, ObjectId,
+    GlobalId, InnerClientId, InnerGlobalId, InnerObjectId, ObjectData, ObjectId,
 };
 
 pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, InnerClientId, InnerObjectId);
@@ -262,6 +262,10 @@ impl InnerHandle {
         self.state.lock().unwrap().global_info(id)
     }
 
+    pub fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
+        self.state.lock().unwrap().global_name(global, client)
+    }
+
     pub fn get_global_handler<D: 'static>(
         &self,
         id: InnerGlobalId,
@@ -308,6 +312,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
 }
 
@@ -448,6 +453,21 @@ impl<D> ErasedState for State<D> {
     }
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         self.registry.get_info(id)
+    }
+
+    fn global_name(&self, global_id: InnerGlobalId, client_id: InnerClientId) -> Option<u32> {
+        let client = self.clients.get_client(client_id.clone()).ok()?;
+        let handler = self.registry.get_handler(global_id.clone()).ok()?;
+        let name = global_id.id;
+
+        let can_view =
+            handler.can_view(ClientId { id: client_id }, &client.data, GlobalId { id: global_id });
+
+        if can_view {
+            Some(name)
+        } else {
+            None
+        }
     }
 
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {

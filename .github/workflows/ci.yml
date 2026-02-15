@@ -10,7 +10,7 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   clippy-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
         run: cargo clippy --all --all-features --all-targets -- -D warnings
 
   cargo-deny:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout sources
@@ -104,7 +104,7 @@ jobs:
       - clippy-check
     env:
       RUSTFLAGS: "-D warnings"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -140,7 +140,7 @@ jobs:
     needs:
       - format
       - clippy-check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -184,7 +184,7 @@ jobs:
       - format
       - clippy-check
       
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout sources
@@ -253,7 +253,7 @@ jobs:
       - format
       - clippy-check
       
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -325,7 +325,7 @@ jobs:
 
   doc:
     name: Documentation on Github Pages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - format
       - clippy-check
