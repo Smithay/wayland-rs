@@ -114,7 +114,7 @@ expand_test!(client_wrong_id, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx));
+    let mut socket = BufferedSocket::new(Socket::from(tx), false);
 
     socket
         .write_message(&Message {
@@ -140,7 +140,7 @@ expand_test!(client_wrong_opcode, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx));
+    let mut socket = BufferedSocket::new(Socket::from(tx), false);
 
     socket
         .write_message(&Message {
@@ -164,7 +164,7 @@ expand_test!(client_wrong_sender, {
     let mut server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
-    let mut socket = BufferedSocket::new(Socket::from(tx));
+    let mut socket = BufferedSocket::new(Socket::from(tx), false);
 
     socket
         .write_message(&Message {
@@ -332,7 +332,7 @@ expand_test!(protocol_version_check, {
         Arc::new(ServerData(object_id.clone())),
     );
 
-    let mut socket = BufferedSocket::new(Socket::from(tx));
+    let mut socket = BufferedSocket::new(Socket::from(tx), false);
 
     socket
         .write_message(&Message {

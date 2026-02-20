@@ -8,6 +8,9 @@
 
 - backend/server/rs: Send protocol error if method requires newer protocol version
 
+#### Changes
+- backend/client/rs: Unbounded buffering, matching libwayland behavior
+
 ### Additions
 
 - backend: Added a `destroy_object` method
