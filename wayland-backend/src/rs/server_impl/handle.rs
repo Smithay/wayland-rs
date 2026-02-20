@@ -25,6 +25,7 @@ pub struct State<D: 'static> {
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
     pub(crate) poll_fd: OwnedFd,
+    pub(crate) default_max_buffer_size: usize,
 }
 
 impl<D> State<D> {
@@ -36,6 +37,7 @@ impl<D> State<D> {
             registry: Registry::new(),
             pending_destructors: Vec::new(),
             poll_fd,
+            default_max_buffer_size: 4096,
         }
     }
 
@@ -323,7 +325,7 @@ impl<D> ErasedState for State<D> {
         stream: UnixStream,
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId> {
-        let id = self.clients.create_client(stream, data);
+        let id = self.clients.create_client(stream, data, self.default_max_buffer_size);
         let client = self.clients.get_client(id.clone()).unwrap();
 
         // register the client to the internal epoll

@@ -593,6 +593,14 @@ impl<D> Backend<D> {
     pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         self.backend.dispatch_all_clients(data)
     }
+
+    /// Set wl_client max buffer size.
+    ///
+    /// This method will only affect connections created after the method call.
+    /// only for libwayland backend
+    pub fn set_max_buffer_size(&mut self, max_buffer_size: usize) {
+        self.backend.set_max_buffer_size(max_buffer_size);
+    }
 }
 
 // Workaround: Some versions of rustc throw a `struct is never constructed`-warning here,
