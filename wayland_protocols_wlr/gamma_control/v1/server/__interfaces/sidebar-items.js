@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_GAMMA_CONTROL_MANAGER_V1_INTERFACE","ZWLR_GAMMA_CONTROL_V1_INTERFACE","zwlr_gamma_control_manager_v1_interface","zwlr_gamma_control_v1_interface"]};

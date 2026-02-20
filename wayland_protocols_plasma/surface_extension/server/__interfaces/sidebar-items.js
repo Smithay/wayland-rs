@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["QT_EXTENDED_SURFACE_INTERFACE","QT_SURFACE_EXTENSION_INTERFACE","qt_extended_surface_interface","qt_surface_extension_interface"]};

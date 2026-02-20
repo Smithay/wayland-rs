@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","org_kde_kwin_remote_access_manager","org_kde_kwin_remote_buffer"]};

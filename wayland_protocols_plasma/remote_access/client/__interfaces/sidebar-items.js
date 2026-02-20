@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_REMOTE_ACCESS_MANAGER_INTERFACE","ORG_KDE_KWIN_REMOTE_BUFFER_INTERFACE","org_kde_kwin_remote_access_manager_interface","org_kde_kwin_remote_buffer_interface"]};

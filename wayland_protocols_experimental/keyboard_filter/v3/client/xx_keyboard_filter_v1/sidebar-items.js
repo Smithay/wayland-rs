@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE","REQ_FILTER_OPCODE","REQ_FILTER_SINCE","REQ_UNBIND_OPCODE","REQ_UNBIND_SINCE"],"enum":["Error","Event","FilterAction","Request"],"struct":["XxKeyboardFilterV1"]};

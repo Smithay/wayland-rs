@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_BUFFER_READY_OPCODE","EVT_BUFFER_READY_SINCE","REQ_GET_BUFFER_OPCODE","REQ_GET_BUFFER_SINCE","REQ_RELEASE_OPCODE","REQ_RELEASE_SINCE"],"enum":["Event","Request"],"struct":["OrgKdeKwinRemoteAccessManager"]};

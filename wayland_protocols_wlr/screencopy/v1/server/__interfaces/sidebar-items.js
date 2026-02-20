@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_SCREENCOPY_FRAME_V1_INTERFACE","ZWLR_SCREENCOPY_MANAGER_V1_INTERFACE","zwlr_screencopy_frame_v1_interface","zwlr_screencopy_manager_v1_interface"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["wl_cursor_theme"],"fn":["is_lib_available","wayland_cursor_handle","wayland_cursor_option"],"struct":["WaylandCursor","wl_cursor","wl_cursor_image"]};

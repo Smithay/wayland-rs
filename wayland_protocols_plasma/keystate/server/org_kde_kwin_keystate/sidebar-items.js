@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_STATECHANGED_OPCODE","EVT_STATECHANGED_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE","REQ_FETCHSTATES_OPCODE","REQ_FETCHSTATES_SINCE"],"enum":["Event","Key","Request","State"],"struct":["OrgKdeKwinKeystate"]};

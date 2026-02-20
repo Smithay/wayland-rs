@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_TEXT_INPUT_RECTANGLE_OPCODE","EVT_TEXT_INPUT_RECTANGLE_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE"],"enum":["Event","Request"],"struct":["ZwpInputPopupSurfaceV2"]};

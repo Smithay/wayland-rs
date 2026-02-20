@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["wl_display","wl_event_queue","wl_proxy"],"fn":["is_lib_available","wayland_client_handle","wayland_client_option"],"struct":["WaylandClient"]};

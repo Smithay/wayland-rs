@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_DATA_CONTROL_DEVICE_V1_INTERFACE","ZWLR_DATA_CONTROL_MANAGER_V1_INTERFACE","ZWLR_DATA_CONTROL_OFFER_V1_INTERFACE","ZWLR_DATA_CONTROL_SOURCE_V1_INTERFACE","zwlr_data_control_device_v1_interface","zwlr_data_control_manager_v1_interface","zwlr_data_control_offer_v1_interface","zwlr_data_control_source_v1_interface"]};

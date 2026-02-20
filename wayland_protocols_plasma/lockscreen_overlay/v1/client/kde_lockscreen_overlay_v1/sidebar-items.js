@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["REQ_ALLOW_OPCODE","REQ_ALLOW_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE"],"enum":["Error","Event","Request"],"struct":["KdeLockscreenOverlayV1"]};

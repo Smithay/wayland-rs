@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_DEFAULT_MODE_OPCODE","EVT_DEFAULT_MODE_SINCE","REQ_CREATE_OPCODE","REQ_CREATE_SINCE"],"enum":["Event","Mode","Request"],"struct":["OrgKdeKwinServerDecorationManager"]};

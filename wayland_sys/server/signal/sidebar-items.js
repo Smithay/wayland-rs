@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["rust_listener_create","rust_listener_destroy","rust_listener_get_user_data","rust_listener_set_user_data","wl_signal_add","wl_signal_emit","wl_signal_get","wl_signal_init"]};

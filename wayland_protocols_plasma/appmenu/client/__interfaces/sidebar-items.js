@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_APPMENU_INTERFACE","ORG_KDE_KWIN_APPMENU_MANAGER_INTERFACE","org_kde_kwin_appmenu_interface","org_kde_kwin_appmenu_manager_interface"]};

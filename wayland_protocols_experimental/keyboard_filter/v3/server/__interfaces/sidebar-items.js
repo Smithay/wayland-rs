@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["XX_KEYBOARD_FILTER_MANAGER_V1_INTERFACE","XX_KEYBOARD_FILTER_V1_INTERFACE","xx_keyboard_filter_manager_v1_interface","xx_keyboard_filter_v1_interface"]};
