@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `system` and `dlopen` features, enabling `wayland-backend` features
+
 ## 0.31.10 - 2025-07-28
 
 - Updated Wayland core protocol to 1.24
