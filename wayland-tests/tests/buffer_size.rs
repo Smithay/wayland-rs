@@ -53,8 +53,7 @@ fn buffer_size() {
     }
 }
 
-// TODO: Enable if libwayland >= 1.23.0
-#[cfg(not(feature = "client_system"))]
+#[cfg(feature = "libwayland_client_1_23_0")]
 #[test]
 fn buffer_size_client() {
     let mut server = TestServer::new();

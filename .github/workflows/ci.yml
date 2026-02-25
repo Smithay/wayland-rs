@@ -290,7 +290,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        client_feature: ["", "client_system"]
+        client_feature: ["libwayland_client_1_23_0", "client_system"]
         server_feature: ["", "server_system"]
 
     steps:
