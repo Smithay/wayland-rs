@@ -57,8 +57,8 @@
 //! It can happen that you'll need to interact with Wayland states accross FFI, such as for example when
 //! interfacing with the graphics stack for enabling hardware acceleration for clients.
 //!
-//! In this case, you'll need to do it in two steps, by explicitly working with `wayland-backend`, adding
-//! it to your dependencies and enabling its `server_system` feature.
+//! In this case, you'll need enable the `system` feature to use the `libwayland` backend of
+//! `wayland-backend`.
 //!
 //! Then, you'll generally need:
 //!
