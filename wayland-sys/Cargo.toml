@@ -27,6 +27,7 @@ client = ["dep:dlib", "dep:log"]
 cursor = ["client"]
 egl = ["client"]
 server = ["libc", "memoffset", "dep:dlib", "dep:log"]
+libwayland_server_1_22 = []
 
 [package.metadata.docs.rs]
 all-features = true

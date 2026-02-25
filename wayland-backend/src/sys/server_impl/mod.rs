@@ -810,6 +810,7 @@ impl InnerHandle {
         self.state.lock().unwrap().global_info(id)
     }
 
+    #[cfg(feature = "libwayland_server_1_22")]
     pub fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
         self.state.lock().unwrap().global_name(global, client)
     }
@@ -875,6 +876,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    #[cfg(feature = "libwayland_server_1_22")]
     fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
@@ -1249,6 +1251,7 @@ impl<D: 'static> ErasedState for State<D> {
         })
     }
 
+    #[cfg(feature = "libwayland_server_1_22")]
     fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
         if !global.alive.load(Ordering::Acquire) {
             return None;

@@ -18,6 +18,7 @@ tempfile = "3"
 server_system = ["wayland-server/system"]
 client_system = ["wayland-client/system"]
 libwayland_client_1_23_0 = []
+libwayland_server_1_22 = ["wayland-server/libwayland_1_22"]
 
 [[test]]
 name = "attach_to_surface"

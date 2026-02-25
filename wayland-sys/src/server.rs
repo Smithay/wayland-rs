@@ -102,6 +102,7 @@ external_library!(WaylandServer, "wayland-server",
     // wl_global
         fn wl_global_remove(*mut wl_global) -> (),
         fn wl_global_destroy(*mut wl_global) -> (),
+        #[cfg(feature = "libwayland_server_1_22")]
         fn wl_global_get_name(*mut wl_global, *mut wl_client) -> u32,
         fn wl_global_get_user_data(*const wl_global) -> *mut c_void,
     // wl_resource

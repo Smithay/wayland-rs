@@ -500,6 +500,7 @@ impl Handle {
     ///
     /// - `client` Client for which to look up the global.
     #[doc(alias = "wl_global_get_name")]
+    #[cfg(feature = "libwayland_server_1_22")]
     #[inline]
     pub fn global_name(&self, global: GlobalId, client: ClientId) -> Option<u32> {
         self.handle.global_name(global.id, client.id)

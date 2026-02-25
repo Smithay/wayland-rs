@@ -53,6 +53,7 @@ scoped-tls = "1.0"
 client_system = ["wayland-sys/client", "dep:scoped-tls"]
 server_system = ["wayland-sys/server", "dep:scoped-tls"]
 dlopen = ["wayland-sys/dlopen"]
+libwayland_server_1_22 = ["wayland-sys/libwayland_server_1_22"]
 
 [package.metadata.docs.rs]
 all-features = true

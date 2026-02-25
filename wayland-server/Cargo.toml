@@ -23,6 +23,7 @@ rustix = { version = "1.0.2", features = ["fs"] }
 [features]
 system = ["wayland-backend/server_system"]
 dlopen = ["wayland-backend/dlopen"]
+libwayland_1_22 = ["wayland-backend/libwayland_server_1_22"]
 
 [package.metadata.docs.rs]
 all-features = true

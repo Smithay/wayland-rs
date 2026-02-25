@@ -262,6 +262,7 @@ impl InnerHandle {
         self.state.lock().unwrap().global_info(id)
     }
 
+    #[cfg_attr(not(feature = "libwayland_server_1_22"), allow(dead_code))]
     pub fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
         self.state.lock().unwrap().global_name(global, client)
     }
