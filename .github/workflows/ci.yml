@@ -179,6 +179,53 @@ jobs:
       - name: Check
         run: cargo check --all --all-features
 
+  test-wayland-1_24:
+    needs:
+      - format
+      - clippy-check
+    env:
+      RUSTFLAGS: "-D warnings"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Cargo registry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: System dependencies
+        run: sudo apt-get install meson
+
+      - name: Build libwayland
+        run: |
+          wget https://gitlab.freedesktop.org/wayland/wayland/-/archive/1.24.0/wayland-1.24.0.tar.gz
+          tar xf wayland-1.24.0.tar.gz
+          cd wayland-1.24.0
+          meson setup build -Dprefix=$PWD/../wayland-install -Ddocumentation=false
+          meson compile -C build
+          meson install -C build
+
+      - name: Check
+        env:
+          PKG_CONFIG_PATH: "${{ github.workspace }}/wayland-install/lib/x86_64-linux-gnu/pkgconfig"
+          LD_LIBRARY_PATH: "${{ github.workspace }}/wayland-install/lib/x86_64-linux-gnu"
+        run: cargo test -p wayland-tests --features client_system,libwayland_client_1_23_0
+
   check-redox:
     needs:
       - format
