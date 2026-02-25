@@ -1,3 +1,6 @@
+// XXX: Fix on newer libwayland-client: https://github.com/Smithay/wayland-rs/issues/876
+#![cfg(not(feature = "libwayland_client_1_23_0"))]
+
 #[macro_use]
 mod helpers;
 
