@@ -10,7 +10,7 @@
 //!
 //! See [`WlEglSurface`] documentation for details.
 
-use std::{fmt, os::raw::c_void};
+use std::{fmt, os::raw::c_void, ptr::NonNull};
 
 use wayland_backend::client::ObjectId;
 use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
@@ -48,13 +48,10 @@ impl WlEglSurface {
             return Err(Error::InvalidId);
         }
 
-        let ptr = surface.as_ptr();
-        if ptr.is_null() {
-            // ObjectId::as_ptr() returns NULL if the surface is no longer alive
-            Err(Error::InvalidId)
-        } else {
+        match surface.as_ptr() {
             // SAFETY: We are sure the pointer is valid and the interface is correct.
-            unsafe { Self::new_from_raw(ptr, width, height) }
+            Ok(ptr) => unsafe { Self::new_from_raw(ptr, width, height) },
+            Err(wayland_backend::client::InvalidId) => Err(Error::InvalidId),
         }
     }
 
@@ -64,14 +61,20 @@ impl WlEglSurface {
     ///
     /// The provided pointer must be a valid `wl_surface` pointer from `libwayland-client`.
     pub unsafe fn new_from_raw(
-        surface: *mut wl_proxy,
+        surface: NonNull<wl_proxy>,
         width: i32,
         height: i32,
     ) -> Result<Self, Error> {
         if width <= 0 || height <= 0 {
             return Err(Error::InvalidSize);
         }
-        let ptr = ffi_dispatch!(wayland_egl_handle(), wl_egl_window_create, surface, width, height);
+        let ptr = ffi_dispatch!(
+            wayland_egl_handle(),
+            wl_egl_window_create,
+            surface.as_ptr(),
+            width,
+            height
+        );
         if ptr.is_null() {
             panic!("egl window allocation failed");
         }
