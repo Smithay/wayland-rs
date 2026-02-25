@@ -178,6 +178,38 @@ jobs:
 
       - name: Check
         run: cargo check --all --all-features
+
+  check-redox:
+    needs:
+      - format
+      - clippy-check
+    env:
+      RUSTFLAGS: "-D warnings"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Get date for registry cache
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Cargo registry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ steps.date.outputs.date }}
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-redox
+
+      - name: Check
+        run: cargo check --target x86_64-unknown-redox -p wayland-client -p wayland-server
   
   coverage-main:
     needs:
