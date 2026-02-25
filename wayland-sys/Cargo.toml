@@ -12,7 +12,7 @@ rust-version = "1.71"
 readme = "README.md"
 
 [dependencies]
-dlib = { version = "0.5.1", optional = true }
+dlib = { version = "0.5.3", optional = true }
 libc = { version = "0.2", optional = true }
 once_cell = { version = "1.0", optional = true }
 memoffset = { version = "0.9", optional = true }
