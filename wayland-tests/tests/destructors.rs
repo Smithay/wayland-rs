@@ -119,13 +119,9 @@ fn client_destructor_cleanup() {
 struct DestructorClientData(Arc<AtomicBool>);
 
 impl ways::backend::ClientData for DestructorClientData {
-    fn initialized(&self, _: wayland_backend::server::ClientId) {}
+    fn initialized(&self, _: ways::backend::ClientId) {}
 
-    fn disconnected(
-        &self,
-        _: wayland_backend::server::ClientId,
-        _: wayland_backend::server::DisconnectReason,
-    ) {
+    fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {
         self.0.store(true, Ordering::Release)
     }
 }

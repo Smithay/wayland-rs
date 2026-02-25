@@ -131,13 +131,8 @@ struct MyClientData {
 }
 
 impl ways::backend::ClientData for MyClientData {
-    fn initialized(&self, _: wayland_backend::server::ClientId) {}
-    fn disconnected(
-        &self,
-        _: wayland_backend::server::ClientId,
-        _: wayland_backend::server::DisconnectReason,
-    ) {
-    }
+    fn initialized(&self, _: ways::backend::ClientId) {}
+    fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {}
 }
 
 server_ignore_impl!(ServerHandler => [

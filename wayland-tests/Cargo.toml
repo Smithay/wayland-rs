@@ -9,7 +9,6 @@ autotests = false
 [dependencies]
 
 [dev-dependencies]
-wayland-backend = { path = "../wayland-backend" }
 wayland-client = { path = "../wayland-client" }
 wayland-server = { path = "../wayland-server" }
 wayland-protocols = { path = "../wayland-protocols", features = ["client", "server"] }

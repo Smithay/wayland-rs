@@ -5,7 +5,7 @@ use std::os::unix::io::{AsFd, OwnedFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use wayland_backend::client::ObjectData;
+use wayland_client::backend::ObjectData;
 
 #[macro_use]
 mod helpers;

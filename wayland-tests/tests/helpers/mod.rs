@@ -11,7 +11,7 @@ use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use wayland_backend::client::ObjectData;
+use wayland_client::backend::ObjectData;
 
 pub mod globals;
 
