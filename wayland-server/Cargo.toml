@@ -20,6 +20,9 @@ log = { version = "0.4", optional = true }
 downcast-rs = "1.2"
 rustix = { version = "1.0.2", features = ["fs"] }
 
+[features]
+system = ["wayland-backend/server_system"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

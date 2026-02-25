@@ -16,8 +16,8 @@ wayland-protocols = { path = "../wayland-protocols", features = ["client", "serv
 tempfile = "3"
 
 [features]
-server_system = ["wayland-backend/server_system"]
-client_system = ["wayland-backend/client_system"]
+server_system = ["wayland-server/system"]
+client_system = ["wayland-client/system"]
 
 [[test]]
 name = "attach_to_surface"

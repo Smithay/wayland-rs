@@ -25,6 +25,9 @@ futures-channel = "0.3.16"
 futures-util = "0.3"
 tempfile = "3.2"
 
+[features]
+system = ["wayland-backend/client_system"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
