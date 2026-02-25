@@ -256,11 +256,20 @@ impl std::error::Error for ProtocolError {}
 impl std::fmt::Display for ProtocolError {
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        write!(
-            f,
-            "Protocol error {} on object {}@{}: {}",
-            self.code, self.object_interface, self.object_id, self.message
-        )
+        if self.message.is_empty() {
+            // On `sys` backend, we don't have contents of the message
+            write!(
+                f,
+                "Protocol error {} on object {}@{}",
+                self.code, self.object_interface, self.object_id
+            )
+        } else {
+            write!(
+                f,
+                "Protocol error {} on object {}@{}: {}",
+                self.code, self.object_interface, self.object_id, self.message
+            )
+        }
     }
 }
 
