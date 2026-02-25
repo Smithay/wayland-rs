@@ -27,6 +27,7 @@ tempfile = "3.2"
 
 [features]
 system = ["wayland-backend/client_system"]
+dlopen = ["wayland-backend/dlopen"]
 
 [package.metadata.docs.rs]
 all-features = true
