@@ -327,6 +327,7 @@ impl<D> InnerBackend<D> {
         Ok(dispatched)
     }
 
+    #[allow(dead_code)]
     pub fn set_default_max_buffer_size(&self, _: usize) {}
 }
 
