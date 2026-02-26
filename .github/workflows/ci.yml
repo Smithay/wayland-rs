@@ -338,7 +338,7 @@ jobs:
       fail-fast: false
       matrix:
         client_feature: ["libwayland_client_1_23_0", "client_system"]
-        server_feature: ["", "server_system"]
+        server_feature: ["libwayland_server_1_22", "server_system", "server_system,libwayland_server_1_22"]
 
     steps:
       - name: Checkout sources
