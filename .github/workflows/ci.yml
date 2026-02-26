@@ -224,7 +224,7 @@ jobs:
         env:
           PKG_CONFIG_PATH: "${{ github.workspace }}/wayland-install/lib/x86_64-linux-gnu/pkgconfig"
           LD_LIBRARY_PATH: "${{ github.workspace }}/wayland-install/lib/x86_64-linux-gnu"
-        run: cargo test -p wayland-tests --features client_system,libwayland_client_1_23_0
+        run: cargo test -p wayland-tests --features client_system,libwayland_client_1_23
 
   check-redox:
     needs:
@@ -337,7 +337,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        client_feature: ["libwayland_client_1_23_0", "client_system"]
+        client_feature: ["libwayland_client_1_23", "client_system"]
         server_feature: ["libwayland_server_1_22", "server_system", "server_system,libwayland_server_1_22"]
 
     steps:

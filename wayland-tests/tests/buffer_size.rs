@@ -53,7 +53,7 @@ fn buffer_size() {
     }
 }
 
-#[cfg(feature = "libwayland_client_1_23_0")]
+#[cfg(feature = "libwayland_client_1_23")]
 #[test]
 fn buffer_size_client() {
     let mut server = TestServer::new();
