@@ -101,6 +101,7 @@ fn buffer_size_client() {
     // roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_handler).unwrap();
 }
 
+#[cfg(feature = "libwayland_server_1_23")]
 #[test]
 fn buffer_size_increase() {
     let mut server = TestServer::new();

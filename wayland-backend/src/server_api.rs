@@ -608,6 +608,7 @@ impl<D> Backend<D> {
     ///
     /// This method will only affect connections created after the method call.
     /// only for libwayland backend
+    #[cfg(feature = "libwayland_server_1_23")]
     pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
         self.backend.set_default_max_buffer_size(max_buffer_size);
     }

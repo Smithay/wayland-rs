@@ -425,6 +425,7 @@ impl<D> InnerBackend<D> {
         }
     }
 
+    #[cfg(feature = "libwayland_server_1_23")]
     pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
         unsafe {
             ffi_dispatch!(
