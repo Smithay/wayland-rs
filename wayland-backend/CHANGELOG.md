@@ -4,6 +4,8 @@
 
 ### Additions
 - client: Added `display_ptr` method to `ObjectId`
+- server: Addded `Handle::global_name`
+  * Requires `libwayland_server_1_22` feature
 
 ## 0.3.12 -- 2025-12-30
 
