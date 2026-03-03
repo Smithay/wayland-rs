@@ -425,7 +425,7 @@ impl<D> InnerBackend<D> {
         }
     }
 
-    pub fn set_max_buffer_size(&mut self, max_buffer_size: usize) {
+    pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
         unsafe {
             ffi_dispatch!(
                 wayland_server_handle(),
