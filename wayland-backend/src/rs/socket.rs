@@ -142,8 +142,8 @@ impl BufferedSocket {
     pub fn new(socket: Socket, unbounded: bool) -> Self {
         Self {
             socket,
-            in_data: Buffer::new(2 * MAX_BYTES_OUT), // Incoming buffers are twice as big in order to be
-            in_fds: VecDeque::new(),                 // able to store leftover data if needed
+            in_data: Buffer::new(MAX_BYTES_OUT),
+            in_fds: VecDeque::new(),
             out_data: Buffer::new(MAX_BYTES_OUT),
             out_fds: Vec::new(),
             unbounded,
