@@ -319,6 +319,19 @@ impl InnerBackend {
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         self.inner.dispatch_lock.lock().unwrap().dispatch_pending(self.inner.clone())
     }
+
+    #[cfg(feature = "libwayland_client_1_23")]
+    pub fn set_max_buffer_size(&self, max_buffer_size: Option<usize>) {
+        let guard = self.lock_state();
+        unsafe {
+            ffi_dispatch!(
+                wayland_client_handle(),
+                wl_display_set_max_buffer_size,
+                guard.display,
+                max_buffer_size.unwrap_or(0)
+            )
+        }
+    }
 }
 
 impl ConnectionState {

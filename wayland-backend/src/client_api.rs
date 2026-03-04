@@ -297,6 +297,12 @@ impl Backend {
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         self.backend.dispatch_inner_queue()
     }
+
+    /// Set maximum buffer size for connection
+    #[cfg(feature = "libwayland_client_1_23")]
+    pub fn set_max_buffer_size(&self, max_buffer_size: Option<usize>) {
+        self.backend.set_max_buffer_size(max_buffer_size);
+    }
 }
 
 /// Guard for synchronizing event reading across multiple threads

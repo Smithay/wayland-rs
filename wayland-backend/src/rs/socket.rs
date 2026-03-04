@@ -308,6 +308,11 @@ impl BufferedSocket {
 
         Ok(msg)
     }
+
+    pub fn set_max_buffer_size(&mut self, max_buffer_size: Option<usize>) {
+        // TODO: what if it decreases?
+        self.max_buffer_size = max_buffer_size;
+    }
 }
 
 impl AsRawFd for BufferedSocket {

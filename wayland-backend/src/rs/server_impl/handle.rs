@@ -73,6 +73,12 @@ impl<D> State<D> {
             Ok(())
         }
     }
+
+    fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+        if let Ok(client) = self.clients.get_client_mut(client) {
+            client.socket.set_max_buffer_size(Some(max_buffer_size));
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -284,6 +290,11 @@ impl InnerHandle {
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
+
+    #[allow(dead_code)]
+    pub fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+        self.state.lock().unwrap().set_max_buffer_size(client, max_buffer_size)
+    }
 }
 
 pub(crate) trait ErasedState: downcast_rs::Downcast {
@@ -318,6 +329,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
+    fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
 }
 
 downcast_rs::impl_downcast!(ErasedState);
@@ -476,5 +488,9 @@ impl<D> ErasedState for State<D> {
 
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         self.flush(client)
+    }
+
+    fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+        self.set_max_buffer_size(client, max_buffer_size)
     }
 }

@@ -527,6 +527,12 @@ impl InnerBackend {
     pub fn dispatch_inner_queue(&self) -> Result<usize, WaylandError> {
         Ok(0)
     }
+
+    #[allow(dead_code)]
+    pub fn set_max_buffer_size(&self, max_buffer_size: Option<usize>) {
+        let mut guard = self.state.lock_protocol();
+        guard.socket.set_max_buffer_size(max_buffer_size);
+    }
 }
 
 impl ProtocolState {
