@@ -63,10 +63,14 @@ impl client::ObjectId {
 
     /// Get the underlying libwayland pointer for this object
     ///
-    /// Returns `NULL` if the proxy has already been destroyed.
-    // TODO(breaking): Return `Result`
-    pub fn as_ptr(&self) -> *mut wayland_sys::client::wl_proxy {
-        self.id.as_ptr().map_or(std::ptr::null_mut(), |p| p.as_ptr())
+    /// # Errors
+    ///
+    /// This function returns an [`InvalidId`][client::InvalidId] error if proxy has already
+    /// been destroyed.
+    pub fn as_ptr(
+        &self,
+    ) -> Result<std::ptr::NonNull<wayland_sys::client::wl_proxy>, client::InvalidId> {
+        self.id.as_ptr()
     }
 
     /// Get the underlying display pointer for this object.
@@ -210,10 +214,14 @@ impl server::ObjectId {
     ///
     /// The pointer may be used to interoperate with libwayland.
     ///
-    /// Returns `NULL` if the resource has already been destroyed.
-    // TODO(breaking): Return `Result`
-    pub fn as_ptr(&self) -> *mut wayland_sys::server::wl_resource {
-        self.id.as_ptr().map_or(std::ptr::null_mut(), |p| p.as_ptr())
+    /// # Errors
+    ///
+    /// This function returns an [`InvalidId`][server::InvalidId] error if resource has already
+    /// been destroyed.
+    pub fn as_ptr(
+        &self,
+    ) -> Result<std::ptr::NonNull<wayland_sys::server::wl_resource>, server::InvalidId> {
+        self.id.as_ptr()
     }
 }
 
