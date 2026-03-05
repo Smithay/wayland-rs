@@ -140,7 +140,7 @@ impl_client_objectdata!(client_sys);
 // create a global and create objects
 expand_test!(create_objects, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::new().unwrap();
+    let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
@@ -426,7 +426,7 @@ expand_test!(null_obj_followed_by_interface, {
 
 expand_test!(new_id_null_and_non_null, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::<()>::new().unwrap();
+    let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
