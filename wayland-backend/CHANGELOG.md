@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.13 -- 2026-03-04
+
 ### Additions
 - client: Added `display_ptr` method to `ObjectId`
 - server: Addded `Handle::global_name`

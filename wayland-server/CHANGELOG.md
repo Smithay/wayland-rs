@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.31.12 -- 2026-03-04
+
 #### Additions
 
 - Add `system` and `dlopen` features, enabling `wayland-backend` features
