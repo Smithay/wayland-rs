@@ -49,6 +49,26 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
     };
     let doc_attr = to_doc_attr(&docs);
 
+    let destructor_trait_impl = if let Some(destructor) =
+        interface.requests.iter().find(|msg| msg.typ == Some(Type::Destructor))
+    {
+        // TODO split off shared code into function
+        let method_name = format_ident!(
+            "{}{}",
+            if is_keyword(&destructor.name) { "_" } else { "" },
+            destructor.name
+        );
+        quote! {
+            impl super::wayland_client::ProxyDestroy for #iface_name {
+                fn call_proxy_destructor(&self) {
+                    self.#method_name();
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
         #mod_doc
         pub mod #mod_name {
@@ -172,6 +192,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #write_body
                 }
             }
+
+            #destructor_trait_impl
 
             impl #iface_name {
                 #methods
