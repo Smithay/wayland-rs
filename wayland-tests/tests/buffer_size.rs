@@ -110,7 +110,7 @@ fn buffer_size_increase() {
         .handle()
         .create_global::<ServerHandler, ways::protocol::wl_seat::WlSeat, _>(1, ());
 
-    server.display.backend().handle().set_default_max_buffer_size(1024 * 32);
+    server.display.handle().set_default_max_buffer_size(1024 * 32);
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };

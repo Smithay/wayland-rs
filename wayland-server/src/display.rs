@@ -205,6 +205,12 @@ impl DisplayHandle {
     pub fn flush_clients(&mut self) -> std::io::Result<()> {
         self.handle.flush(None)
     }
+
+    /// Set default client maximum buffer size.
+    #[cfg(feature = "libwayland_1_23")]
+    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
+        self.handle.set_default_max_buffer_size(max_buffer_size);
+    }
 }
 
 impl From<Handle> for DisplayHandle {
