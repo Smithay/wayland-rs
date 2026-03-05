@@ -6,6 +6,8 @@
 - client: Added `display_ptr` method to `ObjectId`
 - server: Addded `Handle::global_name`
   * Requires `libwayland_server_1_22` feature
+- client: Added `set_max_buffer_size` method
+- server: Added `set_default_max_buffer_size` and `set_max_buffer_size` methods
 
 ## 0.3.12 -- 2025-12-30
 
