@@ -524,7 +524,7 @@ impl Handle {
 
     /// Set maximum buffer size for client.
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_max_buffer_size(&mut self, client: ClientId, max_buffer_size: usize) {
+    pub fn set_max_buffer_size(&self, client: ClientId, max_buffer_size: usize) {
         self.handle.set_max_buffer_size(client.id, max_buffer_size);
     }
 }
@@ -614,7 +614,7 @@ impl<D> Backend<D> {
     ///
     /// This method will only affect connections created after the method call.
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
+    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
         self.backend.set_default_max_buffer_size(max_buffer_size);
     }
 }

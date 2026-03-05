@@ -426,7 +426,7 @@ impl<D> InnerBackend<D> {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
+    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
         unsafe {
             ffi_dispatch!(
                 wayland_server_handle(),
@@ -854,7 +854,7 @@ impl InnerHandle {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+    pub fn set_max_buffer_size(&self, client: InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_max_buffer_size(client, max_buffer_size)
     }
 

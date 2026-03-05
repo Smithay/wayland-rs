@@ -292,7 +292,7 @@ impl InnerHandle {
     }
 
     #[allow(dead_code)]
-    pub fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+    pub fn set_max_buffer_size(&self, client: InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_max_buffer_size(client, max_buffer_size)
     }
 }
