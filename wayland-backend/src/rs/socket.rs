@@ -147,7 +147,7 @@ impl BufferedSocket {
             in_fds: VecDeque::new(),
             out_data: Buffer::new(DEFAULT_MAX_BUFFER_SIZE),
             out_fds: Vec::new(),
-            max_buffer_size,
+            max_buffer_size: max_buffer_size.map(round_max_buffer_size),
         }
     }
 
@@ -311,7 +311,7 @@ impl BufferedSocket {
 
     pub fn set_max_buffer_size(&mut self, max_buffer_size: Option<usize>) {
         // TODO: what if it decreases?
-        self.max_buffer_size = max_buffer_size;
+        self.max_buffer_size = max_buffer_size.map(round_max_buffer_size);
     }
 }
 
@@ -386,6 +386,10 @@ impl<T: Copy + Default> Buffer<T> {
         self.occupied -= self.offset;
         self.offset = 0;
     }
+}
+
+fn round_max_buffer_size(max_buffer_size: usize) -> usize {
+    max_buffer_size.checked_next_power_of_two().unwrap_or(usize::MAX).max(DEFAULT_MAX_BUFFER_SIZE)
 }
 
 #[cfg(test)]

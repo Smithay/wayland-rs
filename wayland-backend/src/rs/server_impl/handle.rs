@@ -75,11 +75,7 @@ impl<D> State<D> {
     }
 
     pub fn set_default_max_buffer_size(&mut self, max_buffer_size: usize) {
-        let size = max_buffer_size
-            .checked_next_power_of_two()
-            .unwrap_or(usize::MAX)
-            .max(DEFAULT_MAX_BUFFER_SIZE);
-        self.default_max_buffer_size = size;
+        self.default_max_buffer_size = max_buffer_size;
     }
 
     fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
