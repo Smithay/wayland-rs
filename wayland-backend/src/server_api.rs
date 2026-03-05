@@ -277,7 +277,7 @@ impl Handle {
     /// The `data` parameter contains data that will be associated with the client.
     #[inline]
     pub fn insert_client(
-        &mut self,
+        &self,
         stream: UnixStream,
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<ClientId> {
@@ -518,7 +518,7 @@ impl Handle {
     /// Flushes pending events destined for a client.
     ///
     /// If no client is specified, all pending events are flushed to all clients.
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
         self.handle.flush(client)
     }
 
@@ -549,7 +549,7 @@ impl<D> Backend<D> {
     ///
     /// If no client is specified, all pending events are flushed to all clients.
     #[inline]
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
         self.backend.flush(client)
     }
 
@@ -589,7 +589,7 @@ impl<D> Backend<D> {
     /// [`Backend::dispatch_all_clients()`].
     #[inline]
     pub fn dispatch_single_client(
-        &mut self,
+        &self,
         data: &mut D,
         client_id: ClientId,
     ) -> std::io::Result<usize> {
@@ -606,7 +606,7 @@ impl<D> Backend<D> {
     /// file descriptor retrieved by [`Backend::poll_fd`] and only calling this method when messages are
     /// available.
     #[inline]
-    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         self.backend.dispatch_all_clients(data)
     }
 
