@@ -524,8 +524,8 @@ impl Handle {
 
     /// Set maximum buffer size for client.
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_max_buffer_size(&self, client: ClientId, max_buffer_size: usize) {
-        self.handle.set_max_buffer_size(client.id, max_buffer_size);
+    pub fn set_client_max_buffer_size(&self, client: ClientId, max_buffer_size: usize) {
+        self.handle.set_client_max_buffer_size(client.id, max_buffer_size);
     }
 }
 
