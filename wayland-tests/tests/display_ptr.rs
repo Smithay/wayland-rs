@@ -1,4 +1,4 @@
-#![cfg(feature = "client_system")]
+#![cfg(all(feature = "client_system", feature = "libwayland_client_1_23"))]
 
 #[macro_use]
 mod helpers;

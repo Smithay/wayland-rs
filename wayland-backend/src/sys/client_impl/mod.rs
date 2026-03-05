@@ -147,6 +147,7 @@ impl InnerObjectId {
         }
     }
 
+    #[cfg(feature = "libwayland_client_1_23")]
     pub fn display_ptr(&self) -> Result<NonNull<wl_display>, InvalidId> {
         if self.alive.as_ref().map(|alive| alive.load(Ordering::Acquire)).unwrap_or(true) {
             let ptr =
