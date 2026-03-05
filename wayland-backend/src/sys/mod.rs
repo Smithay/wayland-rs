@@ -73,6 +73,7 @@ impl client::ObjectId {
     ///
     /// This pointer is associated with the original display this object
     /// belongs to.
+    #[cfg(feature = "libwayland_client_1_23")]
     pub fn display_ptr(
         &self,
     ) -> Result<std::ptr::NonNull<wayland_sys::client::wl_display>, crate::types::client::InvalidId>
