@@ -137,7 +137,7 @@ clientdata_impls!(client_sys);
 // create a global and send the many_args method
 expand_test!(many_args, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
-    let mut server = server_backend::Backend::new().unwrap();
+    let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
 
