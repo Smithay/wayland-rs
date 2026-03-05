@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.14 -- 2026-03-05
+
+- client: Put `ObjectId::display_ptr` behind `libwayland_client_1_23` feature
+  * Breaking change to fix issue with release
+
 ## 0.3.13 -- 2026-03-04
 
 ### Additions
