@@ -424,18 +424,6 @@ impl<D> InnerBackend<D> {
             Ok(ret as usize)
         }
     }
-
-    #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
-        unsafe {
-            ffi_dispatch!(
-                wayland_server_handle(),
-                wl_display_set_default_max_buffer_size,
-                self.display_ptr,
-                max_buffer_size
-            );
-        }
-    }
 }
 
 impl<D> Drop for State<D> {
@@ -851,6 +839,18 @@ impl InnerHandle {
 
     pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
+    }
+
+    #[cfg(feature = "libwayland_server_1_23")]
+    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
+        unsafe {
+            ffi_dispatch!(
+                wayland_server_handle(),
+                wl_display_set_default_max_buffer_size,
+                self.display_ptr(),
+                max_buffer_size
+            );
+        }
     }
 
     #[cfg(feature = "libwayland_server_1_23")]

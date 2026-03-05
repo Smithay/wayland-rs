@@ -522,6 +522,14 @@ impl Handle {
         self.handle.flush(client)
     }
 
+    /// Set default client max buffer size.
+    ///
+    /// This method will only affect connections created after the method call.
+    #[cfg(feature = "libwayland_server_1_23")]
+    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
+        self.handle.set_default_max_buffer_size(max_buffer_size);
+    }
+
     /// Set maximum buffer size for client.
     #[cfg(feature = "libwayland_server_1_23")]
     pub fn set_client_max_buffer_size(&self, client: ClientId, max_buffer_size: usize) {
@@ -608,14 +616,6 @@ impl<D> Backend<D> {
     #[inline]
     pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
         self.backend.dispatch_all_clients(data)
-    }
-
-    /// Set default client max buffer size.
-    ///
-    /// This method will only affect connections created after the method call.
-    #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_default_max_buffer_size(&self, max_buffer_size: usize) {
-        self.backend.set_default_max_buffer_size(max_buffer_size);
     }
 }
 
