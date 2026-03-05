@@ -214,6 +214,12 @@ impl Connection {
     pub fn get_object_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         self.backend.get_data(id)
     }
+
+    /// Set maximum buffer size.
+    #[cfg(feature = "libwayland_1_23")]
+    pub fn set_max_buffer_size(&self, max_buffer_size: Option<usize>) {
+        self.backend.set_max_buffer_size(max_buffer_size);
+    }
 }
 
 pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandError> {

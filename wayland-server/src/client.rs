@@ -107,6 +107,12 @@ impl Client {
     pub fn kill(&self, handle: &DisplayHandle, error: ProtocolError) {
         handle.handle.kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }
+
+    /// Set maximum buffer size for client.
+    #[cfg(feature = "libwayland_1_23")]
+    pub fn set_max_buffer_size(&self, handle: &DisplayHandle, max_buffer_size: usize) {
+        handle.handle.set_client_max_buffer_size(self.id.clone(), max_buffer_size);
+    }
 }
 
 impl PartialEq for Client {

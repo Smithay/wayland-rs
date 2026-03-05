@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
 - Add `system` and `dlopen` features, enabling `wayland-backend` features
+- Add `Connection::set_max_buffer_size`
 
 ## 0.31.11 -- 2025-07-28
 
