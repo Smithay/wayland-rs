@@ -854,8 +854,8 @@ impl InnerHandle {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_max_buffer_size(&self, client: InnerClientId, max_buffer_size: usize) {
-        self.state.lock().unwrap().set_max_buffer_size(client, max_buffer_size)
+    pub fn set_client_max_buffer_size(&self, client: InnerClientId, max_buffer_size: usize) {
+        self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
     }
 
     pub fn display_ptr(&self) -> *mut wl_display {
@@ -898,7 +898,7 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
     #[cfg(feature = "libwayland_server_1_23")]
-    fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
+    fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
     fn display_ptr(&self) -> *mut wl_display;
 }
 
@@ -1325,7 +1325,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    fn set_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+    fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
         if client.alive.load(Ordering::Acquire) {
             unsafe {
                 ffi_dispatch!(
