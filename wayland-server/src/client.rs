@@ -108,6 +108,16 @@ impl Client {
         handle.handle.kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
     }
 
+    /// Get the name of the global for given client.
+    #[cfg(feature = "libwayland_1_22")]
+    pub fn global_name(
+        &self,
+        handle: &DisplayHandle,
+        global: crate::backend::GlobalId,
+    ) -> Option<u32> {
+        handle.handle.global_name(global, self.id.clone())
+    }
+
     /// Set maximum buffer size for client.
     #[cfg(feature = "libwayland_1_23")]
     pub fn set_max_buffer_size(&self, handle: &DisplayHandle, max_buffer_size: usize) {

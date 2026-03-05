@@ -6,6 +6,7 @@
 
 - Add `system` and `dlopen` features, enabling `wayland-backend` features
 - Add `DisplayHandle::set_default_max_buffer_size` and `Client::set_max_buffer_size`
+- Add `Client::global_name`
 
 ## 0.31.10 - 2025-07-28
 
