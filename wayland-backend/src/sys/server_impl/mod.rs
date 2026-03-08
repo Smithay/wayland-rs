@@ -374,7 +374,7 @@ impl<D> InnerBackend<D> {
         })
     }
 
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
@@ -395,14 +395,14 @@ impl<D> InnerBackend<D> {
     }
 
     pub fn dispatch_client(
-        &mut self,
+        &self,
         data: &mut D,
         _client_id: InnerClientId,
     ) -> std::io::Result<usize> {
         self.dispatch_all_clients(data)
     }
 
-    pub fn dispatch_all_clients(&mut self, data: &mut D) -> std::io::Result<usize> {
+    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         let state = self.state.clone() as Arc<Mutex<dyn ErasedState + Send>>;
         let display = self.display_ptr;
         let ret = HANDLE.set(&(state, data as *mut _ as *mut c_void), || unsafe {
@@ -837,7 +837,7 @@ impl InnerHandle {
         Ok(udata.handler.clone())
     }
 
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
