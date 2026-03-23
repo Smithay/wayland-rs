@@ -58,7 +58,7 @@ use std::{
     os::unix::io::OwnedFd,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
     },
 };
 
@@ -68,7 +68,7 @@ use wayland_backend::{
 };
 
 use crate::{
-    protocol::{wl_display, wl_registry},
+    protocol::{wl_display, wl_fixes, wl_registry},
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
 };
 
@@ -83,16 +83,19 @@ where
 {
     let event_queue = conn.new_event_queue();
     let display = conn.display();
+    let fixes = Arc::new(OnceLock::<wl_fixes::WlFixes>::new());
+
     let data = Arc::new(RegistryState {
         globals: GlobalListContents { contents: Default::default() },
         handle: event_queue.handle(),
+        fixes: fixes.clone(),
         initial_roundtrip_done: AtomicBool::new(false),
     });
     let registry = display.send_constructor(wl_display::Request::GetRegistry {}, data.clone())?;
     // We don't need to dispatch the event queue as for now nothing will be sent to it
     conn.roundtrip()?;
     data.initial_roundtrip_done.store(true, Ordering::Relaxed);
-    Ok((GlobalList { registry }, event_queue))
+    Ok((GlobalList { registry, fixes }, event_queue))
 }
 
 /// A helper for global initialization.
@@ -101,6 +104,22 @@ where
 #[derive(Debug)]
 pub struct GlobalList {
     registry: wl_registry::WlRegistry,
+    fixes: Arc<OnceLock<wl_fixes::WlFixes>>,
+}
+
+struct Fixes;
+
+impl ObjectData for Fixes {
+    fn event(
+        self: Arc<Self>,
+        _backend: &Backend,
+        _msg: Message<ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn ObjectData>> {
+        // wl_fixes has no events
+        None
+    }
+
+    fn destroyed(&self, _object_id: ObjectId) {}
 }
 
 impl GlobalList {
@@ -183,6 +202,19 @@ impl GlobalList {
     /// This may be used if more direct control when creating globals is needed.
     pub fn registry(&self) -> &wl_registry::WlRegistry {
         &self.registry
+    }
+
+    /// Tries to destroy the [`WlRegistry`][wl_registry] protocol object.
+    ///
+    /// If successful no new events will be emitted and the `GlobalListContent`
+    /// will not be updated anymore. Other proocol objects are not affected.
+    ///
+    /// This might end up doing nothing if the compositor doesn't support `wl_fixes`
+    /// in which case the registry cannot be destroyed without closing the connection.
+    pub fn destroy(self) {
+        if let Some(fixes) = self.fixes.get() {
+            fixes.destroy_registry(&self.registry);
+        }
     }
 }
 
@@ -296,6 +328,7 @@ impl GlobalListContents {
 struct RegistryState<State> {
     globals: GlobalListContents,
     handle: QueueHandle<State>,
+    fixes: Arc<OnceLock<wl_fixes::WlFixes>>,
     initial_roundtrip_done: AtomicBool,
 }
 
@@ -324,9 +357,27 @@ where
         let msg = msg.map_fd(|v| match v {});
 
         // Can't do much if the server sends a malformed message
-        if let Ok((_, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
+        if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
             match event {
                 wl_registry::Event::Global { name, interface, version } => {
+                    let wl_fixes_ver = 1u32..=1;
+                    if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
+                        let _ = self.fixes.set(
+                            registry
+                                .send_constructor(
+                                    wl_registry::Request::Bind {
+                                        name,
+                                        id: (
+                                            wl_fixes::WlFixes::interface(),
+                                            version.min(*wl_fixes_ver.end()),
+                                        ),
+                                    },
+                                    Arc::new(Fixes),
+                                )
+                                .expect("We just created this registry"),
+                        );
+                    }
+
                     let mut guard = self.globals.contents.lock().unwrap();
                     guard.push(Global { name, interface, version });
                 }
@@ -351,9 +402,7 @@ where
         None
     }
 
-    fn destroyed(&self, _id: ObjectId) {
-        // A registry cannot be destroyed unless disconnected.
-    }
+    fn destroyed(&self, _id: ObjectId) {}
 
     fn data_as_any(&self) -> &dyn std::any::Any {
         &self.globals
