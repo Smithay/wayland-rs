@@ -338,6 +338,21 @@ impl<State> EventQueueInner<State> {
         I: Proxy + 'static,
     {
         let func = queue_callback::<I, U, State>;
+        self.enqueue_handler(func, msg, odata);
+    }
+
+    pub(crate) fn enqueue_handler(
+        &mut self,
+        func: fn(
+            &Connection,
+            Message<ObjectId, OwnedFd>,
+            &mut State,
+            Arc<dyn ObjectData>,
+            &QueueHandle<State>,
+        ) -> Result<(), DispatchError>,
+        msg: Message<ObjectId, OwnedFd>,
+        odata: Arc<dyn ObjectData>,
+    ) {
         self.queue.push_back(QueueEvent(func, msg, odata));
         if self.freeze_count == 0 {
             if let Some(waker) = self.waker.take() {
