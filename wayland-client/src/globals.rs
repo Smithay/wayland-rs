@@ -69,7 +69,7 @@ use wayland_backend::{
 
 use crate::{
     protocol::{wl_display, wl_fixes, wl_registry},
-    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
+    Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle,
 };
 
 /// Initialize a new event queue with its associated registry and retrieve the initial list of globals
@@ -353,6 +353,7 @@ where
         } else {
             None
         };
+        let to_ack = msg.clone().map_fd(|v| match v {});
         // and restore the type
         let msg = msg.map_fd(|v| match v {});
 
@@ -360,7 +361,7 @@ where
         if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
             match event {
                 wl_registry::Event::Global { name, interface, version } => {
-                    let wl_fixes_ver = 1u32..=1;
+                    let wl_fixes_ver = 1u32..=2;
                     if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
                         let _ = self.fixes.set(
                             registry
@@ -385,6 +386,11 @@ where
                 wl_registry::Event::GlobalRemove { name: remove } => {
                     let mut guard = self.globals.contents.lock().unwrap();
                     guard.retain(|Global { name, .. }| name != &remove);
+
+                    if let Some(fixes) = self.fixes.get() {
+                        // TODO: I don't think this is safe
+                        fixes.ack_global_remove(&registry, remove);
+                    }
                 }
             }
         };
@@ -395,7 +401,38 @@ where
                 .inner
                 .lock()
                 .unwrap()
-                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone())
+                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone());
+        }
+
+        if self.fixes.get().is_some() {
+            fn ack_remove<State: 'static>(
+                conn: &Connection,
+                msg: Message<ObjectId, OwnedFd>,
+                _data: &mut State,
+                odata: Arc<dyn ObjectData>,
+                _qh: &QueueHandle<State>,
+            ) -> Result<(), DispatchError> {
+                if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
+                    if let wl_registry::Event::GlobalRemove { name: remove } = event {
+                        if let Some(fixes) = odata
+                            .as_any()
+                            .downcast_ref::<RegistryState<State>>()
+                            .unwrap()
+                            .fixes
+                            .get()
+                        {
+                            fixes.ack_global_remove(&registry, remove)
+                        }
+                    }
+                }
+                Ok(())
+            }
+
+            self.handle.inner.lock().unwrap().enqueue_handler(
+                ack_remove::<State>,
+                to_ack,
+                self.clone(),
+            );
         }
 
         // We do not create any objects in this event handler.
