@@ -263,12 +263,15 @@ impl InnerHandle {
     }
 
     pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
-        let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let mut state_lock = self.state.lock().unwrap();
+        let state = (&mut *state_lock as &mut dyn ErasedState)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::remove_global().");
 
-        state.registry.remove_global(id, &mut state.clients)
+        let global = state.registry.remove_global(id, &mut state.clients);
+        // Don't free global user-data until lock is released
+        drop(state_lock);
+        drop(global);
     }
 
     pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {

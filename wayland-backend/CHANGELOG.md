@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+#### Bugfixes
+- server/rs: Fix potential deadlock destroying global udata
+
 ## 0.3.14 -- 2026-03-05
 
 - client: Put `ObjectId::display_ptr` behind `libwayland_client_1_23` feature

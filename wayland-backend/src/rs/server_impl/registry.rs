@@ -18,7 +18,7 @@ use super::{
 */
 
 #[derive(Debug)]
-struct Global<D: 'static> {
+pub(crate) struct Global<D: 'static> {
     id: InnerGlobalId,
     interface: &'static Interface,
     version: u32,
@@ -160,14 +160,22 @@ impl<D> Registry<D> {
         }
     }
 
-    pub(crate) fn remove_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
+    pub(crate) fn remove_global(
+        &mut self,
+        id: InnerGlobalId,
+        clients: &mut ClientStore<D>,
+    ) -> Option<Global<D>> {
         // disable the global if not already disabled
         self.disable_global(id.clone(), clients);
         // now remove it if the id is still valid
         if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
             if place.as_ref().map(|g| g.id == id).unwrap_or(false) {
-                *place = None;
+                place.take()
+            } else {
+                None
             }
+        } else {
+            None
         }
     }
 
