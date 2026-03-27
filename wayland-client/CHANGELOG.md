@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+#### Additions
+
+- Add `GlobalList::destroy` to destroy registry with `wl_fixes`
+
 ## 0.31.13 -- 2026-03-04
 
 #### Additions
