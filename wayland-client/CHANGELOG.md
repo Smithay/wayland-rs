@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Updated Wayland core protocol to 1.25
+
 #### Additions
 
 - Add `GlobalList::destroy` to destroy registry with `wl_fixes`
