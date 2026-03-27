@@ -567,6 +567,11 @@ impl InnerBackend {
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
         let mut guard = self.lock_state();
+
+        if id.is_null() {
+            return Err(InvalidId);
+        }
+
         // check that the argument list is valid
         let message_desc = match id.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -575,8 +580,7 @@ impl InnerBackend {
             }
         };
 
-        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
-        {
+        if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
             if self.inner.debug {
                 debug::print_send_message(id.interface.name, id.id, message_desc.name, &args, true);
             }
