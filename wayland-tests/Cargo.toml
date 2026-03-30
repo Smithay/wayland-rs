@@ -82,3 +82,6 @@ name = "buffer_size"
 
 [[test]]
 name = "display_ptr"
+
+[[test]]
+name = "destroyed_object"
