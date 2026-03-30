@@ -92,8 +92,13 @@ impl GlobalList {
                 continue;
             }
 
-            if version.contains(&desc.version) {
-                return Ok(registry.bind::<I, U, D>(desc.name, desc.version, qh, user_data));
+            if desc.version >= *version.start() {
+                return Ok(registry.bind::<I, U, D>(
+                    desc.name,
+                    desc.version.min(*version.end()),
+                    qh,
+                    user_data,
+                ));
             } else {
                 return Err(BindError::WrongVersion {
                     interface: I::interface().name,
