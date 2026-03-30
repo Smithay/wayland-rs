@@ -185,12 +185,12 @@ fn two_step_binding() {
 
     client_ddata
         .globals
-        .bind::<WlCompositor, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<WlCompositor, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
 
     client_ddata
         .globals
-        .bind::<WlOutput, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<WlOutput, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();

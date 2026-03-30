@@ -27,7 +27,7 @@ fn buffer_size() {
         .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -76,7 +76,7 @@ fn buffer_size_client() {
         .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -126,7 +126,7 @@ fn buffer_size_increase() {
         .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();

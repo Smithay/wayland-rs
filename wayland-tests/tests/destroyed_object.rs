@@ -20,7 +20,7 @@ fn destroyed_object_in_arg() {
 
     let compositor = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(&qh, &registry, 1..2, ())
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(&qh, &registry, 1..=1, ())
         .unwrap();
     let surface = compositor.create_surface(&qh, ());
     let region = compositor.create_region(&qh, ());

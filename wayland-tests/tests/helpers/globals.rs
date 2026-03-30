@@ -1,6 +1,6 @@
 //! Helpers for listing and bindings globals
 
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 use wayland_client::{protocol::wl_registry, Connection, Dispatch, Proxy, QueueHandle};
 
@@ -84,7 +84,7 @@ impl GlobalList {
         &self,
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
-        version: Range<u32>,
+        version: RangeInclusive<u32>,
         user_data: U,
     ) -> Result<I, BindError> {
         for desc in &self.globals {
@@ -110,7 +110,7 @@ impl GlobalList {
 #[derive(Debug)]
 pub enum BindError {
     MissingGlobal { interface: &'static str },
-    WrongVersion { interface: &'static str, requested: Range<u32>, got: u32 },
+    WrongVersion { interface: &'static str, requested: RangeInclusive<u32>, got: u32 },
 }
 
 impl std::error::Error for BindError {}

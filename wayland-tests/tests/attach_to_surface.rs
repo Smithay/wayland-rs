@@ -39,7 +39,7 @@ fn attach_null() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -78,7 +78,7 @@ fn attach_buffer() {
         .bind::<wayc::protocol::wl_shm::WlShm, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -94,7 +94,7 @@ fn attach_buffer() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();

@@ -32,7 +32,7 @@ fn resource_equals() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -41,7 +41,7 @@ fn resource_equals() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -79,7 +79,7 @@ fn resource_user_data() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -88,7 +88,7 @@ fn resource_user_data() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -123,7 +123,7 @@ fn dead_resources() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -132,7 +132,7 @@ fn dead_resources() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -175,7 +175,7 @@ fn get_resource() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();

@@ -26,7 +26,7 @@ fn xdg_ping() {
         .bind::<xs_client::xdg_wm_base::XdgWmBase, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
