@@ -37,7 +37,7 @@ fn client_user_data() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -55,7 +55,7 @@ fn client_user_data() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();

@@ -28,7 +28,7 @@ fn proxy_equals() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             0,
         )
         .unwrap();
@@ -38,7 +38,7 @@ fn proxy_equals() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             0,
         )
         .unwrap();
@@ -72,7 +72,7 @@ fn proxy_user_data() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             0xDEADBEEFusize,
         )
         .unwrap();
@@ -82,7 +82,7 @@ fn proxy_user_data() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             0xBADC0FFEusize,
         )
         .unwrap();
@@ -117,7 +117,7 @@ fn dead_proxies() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -165,7 +165,7 @@ fn dead_object_argument() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -174,7 +174,7 @@ fn dead_object_argument() {
         .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             0,
         )
         .unwrap();

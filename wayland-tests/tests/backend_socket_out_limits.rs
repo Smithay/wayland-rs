@@ -56,7 +56,7 @@ fn backend_socket_out_limits() {
         .bind::<wayc::protocol::wl_shm::WlShm, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();

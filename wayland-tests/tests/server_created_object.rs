@@ -33,11 +33,11 @@ fn data_offer() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..=3, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
@@ -79,11 +79,11 @@ fn server_id_reuse() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..=3, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
@@ -160,11 +160,11 @@ fn server_created_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..=3, ())
         .unwrap();
 
     ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());
@@ -223,11 +223,11 @@ fn creation_destruction_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..=3, ())
         .unwrap();
 
     // client creates two data devices
@@ -294,11 +294,11 @@ fn creation_destruction_queue_dispatch_race() {
 
     let seat = client_ddata
         .globals
-        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..2, ())
+        .bind::<ClientSeat, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
         .unwrap();
     let ddmgr = client_ddata
         .globals
-        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..4, ())
+        .bind::<ClientDDMgr, _, _>(&client.event_queue.handle(), &registry, 3..=3, ())
         .unwrap();
 
     let client_dd = ddmgr.get_data_device(&seat, &client.event_queue.handle(), ());

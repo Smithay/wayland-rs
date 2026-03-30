@@ -27,7 +27,7 @@ fn global_init_post_error() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();

@@ -24,7 +24,7 @@ fn constructor_dead() {
         .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();
@@ -54,7 +54,7 @@ fn send_constructor_wrong_type() {
         .bind::<wayc::protocol::wl_seat::WlSeat, _, _>(
             &client.event_queue.handle(),
             &registry,
-            1..2,
+            1..=1,
             (),
         )
         .unwrap();

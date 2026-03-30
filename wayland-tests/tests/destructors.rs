@@ -29,7 +29,7 @@ fn resource_destructor_request() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -64,7 +64,7 @@ fn resource_destructor_cleanup() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
@@ -102,7 +102,7 @@ fn client_destructor_cleanup() {
         .bind::<wayc::protocol::wl_output::WlOutput, _, _>(
             &client.event_queue.handle(),
             &registry,
-            3..4,
+            3..=3,
             (),
         )
         .unwrap();
