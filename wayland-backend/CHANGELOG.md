@@ -4,6 +4,8 @@
 
 #### Bugfixes
 - server/rs: Fix potential deadlock destroying global udata
+- client/rs: Do not send request with destroyed object as argument
+  * Matches `client/sys`
 
 ## 0.3.14 -- 2026-03-05
 
