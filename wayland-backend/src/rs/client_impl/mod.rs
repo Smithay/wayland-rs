@@ -463,6 +463,9 @@ impl InnerBackend {
                     let next_interface = arg_interfaces.next().unwrap();
                     if o.id.id != 0 {
                         let arg_object = guard.get_object(o.id.clone())?;
+                        if arg_object.data.client_destroyed {
+                            return Err(InvalidId);
+                        }
                         if !same_interface_or_anonymous(next_interface, arg_object.interface) {
                             panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", object.interface.name, id.id, message_desc.name, next_interface.name, arg_object.interface.name);
                         }
