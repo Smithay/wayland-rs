@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.15 -- 2026-03-30
+
 #### Bugfixes
 - server/rs: Fix potential deadlock destroying global udata
 - client/rs: Do not send request with destroyed object as argument
