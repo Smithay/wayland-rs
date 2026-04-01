@@ -4,7 +4,6 @@ version = "0.1.11"
 edition = "2021"
 rust-version = "1.71"
 publish = false
-autotests = false
 
 [dependencies]
 wayland-client = { path = "../wayland-client" }
@@ -22,66 +21,9 @@ libwayland_server_1_22 = ["wayland-server/libwayland_1_22"]
 libwayland_server_1_23 = ["libwayland_server_1_22", "wayland-server/libwayland_1_23"]
 
 [[test]]
-name = "attach_to_surface"
-
-[[test]]
-name = "backend_socket_out_limits"
-
-[[test]]
-name = "client_bad_requests"
-
-[[test]]
 name = "client_connect_to_env"
 harness = false
 
 [[test]]
 name = "client_connect_to_socket"
 harness = false
-
-[[test]]
-name = "client_dispatch"
-
-[[test]]
-name = "client_globals_helpers"
-
-[[test]]
-name = "client_proxies"
-
-[[test]]
-name = "destructors"
-
-[[test]]
-name = "globals"
-
-[[test]]
-name = "protocol_errors"
-
-[[test]]
-name = "send_sync"
-
-[[test]]
-name = "server_clients"
-
-[[test]]
-name = "server_created_object"
-
-[[test]]
-name = "server_global_filter"
-
-[[test]]
-name = "server_global_post_error"
-
-[[test]]
-name = "server_resources"
-
-[[test]]
-name = "xdg_shell_ping"
-
-[[test]]
-name = "buffer_size"
-
-[[test]]
-name = "display_ptr"
-
-[[test]]
-name = "destroyed_object"

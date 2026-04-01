@@ -1,5 +1,6 @@
 use wayland_tests::*;
 
+#[allow(clippy::assertions_on_constants)]
 #[test]
 fn skel() {
     // Server setup
