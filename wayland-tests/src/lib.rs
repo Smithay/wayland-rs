@@ -3,8 +3,8 @@
 
 #![allow(dead_code, unused_macros)]
 
-pub extern crate wayland_client as wayc;
-pub extern crate wayland_server as ways;
+pub use wayland_client as wayc;
+pub use wayland_server as ways;
 
 use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
