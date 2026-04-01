@@ -1,5 +1,3 @@
-extern crate tempfile;
-
 use std::io::ErrorKind;
 use std::os::unix::io::{AsFd, OwnedFd};
 use std::sync::atomic::{AtomicBool, Ordering};

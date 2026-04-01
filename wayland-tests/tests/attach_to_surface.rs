@@ -1,5 +1,3 @@
-extern crate tempfile;
-
 use std::fs::File;
 use std::io::{Read, Seek, Write};
 use std::os::unix::io::{AsFd, OwnedFd};
