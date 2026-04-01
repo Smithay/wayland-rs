@@ -1,7 +1,4 @@
-#[macro_use]
-extern crate wayland_tests;
-
-use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{client_ignore_impl, globals, roundtrip, wayc, ways, TestServer};
 
 use wayc::{protocol::wl_output::WlOutput as ClientOutput, Proxy};
 

@@ -1,7 +1,6 @@
-#[macro_use]
-extern crate wayland_tests;
-
-use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{
+    globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways, TestServer,
+};
 
 #[test]
 fn destroyed_object_in_arg() {

@@ -1,13 +1,12 @@
-#[macro_use]
-extern crate wayland_tests;
-
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::sync_channel,
     Arc,
 };
 
-use wayland_tests::{wayc, ways, TestServer};
+use wayland_tests::{
+    client_ignore_impl, server_ignore_global_impl, server_ignore_impl, wayc, ways, TestServer,
+};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;

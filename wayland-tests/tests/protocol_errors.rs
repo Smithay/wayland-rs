@@ -1,10 +1,10 @@
 // XXX: Fix on newer libwayland-client: https://github.com/Smithay/wayland-rs/issues/876
 #![cfg(not(feature = "libwayland_client_1_23"))]
 
-#[macro_use]
-extern crate wayland_tests;
-
-use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{
+    client_ignore_impl, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc,
+    ways, TestServer,
+};
 use ways::Resource;
 
 #[test]

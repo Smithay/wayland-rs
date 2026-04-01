@@ -1,8 +1,5 @@
 use std::io::ErrorKind;
 
-#[macro_use]
-extern crate wayland_tests;
-
 use wayland_tests::*;
 
 #[test]

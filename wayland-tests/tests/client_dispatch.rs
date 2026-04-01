@@ -1,5 +1,3 @@
-extern crate wayland_tests;
-
 use wayland_tests::*;
 
 use std::sync::{

@@ -1,8 +1,5 @@
 #![cfg(all(feature = "client_system", feature = "libwayland_client_1_23"))]
 
-#[macro_use]
-extern crate wayland_tests;
-
 use wayc::Proxy;
 use wayland_tests::{globals, wayc, TestServer};
 
