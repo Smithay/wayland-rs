@@ -1,6 +1,4 @@
-mod helpers;
-
-use helpers::*;
+use wayland_tests::*;
 
 #[test]
 fn skel() {

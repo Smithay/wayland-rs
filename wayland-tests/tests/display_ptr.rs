@@ -1,10 +1,10 @@
 #![cfg(all(feature = "client_system", feature = "libwayland_client_1_23"))]
 
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::{globals, wayc, TestServer};
 use wayc::Proxy;
+use wayland_tests::{globals, wayc, TestServer};
 
 #[test]
 fn client_objectid_display_ptr() {

@@ -1,5 +1,5 @@
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -7,7 +7,7 @@ use std::sync::{
     Arc,
 };
 
-use helpers::{wayc, ways, TestServer};
+use wayland_tests::{wayc, ways, TestServer};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;

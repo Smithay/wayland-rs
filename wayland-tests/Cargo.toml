@@ -7,10 +7,10 @@ publish = false
 autotests = false
 
 [dependencies]
-
-[dev-dependencies]
 wayland-client = { path = "../wayland-client" }
 wayland-server = { path = "../wayland-server" }
+
+[dev-dependencies]
 wayland-protocols = { path = "../wayland-protocols", features = ["client", "server"] }
 tempfile = "3"
 
