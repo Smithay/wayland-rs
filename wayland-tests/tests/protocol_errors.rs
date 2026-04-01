@@ -2,9 +2,9 @@
 #![cfg(not(feature = "libwayland_client_1_23"))]
 
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
 use ways::Resource;
 
 #[test]

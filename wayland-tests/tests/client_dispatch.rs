@@ -1,6 +1,6 @@
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::*;
+use wayland_tests::*;
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},

@@ -1,9 +1,9 @@
 use std::io::ErrorKind;
 
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::*;
+use wayland_tests::*;
 
 #[test]
 fn buffer_size() {

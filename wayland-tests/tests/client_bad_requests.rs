@@ -1,8 +1,8 @@
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::*;
 use wayc::Proxy;
+use wayland_tests::*;
 
 #[test]
 fn constructor_dead() {

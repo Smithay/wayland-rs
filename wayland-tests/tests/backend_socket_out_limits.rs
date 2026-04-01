@@ -8,9 +8,9 @@ use std::sync::Arc;
 use wayland_client::backend::ObjectData;
 
 #[macro_use]
-mod helpers;
+extern crate wayland_tests;
 
-use helpers::{globals, wayc, ways, TestClient, TestServer};
+use wayland_tests::{globals, wayc, ways, TestClient, TestServer};
 
 // This test checks the behavior for
 //  - sending many wl_shm.create_pool requests between connection flushes
