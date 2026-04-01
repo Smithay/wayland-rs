@@ -20,6 +20,7 @@ pub struct TestServer<D: 'static> {
 }
 
 impl<D: 'static> TestServer<D> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> TestServer<D> {
         let display = self::ways::Display::new().unwrap();
         TestServer { display }
