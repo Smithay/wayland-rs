@@ -1,7 +1,6 @@
-#[macro_use]
-extern crate wayland_tests;
-
-use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{
+    client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways, TestServer,
+};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},

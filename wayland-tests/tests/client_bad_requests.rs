@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate wayland_tests;
-
 use wayc::Proxy;
 use wayland_tests::*;
 
