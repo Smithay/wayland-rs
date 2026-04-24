@@ -24,6 +24,10 @@ fn decode_utf8_or_panic(txt: Vec<u8>) -> String {
     }
 }
 
+fn parse_bool(txt: &[u8]) -> bool {
+    txt == b"true"
+}
+
 fn parse_or_panic<T: FromStr>(txt: &[u8]) -> T {
     match std::str::from_utf8(txt).ok().and_then(|val| val.parse().ok()) {
         Some(version) => version,
@@ -235,11 +239,7 @@ fn parse_enum<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Enum {
         match attr.key.into_inner() {
             b"name" => enu.name = decode_utf8_or_panic(attr.value.into_owned()),
             b"since" => enu.since = parse_or_panic(&attr.value),
-            b"bitfield" => {
-                if &attr.value[..] == b"true" {
-                    enu.bitfield = true
-                }
-            }
+            b"bitfield" => enu.bitfield = parse_bool(&attr.value),
             _ => {}
         }
     }
@@ -304,11 +304,7 @@ fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
                 )
             }
             b"interface" => arg.interface = Some(parse_or_panic(&attr.value)),
-            b"allow-null" => {
-                if &*attr.value == b"true" {
-                    arg.allow_null = true
-                }
-            }
+            b"allow-null" => arg.allow_null = parse_bool(&attr.value),
             b"enum" => arg.enum_ = Some(decode_utf8_or_panic(attr.value.into_owned())),
             _ => {}
         }

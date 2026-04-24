@@ -571,7 +571,7 @@ mod tests {
             recv_msgs.push(message);
         }
         assert_eq!(recv_msgs.len(), 3);
-        for (msg1, msg2) in messages.into_iter().zip(recv_msgs.into_iter()) {
+        for (msg1, msg2) in messages.into_iter().zip(recv_msgs) {
             assert_eq_msgs(&msg1.map_fd(|fd| fd.as_raw_fd()), &msg2.map_fd(IntoRawFd::into_raw_fd));
         }
     }
