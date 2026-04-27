@@ -72,12 +72,16 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
         return TokenStream::new();
     }
 
-    let types_arrays = messages.iter().filter_map(|msg| {
-        if msg.all_null() {
-            None
+    let message_array_ident = format_ident!("{}_{}", interface.name, which);
+    let message_array_len = Literal::usize_unsuffixed(messages.len());
+    let message_array_values = messages.iter().map(|msg| {
+        let name_value = null_terminated_byte_string_literal(&msg.name);
+        let signature_value = Literal::byte_string(&message_signature(msg));
+
+        let types_array = if msg.all_null() {
+            let ident = format_ident!("types_null");
+            quote!(#ident)
         } else {
-            let array_ident = format_ident!("{}_{}_{}_types", interface.name, which, msg.name);
-            let array_len = Literal::usize_unsuffixed(msg.args.len());
             let array_values = msg.args.iter().map(|arg| match (arg.typ, &arg.interface) {
                 (Type::Object, &Some(ref inter)) | (Type::NewId, &Some(ref inter)) => {
                     let interface_ident = format_ident!("{}_interface", inter);
@@ -86,24 +90,11 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
                 _ => quote! { None },
             });
 
-            Some(quote! {
-                static #array_ident: [Option<&wayland_backend::protocol::CWlInterface>; #array_len] = [
+            quote! {
+                [
                     #(#array_values,)*
-                ];
-            })
-        }
-    });
-
-    let message_array_ident = format_ident!("{}_{}", interface.name, which);
-    let message_array_len = Literal::usize_unsuffixed(messages.len());
-    let message_array_values = messages.iter().map(|msg| {
-        let name_value = null_terminated_byte_string_literal(&msg.name);
-        let signature_value = Literal::byte_string(&message_signature(msg));
-
-        let types_ident = if msg.all_null() {
-            format_ident!("types_null")
-        } else {
-            format_ident!("{}_{}_{}_types", interface.name, which, msg.name)
+                ]
+            }
         };
 
         quote! {
@@ -111,14 +102,12 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
                 // TODO c"" literal
                 unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(#name_value) },
                 unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(#signature_value) },
-                &#types_ident,
+                &#types_array,
             )
         }
     });
 
     quote! {
-        #(#types_arrays)*
-
         static #message_array_ident: [wayland_backend::protocol::CWlMessage; #message_array_len] = [
             #(#message_array_values,)*
         ];

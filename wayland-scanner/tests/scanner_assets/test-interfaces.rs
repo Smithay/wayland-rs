@@ -49,20 +49,16 @@ pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface =
         ],
         c_interface: Some(unsafe { &wl_display_interface }),
     };
-static wl_display_requests_sync_types: [Option<&wayland_backend::protocol::CWlInterface>; 1] =
-    [Some(&wl_callback_interface)];
-static wl_display_requests_get_registry_types: [Option<&wayland_backend::protocol::CWlInterface>;
-    1] = [Some(&wl_registry_interface)];
 static wl_display_requests: [wayland_backend::protocol::CWlMessage; 2] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"sync\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
-        &wl_display_requests_sync_types,
+        &[Some(&wl_callback_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_registry\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
-        &wl_display_requests_get_registry_types,
+        &[Some(&wl_registry_interface)],
     ),
 ];
 static wl_display_events: [wayland_backend::protocol::CWlMessage; 2] = [
@@ -320,18 +316,6 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
         ],
         c_interface: Some(unsafe { &test_global_interface }),
     };
-static test_global_requests_get_secondary_types: [Option<
-    &wayland_backend::protocol::CWlInterface,
->; 1] = [Some(&secondary_interface)];
-static test_global_requests_get_tertiary_types: [Option<&wayland_backend::protocol::CWlInterface>;
-    1] = [Some(&tertiary_interface)];
-static test_global_requests_link_types: [Option<&wayland_backend::protocol::CWlInterface>; 3] =
-    [Some(&secondary_interface), Some(&tertiary_interface), None];
-static test_global_requests_reverse_link_types: [Option<&wayland_backend::protocol::CWlInterface>;
-    2] = [Some(&secondary_interface), Some(&tertiary_interface)];
-static test_global_requests_newid_and_allow_null_types: [Option<
-    &wayland_backend::protocol::CWlInterface,
->; 3] = [Some(&quad_interface), Some(&secondary_interface), Some(&tertiary_interface)];
 static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args\0") },
@@ -341,17 +325,17 @@ static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_secondary\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"2n\0") },
-        &test_global_requests_get_secondary_types,
+        &[Some(&secondary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_tertiary\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3n\0") },
-        &test_global_requests_get_tertiary_types,
+        &[Some(&tertiary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"link\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3o?ou\0") },
-        &test_global_requests_link_types,
+        &[Some(&secondary_interface), Some(&tertiary_interface), None],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
@@ -361,18 +345,14 @@ static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"reverse_link\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5?oo\0") },
-        &test_global_requests_reverse_link_types,
+        &[Some(&secondary_interface), Some(&tertiary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"newid_and_allow_null\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5n?oo\0") },
-        &test_global_requests_newid_and_allow_null_types,
+        &[Some(&quad_interface), Some(&secondary_interface), Some(&tertiary_interface)],
     ),
 ];
-static test_global_events_ack_secondary_types: [Option<&wayland_backend::protocol::CWlInterface>;
-    1] = [Some(&secondary_interface)];
-static test_global_events_cycle_quad_types: [Option<&wayland_backend::protocol::CWlInterface>; 2] =
-    [Some(&quad_interface), Some(&quad_interface)];
 static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args_evt\0") },
@@ -382,12 +362,12 @@ static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"ack_secondary\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"o\0") },
-        &test_global_events_ack_secondary_types,
+        &[Some(&secondary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"cycle_quad\0") },
         unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n?o\0") },
-        &test_global_events_cycle_quad_types,
+        &[Some(&quad_interface), Some(&quad_interface)],
     ),
 ];
 pub static test_global_interface: wayland_backend::protocol::CWlInterface =
