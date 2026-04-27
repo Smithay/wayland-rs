@@ -1,8 +1,4 @@
-use std::ptr::null;
-struct SyncWrapper<T>(T);
-unsafe impl<T> Sync for SyncWrapper<T> {}
-static types_null: SyncWrapper<[*const wayland_backend::protocol::wl_interface; 6]> =
-    SyncWrapper([null::<wayland_backend::protocol::wl_interface>(); 6]);
+static types_null: [Option<&wayland_backend::protocol::CWlInterface>; 6] = [None; 6];
 pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "wl_display",
@@ -51,48 +47,39 @@ pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface =
                 arg_interfaces: &[],
             },
         ],
-        c_ptr: Some(unsafe { &wl_display_interface }),
+        c_interface: Some(unsafe { &wl_display_interface }),
     };
-static wl_display_requests_sync_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 1],
-> = SyncWrapper([&wl_callback_interface as *const wayland_backend::protocol::wl_interface]);
-static wl_display_requests_get_registry_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 1],
-> = SyncWrapper([&wl_registry_interface as *const wayland_backend::protocol::wl_interface]);
-static wl_display_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 2]> =
-    SyncWrapper([
-        wayland_backend::protocol::wl_message {
-            name: b"sync\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"n\0" as *const u8 as *const std::os::raw::c_char,
-            types: wl_display_requests_sync_types.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"get_registry\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"n\0" as *const u8 as *const std::os::raw::c_char,
-            types: wl_display_requests_get_registry_types.0.as_ptr(),
-        },
-    ]);
-static wl_display_events: SyncWrapper<[wayland_backend::protocol::wl_message; 2]> = SyncWrapper([
-    wayland_backend::protocol::wl_message {
-        name: b"error\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"ous\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    },
-    wayland_backend::protocol::wl_message {
-        name: b"delete_id\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"u\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    },
-]);
-pub static wl_display_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"wl_display\0" as *const u8 as *const std::os::raw::c_char,
-        version: 1,
-        request_count: 2,
-        requests: wl_display_requests.0.as_ptr(),
-        event_count: 2,
-        events: wl_display_events.0.as_ptr(),
-    };
+static wl_display_requests: [wayland_backend::protocol::CWlMessage; 2] = [
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"sync\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
+        &[Some(&wl_callback_interface)],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_registry\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
+        &[Some(&wl_registry_interface)],
+    ),
+];
+static wl_display_events: [wayland_backend::protocol::CWlMessage; 2] = [
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"error\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"ous\0") },
+        &types_null,
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"delete_id\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
+        &types_null,
+    ),
+];
+pub static wl_display_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_display\0") },
+        1,
+        &wl_display_requests,
+        &wl_display_events,
+    );
 pub static WL_REGISTRY_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "wl_registry",
@@ -136,35 +123,33 @@ pub static WL_REGISTRY_INTERFACE: wayland_backend::protocol::Interface =
                 arg_interfaces: &[],
             },
         ],
-        c_ptr: Some(unsafe { &wl_registry_interface }),
+        c_interface: Some(unsafe { &wl_registry_interface }),
     };
-static wl_registry_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 1]> =
-    SyncWrapper([wayland_backend::protocol::wl_message {
-        name: b"bind\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"usun\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    }]);
-static wl_registry_events: SyncWrapper<[wayland_backend::protocol::wl_message; 2]> = SyncWrapper([
-    wayland_backend::protocol::wl_message {
-        name: b"global\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"usu\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    },
-    wayland_backend::protocol::wl_message {
-        name: b"global_remove\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"u\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    },
-]);
-pub static wl_registry_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"wl_registry\0" as *const u8 as *const std::os::raw::c_char,
-        version: 1,
-        request_count: 1,
-        requests: wl_registry_requests.0.as_ptr(),
-        event_count: 2,
-        events: wl_registry_events.0.as_ptr(),
-    };
+static wl_registry_requests: [wayland_backend::protocol::CWlMessage; 1] =
+    [wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"bind\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"usun\0") },
+        &types_null,
+    )];
+static wl_registry_events: [wayland_backend::protocol::CWlMessage; 2] = [
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"global\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"usu\0") },
+        &types_null,
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"global_remove\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
+        &types_null,
+    ),
+];
+pub static wl_registry_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_registry\0") },
+        1,
+        &wl_registry_requests,
+        &wl_registry_events,
+    );
 pub static WL_CALLBACK_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "wl_callback",
@@ -178,23 +163,21 @@ pub static WL_CALLBACK_INTERFACE: wayland_backend::protocol::Interface =
             child_interface: None,
             arg_interfaces: &[],
         }],
-        c_ptr: Some(unsafe { &wl_callback_interface }),
+        c_interface: Some(unsafe { &wl_callback_interface }),
     };
-static wl_callback_events: SyncWrapper<[wayland_backend::protocol::wl_message; 1]> =
-    SyncWrapper([wayland_backend::protocol::wl_message {
-        name: b"done\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"u\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    }]);
-pub static wl_callback_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"wl_callback\0" as *const u8 as *const std::os::raw::c_char,
-        version: 1,
-        request_count: 0,
-        requests: null::<wayland_backend::protocol::wl_message>(),
-        event_count: 1,
-        events: wl_callback_events.0.as_ptr(),
-    };
+static wl_callback_events: [wayland_backend::protocol::CWlMessage; 1] =
+    [wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"done\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
+        &types_null,
+    )];
+pub static wl_callback_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_callback\0") },
+        1,
+        &[],
+        &wl_callback_events,
+    );
 pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "test_global",
@@ -331,107 +314,69 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
                 arg_interfaces: &[&QUAD_INTERFACE],
             },
         ],
-        c_ptr: Some(unsafe { &test_global_interface }),
+        c_interface: Some(unsafe { &test_global_interface }),
     };
-static test_global_requests_get_secondary_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 1],
-> = SyncWrapper([&secondary_interface as *const wayland_backend::protocol::wl_interface]);
-static test_global_requests_get_tertiary_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 1],
-> = SyncWrapper([&tertiary_interface as *const wayland_backend::protocol::wl_interface]);
-static test_global_requests_link_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 3],
-> = SyncWrapper([
-    &secondary_interface as *const wayland_backend::protocol::wl_interface,
-    &tertiary_interface as *const wayland_backend::protocol::wl_interface,
-    null::<wayland_backend::protocol::wl_interface>(),
-]);
-static test_global_requests_reverse_link_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 2],
-> = SyncWrapper([
-    &secondary_interface as *const wayland_backend::protocol::wl_interface,
-    &tertiary_interface as *const wayland_backend::protocol::wl_interface,
-]);
-static test_global_requests_newid_and_allow_null_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 3],
-> = SyncWrapper([
-    &quad_interface as *const wayland_backend::protocol::wl_interface,
-    &secondary_interface as *const wayland_backend::protocol::wl_interface,
-    &tertiary_interface as *const wayland_backend::protocol::wl_interface,
-]);
-static test_global_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 7]> =
-    SyncWrapper([
-        wayland_backend::protocol::wl_message {
-            name: b"many_args\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
-            types: types_null.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"get_secondary\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"2n\0" as *const u8 as *const std::os::raw::c_char,
-            types: test_global_requests_get_secondary_types.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"get_tertiary\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"3n\0" as *const u8 as *const std::os::raw::c_char,
-            types: test_global_requests_get_tertiary_types.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"link\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"3o?ou\0" as *const u8 as *const std::os::raw::c_char,
-            types: test_global_requests_link_types.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"4\0" as *const u8 as *const std::os::raw::c_char,
-            types: types_null.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"reverse_link\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"5?oo\0" as *const u8 as *const std::os::raw::c_char,
-            types: test_global_requests_reverse_link_types.0.as_ptr(),
-        },
-        wayland_backend::protocol::wl_message {
-            name: b"newid_and_allow_null\0" as *const u8 as *const std::os::raw::c_char,
-            signature: b"5n?oo\0" as *const u8 as *const std::os::raw::c_char,
-            types: test_global_requests_newid_and_allow_null_types.0.as_ptr(),
-        },
-    ]);
-static test_global_events_ack_secondary_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 1],
-> = SyncWrapper([&secondary_interface as *const wayland_backend::protocol::wl_interface]);
-static test_global_events_cycle_quad_types: SyncWrapper<
-    [*const wayland_backend::protocol::wl_interface; 2],
-> = SyncWrapper([
-    &quad_interface as *const wayland_backend::protocol::wl_interface,
-    &quad_interface as *const wayland_backend::protocol::wl_interface,
-]);
-static test_global_events: SyncWrapper<[wayland_backend::protocol::wl_message; 3]> = SyncWrapper([
-    wayland_backend::protocol::wl_message {
-        name: b"many_args_evt\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"uifash\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    },
-    wayland_backend::protocol::wl_message {
-        name: b"ack_secondary\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"o\0" as *const u8 as *const std::os::raw::c_char,
-        types: test_global_events_ack_secondary_types.0.as_ptr(),
-    },
-    wayland_backend::protocol::wl_message {
-        name: b"cycle_quad\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"n?o\0" as *const u8 as *const std::os::raw::c_char,
-        types: test_global_events_cycle_quad_types.0.as_ptr(),
-    },
-]);
-pub static test_global_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"test_global\0" as *const u8 as *const std::os::raw::c_char,
-        version: 5,
-        request_count: 7,
-        requests: test_global_requests.0.as_ptr(),
-        event_count: 3,
-        events: test_global_events.0.as_ptr(),
-    };
+static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"uifash\0") },
+        &types_null,
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_secondary\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"2n\0") },
+        &[Some(&secondary_interface)],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_tertiary\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3n\0") },
+        &[Some(&tertiary_interface)],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"link\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3o?ou\0") },
+        &[Some(&secondary_interface), Some(&tertiary_interface), None],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"4\0") },
+        &types_null,
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"reverse_link\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5?oo\0") },
+        &[Some(&secondary_interface), Some(&tertiary_interface)],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"newid_and_allow_null\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5n?oo\0") },
+        &[Some(&quad_interface), Some(&secondary_interface), Some(&tertiary_interface)],
+    ),
+];
+static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args_evt\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"uifash\0") },
+        &types_null,
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"ack_secondary\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"o\0") },
+        &[Some(&secondary_interface)],
+    ),
+    wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"cycle_quad\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n?o\0") },
+        &[Some(&quad_interface), Some(&quad_interface)],
+    ),
+];
+pub static test_global_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"test_global\0") },
+        5,
+        &test_global_requests,
+        &test_global_events,
+    );
 pub static SECONDARY_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "secondary",
@@ -445,23 +390,21 @@ pub static SECONDARY_INTERFACE: wayland_backend::protocol::Interface =
             arg_interfaces: &[],
         }],
         events: &[],
-        c_ptr: Some(unsafe { &secondary_interface }),
+        c_interface: Some(unsafe { &secondary_interface }),
     };
-static secondary_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 1]> =
-    SyncWrapper([wayland_backend::protocol::wl_message {
-        name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"2\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    }]);
-pub static secondary_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"secondary\0" as *const u8 as *const std::os::raw::c_char,
-        version: 5,
-        request_count: 1,
-        requests: secondary_requests.0.as_ptr(),
-        event_count: 0,
-        events: null::<wayland_backend::protocol::wl_message>(),
-    };
+static secondary_requests: [wayland_backend::protocol::CWlMessage; 1] =
+    [wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"2\0") },
+        &types_null,
+    )];
+pub static secondary_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"secondary\0") },
+        5,
+        &secondary_requests,
+        &[],
+    );
 pub static TERTIARY_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "tertiary",
@@ -475,23 +418,21 @@ pub static TERTIARY_INTERFACE: wayland_backend::protocol::Interface =
             arg_interfaces: &[],
         }],
         events: &[],
-        c_ptr: Some(unsafe { &tertiary_interface }),
+        c_interface: Some(unsafe { &tertiary_interface }),
     };
-static tertiary_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 1]> =
-    SyncWrapper([wayland_backend::protocol::wl_message {
-        name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"3\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    }]);
-pub static tertiary_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"tertiary\0" as *const u8 as *const std::os::raw::c_char,
-        version: 5,
-        request_count: 1,
-        requests: tertiary_requests.0.as_ptr(),
-        event_count: 0,
-        events: null::<wayland_backend::protocol::wl_message>(),
-    };
+static tertiary_requests: [wayland_backend::protocol::CWlMessage; 1] =
+    [wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3\0") },
+        &types_null,
+    )];
+pub static tertiary_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"tertiary\0") },
+        5,
+        &tertiary_requests,
+        &[],
+    );
 pub static QUAD_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "quad",
@@ -505,20 +446,18 @@ pub static QUAD_INTERFACE: wayland_backend::protocol::Interface =
             arg_interfaces: &[],
         }],
         events: &[],
-        c_ptr: Some(unsafe { &quad_interface }),
+        c_interface: Some(unsafe { &quad_interface }),
     };
-static quad_requests: SyncWrapper<[wayland_backend::protocol::wl_message; 1]> =
-    SyncWrapper([wayland_backend::protocol::wl_message {
-        name: b"destroy\0" as *const u8 as *const std::os::raw::c_char,
-        signature: b"3\0" as *const u8 as *const std::os::raw::c_char,
-        types: types_null.0.as_ptr(),
-    }]);
-pub static quad_interface: wayland_backend::protocol::wl_interface =
-    wayland_backend::protocol::wl_interface {
-        name: b"quad\0" as *const u8 as *const std::os::raw::c_char,
-        version: 5,
-        request_count: 1,
-        requests: quad_requests.0.as_ptr(),
-        event_count: 0,
-        events: null::<wayland_backend::protocol::wl_message>(),
-    };
+static quad_requests: [wayland_backend::protocol::CWlMessage; 1] =
+    [wayland_backend::protocol::CWlMessage::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3\0") },
+        &types_null,
+    )];
+pub static quad_interface: wayland_backend::protocol::CWlInterface =
+    wayland_backend::protocol::CWlInterface::new(
+        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"quad\0") },
+        5,
+        &quad_requests,
+        &[],
+    );

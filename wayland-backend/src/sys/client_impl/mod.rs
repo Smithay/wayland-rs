@@ -108,8 +108,9 @@ impl InnerObjectId {
         let provided_iface_name = unsafe {
             CStr::from_ptr(
                 interface
-                    .c_ptr
-                    .expect("[wayland-backend-sys] Cannot use Interface without c_ptr!")
+                    .c_interface
+                    .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+                    .0
                     .name,
             )
         };
@@ -633,8 +634,9 @@ impl InnerBackend {
         let child_interface_ptr = child_spec
             .as_ref()
             .map(|(i, _)| {
-                i.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!")
-                    as *const _
+                &i.c_interface
+                    .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+                    .0 as *const _
             })
             .unwrap_or(std::ptr::null());
         let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
