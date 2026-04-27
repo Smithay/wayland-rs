@@ -35,7 +35,7 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
                 version: #iface_version,
                 requests: #requests,
                 events: #events,
-                c_ptr: Some(unsafe { & #c_name }),
+                c_interface: Some(unsafe { & #c_name }),
             };
 
             #c_iface
@@ -47,7 +47,7 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
                 version: #iface_version,
                 requests: #requests,
                 events: #events,
-                c_ptr: None,
+                c_interface: None,
             };
         }
     }
