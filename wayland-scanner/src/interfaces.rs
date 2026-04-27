@@ -129,6 +129,11 @@ mod tests {
         let generated: String = super::generate(&protocol_parsed, true).to_string();
         let generated = crate::format_rust_code(&generated);
 
+        if std::env::var("WAYLAND_SCANNER_UPDATE_TESTS").is_ok() {
+            std::fs::write("./tests/scanner_assets/test-interfaces.rs", generated).unwrap();
+            return;
+        }
+
         let reference =
             std::fs::read_to_string("./tests/scanner_assets/test-interfaces.rs").unwrap();
         let reference = crate::format_rust_code(&reference);
