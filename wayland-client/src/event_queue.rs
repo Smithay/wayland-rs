@@ -638,11 +638,7 @@ impl<State> Drop for QueueFreezeGuard<'_, State> {
     }
 }
 
-fn queue_callback<
-    I: Proxy,
-    U: Dispatch<I, State> + Send + Sync + 'static,
-    State,
->(
+fn queue_callback<I: Proxy, U: Dispatch<I, State> + Send + Sync + 'static, State>(
     handle: &Connection,
     msg: Message<ObjectId, OwnedFd>,
     data: &mut State,

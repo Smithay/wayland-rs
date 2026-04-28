@@ -74,7 +74,8 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
-                    let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, NoopIgnore);
+                    let pool =
+                        shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, NoopIgnore);
                     let buffer = pool.create_buffer(
                         0,
                         init_w as i32,
@@ -96,7 +97,8 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
                     registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, GlobalData);
                 }
                 "xdg_wm_base" => {
-                    let wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, GlobalData);
+                    let wm_base =
+                        registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, GlobalData);
                     state.wm_base = Some(wm_base);
 
                     if state.base_surface.is_some() && state.xdg_surface.is_none() {
