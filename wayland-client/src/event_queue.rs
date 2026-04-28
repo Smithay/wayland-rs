@@ -817,13 +817,7 @@ macro_rules! delegate_dispatch {
 pub struct Noop;
 
 impl<I: Proxy, State> Dispatch<I, State> for Noop {
-    fn event(
-        &self,
-        _: &mut State,
-        _: &I,
-        _: I::Event,
-        _: &Connection,
-        _: &QueueHandle<State>) {
+    fn event(&self, _: &mut State, _: &I, _: I::Event, _: &Connection, _: &QueueHandle<State>) {
         unreachable!()
     }
 }
@@ -831,12 +825,5 @@ impl<I: Proxy, State> Dispatch<I, State> for Noop {
 pub struct NoopIgnore;
 
 impl<I: Proxy, State> Dispatch<I, State> for NoopIgnore {
-    fn event(
-        &self,
-        _: &mut State,
-        _: &I,
-        _: I::Event,
-        _: &Connection,
-        _: &QueueHandle<State>) {
-    }
+    fn event(&self, _: &mut State, _: &I, _: I::Event, _: &Connection, _: &QueueHandle<State>) {}
 }

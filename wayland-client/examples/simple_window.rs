@@ -1,12 +1,11 @@
 use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
-    delegate_noop,
     protocol::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
-    Connection, Dispatch, QueueHandle, WEnum,
+    Connection, Dispatch, Noop, NoopIgnore, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -60,8 +59,8 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
             match &interface[..] {
                 "wl_compositor" => {
                     let compositor =
-                        registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
-                    let surface = compositor.create_surface(qh, GlobalData);
+                        registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, NoopIgnore);
+                    let surface = compositor.create_surface(qh, NoopIgnore);
                     state.base_surface = Some(surface);
 
                     if state.wm_base.is_some() && state.xdg_surface.is_none() {
@@ -69,13 +68,13 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
                     }
                 }
                 "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, GlobalData);
+                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, NoopIgnore);
 
                     let (init_w, init_h) = (320, 240);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
-                    let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, GlobalData);
+                    let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, NoopIgnore);
                     let buffer = pool.create_buffer(
                         0,
                         init_w as i32,
@@ -83,7 +82,7 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
                         (init_w * 4) as i32,
                         wl_shm::Format::Argb8888,
                         qh,
-                        GlobalData,
+                        NoopIgnore,
                     );
                     state.buffer = Some(buffer.clone());
 
@@ -109,13 +108,6 @@ impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
         }
     }
 }
-
-// Ignore events from these object types in this example.
-delegate_noop!(State: ignore wl_compositor::WlCompositor);
-delegate_noop!(State: ignore wl_surface::WlSurface);
-delegate_noop!(State: ignore wl_shm::WlShm);
-delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
-delegate_noop!(State: ignore wl_buffer::WlBuffer);
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
     use std::{cmp::min, io::Write};
