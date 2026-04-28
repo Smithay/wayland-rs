@@ -94,7 +94,6 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// trait bounds are respected as well).
 pub trait Dispatch<I, State>
 where
-    Self: Sized,
     I: Proxy,
 {
     /// Called when an event from the server is processed
