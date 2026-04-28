@@ -86,18 +86,18 @@ use crate::{Client, DisplayHandle, Resource};
 /// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
 /// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
 /// trait bounds are respected as well).
-pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
+pub trait Dispatch<I: Resource, State> {
     /// Called when a request from a client is processed.
     ///
     /// The implementation of this function will vary depending on what protocol is being implemented. Typically
     /// the server may respond to clients by sending events to the resource, or some other resource stored in
     /// the user data.
     fn request(
+        &self,
         state: &mut State,
         client: &Client,
         resource: &I,
         request: I::Request,
-        data: &UserData,
         dhandle: &DisplayHandle,
         data_init: &mut DataInit<'_, State>,
     );
@@ -114,10 +114,10 @@ pub trait Dispatch<I: Resource, UserData, State = Self>: Sized {
     ///
     /// By default this method does nothing.
     fn destroyed(
+        &self,
         _state: &mut State,
         _client: wayland_backend::server::ClientId,
         _resource: &I,
-        _data: &UserData,
     ) {
     }
 }
@@ -166,7 +166,7 @@ impl<D> DataInit<'_, D> {
         data: U,
     ) -> I
     where
-        D: Dispatch<I, U> + 'static,
+        U: Dispatch<I, D> + 'static,
     {
         let arc = Arc::new(ResourceData::<I, _>::new(data));
         *self.store = Some(arc.clone() as Arc<_>);
@@ -219,7 +219,7 @@ impl<I, U> ResourceData<I, U> {
     }
 }
 
-impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static> ObjectData<D>
+impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'static> ObjectData<D>
     for ResourceData<I, U>
 {
     fn request(
@@ -262,12 +262,11 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
 
         let mut new_data = None;
 
-        <D as Dispatch<I, U>>::request(
+        udata.request(
             data,
             &client,
             &resource,
             request,
-            udata,
             &dhandle,
             // The error is None since the creating object posts an error.
             &mut DataInit { store: &mut new_data, error: &mut None },
@@ -290,7 +289,7 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'stati
         // therefore manually initialize the data associated with protocol object wrapper.
         resource.__set_object_data(self.clone());
 
-        <D as Dispatch<I, U>>::destroyed(data, client_id, &resource, &self.udata)
+        self.udata.destroyed(data, client_id, &resource)
     }
 }
 

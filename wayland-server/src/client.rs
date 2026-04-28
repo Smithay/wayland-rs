@@ -53,8 +53,8 @@ impl Client {
     /// a later time.
     pub fn create_resource<
         I: Resource + 'static,
-        U: Send + Sync + 'static,
-        D: Dispatch<I, U> + 'static,
+        D: 'static,
+        U: Dispatch<I, D> + Send + Sync + 'static,
     >(
         &self,
         handle: &DisplayHandle,
