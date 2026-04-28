@@ -795,8 +795,8 @@ impl<I: Proxy, U: std::fmt::Debug, State> std::fmt::Debug for QueueProxyData<I, 
 /// ```
 #[macro_export]
 macro_rules! delegate_dispatch {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from:ty : [$interface: ty: $udata: ty] => $dispatch_to: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : [$interface: ty: $udata: ty] => $dispatch_to: ty $( where $($bounds: tt)+ )?) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, $udata> for $dispatch_from $( where $($bounds)+ )? {
             fn event(
                 state: &mut Self,
                 proxy: &$interface,
@@ -845,8 +845,8 @@ macro_rules! delegate_dispatch {
 /// This last example will execute `unreachable!()` if the interface emits any events.
 #[macro_export]
 macro_rules! delegate_noop {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty $( where $($bounds: tt)+ )?) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from $( where $($bounds)+ )? {
             fn event(
                 _: &mut Self,
                 _: &$interface,
@@ -860,8 +860,8 @@ macro_rules! delegate_noop {
         }
     };
 
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty $( where $($bounds: tt)+ )?) => {
+        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from $( where $($bounds)+ )? {
             fn event(
                 _: &mut Self,
                 _: &$interface,
