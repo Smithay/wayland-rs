@@ -1,6 +1,6 @@
-use wayland_tests::{TestServer, client_ignore_impl, globals, roundtrip, wayc, ways};
+use wayland_tests::{TestServer, globals, roundtrip, wayc, ways};
 
-use wayc::{Proxy, protocol::wl_output::WlOutput as ClientOutput};
+use wayc::Proxy;
 
 #[test]
 fn global_init_post_error() {
@@ -14,7 +14,8 @@ fn global_init_post_error() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -25,7 +26,7 @@ fn global_init_post_error() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -57,36 +58,30 @@ impl AsMut<globals::GlobalList> for ClientHandler {
     }
 }
 
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [ClientOutput]);
-
 struct ServerHandler;
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for () {
     fn bind(
-        _state: &mut Self,
+        &self,
+        _state: &mut ServerHandler,
         _handle: &ways::DisplayHandle,
         _client: &ways::Client,
         resource: ways::New<ways::protocol::wl_output::WlOutput>,
-        _global_data: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         data_init.post_error(resource, 11u32, "Server posts error when global is created");
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
+impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for () {
     fn request(
-        _state: &mut Self,
+        &self,
+        _state: &mut ServerHandler,
         _client: &ways::Client,
         _resource: &ways::protocol::wl_output::WlOutput,
         _request: <ways::protocol::wl_output::WlOutput as ways::Resource>::Request,
-        _data: &(),
         _dhandle: &ways::DisplayHandle,
-        _data_init: &mut ways::DataInit<'_, Self>,
+        _data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         unreachable!()
     }

@@ -2,8 +2,7 @@
 #![cfg(not(feature = "libwayland_client_1_23"))]
 
 use wayland_tests::{
-    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_global_impl,
-    server_ignore_impl, wayc, ways,
+    TestServer, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways,
 };
 use ways::Resource;
 
@@ -19,7 +18,8 @@ fn client_receive_generic_error() {
 
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -30,7 +30,7 @@ fn client_receive_generic_error() {
             &client.event_queue.handle(),
             &registry,
             1..=1,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -75,14 +75,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [
-    wayc::protocol::wl_compositor::WlCompositor
-]);
 
 struct ServerHandler;
 

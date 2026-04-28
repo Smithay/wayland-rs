@@ -14,12 +14,12 @@ struct AppData;
 //
 // In this example, we just use () as we don't have any value to associate. See
 // the `Dispatch` documentation for more details about this.
-impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
+impl Dispatch<wl_registry::WlRegistry, AppData> for () {
     fn event(
-        _: &mut Self,
+        &self,
+        _: &mut AppData,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &(),
         _: &Connection,
         _: &QueueHandle<AppData>,
     ) {

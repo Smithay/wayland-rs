@@ -1,11 +1,9 @@
-use wayland_tests::{TestServer, client_ignore_impl, globals, roundtrip, wayc, ways};
+use wayland_tests::{TestServer, globals, roundtrip, wayc, ways};
 
 use ways::{
     Resource,
     protocol::{wl_compositor, wl_output},
 };
-
-use wayc::protocol::wl_output::WlOutput as ClientOutput;
 
 #[test]
 fn resource_equals() {
@@ -19,7 +17,8 @@ fn resource_equals() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -30,7 +29,7 @@ fn resource_equals() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
     client_ddata
@@ -39,7 +38,7 @@ fn resource_equals() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -66,7 +65,8 @@ fn resource_user_data() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -77,7 +77,7 @@ fn resource_user_data() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
     client_ddata
@@ -86,7 +86,7 @@ fn resource_user_data() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -110,7 +110,8 @@ fn dead_resources() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -121,7 +122,7 @@ fn dead_resources() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
     client_ddata
@@ -130,7 +131,7 @@ fn dead_resources() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -162,7 +163,8 @@ fn get_resource() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -173,7 +175,7 @@ fn get_resource() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -214,24 +216,18 @@ impl AsMut<globals::GlobalList> for ClientHandler {
     }
 }
 
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [ClientOutput]);
-
 struct ServerHandler {
     outputs: Vec<wl_output::WlOutput>,
 }
 
-impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
+impl ways::GlobalDispatch<wl_output::WlOutput, ServerHandler> for () {
     fn bind(
-        state: &mut Self,
+        &self,
+        state: &mut ServerHandler,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
-        _: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         let output = data_init.init(output, UData(1000 + state.outputs.len()));
         state.outputs.push(output);
@@ -240,15 +236,15 @@ impl ways::GlobalDispatch<wl_output::WlOutput, ()> for ServerHandler {
 
 struct UData(usize);
 
-impl ways::Dispatch<wl_output::WlOutput, UData> for ServerHandler {
+impl ways::Dispatch<wl_output::WlOutput, ServerHandler> for UData {
     fn request(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: &ways::Client,
         _: &wl_output::WlOutput,
         _: wl_output::Request,
-        _: &UData,
         _: &ways::DisplayHandle,
-        _: &mut ways::DataInit<'_, Self>,
+        _: &mut ways::DataInit<'_, ServerHandler>,
     ) {
     }
 }

@@ -26,15 +26,18 @@ pub struct GlobalList {
     globals: Vec<GlobalDescription>,
 }
 
-impl<D> Dispatch<wl_registry::WlRegistry, (), D> for GlobalList
+#[derive(Debug)]
+pub struct GlobalListData;
+
+impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListData
 where
-    D: Dispatch<wl_registry::WlRegistry, ()> + AsMut<GlobalList>,
+    D: AsMut<GlobalList>,
 {
     fn event(
+        &self,
         handle: &mut D,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &(),
         _: &Connection,
         _: &QueueHandle<D>,
     ) {
@@ -80,13 +83,18 @@ impl GlobalList {
     ///
     /// You can specify the requested interface as type parameter, and the version range. You
     /// also need to provide the user data value that will be set for the newly created object.
-    pub fn bind<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
+    pub fn bind<I, U, D>(
         &self,
         qh: &QueueHandle<D>,
         registry: &wl_registry::WlRegistry,
         version: RangeInclusive<u32>,
         user_data: U,
-    ) -> Result<I, BindError> {
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        U: Dispatch<I, D> + Send + Sync + 'static,
+        D: 'static,
+    {
         for desc in &self.globals {
             if desc.interface != I::interface().name {
                 continue;

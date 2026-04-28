@@ -4,9 +4,7 @@ use std::sync::{
     mpsc::sync_channel,
 };
 
-use wayland_tests::{
-    TestServer, client_ignore_impl, server_ignore_global_impl, server_ignore_impl, wayc, ways,
-};
+use wayland_tests::{TestServer, server_ignore_global_impl, server_ignore_impl, wayc, ways};
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
@@ -51,15 +49,27 @@ fn client_global_helpers_init() {
 
     // ensure bind works as expected
     // Too high version fails
-    assert!(globals.bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 5..=5, ()).is_err());
+    assert!(
+        globals
+            .bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 5..=5, wayc::NoopIgnore)
+            .is_err()
+    );
     // Missing global fails
     assert!(
         globals
-            .bind::<wl_subcompositor::WlSubcompositor, _, _>(&queue.handle(), 1..=1, ())
+            .bind::<wl_subcompositor::WlSubcompositor, _, _>(
+                &queue.handle(),
+                1..=1,
+                wayc::NoopIgnore
+            )
             .is_err()
     );
     // Compatible spec succeeds
-    assert!(globals.bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 1..=5, ()).is_ok());
+    assert!(
+        globals
+            .bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 1..=5, wayc::NoopIgnore)
+            .is_ok()
+    );
 
     // cleanup
     kill_switch.store(true, Ordering::Release);
@@ -182,7 +192,7 @@ fn too_high_global_version() {
     let _ = globals.bind::<wl_compositor::WlCompositor, _, _>(
         &queue.handle(),
         1..=max_compositor_version + 1,
-        (),
+        wayc::NoopIgnore,
     );
 }
 
@@ -193,14 +203,14 @@ server_ignore_global_impl!(ServerHandler => [ServerCompositor, ServerShell, Serv
 
 struct ClientHandler(bool);
 
-impl wayc::Dispatch<wl_registry::WlRegistry, GlobalListContents> for ClientHandler {
+impl wayc::Dispatch<wl_registry::WlRegistry, ClientHandler> for GlobalListContents {
     fn event(
-        state: &mut Self,
+        &self,
+        state: &mut ClientHandler,
         _: &wl_registry::WlRegistry,
         event: wl_registry::Event,
-        _: &GlobalListContents,
         _: &wayc::Connection,
-        _: &wayc::QueueHandle<Self>,
+        _: &wayc::QueueHandle<ClientHandler>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
             assert_eq!(name, 3);
@@ -215,8 +225,3 @@ impl wayc::Dispatch<wl_registry::WlRegistry, GlobalListContents> for ClientHandl
         }
     }
 }
-
-client_ignore_impl!(ClientHandler => [
-    wl_compositor::WlCompositor,
-    wl_subcompositor::WlSubcompositor
-]);

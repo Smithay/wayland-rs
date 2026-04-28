@@ -51,16 +51,17 @@ impl Client {
     /// The newly created resource should be immediately sent to the client through an associated event with
     /// a `new_id` argument. Not doing so risks corrupting the protocol state and causing protocol errors at
     /// a later time.
-    pub fn create_resource<
-        I: Resource + 'static,
-        U: Send + Sync + 'static,
-        D: Dispatch<I, U> + 'static,
-    >(
+    pub fn create_resource<I, U, D>(
         &self,
         handle: &DisplayHandle,
         version: u32,
         user_data: U,
-    ) -> Result<I, InvalidId> {
+    ) -> Result<I, InvalidId>
+    where
+        I: Resource + 'static,
+        U: Dispatch<I, D> + Send + Sync + 'static,
+        D: 'static,
+    {
         let id = handle.handle.create_object::<D>(
             self.id.clone(),
             I::interface(),

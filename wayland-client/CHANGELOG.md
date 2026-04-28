@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+#### Breaking changes
+- Define `Dispatch` to be implemented on udata type
+- Remove `delegate_dispatch!` in favor of implementation that is generic over
+  `D` for a particular user data type
+- Replace `delegate_noop!` with `Noop` and `NoopIgnore` types providing generic
+  dispatch implementations
+
 ## 0.31.14-- 2026-03-30
 
 - Updated Wayland core protocol to 1.25

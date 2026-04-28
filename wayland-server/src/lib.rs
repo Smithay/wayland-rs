@@ -24,10 +24,9 @@
 //! `Dispatch<O, _>` for every Wayland object `O` it needs to process events for.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`delegate_dispatch!()`] macro. This way, another
-//! library (such as Smithay) can provide generic [`Dispatch`] implementations that you can reuse on your
-//! own app by delegating those objects to that provided implementation. See the documentation of those
-//! traits and macro for details.
+//! easier a another library (such as Smithay) can provide generic [`Dispatch`] implementations that you
+//! for a user-data type it defines, so can reuse on your own app. See the documentation of those traits
+//! for details.
 //!
 //! ## Globals
 //!
