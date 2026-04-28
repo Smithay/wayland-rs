@@ -159,11 +159,6 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     Ok(#iface_name { id, data, version, handle: conn.backend_handle().downgrade() })
                 }
 
-                fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-                    let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-                    handle.send_event(self, evt)
-                }
-
                 fn parse_request(conn: &DisplayHandle, msg: Message<ObjectId, OwnedFd>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }

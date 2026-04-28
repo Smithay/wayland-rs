@@ -144,10 +144,6 @@ pub mod wl_registry {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(WlRegistry { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
-        }
         fn parse_request(
             conn: &DisplayHandle,
             msg: Message<ObjectId, OwnedFd>,
@@ -214,8 +210,8 @@ pub mod wl_callback {
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -323,10 +319,6 @@ pub mod wl_callback {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(WlCallback { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
-        }
         fn parse_request(
             conn: &DisplayHandle,
             msg: Message<ObjectId, OwnedFd>,
@@ -382,8 +374,8 @@ pub mod test_global {
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -588,10 +580,6 @@ pub mod test_global {
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
             Ok(TestGlobal { id, data, version, handle: conn.backend_handle().downgrade() })
-        }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
         }
         fn parse_request(
             conn: &DisplayHandle,
@@ -991,8 +979,8 @@ pub mod secondary {
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -1099,10 +1087,6 @@ pub mod secondary {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Secondary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
-        }
         fn parse_request(
             conn: &DisplayHandle,
             msg: Message<ObjectId, OwnedFd>,
@@ -1154,8 +1138,8 @@ pub mod tertiary {
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1262,10 +1246,6 @@ pub mod tertiary {
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Tertiary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
-        }
         fn parse_request(
             conn: &DisplayHandle,
             msg: Message<ObjectId, OwnedFd>,
@@ -1317,8 +1297,8 @@ pub mod quad {
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1424,10 +1404,6 @@ pub mod quad {
             let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
             let data = conn.get_object_data(id.clone()).ok();
             Ok(Quad { id, data, version, handle: conn.backend_handle().downgrade() })
-        }
-        fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
-            let handle = DisplayHandle::from(self.handle.upgrade().ok_or(InvalidId)?);
-            handle.send_event(self, evt)
         }
         fn parse_request(
             conn: &DisplayHandle,
