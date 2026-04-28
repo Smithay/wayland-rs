@@ -122,30 +122,12 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     self.version
                 }
 
-                #[inline]
-                fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-                    self.data.as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
-                }
-
                 fn object_data(&self) -> Option<&Arc<dyn ObjectData>> {
                     self.data.as_ref()
                 }
 
                 fn backend(&self) -> &WeakBackend {
                     &self.backend
-                }
-
-                fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
-                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-                    let id = conn.send_request(self, req, None)?;
-                    debug_assert!(id.is_null());
-                    Ok(())
-                }
-
-                fn send_constructor<I: Proxy>(&self, req: Self::Request<'_>, data: Arc<dyn ObjectData>) -> Result<I, InvalidId> {
-                    let conn = Connection::from_backend(self.backend.upgrade().ok_or(InvalidId)?);
-                    let id = conn.send_request(self, req, Some(data))?;
-                    Proxy::from_id(&conn, id)
                 }
 
                 #[inline]

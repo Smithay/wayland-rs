@@ -247,7 +247,9 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
     }
 
     /// Access the user-data associated with this object
-    fn data<U: Send + Sync + 'static>(&self) -> Option<&U>;
+    fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
+        self.object_data().as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
+    }
 
     /// Access the raw data associated with this object.
     ///
@@ -277,7 +279,12 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
     ///
     /// It is an error to use this function on requests that create objects; use
     /// [`send_constructor()`][Self::send_constructor()] for such requests.
-    fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId>;
+    fn send_request(&self, req: Self::Request<'_>) -> Result<(), InvalidId> {
+        let conn = Connection::from_backend(self.backend().upgrade().ok_or(InvalidId)?);
+        let id = conn.send_request(self, req, None)?;
+        debug_assert!(id.is_null());
+        Ok(())
+    }
 
     /// Send a request for this object that creates another object.
     ///
@@ -287,7 +294,11 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
         &self,
         req: Self::Request<'_>,
         data: Arc<dyn ObjectData>,
-    ) -> Result<I, InvalidId>;
+    ) -> Result<I, InvalidId> {
+        let conn = Connection::from_backend(self.backend().upgrade().ok_or(InvalidId)?);
+        let id = conn.send_request(self, req, Some(data))?;
+        Proxy::from_id(&conn, id)
+    }
 
     /// Parse a event for this object
     ///

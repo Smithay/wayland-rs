@@ -192,7 +192,10 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     fn from_id(dh: &DisplayHandle, id: ObjectId) -> Result<Self, InvalidId>;
 
     /// Send an event to this object
-    fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId>;
+    fn send_event(&self, evt: Self::Event<'_>) -> Result<(), InvalidId> {
+        let handle = DisplayHandle::from(self.handle().upgrade().ok_or(InvalidId)?);
+        handle.send_event(self, evt)
+    }
 
     /// Trigger a protocol error on this object
     ///
