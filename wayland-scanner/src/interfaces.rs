@@ -35,7 +35,7 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
                 version: #iface_version,
                 requests: #requests,
                 events: #events,
-                c_ptr: Some(unsafe { & #c_name }),
+                c_interface: Some(unsafe { & #c_name }),
             };
 
             #c_iface
@@ -47,7 +47,7 @@ pub(crate) fn generate_interface(interface: &Interface, with_c: bool) -> TokenSt
                 version: #iface_version,
                 requests: #requests,
                 events: #events,
-                c_ptr: None,
+                c_interface: None,
             };
         }
     }
@@ -128,6 +128,11 @@ mod tests {
         let protocol_parsed = crate::parse::parse(protocol_file);
         let generated: String = super::generate(&protocol_parsed, true).to_string();
         let generated = crate::format_rust_code(&generated);
+
+        if std::env::var("WAYLAND_SCANNER_UPDATE_TESTS").is_ok() {
+            std::fs::write("./tests/scanner_assets/test-interfaces.rs", generated).unwrap();
+            return;
+        }
 
         let reference =
             std::fs::read_to_string("./tests/scanner_assets/test-interfaces.rs").unwrap();

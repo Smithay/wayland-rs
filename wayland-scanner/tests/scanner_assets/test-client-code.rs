@@ -7,8 +7,8 @@ pub mod wl_display {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[repr(u32)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -245,7 +245,10 @@ pub mod wl_display {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -321,8 +324,8 @@ pub mod wl_registry {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_BIND_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -526,7 +529,10 @@ pub mod wl_registry {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -575,8 +581,8 @@ pub mod wl_callback {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_DONE_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
@@ -728,7 +734,10 @@ pub mod wl_callback {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -746,8 +755,8 @@ pub mod test_global {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this request"]
@@ -1092,7 +1101,10 @@ pub mod test_global {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -1329,8 +1341,8 @@ pub mod secondary {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 2u32;
     #[doc = r" The wire opcode for this request"]
@@ -1466,7 +1478,10 @@ pub mod secondary {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -1499,8 +1514,8 @@ pub mod tertiary {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1636,7 +1651,10 @@ pub mod tertiary {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {
@@ -1669,8 +1687,8 @@ pub mod quad {
         },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
     };
-    use std::sync::Arc;
     use std::os::unix::io::OwnedFd;
+    use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_DESTROY_SINCE: u32 = 3u32;
     #[doc = r" The wire opcode for this request"]
@@ -1806,7 +1824,10 @@ pub mod quad {
             conn: &Connection,
             msg: Self::Request<'a>,
         ) -> Result<
-            (Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, Option<(&'static Interface, u32)>),
+            (
+                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
+                Option<(&'static Interface, u32)>,
+            ),
             InvalidId,
         > {
             match msg {

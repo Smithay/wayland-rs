@@ -155,8 +155,10 @@ impl InnerObjectId {
             }
             Ok(InnerObjectId { id, ptr, alive, interface: udata_iface })
         } else if let Some(interface) = interface {
-            let iface_c_ptr =
-                interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+            let iface_c_ptr = &interface
+                .c_interface
+                .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+                .0;
             // Safety: the provided pointer must be a valid wayland object
             let ptr_iface_name = unsafe {
                 CStr::from_ptr(ffi_dispatch!(wayland_server_handle(), wl_resource_get_class, ptr))
@@ -548,8 +550,10 @@ impl InnerHandle {
             return Err(InvalidId);
         }
 
-        let interface_ptr =
-            interface.c_ptr.expect("Interface without c_ptr are unsupported by the sys backend.");
+        let interface_ptr = &interface
+            .c_interface
+            .expect("Interface without c_interface are unsupported by the sys backend.")
+            .0;
 
         let resource = unsafe {
             ffi_dispatch!(
@@ -612,8 +616,11 @@ impl InnerHandle {
             return Err(InvalidId);
         }
 
-        let iface_c_ptr =
-            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let iface_c_ptr = &id
+            .interface
+            .c_interface
+            .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+            .0;
         let is_managed = unsafe {
             ffi_dispatch!(
                 wayland_server_handle(),
@@ -657,8 +664,11 @@ impl InnerHandle {
             return Err(InvalidId);
         }
 
-        let iface_c_ptr =
-            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let iface_c_ptr = &id
+            .interface
+            .c_interface
+            .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+            .0;
         let is_managed = unsafe {
             ffi_dispatch!(
                 wayland_server_handle(),
@@ -706,8 +716,10 @@ impl InnerHandle {
 
         let alive = Arc::new(AtomicBool::new(true));
 
-        let interface_ptr =
-            interface.c_ptr.expect("Interface without c_ptr are unsupported by the sys backend.");
+        let interface_ptr = &interface
+            .c_interface
+            .expect("Interface without c_interface are unsupported by the sys backend.")
+            .0;
 
         let udata = Box::into_raw(Box::new(GlobalUserData {
             handler,
@@ -1068,8 +1080,11 @@ impl<D: 'static> ErasedState for State<D> {
             return Err(InvalidId);
         }
 
-        let iface_c_ptr =
-            id.interface.c_ptr.expect("[wayland-backend-sys] Cannot use Interface without c_ptr!");
+        let iface_c_ptr = &id
+            .interface
+            .c_interface
+            .expect("[wayland-backend-sys] Cannot use Interface without c_interface!")
+            .0;
         let is_managed = unsafe {
             ffi_dispatch!(
                 wayland_server_handle(),
@@ -1422,7 +1437,7 @@ unsafe extern "C" fn global_bind<D: 'static>(
     };
 
     // this must be Some(), checked at creation of the global
-    let interface_ptr = global_udata.interface.c_ptr.unwrap();
+    let interface_ptr = &global_udata.interface.c_interface.unwrap().0;
 
     HANDLE.with(|&(ref state_arc, data_ptr)| {
         // Safety: the data_ptr is a valid pointer that live outside code put there
@@ -1603,7 +1618,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                         wayland_server_handle(),
                         wl_resource_create,
                         client,
-                        child_interface.c_ptr.unwrap(),
+                        &child_interface.c_interface.unwrap().0,
                         version,
                         new_id
                     );
