@@ -132,27 +132,18 @@ impl ways::backend::ClientData for DumbClientData {
 }
 
 #[macro_export]
-macro_rules! client_ignore_impl {
-    ($handler:ty => [$($iface:ty),*]) => {
-        $(
-            $crate::wayc::delegate_noop!($handler: ignore $iface);
-        )*
-    }
-}
-
-#[macro_export]
 macro_rules! server_ignore_impl {
     ($handler:ty => [$($iface:ty),*]) => {
         $(
-            impl $crate::ways::Dispatch<$iface, ()> for $handler {
+            impl $crate::ways::Dispatch<$iface, $handler> for () {
                 fn request(
-                    _: &mut Self,
+                    &self,
+                    _: &mut $handler,
                     _: &$crate::ways::Client,
                     _: &$iface,
                     _: <$iface as $crate::ways::Resource>::Request,
-                    _: &(),
                     _: &$crate::ways::DisplayHandle,
-                    _: &mut $crate::ways::DataInit<'_, Self>,
+                    _: &mut $crate::ways::DataInit<'_, $handler>,
                 ) {
                 }
             }
@@ -164,15 +155,15 @@ macro_rules! server_ignore_impl {
 macro_rules! server_ignore_global_impl {
     ($handler:ty => [$($iface:ty),*]) => {
         $(
-            impl $crate::ways::GlobalDispatch<$iface, ()> for $handler {
+            impl $crate::ways::GlobalDispatch<$iface, $handler> for () {
 
                 fn bind(
-                    _: &mut Self,
+                    &self,
+                    _: &mut $handler,
                     _: &$crate::ways::DisplayHandle,
                     _: &$crate::ways::Client,
                     new_id: $crate::ways::New<$iface>,
-                    _: &(),
-                    data_init: &mut $crate::ways::DataInit<'_, Self>,
+                    data_init: &mut $crate::ways::DataInit<'_, $handler>,
                 ) {
                     data_init.init(new_id, ());
                 }

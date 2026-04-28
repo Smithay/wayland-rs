@@ -264,14 +264,14 @@ pub mod wl_display {
     impl WlDisplay {
         #[doc = "asynchronous roundtrip\n\nThe sync request asks the server to emit the 'done' event\non the returned wl_callback object.  Since requests are\nhandled in-order and events are delivered in-order, this can\nbe used as a barrier to ensure all previous requests and the\nresulting events have been handled.\n\nThe object returned by this request will be destroyed by the\ncompositor after the callback is fired and as such the client must not\nattempt to use it after that point.\n\nThe callback_data passed in the callback is the event serial."]
         #[allow(clippy::too_many_arguments)]
-        pub fn sync<
-            U: Send + Sync + 'static,
-            D: Dispatch<super::wl_callback::WlCallback, U> + 'static,
-        >(
+        pub fn sync<U, D: 'static>(
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> super::wl_callback::WlCallback {
+        ) -> super::wl_callback::WlCallback
+        where
+            U: Dispatch<super::wl_callback::WlCallback, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::Sync {},
                 qh.make_data::<super::wl_callback::WlCallback, U>(udata),
@@ -280,14 +280,14 @@ pub mod wl_display {
         }
         #[doc = "get global registry object\n\nThis request creates a registry object that allows the client\nto list and bind the global objects available from the\ncompositor.\n\nIt should be noted that the server side resources consumed in\nresponse to a get_registry request can only be released when the\nclient disconnects, not when the client side proxy is destroyed.\nTherefore, clients should invoke get_registry as infrequently as\npossible to avoid wasting memory."]
         #[allow(clippy::too_many_arguments)]
-        pub fn get_registry<
-            U: Send + Sync + 'static,
-            D: Dispatch<super::wl_registry::WlRegistry, U> + 'static,
-        >(
+        pub fn get_registry<U, D: 'static>(
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> super::wl_registry::WlRegistry {
+        ) -> super::wl_registry::WlRegistry
+        where
+            U: Dispatch<super::wl_registry::WlRegistry, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::GetRegistry {},
                 qh.make_data::<super::wl_registry::WlRegistry, U>(udata),
@@ -519,13 +519,16 @@ pub mod wl_registry {
     impl WlRegistry {
         #[doc = "bind an object to the display\n\nBinds a new, client-created object to the server using the\nspecified name as the identifier."]
         #[allow(clippy::too_many_arguments)]
-        pub fn bind<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(
+        pub fn bind<I: Proxy + 'static, U, D: 'static>(
             &self,
             name: u32,
             version: u32,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> I {
+        ) -> I
+        where
+            U: Dispatch<I, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::Bind { name, id: (I::interface(), version) },
                 qh.make_data::<I, U>(udata),
@@ -1162,14 +1165,14 @@ pub mod test_global {
             );
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn get_secondary<
-            U: Send + Sync + 'static,
-            D: Dispatch<super::secondary::Secondary, U> + 'static,
-        >(
+        pub fn get_secondary<U, D: 'static>(
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> super::secondary::Secondary {
+        ) -> super::secondary::Secondary
+        where
+            U: Dispatch<super::secondary::Secondary, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::GetSecondary {},
                 qh.make_data::<super::secondary::Secondary, U>(udata),
@@ -1177,14 +1180,14 @@ pub mod test_global {
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
         }
         #[allow(clippy::too_many_arguments)]
-        pub fn get_tertiary<
-            U: Send + Sync + 'static,
-            D: Dispatch<super::tertiary::Tertiary, U> + 'static,
-        >(
+        pub fn get_tertiary<U, D: 'static>(
             &self,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> super::tertiary::Tertiary {
+        ) -> super::tertiary::Tertiary
+        where
+            U: Dispatch<super::tertiary::Tertiary, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::GetTertiary {},
                 qh.make_data::<super::tertiary::Tertiary, U>(udata),
@@ -1239,16 +1242,16 @@ pub mod test_global {
         }
         #[doc = "a newid request that also takes allow null arg"]
         #[allow(clippy::too_many_arguments)]
-        pub fn newid_and_allow_null<
-            U: Send + Sync + 'static,
-            D: Dispatch<super::quad::Quad, U> + 'static,
-        >(
+        pub fn newid_and_allow_null<U, D: 'static>(
             &self,
             sec: Option<&super::secondary::Secondary>,
             ter: &super::tertiary::Tertiary,
             qh: &QueueHandle<D>,
             udata: U,
-        ) -> super::quad::Quad {
+        ) -> super::quad::Quad
+        where
+            U: Dispatch<super::quad::Quad, D> + Send + Sync + 'static,
+        {
             self.send_constructor(
                 Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
                 qh.make_data::<super::quad::Quad, U>(udata),

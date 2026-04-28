@@ -1,6 +1,6 @@
 use wayland_tests::{
     DumbClientData, TestClient, TestServer, globals, roundtrip, server_ignore_global_impl,
-    server_ignore_impl, wayc, ways,
+    server_ignore_impl, ways,
 };
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;
@@ -24,7 +24,7 @@ fn main() {
 
     let mut client_data = ClientHandler::new();
 
-    client.display.get_registry(&client.event_queue.handle(), ());
+    client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_data, &mut ServerData).unwrap();
     // check that we connected to the right compositor
@@ -67,7 +67,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);

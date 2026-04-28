@@ -1,6 +1,4 @@
-use wayland_tests::{
-    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways,
-};
+use wayland_tests::{TestServer, globals, roundtrip, server_ignore_impl, wayc, ways};
 
 use std::sync::{
     Arc,
@@ -26,7 +24,8 @@ fn client_user_data() {
     }));
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -37,7 +36,7 @@ fn client_user_data() {
             &client.event_queue.handle(),
             &registry,
             1..=1,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -55,7 +54,7 @@ fn client_user_data() {
             &client.event_queue.handle(),
             &registry,
             1..=1,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -113,15 +112,6 @@ impl AsMut<globals::GlobalList> for ClientHandler {
     }
 }
 
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [
-    wayc::protocol::wl_output::WlOutput,
-    wayc::protocol::wl_compositor::WlCompositor
-]);
-
 struct ServerHandler;
 
 struct MyClientData {
@@ -139,28 +129,28 @@ server_ignore_impl!(ServerHandler => [
     ways::protocol::wl_compositor::WlCompositor
 ]);
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for () {
     fn bind(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_output::WlOutput>,
-        _: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         data_init.init(resource, ());
         client.get_data::<MyClientData>().unwrap().has_output.store(true, Ordering::SeqCst);
     }
 }
 
-impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
+impl ways::GlobalDispatch<ways::protocol::wl_compositor::WlCompositor, ServerHandler> for () {
     fn bind(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: &ways::DisplayHandle,
         client: &ways::Client,
         resource: ways::New<ways::protocol::wl_compositor::WlCompositor>,
-        _: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         data_init.init(resource, ());
         client.get_data::<MyClientData>().unwrap().has_compositor.store(true, Ordering::SeqCst)

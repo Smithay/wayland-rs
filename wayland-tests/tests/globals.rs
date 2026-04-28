@@ -1,6 +1,5 @@
 use wayland_tests::{
-    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_global_impl,
-    server_ignore_impl, wayc, ways,
+    TestServer, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways,
 };
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
@@ -15,7 +14,7 @@ fn simple_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ());
+    client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -37,7 +36,7 @@ fn multi_versions() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ());
+    client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -59,7 +58,7 @@ fn dynamic_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    client.display.get_registry(&client.event_queue.handle(), ());
+    client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
     assert!(client_ddata.globals.list().len() == 1);
@@ -97,12 +96,13 @@ fn wrong_global() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     // instantiate a wrong global, this should kill the client
     // but currently does not fail on native_lib
 
-    registry.bind::<WlOutput, _, _>(1, 1, &client.event_queue.handle(), ());
+    registry.bind::<WlOutput, _, _>(1, 1, &client.event_queue.handle(), wayc::NoopIgnore);
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -117,11 +117,12 @@ fn wrong_global_version() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     // instantiate a global with wrong version, this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(1, 2, &client.event_queue.handle(), ());
+    registry.bind::<WlCompositor, _, _>(1, 2, &client.event_queue.handle(), wayc::NoopIgnore);
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -136,11 +137,12 @@ fn invalid_global_version() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(1, 0, &client.event_queue.handle(), ());
+    registry.bind::<WlCompositor, _, _>(1, 0, &client.event_queue.handle(), wayc::NoopIgnore);
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -155,11 +157,12 @@ fn wrong_global_id() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     // instantiate a global with version 0, which is invalid this should kill the client
 
-    registry.bind::<WlCompositor, _, _>(3, 1, &client.event_queue.handle(), ());
+    registry.bind::<WlCompositor, _, _>(3, 1, &client.event_queue.handle(), wayc::NoopIgnore);
 
     assert!(roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).is_err());
 }
@@ -174,7 +177,8 @@ fn two_step_binding() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler { globals: globals::GlobalList::new() };
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
@@ -185,12 +189,17 @@ fn two_step_binding() {
 
     client_ddata
         .globals
-        .bind::<WlCompositor, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
+        .bind::<WlCompositor, _, _>(
+            &client.event_queue.handle(),
+            &registry,
+            1..=1,
+            wayc::NoopIgnore,
+        )
         .unwrap();
 
     client_ddata
         .globals
-        .bind::<WlOutput, _, _>(&client.event_queue.handle(), &registry, 1..=1, ())
+        .bind::<WlOutput, _, _>(&client.event_queue.handle(), &registry, 1..=1, wayc::NoopIgnore)
         .unwrap();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
@@ -210,13 +219,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [
-    wayc::protocol::wl_compositor::WlCompositor,
-    wayc::protocol::wl_shell::WlShell,
-    wayc::protocol::wl_output::WlOutput
-]);

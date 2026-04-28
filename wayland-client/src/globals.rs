@@ -20,14 +20,14 @@
 //! # struct State;
 //!
 //! // You need to provide a Dispatch<WlRegistry, GlobalListContents> impl for your app
-//! impl wayland_client::Dispatch<wl_registry::WlRegistry, GlobalListContents> for State {
+//! impl wayland_client::Dispatch<wl_registry::WlRegistry, State> for GlobalListContents {
 //!     fn event(
+//!         // This mutex contains an up-to-date list of the currently known globals
+//!         // including the one that was just added or destroyed
+//!         &self,
 //!         state: &mut State,
 //!         proxy: &wl_registry::WlRegistry,
 //!         event: wl_registry::Event,
-//!         // This mutex contains an up-to-date list of the currently known globals
-//!         // including the one that was just added or destroyed
-//!         data: &GlobalListContents,
 //!         conn: &Connection,
 //!         qhandle: &QueueHandle<State>,
 //!     ) {
@@ -38,12 +38,12 @@
 //! let conn = Connection::connect_to_env().unwrap();
 //! let (globals, queue) = registry_queue_init::<State>(&conn).unwrap();
 //!
-//! # impl wayland_client::Dispatch<wl_compositor::WlCompositor, ()> for State {
+//! # impl wayland_client::Dispatch<wl_compositor::WlCompositor, State> for () {
 //! #     fn event(
+//! #         &self,
 //! #         state: &mut State,
 //! #         proxy: &wl_compositor::WlCompositor,
 //! #         event: wl_compositor::Event,
-//! #         data: &(),
 //! #         conn: &Connection,
 //! #         qhandle: &QueueHandle<State>,
 //! #     ) {}
@@ -79,7 +79,8 @@ pub fn registry_queue_init<State>(
     conn: &Connection,
 ) -> Result<(GlobalList, EventQueue<State>), GlobalError>
 where
-    State: Dispatch<wl_registry::WlRegistry, GlobalListContents> + 'static,
+    State: 'static,
+    GlobalListContents: Dispatch<wl_registry::WlRegistry, State> + 'static,
 {
     let event_queue = conn.new_event_queue();
     let display = conn.display();
@@ -156,8 +157,8 @@ impl GlobalList {
     ) -> Result<I, BindError>
     where
         I: Proxy + 'static,
-        State: Dispatch<I, U> + 'static,
-        U: Send + Sync + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
     {
         let version_start = *version.start();
         let version_end = *version.end();
@@ -339,7 +340,7 @@ struct RegistryState<State> {
 
 impl<State: 'static> ObjectData for RegistryState<State>
 where
-    State: Dispatch<wl_registry::WlRegistry, GlobalListContents>,
+    GlobalListContents: Dispatch<wl_registry::WlRegistry, State>,
 {
     fn event(
         self: Arc<Self>,

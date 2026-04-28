@@ -25,7 +25,7 @@ fn main() {
     // connect the client
     let mut client = TestClient::new_from_env();
     let mut client_data = ClientHandler::new();
-    client.display.get_registry(&client.event_queue.handle(), ());
+    client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     // setup server-side
     let client_stream = listening.accept().unwrap().unwrap();
@@ -64,7 +64,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);

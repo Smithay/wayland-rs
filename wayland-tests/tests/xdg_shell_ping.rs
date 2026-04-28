@@ -14,7 +14,8 @@ fn xdg_ping() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -38,29 +39,29 @@ struct ServerHandler {
     received_pong: bool,
 }
 
-impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
+impl ways::GlobalDispatch<xs_server::xdg_wm_base::XdgWmBase, ServerHandler> for () {
     fn bind(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         resource: ways::New<xs_server::xdg_wm_base::XdgWmBase>,
-        _: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         let wm_base = data_init.init(resource, ());
         wm_base.ping(42);
     }
 }
 
-impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ()> for ServerHandler {
+impl ways::Dispatch<xs_server::xdg_wm_base::XdgWmBase, ServerHandler> for () {
     fn request(
-        state: &mut Self,
+        &self,
+        state: &mut ServerHandler,
         _: &ways::Client,
         _: &xs_server::xdg_wm_base::XdgWmBase,
         request: xs_server::xdg_wm_base::Request,
-        _: &(),
         _: &ways::DisplayHandle,
-        _: &mut ways::DataInit<'_, Self>,
+        _: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         match request {
             xs_server::xdg_wm_base::Request::Pong { serial } => {
@@ -88,18 +89,14 @@ impl AsMut<globals::GlobalList> for ClientHandler {
     }
 }
 
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ()> for ClientHandler {
+impl wayc::Dispatch<xs_client::xdg_wm_base::XdgWmBase, ClientHandler> for () {
     fn event(
-        _: &mut Self,
+        &self,
+        _: &mut ClientHandler,
         wm_base: &xs_client::xdg_wm_base::XdgWmBase,
         event: xs_client::xdg_wm_base::Event,
-        _: &(),
         _: &wayc::Connection,
-        _: &wayc::QueueHandle<Self>,
+        _: &wayc::QueueHandle<ClientHandler>,
     ) {
         match event {
             xs_client::xdg_wm_base::Event::Ping { serial } => wm_base.pong(serial),

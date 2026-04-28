@@ -12,17 +12,23 @@ fn destroyed_object_in_arg() {
 
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::default();
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
     let qh = client.event_queue.handle();
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
 
     let compositor = client_ddata
         .globals
-        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(&qh, &registry, 1..=1, ())
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
+            &qh,
+            &registry,
+            1..=1,
+            wayc::Noop,
+        )
         .unwrap();
-    let surface = compositor.create_surface(&qh, ());
-    let region = compositor.create_region(&qh, ());
+    let surface = compositor.create_surface(&qh, wayc::NoopIgnore);
+    let region = compositor.create_region(&qh, wayc::NoopIgnore);
     region.destroy();
     surface.set_input_region(Some(&region));
 
@@ -31,15 +37,15 @@ fn destroyed_object_in_arg() {
 
 struct ServerHandler;
 
-impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ()> for ServerHandler {
+impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ServerHandler> for () {
     fn request(
-        _state: &mut Self,
+        &self,
+        _state: &mut ServerHandler,
         _: &ways::Client,
         _: &ways::protocol::wl_compositor::WlCompositor,
         request: ways::protocol::wl_compositor::Request,
-        _: &(),
         _: &ways::DisplayHandle,
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         match request {
             ways::protocol::wl_compositor::Request::CreateSurface { id } => {
@@ -74,10 +80,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-wayc::delegate_noop!(ClientHandler: wayc::protocol::wl_compositor::WlCompositor);
-wayc::delegate_noop!(ClientHandler: ignore wayc::protocol::wl_surface::WlSurface);
-wayc::delegate_noop!(ClientHandler: wayc::protocol::wl_region::WlRegion);

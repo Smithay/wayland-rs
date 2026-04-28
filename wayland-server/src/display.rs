@@ -123,13 +123,10 @@ impl DisplayHandle {
     /// defined by your [`GlobalDispatch`] implementation for the given interface. Whenever a client
     /// binds this global, the associated [`GlobalDispatch::bind()`] method will be invoked on your
     /// `State`.
-    pub fn create_global<State, I: Resource + 'static, U: Send + Sync + 'static>(
-        &self,
-        version: u32,
-        data: U,
-    ) -> GlobalId
+    pub fn create_global<State, I: Resource + 'static, U>(&self, version: u32, data: U) -> GlobalId
     where
-        State: GlobalDispatch<I, U> + 'static,
+        State: 'static,
+        U: GlobalDispatch<I, State> + Send + Sync + 'static,
     {
         self.handle.create_global::<State>(
             I::interface(),

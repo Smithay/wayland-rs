@@ -9,7 +9,8 @@ fn client_objectid_display_ptr() {
 
     let (_s_client, client) = server.add_client::<ClientHandler>();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     registry.id().display_ptr().unwrap();
 }
@@ -23,9 +24,5 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
 
 struct ServerHandler;

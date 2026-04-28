@@ -41,10 +41,9 @@
 //! managing the newly created object.
 //!
 //! However, implementing all those traits on your own is a lot of (often uninteresting) work. To make this
-//! easier a composition mechanism is provided using the [`delegate_dispatch!`] macro. This way, another
-//! library (such as Smithay's Client Toolkit) can provide generic [`Dispatch`] implementations that you
-//! can reuse in your own app by delegating those objects to that provided implementation. See the
-//! documentation of those traits and macro for details.
+//! easier another library (such as Smithay's Client Toolkit) can provide generic [`Dispatch`] implementations
+//! for a user-data type it defines, that you can reuse in your own appSee the documentation of those traits
+//! for details.
 //!
 //! ## Getting started example
 //!
@@ -67,12 +66,12 @@
 //! //
 //! // In this example, we just use () as we don't have any value to associate. See
 //! // the `Dispatch` documentation for more details about this.
-//! impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
+//! impl Dispatch<wl_registry::WlRegistry, AppData> for () {
 //!     fn event(
-//!         _state: &mut Self,
+//!         &self,
+//!         _state: &mut AppData,
 //!         _: &wl_registry::WlRegistry,
 //!         event: wl_registry::Event,
-//!         _: &(),
 //!         _: &Connection,
 //!         _: &QueueHandle<AppData>,
 //!     ) {
@@ -195,7 +194,9 @@ pub mod backend {
 pub use wayland_backend::protocol::WEnum;
 
 pub use conn::{ConnectError, Connection};
-pub use event_queue::{Dispatch, EventQueue, QueueFreezeGuard, QueueHandle, QueueProxyData};
+pub use event_queue::{
+    Dispatch, EventQueue, Noop, NoopIgnore, QueueFreezeGuard, QueueHandle, QueueProxyData,
+};
 
 // internal imports for dispatching logging depending on the `log` feature
 #[cfg(feature = "log")]

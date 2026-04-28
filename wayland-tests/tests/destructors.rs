@@ -1,4 +1,4 @@
-use wayland_tests::{TestServer, client_ignore_impl, globals, roundtrip, wayc, ways};
+use wayland_tests::{TestServer, globals, roundtrip, wayc, ways};
 
 use std::sync::{
     Arc,
@@ -17,7 +17,8 @@ fn resource_destructor_request() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -27,7 +28,7 @@ fn resource_destructor_request() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -52,7 +53,8 @@ fn resource_destructor_cleanup() {
     let (_, mut client) = server.add_client();
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -62,7 +64,7 @@ fn resource_destructor_cleanup() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -90,7 +92,8 @@ fn client_destructor_cleanup() {
         server.add_client_with_data(Arc::new(DestructorClientData(destructor_called.clone())));
     let mut client_ddata = ClientHandler::new();
 
-    let registry = client.display.get_registry(&client.event_queue.handle(), ());
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -100,7 +103,7 @@ fn client_destructor_cleanup() {
             &client.event_queue.handle(),
             &registry,
             3..=3,
-            (),
+            wayc::NoopIgnore,
         )
         .unwrap();
 
@@ -129,38 +132,38 @@ struct ServerHandler {
 
 struct ServerUData(Arc<AtomicBool>);
 
-impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ()> for ServerHandler {
+impl ways::GlobalDispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for () {
     fn bind(
-        state: &mut Self,
+        &self,
+        state: &mut ServerHandler,
         _: &ways::DisplayHandle,
         _: &ways::Client,
         output: ways::New<ways::protocol::wl_output::WlOutput>,
-        _: &(),
-        data_init: &mut ways::DataInit<'_, Self>,
+        data_init: &mut ways::DataInit<'_, ServerHandler>,
     ) {
         data_init.init(output, ServerUData(state.destructor_called.clone()));
     }
 }
 
-impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerUData> for ServerHandler {
+impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for ServerUData {
     fn request(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: &ways::Client,
         _: &ways::protocol::wl_output::WlOutput,
         _: ways::protocol::wl_output::Request,
-        _: &ServerUData,
         _: &ways::DisplayHandle,
-        _: &mut ways::DataInit<'_, Self>,
+        _: &mut ways::DataInit<'_, ServerHandler>,
     ) {
     }
 
     fn destroyed(
-        _: &mut Self,
+        &self,
+        _: &mut ServerHandler,
         _: ways::backend::ClientId,
         _resource: &ways::protocol::wl_output::WlOutput,
-        data: &ServerUData,
     ) {
-        data.0.store(true, Ordering::Release);
+        self.0.store(true, Ordering::Release);
     }
 }
 
@@ -179,11 +182,3 @@ impl AsMut<globals::GlobalList> for ClientHandler {
         &mut self.globals
     }
 }
-
-wayc::delegate_dispatch!(ClientHandler:
-    [wayc::protocol::wl_registry::WlRegistry: ()] => globals::GlobalList
-);
-
-client_ignore_impl!(ClientHandler => [
-    wayc::protocol::wl_output::WlOutput
-]);
