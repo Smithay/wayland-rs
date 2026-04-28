@@ -331,9 +331,8 @@ impl<State> EventQueueInner<State> {
         msg: Message<ObjectId, OwnedFd>,
         odata: Arc<dyn ObjectData>,
     ) where
-        State: 'static,
         U: Dispatch<I, State> + Send + Sync + 'static,
-        I: Proxy + 'static,
+        I: Proxy,
     {
         let func = queue_callback::<I, U, State>;
         self.queue.push_back(QueueEvent(func, msg, odata));
@@ -640,9 +639,9 @@ impl<State> Drop for QueueFreezeGuard<'_, State> {
 }
 
 fn queue_callback<
-    I: Proxy + 'static,
+    I: Proxy,
     U: Dispatch<I, State> + Send + Sync + 'static,
-    State: 'static,
+    State,
 >(
     handle: &Connection,
     msg: Message<ObjectId, OwnedFd>,
