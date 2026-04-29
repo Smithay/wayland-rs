@@ -20,7 +20,7 @@ impl<I: Resource + 'static, D: 'static, U: GlobalDispatch<I, D> + Send + Sync + 
 {
     fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData>, _: GlobalId) -> bool {
         let client = Client { id, data: data.clone() };
-        self.data.can_view(client)
+        self.data.can_view(&client)
     }
 
     fn bind(
@@ -115,7 +115,7 @@ pub trait GlobalDispatch<I: Resource, State> {
     /// which must only be used by XWayland.
     ///
     /// The default implementation allows all clients to see the global.
-    fn can_view(&self, _client: Client) -> bool {
+    fn can_view(&self, _client: &Client) -> bool {
         true
     }
 }
