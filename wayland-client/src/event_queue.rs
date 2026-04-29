@@ -92,11 +92,9 @@ use crate::{conn::SyncData, Connection, DispatchError, Proxy};
 /// implementation of [`Dispatch`] cannot be used directly as the dispatching state, as rustc
 /// currently fails to understand that it also provides `Dispatch<I, U, Self>` (assuming all other
 /// trait bounds are respected as well).
-pub trait Dispatch<I, UserData, State = Self>
+pub trait Dispatch<I, State>
 where
-    Self: Sized,
     I: Proxy,
-    State: Dispatch<I, UserData, State>,
 {
     /// Called when an event from the server is processed
     ///
@@ -110,10 +108,10 @@ where
     /// - a reference to a [`QueueHandle`] associated with the [`EventQueue`] currently processing events, in
     ///   case you need to create new objects that you want associated to the same [`EventQueue`].
     fn event(
+        &self,
         state: &mut State,
         proxy: &I,
         event: I::Event,
-        data: &UserData,
         conn: &Connection,
         qhandle: &QueueHandle<State>,
     );
@@ -333,9 +331,8 @@ impl<State> EventQueueInner<State> {
         msg: Message<ObjectId, OwnedFd>,
         odata: Arc<dyn ObjectData>,
     ) where
-        State: Dispatch<I, U> + 'static,
-        U: Send + Sync + 'static,
-        I: Proxy + 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+        I: Proxy,
     {
         let func = queue_callback::<I, U, State>;
         self.queue.push_back(QueueEvent(func, msg, odata));
@@ -608,12 +605,9 @@ impl<State: 'static> QueueHandle<State> {
     /// This creates an implementation of [`ObjectData`] fitting for direct use with `wayland-backend` APIs
     /// that forwards all events to the event queue associated with this token, integrating the object into
     /// the [`Dispatch`]-based logic of `wayland-client`.
-    pub fn make_data<I: Proxy + 'static, U: Send + Sync + 'static>(
-        &self,
-        user_data: U,
-    ) -> Arc<dyn ObjectData>
+    pub fn make_data<I: Proxy + 'static, U>(&self, user_data: U) -> Arc<dyn ObjectData>
     where
-        State: Dispatch<I, U, State>,
+        U: Dispatch<I, State> + Send + Sync + 'static,
     {
         Arc::new(QueueProxyData::<I, U, State> {
             handle: self.clone(),
@@ -644,11 +638,7 @@ impl<State> Drop for QueueFreezeGuard<'_, State> {
     }
 }
 
-fn queue_callback<
-    I: Proxy + 'static,
-    U: Send + Sync + 'static,
-    State: Dispatch<I, U, State> + 'static,
->(
+fn queue_callback<I: Proxy, U: Dispatch<I, State> + Send + Sync + 'static, State>(
     handle: &Connection,
     msg: Message<ObjectId, OwnedFd>,
     data: &mut State,
@@ -656,8 +646,8 @@ fn queue_callback<
     qhandle: &QueueHandle<State>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
-    let udata = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
-    <State as Dispatch<I, U, State>>::event(data, &proxy, event, udata, handle, qhandle);
+    let udata: &U = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
+    udata.event(data, &proxy, event, handle, qhandle);
     Ok(())
 }
 
@@ -669,9 +659,9 @@ pub struct QueueProxyData<I: Proxy, U, State> {
     _phantom: PhantomData<fn(&I)>,
 }
 
-impl<I: Proxy + 'static, U: Send + Sync + 'static, State> ObjectData for QueueProxyData<I, U, State>
+impl<I: Proxy + 'static, State: 'static, U> ObjectData for QueueProxyData<I, U, State>
 where
-    State: Dispatch<I, U, State> + 'static,
+    U: Dispatch<I, State> + Send + Sync + 'static,
 {
     fn event(
         self: Arc<Self>,
@@ -682,7 +672,7 @@ where
             .args
             .iter()
             .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
-            .then(|| State::event_created_child(msg.opcode, &self.handle));
+            .then(|| U::event_created_child(msg.opcode, &self.handle));
 
         self.handle.inner.lock().unwrap().enqueue_event::<I, U>(msg, self.clone());
 
@@ -818,59 +808,16 @@ macro_rules! delegate_dispatch {
     };
 }
 
-/// A helper macro which delegates a set of [`Dispatch`] implementations for proxies to a static handler.
-///
-/// # Usage
-///
-/// This macro is useful to implement [`Dispatch`] for interfaces where events are unimportant to
-/// the current application and can be ignored.
-///
-/// # Example
-///
-/// ```
-/// use wayland_client::{delegate_noop, protocol::{wl_data_offer, wl_subcompositor}};
-///
-/// /// The application state
-/// struct ExampleApp {
-///     // ...
-/// }
-///
-/// // Ignore all events for this interface:
-/// delegate_noop!(ExampleApp: ignore wl_data_offer::WlDataOffer);
-///
-/// // This interface should not emit events:
-/// delegate_noop!(ExampleApp: wl_subcompositor::WlSubcompositor);
-/// ```
-///
-/// This last example will execute `unreachable!()` if the interface emits any events.
-#[macro_export]
-macro_rules! delegate_noop {
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
-            fn event(
-                _: &mut Self,
-                _: &$interface,
-                _: <$interface as $crate::Proxy>::Event,
-                _: &(),
-                _: &$crate::Connection,
-                _: &$crate::QueueHandle<Self>,
-            ) {
-                unreachable!();
-            }
-        }
-    };
+pub struct Noop;
 
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $dispatch_from: ty : ignore $interface: ty) => {
-        impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $crate::Dispatch<$interface, ()> for $dispatch_from {
-            fn event(
-                _: &mut Self,
-                _: &$interface,
-                _: <$interface as $crate::Proxy>::Event,
-                _: &(),
-                _: &$crate::Connection,
-                _: &$crate::QueueHandle<Self>,
-            ) {
-            }
-        }
-    };
+impl<I: Proxy, State> Dispatch<I, State> for Noop {
+    fn event(&self, _: &mut State, _: &I, _: I::Event, _: &Connection, _: &QueueHandle<State>) {
+        unreachable!()
+    }
+}
+
+pub struct NoopIgnore;
+
+impl<I: Proxy, State> Dispatch<I, State> for NoopIgnore {
+    fn event(&self, _: &mut State, _: &I, _: I::Event, _: &Connection, _: &QueueHandle<State>) {}
 }

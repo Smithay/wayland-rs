@@ -129,7 +129,8 @@ impl DisplayHandle {
         data: U,
     ) -> GlobalId
     where
-        State: GlobalDispatch<I, U> + 'static,
+        State: 'static,
+        U: GlobalDispatch<I, State> + 'static,
     {
         self.handle.create_global::<State>(
             I::interface(),

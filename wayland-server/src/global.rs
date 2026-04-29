@@ -15,12 +15,12 @@ pub(crate) struct GlobalData<I, U, D> {
 unsafe impl<I, D, U: Send + Sync> Send for GlobalData<I, U, D> {}
 unsafe impl<I, D, U: Send + Sync> Sync for GlobalData<I, U, D> {}
 
-impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 'static>
+impl<I: Resource + 'static, D: 'static, U: GlobalDispatch<I, D> + Send + Sync + 'static>
     GlobalHandler<D> for GlobalData<I, U, D>
 {
     fn can_view(&self, id: ClientId, data: &Arc<dyn ClientData>, _: GlobalId) -> bool {
         let client = Client { id, data: data.clone() };
-        <D as GlobalDispatch<I, U>>::can_view(client, &self.data)
+        self.data.can_view(&client)
     }
 
     fn bind(
@@ -39,12 +39,11 @@ impl<I: Resource + 'static, U: Send + Sync + 'static, D: GlobalDispatch<I, U> + 
         let mut new_data = None;
         let mut protocol_error = None;
 
-        <D as GlobalDispatch<I, U>>::bind(
+        self.data.bind(
             data,
             &handle,
             &client,
             New::wrap(resource.clone()),
-            &self.data,
             &mut DataInit { store: &mut new_data, error: &mut protocol_error },
         );
 
@@ -92,17 +91,17 @@ impl<D> ObjectData<D> for ProtocolErrorData {
 /// of associated user data.
 ///
 /// Its behavior is similar to the [`Dispatch`][crate::Dispatch] trait.
-pub trait GlobalDispatch<I: Resource, GlobalData, State = Self>: Sized {
+pub trait GlobalDispatch<I: Resource, State> {
     /// Called when a client has bound this global.
     ///
     /// The return value of this function should contain user data to associate the object created by the
     /// client.
     fn bind(
+        &self,
         state: &mut State,
         handle: &DisplayHandle,
         client: &Client,
         resource: New<I>,
-        global_data: &GlobalData,
         data_init: &mut DataInit<'_, State>,
     );
 
@@ -116,7 +115,7 @@ pub trait GlobalDispatch<I: Resource, GlobalData, State = Self>: Sized {
     /// which must only be used by XWayland.
     ///
     /// The default implementation allows all clients to see the global.
-    fn can_view(_client: Client, _global_data: &GlobalData) -> bool {
+    fn can_view(&self, _client: &Client) -> bool {
         true
     }
 }

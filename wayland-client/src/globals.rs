@@ -79,7 +79,8 @@ pub fn registry_queue_init<State>(
     conn: &Connection,
 ) -> Result<(GlobalList, EventQueue<State>), GlobalError>
 where
-    State: Dispatch<wl_registry::WlRegistry, GlobalListContents> + 'static,
+    State: 'static,
+    GlobalListContents: Dispatch<wl_registry::WlRegistry, State> + 'static,
 {
     let event_queue = conn.new_event_queue();
     let display = conn.display();
@@ -156,8 +157,8 @@ impl GlobalList {
     ) -> Result<I, BindError>
     where
         I: Proxy + 'static,
-        State: Dispatch<I, U> + 'static,
-        U: Send + Sync + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
     {
         let version_start = *version.start();
         let version_end = *version.end();
@@ -339,7 +340,7 @@ struct RegistryState<State> {
 
 impl<State: 'static> ObjectData for RegistryState<State>
 where
-    State: Dispatch<wl_registry::WlRegistry, GlobalListContents>,
+    GlobalListContents: Dispatch<wl_registry::WlRegistry, State>,
 {
     fn event(
         self: Arc<Self>,

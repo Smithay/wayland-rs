@@ -246,7 +246,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<U: Send + Sync + 'static, D: Dispatch<super::#created_iface_mod::#created_iface_type, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> super::#created_iface_mod::#created_iface_type {
+                    pub fn #method_name<D: 'static, U: Dispatch<super::#created_iface_mod::#created_iface_type, D> + Send + Sync + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> super::#created_iface_mod::#created_iface_type {
                         self.send_constructor(
                             Request::#enum_variant {
                                 #(#enum_args),*
@@ -261,7 +261,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
-                    pub fn #method_name<I: Proxy + 'static, U: Send + Sync + 'static, D: Dispatch<I, U> + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> I {
+                    pub fn #method_name<I: Proxy + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> I {
                         self.send_constructor(
                             Request::#enum_variant {
                                 #(#enum_args),*
