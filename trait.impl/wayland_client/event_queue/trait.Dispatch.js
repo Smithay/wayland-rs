@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["wayland_tests",[["impl&lt;D&gt; <a class=\"trait\" href=\"wayland_client/event_queue/trait.Dispatch.html\" title=\"trait wayland_client::event_queue::Dispatch\">Dispatch</a>&lt;<a class=\"struct\" href=\"wayland_client/protocol/wl_registry/struct.WlRegistry.html\" title=\"struct wayland_client::protocol::wl_registry::WlRegistry\">WlRegistry</a>, <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.95.0/std/primitive.unit.html\">()</a>, D&gt; for <a class=\"struct\" href=\"wayland_tests/globals/struct.GlobalList.html\" title=\"struct wayland_tests::globals::GlobalList\">GlobalList</a><div class=\"where\">where\n    D: <a class=\"trait\" href=\"wayland_client/event_queue/trait.Dispatch.html\" title=\"trait wayland_client::event_queue::Dispatch\">Dispatch</a>&lt;<a class=\"struct\" href=\"wayland_client/protocol/wl_registry/struct.WlRegistry.html\" title=\"struct wayland_client::protocol::wl_registry::WlRegistry\">WlRegistry</a>, <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.95.0/std/primitive.unit.html\">()</a>&gt; + <a class=\"trait\" href=\"https://doc.rust-lang.org/1.95.0/core/convert/trait.AsMut.html\" title=\"trait core::convert::AsMut\">AsMut</a>&lt;<a class=\"struct\" href=\"wayland_tests/globals/struct.GlobalList.html\" title=\"struct wayland_tests::globals::GlobalList\">GlobalList</a>&gt;,</div>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1348]}
