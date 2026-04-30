@@ -22,7 +22,7 @@ macro_rules! serverdata_impls {
                 -> Option<Arc<dyn $server_backend::ObjectData<()>>>
             {
                 assert_eq!(msg.opcode, 0);
-                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(Some(ref s)), Argument::Fd(fd)] =
+                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(a), Argument::Str(Some(s)), Argument::Fd(fd)] =
                     &msg.args[..]
                 {
                     assert_eq!(*u, 42);
@@ -95,7 +95,7 @@ macro_rules! clientdata_impls {
                 msg: Message<$client_backend::ObjectId, OwnedFd>
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
-                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(ref a), Argument::Str(Some(ref s)), Argument::Fd(fd)] =
+                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(a), Argument::Str(Some(s)), Argument::Fd(fd)] =
                     &msg.args[..]
                 {
                     assert_eq!(*u, 1337);
