@@ -1,13 +1,13 @@
 use std::io::ErrorKind;
 use std::os::unix::io::{AsFd, OwnedFd};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use wayland_client::backend::ObjectData;
 
 use wayland_tests::{
-    client_ignore_impl, globals, server_ignore_global_impl, server_ignore_impl, wayc, ways,
-    TestClient, TestServer,
+    TestClient, TestServer, client_ignore_impl, globals, server_ignore_global_impl,
+    server_ignore_impl, wayc, ways,
 };
 
 // This test checks the behavior for

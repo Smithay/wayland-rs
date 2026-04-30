@@ -3,9 +3,9 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::{
+    Side,
     protocol::{Interface, Protocol, Type},
     util::{description_to_doc_attr, dotted_to_relname, is_keyword, snake_to_camel, to_doc_attr},
-    Side,
 };
 
 pub fn generate_server_objects(protocol: &Protocol) -> TokenStream {

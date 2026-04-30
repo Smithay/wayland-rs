@@ -4,18 +4,18 @@ use std::{
 };
 
 use super::{
-    handle::State, ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId,
-    InnerHandle, InnerObjectId, ObjectId,
+    ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId, InnerHandle,
+    InnerObjectId, ObjectId, handle::State,
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    protocol::{same_interface, Argument, Message},
+    protocol::{Argument, Message, same_interface},
     rs::map::Object,
     types::server::InitError,
 };
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "redox"))]
-use rustix::event::{epoll, Timespec};
+use rustix::event::{Timespec, epoll};
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -297,7 +297,9 @@ impl<D> InnerBackend<D> {
                             }
                         }
                         (None, Some(_)) => {
-                            panic!("An object data was returned from a callback not creating any object");
+                            panic!(
+                                "An object data was returned from a callback not creating any object"
+                            );
                         }
                     }
                     // dropping the object calls destructors from which users could call into wayland-backend again.

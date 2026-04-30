@@ -2,9 +2,9 @@ use std::fmt::Write;
 
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
-use crate::{protocol::*, util::*, Side};
+use crate::{Side, protocol::*, util::*};
 
 pub(crate) fn generate_enums_for(interface: &Interface) -> TokenStream {
     interface.enums.iter().map(ToTokens::into_token_stream).collect()

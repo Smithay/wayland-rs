@@ -9,14 +9,14 @@ use std::slice;
 
 use rustix::io::retry_on_intr;
 use rustix::net::{
-    recvmsg, send, sendmsg, RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags,
-    SendAncillaryBuffer, SendAncillaryMessage, SendFlags,
+    RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags, SendAncillaryBuffer,
+    SendAncillaryMessage, SendFlags, recvmsg, send, sendmsg,
 };
 
 use crate::protocol::{ArgumentType, Message};
 use crate::rs::DEFAULT_MAX_BUFFER_SIZE;
 
-use super::wire::{parse_message, write_to_buffers, MessageParseError, MessageWriteError};
+use super::wire::{MessageParseError, MessageWriteError, parse_message, write_to_buffers};
 
 /// Maximum number of FD that can be sent in a single socket message
 pub const MAX_FDS_OUT: usize = 28;
@@ -468,11 +468,7 @@ mod tests {
         let ret_msg =
             server
                 .read_one_message(|sender_id, opcode| {
-                    if sender_id == 42 && opcode == 7 {
-                        Some(SIGNATURE)
-                    } else {
-                        None
-                    }
+                    if sender_id == 42 && opcode == 7 { Some(SIGNATURE) } else { None }
                 })
                 .unwrap();
 
@@ -504,11 +500,7 @@ mod tests {
         let ret_msg =
             server
                 .read_one_message(|sender_id, opcode| {
-                    if sender_id == 42 && opcode == 7 {
-                        Some(SIGNATURE)
-                    } else {
-                        None
-                    }
+                    if sender_id == 42 && opcode == 7 { Some(SIGNATURE) } else { None }
                 })
                 .unwrap();
         assert_eq_msgs(&msg.map_fd(|fd| fd.as_raw_fd()), &ret_msg.map_fd(IntoRawFd::into_raw_fd));
@@ -562,11 +554,7 @@ mod tests {
 
         let mut recv_msgs = Vec::new();
         while let Ok(message) = server.read_one_message(|sender_id, opcode| {
-            if sender_id == 42 {
-                Some(SIGNATURES[opcode as usize])
-            } else {
-                None
-            }
+            if sender_id == 42 { Some(SIGNATURES[opcode as usize]) } else { None }
         }) {
             recv_msgs.push(message);
         }
@@ -603,11 +591,7 @@ mod tests {
         let ret_msg =
             server
                 .read_one_message(|sender_id, opcode| {
-                    if sender_id == 2 && opcode == 0 {
-                        Some(SIGNATURE)
-                    } else {
-                        None
-                    }
+                    if sender_id == 2 && opcode == 0 { Some(SIGNATURE) } else { None }
                 })
                 .unwrap();
 

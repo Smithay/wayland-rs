@@ -9,14 +9,14 @@ use std::{
 };
 
 use crate::{
-    protocol::{same_interface, Interface, Message, ObjectInfo, ANONYMOUS_INTERFACE},
+    protocol::{ANONYMOUS_INTERFACE, Interface, Message, ObjectInfo, same_interface},
     rs::DEFAULT_MAX_BUFFER_SIZE,
     types::server::{DisconnectReason, GlobalInfo, InvalidId},
 };
 
 use super::{
-    client::ClientStore, registry::Registry, ClientData, ClientId, Credentials, GlobalHandler,
-    GlobalId, InnerClientId, InnerGlobalId, InnerObjectId, ObjectData, ObjectId,
+    ClientData, ClientId, Credentials, GlobalHandler, GlobalId, InnerClientId, InnerGlobalId,
+    InnerObjectId, ObjectData, ObjectId, client::ClientStore, registry::Registry,
 };
 
 pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, InnerClientId, InnerObjectId);
@@ -491,11 +491,7 @@ impl<D> ErasedState for State<D> {
         let can_view =
             handler.can_view(ClientId { id: client_id }, &client.data, GlobalId { id: global_id });
 
-        if can_view {
-            Some(name)
-        } else {
-            None
-        }
+        if can_view { Some(name) } else { None }
     }
 
     fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {

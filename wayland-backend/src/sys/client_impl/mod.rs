@@ -10,8 +10,8 @@ use std::{
     },
     ptr::{self, NonNull},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard, Weak,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -20,8 +20,8 @@ use crate::{
     debug,
     debug::has_debug_client_env,
     protocol::{
-        check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
-        ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
+        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
+        ProtocolError, check_for_signature, same_interface,
     },
 };
 use scoped_tls::scoped_thread_local;
@@ -29,7 +29,7 @@ use smallvec::SmallVec;
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
 
-use super::{free_arrays, RUST_MANAGED};
+use super::{RUST_MANAGED, free_arrays};
 
 use super::client::*;
 
@@ -338,11 +338,7 @@ impl InnerBackend {
 impl ConnectionState {
     #[inline]
     fn no_last_error(&self) -> Result<(), WaylandError> {
-        if let Some(ref err) = self.last_error {
-            Err(err.clone())
-        } else {
-            Ok(())
-        }
+        if let Some(ref err) = self.last_error { Err(err.clone()) } else { Ok(()) }
     }
 
     #[inline]
@@ -436,11 +432,7 @@ impl InnerReadEventsGuard {
         let ret = unsafe {
             ffi_dispatch!(wayland_client_handle(), wl_display_prepare_read_queue, display, evq)
         };
-        if ret < 0 {
-            None
-        } else {
-            Some(Self { inner: backend.inner, display, done: false })
-        }
+        if ret < 0 { None } else { Some(Self { inner: backend.inner, display, done: false }) }
     }
 
     pub fn connection_fd(&self) -> BorrowedFd<'_> {
@@ -621,11 +613,7 @@ impl InnerBackend {
                     if version != parent_version {
                         panic!(
                             "Wrong placeholder used when sending request {}@{}.{}: expected version {} but got {}",
-                            id.interface.name,
-                            id.id,
-                            message_desc.name,
-                            parent_version,
-                            version
+                            id.interface.name, id.id, message_desc.name, parent_version, version
                         );
                     }
                 }
@@ -635,9 +623,7 @@ impl InnerBackend {
             } else {
                 panic!(
                     "Wrong placeholder used when sending request {}@{}.{}: target interface must be specified for a generic constructor.",
-                    id.interface.name,
-                    id.id,
-                    message_desc.name
+                    id.interface.name, id.id, message_desc.name
                 );
             }
         } else {
@@ -680,7 +666,14 @@ impl InnerBackend {
                             return Err(InvalidId);
                         }
                         if !same_interface(next_interface, o.id.interface) {
-                            panic!("Request {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.id.interface.name);
+                            panic!(
+                                "Request {}@{}.{} expects an argument of interface {} but {} was provided instead.",
+                                id.interface.name,
+                                id.id,
+                                message_desc.name,
+                                next_interface.name,
+                                o.id.interface.name
+                            );
                         }
                     } else if !matches!(
                         message_desc.signature[i],

@@ -1,9 +1,9 @@
 use std::os::fd::OwnedFd;
 use std::sync::Arc;
 use wayland_client::{
+    Connection, Proxy,
     backend::{self, Backend},
     protocol::{wl_display, wl_registry},
-    Connection, Proxy,
 };
 
 // This struct represents the data associated with our registry.

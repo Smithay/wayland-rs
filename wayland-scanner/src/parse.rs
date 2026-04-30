@@ -5,8 +5,8 @@ use std::{
 };
 
 use quick_xml::{
-    events::{attributes::Attributes, Event},
     Reader,
+    events::{Event, attributes::Attributes},
 };
 
 pub fn parse<S: Read>(stream: S) -> Protocol {

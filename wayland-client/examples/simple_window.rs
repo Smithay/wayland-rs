@@ -1,12 +1,11 @@
 use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
-    delegate_noop,
+    Connection, Dispatch, QueueHandle, WEnum, delegate_noop,
     protocol::{
         wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
         wl_surface,
     },
-    Connection, Dispatch, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};

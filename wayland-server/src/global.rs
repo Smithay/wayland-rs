@@ -158,8 +158,8 @@ mod tests {
     #[test]
     fn smoke_test_dispatch_global_dispatch() {
         use crate::{
-            delegate_dispatch, protocol::wl_output, Client, DataInit, Dispatch, DisplayHandle,
-            GlobalDispatch, New,
+            Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, delegate_dispatch,
+            protocol::wl_output,
         };
 
         #[allow(dead_code)]
@@ -215,8 +215,8 @@ mod tests {
     #[test]
     fn smoke_test_dispatch_global_dispatch_generics() {
         use crate::{
-            delegate_dispatch, protocol::wl_output, Client, DataInit, Dispatch, DisplayHandle,
-            GlobalDispatch, New,
+            Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, delegate_dispatch,
+            protocol::wl_output,
         };
 
         #[allow(dead_code)]

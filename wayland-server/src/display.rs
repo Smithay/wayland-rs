@@ -10,8 +10,8 @@ use wayland_backend::{
 };
 
 use crate::{
-    global::{GlobalData, GlobalDispatch},
     Client, Resource,
+    global::{GlobalData, GlobalDispatch},
 };
 
 /// The Wayland display

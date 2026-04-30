@@ -5,8 +5,8 @@ use std::{
     os::unix::net::UnixStream,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -15,7 +15,7 @@ use wayland_backend::{
     protocol::{ObjectInfo, ProtocolError},
 };
 
-use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
+use crate::{EventQueue, Proxy, protocol::wl_display::WlDisplay};
 
 /// The Wayland connection
 ///

@@ -3,8 +3,8 @@ use std::io::{Read, Seek, Write};
 use std::os::unix::io::{AsFd, OwnedFd};
 
 use wayland_tests::{
-    client_ignore_impl, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc,
-    ways, TestServer,
+    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_global_impl,
+    server_ignore_impl, wayc, ways,
 };
 
 use wayc::protocol::wl_shm::Format;

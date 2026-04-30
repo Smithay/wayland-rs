@@ -1,5 +1,5 @@
 use wayland_tests::{
-    client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways, TestServer,
+    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways,
 };
 
 use ways::protocol::{wl_compositor, wl_output, wl_shm};

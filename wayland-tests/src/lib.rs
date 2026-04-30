@@ -8,8 +8,8 @@ pub use wayland_server as ways;
 
 use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use wayland_client::backend::ObjectData;
 

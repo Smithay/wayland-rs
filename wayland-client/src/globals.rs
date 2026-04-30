@@ -57,8 +57,8 @@ use std::{
     ops::RangeInclusive,
     os::unix::io::OwnedFd,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -68,8 +68,8 @@ use wayland_backend::{
 };
 
 use crate::{
-    protocol::{wl_display, wl_fixes, wl_registry},
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
+    protocol::{wl_display, wl_fixes, wl_registry},
 };
 
 /// Initialize a new event queue with its associated registry and retrieve the initial list of globals
@@ -165,8 +165,12 @@ impl GlobalList {
 
         if *version.end() > interface.version {
             // This is a panic because it's a compile-time programmer error, not a runtime error.
-            panic!("Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
-                version.end(), interface.name, interface.version);
+            panic!(
+                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
+                version.end(),
+                interface.name,
+                interface.version
+            );
         }
 
         let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
@@ -176,11 +180,7 @@ impl GlobalList {
             // Find the with the correct interface
             .filter_map(|Global { name, interface: interface_name, version }| {
                 // TODO: then_some
-                if interface.name == &interface_name[..] {
-                    Some((*name, *version))
-                } else {
-                    None
-                }
+                if interface.name == &interface_name[..] { Some((*name, *version)) } else { None }
             })
             .next()
             .ok_or(BindError::NotPresent)?;

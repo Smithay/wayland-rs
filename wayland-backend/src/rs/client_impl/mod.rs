@@ -13,9 +13,9 @@ use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
     debug,
     protocol::{
-        check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
-        ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
-        INLINE_ARGS,
+        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
+        ObjectInfo, ProtocolError, check_for_signature, same_interface,
+        same_interface_or_anonymous,
     },
 };
 use smallvec::SmallVec;
@@ -380,9 +380,7 @@ impl InnerBackend {
             } else {
                 panic!(
                     "Error when sending request {}@{}.{}: target interface must be specified for a generic constructor.",
-                    object.interface.name,
-                    id.id,
-                    message_desc.name
+                    object.interface.name, id.id, message_desc.name
                 );
             }
         } else {
@@ -546,11 +544,7 @@ impl ProtocolState {
 
     #[inline]
     fn no_last_error(&self) -> Result<(), WaylandError> {
-        if let Some(ref err) = self.last_error {
-            Err(err.clone())
-        } else {
-            Ok(())
-        }
+        if let Some(ref err) = self.last_error { Err(err.clone()) } else { Ok(()) }
     }
 
     #[inline]
@@ -590,8 +584,11 @@ impl ProtocolState {
         match message.opcode {
             0 => {
                 // wl_display.error
-                if let [Argument::Object(obj), Argument::Uint(code), Argument::Str(Some(ref message))] =
-                    message.args[..]
+                if let [
+                    Argument::Object(obj),
+                    Argument::Uint(code),
+                    Argument::Str(Some(ref message)),
+                ] = message.args[..]
                 {
                     let object = self.map.find(obj);
                     let err = WaylandError::Protocol(ProtocolError {

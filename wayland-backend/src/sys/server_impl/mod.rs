@@ -10,21 +10,21 @@ use std::{
     },
     ptr::NonNull,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, Weak,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 use crate::protocol::{
-    check_for_signature, same_interface, AllowNull, Argument, ArgumentType, Interface, Message,
-    ObjectInfo, ANONYMOUS_INTERFACE,
+    ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
+    check_for_signature, same_interface,
 };
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
 
 use wayland_sys::{common::*, ffi_dispatch, server::*};
 
-use super::{free_arrays, server::*, RUST_MANAGED};
+use super::{RUST_MANAGED, free_arrays, server::*};
 
 #[allow(unused_imports)]
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
@@ -419,11 +419,7 @@ impl<D> InnerBackend<D> {
             object.clone().destroyed(&handle, data, client_id, object_id);
         }
 
-        if ret < 0 {
-            Err(std::io::Error::last_os_error())
-        } else {
-            Ok(ret as usize)
-        }
+        if ret < 0 { Err(std::io::Error::last_os_error()) } else { Ok(ret as usize) }
     }
 }
 
@@ -1144,7 +1140,14 @@ impl<D: 'static> ErasedState for State<D> {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
                         if !same_interface(next_interface, o.id.interface) {
-                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, next_interface.name, o.id.interface.name);
+                            panic!(
+                                "Event {}@{}.{} expects an argument of interface {} but {} was provided instead.",
+                                id.interface.name,
+                                id.id,
+                                message_desc.name,
+                                next_interface.name,
+                                o.id.interface.name
+                            );
                         }
                     } else if !matches!(
                         message_desc.signature[i],
@@ -1171,10 +1174,20 @@ impl<D: 'static> ErasedState for State<D> {
                         }
                         let child_interface = match message_desc.child_interface {
                             Some(iface) => iface,
-                            None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", id.interface.name, id.id, message_desc.name),
+                            None => panic!(
+                                "Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.",
+                                id.interface.name, id.id, message_desc.name
+                            ),
                         };
                         if !same_interface(child_interface, o.id.interface) {
-                            panic!("Event {}@{}.{} expects an argument of interface {} but {} was provided instead.", id.interface.name, id.id, message_desc.name, child_interface.name, o.id.interface.name);
+                            panic!(
+                                "Event {}@{}.{} expects an argument of interface {} but {} was provided instead.",
+                                id.interface.name,
+                                id.id,
+                                message_desc.name,
+                                child_interface.name,
+                                o.id.interface.name
+                            );
                         }
                     } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!(
@@ -1283,11 +1296,7 @@ impl<D: 'static> ErasedState for State<D> {
             ffi_dispatch!(wayland_server_handle(), wl_global_get_name, global.ptr, client.ptr)
         };
 
-        if name == 0 {
-            None
-        } else {
-            Some(name)
-        }
+        if name == 0 { None } else { Some(name) }
     }
 
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool {
@@ -1595,7 +1604,10 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                 if new_id != 0 {
                     let child_interface = match message_desc.child_interface {
                         Some(iface) => iface,
-                        None => panic!("Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.", udata.interface.name, resource_id, message_desc.name),
+                        None => panic!(
+                            "Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.",
+                            udata.interface.name, resource_id, message_desc.name
+                        ),
                     };
                     // create the object
                     let resource = ffi_dispatch!(
