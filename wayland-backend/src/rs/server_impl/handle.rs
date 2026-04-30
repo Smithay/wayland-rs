@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     ffi::CString,
     os::unix::{
         io::{OwnedFd, RawFd},
@@ -171,7 +172,7 @@ impl InnerHandle {
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<ObjectId, InvalidId> {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::create_object().");
         let client = state.clients.get_client_mut(client_id)?;
@@ -180,7 +181,7 @@ impl InnerHandle {
 
     pub fn destroy_object<D: 'static>(&self, id: &ObjectId) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::destroy_object().");
         let client = state.clients.get_client_mut(id.id.client_id.clone())?;
@@ -207,7 +208,7 @@ impl InnerHandle {
         id: InnerObjectId,
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::get_object_data().");
         state.clients.get_client(id.client_id.clone())?.get_object_data(id)
@@ -226,7 +227,7 @@ impl InnerHandle {
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::set_object_data().");
         state.clients.get_client_mut(id.client_id.clone())?.set_object_data(id, data)
@@ -247,7 +248,7 @@ impl InnerHandle {
         handler: Arc<dyn GlobalHandler<D>>,
     ) -> InnerGlobalId {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::create_global().");
         state.registry.create_global(interface, version, handler, &mut state.clients)
@@ -255,7 +256,7 @@ impl InnerHandle {
 
     pub fn disable_global<D: 'static>(&self, id: InnerGlobalId) {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::disable_global().");
 
@@ -264,7 +265,7 @@ impl InnerHandle {
 
     pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
         let mut state_lock = self.state.lock().unwrap();
-        let state = (&mut *state_lock as &mut dyn ErasedState)
+        let state = (&mut *state_lock as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::remove_global().");
 
@@ -288,7 +289,7 @@ impl InnerHandle {
         id: InnerGlobalId,
     ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::get_global_handler().");
         state.registry.get_handler(id)
@@ -309,7 +310,7 @@ impl InnerHandle {
     }
 }
 
-pub(crate) trait ErasedState: downcast_rs::Downcast {
+pub(crate) trait ErasedState: Any {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &mut self,
@@ -344,8 +345,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn set_default_max_buffer_size(&mut self, max_buffer_size: usize);
     fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
 }
-
-downcast_rs::impl_downcast!(ErasedState);
 
 impl<D> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
