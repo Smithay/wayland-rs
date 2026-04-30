@@ -1,5 +1,5 @@
 use std::{
-    os::unix::io::{AsFd, AsRawFd, BorrowedFd},
+    os::unix::io::{AsFd, BorrowedFd},
     os::unix::net::UnixStream,
     sync::Arc,
 };
@@ -178,7 +178,6 @@ impl DisplayHandle {
         event: I::Event<'_>,
     ) -> Result<(), InvalidId> {
         let msg = resource.write_event(self, event)?;
-        let msg = msg.map_fd(|fd| fd.as_raw_fd());
         self.handle.send_event(msg)
     }
 

@@ -5,7 +5,7 @@ use std::{
     ffi::CStr,
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
+        io::{AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd},
         net::UnixStream,
     },
     ptr::{self, NonNull},
@@ -562,7 +562,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, RawFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -661,7 +661,7 @@ impl InnerBackend {
                 Argument::Uint(u) => argument_list.push(wl_argument { u }),
                 Argument::Int(i) => argument_list.push(wl_argument { i }),
                 Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h }),
+                Argument::Fd(h) => argument_list.push(wl_argument { h: h.as_raw_fd() }),
                 Argument::Array(ref a) => {
                     let a = Box::new(wl_array {
                         size: a.len(),
