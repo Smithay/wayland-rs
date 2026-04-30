@@ -5,7 +5,7 @@ use quote::{format_ident, quote};
 use crate::{
     Side,
     protocol::{Interface, Protocol, Type},
-    util::{description_to_doc_attr, dotted_to_relname, is_keyword, snake_to_camel, to_doc_attr},
+    util::{description_to_doc_attr, enum_relname, is_keyword, snake_to_camel, to_doc_attr},
 };
 
 pub fn generate_client_objects(protocol: &Protocol) -> TokenStream {
@@ -184,8 +184,8 @@ fn gen_methods(interface: &Interface) -> TokenStream {
 
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
 
-            let arg_type =  if let Some(ref enu) = arg.enum_ {
-                let enum_type = dotted_to_relname(enu);
+            let arg_type =  if let Some(enum_ref) = &arg.enum_ {
+                let enum_type = enum_relname(enum_ref);
                 quote! { #enum_type }
             } else {
                 match arg.typ {
