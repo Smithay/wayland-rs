@@ -239,11 +239,11 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
 
     /// Checks if the Wayland object associated with this proxy is still alive
     fn is_alive(&self) -> bool {
-        match self.backend().upgrade() { Some(backend) => {
+        if let Some(backend) = self.backend().upgrade() {
             backend.info(self.id()).is_ok()
-        } _ => {
+        } else {
             false
-        }}
+        }
     }
 
     /// Access the user-data associated with this object

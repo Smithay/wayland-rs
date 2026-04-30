@@ -511,8 +511,9 @@ impl<D> Client<D> {
                 if let [Argument::Uint(name), Argument::Str(Some(ref interface_name)), Argument::Uint(version), Argument::NewId(new_id)] =
                     message.args[..]
                 {
-                    match registry.check_bind(self, name, interface_name, version)
-                    { Some((interface, global_id, handler)) => {
+                    if let Some((interface, global_id, handler)) =
+                        registry.check_bind(self, name, interface_name, version)
+                    {
                         let serial = self.next_serial();
                         let object = Object {
                             interface,
@@ -537,7 +538,7 @@ impl<D> Client<D> {
                             },
                             handler.clone(),
                         ))
-                    } _ => {
+                    } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
                             CString::new(format!(
@@ -549,7 +550,7 @@ impl<D> Client<D> {
                             .unwrap(),
                         );
                         None
-                    }}
+                    }
                 } else {
                     unreachable!()
                 }

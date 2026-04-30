@@ -202,12 +202,13 @@ impl<D> InnerBackend<D> {
                         client.handle_display_request(message, &mut state.registry);
                         continue;
                     } else if same_interface(object.interface, &WL_REGISTRY_INTERFACE) {
-                        match client.handle_registry_request(message, &mut state.registry)
-                        { Some((client, global, object, handler)) => {
+                        if let Some((client, global, object, handler)) =
+                            client.handle_registry_request(message, &mut state.registry)
+                        {
                             DispatchAction::Bind { client, global, object, handler }
-                        } _ => {
+                        } else {
                             continue;
-                        }}
+                        }
                     } else {
                         let object_id = InnerObjectId {
                             id: message.sender_id,
