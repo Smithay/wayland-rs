@@ -1,6 +1,7 @@
 //! Server-side implementation of a Wayland protocol backend using `libwayland`
 
 use std::{
+    any::Any,
     ffi::{CStr, CString},
     os::raw::{c_int, c_void},
     os::unix::{
@@ -540,7 +541,7 @@ impl InnerHandle {
     ) -> Result<ObjectId, InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
-        let _state = (&mut *state as &mut dyn ErasedState)
+        let _state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::create_object().");
 
@@ -568,7 +569,7 @@ impl InnerHandle {
     pub fn destroy_object<D: 'static>(&self, id: &ObjectId) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::destroy_object().");
 
@@ -604,7 +605,7 @@ impl InnerHandle {
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
-        let _state = (&mut *state as &mut dyn ErasedState)
+        let _state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::get_object_data().");
 
@@ -649,7 +650,7 @@ impl InnerHandle {
     ) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
-        let _state = (&mut *state as &mut dyn ErasedState)
+        let _state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::set_object_data().");
 
@@ -698,7 +699,7 @@ impl InnerHandle {
     ) -> InnerGlobalId {
         let display = {
             let mut state = self.state.lock().unwrap();
-            let state = (&mut *state as &mut dyn ErasedState)
+            let state = (&mut *state as &mut dyn Any)
                 .downcast_mut::<State<D>>()
                 .expect("Wrong type parameter passed to Handle::create_global().");
             state.display
@@ -743,7 +744,7 @@ impl InnerHandle {
         }
 
         let mut state = self.state.lock().unwrap();
-        let state = (&mut *state as &mut dyn ErasedState)
+        let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::create_global().");
 
@@ -756,7 +757,7 @@ impl InnerHandle {
         // check that `D` is correct
         {
             let mut state = self.state.lock().unwrap();
-            let _state = (&mut *state as &mut dyn ErasedState)
+            let _state = (&mut *state as &mut dyn Any)
                 .downcast_mut::<State<D>>()
                 .expect("Wrong type parameter passed to Handle::disable_global().");
         }
@@ -785,7 +786,7 @@ impl InnerHandle {
     pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
         {
             let mut state = self.state.lock().unwrap();
-            let state = (&mut *state as &mut dyn ErasedState)
+            let state = (&mut *state as &mut dyn Any)
                 .downcast_mut::<State<D>>()
                 .expect("Wrong type parameter passed to Handle::remove_global().");
             state.known_globals.retain(|g| g != &id);
@@ -822,7 +823,7 @@ impl InnerHandle {
     ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
-        let _state = (&mut *state as &mut dyn ErasedState)
+        let _state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::set_object_data().");
 
@@ -863,7 +864,7 @@ impl InnerHandle {
     }
 }
 
-pub(crate) trait ErasedState: downcast_rs::Downcast {
+pub(crate) trait ErasedState: Any {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &self,
@@ -901,8 +902,6 @@ pub(crate) trait ErasedState: downcast_rs::Downcast {
     fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
     fn display_ptr(&self) -> *mut wl_display;
 }
-
-downcast_rs::impl_downcast!(ErasedState);
 
 impl<D: 'static> ErasedState for State<D> {
     fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
