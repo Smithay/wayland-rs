@@ -289,6 +289,17 @@ fn parse_event<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Message
     event
 }
 
+fn parse_enum_relname_or_panic(txt: Vec<u8>) -> EnumRef {
+    let value = decode_utf8_or_panic(txt);
+    let mut iter = value.rsplit('.');
+    let name = iter.next().unwrap().to_string();
+    let interface = iter.next().map(|s| s.to_string());
+    if iter.next().is_some() {
+        panic!("Invalid relname: '{value}'")
+    }
+    EnumRef { interface, name }
+}
+
 fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
     let mut arg = Arg::new();
     for attr in attrs.filter_map(|res| res.ok()) {
@@ -305,7 +316,7 @@ fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
             }
             b"interface" => arg.interface = Some(parse_or_panic(&attr.value)),
             b"allow-null" => arg.allow_null = parse_bool(&attr.value),
-            b"enum" => arg.enum_ = Some(decode_utf8_or_panic(attr.value.into_owned())),
+            b"enum" => arg.enum_ = Some(parse_enum_relname_or_panic(attr.value.into_owned())),
             _ => {}
         }
     }

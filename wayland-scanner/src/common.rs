@@ -189,8 +189,8 @@ pub(crate) fn gen_message_enum(
                     let fields = msg.args.iter().flat_map(|arg| {
                 let field_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-                let field_type_inner = if let Some(ref enu) = arg.enum_ {
-                    let enum_type = dotted_to_relname(enu);
+                let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
+                    let enum_type = enum_relname(enum_ref);
                     quote! { WEnum<#enum_type> }
                 } else {
                     match arg.typ {

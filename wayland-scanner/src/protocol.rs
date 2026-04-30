@@ -60,6 +60,12 @@ impl Message {
 }
 
 #[derive(Clone, Debug)]
+pub struct EnumRef {
+    pub interface: Option<String>,
+    pub name: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Arg {
     pub name: String,
     pub typ: Type,
@@ -67,7 +73,7 @@ pub struct Arg {
     pub summary: Option<String>,
     pub description: Option<(String, String)>,
     pub allow_null: bool,
-    pub enum_: Option<String>,
+    pub enum_: Option<EnumRef>,
 }
 
 impl Arg {
