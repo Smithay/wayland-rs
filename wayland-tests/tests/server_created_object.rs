@@ -1,21 +1,21 @@
 use wayland_tests::{
-    client_ignore_impl, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc,
-    ways, TestServer,
+    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_global_impl,
+    server_ignore_impl, wayc, ways,
 };
 
+use ways::Resource;
 use ways::protocol::wl_data_device::WlDataDevice as ServerDD;
 use ways::protocol::wl_data_device_manager::{
     Request as SDDMReq, WlDataDeviceManager as ServerDDMgr,
 };
 use ways::protocol::wl_data_offer::WlDataOffer as ServerDO;
 use ways::protocol::wl_seat::WlSeat as ServerSeat;
-use ways::Resource;
 
+use wayc::Proxy;
 use wayc::protocol::wl_data_device::Event as CDDEvt;
 use wayc::protocol::wl_data_device_manager::WlDataDeviceManager as ClientDDMgr;
 use wayc::protocol::wl_data_offer::WlDataOffer as ClientDO;
 use wayc::protocol::wl_seat::WlSeat as ClientSeat;
-use wayc::Proxy;
 
 #[test]
 fn data_offer() {

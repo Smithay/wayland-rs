@@ -7,9 +7,9 @@ use crate::protocol::{Argument, Interface};
 use crate::types::server::{GlobalInfo, InvalidId};
 
 use super::{
+    ClientId, GlobalHandler, GlobalId, InnerGlobalId, InnerObjectId, ObjectId,
     client::{Client, ClientStore},
     handle::PendingDestructor,
-    ClientId, GlobalHandler, GlobalId, InnerGlobalId, InnerObjectId, ObjectId,
 };
 
 /*
@@ -169,11 +169,7 @@ impl<D> Registry<D> {
         self.disable_global(id.clone(), clients);
         // now remove it if the id is still valid
         if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
-            if place.as_ref().map(|g| g.id == id).unwrap_or(false) {
-                place.take()
-            } else {
-                None
-            }
+            if place.as_ref().map(|g| g.id == id).unwrap_or(false) { place.take() } else { None }
         } else {
             None
         }

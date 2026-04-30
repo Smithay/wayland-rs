@@ -11,9 +11,9 @@ use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     debug,
     protocol::{
-        check_for_signature, same_interface, same_interface_or_anonymous, AllowNull, Argument,
-        ArgumentType, Interface, Message, ObjectInfo, ProtocolError, ANONYMOUS_INTERFACE,
-        INLINE_ARGS,
+        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
+        ObjectInfo, ProtocolError, check_for_signature, same_interface,
+        same_interface_or_anonymous,
     },
     rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
@@ -28,9 +28,9 @@ use crate::rs::{
 };
 
 use super::{
-    handle::PendingDestructor, registry::Registry, ClientData, ClientId, Credentials, Data,
-    DumbObjectData, GlobalHandler, InnerClientId, InnerGlobalId, InnerObjectId, ObjectData,
-    ObjectId, UninitObjectData,
+    ClientData, ClientId, Credentials, Data, DumbObjectData, GlobalHandler, InnerClientId,
+    InnerGlobalId, InnerObjectId, ObjectData, ObjectId, UninitObjectData,
+    handle::PendingDestructor, registry::Registry,
 };
 
 type ArgSmallVec<Fd> = SmallVec<[Argument<ObjectId, Fd>; INLINE_ARGS]>;
@@ -508,8 +508,12 @@ impl<D> Client<D> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
-                if let [Argument::Uint(name), Argument::Str(Some(ref interface_name)), Argument::Uint(version), Argument::NewId(new_id)] =
-                    message.args[..]
+                if let [
+                    Argument::Uint(name),
+                    Argument::Str(Some(ref interface_name)),
+                    Argument::Uint(version),
+                    Argument::NewId(new_id),
+                ] = message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
                         registry.check_bind(self, name, interface_name, version)

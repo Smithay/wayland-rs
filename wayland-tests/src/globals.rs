@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use wayland_client::{protocol::wl_registry, Connection, Dispatch, Proxy, QueueHandle};
+use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, protocol::wl_registry};
 
 /// Description of an advertized global
 #[derive(Debug)]
@@ -127,7 +127,10 @@ impl std::fmt::Display for BindError {
                 write!(f, "Requested global was not advertized by the server: {interface}")
             }
             BindError::WrongVersion { interface, requested, got } => {
-                write!(f, "Global {interface} has version {got}, which is outside of the requested range ({requested:?})")
+                write!(
+                    f,
+                    "Global {interface} has version {got}, which is outside of the requested range ({requested:?})"
+                )
             }
         }
     }

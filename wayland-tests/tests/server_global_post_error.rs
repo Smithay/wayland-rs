@@ -1,6 +1,6 @@
-use wayland_tests::{client_ignore_impl, globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{TestServer, client_ignore_impl, globals, roundtrip, wayc, ways};
 
-use wayc::{protocol::wl_output::WlOutput as ClientOutput, Proxy};
+use wayc::{Proxy, protocol::wl_output::WlOutput as ClientOutput};
 
 #[test]
 fn global_init_post_error() {

@@ -26,18 +26,28 @@ macro_rules! impl_server_objectdata {
                     );
                     if let [Argument::NewId(secondary)] = &msg.args[..] {
                         handle
-                            .send_event(message!(msg.sender_id, 1, [Argument::Object(secondary.clone())]))
+                            .send_event(message!(
+                                msg.sender_id,
+                                1,
+                                [Argument::Object(secondary.clone())]
+                            ))
                             .unwrap();
                         return Some(self);
                     } else {
                         panic!("Bad argument list!");
                     }
-                } else if msg.opcode == 2{
+                } else if msg.opcode == 2 {
                     return Some(self);
                 } else if msg.opcode == 3 {
-                    assert_eq!(handle.object_info(msg.sender_id).unwrap().interface.name, "test_global");
-                    if let [Argument::Object(secondary), Argument::Object(tertiary), Argument::Uint(u)] =
-                        &msg.args[..]
+                    assert_eq!(
+                        handle.object_info(msg.sender_id).unwrap().interface.name,
+                        "test_global"
+                    );
+                    if let [
+                        Argument::Object(secondary),
+                        Argument::Object(tertiary),
+                        Argument::Uint(u),
+                    ] = &msg.args[..]
                     {
                         assert_eq!(
                             handle.object_info(secondary.clone()).unwrap().interface.name,
@@ -56,14 +66,16 @@ macro_rules! impl_server_objectdata {
                         panic!("Bad argument list!");
                     }
                 } else if msg.opcode == 6 {
-                    if let [Argument::NewId(_), Argument::Object(sec), Argument::Object(ter)] = &msg.args[..] {
+                    if let [Argument::NewId(_), Argument::Object(sec), Argument::Object(ter)] =
+                        &msg.args[..]
+                    {
                         assert!(sec.is_null());
                         assert!(&ter.interface().name == &interfaces::TERTIARY_INTERFACE.name);
                     } else {
                         panic!("Bad argument list!");
                     }
                     self.0.store(true, Ordering::SeqCst);
-                    return Some(self)
+                    return Some(self);
                 }
                 None
             }
@@ -73,7 +85,7 @@ macro_rules! impl_server_objectdata {
                 _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                _: $server_backend::ObjectId
+                _: $server_backend::ObjectId,
             ) {
             }
         }
@@ -85,12 +97,12 @@ macro_rules! impl_server_objectdata {
                 _: &mut (),
                 _: $server_backend::ClientId,
                 _: $server_backend::GlobalId,
-                _: $server_backend::ObjectId
+                _: $server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 self
             }
         }
-    }
+    };
 }
 
 impl_server_objectdata!(server_rs);

@@ -57,7 +57,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustix::fs::Mode;
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use rustix::fs::{memfd_create, MemfdFlags};
+use rustix::fs::{MemfdFlags, memfd_create};
 use rustix::io::Errno;
 use rustix::shm;
 
@@ -67,8 +67,8 @@ use wayland_client::protocol::wl_shm::{self, Format, WlShm};
 use wayland_client::protocol::wl_shm_pool::{self, WlShmPool};
 use wayland_client::{Connection, Proxy, WEnum};
 
-use xcursor::parser as xparser;
 use xcursor::CursorTheme as XCursorTheme;
+use xcursor::parser as xparser;
 use xparser::Image as XCursorImage;
 
 /// Represents a cursor theme loaded from the system.

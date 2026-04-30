@@ -4,7 +4,7 @@
 //! These interfaces are frozen in the protocol and can never change. They are the only interfaces
 //! which the backends need to be aware of in particular.
 
-use crate::protocol::{AllowNull, ArgumentType, Interface, MessageDesc, ANONYMOUS_INTERFACE};
+use crate::protocol::{ANONYMOUS_INTERFACE, AllowNull, ArgumentType, Interface, MessageDesc};
 
 /// Interface `wl_display`
 pub static WL_DISPLAY_INTERFACE: Interface = Interface {

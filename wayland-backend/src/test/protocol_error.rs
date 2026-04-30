@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::rs::{
-    socket::{BufferedSocket, Socket},
     DEFAULT_MAX_BUFFER_SIZE,
+    socket::{BufferedSocket, Socket},
 };
 
 use super::*;

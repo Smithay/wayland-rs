@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
-use std::sync::{atomic::Ordering, Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, atomic::Ordering};
 use std::task;
 
 use wayland_backend::{
@@ -11,7 +11,7 @@ use wayland_backend::{
     protocol::{Argument, Message},
 };
 
-use crate::{conn::SyncData, Connection, DispatchError, Proxy};
+use crate::{Connection, DispatchError, Proxy, conn::SyncData};
 
 /// A trait for handlers of proxies' events delivered to an [`EventQueue`].
 ///

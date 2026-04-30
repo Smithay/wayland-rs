@@ -5,7 +5,7 @@ use wayland_backend::{
     server::{ClientData, ClientId, DisconnectReason, InvalidId, ObjectData},
 };
 
-use crate::{dispatch::ResourceData, Dispatch, DisplayHandle, Resource};
+use crate::{Dispatch, DisplayHandle, Resource, dispatch::ResourceData};
 
 /// A struct representing a Wayland client connected to your compositor.
 #[derive(Clone, Debug)]

@@ -2,8 +2,8 @@
 #![cfg(not(feature = "libwayland_client_1_23"))]
 
 use wayland_tests::{
-    client_ignore_impl, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc,
-    ways, TestServer,
+    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_global_impl,
+    server_ignore_impl, wayc, ways,
 };
 use ways::Resource;
 

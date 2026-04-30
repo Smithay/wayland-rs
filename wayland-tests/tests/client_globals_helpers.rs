@@ -1,18 +1,18 @@
 use std::sync::{
+    Arc,
     atomic::{AtomicBool, Ordering},
     mpsc::sync_channel,
-    Arc,
 };
 
 use wayland_tests::{
-    client_ignore_impl, server_ignore_global_impl, server_ignore_impl, wayc, ways, TestServer,
+    TestServer, client_ignore_impl, server_ignore_global_impl, server_ignore_impl, wayc, ways,
 };
 
 use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 use ways::protocol::wl_shell::WlShell as ServerShell;
 
-use wayc::globals::{registry_queue_init, Global, GlobalListContents};
+use wayc::globals::{Global, GlobalListContents, registry_queue_init};
 use wayc::protocol::{wl_compositor, wl_registry, wl_subcompositor};
 
 #[test]
@@ -28,11 +28,13 @@ fn client_global_helpers_init() {
     let (_, client) = server.add_client::<()>();
 
     // spawn a thread for the server loop as the client global init helpers to a blocking roundtrip
-    let server_thread = ::std::thread::spawn(move || loop {
-        server.display.dispatch_clients(&mut ServerHandler).unwrap();
-        server.display.flush_clients().unwrap();
-        if server_kill_switch.load(Ordering::Acquire) {
-            break;
+    let server_thread = ::std::thread::spawn(move || {
+        loop {
+            server.display.dispatch_clients(&mut ServerHandler).unwrap();
+            server.display.flush_clients().unwrap();
+            if server_kill_switch.load(Ordering::Acquire) {
+                break;
+            }
         }
     });
 
@@ -51,9 +53,11 @@ fn client_global_helpers_init() {
     // Too high version fails
     assert!(globals.bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 5..=5, ()).is_err());
     // Missing global fails
-    assert!(globals
-        .bind::<wl_subcompositor::WlSubcompositor, _, _>(&queue.handle(), 1..=1, ())
-        .is_err());
+    assert!(
+        globals
+            .bind::<wl_subcompositor::WlSubcompositor, _, _>(&queue.handle(), 1..=1, ())
+            .is_err()
+    );
     // Compatible spec succeeds
     assert!(globals.bind::<wl_compositor::WlCompositor, _, _>(&queue.handle(), 1..=5, ()).is_ok());
 
@@ -156,11 +160,13 @@ fn too_high_global_version() {
     let (_, client) = server.add_client::<()>();
 
     // spawn a thread for the server loop as the client global init helpers to a blocking roundtrip
-    let server_thread = ::std::thread::spawn(move || loop {
-        server.display.dispatch_clients(&mut ServerHandler).unwrap();
-        server.display.flush_clients().unwrap();
-        if server_kill_switch.load(Ordering::Acquire) {
-            break;
+    let server_thread = ::std::thread::spawn(move || {
+        loop {
+            server.display.dispatch_clients(&mut ServerHandler).unwrap();
+            server.display.flush_clients().unwrap();
+            if server_kill_switch.load(Ordering::Acquire) {
+                break;
+            }
         }
     });
 

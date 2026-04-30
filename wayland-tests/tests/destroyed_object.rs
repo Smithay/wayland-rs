@@ -1,5 +1,5 @@
 use wayland_tests::{
-    globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways, TestServer,
+    TestServer, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways,
 };
 
 #[test]

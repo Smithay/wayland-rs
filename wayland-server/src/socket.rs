@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
 };
 
-use rustix::fs::{flock, FlockOperation};
+use rustix::fs::{FlockOperation, flock};
 
 /// An utility representing a unix socket on which your compositor is listening for new clients
 #[derive(Debug)]

@@ -1,8 +1,8 @@
 use wayland_tests::*;
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 #[test]
@@ -14,11 +14,13 @@ fn client_roundtrip() {
 
     let (_, client) = server.add_client::<()>();
 
-    let server_thread = ::std::thread::spawn(move || loop {
-        server.display.dispatch_clients(&mut ()).unwrap();
-        server.display.flush_clients().unwrap();
-        if server_kill_switch.load(Ordering::Acquire) {
-            break;
+    let server_thread = ::std::thread::spawn(move || {
+        loop {
+            server.display.dispatch_clients(&mut ()).unwrap();
+            server.display.flush_clients().unwrap();
+            if server_kill_switch.load(Ordering::Acquire) {
+                break;
+            }
         }
     });
 

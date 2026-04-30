@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 pub(crate) fn to_doc_attr(text: &str) -> TokenStream {
     let text = text.lines().map(str::trim).collect::<Vec<_>>().join("\n");
@@ -92,11 +92,7 @@ pub fn snake_to_camel(input: &str) -> String {
         })
         .collect::<String>();
 
-    if is_camel_keyword(&result) {
-        format!("_{}", &result)
-    } else {
-        result
-    }
+    if is_camel_keyword(&result) { format!("_{}", &result) } else { result }
 }
 
 pub fn dotted_to_relname(input: &str) -> TokenStream {

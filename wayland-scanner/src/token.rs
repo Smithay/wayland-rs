@@ -7,11 +7,7 @@
 /// Get the byte at offset idx, or a default of `b'\0'` if we're looking
 /// past the end of the input buffer.
 fn byte(s: &str, idx: usize) -> u8 {
-    if idx < s.len() {
-        s.as_bytes()[idx]
-    } else {
-        0
-    }
+    if idx < s.len() { s.as_bytes()[idx] } else { 0 }
 }
 
 fn next_chr(s: &str) -> char {

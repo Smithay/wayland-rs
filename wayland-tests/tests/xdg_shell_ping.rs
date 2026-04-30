@@ -1,4 +1,4 @@
-use wayland_tests::{globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{TestServer, globals, roundtrip, wayc, ways};
 
 use wayland_protocols::xdg::shell::{client as xs_client, server as xs_server};
 

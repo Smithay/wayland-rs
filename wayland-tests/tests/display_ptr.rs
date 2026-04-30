@@ -1,7 +1,7 @@
 #![cfg(all(feature = "client_system", feature = "libwayland_client_1_23"))]
 
 use wayc::Proxy;
-use wayland_tests::{globals, wayc, TestServer};
+use wayland_tests::{TestServer, globals, wayc};
 
 #[test]
 fn client_objectid_display_ptr() {

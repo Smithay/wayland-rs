@@ -1,6 +1,6 @@
 use wayland_tests::{
-    globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways, DumbClientData,
-    TestClient, TestServer,
+    DumbClientData, TestClient, TestServer, globals, roundtrip, server_ignore_global_impl,
+    server_ignore_impl, wayc, ways,
 };
 
 use ways::protocol::wl_output::WlOutput as ServerOutput;

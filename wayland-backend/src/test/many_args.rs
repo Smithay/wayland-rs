@@ -17,13 +17,17 @@ macro_rules! serverdata_impls {
                 _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                msg: Message<$server_backend::ObjectId, OwnedFd>
-            )
-                -> Option<Arc<dyn $server_backend::ObjectData<()>>>
-            {
+                msg: Message<$server_backend::ObjectId, OwnedFd>,
+            ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 assert_eq!(msg.opcode, 0);
-                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(a), Argument::Str(Some(s)), Argument::Fd(fd)] =
-                    &msg.args[..]
+                if let [
+                    Argument::Uint(u),
+                    Argument::Int(i),
+                    Argument::Fixed(f),
+                    Argument::Array(a),
+                    Argument::Str(Some(s)),
+                    Argument::Fd(fd),
+                ] = &msg.args[..]
                 {
                     assert_eq!(*u, 42);
                     assert_eq!(*i, -13);
@@ -47,7 +51,7 @@ macro_rules! serverdata_impls {
                 _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                _: $server_backend::ObjectId
+                _: $server_backend::ObjectId,
             ) {
             }
         }
@@ -70,7 +74,9 @@ macro_rules! serverdata_impls {
                             Argument::Int(-53),
                             Argument::Fixed(9823),
                             Argument::Array(Box::new(vec![10, 20, 30, 40, 50, 60, 70, 80, 90])),
-                            Argument::Str(Some(Box::new(CString::new("I want cake".as_bytes()).unwrap()))),
+                            Argument::Str(Some(Box::new(
+                                CString::new("I want cake".as_bytes()).unwrap()
+                            ))),
                             Argument::Fd(1), // stdout
                         ],
                     ))
@@ -78,7 +84,7 @@ macro_rules! serverdata_impls {
                 self
             }
         }
-    }
+    };
 }
 
 serverdata_impls!(server_rs);
@@ -91,12 +97,18 @@ macro_rules! clientdata_impls {
         impl $client_backend::ObjectData for ClientData {
             fn event(
                 self: Arc<Self>,
-                _handle: & $client_backend::Backend,
-                msg: Message<$client_backend::ObjectId, OwnedFd>
+                _handle: &$client_backend::Backend,
+                msg: Message<$client_backend::ObjectId, OwnedFd>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
-                if let [Argument::Uint(u), Argument::Int(i), Argument::Fixed(f), Argument::Array(a), Argument::Str(Some(s)), Argument::Fd(fd)] =
-                    &msg.args[..]
+                if let [
+                    Argument::Uint(u),
+                    Argument::Int(i),
+                    Argument::Fixed(f),
+                    Argument::Array(a),
+                    Argument::Str(Some(s)),
+                    Argument::Fd(fd),
+                ] = &msg.args[..]
                 {
                     assert_eq!(*u, 1337);
                     assert_eq!(*i, -53);
@@ -116,7 +128,7 @@ macro_rules! clientdata_impls {
             }
             fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
         }
-    }
+    };
 }
 
 clientdata_impls!(client_rs);

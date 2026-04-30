@@ -1,10 +1,10 @@
 use wayland_tests::{
-    client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways, TestServer,
+    TestServer, client_ignore_impl, globals, roundtrip, server_ignore_impl, wayc, ways,
 };
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 #[test]

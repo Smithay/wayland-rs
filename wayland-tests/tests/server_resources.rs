@@ -1,8 +1,8 @@
-use wayland_tests::{client_ignore_impl, globals, roundtrip, wayc, ways, TestServer};
+use wayland_tests::{TestServer, client_ignore_impl, globals, roundtrip, wayc, ways};
 
 use ways::{
-    protocol::{wl_compositor, wl_output},
     Resource,
+    protocol::{wl_compositor, wl_output},
 };
 
 use wayc::protocol::wl_output::WlOutput as ClientOutput;
@@ -183,17 +183,19 @@ fn get_resource() {
     // its id should be 3 (1 is wl_display and 2 is wl_registry)
     let client = server.display.handle().get_client(server_ddata.outputs[0].id()).unwrap();
     // wrong interface fails
-    assert!(client
-        .object_from_protocol_id::<wl_compositor::WlCompositor>(&server.display.handle(), 3)
-        .is_err());
+    assert!(
+        client
+            .object_from_protocol_id::<wl_compositor::WlCompositor>(&server.display.handle(), 3)
+            .is_err()
+    );
     // wrong id fails
-    assert!(client
-        .object_from_protocol_id::<wl_output::WlOutput>(&server.display.handle(), 4)
-        .is_err());
+    assert!(
+        client.object_from_protocol_id::<wl_output::WlOutput>(&server.display.handle(), 4).is_err()
+    );
     // but this suceeds
-    assert!(client
-        .object_from_protocol_id::<wl_output::WlOutput>(&server.display.handle(), 3)
-        .is_ok());
+    assert!(
+        client.object_from_protocol_id::<wl_output::WlOutput>(&server.display.handle(), 3).is_ok()
+    );
 }
 
 struct ClientHandler {

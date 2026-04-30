@@ -1,8 +1,8 @@
 use std::{
     ffi::CString,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
