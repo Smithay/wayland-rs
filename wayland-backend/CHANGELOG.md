@@ -4,7 +4,7 @@
 
 #### Breaking changes
 - Use `Message<_, BorrowedFd>` instead of `RawFd`
-- Wrap `wl_interface` so `wayland-sys` can be a private dependency
+- Wrap `wl_interface` so `wayland-sys` can be a private, optional dependency
   * (This API is generally used internally by `wayland-scanner`)
 
 ## 0.3.15 -- 2026-03-30

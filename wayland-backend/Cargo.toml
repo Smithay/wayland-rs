@@ -14,7 +14,7 @@ readme = "README.md"
 build = "build.rs"
 
 [dependencies]
-wayland-sys = { version = "0.31.11", path = "../wayland-sys", features = [] }
+wayland-sys = { version = "0.31.11", path = "../wayland-sys", features = [], optional = true }
 log = { version = "0.4", optional = true }
 scoped-tls = { version = "1.0", optional = true }
 downcast-rs = "1.2"
@@ -50,12 +50,12 @@ env_logger = "0.11"
 scoped-tls = "1.0"
 
 [features]
-client_system = ["wayland-sys/client", "dep:scoped-tls"]
-server_system = ["wayland-sys/server", "dep:scoped-tls"]
-dlopen = ["wayland-sys/dlopen"]
-libwayland_client_1_23 = ["wayland-sys/libwayland_client_1_23"]
-libwayland_server_1_22 = ["wayland-sys/libwayland_server_1_22"]
-libwayland_server_1_23 = ["wayland-sys/libwayland_server_1_23", "libwayland_server_1_22"]
+client_system = ["dep:wayland-sys", "wayland-sys/client", "dep:scoped-tls"]
+server_system = ["dep:wayland-sys", "wayland-sys/server", "dep:scoped-tls"]
+dlopen = ["wayland-sys?/dlopen"]
+libwayland_client_1_23 = ["wayland-sys?/libwayland_client_1_23"]
+libwayland_server_1_22 = ["wayland-sys?/libwayland_server_1_22"]
+libwayland_server_1_23 = ["wayland-sys?/libwayland_server_1_23", "libwayland_server_1_22"]
 
 [package.metadata.docs.rs]
 all-features = true
