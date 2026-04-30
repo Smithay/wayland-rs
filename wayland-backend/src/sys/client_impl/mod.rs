@@ -54,7 +54,7 @@ unsafe impl Sync for InnerObjectId {}
 impl std::cmp::PartialEq for InnerObjectId {
     fn eq(&self, other: &Self) -> bool {
         match (&self.alive, &other.alive) {
-            (Some(ref a), Some(ref b)) => {
+            (Some(a), Some(b)) => {
                 // this is an object we manage
                 Arc::ptr_eq(a, b)
             }
@@ -1074,7 +1074,7 @@ unsafe extern "C" fn dispatcher_func(
 }
 
 #[cfg(feature = "log")]
-extern "C" {
+unsafe extern "C" {
     fn wl_log_trampoline_to_rust_client(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 

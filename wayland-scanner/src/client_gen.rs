@@ -239,7 +239,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             .map(description_to_doc_attr);
 
         match created_interface {
-            Some(Some(ref created_interface)) => {
+            Some(Some(created_interface)) => {
                 // a regular creating request
                 let created_iface_mod = Ident::new(created_interface, Span::call_site());
                 let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());

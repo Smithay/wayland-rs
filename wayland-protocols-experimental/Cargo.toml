@@ -10,7 +10,7 @@ license = "MIT"
 keywords = ["wayland", "client", "server", "protocol", "extension"]
 description = "Generated API for experimental wayland protocol extensions"
 categories = ["gui", "api-bindings"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.86"
 readme = "README.md"
 

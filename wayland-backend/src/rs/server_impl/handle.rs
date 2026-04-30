@@ -43,7 +43,7 @@ impl<D> State<D> {
         }
     }
 
-    pub(crate) fn cleanup<'a>(&mut self) -> impl FnOnce(&super::Handle, &mut D) + 'a {
+    pub(crate) fn cleanup<'a>(&mut self) -> impl FnOnce(&super::Handle, &mut D) + 'a + use<'a, D> {
         let dead_clients = self.clients.cleanup(&mut self.pending_destructors);
         self.registry.cleanup(&dead_clients, &self.pending_destructors);
         // return a closure that will do the cleanup once invoked

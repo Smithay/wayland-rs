@@ -168,7 +168,7 @@ where
 #[macro_export]
 macro_rules! event_created_child {
     // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr_2021)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>
@@ -556,12 +556,12 @@ impl<State> EventQueue<State> {
                 lock.waker = Some(cx.waker().clone());
                 return task::Poll::Pending;
             }
-            let QueueEvent(cb, msg, odata) = if let Some(elt) = lock.queue.pop_front() {
+            let QueueEvent(cb, msg, odata) = match lock.queue.pop_front() { Some(elt) => {
                 elt
-            } else {
+            } _ => {
                 lock.waker = Some(cx.waker().clone());
                 return task::Poll::Pending;
-            };
+            }};
             drop(lock);
             cb(&self.conn, msg, data, odata, &self.handle)?
         }

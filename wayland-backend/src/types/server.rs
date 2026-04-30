@@ -24,7 +24,7 @@ impl std::error::Error for InitError {
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
-            InitError::Io(ref err) => Some(err),
+            InitError::Io(err) => Some(err),
             InitError::NoWaylandLib => None,
         }
     }
@@ -34,7 +34,7 @@ impl std::fmt::Display for InitError {
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            InitError::Io(ref err) => std::fmt::Display::fmt(err, f),
+            InitError::Io(err) => std::fmt::Display::fmt(err, f),
             InitError::NoWaylandLib => f.write_str("could not load libwayland-server.so"),
         }
     }

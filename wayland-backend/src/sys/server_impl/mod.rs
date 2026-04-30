@@ -1707,7 +1707,7 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
 }
 
 #[cfg(feature = "log")]
-extern "C" {
+unsafe extern "C" {
     fn wl_log_trampoline_to_rust_server(fmt: *const std::os::raw::c_char, list: *const c_void);
 }
 
