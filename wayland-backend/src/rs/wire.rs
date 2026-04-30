@@ -192,11 +192,11 @@ pub fn parse_message<'a>(
         .map(|argtype| {
             if let ArgumentType::Fd = *argtype {
                 // don't consume input but fd
-                if let Some(front) = fds.pop_front() {
+                match fds.pop_front() { Some(front) => {
                     Ok(Argument::Fd(front))
-                } else {
+                } _ => {
                     Err(MessageParseError::MissingFD)
-                }
+                }}
             } else if payload.len() >= 4 {
                 let (front, mut tail) = payload.split_at(4);
                 let front = u32::from_ne_bytes(front.try_into().unwrap());
