@@ -5,7 +5,16 @@ use std::{
     os::unix::io::AsRawFd,
 };
 
+#[cfg(any(feature = "client_system", feature = "server_system"))]
 use wayland_sys::common::{wl_interface, wl_message};
+
+// Zero-size placeholder with same auto traits, for consistency
+#[cfg(not(any(feature = "client_system", feature = "server_system")))]
+#[allow(non_camel_case_types)]
+type wl_interface = std::marker::PhantomData<*const ()>;
+#[allow(non_camel_case_types)]
+#[cfg(not(any(feature = "client_system", feature = "server_system")))]
+type wl_message = std::marker::PhantomData<*const ()>;
 
 /// Describes whether an argument may have a null value.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -166,6 +175,7 @@ unsafe impl Sync for CWlInterface {}
 
 impl CWlInterface {
     /// Construct a `wl_interface` to store in a static
+    #[cfg(any(feature = "client_system", feature = "server_system"))]
     pub const fn new(
         name: &'static CStr,
         version: u32,
@@ -181,6 +191,18 @@ impl CWlInterface {
             events: events.as_ptr() as _,
         })
     }
+
+    /// Construct a `wl_interface` to store in a static
+    #[cfg(not(any(feature = "client_system", feature = "server_system")))]
+    pub const fn new(
+        name: &'static CStr,
+        version: u32,
+        requests: &'static [CWlMessage],
+        events: &'static [CWlMessage],
+    ) -> Self {
+        let _ = (name, version, requests, events);
+        Self(std::marker::PhantomData)
+    }
 }
 
 /// Wrapper around `wl_message` used in libwayland to define messages in interfaces
@@ -192,6 +214,7 @@ unsafe impl Sync for CWlMessage {}
 
 impl CWlMessage {
     /// Construct a `wl_message` to store in a static
+    #[cfg(any(feature = "client_system", feature = "server_system"))]
     pub const fn new(
         name: &'static CStr,
         signature: &'static CStr,
@@ -203,6 +226,17 @@ impl CWlMessage {
             signature: signature.as_ptr(),
             types: types.as_ptr() as *const *const wl_interface,
         })
+    }
+
+    /// Construct a `wl_message` to store in a static
+    #[cfg(not(any(feature = "client_system", feature = "server_system")))]
+    pub const fn new(
+        name: &'static CStr,
+        signature: &'static CStr,
+        types: &'static [Option<&'static CWlInterface>],
+    ) -> Self {
+        let _ = (name, signature, types);
+        Self(std::marker::PhantomData)
     }
 }
 
