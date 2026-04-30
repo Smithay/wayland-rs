@@ -161,11 +161,11 @@ impl Connection {
         loop {
             self.backend.flush()?;
 
-            match self.backend.prepare_read() { Some(guard) => {
+            if let Some(guard) = self.backend.prepare_read() {
                 dispatched += blocking_read(guard)?;
-            } _ => {
+            } else {
                 dispatched += self.backend.dispatch_inner_queue()?;
-            }}
+            }
 
             // see if the successful read included our callback
             if done.done.load(Ordering::Relaxed) {

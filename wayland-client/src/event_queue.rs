@@ -556,12 +556,12 @@ impl<State> EventQueue<State> {
                 lock.waker = Some(cx.waker().clone());
                 return task::Poll::Pending;
             }
-            let QueueEvent(cb, msg, odata) = match lock.queue.pop_front() { Some(elt) => {
+            let QueueEvent(cb, msg, odata) = if let Some(elt) = lock.queue.pop_front() {
                 elt
-            } _ => {
+            } else {
                 lock.waker = Some(cx.waker().clone());
                 return task::Poll::Pending;
-            }};
+            };
             drop(lock);
             cb(&self.conn, msg, data, odata, &self.handle)?
         }
