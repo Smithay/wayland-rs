@@ -60,8 +60,6 @@ use rustix::fs::Mode;
 use rustix::fs::{memfd_create, MemfdFlags};
 use rustix::io::Errno;
 use rustix::shm;
-#[cfg(any(target_os = "linux", target_os = "android"))]
-use std::ffi::CStr;
 
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
@@ -439,10 +437,7 @@ fn create_shm_fd() -> IoResult<OwnedFd> {
     // Only try memfd on systems that provide it, (like Linux, Android)
     #[cfg(any(target_os = "linux", target_os = "android"))]
     loop {
-        match memfd_create(
-            CStr::from_bytes_with_nul(b"wayland-cursor-rs\0").unwrap(),
-            MemfdFlags::CLOEXEC,
-        ) {
+        match memfd_create(c"wayland-cursor-rs", MemfdFlags::CLOEXEC) {
             Ok(fd) => return Ok(fd),
             Err(Errno::INTR) => continue,
             Err(Errno::NOSYS) => break,
