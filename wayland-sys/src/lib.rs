@@ -61,7 +61,7 @@ pub use libc::{gid_t, pid_t, uid_t};
 #[cfg(feature = "dlopen")]
 #[macro_export]
 macro_rules! ffi_dispatch(
-    ($handle: expr, $func: ident $(, $arg: expr)* $(,)?) => (
+    ($handle: expr_2021, $func: ident $(, $arg: expr_2021)* $(,)?) => (
         ($handle.$func)($($arg),*)
     )
 );

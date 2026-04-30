@@ -49,7 +49,8 @@ impl Connection {
             let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
             let fd = unsafe { OwnedFd::from_raw_fd(fd) };
             // remove the variable so any child processes don't see it
-            env::remove_var("WAYLAND_SOCKET");
+            // TODO: Audit that the environment access only happens in single-threaded code.
+            unsafe { env::remove_var("WAYLAND_SOCKET") };
             // set the CLOEXEC flag on this FD
             let flags = rustix::io::fcntl_getfd(&fd);
             let result = flags
@@ -160,11 +161,11 @@ impl Connection {
         loop {
             self.backend.flush()?;
 
-            if let Some(guard) = self.backend.prepare_read() {
+            match self.backend.prepare_read() { Some(guard) => {
                 dispatched += blocking_read(guard)?;
-            } else {
+            } _ => {
                 dispatched += self.backend.dispatch_inner_queue()?;
-            }
+            }}
 
             // see if the successful read included our callback
             if done.done.load(Ordering::Relaxed) {

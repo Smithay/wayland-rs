@@ -12,13 +12,15 @@ fn main() {
     server.display.handle().create_global::<ServerData, ServerOutput, _>(1, ());
 
     // client fails to connect if environment is not set
-    ::std::env::remove_var("WAYLAND_DISPLAY");
+    // TODO: Audit that the environment access only happens in single-threaded code.
+    unsafe { ::std::env::remove_var("WAYLAND_DISPLAY") };
     assert!(wayc::Connection::connect_to_env().is_err());
 
     // setup a listening server
     let listening = ways::ListeningSocket::bind(SOCKET_NAME).unwrap();
 
-    ::std::env::set_var("WAYLAND_DISPLAY", SOCKET_NAME);
+    // TODO: Audit that the environment access only happens in single-threaded code.
+    unsafe { ::std::env::set_var("WAYLAND_DISPLAY", SOCKET_NAME) };
 
     // connect the client
     let mut client = TestClient::new_from_env();

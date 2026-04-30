@@ -208,13 +208,13 @@ pub mod signal {
     use std::ptr;
 
     macro_rules! container_of(
-        ($ptr: expr, $container: ident, $field: ident) => {
+        ($ptr: expr_2021, $container: ident, $field: ident) => {
             ($ptr as *mut u8).sub(memoffset::offset_of!($container, $field)) as *mut $container
         }
     );
 
     macro_rules! list_for_each(
-        ($pos: ident, $head:expr, $container: ident, $field: ident, $action: block) => {
+        ($pos: ident, $head:expr_2021, $container: ident, $field: ident, $action: block) => {
             let mut $pos = container_of!((*$head).next, $container, $field);
             while &mut (*$pos).$field as *mut _ != $head {
                 $action;
@@ -224,7 +224,7 @@ pub mod signal {
     );
 
     macro_rules! list_for_each_safe(
-        ($pos: ident, $head: expr, $container: ident, $field: ident, $action: block) => {
+        ($pos: ident, $head: expr_2021, $container: ident, $field: ident, $action: block) => {
             let mut $pos = container_of!((*$head).next, $container, $field);
             let mut tmp = container_of!((*$pos).$field.next, $container, $field);
             while &mut (*$pos).$field as *mut _ != $head {

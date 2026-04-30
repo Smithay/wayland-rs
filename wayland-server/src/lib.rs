@@ -162,11 +162,11 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     /// Checks if the Wayland object associated with this proxy is still alive
     #[inline]
     fn is_alive(&self) -> bool {
-        if let Some(handle) = self.handle().upgrade() {
+        match self.handle().upgrade() { Some(handle) => {
             handle.object_info(self.id()).is_ok()
-        } else {
+        } _ => {
             false
-        }
+        }}
     }
 
     /// Access the user-data associated with this object
