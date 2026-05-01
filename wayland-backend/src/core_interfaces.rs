@@ -50,7 +50,7 @@ pub static WL_DISPLAY_INTERFACE: Interface = Interface {
             arg_interfaces: &[],
         },
     ],
-    c_ptr: None,
+    c_interface: None,
 };
 
 /// Interface `wl_registry`
@@ -88,7 +88,7 @@ pub static WL_REGISTRY_INTERFACE: Interface = Interface {
             arg_interfaces: &[],
         },
     ],
-    c_ptr: None,
+    c_interface: None,
 };
 
 /// Interface `wl_callback`
@@ -104,5 +104,5 @@ pub static WL_CALLBACK_INTERFACE: Interface = Interface {
         child_interface: None,
         arg_interfaces: &[],
     }],
-    c_ptr: None,
+    c_interface: None,
 };

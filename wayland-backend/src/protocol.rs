@@ -1,8 +1,20 @@
 //! Types and utilities for manipulating the Wayland protocol
 
-use std::{ffi::CString, os::unix::io::AsRawFd};
+use std::{
+    ffi::{CStr, CString},
+    os::unix::io::AsRawFd,
+};
 
-pub use wayland_sys::common::{wl_argument, wl_interface, wl_message};
+#[cfg(any(feature = "client_system", feature = "server_system"))]
+use wayland_sys::common::{wl_interface, wl_message};
+
+// Zero-size placeholder with same auto traits, for consistency
+#[cfg(not(any(feature = "client_system", feature = "server_system")))]
+#[allow(non_camel_case_types)]
+type wl_interface = std::marker::PhantomData<*const ()>;
+#[allow(non_camel_case_types)]
+#[cfg(not(any(feature = "client_system", feature = "server_system")))]
+type wl_message = std::marker::PhantomData<*const ()>;
 
 /// Describes whether an argument may have a null value.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -151,7 +163,81 @@ pub struct Interface {
     /// A list that describes every event this interface supports.
     pub events: &'static [MessageDesc],
     /// A C representation of this interface that may be used to interoperate with libwayland.
-    pub c_ptr: Option<&'static wayland_sys::common::wl_interface>,
+    pub c_interface: Option<&'static CWlInterface>,
+}
+
+/// Wrapper around `wl_interface` used in libwayland to define interfaces
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct CWlInterface(pub(crate) wl_interface);
+
+unsafe impl Sync for CWlInterface {}
+
+impl CWlInterface {
+    /// Construct a `wl_interface` to store in a static
+    #[cfg(any(feature = "client_system", feature = "server_system"))]
+    pub const fn new(
+        name: &'static CStr,
+        version: u32,
+        requests: &'static [CWlMessage],
+        events: &'static [CWlMessage],
+    ) -> Self {
+        Self(wl_interface {
+            name: name.as_ptr(),
+            version: version as _,
+            request_count: requests.len() as _,
+            requests: requests.as_ptr() as _,
+            event_count: events.len() as _,
+            events: events.as_ptr() as _,
+        })
+    }
+
+    /// Construct a `wl_interface` to store in a static
+    #[cfg(not(any(feature = "client_system", feature = "server_system")))]
+    pub const fn new(
+        name: &'static CStr,
+        version: u32,
+        requests: &'static [CWlMessage],
+        events: &'static [CWlMessage],
+    ) -> Self {
+        let _ = (name, version, requests, events);
+        Self(std::marker::PhantomData)
+    }
+}
+
+/// Wrapper around `wl_message` used in libwayland to define messages in interfaces
+#[allow(missing_debug_implementations)]
+#[repr(transparent)]
+pub struct CWlMessage(wl_message);
+
+unsafe impl Sync for CWlMessage {}
+
+impl CWlMessage {
+    /// Construct a `wl_message` to store in a static
+    #[cfg(any(feature = "client_system", feature = "server_system"))]
+    pub const fn new(
+        name: &'static CStr,
+        signature: &'static CStr,
+        // `Option<&wl_interface>` has the same repr as `*const wl_interface`
+        types: &'static [Option<&'static CWlInterface>],
+    ) -> Self {
+        Self(wl_message {
+            name: name.as_ptr(),
+            signature: signature.as_ptr(),
+            types: types.as_ptr() as *const *const wl_interface,
+        })
+    }
+
+    /// Construct a `wl_message` to store in a static
+    #[cfg(not(any(feature = "client_system", feature = "server_system")))]
+    pub const fn new(
+        name: &'static CStr,
+        signature: &'static CStr,
+        types: &'static [Option<&'static CWlInterface>],
+    ) -> Self {
+        let _ = (name, signature, types);
+        Self(std::marker::PhantomData)
+    }
 }
 
 impl std::fmt::Display for Interface {
@@ -182,7 +268,7 @@ pub struct MessageDesc {
 
 /// Special interface representing an anonymous object
 pub static ANONYMOUS_INTERFACE: Interface =
-    Interface { name: "<anonymous>", version: 0, requests: &[], events: &[], c_ptr: None };
+    Interface { name: "<anonymous>", version: 0, requests: &[], events: &[], c_interface: None };
 
 /// Description of the protocol-level information of an object
 #[derive(Copy, Clone, Debug)]
