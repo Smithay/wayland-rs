@@ -107,8 +107,6 @@ pub mod backend {
     pub use wayland_backend::smallvec;
 }
 
-pub use wayland_backend::protocol::WEnum;
-
 /// Generated protocol definitions
 ///
 /// This module is automatically generated from the `wayland.xml` protocol specification, and contains the

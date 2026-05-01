@@ -2,7 +2,7 @@
 pub mod wl_registry {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
@@ -205,7 +205,7 @@ pub mod wl_registry {
 pub mod wl_callback {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
@@ -369,7 +369,7 @@ pub mod wl_callback {
 pub mod test_global {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
@@ -974,7 +974,7 @@ pub mod test_global {
 pub mod secondary {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
@@ -1133,7 +1133,7 @@ pub mod secondary {
 pub mod tertiary {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
@@ -1292,7 +1292,7 @@ pub mod tertiary {
 pub mod quad {
     use super::wayland_server::{
         backend::{
-            protocol::{same_interface, Argument, Interface, Message, WEnum},
+            protocol::{same_interface, Argument, Interface, Message},
             smallvec, InvalidId, ObjectData, ObjectId, WeakHandle,
         },
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,

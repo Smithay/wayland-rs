@@ -74,17 +74,18 @@ impl ToTokens for Enum {
 
                 quote! {
                     #doc_attr
-                    #variant = #value
+                    pub const #variant: Self = Self(#value);
                 }
             });
 
             enum_decl = quote! {
                 #doc_attr
-                #[repr(u32)]
                 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
                 #[non_exhaustive]
-                pub enum #ident {
-                    #(#variants,)*
+                pub struct #ident(pub u32);
+
+                impl #ident {
+                    #(#variants)*
                 }
             };
 
@@ -100,6 +101,14 @@ impl ToTokens for Enum {
             });
 
             enum_impl = quote! {
+                impl #ident {
+                    // XXX some consistency between bitflags and non-bitflags?
+                    #[doc(hidden)]
+                    pub fn from_bits_retain(bits: u32) -> Self {
+                        #ident(bits)
+                    }
+                }
+
                 impl std::convert::TryFrom<u32> for #ident {
                     type Error = ();
                     fn try_from(val: u32) -> Result<#ident, ()> {
@@ -111,7 +120,7 @@ impl ToTokens for Enum {
                 }
                 impl std::convert::From<#ident> for u32 {
                     fn from(val: #ident) -> u32 {
-                        val as u32
+                        val.0
                     }
                 }
             };
@@ -190,8 +199,7 @@ pub(crate) fn gen_message_enum(
                 let field_name =
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
-                    let enum_type = enum_relname(enum_ref);
-                    quote! { WEnum<#enum_type> }
+                    enum_relname(enum_ref)
                 } else {
                     match arg.typ {
                         Type::Uint => quote! { u32 },
@@ -374,8 +382,10 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
 
         let arg_names = msg.args.iter().map(|arg| {
             let arg_name = format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-            if arg.enum_.is_some() {
-                quote! { #arg_name: From::from(#arg_name as u32) }
+            if let Some(enum_ref) = &arg.enum_ {
+                let enum_ident = enum_relname(enum_ref);
+                // XXX
+                quote! { #arg_name: #enum_ident::from_bits_retain(#arg_name as u32) }
             } else {
                 match arg.typ {
                     Type::Uint | Type::Int | Type::Fd => quote!{ #arg_name },
