@@ -295,7 +295,7 @@ impl InnerHandle {
         state.registry.get_handler(id)
     }
 
-    pub fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
