@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+#### Breaking changes
+- Use `Message<_, BorrowedFd>` instead of `RawFd`
+
 ## 0.3.15 -- 2026-03-30
 
 #### Bugfixes
