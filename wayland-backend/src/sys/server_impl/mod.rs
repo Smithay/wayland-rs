@@ -1063,7 +1063,7 @@ impl<D: 'static> ErasedState for State<D> {
         if resource.is_null() {
             Err(InvalidId)
         } else {
-            unsafe { ObjectId::from_ptr(interface, resource) }
+            unsafe { ObjectId::from_ptr(interface, resource.cast::<c_void>()) }
         }
     }
 
