@@ -10,8 +10,8 @@ use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 use ways::protocol::wl_shell::WlShell as ServerShell;
 
-use wayc::globals::{Global, GlobalListContents, registry_queue_init};
-use wayc::protocol::{wl_compositor, wl_registry, wl_subcompositor};
+use wayc::globals::{Global, GlobalListHandler, registry_queue_init};
+use wayc::protocol::{wl_compositor, wl_subcompositor};
 
 #[test]
 fn client_global_helpers_init() {
@@ -203,25 +203,31 @@ server_ignore_global_impl!(ServerHandler => [ServerCompositor, ServerShell, Serv
 
 struct ClientHandler(bool);
 
-impl wayc::Dispatch<wl_registry::WlRegistry, ClientHandler> for GlobalListContents {
-    fn event(
-        &self,
-        state: &mut ClientHandler,
-        _: &wl_registry::WlRegistry,
-        event: wl_registry::Event,
-        _: &wayc::Connection,
-        _: &wayc::QueueHandle<ClientHandler>,
+impl GlobalListHandler for ClientHandler {
+    fn runtime_add_global(
+        &mut self,
+        _globals: &wayc::globals::GlobalList,
+        _conn: &wayc::Connection,
+        _qh: &wayc::QueueHandle<Self>,
+        name: u32,
+        interface: &str,
+        version: u32,
     ) {
-        if let wl_registry::Event::Global { name, interface, version } = event {
-            assert_eq!(name, 3);
-            assert_eq!(interface, "wl_output");
-            assert_eq!(version, 2);
-            state.0 = true;
-        } else if let wl_registry::Event::GlobalRemove { name } = event {
-            assert_eq!(name, 3);
-            state.0 = false;
-        } else {
-            unreachable!()
-        }
+        assert_eq!(name, 3);
+        assert_eq!(interface, "wl_output");
+        assert_eq!(version, 2);
+        self.0 = true;
+    }
+
+    fn runtime_remove_global(
+        &mut self,
+        _globals: &wayc::globals::GlobalList,
+        _conn: &wayc::Connection,
+        _qh: &wayc::QueueHandle<Self>,
+        name: u32,
+        _interface: &str,
+    ) {
+        assert_eq!(name, 3);
+        self.0 = false;
     }
 }

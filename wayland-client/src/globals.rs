@@ -13,26 +13,15 @@
 //! ```no_run
 //! use wayland_client::{
 //!     Connection, Dispatch, QueueHandle,
-//!     globals::{registry_queue_init, Global, GlobalListContents},
+//!     globals::{registry_queue_init, Global, GlobalListHandler},
 //!     protocol::{wl_registry, wl_compositor},
 //! };
 //! # use std::sync::Mutex;
 //! # struct State;
 //!
-//! // You need to provide a Dispatch<WlRegistry, GlobalListContents> impl for your app
-//! impl wayland_client::Dispatch<wl_registry::WlRegistry, State> for GlobalListContents {
-//!     fn event(
-//!         // This mutex contains an up-to-date list of the currently known globals
-//!         // including the one that was just added or destroyed
-//!         &self,
-//!         state: &mut State,
-//!         proxy: &wl_registry::WlRegistry,
-//!         event: wl_registry::Event,
-//!         conn: &Connection,
-//!         qhandle: &QueueHandle<State>,
-//!     ) {
-//!         /* react to dynamic global events here */
-//!     }
+//! // You need to provide a GlobalListHandler impl for your app
+//! impl GlobalListHandler for State {
+//!     /* react to dynamic global events here */
 //! }
 //!
 //! let conn = Connection::connect_to_env().unwrap();
@@ -79,8 +68,7 @@ pub fn registry_queue_init<State>(
     conn: &Connection,
 ) -> Result<(GlobalList, EventQueue<State>), GlobalError>
 where
-    State: 'static,
-    GlobalListContents: Dispatch<wl_registry::WlRegistry, State> + 'static,
+    State: GlobalListHandler + 'static,
 {
     let event_queue = conn.new_event_queue();
     let display = conn.display();
@@ -96,6 +84,37 @@ where
     conn.roundtrip()?;
     data.initial_roundtrip_done.store(true, Ordering::Relaxed);
     Ok((GlobalList { registry }, event_queue))
+}
+
+/// Handler for runtime global addition/removal in [`GlobalList`] created with
+/// [`registry_queue_init`]
+pub trait GlobalListHandler: Sized {
+    /// A global has been added dynamically after creation of the [`GlobalList`]
+    ///
+    /// By default, does nothing.
+    fn runtime_add_global(
+        &mut self,
+        _globals: &GlobalList,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _name: u32,
+        _interface: &str,
+        _version: u32,
+    ) {
+    }
+
+    /// A global has been removed
+    ///
+    /// By default, does nothing.
+    fn runtime_remove_global(
+        &mut self,
+        _globals: &GlobalList,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _name: u32,
+        _interface: &str,
+    ) {
+    }
 }
 
 /// A helper for global initialization.
@@ -323,6 +342,43 @@ impl GlobalListContents {
     pub fn clone_list(&self) -> Vec<Global> {
         self.contents.lock().unwrap().clone()
     }
+
+    fn add(&self, global: Global) {
+        self.contents.lock().unwrap().push(global);
+    }
+
+    fn remove(&self, name: u32) -> Option<Global> {
+        let mut guard = self.contents.lock().unwrap();
+        let idx = guard.iter().position(|i| i.name == name)?;
+        Some(guard.remove(idx))
+    }
+}
+
+impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListContents
+where
+    D: GlobalListHandler,
+{
+    fn event(
+        &self,
+        state: &mut D,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        conn: &Connection,
+        qh: &QueueHandle<D>,
+    ) {
+        let globals = GlobalList { registry: registry.clone() };
+        match event {
+            wl_registry::Event::Global { name, interface, version } => {
+                self.add(Global { name, interface: interface.clone(), version });
+                state.runtime_add_global(&globals, conn, qh, name, &interface, version);
+            }
+            wl_registry::Event::GlobalRemove { name } => {
+                if let Some(global) = self.remove(name) {
+                    state.runtime_remove_global(&globals, conn, qh, name, &global.interface);
+                }
+            }
+        }
+    }
 }
 
 struct RegistryState<State> {
@@ -331,56 +387,43 @@ struct RegistryState<State> {
     initial_roundtrip_done: AtomicBool,
 }
 
-impl<State: 'static> ObjectData for RegistryState<State>
+impl<State> ObjectData for RegistryState<State>
 where
-    GlobalListContents: Dispatch<wl_registry::WlRegistry, State>,
+    State: GlobalListHandler + 'static,
 {
     fn event(
         self: Arc<Self>,
         backend: &Backend,
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
-        let conn = Connection::from_backend(backend.clone());
+        // For initial roundtrip, update immediately without waiting for dispatch.
+        // So globals are available after `registry_queue_init` returns.
+        // later, handle in `Dispatch` implementation.
+        if !self.initial_roundtrip_done.load(Ordering::Relaxed) {
+            let conn = Connection::from_backend(backend.clone());
+            // Can't do much if the server sends a malformed message
+            if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
+                match event {
+                    wl_registry::Event::Global { name, interface, version } => {
+                        let wl_fixes_ver = 1u32..=1;
+                        if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
+                            let _ = self.globals.fixes.set(registry.bind(
+                                name,
+                                version.min(*wl_fixes_ver.end()),
+                                &self.handle,
+                                crate::Noop,
+                            ));
+                        }
 
-        // The registry messages don't contain any fd, so use some type trickery to
-        // clone the message
-        #[derive(Debug, Clone)]
-        enum Void {}
-        let msg: Message<ObjectId, Void> = msg.map_fd(|_| unreachable!());
-        let to_forward = if self.initial_roundtrip_done.load(Ordering::Relaxed) {
-            Some(msg.clone().map_fd(|v| match v {}))
-        } else {
-            None
-        };
-        // and restore the type
-        let msg = msg.map_fd(|v| match v {});
-
-        // Can't do much if the server sends a malformed message
-        if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
-            match event {
-                wl_registry::Event::Global { name, interface, version } => {
-                    let wl_fixes_ver = 1u32..=1;
-                    if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
-                        let _ = self.globals.fixes.set(registry.bind(
-                            name,
-                            version.min(*wl_fixes_ver.end()),
-                            &self.handle,
-                            crate::Noop,
-                        ));
+                        self.globals.add(Global { name, interface, version });
                     }
 
-                    let mut guard = self.globals.contents.lock().unwrap();
-                    guard.push(Global { name, interface, version });
+                    wl_registry::Event::GlobalRemove { name: remove } => {
+                        self.globals.remove(remove);
+                    }
                 }
-
-                wl_registry::Event::GlobalRemove { name: remove } => {
-                    let mut guard = self.globals.contents.lock().unwrap();
-                    guard.retain(|Global { name, .. }| name != &remove);
-                }
-            }
-        };
-
-        if let Some(msg) = to_forward {
+            };
+        } else {
             // forward the message to the event queue as normal
             self.handle
                 .inner

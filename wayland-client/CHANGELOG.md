@@ -9,6 +9,7 @@
 - Replace `delegate_noop!` with `Noop` and `NoopIgnore` types providing generic
   dispatch implementations
 - `BindError` now includes the requested and available version, or interface name that failed to bind.
+- `GlobalList` now is updated with normal queueing, requires a `GlobalListHandler` implementation
 
 ## 0.31.14-- 2026-03-30
 
