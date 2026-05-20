@@ -7,6 +7,7 @@
 - Wrap `wl_interface` so `wayland-sys` can be a private, optional dependency
   * (This API is generally used internally by `wayland-scanner`)
 - Return `NonNull` from `as_ptr()`
+- Use `c_void` pointers in API
 - Remove `WEnum`
 - Do not use `downcast_rs` traits in API
 - Remove depreacted raw-window-handle 0.5 support

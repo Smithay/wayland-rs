@@ -4,6 +4,7 @@
 
 #### Breaking changes
 - Use `NonNull` in argument accepting pointer
+- Use `c_void` pointers in API
 - Make `wayland-backend` a default optional feature
 
 ## 0.32.0 -- 2023-09-02

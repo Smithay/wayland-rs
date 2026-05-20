@@ -63,7 +63,7 @@ impl WlEglSurface {
     ///
     /// The provided pointer must be a valid `wl_surface` pointer from `libwayland-client`.
     pub unsafe fn new_from_raw(
-        surface: NonNull<wl_proxy>,
+        surface: NonNull<c_void>,
         width: i32,
         height: i32,
     ) -> Result<Self, Error> {
@@ -73,7 +73,7 @@ impl WlEglSurface {
         let ptr = ffi_dispatch!(
             wayland_egl_handle(),
             wl_egl_window_create,
-            surface.as_ptr(),
+            surface.as_ptr().cast::<wl_proxy>(),
             width,
             height
         );
