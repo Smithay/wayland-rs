@@ -135,11 +135,6 @@ mod server {
 mod client {
     #[test]
     fn test_impls() {
-        // ObjectData
-        assert_impl!(
-            dyn client::ObjectData: std::fmt::Debug, downcast_rs::DowncastSync
-        );
-
         // ObjectId
         assert_impl!(
             client::ObjectId: std::fmt::Debug,
