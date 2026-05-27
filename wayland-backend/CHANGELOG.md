@@ -9,6 +9,7 @@
 - Return `NonNull` from `as_ptr()`
 - Remove `WEnum`
 - Do not use `downcast_rs` traits in API
+- Remove depreacted raw-window-handle 0.5 support
 
 ## 0.3.15 -- 2026-03-30
 

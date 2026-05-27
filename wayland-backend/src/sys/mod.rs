@@ -149,19 +149,6 @@ impl client::ReadEventsGuard {
     }
 }
 
-// SAFETY:
-// - The display_ptr will not change for the lifetime of the backend.
-// - The display_ptr will be valid, either because we have created the pointer or the caller which created the
-//   backend has ensured the pointer is valid when `Backend::from_foreign_display` was called.
-#[cfg(feature = "raw-window-handle")]
-unsafe impl raw_window_handle::HasRawDisplayHandle for client::Backend {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        let mut handle = raw_window_handle::WaylandDisplayHandle::empty();
-        handle.display = self.display_ptr().cast();
-        raw_window_handle::RawDisplayHandle::Wayland(handle)
-    }
-}
-
 #[cfg(all(feature = "rwh_06", feature = "client_system"))]
 impl rwh_06::HasDisplayHandle for client::Backend {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {

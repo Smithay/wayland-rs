@@ -33,12 +33,8 @@
 //!
 //! ## raw-window-handle integration
 //!
-//! The `rwh_06` feature activates the [`HasDisplayHandle`][raw_window_handle::HasDisplayHandle] implementation
+//! The `rwh_06` feature activates the [`HasDisplayHandle`][rwh_06::HasDisplayHandle] implementation
 //! for the client module [`Backend`][client::Backend].
-//!
-//! ### Deprecated raw-window-handle versions
-//!
-//! While raw-window-handle 0.5 is supported via the `raw-window-handle` feature, it is deprecated and will be removed in the future.
 //!
 //! Note that the `client_system` feature must also be enabled for the implementation to be activated.
 
