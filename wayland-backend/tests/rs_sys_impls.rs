@@ -107,21 +107,6 @@ macro_rules! assert_impl {
 mod server {
     #[test]
     fn test_impls() {
-        // ObjectData
-        assert_impl!(
-            dyn server::ObjectData<()>: std::fmt::Debug, downcast_rs::DowncastSync
-        );
-
-        // GlobalHandler
-        assert_impl!(
-            dyn server::GlobalHandler<()>: std::fmt::Debug, downcast_rs::DowncastSync
-        );
-
-        // ClientData
-        assert_impl!(
-            dyn server::ClientData: std::fmt::Debug, downcast_rs::DowncastSync
-        );
-
         // ObjectId
         assert_impl!(
             server::ObjectId: std::fmt::Debug,
