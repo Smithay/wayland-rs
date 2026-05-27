@@ -63,8 +63,6 @@ impl std::fmt::Debug for dyn ObjectData {
     }
 }
 
-downcast_rs::impl_downcast!(sync ObjectData);
-
 /// An ID representing a Wayland object
 ///
 /// The backend internally tracks which IDs are still valid, invalidates them when the protocol object they
