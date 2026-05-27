@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     ffi::CString,
     fmt,
     os::unix::{
@@ -20,7 +21,7 @@ use super::server_impl;
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData<D>: downcast_rs::DowncastSync {
+pub trait ObjectData<D>: Any + Send + Sync {
     /// Dispatch a request for the associated object
     ///
     /// If the request has a `NewId` argument, the callback must return the object data
@@ -57,7 +58,7 @@ impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
 }
 
 /// A trait representing the handling of new bound globals
-pub trait GlobalHandler<D>: downcast_rs::DowncastSync {
+pub trait GlobalHandler<D>: Any + Send + Sync {
     /// Check if given client is allowed to interact with given global
     ///
     /// If this function returns false, the client will not be notified of the existence
@@ -103,7 +104,7 @@ impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
 }
 
 /// A trait representing your data associated to a client
-pub trait ClientData: downcast_rs::DowncastSync {
+pub trait ClientData: Any + Send + Sync {
     /// Notification that the client was initialized
     fn initialized(&self, _client_id: ClientId) {}
     /// Notification that the client is disconnected
@@ -401,7 +402,7 @@ impl Handle {
     pub fn get_object_data_any(
         &self,
         id: ObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+    ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
         self.handle.get_object_data_any(id.id)
     }
 
