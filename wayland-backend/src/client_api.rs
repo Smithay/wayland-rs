@@ -24,7 +24,8 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData: downcast_rs::DowncastSync {
+#[allow(private_bounds)]
+pub trait ObjectData: AsAny {
     /// Dispatch an event for the associated object
     ///
     /// If the event has a `NewId` argument, the callback must return the object data
@@ -56,14 +57,22 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     }
 }
 
+trait AsAny: 'static {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: 'static> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl std::fmt::Debug for dyn ObjectData {
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.debug(f)
     }
 }
-
-downcast_rs::impl_downcast!(sync ObjectData);
 
 /// An ID representing a Wayland object
 ///
