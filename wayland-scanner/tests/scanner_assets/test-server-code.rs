@@ -122,13 +122,6 @@ pub mod wl_registry {
             self.version
         }
         #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
-        }
-        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -295,13 +288,6 @@ pub mod wl_callback {
         #[inline]
         fn version(&self) -> u32 {
             self.version
-        }
-        #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
         }
         #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
@@ -557,13 +543,6 @@ pub mod test_global {
         #[inline]
         fn version(&self) -> u32 {
             self.version
-        }
-        #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
         }
         #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
@@ -1065,13 +1044,6 @@ pub mod secondary {
             self.version
         }
         #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
-        }
-        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -1224,13 +1196,6 @@ pub mod tertiary {
             self.version
         }
         #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
-        }
-        #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
             self.data.as_ref()
         }
@@ -1381,13 +1346,6 @@ pub mod quad {
         #[inline]
         fn version(&self) -> u32 {
             self.version
-        }
-        #[inline]
-        fn data<U: 'static>(&self) -> Option<&U> {
-            self.data
-                .as_ref()
-                .and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>())
-                .map(|data| &data.udata)
         }
         #[inline]
         fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {

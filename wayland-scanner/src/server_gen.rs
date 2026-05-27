@@ -136,11 +136,6 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn data<U: 'static>(&self) -> Option<&U> {
-                    self.data.as_ref().and_then(|arc| (&**arc).downcast_ref::<ResourceData<Self, U>>()).map(|data| &data.udata)
-                }
-
-                #[inline]
                 fn object_data(&self) -> Option<&Arc<dyn std::any::Any + Send + Sync>> {
                     self.data.as_ref()
                 }

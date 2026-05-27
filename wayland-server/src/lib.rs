@@ -131,7 +131,7 @@ use std::{
 };
 
 /// Trait representing a Wayland interface
-pub trait Resource: Clone + std::fmt::Debug + Sized {
+pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     /// The event enum for this interface
     type Event<'a>;
     /// The request enum for this interface
@@ -167,7 +167,9 @@ pub trait Resource: Clone + std::fmt::Debug + Sized {
     }
 
     /// Access the user-data associated with this object
-    fn data<U: 'static>(&self) -> Option<&U>;
+    fn data<U: 'static>(&self) -> Option<&U> {
+        Some(&self.object_data()?.downcast_ref::<ResourceData<Self, U>>()?.udata)
+    }
 
     /// Access the raw data associated with this object.
     ///
