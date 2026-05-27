@@ -17,7 +17,6 @@ wayland-backend = { version = "0.3.15", path = "../wayland-backend" }
 wayland-scanner = { version = "0.31.10", path = "../wayland-scanner" }
 bitflags = "2"
 log = { version = "0.4", optional = true }
-downcast-rs = "1.2"
 rustix = { version = "1.0.2", features = ["fs"] }
 
 [features]
