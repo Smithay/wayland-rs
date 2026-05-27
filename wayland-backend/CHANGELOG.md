@@ -8,6 +8,7 @@
   * (This API is generally used internally by `wayland-scanner`)
 - Return `NonNull` from `as_ptr()`
 - Remove `WEnum`
+- Do not use `downcast_rs` traits in API
 
 ## 0.3.15 -- 2026-03-30
 
