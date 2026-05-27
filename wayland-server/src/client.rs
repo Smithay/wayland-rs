@@ -66,7 +66,7 @@ impl Client {
             self.id.clone(),
             I::interface(),
             version,
-            Arc::new(ResourceData::<I, U>::new(user_data)) as Arc<_>,
+            Arc::new(ResourceData::<I, U>::new(user_data)),
         )?;
         I::from_id(handle, id)
     }

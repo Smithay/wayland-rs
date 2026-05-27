@@ -1098,7 +1098,7 @@ impl<D: 'static> ErasedState for State<D> {
                 as *mut ResourceUserData<D>)
         };
 
-        Ok(udata.data.clone().into_any_arc())
+        Ok(udata.data.clone())
     }
 
     fn send_event(

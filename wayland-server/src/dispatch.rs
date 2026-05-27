@@ -160,7 +160,7 @@ impl<D> DataInit<'_, D> {
         U: Dispatch<I, D> + Send + Sync + 'static,
     {
         let arc = Arc::new(ResourceData::<I, _>::new(data));
-        *self.store = Some(arc.clone() as Arc<_>);
+        *self.store = Some(arc.clone());
         let mut obj = resource.id;
         obj.__set_object_data(arc);
         obj
@@ -179,7 +179,7 @@ impl<D> DataInit<'_, D> {
     ) -> I {
         *self.store = Some(data.clone());
         let mut obj = resource.id;
-        obj.__set_object_data(data.into_any_arc());
+        obj.__set_object_data(data);
         obj
     }
 
