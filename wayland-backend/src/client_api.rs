@@ -25,7 +25,7 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
 #[allow(private_bounds)]
-pub trait ObjectData: AsAny {
+pub trait ObjectData: AsAny + Send + Sync {
     /// Dispatch an event for the associated object
     ///
     /// If the event has a `NewId` argument, the callback must return the object data
