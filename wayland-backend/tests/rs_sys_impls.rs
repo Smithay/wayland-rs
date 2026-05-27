@@ -153,17 +153,22 @@ mod server {
 }
 
 mod client {
+    use std::{
+        any::Any,
+        fmt::{Debug, Display},
+    };
+
     #[test]
     fn test_impls() {
         // ObjectData
         assert_impl!(
-            dyn client::ObjectData: std::fmt::Debug, downcast_rs::DowncastSync
+            dyn client::ObjectData: Debug, Any, Send, Sync
         );
 
         // ObjectId
         assert_impl!(
-            client::ObjectId: std::fmt::Debug,
-            std::fmt::Display,
+            client::ObjectId: Debug,
+            Display,
             Clone,
             Send,
             Sync,
@@ -172,6 +177,6 @@ mod client {
         );
 
         // Backend
-        assert_impl!(client::Backend: Send, Sync, std::fmt::Debug);
+        assert_impl!(client::Backend: Send, Sync, Debug);
     }
 }
