@@ -49,8 +49,6 @@ pub trait ObjectData<D>: downcast_rs::DowncastSync {
     }
 }
 
-downcast_rs::impl_downcast!(sync ObjectData<D>);
-
 impl<D: 'static> std::fmt::Debug for dyn ObjectData<D> {
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -104,8 +102,6 @@ impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
     }
 }
 
-downcast_rs::impl_downcast!(sync GlobalHandler<D>);
-
 /// A trait representing your data associated to a client
 pub trait ClientData: downcast_rs::DowncastSync {
     /// Notification that the client was initialized
@@ -129,8 +125,6 @@ impl std::fmt::Debug for dyn ClientData {
 }
 
 impl ClientData for () {}
-
-downcast_rs::impl_downcast!(sync ClientData);
 
 /// An ID representing a Wayland object
 ///
