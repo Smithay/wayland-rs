@@ -221,7 +221,7 @@ pub mod protocol {
 }
 
 /// Trait representing a Wayland interface
-pub trait Proxy: Clone + std::fmt::Debug + Sized {
+pub trait Proxy: Clone + std::fmt::Debug + Sized + 'static {
     /// The event enum for this interface
     type Event;
     /// The request enum for this interface
@@ -247,7 +247,7 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized {
 
     /// Access the user-data associated with this object
     fn data<U: Send + Sync + 'static>(&self) -> Option<&U> {
-        self.object_data().as_ref().and_then(|arc| arc.data_as_any().downcast_ref::<U>())
+        self.object_data()?.data_as_any().downcast_ref::<U>()
     }
 
     /// Access the raw data associated with this object.
