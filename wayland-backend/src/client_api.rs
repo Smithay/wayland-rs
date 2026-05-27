@@ -24,7 +24,8 @@ pub use crate::types::client::{InvalidId, NoWaylandLib, WaylandError};
 ///
 /// The methods of this trait will be invoked internally every time a
 /// new object is created to initialize its data.
-pub trait ObjectData: downcast_rs::DowncastSync {
+#[allow(private_bounds)]
+pub trait ObjectData: AsAny + Any + Send + Sync {
     /// Dispatch an event for the associated object
     ///
     /// If the event has a `NewId` argument, the callback must return the object data
@@ -49,10 +50,20 @@ pub trait ObjectData: downcast_rs::DowncastSync {
     /// Helper for accessing user data
     ///
     /// This function is used to back the `Proxy::data()` function in `wayland_client`.  By default,
-    /// it returns `self` (via [`Downcast`][downcast_rs::DowncastSync]), but this may be overridden to allow downcasting user data
+    /// it returns `self`, but this may be overridden to allow downcasting user data
     /// without needing to have access to the full type.
     fn data_as_any(&self) -> &dyn Any {
         self.as_any()
+    }
+}
+
+trait AsAny: 'static {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: 'static> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
