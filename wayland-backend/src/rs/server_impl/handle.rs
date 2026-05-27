@@ -215,7 +215,7 @@ impl InnerHandle {
     pub fn get_object_data_any(
         &self,
         id: InnerObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+    ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
         self.state.lock().unwrap().get_object_data_any(id)
     }
 
@@ -333,7 +333,7 @@ pub(crate) trait ErasedState: Any {
     fn get_object_data_any(
         &self,
         id: InnerObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
+    ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
@@ -453,11 +453,11 @@ impl<D> ErasedState for State<D> {
     fn get_object_data_any(
         &self,
         id: InnerObjectId,
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
+    ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
         self.clients
             .get_client(id.client_id.clone())?
             .get_object_data(id)
-            .map(|arc| arc.into_any_arc())
+            .map(|arc| -> Arc<dyn Any + Send + Sync> { arc })
     }
 
     fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
