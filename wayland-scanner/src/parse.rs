@@ -198,6 +198,20 @@ fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (
             }
             Ok(Event::End(bytes)) if bytes.name().into_inner() == b"description" => break,
             Ok(Event::Comment(_)) => {}
+            Ok(Event::GeneralRef(byte_ref)) => {
+                if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
+                    description.push(c);
+                } else if let Ok(content) = byte_ref.xml10_content() {
+                    if let Some(s) = quick_xml::escape::resolve_xml_entity(&content) {
+                        description.push_str(s);
+                    }
+                }
+            }
+            Ok(Event::CData(cdata)) => {
+                if let Ok(cdata) = String::from_utf8(cdata.into_inner().into()) {
+                    description.push_str(&cdata);
+                }
+            }
             e => panic!("Ill-formed protocol file: {e:?}"),
         }
     }
