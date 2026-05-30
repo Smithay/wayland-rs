@@ -46,13 +46,44 @@ impl ToTokens for Enum {
                     }
                 }
             };
+
+            let since_arms = self.entries.iter().map(|entry| {
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
+                let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
+
+                let since = entry.since as u32;
+
+                quote! {
+                    Self::#variant => #since
+                }
+            });
+
             enum_impl = quote! {
+                impl #ident {
+                    /// First protocol version enum variant is avilable in
+                    ///
+                    /// If there are multiple bit fields, the protocol version supporting all of them.
+                    ///
+                    /// `None` for unrecognized value.
+                    pub fn available_since(self) -> Option<u32> {
+                        let mut since = 1;
+                        for flag in self.iter() {
+                            since = since.max(match flag {
+                                #(#since_arms,)*
+                                _ => { return None; }
+                            });
+                        }
+                        Some(since)
+                    }
+                }
+
                 impl std::convert::TryFrom<u32> for #ident {
                     type Error = ();
                     fn try_from(val: u32) -> Result<#ident, ()> {
                         #ident::from_bits(val).ok_or(())
                     }
                 }
+
                 impl std::convert::From<#ident> for u32 {
                     fn from(val: #ident) -> u32 {
                         val.bits()
