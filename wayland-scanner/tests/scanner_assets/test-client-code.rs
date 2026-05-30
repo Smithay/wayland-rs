@@ -39,6 +39,18 @@ pub mod wl_display {
         pub fn from_bits_retain(bits: u32) -> Self {
             Error(bits)
         }
+        #[doc = r" First protocol version enum variant is avilable in"]
+        #[doc = r""]
+        #[doc = r" `None` for unrecognized value."]
+        pub fn available_since(self) -> Option<u32> {
+            match self {
+                Self::InvalidObject => Some(1u32),
+                Self::InvalidMethod => Some(1u32),
+                Self::NoMemory => Some(1u32),
+                Self::Implementation => Some(1u32),
+                _ => None,
+            }
+        }
     }
     impl std::convert::TryFrom<u32> for Error {
         type Error = ();
