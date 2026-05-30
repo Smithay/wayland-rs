@@ -118,6 +118,17 @@ impl ToTokens for Enum {
                 }
             });
 
+            let since_arms = self.entries.iter().map(|entry| {
+                let prefix = if entry.name.chars().next().unwrap().is_numeric() { "_" } else { "" };
+                let variant = format_ident!("{}{}", prefix, snake_to_camel(&entry.name));
+
+                let since = entry.since as u32;
+
+                quote! {
+                    Self::#variant => Some(#since)
+                }
+            });
+
             // `from_bits_retain` is used so generated code can work for either enum or bitflags.
             // But can be hidden; application code can just use enum name to construct.
             enum_impl = quote! {
@@ -125,6 +136,17 @@ impl ToTokens for Enum {
                     #[doc(hidden)]
                     pub fn from_bits_retain(bits: u32) -> Self {
                         #ident(bits)
+                    }
+
+                    /// First protocol version enum variant is avilable in
+                    ///
+                    /// `None` for unrecognized value.
+                    pub fn available_since(self) -> Option<u32> {
+                        match self {
+                            #(#since_arms,)*
+                            _ => None
+                        }
+
                     }
                 }
 
