@@ -525,6 +525,7 @@ impl InnerBackend {
 
     fn destroy_object_inner(&self, mut guard: MutexGuard<ConnectionState>, id: &ObjectId) {
         if let Some(ref alive) = id.id.alive {
+            // Safety: the udata_ptr must be valid as we are in a rust-managed object, and we are done with using udata
             let udata = unsafe {
                 Box::from_raw(ffi_dispatch!(
                     wayland_client_handle(),
@@ -1035,24 +1036,16 @@ unsafe extern "C" fn dispatcher_func(
         if let Some((ref new_id, _)) = created {
             guard.known_proxies.insert(new_id.ptr);
         }
-        if message_desc.is_destructor {
-            guard.known_proxies.remove(&proxy);
-        }
         std::mem::drop(guard);
-        udata.data.clone().event(
+        let ret = udata.data.clone().event(
             backend,
             Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
-        )
+        );
+        if message_desc.is_destructor {
+            backend.backend.destroy_object_inner(backend.backend.lock_state(), &id);
+        }
+        ret
     });
-
-    if message_desc.is_destructor {
-        // Safety: the udata_ptr must be valid as we are in a rust-managed object, and we are done with using udata
-        let udata = unsafe { Box::from_raw(udata_ptr) };
-        ffi_dispatch!(wayland_client_handle(), wl_proxy_set_user_data, proxy, std::ptr::null_mut());
-        udata.alive.store(false, Ordering::Release);
-        udata.data.destroyed(id);
-        ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, proxy);
-    }
 
     match (created, ret) {
         (Some((_, child_udata_ptr)), Some(child_data)) => {
