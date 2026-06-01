@@ -11,6 +11,9 @@
 - Do not use `downcast_rs` traits in API
 - Remove depreacted raw-window-handle 0.5 support
 
+#### Bugfixes
+- client/sys: Fix deadlock if `Backend` is used in `ObjectData::destroyed`
+
 ## 0.3.15 -- 2026-03-30
 
 #### Bugfixes

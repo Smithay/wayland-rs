@@ -516,7 +516,7 @@ impl InnerBackend {
         }
     }
 
-    fn destroy_object_inner(&self, guard: &mut MutexGuard<ConnectionState>, id: &ObjectId) {
+    fn destroy_object_inner(&self, mut guard: MutexGuard<ConnectionState>, id: &ObjectId) {
         if let Some(ref alive) = id.id.alive {
             let udata = unsafe {
                 Box::from_raw(ffi_dispatch!(
@@ -534,10 +534,10 @@ impl InnerBackend {
                 );
             }
             alive.store(false, Ordering::Release);
+            guard.known_proxies.remove(&id.id.ptr);
+            drop(guard);
             udata.data.destroyed(id.clone());
         }
-
-        guard.known_proxies.remove(&id.id.ptr);
 
         unsafe {
             ffi_dispatch!(wayland_client_handle(), wl_proxy_destroy, id.id.ptr);
@@ -549,7 +549,7 @@ impl InnerBackend {
             return Err(InvalidId);
         }
 
-        self.destroy_object_inner(&mut self.lock_state(), id);
+        self.destroy_object_inner(self.lock_state(), id);
         Ok(())
     }
 
@@ -753,7 +753,7 @@ impl InnerBackend {
         };
 
         if message_desc.is_destructor {
-            self.destroy_object_inner(&mut guard, &ObjectId { id })
+            self.destroy_object_inner(guard, &ObjectId { id })
         }
 
         Ok(child_id)
