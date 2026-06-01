@@ -1,3 +1,11 @@
+use std::{
+    os::fd::OwnedFd,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+use wayland_client::Proxy;
 use wayland_tests::{
     TestServer, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways,
 };
@@ -33,6 +41,45 @@ fn destroyed_object_in_arg() {
     surface.set_input_region(Some(&region));
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
+}
+
+#[test]
+fn destroy_object_objectdata() {
+    let mut server = TestServer::new();
+    let (_, mut client) = server.add_client();
+
+    let callback_data = Arc::new(CallbackData { destroyed: AtomicBool::new(false) });
+    let _callback = client.display.send_constructor::<wayc::protocol::wl_callback::WlCallback>(
+        wayc::protocol::wl_display::Request::Sync {},
+        callback_data.clone(),
+    );
+
+    roundtrip(&mut client, &mut server, &mut (), &mut ()).unwrap();
+    assert!(callback_data.destroyed.load(Ordering::Relaxed));
+}
+
+struct CallbackData {
+    destroyed: AtomicBool,
+}
+
+impl wayc::backend::ObjectData for CallbackData {
+    fn event(
+        self: Arc<Self>,
+        _: &wayc::backend::Backend,
+        _: wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn wayc::backend::ObjectData + 'static>> {
+        None
+    }
+
+    fn destroyed(&self, id: wayc::backend::ObjectId) {
+        assert!(!self.destroyed.load(Ordering::Relaxed));
+        assert!(!id.is_null());
+        // `destroyed()` is called with object already marked as not alive, or it
+        // could be invoked twice.
+        #[cfg(feature = "client_system")]
+        assert_eq!(id.as_ptr(), Err(wayc::backend::InvalidId));
+        self.destroyed.store(true, Ordering::Relaxed);
+    }
 }
 
 struct ServerHandler;
