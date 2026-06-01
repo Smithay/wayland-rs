@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+#### Bugfixes
+- client/sys: Fix deadlock if `Backend` is used in `ObjectData::destroyed`
+
 ## 0.3.15 -- 2026-03-30
 
 #### Bugfixes
