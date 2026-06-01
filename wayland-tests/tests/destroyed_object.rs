@@ -48,21 +48,38 @@ fn destroy_object_objectdata() {
     let mut server = TestServer::new();
     let (_, mut client) = server.add_client();
 
-    let callback_data = Arc::new(CallbackData { destroyed: AtomicBool::new(false) });
-    let _callback = client.display.send_constructor::<wayc::protocol::wl_callback::WlCallback>(
-        wayc::protocol::wl_display::Request::Sync {},
-        callback_data.clone(),
-    );
+    let backend = client.conn.backend();
+    let callback_data =
+        Arc::new(DestroyTestUdata { backend: backend.clone(), destroyed: AtomicBool::new(false) });
+    let _callback = client
+        .display
+        .send_constructor::<wayc::protocol::wl_callback::WlCallback>(
+            wayc::protocol::wl_display::Request::Sync {},
+            callback_data.clone(),
+        )
+        .unwrap();
+    let registry_data =
+        Arc::new(DestroyTestUdata { backend: backend.clone(), destroyed: AtomicBool::new(false) });
+    let registry = client
+        .display
+        .send_constructor::<wayc::protocol::wl_registry::WlRegistry>(
+            wayc::protocol::wl_display::Request::GetRegistry {},
+            registry_data.clone(),
+        )
+        .unwrap();
 
     roundtrip(&mut client, &mut server, &mut (), &mut ()).unwrap();
     assert!(callback_data.destroyed.load(Ordering::Relaxed));
+    assert!(!registry_data.destroyed.load(Ordering::Relaxed));
+    backend.destroy_object(&registry.id()).unwrap();
 }
 
-struct CallbackData {
+struct DestroyTestUdata {
+    backend: wayc::backend::Backend,
     destroyed: AtomicBool,
 }
 
-impl wayc::backend::ObjectData for CallbackData {
+impl wayc::backend::ObjectData for DestroyTestUdata {
     fn event(
         self: Arc<Self>,
         _: &wayc::backend::Backend,
@@ -78,6 +95,8 @@ impl wayc::backend::ObjectData for CallbackData {
         // could be invoked twice.
         #[cfg(feature = "client_system")]
         assert_eq!(id.as_ptr(), Err(wayc::backend::InvalidId));
+        // Function locks `connection_state`; test for deadlock
+        self.backend.display_id();
         self.destroyed.store(true, Ordering::Relaxed);
     }
 }
