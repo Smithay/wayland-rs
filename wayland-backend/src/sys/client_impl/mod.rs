@@ -520,12 +520,11 @@ impl InnerBackend {
         if let Some(ref alive) = id.id.alive {
             // Safety: the udata_ptr must be valid as we are in a rust-managed object, and we are done with using udata
             let udata = unsafe {
-                Box::from_raw(ffi_dispatch!(
-                    wayland_client_handle(),
-                    wl_proxy_get_user_data,
-                    id.id.ptr
-                ) as *mut ProxyUserData)
+                ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.id.ptr)
             };
+            if udata.is_null() {
+                panic!("NULL user data on object {id:?}");
+            }
             unsafe {
                 ffi_dispatch!(
                     wayland_client_handle(),
@@ -534,6 +533,7 @@ impl InnerBackend {
                     std::ptr::null_mut()
                 );
             }
+            let udata = unsafe { Box::from_raw(udata as *mut ProxyUserData) };
             alive.store(false, Ordering::Release);
             guard.known_proxies.remove(&id.id.ptr);
             drop(guard);
@@ -770,11 +770,12 @@ impl InnerBackend {
             return Ok(Arc::new(DumbObjectData));
         }
 
-        let udata = unsafe {
-            &*(ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.ptr)
-                as *mut ProxyUserData)
-        };
-        Ok(udata.data.clone())
+        let udata =
+            unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.ptr) };
+        if udata.is_null() {
+            panic!("NULL user data on object {id:?}");
+        }
+        Ok(unsafe { &*(udata as *mut ProxyUserData) }.data.clone())
     }
 
     pub fn set_data(
@@ -791,10 +792,12 @@ impl InnerBackend {
             return Err(InvalidId);
         }
 
-        let udata = unsafe {
-            &mut *(ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.ptr)
-                as *mut ProxyUserData)
-        };
+        let udata =
+            unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.ptr) };
+        if udata.is_null() {
+            panic!("NULL user data on object {id:?}");
+        }
+        let udata = unsafe { &mut *(udata as *mut ProxyUserData) };
 
         udata.data = data;
 
