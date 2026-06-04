@@ -84,19 +84,18 @@ where
 {
     let event_queue = conn.new_event_queue();
     let display = conn.display();
-    let fixes = Arc::new(OnceLock::<wl_fixes::WlFixes>::new());
+    let fixes = OnceLock::<wl_fixes::WlFixes>::new();
 
     let data = Arc::new(RegistryState {
-        globals: GlobalListContents { contents: Default::default() },
+        globals: GlobalListContents { contents: Default::default(), fixes },
         handle: event_queue.handle(),
-        fixes: fixes.clone(),
         initial_roundtrip_done: AtomicBool::new(false),
     });
     let registry = display.send_constructor(wl_display::Request::GetRegistry {}, data.clone())?;
     // We don't need to dispatch the event queue as for now nothing will be sent to it
     conn.roundtrip()?;
     data.initial_roundtrip_done.store(true, Ordering::Relaxed);
-    Ok((GlobalList { registry, fixes }, event_queue))
+    Ok((GlobalList { registry }, event_queue))
 }
 
 /// A helper for global initialization.
@@ -105,7 +104,6 @@ where
 #[derive(Debug)]
 pub struct GlobalList {
     registry: wl_registry::WlRegistry,
-    fixes: Arc<OnceLock<wl_fixes::WlFixes>>,
 }
 
 struct Fixes;
@@ -213,7 +211,7 @@ impl GlobalList {
     /// This might end up doing nothing if the compositor doesn't support `wl_fixes`
     /// in which case the registry cannot be destroyed without closing the connection.
     pub fn destroy(self) {
-        if let Some(fixes) = self.fixes.get() {
+        if let Some(fixes) = self.contents().fixes.get() {
             let id = self.registry.id();
             fixes.destroy_registry(&self.registry);
             if let Some(backend) = fixes.backend().upgrade() {
@@ -323,6 +321,7 @@ pub struct Global {
 #[derive(Debug)]
 pub struct GlobalListContents {
     contents: Mutex<Vec<Global>>,
+    fixes: OnceLock<wl_fixes::WlFixes>,
 }
 
 impl GlobalListContents {
@@ -344,7 +343,6 @@ impl GlobalListContents {
 struct RegistryState<State> {
     globals: GlobalListContents,
     handle: QueueHandle<State>,
-    fixes: Arc<OnceLock<wl_fixes::WlFixes>>,
     initial_roundtrip_done: AtomicBool,
 }
 
@@ -378,7 +376,7 @@ where
                 wl_registry::Event::Global { name, interface, version } => {
                     let wl_fixes_ver = 1u32..=1;
                     if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
-                        let _ = self.fixes.set(
+                        let _ = self.globals.fixes.set(
                             registry
                                 .send_constructor(
                                     wl_registry::Request::Bind {
