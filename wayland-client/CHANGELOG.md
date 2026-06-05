@@ -12,6 +12,9 @@
 - `GlobalList` now is updated with normal queueing, requires a `GlobalListHandler` implementation
 - Rename `GlobalList::bind` to `bind_singleton`
 
+#### Additions
+- Add `GlobalList::bind_specific`
+
 ## 0.31.14-- 2026-03-30
 
 - Updated Wayland core protocol to 1.25
