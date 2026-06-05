@@ -97,9 +97,7 @@ pub trait GlobalListHandler: Sized {
         _globals: &GlobalList,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _name: u32,
-        _interface: &str,
-        _version: u32,
+        _global: &Global,
     ) {
     }
 
@@ -111,8 +109,7 @@ pub trait GlobalListHandler: Sized {
         _globals: &GlobalList,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _name: u32,
-        _interface: &str,
+        _global: &Global,
     ) {
     }
 }
@@ -369,12 +366,13 @@ where
         let globals = GlobalList { registry: registry.clone() };
         match event {
             wl_registry::Event::Global { name, interface, version } => {
-                self.add(Global { name, interface: interface.clone(), version });
-                state.runtime_add_global(&globals, conn, qh, name, &interface, version);
+                let global = Global { name, interface, version };
+                self.add(global.clone());
+                state.runtime_add_global(&globals, conn, qh, &global);
             }
             wl_registry::Event::GlobalRemove { name } => {
                 if let Some(global) = self.remove(name) {
-                    state.runtime_remove_global(&globals, conn, qh, name, &global.interface);
+                    state.runtime_remove_global(&globals, conn, qh, &global);
                 }
             }
         }
