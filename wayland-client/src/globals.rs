@@ -38,7 +38,7 @@
 //! #     ) {}
 //! # }
 //! // now you can bind the globals you need for your app
-//! let compositor: wl_compositor::WlCompositor = globals.bind(&queue.handle(), 4..=5, ()).unwrap();
+//! let compositor: wl_compositor::WlCompositor = globals.bind_singleton(&queue.handle(), 4..=5, ()).unwrap();
 //! ```
 
 use std::{
@@ -142,13 +142,13 @@ impl GlobalList {
     /// This function is not intended to be used with globals that have multiple instances such as `wl_output`
     /// and `wl_seat`. These types of globals need their own initialization mechanism because these
     /// multi-instance globals may be removed at runtime. To handle then, you should instead rely on the
-    /// `Dispatch` implementation for `WlRegistry` of your `State`.
+    /// [`GlobalListHandler`] of your `State`.
     ///
     /// # Panics
     ///
     /// This function will panic if the maximum requested version is greater than the known maximum version of
     /// the interface. The known maximum version is determined by the code generated using wayland-scanner.
-    pub fn bind<I, State, U>(
+    pub fn bind_singleton<I, State, U>(
         &self,
         qh: &QueueHandle<State>,
         version: RangeInclusive<u32>,
