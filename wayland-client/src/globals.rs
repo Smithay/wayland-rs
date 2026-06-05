@@ -179,20 +179,7 @@ impl GlobalList {
             .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
             .ok_or(BindError::NotPresent(interface.name))?;
 
-        // Test version requirements
-        if *version.start() > global.version {
-            return Err(BindError::UnsupportedVersion {
-                interface: interface.name,
-                requested: *version.start(),
-                available: global.version,
-            });
-        }
-
-        // To get the version to bind, take the lower of the version advertised by the server and the maximum
-        // requested version.
-        let negotiated_version = global.version.min(*version.end());
-
-        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+        self.bind_inner(qh, global, version, udata)
     }
 
     /// Binds a global, returning a new object associated with the global.
@@ -234,17 +221,35 @@ impl GlobalList {
             // TODO Error for not finding name, rather than interface?
             .ok_or(BindError::NotPresent(interface.name))?;
 
-        if global.version < *version.start() {
+        self.bind_inner(qh, global, version, udata)
+    }
+
+    fn bind_inner<I, State, U>(
+        &self,
+        qh: &QueueHandle<State>,
+        global: &Global,
+        version: RangeInclusive<u32>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        // Test version requirements
+        if *version.start() > global.version {
             return Err(BindError::UnsupportedVersion {
-                interface: interface.name,
+                interface: I::interface().name,
                 requested: *version.start(),
                 available: global.version,
             });
         }
 
+        // To get the version to bind, take the lower of the version advertised by the server and the maximum
+        // requested version.
         let negotiated_version = global.version.min(*version.end());
 
-        Ok(self.registry.bind(name, negotiated_version, qh, udata))
+        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
     }
 
     /// Returns the [`WlRegistry`][wl_registry] protocol object.
