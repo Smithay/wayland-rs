@@ -209,13 +209,11 @@ impl GlobalListHandler for ClientHandler {
         _globals: &wayc::globals::GlobalList,
         _conn: &wayc::Connection,
         _qh: &wayc::QueueHandle<Self>,
-        name: u32,
-        interface: &str,
-        version: u32,
+        global: &Global,
     ) {
-        assert_eq!(name, 3);
-        assert_eq!(interface, "wl_output");
-        assert_eq!(version, 2);
+        assert_eq!(global.name, 3);
+        assert_eq!(global.interface, "wl_output");
+        assert_eq!(global.version, 2);
         self.0 = true;
     }
 
@@ -224,10 +222,9 @@ impl GlobalListHandler for ClientHandler {
         _globals: &wayc::globals::GlobalList,
         _conn: &wayc::Connection,
         _qh: &wayc::QueueHandle<Self>,
-        name: u32,
-        _interface: &str,
+        global: &Global,
     ) {
-        assert_eq!(name, 3);
+        assert_eq!(global.name, 3);
         self.0 = false;
     }
 }
