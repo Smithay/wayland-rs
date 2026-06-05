@@ -141,8 +141,8 @@ impl GlobalList {
     ///
     /// This function is not intended to be used with globals that have multiple instances such as `wl_output`
     /// and `wl_seat`. These types of globals need their own initialization mechanism because these
-    /// multi-instance globals may be removed at runtime. To handle then, you should instead rely on the
-    /// [`GlobalListHandler`] of your `State`.
+    /// multi-instance globals may be removed at runtime. To handle then, you should instead call
+    /// [`Self::bind_specific`] in the [`GlobalListHandler`] of your `State`.
     ///
     /// # Panics
     ///
@@ -159,8 +159,6 @@ impl GlobalList {
         State: 'static,
         U: Dispatch<I, State> + Send + Sync + 'static,
     {
-        let version_start = *version.start();
-        let version_end = *version.end();
         let interface = I::interface();
 
         if *version.end() > interface.version {
@@ -175,26 +173,78 @@ impl GlobalList {
 
         let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
         let guard = globals.lock().unwrap();
-        let &Global { name, version, .. } = guard
+        let global = guard
             .iter()
             // Find the global with the correct interface
             .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
             .ok_or(BindError::NotPresent(interface.name))?;
 
         // Test version requirements
-        if version_start > version {
+        if *version.start() > global.version {
             return Err(BindError::UnsupportedVersion {
                 interface: interface.name,
-                requested: version_start,
-                available: version,
+                requested: *version.start(),
+                available: global.version,
             });
         }
 
         // To get the version to bind, take the lower of the version advertised by the server and the maximum
         // requested version.
-        let version = version.min(version_end);
+        let negotiated_version = global.version.min(*version.end());
 
-        Ok(self.registry.bind(name, version, qh, udata))
+        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+    }
+
+    /// Binds a global, returning a new object associated with the global.
+    ///
+    /// This binds a specific object by its name.
+    ///
+    /// Typically, this should be called in [`GlobalListHandler::runtime_add_global`] for dynamically
+    /// added globals.
+    pub fn bind_specific<I, State, U>(
+        &self,
+        qh: &QueueHandle<State>,
+        name: u32,
+        version: std::ops::RangeInclusive<u32>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        let interface = I::interface();
+
+        if *version.end() > interface.version {
+            // This is a panic because it's a compile-time programmer error, not a runtime error.
+            panic!(
+                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
+                version.end(),
+                interface.name,
+                interface.version
+            );
+        }
+
+        let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
+        let guard = globals.lock().unwrap();
+        let global = guard
+            .iter()
+            // Find the global with correct name and interface
+            .find(|global| global.name == name && global.interface == interface.name)
+            // TODO Error for not finding name, rather than interface?
+            .ok_or(BindError::NotPresent(interface.name))?;
+
+        if global.version < *version.start() {
+            return Err(BindError::UnsupportedVersion {
+                interface: interface.name,
+                requested: *version.start(),
+                available: global.version,
+            });
+        }
+
+        let negotiated_version = global.version.min(*version.end());
+
+        Ok(self.registry.bind(name, negotiated_version, qh, udata))
     }
 
     /// Returns the [`WlRegistry`][wl_registry] protocol object.
