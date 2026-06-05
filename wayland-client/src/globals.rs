@@ -106,21 +106,6 @@ pub struct GlobalList {
     registry: wl_registry::WlRegistry,
 }
 
-struct Fixes;
-
-impl ObjectData for Fixes {
-    fn event(
-        self: Arc<Self>,
-        _backend: &Backend,
-        _msg: Message<ObjectId, OwnedFd>,
-    ) -> Option<Arc<dyn ObjectData>> {
-        // wl_fixes has no events
-        None
-    }
-
-    fn destroyed(&self, _object_id: ObjectId) {}
-}
-
 impl GlobalList {
     /// Access the contents of the list of globals
     pub fn contents(&self) -> &GlobalListContents {
@@ -376,20 +361,12 @@ where
                 wl_registry::Event::Global { name, interface, version } => {
                     let wl_fixes_ver = 1u32..=1;
                     if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
-                        let _ = self.globals.fixes.set(
-                            registry
-                                .send_constructor(
-                                    wl_registry::Request::Bind {
-                                        name,
-                                        id: (
-                                            wl_fixes::WlFixes::interface(),
-                                            version.min(*wl_fixes_ver.end()),
-                                        ),
-                                    },
-                                    Arc::new(Fixes),
-                                )
-                                .expect("We just created this registry"),
-                        );
+                        let _ = self.globals.fixes.set(registry.bind(
+                            name,
+                            version.min(*wl_fixes_ver.end()),
+                            &self.handle,
+                            crate::Noop,
+                        ));
                     }
 
                     let mut guard = self.globals.contents.lock().unwrap();
