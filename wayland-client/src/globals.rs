@@ -101,7 +101,7 @@ where
 /// A helper for global initialization.
 ///
 /// See [the module level documentation][self] for more.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GlobalList {
     registry: wl_registry::WlRegistry,
 }
