@@ -28,9 +28,6 @@ fn test_thread_destroy_object() {
     }
 }
 
-/*
-// TODO consider why this panics without `client_system`,
-// segfaults with `client_system`?
 #[test]
 fn test_thread_destroy_display() {
     let mut server = TestServer::<()>::new();
@@ -47,16 +44,17 @@ fn test_thread_destroy_display() {
             s.spawn(|| {
                 barrier.wait();
                 for _ in 0..100 {
+                    // get_data on the display should succeed
                     let _ = backend.get_data(display_id.clone());
                 }
             });
 
             barrier.wait();
-            let _ = backend.destroy_object(&display_id);
+            // destroy_object on the display should return InvalidId
+            assert!(backend.destroy_object(&display_id).is_err());
         });
     }
 }
-*/
 
 #[test]
 fn test_thread_destroys() {
