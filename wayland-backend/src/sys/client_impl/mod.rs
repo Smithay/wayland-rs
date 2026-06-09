@@ -559,6 +559,14 @@ impl InnerBackend {
             return Err(InvalidId);
         }
 
+        // Do not allow destroying the display object; it has no ProxyUserData and
+        // wl_proxy_destroy on it would cause a segfault. The display lifecycle is
+        // managed by the connection itself. Attempting to destroy the display will
+        // return Err(InvalidId).
+        if same_interface(id.id.interface, &WL_DISPLAY_INTERFACE) {
+            return Err(InvalidId);
+        }
+
         self.destroy_object_inner(guard, id);
         Ok(())
     }
