@@ -121,7 +121,6 @@ impl ToTokens for Enum {
             enum_decl = quote! {
                 #doc_attr
                 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-                #[non_exhaustive]
                 pub struct #ident(pub u32);
 
                 impl #ident {
