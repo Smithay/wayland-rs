@@ -11,7 +11,6 @@ pub mod wl_display {
     use std::sync::Arc;
     #[doc = "global error values\n\nThese errors are global and can be emitted in response to any\nserver request."]
     #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    #[non_exhaustive]
     pub struct Error(pub u32);
     impl Error {
         #[doc = "server couldn't find object"]
