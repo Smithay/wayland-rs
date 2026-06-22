@@ -77,10 +77,9 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    os::unix::io::OwnedFd,
 };
 use wayland_backend::{
-    protocol::{Interface, Message},
+    protocol::{Interface, Message, OwnedMessage},
     server::{InvalidId, ObjectId, WeakHandle},
 };
 
@@ -214,7 +213,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     /// wayland-scanner.
     fn parse_request(
         dh: &DisplayHandle,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Result<(Self, Self::Request), DispatchError>;
 
     /// Serialize an event for this object
@@ -225,7 +224,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
         &self,
         dh: &DisplayHandle,
         req: Self::Event<'a>,
-    ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId>;
+    ) -> Result<Message<'a, ObjectId>, InvalidId>;
 
     /// Creates a weak handle to this object
     ///

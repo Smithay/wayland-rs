@@ -4,7 +4,7 @@ pub mod wl_display {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -201,16 +201,16 @@ pub mod wl_display {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
                     if let (
-                        Some(Argument::Object(object_id)),
-                        Some(Argument::Uint(code)),
-                        Some(Argument::Str(message)),
+                        Some(OwnedArgument::Object(object_id)),
+                        Some(OwnedArgument::Uint(code)),
+                        Some(OwnedArgument::Str(message)),
                     ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
@@ -233,7 +233,7 @@ pub mod wl_display {
                     }
                 }
                 1u16 => {
-                    if let (Some(Argument::Uint(id))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::Uint(id))) = (arg_iter.next()) {
                         Ok((me, Event::DeleteId { id }))
                     } else {
                         Err(DispatchError::BadMessage {
@@ -254,13 +254,7 @@ pub mod wl_display {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Sync {} => {
                     let child_spec = {
@@ -331,7 +325,7 @@ pub mod wl_registry {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -467,16 +461,16 @@ pub mod wl_registry {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
                     if let (
-                        Some(Argument::Uint(name)),
-                        Some(Argument::Str(interface)),
-                        Some(Argument::Uint(version)),
+                        Some(OwnedArgument::Uint(name)),
+                        Some(OwnedArgument::Str(interface)),
+                        Some(OwnedArgument::Uint(version)),
                     ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
@@ -499,7 +493,7 @@ pub mod wl_registry {
                     }
                 }
                 1u16 => {
-                    if let (Some(Argument::Uint(name))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::Uint(name))) = (arg_iter.next()) {
                         Ok((me, Event::GlobalRemove { name }))
                     } else {
                         Err(DispatchError::BadMessage {
@@ -520,13 +514,7 @@ pub mod wl_registry {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Bind { name, id } => {
                     let child_spec = Some((id.0, id.1));
@@ -573,7 +561,7 @@ pub mod wl_callback {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -683,13 +671,13 @@ pub mod wl_callback {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
-                    if let (Some(Argument::Uint(callback_data))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::Uint(callback_data))) = (arg_iter.next()) {
                         Ok((me, Event::Done { callback_data }))
                     } else {
                         Err(DispatchError::BadMessage {
@@ -710,13 +698,7 @@ pub mod wl_callback {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -729,7 +711,7 @@ pub mod test_global {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -928,19 +910,19 @@ pub mod test_global {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
                     if let (
-                        Some(Argument::Uint(unsigned_int)),
-                        Some(Argument::Int(signed_int)),
-                        Some(Argument::Fixed(fixed_point)),
-                        Some(Argument::Array(number_array)),
-                        Some(Argument::Str(some_text)),
-                        Some(Argument::Fd(file_descriptor)),
+                        Some(OwnedArgument::Uint(unsigned_int)),
+                        Some(OwnedArgument::Int(signed_int)),
+                        Some(OwnedArgument::Fixed(fixed_point)),
+                        Some(OwnedArgument::Array(number_array)),
+                        Some(OwnedArgument::Str(some_text)),
+                        Some(OwnedArgument::Fd(file_descriptor)),
                     ) = (
                         arg_iter.next(),
                         arg_iter.next(),
@@ -972,7 +954,7 @@ pub mod test_global {
                     }
                 }
                 1u16 => {
-                    if let (Some(Argument::Object(sec))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::Object(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Event::AckSecondary {
@@ -1000,8 +982,10 @@ pub mod test_global {
                     }
                 }
                 2u16 => {
-                    if let (Some(Argument::NewId(new_quad)), Some(Argument::Object(old_quad))) =
-                        (arg_iter.next(), arg_iter.next())
+                    if let (
+                        Some(OwnedArgument::NewId(new_quad)),
+                        Some(OwnedArgument::Object(old_quad)),
+                    ) = (arg_iter.next(), arg_iter.next())
                     {
                         Ok((
                             me,
@@ -1059,13 +1043,7 @@ pub mod test_global {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::ManyArgs {
                     unsigned_int,
@@ -1297,7 +1275,7 @@ pub mod secondary {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1402,7 +1380,7 @@ pub mod secondary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1418,13 +1396,7 @@ pub mod secondary {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;
@@ -1452,7 +1424,7 @@ pub mod tertiary {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1557,7 +1529,7 @@ pub mod tertiary {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1573,13 +1545,7 @@ pub mod tertiary {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;
@@ -1607,7 +1573,7 @@ pub mod quad {
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
         backend::{
             Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1712,7 +1678,7 @@ pub mod quad {
         }
         fn parse_event(
             conn: &Connection,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Event), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1728,13 +1694,7 @@ pub mod quad {
             &self,
             conn: &Connection,
             msg: Self::Request<'a>,
-        ) -> Result<
-            (
-                Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>,
-                Option<(&'static Interface, u32)>,
-            ),
-            InvalidId,
-        > {
+        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;

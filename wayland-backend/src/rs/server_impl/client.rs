@@ -1,7 +1,7 @@
 use std::{
     ffi::CString,
     os::unix::{
-        io::{AsFd, BorrowedFd, OwnedFd},
+        io::{AsFd, BorrowedFd},
         net::UnixStream,
     },
     sync::Arc,
@@ -12,8 +12,8 @@ use crate::{
     debug,
     protocol::{
         ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, ProtocolError, check_for_signature, same_interface,
-        same_interface_or_anonymous,
+        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
+        same_interface, same_interface_or_anonymous,
     },
     rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
@@ -33,7 +33,7 @@ use super::{
     handle::PendingDestructor, registry::Registry,
 };
 
-type ArgSmallVec<Fd> = SmallVec<[Argument<ObjectId, Fd>; INLINE_ARGS]>;
+type OwnedArgSmallVec = SmallVec<[OwnedArgument<ObjectId>; INLINE_ARGS]>;
 
 #[repr(u32)]
 #[allow(dead_code)]
@@ -120,7 +120,7 @@ impl<D> Client<D> {
 
     pub(crate) fn send_event(
         &mut self,
-        Message { sender_id: object_id, opcode, args }: Message<ObjectId, BorrowedFd>,
+        Message { sender_id: object_id, opcode, args }: Message<ObjectId>,
         pending_destructors: Option<&mut Vec<super::handle::PendingDestructor<D>>>,
     ) -> Result<(), InvalidId> {
         if self.killed {
@@ -159,16 +159,16 @@ impl<D> Client<D> {
             );
         }
 
-        let mut msg_args = SmallVec::with_capacity(args.len());
+        let mut msg_args = SmallVec::<[_; INLINE_ARGS]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.into_iter().enumerate() {
+        for (i, arg) in args.iter().enumerate() {
             msg_args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::Fd(f) => Argument::Fd(f),
+                Argument::Array(a) => Argument::Array(a.clone()),
+                Argument::Int(i) => Argument::Int(*i),
+                Argument::Uint(u) => Argument::Uint(*u),
+                Argument::Str(s) => Argument::Str(s.clone()),
+                Argument::Fixed(f) => Argument::Fixed(*f),
+                Argument::Fd(f) => Argument::Fd(*f),
                 Argument::NewId(o) => {
                     if o.id.id != 0 {
                         if o.id.client_id != self.id {
@@ -344,9 +344,7 @@ impl<D> Client<D> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub(crate) fn next_request(
-        &mut self,
-    ) -> std::io::Result<(Message<u32, OwnedFd>, Object<Data<D>>)> {
+    pub(crate) fn next_request(&mut self) -> std::io::Result<(OwnedMessage<u32>, Object<Data<D>>)> {
         if self.killed {
             return Err(rustix::io::Errno::PIPE.into());
         }
@@ -424,13 +422,13 @@ impl<D> Client<D> {
 
     pub(crate) fn handle_display_request(
         &mut self,
-        message: Message<u32, OwnedFd>,
+        message: OwnedMessage<u32>,
         registry: &mut Registry<D>,
     ) {
         match message.opcode {
             // wl_display.sync(new id wl_callback)
             0 => {
-                if let [Argument::NewId(new_id)] = message.args[..] {
+                if let [OwnedArgument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let callback_obj = Object {
                         interface: &WL_CALLBACK_INTERFACE,
@@ -460,7 +458,7 @@ impl<D> Client<D> {
             }
             // wl_display.get_registry(new id wl_registry)
             1 => {
-                if let [Argument::NewId(new_id)] = message.args[..] {
+                if let [OwnedArgument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let registry_obj = Object {
                         interface: &WL_REGISTRY_INTERFACE,
@@ -502,17 +500,17 @@ impl<D> Client<D> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn handle_registry_request(
         &mut self,
-        message: Message<u32, OwnedFd>,
+        message: OwnedMessage<u32>,
         registry: &mut Registry<D>,
     ) -> Option<(InnerClientId, InnerGlobalId, InnerObjectId, Arc<dyn GlobalHandler<D>>)> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
                 if let [
-                    Argument::Uint(name),
-                    Argument::Str(Some(ref interface_name)),
-                    Argument::Uint(version),
-                    Argument::NewId(new_id),
+                    OwnedArgument::Uint(name),
+                    OwnedArgument::Str(Some(ref interface_name)),
+                    OwnedArgument::Uint(version),
+                    OwnedArgument::NewId(new_id),
                 ] = message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
@@ -577,8 +575,8 @@ impl<D> Client<D> {
     pub(crate) fn process_request(
         &mut self,
         object: &Object<Data<D>>,
-        message: Message<u32, OwnedFd>,
-    ) -> Option<(ArgSmallVec<OwnedFd>, bool, Option<InnerObjectId>)> {
+        message: OwnedMessage<u32>,
+    ) -> Option<(OwnedArgSmallVec, bool, Option<InnerObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
 
         if message_desc.since > object.version {
@@ -603,13 +601,13 @@ impl<D> Client<D> {
         let mut created_id = None;
         for (i, arg) in message.args.into_iter().enumerate() {
             new_args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::Fd(f) => Argument::Fd(f),
-                Argument::Object(o) => {
+                OwnedArgument::Array(a) => OwnedArgument::Array(a),
+                OwnedArgument::Int(i) => OwnedArgument::Int(i),
+                OwnedArgument::Uint(u) => OwnedArgument::Uint(u),
+                OwnedArgument::Str(s) => OwnedArgument::Str(s),
+                OwnedArgument::Fixed(f) => OwnedArgument::Fixed(f),
+                OwnedArgument::Fd(f) => OwnedArgument::Fd(f),
+                OwnedArgument::Object(o) => {
                     let next_interface = arg_interfaces.next();
                     if o != 0 {
                         // Lookup the object to make the appropriate Id
@@ -639,9 +637,9 @@ impl<D> Client<D> {
                                 return None;
                             }
                         }
-                        Argument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        Argument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE }})
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
@@ -654,7 +652,7 @@ impl<D> Client<D> {
                         return None;
                     }
                 }
-                Argument::NewId(new_id) => {
+                OwnedArgument::NewId(new_id) => {
                     // An object should be created
                     let child_interface = match message_desc.child_interface {
                         Some(iface) => iface,
@@ -684,7 +682,7 @@ impl<D> Client<D> {
                         return None;
                     }
 
-                    Argument::NewId(ObjectId { id: child_id })
+                    OwnedArgument::NewId(ObjectId { id: child_id })
                 }
             });
         }

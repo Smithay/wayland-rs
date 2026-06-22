@@ -7,10 +7,10 @@ impl client_rs::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _: &client_rs::Backend,
-        msg: Message<client_rs::ObjectId, OwnedFd>,
+        msg: OwnedMessage<client_rs::ObjectId>,
     ) -> Option<Arc<dyn client_rs::ObjectData>> {
         assert_eq!(msg.opcode, 0);
-        assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
+        assert!(matches!(&msg.args[..], [OwnedArgument::Uint(_)]));
         self.0.store(true, Ordering::SeqCst);
         None
     }
@@ -22,10 +22,10 @@ impl client_sys::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _: &client_sys::Backend,
-        msg: Message<client_sys::ObjectId, OwnedFd>,
+        msg: OwnedMessage<client_sys::ObjectId>,
     ) -> Option<Arc<dyn client_sys::ObjectData>> {
         assert_eq!(msg.opcode, 0);
-        assert!(matches!(&msg.args[..], [Argument::Uint(_)]));
+        assert!(matches!(&msg.args[..], [OwnedArgument::Uint(_)]));
         self.0.store(true, Ordering::SeqCst);
         None
     }

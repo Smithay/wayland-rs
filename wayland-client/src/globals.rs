@@ -45,7 +45,6 @@
 use std::{
     fmt,
     ops::RangeInclusive,
-    os::unix::io::OwnedFd,
     sync::{
         Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
@@ -54,7 +53,7 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, WaylandError},
-    protocol::{Interface, Message},
+    protocol::{Interface, OwnedMessage},
 };
 
 use crate::{
@@ -447,7 +446,7 @@ where
     fn event(
         self: Arc<Self>,
         backend: &Backend,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         // For initial roundtrip, update immediately without waiting for dispatch.
         // So globals are available after `GlobalList::init` returns.

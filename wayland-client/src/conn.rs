@@ -343,7 +343,7 @@ impl ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        _msg: wayland_backend::protocol::Message<ObjectId, OwnedFd>,
+        _msg: wayland_backend::protocol::OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Relaxed);
         None

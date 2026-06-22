@@ -5,8 +5,6 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use crate::protocol::Message;
-
 use super::*;
 
 struct ServerData(AtomicBool);
@@ -19,16 +17,16 @@ macro_rules! serverdata_impls {
                 _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                msg: Message<$server_backend::ObjectId, OwnedFd>,
+                msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 assert_eq!(msg.opcode, 0);
                 if let [
-                    Argument::Uint(u),
-                    Argument::Int(i),
-                    Argument::Fixed(f),
-                    Argument::Array(a),
-                    Argument::Str(Some(s)),
-                    Argument::Fd(fd),
+                    OwnedArgument::Uint(u),
+                    OwnedArgument::Int(i),
+                    OwnedArgument::Fixed(f),
+                    OwnedArgument::Array(a),
+                    OwnedArgument::Str(Some(s)),
+                    OwnedArgument::Fd(fd),
                 ] = &msg.args[..]
                 {
                     assert_eq!(*u, 42);
@@ -101,16 +99,16 @@ macro_rules! clientdata_impls {
             fn event(
                 self: Arc<Self>,
                 _handle: &$client_backend::Backend,
-                msg: Message<$client_backend::ObjectId, OwnedFd>,
+                msg: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 0);
                 if let [
-                    Argument::Uint(u),
-                    Argument::Int(i),
-                    Argument::Fixed(f),
-                    Argument::Array(a),
-                    Argument::Str(Some(s)),
-                    Argument::Fd(fd),
+                    OwnedArgument::Uint(u),
+                    OwnedArgument::Int(i),
+                    OwnedArgument::Fixed(f),
+                    OwnedArgument::Array(a),
+                    OwnedArgument::Str(Some(s)),
+                    OwnedArgument::Fd(fd),
                 ] = &msg.args[..]
                 {
                     assert_eq!(*u, 1337);

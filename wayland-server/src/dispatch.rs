@@ -1,4 +1,3 @@
-use std::os::unix::io::OwnedFd;
 use std::sync::Arc;
 
 use wayland_backend::{
@@ -218,7 +217,7 @@ impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'stati
         handle: &wayland_backend::server::Handle,
         data: &mut D,
         client_id: wayland_backend::server::ClientId,
-        msg: wayland_backend::protocol::Message<wayland_backend::server::ObjectId, OwnedFd>,
+        msg: wayland_backend::protocol::OwnedMessage<wayland_backend::server::ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         let dhandle = DisplayHandle::from(handle.clone());
         let client = match Client::from_id(&dhandle, client_id) {

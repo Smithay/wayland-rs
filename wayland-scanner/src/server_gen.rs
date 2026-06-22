@@ -67,7 +67,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
             use super::wayland_server::{
                 backend::{
                     smallvec, ObjectData, ObjectId, InvalidId, WeakHandle,
-                    protocol::{Argument, Message, Interface, same_interface}
+                    protocol::{Argument, Message, OwnedArgument, OwnedMessage, Interface, same_interface}
                 },
                 Resource, Dispatch, DisplayHandle, DispatchError, ResourceData, New, Weak,
             };
@@ -154,11 +154,11 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     Ok(#iface_name { id, data, version, handle: conn.backend_handle().downgrade() })
                 }
 
-                fn parse_request(conn: &DisplayHandle, msg: Message<ObjectId, OwnedFd>) -> Result<(Self, Self::Request), DispatchError> {
+                fn parse_request(conn: &DisplayHandle, msg: OwnedMessage<ObjectId>) -> Result<(Self, Self::Request), DispatchError> {
                     #parse_body
                 }
 
-                fn write_event<'a>(&self, conn: &DisplayHandle, msg: Self::Event<'a>) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+                fn write_event<'a>(&self, conn: &DisplayHandle, msg: Self::Event<'a>) -> Result<Message<'a, ObjectId>, InvalidId> {
                     #write_body
                 }
 

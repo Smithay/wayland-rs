@@ -11,6 +11,7 @@
 - Remove `WEnum`
 - Do not use `downcast_rs` traits in API
 - Remove depreacted raw-window-handle 0.5 support
+- Split `Message`/`Argument` to have `OwnedMessage`/`OwnedArgument`
 
 #### Bugfixes
 - client/sys: Fix deadlock if `Backend` is used in `ObjectData::destroyed`

@@ -437,14 +437,14 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                 Span::call_site(),
             );
             match arg.typ {
-                Type::Uint => quote!{ Some(Argument::Uint(#arg_name)) },
-                Type::Int => quote!{ Some(Argument::Int(#arg_name)) },
-                Type::String => quote!{ Some(Argument::Str(#arg_name)) },
-                Type::Fixed => quote!{ Some(Argument::Fixed(#arg_name)) },
-                Type::Array => quote!{ Some(Argument::Array(#arg_name)) },
-                Type::Object => quote!{ Some(Argument::Object(#arg_name)) },
-                Type::NewId => quote!{ Some(Argument::NewId(#arg_name)) },
-                Type::Fd => quote!{ Some(Argument::Fd(#arg_name)) },
+                Type::Uint => quote!{ Some(OwnedArgument::Uint(#arg_name)) },
+                Type::Int => quote!{ Some(OwnedArgument::Int(#arg_name)) },
+                Type::String => quote!{ Some(OwnedArgument::Str(#arg_name)) },
+                Type::Fixed => quote!{ Some(OwnedArgument::Fixed(#arg_name)) },
+                Type::Array => quote!{ Some(OwnedArgument::Array(#arg_name)) },
+                Type::Object => quote!{ Some(OwnedArgument::Object(#arg_name)) },
+                Type::NewId => quote!{ Some(OwnedArgument::NewId(#arg_name)) },
+                Type::Fd => quote!{ Some(OwnedArgument::Fd(#arg_name)) },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),
             }
         });

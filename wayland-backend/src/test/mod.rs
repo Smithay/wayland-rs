@@ -1,9 +1,8 @@
 #![allow(dead_code, non_snake_case)]
 
-use std::os::fd::OwnedFd;
 use std::sync::Arc;
 
-use crate::protocol::{Argument, Message};
+use crate::protocol::{Argument, Message, OwnedArgument, OwnedMessage};
 
 use crate::rs::{client as client_rs, server as server_rs};
 use crate::sys::{client as client_sys, server as server_sys};
@@ -138,7 +137,7 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
         _: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
-        _: Message<server_rs::ObjectId, OwnedFd>,
+        _: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
         None
     }
@@ -159,7 +158,7 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
         _: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
-        _: Message<server_sys::ObjectId, OwnedFd>,
+        _: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
         None
     }
@@ -180,7 +179,7 @@ impl client_rs::ObjectData for DoNothingData {
     fn event(
         self: Arc<Self>,
         _: &client_rs::Backend,
-        _: Message<client_rs::ObjectId, OwnedFd>,
+        _: OwnedMessage<client_rs::ObjectId>,
     ) -> Option<Arc<dyn client_rs::ObjectData>> {
         None
     }
@@ -192,7 +191,7 @@ impl client_sys::ObjectData for DoNothingData {
     fn event(
         self: Arc<Self>,
         _: &client_sys::Backend,
-        _: Message<client_sys::ObjectId, OwnedFd>,
+        _: OwnedMessage<client_sys::ObjectId>,
     ) -> Option<Arc<dyn client_sys::ObjectData>> {
         None
     }

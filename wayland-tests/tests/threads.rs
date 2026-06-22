@@ -1,5 +1,4 @@
 use std::{
-    os::fd::OwnedFd,
     sync::{Arc, Barrier},
     thread,
 };
@@ -121,7 +120,7 @@ impl wayc::backend::ObjectData for CustomObjectData {
     fn event(
         self: Arc<Self>,
         _backend: &wayc::backend::Backend,
-        _msg: wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
+        _msg: wayc::backend::protocol::OwnedMessage<wayc::backend::ObjectId>,
     ) -> Option<Arc<dyn wayc::backend::ObjectData>> {
         None
     }
