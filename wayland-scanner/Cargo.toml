@@ -11,6 +11,12 @@ keywords = ["wayland", "codegen"]
 edition = "2024"
 rust-version = "1.86"
 readme = "README.md"
+include = [
+    "README.md",
+    "LICENSE.txt",
+    "CHANGELOG.md",
+    "/src/**/*.rs"
+]
 
 [lib]
 proc-macro = true
