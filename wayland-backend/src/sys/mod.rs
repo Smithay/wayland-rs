@@ -7,6 +7,9 @@ use wayland_sys::common::{wl_argument, wl_array};
 
 use crate::protocol::{ArgumentType, Interface};
 
+#[cfg(any(test, feature = "client_system", feature = "server_system"))]
+use std::ffi::c_void;
+
 #[cfg(any(test, feature = "client_system"))]
 mod client_impl;
 #[cfg(any(test, feature = "server_system"))]
@@ -56,9 +59,11 @@ impl client::ObjectId {
     /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
-        ptr: *mut wayland_sys::client::wl_proxy,
+        ptr: *mut c_void,
     ) -> Result<Self, client::InvalidId> {
-        Ok(Self { id: unsafe { client_impl::InnerObjectId::from_ptr(interface, ptr) }? })
+        Ok(Self {
+            id: unsafe { client_impl::InnerObjectId::from_ptr(interface, ptr.cast::<wl_proxy>()) }?,
+        })
     }
 
     /// Get the underlying libwayland pointer for this object
@@ -67,10 +72,8 @@ impl client::ObjectId {
     ///
     /// This function returns an [`InvalidId`][client::InvalidId] error if proxy has already
     /// been destroyed.
-    pub fn as_ptr(
-        &self,
-    ) -> Result<std::ptr::NonNull<wayland_sys::client::wl_proxy>, client::InvalidId> {
-        self.id.as_ptr()
+    pub fn as_ptr(&self) -> Result<std::ptr::NonNull<c_void>, client::InvalidId> {
+        Ok(self.id.as_ptr()?.cast())
     }
 
     /// Get the underlying display pointer for this object.
@@ -80,9 +83,8 @@ impl client::ObjectId {
     #[cfg(feature = "libwayland_client_1_23")]
     pub fn display_ptr(
         &self,
-    ) -> Result<std::ptr::NonNull<wayland_sys::client::wl_display>, crate::types::client::InvalidId>
-    {
-        self.id.display_ptr()
+    ) -> Result<std::ptr::NonNull<c_void>, crate::types::client::InvalidId> {
+        Ok(self.id.display_ptr()?.cast())
     }
 }
 
@@ -103,8 +105,14 @@ impl client::Backend {
     ///
     /// You need to ensure the `*mut wl_display` remains live as long as the  [`Backend`][Self]
     /// (or its clones) exist.
-    pub unsafe fn from_foreign_display(display: *mut wayland_sys::client::wl_display) -> Self {
-        Self { backend: unsafe { client_impl::InnerBackend::from_foreign_display(display) } }
+    pub unsafe fn from_foreign_display(display: *mut c_void) -> Self {
+        Self {
+            backend: unsafe {
+                client_impl::InnerBackend::from_foreign_display(
+                    display.cast::<wayland_sys::client::wl_display>(),
+                )
+            },
+        }
     }
 
     /// Returns the underlying `wl_display` pointer to this backend.
@@ -112,8 +120,8 @@ impl client::Backend {
     /// This pointer is needed to interface with EGL, Vulkan and other C libraries.
     ///
     /// This pointer is only valid for the lifetime of the backend.
-    pub fn display_ptr(&self) -> *mut wayland_sys::client::wl_display {
-        self.backend.display_ptr()
+    pub fn display_ptr(&self) -> *mut c_void {
+        self.backend.display_ptr().cast()
     }
 
     /// Take over handling for a proxy created by a third party.
@@ -129,10 +137,10 @@ impl client::Backend {
     pub unsafe fn manage_object(
         &self,
         interface: &'static Interface,
-        proxy: *mut wl_proxy,
+        proxy: *mut c_void,
         data: Arc<dyn ObjectData>,
     ) -> ObjectId {
-        unsafe { self.backend.manage_object(interface, proxy, data) }
+        unsafe { self.backend.manage_object(interface, proxy.cast::<wl_proxy>(), data) }
     }
 }
 
@@ -193,9 +201,16 @@ impl server::ObjectId {
     /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
-        ptr: *mut wayland_sys::server::wl_resource,
+        ptr: *mut c_void,
     ) -> Result<Self, server::InvalidId> {
-        Ok(Self { id: unsafe { server_impl::InnerObjectId::from_ptr(Some(interface), ptr) }? })
+        Ok(Self {
+            id: unsafe {
+                server_impl::InnerObjectId::from_ptr(
+                    Some(interface),
+                    ptr.cast::<wayland_sys::server::wl_resource>(),
+                )
+            }?,
+        })
     }
 
     /// Returns the pointer that represents this object.
@@ -206,17 +221,15 @@ impl server::ObjectId {
     ///
     /// This function returns an [`InvalidId`][server::InvalidId] error if resource has already
     /// been destroyed.
-    pub fn as_ptr(
-        &self,
-    ) -> Result<std::ptr::NonNull<wayland_sys::server::wl_resource>, server::InvalidId> {
-        self.id.as_ptr()
+    pub fn as_ptr(&self) -> Result<std::ptr::NonNull<c_void>, server::InvalidId> {
+        Ok(self.id.as_ptr()?.cast())
     }
 }
 
 #[cfg(any(test, feature = "server_system"))]
 impl server::Handle {
     /// Access the underlying `*mut wl_display` pointer
-    pub fn display_ptr(&self) -> *mut wayland_sys::server::wl_display {
-        self.handle.display_ptr()
+    pub fn display_ptr(&self) -> *mut c_void {
+        self.handle.display_ptr().cast()
     }
 }
