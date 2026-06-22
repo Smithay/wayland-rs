@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_KEYSTATE_INTERFACE","org_kde_kwin_keystate_interface"]};

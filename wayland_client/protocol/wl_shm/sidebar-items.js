@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_FORMAT_OPCODE","EVT_FORMAT_SINCE","REQ_CREATE_POOL_OPCODE","REQ_CREATE_POOL_SINCE","REQ_RELEASE_OPCODE","REQ_RELEASE_SINCE"],"enum":["Event","Request"],"struct":["Error","Format","WlShm"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConnectError","DispatchError"],"macro":["event_created_child"],"mod":["backend","globals","protocol"],"struct":["Connection","EventQueue","Noop","NoopIgnore","QueueFreezeGuard","QueueHandle","QueueProxyData","Weak"],"trait":["Dispatch","Proxy"]};

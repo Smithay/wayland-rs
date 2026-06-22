@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","xx_keyboard_filter_manager_v1","xx_keyboard_filter_v1"]};

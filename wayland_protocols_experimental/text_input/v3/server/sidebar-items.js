@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","xx_text_input_manager_v3","xx_text_input_v3"]};

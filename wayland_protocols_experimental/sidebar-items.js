@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["input_method","keyboard_filter","session_management","text_input"]};

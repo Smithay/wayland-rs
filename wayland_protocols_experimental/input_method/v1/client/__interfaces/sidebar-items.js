@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["XX_INPUT_METHOD_MANAGER_V2_INTERFACE","XX_INPUT_METHOD_V1_INTERFACE","XX_INPUT_POPUP_POSITIONER_V1_INTERFACE","XX_INPUT_POPUP_SURFACE_V2_INTERFACE","xx_input_method_manager_v2_interface","xx_input_method_v1_interface","xx_input_popup_positioner_v1_interface","xx_input_popup_surface_v2_interface"]};

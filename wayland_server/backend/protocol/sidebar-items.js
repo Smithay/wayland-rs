@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INLINE_ARGS"],"enum":["AllowNull","Argument","ArgumentType"],"fn":["same_interface"],"static":["ANONYMOUS_INTERFACE"],"struct":["CWlInterface","CWlMessage","Interface","Message","MessageDesc","ObjectInfo","ProtocolError"]};

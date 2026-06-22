@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ORG_KDE_KWIN_DPMS_INTERFACE","ORG_KDE_KWIN_DPMS_MANAGER_INTERFACE","org_kde_kwin_dpms_interface","org_kde_kwin_dpms_manager_interface"]};

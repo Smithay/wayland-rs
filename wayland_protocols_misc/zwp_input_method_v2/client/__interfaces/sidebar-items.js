@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWP_INPUT_METHOD_KEYBOARD_GRAB_V2_INTERFACE","ZWP_INPUT_METHOD_MANAGER_V2_INTERFACE","ZWP_INPUT_METHOD_V2_INTERFACE","ZWP_INPUT_POPUP_SURFACE_V2_INTERFACE","zwp_input_method_keyboard_grab_v2_interface","zwp_input_method_manager_v2_interface","zwp_input_method_v2_interface","zwp_input_popup_surface_v2_interface"]};

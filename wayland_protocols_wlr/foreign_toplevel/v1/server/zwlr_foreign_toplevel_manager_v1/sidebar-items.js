@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_FINISHED_OPCODE","EVT_FINISHED_SINCE","EVT_TOPLEVEL_OPCODE","EVT_TOPLEVEL_SINCE","REQ_STOP_OPCODE","REQ_STOP_SINCE"],"enum":["Event","Request"],"struct":["ZwlrForeignToplevelManagerV1"]};

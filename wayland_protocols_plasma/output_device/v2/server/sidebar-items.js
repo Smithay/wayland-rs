@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","kde_output_device_mode_v2","kde_output_device_v2"]};

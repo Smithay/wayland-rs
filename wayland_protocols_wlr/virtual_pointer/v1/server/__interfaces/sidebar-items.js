@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_VIRTUAL_POINTER_MANAGER_V1_INTERFACE","ZWLR_VIRTUAL_POINTER_V1_INTERFACE","zwlr_virtual_pointer_manager_v1_interface","zwlr_virtual_pointer_v1_interface"]};

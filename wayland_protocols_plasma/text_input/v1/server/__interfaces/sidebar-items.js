@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["WL_TEXT_INPUT_INTERFACE","WL_TEXT_INPUT_MANAGER_INTERFACE","wl_text_input_interface","wl_text_input_manager_interface"]};

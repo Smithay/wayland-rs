@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVT_DONE_OPCODE","EVT_DONE_SINCE","EVT_OUTPUT_OPCODE","EVT_OUTPUT_SINCE","REQ_DESTROY_OPCODE","REQ_DESTROY_SINCE"],"enum":["Event","Request"],"struct":["KdeOutputOrderV1"]};

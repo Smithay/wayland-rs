@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_INTERFACE","ZWLR_FOREIGN_TOPLEVEL_MANAGER_V1_INTERFACE","zwlr_foreign_toplevel_handle_v1_interface","zwlr_foreign_toplevel_manager_v1_interface"]};

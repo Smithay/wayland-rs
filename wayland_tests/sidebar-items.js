@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["roundtrip"],"macro":["server_ignore_global_impl","server_ignore_impl"],"mod":["globals"],"struct":["DumbClientData","TestClient","TestServer"]};

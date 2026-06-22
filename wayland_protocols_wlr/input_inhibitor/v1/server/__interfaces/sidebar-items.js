@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_INPUT_INHIBITOR_V1_INTERFACE","ZWLR_INPUT_INHIBIT_MANAGER_V1_INTERFACE","zwlr_input_inhibit_manager_v1_interface","zwlr_input_inhibitor_v1_interface"]};

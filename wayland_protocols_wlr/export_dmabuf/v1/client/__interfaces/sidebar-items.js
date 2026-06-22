@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ZWLR_EXPORT_DMABUF_FRAME_V1_INTERFACE","ZWLR_EXPORT_DMABUF_MANAGER_V1_INTERFACE","zwlr_export_dmabuf_frame_v1_interface","zwlr_export_dmabuf_manager_v1_interface"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["__interfaces","kde_external_brightness_device_v1","kde_external_brightness_v1"]};

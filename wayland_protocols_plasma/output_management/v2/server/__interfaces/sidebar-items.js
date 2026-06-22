@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["KDE_OUTPUT_CONFIGURATION_V2_INTERFACE","KDE_OUTPUT_MANAGEMENT_V2_INTERFACE","kde_output_configuration_v2_interface","kde_output_management_v2_interface"]};
