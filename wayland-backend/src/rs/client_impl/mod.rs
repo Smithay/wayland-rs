@@ -14,8 +14,8 @@ use crate::{
     debug,
     protocol::{
         ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, ProtocolError, check_for_signature, same_interface,
-        same_interface_or_anonymous,
+        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
+        same_interface, same_interface_or_anonymous,
     },
 };
 use smallvec::SmallVec;
@@ -325,7 +325,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -341,7 +341,7 @@ impl InnerBackend {
 
         if object.data.client_destroyed {
             if guard.debug {
-                debug::print_send_message(id.interface.name, id.id, message_desc.name, &args, true);
+                debug::print_send_message(id.interface.name, id.id, message_desc.name, args, true);
             }
             return Err(InvalidId);
         }
@@ -436,7 +436,8 @@ impl InnerBackend {
                     unreachable!();
                 }
             } else {
-                arg
+                // XXX avoid cloing boxes?
+                arg.clone()
             }
         }).collect::<SmallVec<[_; INLINE_ARGS]>>();
 
@@ -454,7 +455,7 @@ impl InnerBackend {
 
         // Send the message
 
-        let mut msg_args = SmallVec::with_capacity(args.len());
+        let mut msg_args = SmallVec::<[_; INLINE_ARGS]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.into_iter().enumerate() {
             msg_args.push(match arg {
@@ -483,7 +484,7 @@ impl InnerBackend {
             });
         }
 
-        let msg = Message { sender_id: id.id, opcode, args: msg_args };
+        let msg = Message { sender_id: id.id, opcode, args: msg_args.as_slice() };
 
         if let Err(err) = guard.socket.write_message(&msg) {
             guard.last_error = Some(WaylandError::Io(err));
@@ -580,7 +581,7 @@ impl ProtocolState {
         Ok(object)
     }
 
-    fn handle_display_event(&mut self, message: Message<u32, OwnedFd>) -> Result<(), WaylandError> {
+    fn handle_display_event(&mut self, message: OwnedMessage<u32>) -> Result<(), WaylandError> {
         if self.debug {
             debug::print_dispatched_message(
                 "wl_display",
@@ -593,9 +594,9 @@ impl ProtocolState {
             0 => {
                 // wl_display.error
                 if let [
-                    Argument::Object(obj),
-                    Argument::Uint(code),
-                    Argument::Str(Some(ref message)),
+                    OwnedArgument::Object(obj),
+                    OwnedArgument::Uint(code),
+                    OwnedArgument::Str(Some(ref message)),
                 ] = message.args[..]
                 {
                     let object = self.map.find(obj);
@@ -615,7 +616,7 @@ impl ProtocolState {
             }
             1 => {
                 // wl_display.delete_id
-                if let [Argument::Uint(id)] = message.args[..] {
+                if let [OwnedArgument::Uint(id)] = message.args[..] {
                     let client_destroyed = self
                         .map
                         .with(id, |obj| {
@@ -693,13 +694,13 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for arg in message.args.into_iter() {
             args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::Fd(f) => Argument::Fd(f),
-                Argument::Object(o) => {
+                OwnedArgument::Array(a) => OwnedArgument::Array(a),
+                OwnedArgument::Int(i) => OwnedArgument::Int(i),
+                OwnedArgument::Uint(u) => OwnedArgument::Uint(u),
+                OwnedArgument::Str(s) => OwnedArgument::Str(s),
+                OwnedArgument::Fixed(f) => OwnedArgument::Fixed(f),
+                OwnedArgument::Fd(f) => OwnedArgument::Fd(f),
+                OwnedArgument::Object(o) => {
                     if o != 0 {
                         // Lookup the object to make the appropriate Id
                         let obj = match guard.map.find(o) {
@@ -728,12 +729,12 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                                 return Err(guard.store_and_return_error(err));
                             }
                         }
-                        Argument::Object(ObjectId { id: InnerObjectId { id: o, serial: obj.data.serial, interface: obj.interface }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, serial: obj.data.serial, interface: obj.interface }})
                     } else {
-                        Argument::Object(ObjectId { id: InnerObjectId { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE }})
                     }
                 }
-                Argument::NewId(new_id) => {
+                OwnedArgument::NewId(new_id) => {
                     // An object should be created
                     let child_interface = match message_desc.child_interface {
                         Some(iface) => iface,
@@ -778,7 +779,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                         return Err(guard.store_and_return_error(err));
                     }
 
-                    Argument::NewId(ObjectId { id: child_id })
+                    OwnedArgument::NewId(ObjectId { id: child_id })
                 }
             });
         }
@@ -813,11 +814,10 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
             receiver.version,
             debug::DisplaySlice(&args)
         );
-        let ret = receiver
-            .data
-            .user_data
-            .clone()
-            .event(&backend, Message { sender_id: ObjectId { id }, opcode: message.opcode, args });
+        let ret = receiver.data.user_data.clone().event(
+            &backend,
+            OwnedMessage { sender_id: ObjectId { id }, opcode: message.opcode, args },
+        );
         // lock it again to resume dispatching
         guard = backend.backend.state.lock_protocol();
 
