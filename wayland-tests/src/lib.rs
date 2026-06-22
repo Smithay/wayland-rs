@@ -6,7 +6,6 @@
 pub use wayland_client as wayc;
 pub use wayland_server as ways;
 
-use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -116,7 +115,7 @@ impl wayc::backend::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
         _backend: &wayc::backend::Backend,
-        _msg: self::wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
+        _msg: self::wayc::backend::protocol::OwnedMessage<wayc::backend::ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         self.done.store(true, Ordering::Release);
         None

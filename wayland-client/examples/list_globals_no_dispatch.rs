@@ -1,4 +1,3 @@
-use std::os::fd::OwnedFd;
 use std::sync::Arc;
 use wayland_client::{
     Connection, Proxy,
@@ -16,7 +15,7 @@ impl backend::ObjectData for RegistryData {
     fn event(
         self: Arc<Self>,
         _: &Backend,
-        msg: backend::protocol::Message<backend::ObjectId, OwnedFd>,
+        msg: backend::protocol::OwnedMessage<backend::ObjectId>,
     ) -> Option<Arc<dyn backend::ObjectData>> {
         // Here, we parse the wire message into an event using Proxy::parse_event.
         let (_registry, event) = wl_registry::WlRegistry::parse_event(&self.0, msg).unwrap();

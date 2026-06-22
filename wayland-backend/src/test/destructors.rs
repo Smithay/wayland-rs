@@ -18,7 +18,7 @@ macro_rules! impl_server_objectdata {
                 _: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                _: Message<$server_backend::ObjectId, OwnedFd>,
+                _: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 None
             }
@@ -60,7 +60,7 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 _: &$client_backend::Backend,
-                _: Message<$client_backend::ObjectId, OwnedFd>,
+                _: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 None
             }

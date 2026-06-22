@@ -1,9 +1,6 @@
-use std::{
-    os::fd::OwnedFd,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
 };
 use wayland_client::Proxy;
 use wayland_tests::{
@@ -83,7 +80,7 @@ impl wayc::backend::ObjectData for DestroyTestUdata {
     fn event(
         self: Arc<Self>,
         _: &wayc::backend::Backend,
-        _: wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
+        _: wayc::backend::protocol::OwnedMessage<wayc::backend::ObjectId>,
     ) -> Option<Arc<dyn wayc::backend::ObjectData + 'static>> {
         None
     }

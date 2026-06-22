@@ -4,7 +4,7 @@ pub mod wl_registry {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -140,7 +140,7 @@ pub mod wl_registry {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             unimplemented!("`wl_registry` is implemented internally in `wayland-server`")
         }
@@ -148,7 +148,7 @@ pub mod wl_registry {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::Global { name, interface, version } => Ok(Message {
                     sender_id: self.id.clone(),
@@ -201,7 +201,7 @@ pub mod wl_callback {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -309,7 +309,7 @@ pub mod wl_callback {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -325,7 +325,7 @@ pub mod wl_callback {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::Done { callback_data } => Ok(Message {
                     sender_id: self.id.clone(),
@@ -359,7 +359,7 @@ pub mod test_global {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -565,19 +565,19 @@ pub mod test_global {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
                 0u16 => {
                     if let (
-                        Some(Argument::Uint(unsigned_int)),
-                        Some(Argument::Int(signed_int)),
-                        Some(Argument::Fixed(fixed_point)),
-                        Some(Argument::Array(number_array)),
-                        Some(Argument::Str(some_text)),
-                        Some(Argument::Fd(file_descriptor)),
+                        Some(OwnedArgument::Uint(unsigned_int)),
+                        Some(OwnedArgument::Int(signed_int)),
+                        Some(OwnedArgument::Fixed(fixed_point)),
+                        Some(OwnedArgument::Array(number_array)),
+                        Some(OwnedArgument::Str(some_text)),
+                        Some(OwnedArgument::Fd(file_descriptor)),
                     ) = (
                         arg_iter.next(),
                         arg_iter.next(),
@@ -609,7 +609,7 @@ pub mod test_global {
                     }
                 }
                 1u16 => {
-                    if let (Some(Argument::NewId(sec))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::NewId(sec))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Request::GetSecondary {
@@ -639,7 +639,7 @@ pub mod test_global {
                     }
                 }
                 2u16 => {
-                    if let (Some(Argument::NewId(ter))) = (arg_iter.next()) {
+                    if let (Some(OwnedArgument::NewId(ter))) = (arg_iter.next()) {
                         Ok((
                             me,
                             Request::GetTertiary {
@@ -670,9 +670,9 @@ pub mod test_global {
                 }
                 3u16 => {
                     if let (
-                        Some(Argument::Object(sec)),
-                        Some(Argument::Object(ter)),
-                        Some(Argument::Uint(time)),
+                        Some(OwnedArgument::Object(sec)),
+                        Some(OwnedArgument::Object(ter)),
+                        Some(OwnedArgument::Uint(time)),
                     ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
@@ -733,7 +733,7 @@ pub mod test_global {
                     }
                 }
                 5u16 => {
-                    if let (Some(Argument::Object(sec)), Some(Argument::Object(ter))) =
+                    if let (Some(OwnedArgument::Object(sec)), Some(OwnedArgument::Object(ter))) =
                         (arg_iter.next(), arg_iter.next())
                     {
                         Ok((
@@ -783,9 +783,9 @@ pub mod test_global {
                 }
                 6u16 => {
                     if let (
-                        Some(Argument::NewId(quad)),
-                        Some(Argument::Object(sec)),
-                        Some(Argument::Object(ter)),
+                        Some(OwnedArgument::NewId(quad)),
+                        Some(OwnedArgument::Object(sec)),
+                        Some(OwnedArgument::Object(ter)),
                     ) = (arg_iter.next(), arg_iter.next(), arg_iter.next())
                     {
                         Ok((
@@ -859,7 +859,7 @@ pub mod test_global {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -958,7 +958,7 @@ pub mod secondary {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1065,7 +1065,7 @@ pub mod secondary {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1092,7 +1092,7 @@ pub mod secondary {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1111,7 +1111,7 @@ pub mod tertiary {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1218,7 +1218,7 @@ pub mod tertiary {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1245,7 +1245,7 @@ pub mod tertiary {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1264,7 +1264,7 @@ pub mod quad {
         Dispatch, DispatchError, DisplayHandle, New, Resource, ResourceData, Weak,
         backend::{
             InvalidId, ObjectData, ObjectId, WeakHandle,
-            protocol::{Argument, Interface, Message, same_interface},
+            protocol::{Argument, Interface, Message, OwnedArgument, OwnedMessage, same_interface},
             smallvec,
         },
     };
@@ -1371,7 +1371,7 @@ pub mod quad {
         }
         fn parse_request(
             conn: &DisplayHandle,
-            msg: Message<ObjectId, OwnedFd>,
+            msg: OwnedMessage<ObjectId>,
         ) -> Result<(Self, Self::Request), DispatchError> {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
@@ -1398,7 +1398,7 @@ pub mod quad {
             &self,
             conn: &DisplayHandle,
             msg: Self::Event<'a>,
-        ) -> Result<Message<ObjectId, std::os::unix::io::BorrowedFd<'a>>, InvalidId> {
+        ) -> Result<Message<'a, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }

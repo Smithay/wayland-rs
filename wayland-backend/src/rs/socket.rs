@@ -13,7 +13,7 @@ use rustix::net::{
     SendAncillaryMessage, SendFlags, recvmsg, send, sendmsg,
 };
 
-use crate::protocol::{ArgumentType, Message};
+use crate::protocol::{ArgumentType, Message, OwnedMessage};
 use crate::rs::DEFAULT_MAX_BUFFER_SIZE;
 
 use super::wire::{MessageParseError, MessageWriteError, parse_message, write_to_buffers};
@@ -202,7 +202,7 @@ impl BufferedSocket {
     //
     // if false is returned, it means there is not enough space
     // in the buffer
-    fn attempt_write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<bool> {
+    fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
         let fds_len = self.out_fds.len();
         loop {
             match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
@@ -230,7 +230,7 @@ impl BufferedSocket {
     ///
     /// If the message is too big to fit in the buffer, the error `Error::Sys(E2BIG)`
     /// will be returned.
-    pub fn write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<()> {
+    pub fn write_message(&mut self, msg: &Message<u32>) -> IoResult<()> {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
@@ -275,7 +275,7 @@ impl BufferedSocket {
     pub fn read_one_message<F>(
         &mut self,
         mut signature: F,
-    ) -> Result<Message<u32, OwnedFd>, MessageParseError>
+    ) -> Result<OwnedMessage<u32>, MessageParseError>
     where
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {
@@ -383,7 +383,7 @@ fn round_max_buffer_size(max_buffer_size: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
+    use crate::protocol::{AllowNull, Argument, ArgumentType, Message, OwnedArgument};
 
     use std::ffi::CString;
     use std::io;
@@ -401,20 +401,15 @@ mod tests {
     //
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
-    fn assert_eq_msgs<Fd1: AsFd + std::fmt::Debug, Fd2: AsFd + std::fmt::Debug>(
-        msg1: Message<u32, Fd1>,
-        msg2: Message<u32, Fd2>,
-    ) {
-        let msg1 = msg1.map_fd(|fd| fd.as_fd().try_clone_to_owned().unwrap());
-        let msg2 = msg2.map_fd(|fd| fd.as_fd().try_clone_to_owned().unwrap());
+    fn assert_eq_msgs(msg1: Message<'_, u32>, msg2: OwnedMessage<u32>) {
         assert_eq!(msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
-            if let (Argument::Fd(fd1), Argument::Fd(fd2)) = (arg1, arg2) {
+            if let (Argument::Fd(fd1), OwnedArgument::Fd(fd2)) = (arg1, arg2) {
                 assert!(same_file(fd1.as_fd(), fd2.as_fd()));
             } else {
-                assert_eq!(arg1, arg2);
+                assert_eq!(*arg1, arg2.as_argument());
             }
         }
     }

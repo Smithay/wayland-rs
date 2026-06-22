@@ -1,6 +1,5 @@
 use std::ffi::CString;
 
-use crate::protocol::Message;
 use crate::types::client::InvalidId;
 
 use super::*;
@@ -15,7 +14,7 @@ macro_rules! impl_server_objectdata {
                 _handle: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                _msg: Message<$server_backend::ObjectId, OwnedFd>,
+                _msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 Some(self)
             }
@@ -56,7 +55,7 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 _handle: &$client_backend::Backend,
-                _msg: Message<$client_backend::ObjectId, OwnedFd>,
+                _msg: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 None
             }

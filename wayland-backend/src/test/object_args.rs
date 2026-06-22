@@ -3,8 +3,6 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use crate::protocol::Message;
-
 use super::*;
 
 struct ServerData(AtomicBool);
@@ -17,14 +15,14 @@ macro_rules! impl_server_objectdata {
                 handle: &$server_backend::Handle,
                 _: &mut (),
                 _: $server_backend::ClientId,
-                msg: Message<$server_backend::ObjectId, OwnedFd>,
+                msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 if msg.opcode == 1 {
                     assert_eq!(
                         handle.object_info(msg.sender_id.clone()).unwrap().interface.name,
                         "test_global"
                     );
-                    if let [Argument::NewId(secondary)] = &msg.args[..] {
+                    if let [OwnedArgument::NewId(secondary)] = &msg.args[..] {
                         handle
                             .send_event(message!(
                                 msg.sender_id,
@@ -44,9 +42,9 @@ macro_rules! impl_server_objectdata {
                         "test_global"
                     );
                     if let [
-                        Argument::Object(secondary),
-                        Argument::Object(tertiary),
-                        Argument::Uint(u),
+                        OwnedArgument::Object(secondary),
+                        OwnedArgument::Object(tertiary),
+                        OwnedArgument::Uint(u),
                     ] = &msg.args[..]
                     {
                         assert_eq!(
@@ -66,8 +64,11 @@ macro_rules! impl_server_objectdata {
                         panic!("Bad argument list!");
                     }
                 } else if msg.opcode == 6 {
-                    if let [Argument::NewId(_), Argument::Object(sec), Argument::Object(ter)] =
-                        &msg.args[..]
+                    if let [
+                        OwnedArgument::NewId(_),
+                        OwnedArgument::Object(sec),
+                        OwnedArgument::Object(ter),
+                    ] = &msg.args[..]
                     {
                         assert!(sec.is_null());
                         assert!(&ter.interface().name == &interfaces::TERTIARY_INTERFACE.name);
@@ -116,10 +117,10 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 handle: &$client_backend::Backend,
-                msg: Message<$client_backend::ObjectId, OwnedFd>,
+                msg: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 1);
-                if let [Argument::Object(secondary)] = &msg.args[..] {
+                if let [OwnedArgument::Object(secondary)] = &msg.args[..] {
                     let info = handle.info(secondary.clone()).unwrap();
                     assert_eq!(info.id, 4);
                     assert_eq!(info.interface.name, "secondary");

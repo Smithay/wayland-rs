@@ -2,13 +2,13 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
+use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::sync::{Arc, Condvar, Mutex, atomic::Ordering};
 use std::task;
 
 use wayland_backend::{
     client::{Backend, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
-    protocol::{Argument, Message},
+    protocol::{OwnedArgument, OwnedMessage},
 };
 
 use crate::{Connection, DispatchError, Proxy, conn::SyncData};
@@ -207,13 +207,13 @@ macro_rules! event_created_child {
 
 type QueueCallback<State> = fn(
     &Connection,
-    Message<ObjectId, OwnedFd>,
+    OwnedMessage<ObjectId>,
     &mut State,
     Arc<dyn ObjectData>,
     &QueueHandle<State>,
 ) -> Result<(), DispatchError>;
 
-struct QueueEvent<State>(QueueCallback<State>, Message<ObjectId, OwnedFd>, Arc<dyn ObjectData>);
+struct QueueEvent<State>(QueueCallback<State>, OwnedMessage<ObjectId>, Arc<dyn ObjectData>);
 
 impl<State> std::fmt::Debug for QueueEvent<State> {
     #[cfg_attr(unstable_coverage, coverage(off))]
@@ -348,7 +348,7 @@ pub(crate) struct EventQueueInner<State> {
 impl<State> EventQueueInner<State> {
     pub(crate) fn enqueue_event<I, U>(
         &mut self,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
         odata: Arc<dyn ObjectData>,
     ) where
         U: Dispatch<I, State> + Send + Sync + 'static,
@@ -667,7 +667,7 @@ impl<State> Drop for QueueFreezeGuard<'_, State> {
 
 fn queue_callback<I: Proxy, U: Dispatch<I, State> + Send + Sync + 'static, State>(
     handle: &Connection,
-    msg: Message<ObjectId, OwnedFd>,
+    msg: OwnedMessage<ObjectId>,
     data: &mut State,
     odata: Arc<dyn ObjectData>,
     qh: &QueueHandle<State>,
@@ -693,12 +693,12 @@ where
     fn event(
         self: Arc<Self>,
         _: &Backend,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         let new_data = msg
             .args
             .iter()
-            .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
+            .any(|arg| matches!(arg, OwnedArgument::NewId(id) if !id.is_null()))
             .then(|| U::event_created_child(&self.udata, msg.opcode, &self.handle));
 
         self.handle.inner.lock().unwrap().enqueue_event::<I, U>(msg, self.clone());

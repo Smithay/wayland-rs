@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     ffi::CString,
-    os::unix::io::{BorrowedFd, OwnedFd},
+    os::unix::io::OwnedFd,
     os::unix::net::UnixStream,
     sync::{Arc, Mutex, Weak},
 };
@@ -197,7 +197,7 @@ impl InnerHandle {
         }
     }
 
-    pub fn send_event(&self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.state.lock().unwrap().send_event(msg)
     }
 
@@ -334,7 +334,7 @@ pub(crate) trait ErasedState: Any {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId>;
-    fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId>;
+    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
@@ -460,7 +460,7 @@ impl<D> ErasedState for State<D> {
             .map(|arc| -> Arc<dyn Any + Send + Sync> { arc })
     }
 
-    fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
+    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.clients
             .get_client_mut(msg.sender_id.id.client_id.clone())?
             .send_event(msg, Some(&mut self.pending_destructors))

@@ -220,7 +220,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         handle: &server_rs::Handle,
         _: &mut D,
         _: server_rs::ClientId,
-        msg: Message<server_rs::ObjectId, OwnedFd>,
+        msg: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
         handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None
@@ -242,7 +242,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         handle: &server_sys::Handle,
         _: &mut D,
         _: server_sys::ClientId,
-        msg: Message<server_sys::ObjectId, OwnedFd>,
+        msg: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
         handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None

@@ -1,4 +1,3 @@
-use std::os::unix::io::OwnedFd;
 use std::sync::Arc;
 
 use wayland_backend::server::{
@@ -72,7 +71,7 @@ impl<D> ObjectData<D> for ProtocolErrorData {
         _handle: &Handle,
         _data: &mut D,
         _client_id: ClientId,
-        _msg: wayland_backend::protocol::Message<ObjectId, OwnedFd>,
+        _msg: wayland_backend::protocol::OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         None
     }

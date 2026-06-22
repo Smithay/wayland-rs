@@ -3,8 +3,6 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use crate::protocol::Message;
-
 use super::*;
 
 struct ServerData;
@@ -70,11 +68,13 @@ macro_rules! impl_client_objectdata {
             fn event(
                 self: Arc<Self>,
                 handle: &$client_backend::Backend,
-                msg: Message<$client_backend::ObjectId, OwnedFd>,
+                msg: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 2);
                 if self.0.load(Ordering::SeqCst) == 0 {
-                    if let [Argument::NewId(obj_1), Argument::Object(null_id)] = &msg.args[..] {
+                    if let [OwnedArgument::NewId(obj_1), OwnedArgument::Object(null_id)] =
+                        &msg.args[..]
+                    {
                         let info = handle.info(obj_1.clone()).unwrap();
                         assert_eq!(info.id, 0xFF00_0000);
                         assert_eq!(info.interface.name, "quad");
@@ -84,7 +84,9 @@ macro_rules! impl_client_objectdata {
                     }
                     self.0.store(1, Ordering::SeqCst);
                 } else {
-                    if let [Argument::NewId(obj_2), Argument::Object(obj_1)] = &msg.args[..] {
+                    if let [OwnedArgument::NewId(obj_2), OwnedArgument::Object(obj_1)] =
+                        &msg.args[..]
+                    {
                         // check obj1
                         let info = handle.info(obj_1.clone()).unwrap();
                         assert_eq!(info.id, 0xFF00_0000);
