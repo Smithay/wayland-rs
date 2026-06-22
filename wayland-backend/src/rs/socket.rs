@@ -13,7 +13,7 @@ use rustix::net::{
     SendAncillaryMessage, SendFlags, recvmsg, send, sendmsg,
 };
 
-use crate::protocol::{ArgumentType, Message};
+use crate::protocol::{ArgumentType, Message, OwnedMessage};
 use crate::rs::DEFAULT_MAX_BUFFER_SIZE;
 
 use super::wire::{MessageParseError, MessageWriteError, parse_message, write_to_buffers};
@@ -208,7 +208,7 @@ impl BufferedSocket {
     //
     // if false is returned, it means there is not enough space
     // in the buffer
-    fn attempt_write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<bool> {
+    fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
         let fds_len = self.out_fds.len();
         loop {
             match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
@@ -236,7 +236,7 @@ impl BufferedSocket {
     ///
     /// If the message is too big to fit in the buffer, the error `Error::Sys(E2BIG)`
     /// will be returned.
-    pub fn write_message(&mut self, msg: &Message<u32, BorrowedFd>) -> IoResult<()> {
+    pub fn write_message(&mut self, msg: &Message<u32>) -> IoResult<()> {
         if !self.attempt_write_message(msg)? {
             // the attempt failed, there is not enough space in the buffer
             // we need to flush it
@@ -281,7 +281,7 @@ impl BufferedSocket {
     pub fn read_one_message<F>(
         &mut self,
         mut signature: F,
-    ) -> Result<Message<u32, OwnedFd>, MessageParseError>
+    ) -> Result<OwnedMessage<u32>, MessageParseError>
     where
         F: FnMut(u32, u16) -> Option<&'static [ArgumentType]>,
     {

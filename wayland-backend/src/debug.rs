@@ -6,22 +6,26 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::protocol::Argument;
+use crate::protocol::{Argument, OwnedArgument};
 
 /// The `WAYLAND_DEBUG` env variable is set to debug client.
 pub fn has_debug_client_env() -> bool {
     matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "client")
 }
 
+trait Arg: Display {}
+impl<Id: Display> Arg for OwnedArgument<Id> {}
+impl<'a, Id: Display> Arg for Argument<'a, Id> {}
+
 /// Print the dispatched message to stderr in a following format:
 ///
 /// `[timestamp] <- interface@id.msg_name(args)`
 #[cfg_attr(unstable_coverage, coverage(off))]
-pub fn print_dispatched_message<Id: Display, Fd: AsRawFd>(
+pub(crate) fn print_dispatched_message<A: Arg>(
     interface: &str,
     id: u32,
     msg_name: &str,
-    args: &[Argument<Id, Fd>],
+    args: &[A],
 ) {
     // Add timestamp to output.
     print_timestamp();
@@ -36,11 +40,11 @@ pub fn print_dispatched_message<Id: Display, Fd: AsRawFd>(
 ///
 /// `[timestamp] -> interface@id.msg_name(args)`
 #[cfg_attr(unstable_coverage, coverage(off))]
-pub fn print_send_message<Id: Display, Fd: AsRawFd>(
+pub(crate) fn print_send_message<A: Arg>(
     interface: &str,
     id: u32,
     msg_name: &str,
-    args: &[Argument<Id, Fd>],
+    args: &[A],
     discarded: bool,
 ) {
     // Add timestamp to output.
