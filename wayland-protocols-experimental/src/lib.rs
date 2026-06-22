@@ -36,7 +36,7 @@ pub mod input_method {
     pub mod v1 {
         wayland_protocol!(
             "./protocols/xx-input-method/xx-input-method-v2.xml",
-            [crate::text_input::v3]
+            [wayland_protocols::wp::text_input::zv3]
         );
     }
 }

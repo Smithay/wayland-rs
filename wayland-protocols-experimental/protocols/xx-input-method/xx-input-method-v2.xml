@@ -47,7 +47,7 @@
     mechanism is discouraged.
   </description>
 
-  <interface name="xx_input_method_v1" version="3">
+  <interface name="xx_input_method_v1" version="5">
     <description summary="input method">
       An input method object allows for clients to compose text.
 
@@ -97,7 +97,7 @@
 
     <event name="deactivate">
       <description summary="deactivate event">
-        Notification that no focused text input currently needs an active 
+        Notification that no focused text input currently needs an active
         input method on this seat.
 
         This event marks the xx_input_method_v1 object as inactive.
@@ -168,7 +168,7 @@
 
         The initial value of cause is input_method.
       </description>
-      <arg name="cause" type="uint" enum="xx_text_input_v3.change_cause"/>
+      <arg name="cause" type="uint" enum="zwp_text_input_v3.change_cause"/>
     </event>
 
     <event name="content_type">
@@ -183,10 +183,10 @@
         The initial value for hint is none, and the initial value for purpose
         is normal.
       </description>
-      <arg name="hint" type="uint" enum="xx_text_input_v3.content_hint"/>
-      <arg name="purpose" type="uint" enum="xx_text_input_v3.content_purpose"/>
+      <arg name="hint" type="uint" enum="zwp_text_input_v3.content_hint"/>
+      <arg name="purpose" type="uint" enum="zwp_text_input_v3.content_purpose"/>
     </event>
-    
+
     <event name="set_available_actions" since="3">
       <description summary="announce the available actions">
         Announces the actions available for the currently active text input.
@@ -207,14 +207,54 @@
         Notifies the input method what the currently active text input client is able to do.
 
         This event should come within the same .done sequence as .activate. Otherwise, the input method may ignore it.
-        
+
         Values set with this event are double-buffered. They will get applied
         on the next .done event.
         They get reset to initial on the next committed deactivate event.
 
         The initial value for features is none.
       </description>
-      <arg name="features" type="uint" enum="xx_text_input_v3.supported_features"/>
+      <arg name="features" type="uint" enum="supported_features"/>
+    </event>
+
+    <enum name="supported_features" bitfield="true" since="3">
+      <description summary="possible supported features">
+        Client functionality over the baseline that isn't indicated implicitly.
+      </description>
+      <entry name="none" value="0x0" summary="no extra functionality supported"/>
+      <entry name="move_cursor" value="0x1" summary="the move_cursor request"/>
+    </enum>
+
+    <enum name="protocol_compat" since="4">
+      <description summary="protocol compatibility value">
+        Tells the input method client what kinds of events the text input client supports.
+      </description>
+      <entry name="text_input_v3" value="0x0" summary="zwp-text-input-v3 semantics"/>
+      <entry name="xx_text_input" value="0x1">
+        <description summary="xx-text-input semantics">
+          Changes the meaning of serial compared to v3.
+          The text input client now applies requested updates on a "best-effort" basis.
+        </description>
+      </entry>
+      <!-- This doesn't need disambiguating. Both protocols are pdated in lockstep, and the compositor should implement both protocols to the current version. By the experimental protocols contract, every version bump is breaking compatibility. -->
+    </enum>
+
+    <event name="announce_protocol_compat" since="3">
+      <description summary="set text input's compatibility level">
+        Tells the input method client what kinds of events the text input client supports.
+
+        <!-- While text input protocols and input method protocols are updated in lockstep, nobody knows what versions of either will end up on a user's computer. Old input method with new apps? New input method with old apps?
+        To limit the scope for now, let's assume the user always keeps the input method up to date, and uses old apps. -->
+
+        Values set with this event are double-buffered. They will get applied
+        on the next .done event.
+        They get reset to initial on the next committed deactivate event.
+
+        The compositor may send this event as part of a .done chain that switches the active state from inactive to active. It must not send this event otherwise.
+
+        The initial value for version is text_input_v3.
+      </description>
+      <arg name="compat_level" type="uint" enum="protocol_compat"/>
     </event>
 
     <event name="done">
@@ -248,7 +288,7 @@
 
         The initial value of action is none.
       </description>
-      <arg name="action" type="uint" enum="xx_text_input_v3.action" summary="action to perform"/>
+      <arg name="action" type="uint" enum="zwp_text_input_v3.action" summary="action to perform"/>
     </request>
 
     <request name="commit_string">
@@ -294,7 +334,7 @@
 
         Values set with this request are double-buffered. They must be applied on
         the next xx_input_method_v1.commit request.
-        They must be reset to initial on the next committed disable event.
+        They must be reset to initial on the next committed .deactivate event.
 
         The initial value of text is an empty string. The initial value of
         cursor_begin, and cursor_end are both 0.
@@ -310,6 +350,11 @@
 
         before_length and after_length are the number of bytes before and after
         the current cursor index (excluding the preedit text) to delete.
+
+        If text is selected, it must be deleted.
+
+        If indices exceed the available text boundaries, they should be adjusted to fit in boundaries and deletion reattempted.
+        If indices do not lie on byte boundaries, then the text input client should delete at least that many bytes. In this case, the client decides the end point, but a character boundary same as when deleting using the keyboard is recommended.
 
         If any preedit text is present, it is replaced with the cursor for the
         purpose of this event. In effect before_length is counted from the
@@ -330,13 +375,13 @@
         Unselects text, moves the cursor and selects text.
 
         This is equivalent to dragging the mouse over some text: it deselects whatever might be currently selected and selects a new range of text.
-        
+
         The offsets used in arguments are in bytes relative to the current cursor position. Cursor is the new position of the cursor, and anchor is the opposite end of selection. If there's no selection, anchor should be equal to cursor.
-        
+
         The offsets do not take preedit contents into account, nor is preedit changed in any way with this request.
-        
+
         Both cursor and anchor must fall on code point boundaries, otherwise text input client may ignore the request. It is therefore not recommended for an input method to move any of them beyond the text received in surrounding_text.
-        
+
         When surrounding_text is not supported, the offsets must not be interpreted as bytes, but as some human-readable unit at least as big as a code point, for example a grapheme.
 
         The cursor and anchor arguments can also take the following special values:
@@ -352,7 +397,7 @@
       <arg name="cursor" type="int"/>
       <arg name="anchor" type="int"/>
     </request>
-    
+
     <request name="commit">
       <description summary="apply state">
         Apply state changes from commit_string, set_preedit_string and
@@ -375,7 +420,13 @@
         8. Perform the requested action.
 
         Note that the input method can not receive more than 4000 bytes of selection text, which might be the case for example when the entire document is selected. Nevertheless, the text input must delete the entire selected range before inserting the commit string.
-        
+
+        Serial handling with protocol_compat == xx_text_input
+
+        The serial number should be set to 0.
+
+        Serial handling with protocol_compat == text_input_v3
+
         The serial number reflects the last state of the xx_input_method_v1
         object known to the client. The value of the serial argument must be
         equal to the number of done events already issued by that object. When
@@ -401,17 +452,13 @@
       <arg name="surface" type="object" interface="wl_surface"/>
       <arg name="positioner" type="object" interface="xx_input_popup_positioner_v1"/>
     </request>
-    
+
     <event name="unavailable">
       <description summary="input method unavailable">
         The input method ceased to be available.
 
-        The compositor must issue this event as the only event on the object if
-        there was another input_method object associated with the same seat at
-        the time of its creation.
-
         The compositor must issue this request when the object is no longer
-        useable, e.g. due to seat removal.
+        usable, e.g. due to seat removal.
 
         The input method context becomes inert and should be destroyed after
         deactivation is handled. Any further requests and events except for the
@@ -427,16 +474,16 @@
     </request>
   </interface>
 
-  <interface name="xx_input_popup_surface_v2" version="1">
+  <interface name="xx_input_popup_surface_v2" version="2">
     <description summary="popup surface">
       An input method popup surface is a short-lived, temporary surface.
       It is meant as an area to show suggestions, candidates, or for other input-related uses.
 
       The compositor should anchor it at the active text input cursor area.
-      
+
       The client must call wl_surface.commit on the corresponding wl_surface
       for input_popup_surface state updates to take effect, unless otherwise noted.
-      
+
       After the initial wl_surface.commit, the compositor must reply with a configure sequence (see .start_configure) initializing all the compositor-provided state of the popup. That means providing values for:
 
       - width
@@ -446,11 +493,11 @@
       - anchor_width
       - anchor_height
       - serial
-      
+
       using the appropriate events.
 
       The popup will only be presented to the user after the client receives the configure sequence and replies with .ack_configure.
-      
+
       An example init sequence could look like this:
 
       1. client (Cl): popup = input_method.get_popup(wl_surface, positioner)
@@ -464,8 +511,8 @@
       input_popup_surfaces associated with the same text input.
 
       A typical sequence resulting from the user selecting a new text field and typing some text:
-      
-      1. compositor (Co): input_method.enable()
+
+      1. compositor (Co): input_method.activate()
       2. Co: input_method.done()
       3. [init sequence]
       4. Co: input_method.set_surrounding_text("new text")
@@ -473,8 +520,8 @@
       6. Co: input_method.done()
       7. client (Cl): ack_configure()
       8. Cl: wl_surface.commit()
-      
-      When the corresponding input_method receives a commited .disable event, the popup gets destroyed and becomes invalid and its surface gets unmapped.
+
+      When the corresponding input_method receives a committed .deactivate event, the popup gets destroyed and becomes invalid and its surface gets unmapped.
 
       The client must not destroy the underlying wl_surface while the
       xx_input_popup_surface_v2 object exists.
@@ -483,7 +530,7 @@
     <enum name="error">
       <entry name="invalid_serial" value="0" summary="received acknowledgement for a serial which has already been acknowledged or has never been issued"/>
     </enum>
-    
+
     <event name="start_configure">
       <description summary="configure the popup surface">
         The start_configure event updates the popup geometry and marks the start of a configure sequence.
@@ -493,40 +540,40 @@
 
         A configure sequence is a set of one or more events configuring the state of the
         input_popup_surface, starting with this event and ending with input_method.done. After the input_method.done event, the configure sequence is considered submitted.
-        
+
         State set by event in a configure sequence is conceptually double-buffered.
         Every argument overwrites its previous value. The state change should get applied atomically with the input_method.done ending the sequence, and the value of serial should return to the undefined value.
-        
+
         Events on the input_popup_surface object received outside a configure sequence (while serial is undefined) must be ignored by the client.
 
         A configure sequence shall be sent every time the compositor (re)positions the popup, or the shape of the anchor changes, for example after popup creation, or in response to text being typed and the text cursor moving.
-        
+
         The client may update the surface in response to input_method.done. Unless the popup is destroyed by the input_method.done, the client must reply with
         an .ack_configure request with the serial sent in the start_configure event at
         some point after the sequence ends and before committing the new surface.
 
         If the client receives multiple configure sequences before it can respond
         to one, it is free to discard all but the last event it received.
-        
+
         <!--
         This sounds complicated because it is.
         There are two semi-dependent states: that of the text input and that of the popup surface(s).
-        
+
         Alternatives:
-        
+
         1. Don't synchronize the state of the popup and the state of the text.
-        
+
         Rejected because every¹ time the pre-edit changes shape there are two events: the .configure for the surface and the .done from the input method.
-        
+
         ¹Actually only when the pre-edit is committed. In the current design, changing the pre-edit doesn't get reported to input-method and doesn't cause a .done. A .done gets emitted for the cursor shape change (so on every stroke), so the compositor would be able to filter it out by paying attention to state changes. That would leave double-rendering only in the case of committing the text (surrounding-text changes) or text changing without input causing reposition (collaborative editing). Worth it maybe?
         On the other hand, it's not impossible in the future that some other property gets updated on nearly every text change.
-        
+
         2. Complicate some and mandate .done after some .configures
-        
-        Rejected because the different path for syncing (on .confgure or on .done) are difficult to explain and sound like a source of bugs. Also, this ended up needing additional events.
-        
+
+        Rejected because the different path for syncing (on .configure or on .done) are difficult to explain and sound like a source of bugs. Also, this ended up needing additional events.
+
         3. Simplify a lot and remove .configure in favor of relying on .done entirely
-        
+
         Rejected because it pulls in .ack_configure after every .done regardless of surface status. Also underspecifed regarding which popup needs to be configured.
         -->
       </description>
@@ -548,10 +595,10 @@
         This request notifies the compositor that the client updated its surface in response to a configure sequence.
 
         The purpose of this request is to synchronize the updates of the surface geometry with the surface contents.
-        For example, when the compositor assigns a size larger than prevously, the client must fill the additional space before the popup gets displayed to the user with the new size. When the compositor receives .ack_configure, it can proceed to draw the new size.
+        For example, when the compositor assigns a size larger than previously, the client must fill the additional space before the popup gets displayed to the user with the new size. When the compositor receives .ack_configure, it can proceed to draw the new size.
 
         .ack_configure should be sent after every submitted configure sequence, passing along the serial received in it.
-        
+
         An .ack_configure request is conceptually double-buffered.
         Every request overrides the previous one. The request takes effect once the .commit request is sent on the corresponding surface.
 
@@ -562,13 +609,13 @@
         the request, as well as serial numbers sent by all configure sequences
         submitted on this input_popup_surface prior to the configure sequence referenced by
         the committed serial.
-        
+
         Committing this request with a serial that, for this surface, never appeared in a submitted configure sequence, or one that was already committed before, raises an invalid_serial
         error.
       </description>
       <arg name="serial" type="uint" summary="the serial from the configure sequence"/>
     </request>
-    
+
     <request name="reposition">
       <description summary="recalculate the popup's location">
         Reposition an already-mapped popup. The popup will be placed given the
@@ -579,16 +626,16 @@
         The compositor should reply with a configure sequence including:
         - input_popup_surface.start_configure,
         - input_popup_surface.repositioned, including the token passed in this request.
-        
+
         This will discard any parameters set by the previous positioner.
 
         If multiple .reposition requests are sent before the .repositioned event is submitted as part of a configure sequence, the compositor may ignore all
         but the last one.
-        
+
         The new popup position will not take
         effect until the corresponding configure sequence is acknowledged by the
-        client. See input_popup_surface.repositioned for details. 
-        
+        client. See input_popup_surface.repositioned for details.
+
         The token itself is opaque, and has no other special meaning.
       </description>
       <arg name="positioner" type="object" interface="xx_input_popup_positioner_v1"/>
@@ -602,20 +649,40 @@
         The new geometry of the popup can be communicated using additional events within a configure sequence including:
         - input_popup_surface.start_configure, and
         - the .anchor_position event to update the relative position to the anchor.
-        
+
         When responding to a .reposition request, the token argument is the token passed in the that request.
 
         This event is sent as part of a configure sequence.
         State set by this event is conceptually double-buffered.
         Every argument overwrites its previous value. The state change should get applied atomically with the next input_method.done event.
-        
+
         The client should optionally update the content of the popup, but must
         acknowledge the new popup configuration for the new position to take
         effect. See input_popup_surface.ack_configure for details.
       </description>
       <arg name="token" type="uint" summary="reposition request token"/>
     </event>
-    
+
+    <request name="set_frozen" since="2">
+      <description summary="freeze or unfreeze popup position">
+        Freeze or unfreeze the popup position. When frozen, the compositor
+        will not update the popup position in response to cursor_rectangle
+        changes from the text input. The popup remains at whatever position
+        it was last placed.
+
+        When unfrozen (the default), the compositor updates the popup
+        position whenever the text input's cursor rectangle changes.
+
+        This allows an IME to lock the popup at the position where preedit
+        started, preventing the popup from jumping as the preedit cursor
+        moves through the composing text.
+
+        This state takes effect immediately and does not require a
+        wl_surface.commit.
+      </description>
+      <arg name="frozen" type="uint" summary="1 to freeze, 0 to unfreeze"/>
+    </request>
+
     <request name="destroy" type="destructor">
       <description summary="remove the popup">
         This destroys the popup. Explicitly destroying the input_popup_surface
@@ -635,7 +702,7 @@
       be at least partially adjacent to the surface containing the text input.
 
       See the various requests for details about possible rules.
-      
+
       A newly created positioner has the following state:
       - 0 surface width
       - 0 surface height
@@ -677,7 +744,7 @@
     </request>
 
     <enum name="anchor">
-      <entry name="none" value="0" summary="no edge, specfies center"/>
+      <entry name="none" value="0" summary="no edge, specifies center"/>
       <entry name="top" value="1"/>
       <entry name="bottom" value="2"/>
       <entry name="left" value="3"/>
@@ -867,7 +934,7 @@
     </request>
   </interface>
 
-  <interface name="xx_input_method_manager_v2" version="3">
+  <interface name="xx_input_method_manager_v2" version="4">
     <description summary="input method manager">
       The input method manager allows the client to become the input method on
       a chosen seat.
@@ -893,7 +960,7 @@
       </description>
       <arg name="id" type="new_id" interface="xx_input_popup_positioner_v1"/>
     </request>
-    
+
     <request name="destroy" type="destructor">
       <description summary="destroy the input method manager">
         Destroys the xx_input_method_manager_v2 object.
