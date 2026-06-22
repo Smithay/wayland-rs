@@ -162,7 +162,7 @@ where
 #[macro_export]
 macro_rules! event_created_child {
     // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
-    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr_2021)),* $(,)?]) => {
+    ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>

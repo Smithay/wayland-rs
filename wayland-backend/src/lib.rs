@@ -53,7 +53,7 @@ pub extern crate smallvec;
 /// Helper macro for quickly making a [`Message`][crate::protocol::Message]
 #[macro_export]
 macro_rules! message {
-    ($sender_id: expr_2021, $opcode: expr_2021, [$($args: expr_2021),* $(,)?] $(,)?) => {
+    ($sender_id: expr, $opcode: expr, [$($args: expr),* $(,)?] $(,)?) => {
         $crate::protocol::Message {
             sender_id: $sender_id,
             opcode: $opcode,

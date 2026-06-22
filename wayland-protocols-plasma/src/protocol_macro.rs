@@ -1,5 +1,5 @@
 macro_rules! wayland_protocol(
-    ($path:expr_2021, [$($imports:path),*]) => {
+    ($path:expr, [$($imports:path),*]) => {
         #[cfg(feature = "client")]
         pub use self::generated::client;
 
