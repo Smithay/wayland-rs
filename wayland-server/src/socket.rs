@@ -9,7 +9,7 @@ use std::{
         net::{UnixListener, UnixStream},
         prelude::MetadataExt,
     },
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use rustix::fs::{flock, FlockOperation};
@@ -155,6 +155,11 @@ impl ListeningSocket {
     /// [`bind_auto()`][Self::bind_auto()].
     pub fn socket_name(&self) -> Option<&OsStr> {
         self.socket_name.as_deref()
+    }
+
+    /// Returns the path of the listening socket.
+    pub fn socket_path(&self) -> &Path {
+        &self.socket_path
     }
 }
 
