@@ -67,7 +67,7 @@ impl ListeningSocket {
 
     /// Attempt to bind a listening socket with given name
     ///
-    /// The socket will be created at the specified path, and this method will acquire an associatet lockfile
+    /// The socket will be created at the specified path, and this method will acquire an associated lockfile
     /// alongside it.
     pub fn bind_absolute(socket_path: PathBuf) -> Result<Self, BindError> {
         let lock_path = socket_path.with_extension("lock");
