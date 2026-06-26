@@ -7,6 +7,9 @@
 - Remove `delegate_dispatch!` and `delegate_global_dispatch!` in favor of
   implementation that is generic over `D` for a particular user data type
 
+#### Additions
+- Add `ListeningSocket::socket_path`.
+
 ## 0.31.13-- 2026-03-30
 
 - Updated Wayland core protocol to 1.25
