@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Update `quick-xml` to 0.41
+
 ## 0.31.8 -- 2025-12-30
 
 - Update `quick-xml` to 0.38
