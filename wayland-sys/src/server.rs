@@ -209,7 +209,7 @@ pub mod signal {
 
     macro_rules! container_of(
         ($ptr: expr, $container: ident, $field: ident) => {
-            ($ptr as *mut u8).sub(memoffset::offset_of!($container, $field)) as *mut $container
+            ($ptr as *mut u8).sub(core::mem::offset_of!($container, $field)) as *mut $container
         }
     );
 
