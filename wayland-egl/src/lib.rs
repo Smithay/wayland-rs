@@ -12,6 +12,7 @@
 
 use std::{fmt, os::raw::c_void, ptr::NonNull};
 
+#[cfg(feature = "wayland-backend")]
 use wayland_backend::client::ObjectId;
 use wayland_sys::{client::wl_proxy, egl::*, ffi_dispatch};
 
@@ -43,6 +44,7 @@ impl WlEglSurface {
     ///
     /// You must always destroy the [`WlEglSurface`] *before* the underling `wl_surface`
     /// protocol object.
+    #[cfg(feature = "wayland-backend")]
     pub fn new(surface: ObjectId, width: i32, height: i32) -> Result<Self, Error> {
         if surface.interface().name != "wl_surface" {
             return Err(Error::InvalidId);

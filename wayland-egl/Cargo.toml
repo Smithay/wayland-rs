@@ -13,8 +13,11 @@ description = "Bindings to libwayland-egl."
 readme = "README.md"
 
 [dependencies]
-wayland-backend = { version = "0.3.15", path = "../wayland-backend", features = ["client_system"] }
+wayland-backend = { version = "0.3.15", path = "../wayland-backend", features = ["client_system"], optional = true }
 wayland-sys = { version = "0.31.11", path="../wayland-sys", features = ["egl"] }
+
+[features]
+default = ["wayland-backend"]
 
 [package.metadata.docs.rs]
 all-features = true
