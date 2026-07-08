@@ -4,6 +4,7 @@
 
 #### Breaking changes
 - Use `NonNull` in argument accepting pointer
+- Make `wayland-backend` a default optional feature
 
 ## 0.32.0 -- 2023-09-02
 
