@@ -33,7 +33,7 @@ pub fn is_available() -> bool {
 /// get via the [`ObjectId::as_ptr()`] method on of the `wl_display` ID).
 #[derive(Debug)]
 pub struct WlEglSurface {
-    ptr: *mut wl_egl_window,
+    ptr: NonNull<wl_egl_window>,
 }
 
 impl WlEglSurface {
@@ -77,10 +77,11 @@ impl WlEglSurface {
             width,
             height
         );
-        if ptr.is_null() {
+        if let Some(ptr) = NonNull::new(ptr) {
+            Ok(Self { ptr })
+        } else {
             panic!("egl window allocation failed");
         }
-        Ok(Self { ptr })
     }
 
     /// Fetch current size of the EGL surface
@@ -91,7 +92,7 @@ impl WlEglSurface {
             ffi_dispatch!(
                 wayland_egl_handle(),
                 wl_egl_window_get_attached_size,
-                self.ptr,
+                self.ptr.as_ptr(),
                 &mut w as *mut i32,
                 &mut h as *mut i32
             );
@@ -110,7 +111,7 @@ impl WlEglSurface {
             ffi_dispatch!(
                 wayland_egl_handle(),
                 wl_egl_window_resize,
-                self.ptr,
+                self.ptr.as_ptr(),
                 width,
                 height,
                 dx,
@@ -123,8 +124,8 @@ impl WlEglSurface {
     ///
     /// You'll need this pointer to initialize the EGL context in your
     /// favourite OpenGL lib.
-    pub fn ptr(&self) -> *const c_void {
-        self.ptr as *const c_void
+    pub fn ptr(&self) -> NonNull<c_void> {
+        self.ptr.cast()
     }
 }
 
@@ -135,7 +136,7 @@ unsafe impl Send for WlEglSurface {}
 impl Drop for WlEglSurface {
     fn drop(&mut self) {
         unsafe {
-            ffi_dispatch!(wayland_egl_handle(), wl_egl_window_destroy, self.ptr);
+            ffi_dispatch!(wayland_egl_handle(), wl_egl_window_destroy, self.ptr.as_ptr());
         }
     }
 }

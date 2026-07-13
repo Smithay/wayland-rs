@@ -3,8 +3,7 @@
 ## Unreleased
 
 #### Breaking changes
-- Use `NonNull` in argument accepting pointer
-- Use `c_void` pointers in API
+- Use `NonNull<c_void>` pointers in API
 - Make `wayland-backend` a default optional feature
 
 ## Additions
