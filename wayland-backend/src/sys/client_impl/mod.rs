@@ -98,8 +98,10 @@ impl InnerObjectId {
 
     pub unsafe fn from_ptr(
         interface: &'static Interface,
-        ptr: *mut wl_proxy,
+        ptr: NonNull<wl_proxy>,
     ) -> Result<Self, InvalidId> {
+        let ptr = ptr.as_ptr();
+
         // Safety: the provided pointer must be a valid wayland object
         let ptr_iface_name = unsafe {
             CStr::from_ptr(ffi_dispatch!(wayland_client_handle(), wl_proxy_get_class, ptr))
@@ -269,8 +271,8 @@ impl InnerBackend {
         Ok(Self::from_display(display, true))
     }
 
-    pub unsafe fn from_foreign_display(display: *mut wl_display) -> Self {
-        Self::from_display(display, false)
+    pub unsafe fn from_foreign_display(display: NonNull<wl_display>) -> Self {
+        Self::from_display(display.as_ptr(), false)
     }
 
     fn from_display(display: *mut wl_display, owned: bool) -> Self {

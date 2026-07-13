@@ -1,5 +1,6 @@
 //! Implementations of the Wayland backends using the system `libwayland`
 
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use wayland_sys::client::wl_proxy;
@@ -59,7 +60,7 @@ impl client::ObjectId {
     /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
-        ptr: *mut c_void,
+        ptr: NonNull<c_void>,
     ) -> Result<Self, client::InvalidId> {
         Ok(Self {
             id: unsafe { client_impl::InnerObjectId::from_ptr(interface, ptr.cast::<wl_proxy>()) }?,
@@ -72,7 +73,7 @@ impl client::ObjectId {
     ///
     /// This function returns an [`InvalidId`][client::InvalidId] error if proxy has already
     /// been destroyed.
-    pub fn as_ptr(&self) -> Result<std::ptr::NonNull<c_void>, client::InvalidId> {
+    pub fn as_ptr(&self) -> Result<NonNull<c_void>, client::InvalidId> {
         Ok(self.id.as_ptr()?.cast())
     }
 
@@ -81,9 +82,7 @@ impl client::ObjectId {
     /// This pointer is associated with the original display this object
     /// belongs to.
     #[cfg(feature = "libwayland_client_1_23")]
-    pub fn display_ptr(
-        &self,
-    ) -> Result<std::ptr::NonNull<c_void>, crate::types::client::InvalidId> {
+    pub fn display_ptr(&self) -> Result<NonNull<c_void>, crate::types::client::InvalidId> {
         Ok(self.id.display_ptr()?.cast())
     }
 }
@@ -105,7 +104,7 @@ impl client::Backend {
     ///
     /// You need to ensure the `*mut wl_display` remains live as long as the  [`Backend`][Self]
     /// (or its clones) exist.
-    pub unsafe fn from_foreign_display(display: *mut c_void) -> Self {
+    pub unsafe fn from_foreign_display(display: NonNull<c_void>) -> Self {
         Self {
             backend: unsafe {
                 client_impl::InnerBackend::from_foreign_display(
@@ -201,7 +200,7 @@ impl server::ObjectId {
     /// long as the retrieved `ObjectId` is used.
     pub unsafe fn from_ptr(
         interface: &'static crate::protocol::Interface,
-        ptr: *mut c_void,
+        ptr: NonNull<c_void>,
     ) -> Result<Self, server::InvalidId> {
         Ok(Self {
             id: unsafe {
@@ -221,7 +220,7 @@ impl server::ObjectId {
     ///
     /// This function returns an [`InvalidId`][server::InvalidId] error if resource has already
     /// been destroyed.
-    pub fn as_ptr(&self) -> Result<std::ptr::NonNull<c_void>, server::InvalidId> {
+    pub fn as_ptr(&self) -> Result<NonNull<c_void>, server::InvalidId> {
         Ok(self.id.as_ptr()?.cast())
     }
 }
