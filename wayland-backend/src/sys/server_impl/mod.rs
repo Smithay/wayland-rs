@@ -112,8 +112,10 @@ impl InnerObjectId {
 
     pub unsafe fn from_ptr(
         interface: Option<&'static Interface>,
-        ptr: *mut wl_resource,
+        ptr: NonNull<wl_resource>,
     ) -> Result<InnerObjectId, InvalidId> {
+        let ptr = ptr.as_ptr();
+
         let id = ffi_dispatch!(wayland_server_handle(), wl_resource_get_id, ptr);
 
         // This is a horrible back to work around the fact that it is not possible to check if the
@@ -1022,6 +1024,8 @@ impl<D: 'static> ErasedState for State<D> {
             resource: *mut wl_resource,
             user_data: *mut c_void,
         ) -> c_int {
+            let resource = NonNull::new(resource).unwrap();
+
             // the closure is passed by double-reference because we only have 1 pointer of user data
             let closure = unsafe { &mut *(user_data as *mut &mut dyn FnMut(ObjectId)) };
 
@@ -1060,10 +1064,10 @@ impl<D: 'static> ErasedState for State<D> {
         let resource = unsafe {
             ffi_dispatch!(wayland_server_handle(), wl_client_get_object, client_id.ptr, protocol_id)
         };
-        if resource.is_null() {
-            Err(InvalidId)
-        } else {
+        if let Some(resource) = NonNull::new(resource) {
             unsafe { ObjectId::from_ptr(interface, resource.cast::<c_void>()) }
+        } else {
+            Err(InvalidId)
         }
     }
 
@@ -1602,7 +1606,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             ArgumentType::Object(_) => {
                 let obj = unsafe { (*args.add(i)).o as *mut wl_resource };
                 let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
-                let id = if !obj.is_null() {
+                let id = if let Some(obj) = NonNull::new(obj) {
                     ObjectId {
                         id: unsafe { InnerObjectId::from_ptr(Some(next_interface), obj) }
                             .expect("Received an invalid ID when parsing a message."),
