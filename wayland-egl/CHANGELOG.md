@@ -7,6 +7,9 @@
 - Use `c_void` pointers in API
 - Make `wayland-backend` a default optional feature
 
+## Additions
+- Add `dlopen` feature
+
 ## 0.32.0 -- 2023-09-02
 
 #### Breaking changes
