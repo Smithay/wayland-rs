@@ -94,7 +94,7 @@ pub fn snake_to_camel(input: &str) -> String {
         })
         .collect::<String>();
 
-    if is_camel_keyword(&result) { format!("_{}", &result) } else { result }
+    if is_camel_keyword(&result) { format!("_{}", result) } else { result }
 }
 
 pub fn enum_relname(enum_ref: &EnumRef) -> TokenStream {
