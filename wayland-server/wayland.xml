@@ -100,11 +100,15 @@
 
     <event name="delete_id">
       <description summary="acknowledge object ID deletion">
-        This event is used internally by the object ID management
-        logic. When a client deletes an object that it had created,
-        the server will send this event to acknowledge that it has
-        seen the delete request. When the client receives this event,
-        it will know that it can safely reuse the object ID.
+        This event is used internally by the object ID management logic.
+
+        When the server stops using an object created by the client, the server
+        sends this event. In particular, after sending this event, the server
+        will no longer send any events that contain the object as the receiver
+        or as an argument.
+
+        When the client receives this event, it knows that it can reuse the
+        object ID.
       </description>
       <arg name="id" type="uint" summary="deleted object ID"/>
     </event>
@@ -140,7 +144,7 @@
         specified name as the identifier.
       </description>
       <arg name="name" type="uint" summary="unique numeric name of the object"/>
-      <arg name="id" type="new_id" summary="bounded object"/>
+      <arg name="id" type="new_id" summary="bound object"/>
     </request>
 
     <event name="global">
@@ -220,7 +224,7 @@
     </request>
   </interface>
 
-  <interface name="wl_shm_pool" version="2">
+  <interface name="wl_shm_pool" version="3">
     <description summary="a shared memory pool">
       The wl_shm_pool object encapsulates a piece of memory shared
       between the compositor and client.  Through the wl_shm_pool
@@ -230,6 +234,14 @@
       setup/teardown overhead and is useful when interactively resizing
       a surface or for many small buffers.
     </description>
+
+    <enum name="error" since="3">
+      <description summary="wl_shm_pool error values">
+        These errors can be emitted in response to wl_shm_pool requests.
+      </description>
+      <entry name="invalid_format" value="0" summary="buffer format is not known"/>
+      <entry name="invalid_stride" value="1" summary="invalid size or stride during buffer creation"/>
+    </enum>
 
     <request name="create_buffer">
       <description summary="create a buffer from the pool">
@@ -280,7 +292,7 @@
     </request>
   </interface>
 
-  <interface name="wl_shm" version="2">
+  <interface name="wl_shm" version="3">
     <description summary="shared memory support">
       A singleton global object that provides support for shared
       memory.
@@ -293,12 +305,12 @@
       that can be used for buffers.
     </description>
 
-    <enum name="error">
+    <enum name="error" since="3">
       <description summary="wl_shm error values">
         These errors can be emitted in response to wl_shm requests.
       </description>
-      <entry name="invalid_format" value="0" summary="buffer format is not known"/>
-      <entry name="invalid_stride" value="1" summary="invalid size or stride during pool or buffer creation"/>
+      <entry name="invalid_format" value="0" summary="buffer format is not known" deprecated-since="3"/>
+      <entry name="invalid_stride" value="1" summary="invalid size or stride during pool creation"/>
       <entry name="invalid_fd" value="2" summary="mmapping the file descriptor failed"/>
     </enum>
 
@@ -331,7 +343,7 @@
       <entry name="bgrx4444" value="0x32315842" summary="16-bit BGRx format, [15:0] B:G:R:x 4:4:4:4 little endian"/>
       <entry name="argb4444" value="0x32315241" summary="16-bit ARGB format, [15:0] A:R:G:B 4:4:4:4 little endian"/>
       <entry name="abgr4444" value="0x32314241" summary="16-bit ABGR format, [15:0] A:B:G:R 4:4:4:4 little endian"/>
-      <entry name="rgba4444" value="0x32314152" summary="16-bit RBGA format, [15:0] R:G:B:A 4:4:4:4 little endian"/>
+      <entry name="rgba4444" value="0x32314152" summary="16-bit RGBA format, [15:0] R:G:B:A 4:4:4:4 little endian"/>
       <entry name="bgra4444" value="0x32314142" summary="16-bit BGRA format, [15:0] B:G:R:A 4:4:4:4 little endian"/>
       <entry name="xrgb1555" value="0x35315258" summary="16-bit xRGB format, [15:0] x:R:G:B 1:5:5:5 little endian"/>
       <entry name="xbgr1555" value="0x35314258" summary="16-bit xBGR 1555 format, [15:0] x:B:G:R 1:5:5:5 little endian"/>
@@ -449,9 +461,9 @@
       <entry name="gr1616f" value="0x48205247" summary="[31:0] G:R 16:16 little endian"/>
       <entry name="bgr161616f" value="0x48524742" summary="[47:0] B:G:R 16:16:16 little endian"/>
       <entry name="r32f" value="0x46202052" summary="[31:0] R 32 little endian"/>
-      <entry name="gr3232f" value="0x46205247" summary="[63:0] R:G 32:32 little endian"/>
-      <entry name="bgr323232f" value="0x46524742" summary="[95:0] R:G:B 32:32:32 little endian"/>
-      <entry name="abgr32323232f" value="0x46384241" summary="[127:0] R:G:B:A 32:32:32:32 little endian"/>
+      <entry name="gr3232f" value="0x46205247" summary="[63:0] G:R 32:32 little endian"/>
+      <entry name="bgr323232f" value="0x46524742" summary="[95:0] B:G:R 32:32:32 little endian"/>
+      <entry name="abgr32323232f" value="0x46384241" summary="[127:0] A:B:G:R 32:32:32:32 little endian"/>
       <entry name="nv20" value="0x3032564e" summary="2x1 subsampled Cr:Cb plane"/>
       <entry name="nv30" value="0x3033564e" summary="non-subsampled Cr:Cb plane"/>
       <entry name="s010" value="0x30313053" summary="2x2 subsampled Cb (1) and Cr (2) planes 10 bits per channel"/>
@@ -463,6 +475,11 @@
       <entry name="s016" value="0x36313053" summary="2x2 subsampled Cb (1) and Cr (2) planes 16 bits per channel"/>
       <entry name="s216" value="0x36313253" summary="2x1 subsampled Cb (1) and Cr (2) planes 16 bits per channel"/>
       <entry name="s416" value="0x36313453" summary="non-subsampled Cb (1) and Cr (2) planes 16 bits per channel"/>
+      <entry name="xvuy2101010" value="0x30335958" summary="[31:0] x:Cr:Cb:Y 2:10:10:10 little endian"/>
+      <entry name="p230" value="0x30333250" summary="2x1 subsampled Cr:Cb plane 10 bits per channel packed"/>
+      <entry name="t430" value="0x30333454"/>
+      <entry name="y8" value="0x59455247" summary="8-bit Y-only"/>
+      <entry name="xyyy2101010" value="0x34415059" summary="[31:0] x:Y2:Y1:Y0 2:10:10:10 little endian"/>
     </enum>
 
     <request name="create_pool">
@@ -847,8 +864,8 @@
         acceptance, wl_data_source.cancelled may still be emitted afterwards
         if the drop destination does not accept any mime type.
 
-        However, this event might however not be received if the compositor
-        cancelled the drag-and-drop operation before this event could happen.
+        However, this event might not be received if the compositor cancelled
+        the drag-and-drop operation before this event could happen.
 
         Note that the data_source may still be used in the future and should
         not be destroyed here.
@@ -889,7 +906,7 @@
         The most recent action received is always the valid one. The chosen
         action may change alongside negotiation (e.g. an "ask" action can turn
         into a "move" operation), so the effects of the final action must
-        always be applied in wl_data_offer.dnd_finished.
+        always be applied in wl_data_source.dnd_finished.
 
         Clients can trigger cursor surface changes from this point, so
         they reflect the current action.
@@ -1984,7 +2001,7 @@
     </request>
    </interface>
 
-  <interface name="wl_seat" version="10">
+  <interface name="wl_seat" version="11">
     <description summary="group of input devices">
       A seat is a group of keyboards, pointer and touch devices. This
       object is published as a global during start up, or when such a
@@ -2098,7 +2115,7 @@
         shared across processes to refer to a specific wl_seat global.
 
         The name event is sent after binding to the seat global, and should be sent
-        before announcing capabilities. This event only sent once per seat object,
+        before announcing capabilities. This event is only sent once per seat object,
         and the name does not change over the lifetime of the wl_seat global.
 
         Compositors may re-use the same seat name if the wl_seat global is
@@ -2118,7 +2135,7 @@
 
   </interface>
 
-  <interface name="wl_pointer" version="10">
+  <interface name="wl_pointer" version="11">
     <description summary="pointer input device">
       The wl_pointer interface represents one or more input devices,
       such as mice, which control the pointer location and pointer_focus
@@ -2228,7 +2245,7 @@
       <description summary="pointer button event">
         Mouse button click and release notifications.
 
-        The location of the click is given by the last motion or
+        The location of the click is given by the last motion, warp or
         enter event.
         The time argument is a timestamp with millisecond
         granularity, with an undefined base.
@@ -2529,9 +2546,31 @@
       <arg name="direction" type="uint" enum="axis_relative_direction"
           summary="physical direction relative to axis motion"/>
     </event>
+
+    <!-- Version 11 additions -->
+
+    <event name="warp" since="11">
+      <description summary="pointer warp event">
+	Notification of pointer location change within a surface.
+
+	This location change is not due to events on the input device,
+	but because either the surface under the pointer was moved and
+	thus the relative position of the pointer changed, or because
+	the compositor changed the pointer position in response to an
+	event like pointer confinement being exited.
+
+	The arguments surface_x and surface_y are the location relative to
+	the focused surface.
+
+	This event must not occur in the same wl_pointer.frame as a
+	wl_pointer.enter or wl_pointer.motion event.
+      </description>
+      <arg name="surface_x" type="fixed" summary="surface-local x coordinate"/>
+      <arg name="surface_y" type="fixed" summary="surface-local y coordinate"/>
+    </event>
   </interface>
 
-  <interface name="wl_keyboard" version="10">
+  <interface name="wl_keyboard" version="11">
     <description summary="keyboard input device">
       The wl_keyboard interface represents one or more keyboards
       associated with a seat.
@@ -2712,7 +2751,7 @@
     </event>
   </interface>
 
-  <interface name="wl_touch" version="10">
+  <interface name="wl_touch" version="11">
     <description summary="touchscreen input device">
       The wl_touch interface represents a touchscreen
       associated with a seat.
@@ -2816,7 +2855,7 @@
         of the ellipse, while the minor axis length describes the shorter
         diameter. Major and minor are orthogonal and both are specified in
         surface-local coordinates. The center of the ellipse is always at the
-        touchpoint location as reported by wl_touch.down or wl_touch.move.
+        touchpoint location as reported by wl_touch.down or wl_touch.motion.
 
         This event is only sent by the compositor if the touch device supports
         shape reports. The client has to make reasonable assumptions about the
@@ -3335,11 +3374,19 @@
     </request>
   </interface>
 
-  <interface name="wl_fixes" version="1">
+  <interface name="wl_fixes" version="2">
     <description summary="wayland protocol fixes">
       This global fixes problems with other core-protocol interfaces that
       cannot be fixed in these interfaces themselves.
     </description>
+
+    <enum name="error">
+      <description summary="wl_fixes error values">
+        These errors can be emitted in response to wl_fixes requests.
+      </description>
+      <entry name="invalid_ack_remove" value="0"
+             summary="unknown global or the global is not removed"/>
+    </enum>
 
     <request name="destroy" type="destructor">
       <description summary="destroys this object"/>
@@ -3359,6 +3406,36 @@
       </description>
       <arg name="registry" type="object" interface="wl_registry"
            summary="the registry to destroy"/>
+    </request>
+
+    <request name="ack_global_remove" since="2">
+      <description summary="acknowledge global removal">
+        Acknowledge the removal of the specified global.
+
+        If no global with the specified name exists or the global is not removed,
+        the wl_fixes.invalid_ack_remove protocol error will be posted.
+
+        Due to the Wayland protocol being asynchronous, the wl_global objects
+        cannot be destroyed immediately. For example, if a wl_global is removed
+        and a client attempts to bind that global around same time, it can
+        result in a protocol error due to an unknown global name in the bind
+        request.
+
+        In order to avoid crashing clients, the compositor should remove the
+        wl_global once it is guaranteed that no more bind requests will come.
+
+        The wl_fixes.ack_global_remove() request is used to signal to the
+        compositor that the client will not bind the given global anymore. After
+        all clients acknowledge the removal of the global, the compositor can
+        safely destroy it.
+
+        The client must call the wl_fixes.ack_global_remove() request in
+        response to a wl_registry.global_remove() event even if it did not bind
+        the corresponding global.
+      </description>
+      <arg name="registry" type="object" interface="wl_registry"
+           summary="the registry object"/>
+      <arg name="name" type="uint" summary="unique name of the global"/>
     </request>
   </interface>
 
