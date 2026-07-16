@@ -428,6 +428,11 @@ where
             wl_registry::Event::GlobalRemove { name } => {
                 if let Some(global) = self.remove(name) {
                     state.runtime_remove_global(&globals, conn, qh, &global);
+                    if let Some(fixes) = self.fixes.get() {
+                        if fixes.version() >= 2 {
+                            fixes.ack_global_remove(registry, name);
+                        }
+                    }
                 }
             }
         }
@@ -458,7 +463,7 @@ where
             if let Ok((registry, event)) = wl_registry::WlRegistry::parse_event(&conn, msg) {
                 match event {
                     wl_registry::Event::Global { name, interface, version } => {
-                        let wl_fixes_ver = 1u32..=1;
+                        let wl_fixes_ver = 1u32..=2;
                         if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
                             let _ = self.globals.fixes.set(registry.bind(
                                 name,
