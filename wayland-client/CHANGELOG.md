@@ -14,6 +14,7 @@
 
 #### Additions
 - Add `GlobalList::bind_specific`
+- Updated Wayland core protocol to 1.26
 
 ## 0.31.14-- 2026-03-30
 

@@ -9,6 +9,7 @@
 
 #### Additions
 - Add `ListeningSocket::socket_path`.
+- Updated Wayland core protocol to 1.26
 
 ## 0.31.13-- 2026-03-30
 
