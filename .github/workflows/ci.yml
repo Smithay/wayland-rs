@@ -442,13 +442,14 @@ jobs:
       - name: Setup index
         run: cp ./doc/index.html ./doc/rust.css ./target/doc/
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        if: ${{ github.event_name == 'push' }}
+      - name: Upload static files as artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
-          force_orphan: true
+          path: ./target/doc
+
+      - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master'  }}
+        uses: actions/deploy-pages@v4
 
   publish:
     needs:
@@ -469,3 +470,7 @@ jobs:
           args: --no-verify
           dry-run: ${{ !(github.repository == 'Smithay/wayland-rs' && startsWith(github.ref, 'refs/tags/release-')) }}
           ignore-unpublished-changes: ${{ !(github.repository == 'Smithay/wayland-rs' && startsWith(github.ref, 'refs/tags/release-')) }}
+
+permissions:
+  pages: write
+  id-token: write
