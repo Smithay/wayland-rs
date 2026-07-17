@@ -76,10 +76,14 @@ impl<D: Display> Display for DisplaySlice<'_, D> {
 #[cfg_attr(unstable_coverage, coverage(off))]
 fn print_timestamp() {
     if let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH) {
-        // NOTE this is all to make timestamps the same with libwayland, so the log doesn't look
-        // out of place when sys tries to log on their own.
-        let time = (timestamp.as_secs() * 1000000 + timestamp.subsec_nanos() as u64 / 1000) as u32;
+        let secs = timestamp.as_secs();
         // NOTE annotate timestamp so we know which library emmited the log entry.
-        eprint!("[{:7}.{:03}][rs]", time / 1000, time % 1000);
+        eprint!(
+            "[{:02}:{:02}:{:02}.{:06}][rs]",
+            (secs / 3600) % 24,
+            (secs / 60) % 60,
+            secs % 60,
+            timestamp.subsec_micros()
+        );
     }
 }
