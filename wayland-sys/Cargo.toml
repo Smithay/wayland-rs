@@ -12,7 +12,8 @@ rust-version = "1.86"
 readme = "README.md"
 
 [dependencies]
-dlib = { version = "0.5.3", optional = true }
+#dlib = { version = "0.5.3", optional = true }
+dlib = { git = "https://github.com/ids1024/dlib", branch = "libloading-update", optional = true }
 libc = { version = "0.2", optional = true }
 once_cell = { version = "1.0", optional = true }
 log = { version = "0.4", optional = true }
