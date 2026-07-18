@@ -11,7 +11,7 @@ use std::{
 #[cfg(doc)]
 use std::io::ErrorKind::WouldBlock;
 
-use crate::protocol::{Interface, Message, ObjectInfo};
+use crate::protocol::{Interface, Message, ObjectInfo, OwnedMessage};
 
 use super::client_impl;
 
@@ -33,7 +33,7 @@ pub trait ObjectData: AsAny + Any + Send + Sync {
     fn event(
         self: Arc<Self>,
         backend: &Backend,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>>;
 
     /// Notification that the object has been destroyed and is no longer active
@@ -252,7 +252,7 @@ impl Backend {
     ///   is `wl_registry.bind`), the `child_spec` must be provided.
     pub fn send_request(
         &self,
-        msg: Message<ObjectId, BorrowedFd>,
+        msg: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -363,7 +363,7 @@ impl ObjectData for DumbObjectData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        _msg: Message<ObjectId, OwnedFd>,
+        _msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         unreachable!()
     }
@@ -381,7 +381,7 @@ impl ObjectData for UninitObjectData {
     fn event(
         self: Arc<Self>,
         _handle: &Backend,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData>> {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }

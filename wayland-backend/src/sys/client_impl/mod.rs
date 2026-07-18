@@ -21,7 +21,7 @@ use crate::{
     debug::has_debug_client_env,
     protocol::{
         ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
-        ProtocolError, check_for_signature, same_interface,
+        OwnedArgument, OwnedMessage, ProtocolError, check_for_signature, same_interface,
     },
 };
 use scoped_tls::scoped_thread_local;
@@ -575,7 +575,7 @@ impl InnerBackend {
 
     pub fn send_request(
         &self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
         data: Option<Arc<dyn ObjectData>>,
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
@@ -922,33 +922,36 @@ unsafe extern "C" fn dispatcher_func(
     };
 
     let mut parsed_args =
-        SmallVec::<[Argument<ObjectId, OwnedFd>; 4]>::with_capacity(message_desc.signature.len());
+        SmallVec::<[OwnedArgument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
-            ArgumentType::Uint => parsed_args.push(Argument::Uint(unsafe { (*args.add(i)).u })),
-            ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
-            ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
-            ArgumentType::Fd => {
-                parsed_args.push(Argument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) }))
+            ArgumentType::Uint => {
+                parsed_args.push(OwnedArgument::Uint(unsafe { (*args.add(i)).u }))
             }
+            ArgumentType::Int => parsed_args.push(OwnedArgument::Int(unsafe { (*args.add(i)).i })),
+            ArgumentType::Fixed => {
+                parsed_args.push(OwnedArgument::Fixed(unsafe { (*args.add(i)).f }))
+            }
+            ArgumentType::Fd => parsed_args
+                .push(OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) })),
             ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the array provided by libwayland must be valid
                 let content =
                     unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
-                parsed_args.push(Argument::Array(Box::new(content.into())));
+                parsed_args.push(OwnedArgument::Array(Box::new(content.into())));
             }
             ArgumentType::Str(_) => {
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland must be valid
                 if !ptr.is_null() {
                     let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
                 } else {
-                    parsed_args.push(Argument::Str(None));
+                    parsed_args.push(OwnedArgument::Str(None));
                 }
             }
             ArgumentType::Object(_) => {
@@ -978,7 +981,7 @@ unsafe extern "C" fn dispatcher_func(
                             // If arg has object been destroyed in another thread, treat the same
                             // way as a argument received as `NULL` from libwayland.
                             // TODO Add a test for this
-                            parsed_args.push(Argument::Object(ObjectId {
+                            parsed_args.push(OwnedArgument::Object(ObjectId {
                                 id: InnerObjectId {
                                     alive: None,
                                     id: 0,
@@ -999,7 +1002,7 @@ unsafe extern "C" fn dispatcher_func(
                             );
                             return -1;
                         }
-                        parsed_args.push(Argument::Object(ObjectId {
+                        parsed_args.push(OwnedArgument::Object(ObjectId {
                             id: InnerObjectId {
                                 alive: Some(obj_udata.alive.clone()),
                                 ptr: obj,
@@ -1008,7 +1011,7 @@ unsafe extern "C" fn dispatcher_func(
                             },
                         }));
                     } else {
-                        parsed_args.push(Argument::Object(ObjectId {
+                        parsed_args.push(OwnedArgument::Object(ObjectId {
                             id: InnerObjectId {
                                 alive: None,
                                 id: obj_id,
@@ -1019,7 +1022,7 @@ unsafe extern "C" fn dispatcher_func(
                     }
                 } else {
                     // libwayland-client.so checks nulls for us
-                    parsed_args.push(Argument::Object(ObjectId {
+                    parsed_args.push(OwnedArgument::Object(ObjectId {
                         id: InnerObjectId {
                             alive: None,
                             id: 0,
@@ -1062,9 +1065,9 @@ unsafe extern "C" fn dispatcher_func(
                         &RUST_MANAGED as *const u8 as *const c_void,
                         child_udata as *mut c_void
                     );
-                    parsed_args.push(Argument::NewId(ObjectId { id: child_id }));
+                    parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(Argument::NewId(ObjectId {
+                    parsed_args.push(OwnedArgument::NewId(ObjectId {
                         id: InnerObjectId {
                             id: 0,
                             ptr: std::ptr::null_mut(),
@@ -1095,7 +1098,7 @@ unsafe extern "C" fn dispatcher_func(
         std::mem::drop(guard);
         let ret = udata.data.clone().event(
             backend,
-            Message { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
+            OwnedMessage { sender_id: id.clone(), opcode: opcode as u16, args: parsed_args },
         );
         if message_desc.is_destructor {
             backend.backend.destroy_object_inner(backend.backend.lock_state(), &id);
