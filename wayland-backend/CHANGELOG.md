@@ -1,6 +1,8 @@
 # CHANGELOG: wayland-backend
 
-## Unreleased
+## 0.3.16 -- 2026-07-22
+
+Backport from `master`.
 
 #### Bugfixes
 - client/sys: Fix deadlock if `Backend` is used in `ObjectData::destroyed`

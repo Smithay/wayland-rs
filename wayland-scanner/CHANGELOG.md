@@ -1,6 +1,8 @@
 # CHANGELOG: wayland-scanner
 
-## Unreleased
+## 0.31.11 -- 2026-07-22
+
+Backport from `master`.
 
 - Update `quick-xml` to 0.41
 

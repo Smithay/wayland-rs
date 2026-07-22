@@ -1,6 +1,8 @@
 # CHANGELOG: wayland-client
 
-## Unreleased
+## 0.31.15 -- 2026-07-22
+
+Backport from `master`.
 
 #### Additions
 - Updated Wayland core protocol to 1.26
