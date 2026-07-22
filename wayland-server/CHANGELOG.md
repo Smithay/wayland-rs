@@ -1,6 +1,6 @@
 # CHANGELOG: wayland-server
 
-## Unreleased
+## 0.31.14 -- 2026-07-22
 
 #### Additions
 - Updated Wayland core protocol to 1.26
