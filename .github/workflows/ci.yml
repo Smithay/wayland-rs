@@ -314,7 +314,7 @@ jobs:
         run: cargo install grcov --version ${{ steps.grcovversion.outputs.version }}
 
       - name: Run tests
-        run: cargo test --workspace --exclude 'wayland-tests'
+        run: cargo test --workspace --exclude 'wayland-tests' --all-features
         env:
           LLVM_PROFILE_FILE: "wayland-rs-%p-%m.profraw"
           RUSTFLAGS: "-Cinstrument-coverage --cfg coverage --cfg unstable_coverage"
