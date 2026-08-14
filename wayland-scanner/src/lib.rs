@@ -113,7 +113,7 @@ fn format_rust_code(code: &str) -> String {
     };
     if let Ok(mut proc) = Command::new("rustfmt")
         .arg("--emit=stdout")
-        .arg("--edition=2018")
+        .arg("--edition=2024")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         //.stderr(Stdio::null())
