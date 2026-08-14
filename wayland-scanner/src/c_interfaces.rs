@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, ffi::CString};
 
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
@@ -30,7 +30,7 @@ pub(crate) fn generate_interface(interface: &Interface) -> TokenStream {
     let events = gen_messages(interface, &interface.events, "events");
 
     let interface_ident = format_ident!("{}_interface", interface.name);
-    let name_value = null_terminated_byte_string_literal(&interface.name);
+    let name_value = Literal::c_string(&CString::new(&*interface.name).unwrap());
     let version_value = Literal::i32_unsuffixed(interface.version as i32);
     let requests_value = if interface.requests.is_empty() {
         quote! { &[] }
@@ -50,8 +50,7 @@ pub(crate) fn generate_interface(interface: &Interface) -> TokenStream {
         #events
 
         pub static #interface_ident: wayland_backend::protocol::CWlInterface = wayland_backend::protocol::CWlInterface::new(
-            // TODO c"" literal
-            unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(#name_value) },
+            #name_value,
             #version_value,
             #requests_value,
             #events_value,
@@ -67,8 +66,8 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
     let message_array_ident = format_ident!("{}_{}", interface.name, which);
     let message_array_len = Literal::usize_unsuffixed(messages.len());
     let message_array_values = messages.iter().map(|msg| {
-        let name_value = null_terminated_byte_string_literal(&msg.name);
-        let signature_value = Literal::byte_string(&message_signature(msg));
+        let name_value = Literal::c_string(&CString::new(&*msg.name).unwrap());
+        let signature_value = Literal::c_string(&message_signature(msg));
 
         let types_array = if msg.all_null() {
             let ident = format_ident!("types_null");
@@ -91,9 +90,8 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
 
         quote! {
             wayland_backend::protocol::CWlMessage::new(
-                // TODO c"" literal
-                unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(#name_value) },
-                unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(#signature_value) },
+                #name_value,
+                #signature_value,
                 &#types_array,
             )
         }
@@ -106,7 +104,7 @@ fn gen_messages(interface: &Interface, messages: &[Message], which: &str) -> Tok
     }
 }
 
-fn message_signature(msg: &Message) -> Vec<u8> {
+fn message_signature(msg: &Message) -> CString {
     let mut res = Vec::new();
 
     if msg.since > 1 {
@@ -135,14 +133,5 @@ fn message_signature(msg: &Message) -> Vec<u8> {
         }
     }
 
-    res.push(0);
-    res
-}
-
-pub fn null_terminated_byte_string_literal(string: &str) -> Literal {
-    let mut val = Vec::with_capacity(string.len() + 1);
-    val.extend_from_slice(string.as_bytes());
-    val.push(0);
-
-    Literal::byte_string(&val)
+    CString::new(res).unwrap()
 }

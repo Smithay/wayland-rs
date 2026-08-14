@@ -50,32 +50,20 @@ pub static WL_DISPLAY_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &wl_display_interface }),
     };
 static wl_display_requests: [wayland_backend::protocol::CWlMessage; 2] = [
+    wayland_backend::protocol::CWlMessage::new(c"sync", c"n", &[Some(&wl_callback_interface)]),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"sync\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
-        &[Some(&wl_callback_interface)],
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_registry\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n\0") },
+        c"get_registry",
+        c"n",
         &[Some(&wl_registry_interface)],
     ),
 ];
 static wl_display_events: [wayland_backend::protocol::CWlMessage; 2] = [
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"error\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"ous\0") },
-        &types_null,
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"delete_id\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
-        &types_null,
-    ),
+    wayland_backend::protocol::CWlMessage::new(c"error", c"ous", &types_null),
+    wayland_backend::protocol::CWlMessage::new(c"delete_id", c"u", &types_null),
 ];
 pub static wl_display_interface: wayland_backend::protocol::CWlInterface =
     wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_display\0") },
+        c"wl_display",
         1,
         &wl_display_requests,
         &wl_display_events,
@@ -126,26 +114,14 @@ pub static WL_REGISTRY_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &wl_registry_interface }),
     };
 static wl_registry_requests: [wayland_backend::protocol::CWlMessage; 1] =
-    [wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"bind\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"usun\0") },
-        &types_null,
-    )];
+    [wayland_backend::protocol::CWlMessage::new(c"bind", c"usun", &types_null)];
 static wl_registry_events: [wayland_backend::protocol::CWlMessage; 2] = [
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"global\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"usu\0") },
-        &types_null,
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"global_remove\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
-        &types_null,
-    ),
+    wayland_backend::protocol::CWlMessage::new(c"global", c"usu", &types_null),
+    wayland_backend::protocol::CWlMessage::new(c"global_remove", c"u", &types_null),
 ];
 pub static wl_registry_interface: wayland_backend::protocol::CWlInterface =
     wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_registry\0") },
+        c"wl_registry",
         1,
         &wl_registry_requests,
         &wl_registry_events,
@@ -166,18 +142,9 @@ pub static WL_CALLBACK_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &wl_callback_interface }),
     };
 static wl_callback_events: [wayland_backend::protocol::CWlMessage; 1] =
-    [wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"done\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"u\0") },
-        &types_null,
-    )];
+    [wayland_backend::protocol::CWlMessage::new(c"done", c"u", &types_null)];
 pub static wl_callback_interface: wayland_backend::protocol::CWlInterface =
-    wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"wl_callback\0") },
-        1,
-        &[],
-        &wl_callback_events,
-    );
+    wayland_backend::protocol::CWlInterface::new(c"wl_callback", 1, &[], &wl_callback_events);
 pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "test_global",
@@ -317,62 +284,50 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &test_global_interface }),
     };
 static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
+    wayland_backend::protocol::CWlMessage::new(c"many_args", c"uifash", &types_null),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"uifash\0") },
-        &types_null,
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_secondary\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"2n\0") },
+        c"get_secondary",
+        c"2n",
         &[Some(&secondary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"get_tertiary\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3n\0") },
+        c"get_tertiary",
+        c"3n",
         &[Some(&tertiary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"link\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3o?ou\0") },
+        c"link",
+        c"3o?ou",
         &[Some(&secondary_interface), Some(&tertiary_interface), None],
     ),
+    wayland_backend::protocol::CWlMessage::new(c"destroy", c"4", &types_null),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"4\0") },
-        &types_null,
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"reverse_link\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5?oo\0") },
+        c"reverse_link",
+        c"5?oo",
         &[Some(&secondary_interface), Some(&tertiary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"newid_and_allow_null\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"5n?oo\0") },
+        c"newid_and_allow_null",
+        c"5n?oo",
         &[Some(&quad_interface), Some(&secondary_interface), Some(&tertiary_interface)],
     ),
 ];
 static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
+    wayland_backend::protocol::CWlMessage::new(c"many_args_evt", c"uifash", &types_null),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"many_args_evt\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"uifash\0") },
-        &types_null,
-    ),
-    wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"ack_secondary\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"o\0") },
+        c"ack_secondary",
+        c"o",
         &[Some(&secondary_interface)],
     ),
     wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"cycle_quad\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"n?o\0") },
+        c"cycle_quad",
+        c"n?o",
         &[Some(&quad_interface), Some(&quad_interface)],
     ),
 ];
 pub static test_global_interface: wayland_backend::protocol::CWlInterface =
     wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"test_global\0") },
+        c"test_global",
         5,
         &test_global_requests,
         &test_global_events,
@@ -393,18 +348,9 @@ pub static SECONDARY_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &secondary_interface }),
     };
 static secondary_requests: [wayland_backend::protocol::CWlMessage; 1] =
-    [wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"2\0") },
-        &types_null,
-    )];
+    [wayland_backend::protocol::CWlMessage::new(c"destroy", c"2", &types_null)];
 pub static secondary_interface: wayland_backend::protocol::CWlInterface =
-    wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"secondary\0") },
-        5,
-        &secondary_requests,
-        &[],
-    );
+    wayland_backend::protocol::CWlInterface::new(c"secondary", 5, &secondary_requests, &[]);
 pub static TERTIARY_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "tertiary",
@@ -421,18 +367,9 @@ pub static TERTIARY_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &tertiary_interface }),
     };
 static tertiary_requests: [wayland_backend::protocol::CWlMessage; 1] =
-    [wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3\0") },
-        &types_null,
-    )];
+    [wayland_backend::protocol::CWlMessage::new(c"destroy", c"3", &types_null)];
 pub static tertiary_interface: wayland_backend::protocol::CWlInterface =
-    wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"tertiary\0") },
-        5,
-        &tertiary_requests,
-        &[],
-    );
+    wayland_backend::protocol::CWlInterface::new(c"tertiary", 5, &tertiary_requests, &[]);
 pub static QUAD_INTERFACE: wayland_backend::protocol::Interface =
     wayland_backend::protocol::Interface {
         name: "quad",
@@ -449,15 +386,6 @@ pub static QUAD_INTERFACE: wayland_backend::protocol::Interface =
         c_interface: Some(unsafe { &quad_interface }),
     };
 static quad_requests: [wayland_backend::protocol::CWlMessage; 1] =
-    [wayland_backend::protocol::CWlMessage::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"destroy\0") },
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"3\0") },
-        &types_null,
-    )];
+    [wayland_backend::protocol::CWlMessage::new(c"destroy", c"3", &types_null)];
 pub static quad_interface: wayland_backend::protocol::CWlInterface =
-    wayland_backend::protocol::CWlInterface::new(
-        unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"quad\0") },
-        5,
-        &quad_requests,
-        &[],
-    );
+    wayland_backend::protocol::CWlInterface::new(c"quad", 5, &quad_requests, &[]);
