@@ -178,5 +178,8 @@ mod client {
 
         // Backend
         assert_impl!(client::Backend: Send, Sync, Debug);
+
+        // ReadEventsGuard
+        assert_impl!(client::ReadEventsGuard: Send, Sync, Debug);
     }
 }

@@ -432,6 +432,9 @@ pub struct InnerReadEventsGuard {
     done: bool,
 }
 
+unsafe impl Send for InnerReadEventsGuard {}
+unsafe impl Sync for InnerReadEventsGuard {}
+
 impl InnerReadEventsGuard {
     pub fn try_new(backend: InnerBackend) -> Option<Self> {
         let (display, evq) = {
