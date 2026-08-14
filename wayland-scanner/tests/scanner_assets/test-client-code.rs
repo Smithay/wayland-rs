@@ -1,11 +1,12 @@
 #[doc = "core global object\n\nThe core global object.  This is a special singleton object.  It\nis used for internal Wayland protocol features."]
 pub mod wl_display {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -327,11 +328,12 @@ pub mod wl_display {
 #[doc = "global registry object\n\nThe singleton global registry object.  The server has a number of\nglobal objects that are available to all clients.  These objects\ntypically represent an actual object in the server (for example,\nan input device) or they are singleton objects that provide\nextension functionality.\n\nWhen a client creates a registry object, the registry object\nwill emit a global event for each global currently in the\nregistry.  Globals come and go as a result of device or\nmonitor hotplugs, reconfiguration or other events, and the\nregistry will send out global and global_remove events to\nkeep the client up to date with the changes.  To mark the end\nof the initial burst of events, the client can use the\nwl_display.sync request immediately after calling\nwl_display.get_registry.\n\nA client can bind to a global object by using the bind\nrequest.  This creates a client-side handle that lets the object\nemit events to the client and lets the client invoke requests on\nthe object."]
 pub mod wl_registry {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -568,11 +570,12 @@ pub mod wl_registry {
 #[doc = "callback object\n\nClients can handle the 'done' event to get notified when\nthe related request is done."]
 pub mod wl_callback {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -723,11 +726,12 @@ pub mod wl_callback {
 }
 pub mod test_global {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -982,7 +986,7 @@ pub mod test_global {
                                             sender_id: msg.sender_id,
                                             interface: Self::interface().name,
                                             opcode: msg.opcode,
-                                        })
+                                        });
                                     }
                                 },
                             },
@@ -1012,7 +1016,7 @@ pub mod test_global {
                                             sender_id: msg.sender_id,
                                             interface: Self::interface().name,
                                             opcode: msg.opcode,
-                                        })
+                                        });
                                     }
                                 },
                                 old_quad: if old_quad.is_null() {
@@ -1029,7 +1033,7 @@ pub mod test_global {
                                                     sender_id: msg.sender_id,
                                                     interface: Self::interface().name,
                                                     opcode: msg.opcode,
-                                                })
+                                                });
                                             }
                                         },
                                     )
@@ -1290,11 +1294,12 @@ pub mod test_global {
 }
 pub mod secondary {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -1444,11 +1449,12 @@ pub mod secondary {
 }
 pub mod tertiary {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
@@ -1598,11 +1604,12 @@ pub mod tertiary {
 }
 pub mod quad {
     use super::wayland_client::{
-        backend::{
-            protocol::{same_interface, Argument, Interface, Message},
-            smallvec, Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
-        },
         Connection, Dispatch, DispatchError, Proxy, QueueHandle, QueueProxyData, Weak,
+        backend::{
+            Backend, InvalidId, ObjectData, ObjectId, WeakBackend,
+            protocol::{Argument, Interface, Message, same_interface},
+            smallvec,
+        },
     };
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
