@@ -18,6 +18,9 @@
   being set, or the proxy is being destroyed.
 - client/sys: Make `ReadEventsGuard` impl `Send+Sync`, like `rs` backend
 
+#### Changes
+- rs: Log dates with format matching `libwayland` 1.26
+
 ## 0.3.15 -- 2026-03-30
 
 #### Bugfixes
