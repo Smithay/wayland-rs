@@ -4,6 +4,7 @@
 
 #### Breaking changes
 - Define `Dispatch` to be implemented on udata type
+- Add `&self` argument to `Dispatch::event_created_child`
 - Remove `delegate_dispatch!` in favor of implementation that is generic over
   `D` for a particular user data type
 - Replace `delegate_noop!` with `Noop` and `NoopIgnore` types providing generic

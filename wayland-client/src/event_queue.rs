@@ -119,7 +119,11 @@ where
     ///
     /// [`event_created_child!()`]: crate::event_created_child!()
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn event_created_child(opcode: u16, _qhandle: &QueueHandle<State>) -> Arc<dyn ObjectData> {
+    fn event_created_child(
+        &self,
+        opcode: u16,
+        _qhandle: &QueueHandle<State>,
+    ) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",
             opcode,
@@ -164,6 +168,7 @@ macro_rules! event_created_child {
     // Must match `pat` to allow paths `wl_data_device::EVT_DONE_OPCODE` and expressions `0` to both work.
     ($(@< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? $selftype:ty, $iface:ty, [$($opcode:pat => ($child_iface:ty, $child_udata:expr)),* $(,)?]) => {
         fn event_created_child(
+            &self,
             opcode: u16,
             qhandle: &$crate::QueueHandle<$selftype>
         ) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
@@ -668,7 +673,7 @@ where
             .args
             .iter()
             .any(|arg| matches!(arg, Argument::NewId(id) if !id.is_null()))
-            .then(|| U::event_created_child(msg.opcode, &self.handle));
+            .then(|| U::event_created_child(&self.udata, msg.opcode, &self.handle));
 
         self.handle.inner.lock().unwrap().enqueue_event::<I, U>(msg, self.clone());
 
