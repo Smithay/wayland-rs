@@ -5,13 +5,13 @@ use wayland_tests::{TestServer, wayc};
 #[test]
 fn test_thread_destroy_object() {
     let mut server = TestServer::<()>::new();
-    let (_, client) = server.add_client();
+    let (_, client) = server.add_client::<()>();
 
     let qh = client.event_queue.handle();
     let backend = client.conn.backend();
 
     for _ in 0..10 {
-        let cb_id = client.display.sync(&qh, ()).id();
+        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
 
         let barrier = Barrier::new(2);
         thread::scope(|s| {
@@ -59,13 +59,13 @@ fn test_thread_destroy_display() {
 #[test]
 fn test_thread_destroys() {
     let mut server = TestServer::<()>::new();
-    let (_, client) = server.add_client();
+    let (_, client) = server.add_client::<()>();
 
     let qh = client.event_queue.handle();
     let backend = client.conn.backend();
 
     for _ in 0..10000 {
-        let cb_id = client.display.sync(&qh, ()).id();
+        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
 
         let barrier = Barrier::new(2);
         thread::scope(|s| {
@@ -77,19 +77,5 @@ fn test_thread_destroys() {
             barrier.wait();
             let _ = backend.destroy_object(&cb_id);
         });
-    }
-}
-
-struct ClientHandler;
-
-impl wayc::Dispatch<wayc::protocol::wl_callback::WlCallback, ClientHandler> for () {
-    fn event(
-        &self,
-        _: &mut ClientHandler,
-        _: &wayc::protocol::wl_callback::WlCallback,
-        _: wayc::protocol::wl_callback::Event,
-        _: &wayc::Connection,
-        _: &wayc::QueueHandle<ClientHandler>,
-    ) {
     }
 }
