@@ -818,7 +818,6 @@ impl InnerBackend {
             return Err(InvalidId);
         }
 
-        let mut _guard = self.lock_state();
         let udata =
             unsafe { ffi_dispatch!(wayland_client_handle(), wl_proxy_get_user_data, id.ptr) };
         if udata.is_null() {

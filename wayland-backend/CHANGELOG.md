@@ -17,6 +17,7 @@
 - client/sys: Fix some race conditions accessing udata in a thread while it is
   being set, or the proxy is being destroyed.
 - client/sys: Make `ReadEventsGuard` impl `Send+Sync`, like `rs` backend
+- client/sys: Fix double mutex lock in `set_data`
 
 #### Changes
 - rs: Log dates with format matching `libwayland` 1.26
