@@ -1,4 +1,8 @@
-use std::{sync::Barrier, thread};
+use std::{
+    os::fd::OwnedFd,
+    sync::{Arc, Barrier},
+    thread,
+};
 use wayland_client::Proxy;
 use wayland_tests::{TestServer, wayc};
 
@@ -78,4 +82,49 @@ fn test_thread_destroys() {
             let _ = backend.destroy_object(&cb_id);
         });
     }
+}
+
+// Minimal test for `set_data`
+// TODO Test racing `set_data` calls
+#[test]
+fn test_set_data() {
+    let mut server = TestServer::<()>::new();
+    let (_, client) = server.add_client::<()>();
+
+    let qh = client.event_queue.handle();
+    let backend = client.conn.backend();
+
+    let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
+
+    backend
+        .get_data(cb_id.clone())
+        .unwrap()
+        .data_as_any()
+        .downcast_ref::<wayc::NoopIgnore>()
+        .unwrap();
+    backend
+        .get_data(cb_id.clone())
+        .unwrap()
+        .data_as_any()
+        .downcast_ref::<wayc::NoopIgnore>()
+        .unwrap();
+    backend.set_data(cb_id.clone(), Arc::new(CustomObjectData)).unwrap();
+    let data = backend.get_data(cb_id.clone()).unwrap();
+    let data = data.data_as_any();
+    assert!(data.downcast_ref::<wayc::NoopIgnore>().is_none());
+    data.downcast_ref::<CustomObjectData>().unwrap();
+}
+
+struct CustomObjectData;
+
+impl wayc::backend::ObjectData for CustomObjectData {
+    fn event(
+        self: Arc<Self>,
+        _backend: &wayc::backend::Backend,
+        _msg: wayc::backend::protocol::Message<wayc::backend::ObjectId, OwnedFd>,
+    ) -> Option<Arc<dyn wayc::backend::ObjectData>> {
+        None
+    }
+
+    fn destroyed(&self, _object_id: wayc::backend::ObjectId) {}
 }
