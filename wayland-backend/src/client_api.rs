@@ -349,8 +349,9 @@ impl ReadEventsGuard {
     /// will read events from the socket and invoke the callbacks for the received events. All
     /// threads will then resume their execution.
     ///
-    /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a [`WouldBlock`] IO error.
+    /// This returns the number of dispatched events, or `0` if no events are available to read from
+    /// the socket, or an other thread handled the dispatching. On success, the socket has been
+    /// read until EOF or `WouldBlock`.
     #[inline]
     pub fn read(self) -> Result<usize, WaylandError> {
         self.guard.read()

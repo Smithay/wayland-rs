@@ -229,15 +229,6 @@ impl InnerReadEventsGuard {
         unsafe { BorrowedFd::borrow_raw(raw_fd) }
     }
 
-    /// Attempt to read events from the Wayland socket
-    ///
-    /// If multiple threads have a live reading guard, this method will block until all of them
-    /// are either dropped or have their `read()` method invoked, at which point on of the threads
-    /// will read events from the socket and invoke the callbacks for the received events. All
-    /// threads will then resume their execution.
-    ///
-    /// This returns the number of dispatched events, or `0` if an other thread handled the dispatching.
-    /// If no events are available to read from the socket, this returns a `WouldBlock` IO error.
     pub fn read(mut self) -> Result<usize, WaylandError> {
         let mut guard = self.state.lock_read();
         guard.prepared_reads -= 1;
@@ -653,12 +644,10 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
             Err(MessageParseError::MissingData) | Err(MessageParseError::MissingFD) => {
                 // need to read more data
                 if let Err(e) = guard.socket.fill_incoming_buffers() {
-                    if e.kind() != std::io::ErrorKind::WouldBlock {
-                        return Err(guard.store_and_return_error(e));
-                    } else if dispatched == 0 {
-                        return Err(e.into());
-                    } else {
+                    if e.kind() == std::io::ErrorKind::WouldBlock {
                         break;
+                    } else {
+                        return Err(guard.store_and_return_error(e));
                     }
                 }
                 continue;
