@@ -14,7 +14,7 @@ fn main() {
     // client fails to connect if environment is not set
     // TODO: Audit that the environment access only happens in single-threaded code.
     unsafe { ::std::env::remove_var("WAYLAND_DISPLAY") };
-    assert!(wayc::Connection::connect_to_env().is_err());
+    assert!(unsafe { wayc::Connection::connect_to_env().is_err() });
 
     // setup a listening server
     let listening = ways::ListeningSocket::bind(SOCKET_NAME).unwrap();

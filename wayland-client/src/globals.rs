@@ -24,7 +24,7 @@
 //!     /* react to dynamic global events here */
 //! }
 //!
-//! let conn = Connection::connect_to_env().unwrap();
+//! let conn = unsafe { Connection::connect_to_env() }.unwrap();
 //! let mut queue = conn.new_event_queue();
 //! let globals = GlobalList::init(&conn, &queue.handle()).unwrap();
 //!

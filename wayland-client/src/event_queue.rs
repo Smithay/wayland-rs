@@ -244,7 +244,7 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 /// ```rust,no_run
 /// use wayland_client::Connection;
 ///
-/// let connection = Connection::connect_to_env().unwrap();
+/// let connection = unsafe { Connection::connect_to_env() }.unwrap();
 /// let mut event_queue = connection.new_event_queue();
 ///
 /// /*
@@ -291,7 +291,7 @@ impl<State> std::fmt::Debug for QueueEvent<State> {
 ///
 /// ```rust,no_run
 /// # use wayland_client::Connection;
-/// # let connection = Connection::connect_to_env().unwrap();
+/// # let connection = unsafe { Connection::connect_to_env() }.unwrap();
 /// # let mut event_queue = connection.new_event_queue();
 /// # let mut state = ();
 ///
