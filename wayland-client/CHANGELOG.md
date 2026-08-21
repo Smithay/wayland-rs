@@ -16,6 +16,7 @@
 #### Additions
 - Add `GlobalList::bind_specific`
 - Updated Wayland core protocol to 1.26
+- Implement `AsRawFd` for `Connection` and `EventQueue`
 
 ## 0.31.14-- 2026-03-30
 

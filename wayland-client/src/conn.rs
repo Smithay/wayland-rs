@@ -1,7 +1,7 @@
 use std::{
     env, fmt,
     io::ErrorKind,
-    os::unix::io::{AsFd, BorrowedFd, FromRawFd, OwnedFd},
+    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
     os::unix::net::UnixStream,
     path::PathBuf,
     sync::{
@@ -281,6 +281,13 @@ impl AsFd for Connection {
     /// Provides fd from [`Backend::poll_fd()`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.backend.poll_fd()
+    }
+}
+
+impl AsRawFd for Connection {
+    /// Provides fd from [`Backend::poll_fd()`] for polling.
+    fn as_raw_fd(&self) -> RawFd {
+        self.backend.poll_fd().as_raw_fd()
     }
 }
 
