@@ -87,14 +87,40 @@ fn stream_from_wayland_display_var() -> Option<UnixStream> {
 impl Connection {
     /// Try to connect to the Wayland server following the environment
     ///
+    /// This first attempt to connect to the file descriptor specified in `WAYLAND_SOCKET`.
+    /// And then removes that file descriptor from the environment. If that variable does
+    /// not exist, it then connects based on the `WAYLAND_DISPLAY` variable, like
+    /// [Self::connect_to_env_safe]. This matches the behavior of `libwayland-client`.
+    ///
     /// This is the standard way to initialize a Wayland connection.
-    pub fn connect_to_env() -> Result<Self, ConnectError> {
+    ///
+    /// # Safety
+    ///
+    /// [Unsetting the env var may be unsound in a multithreaded
+    /// program](https://doc.rust-lang.org/std/env/fn.remove_var.html#safety), and if
+    /// the `WAYLAND_SOCKET` variable has a bogus value that is already an FD number in
+    /// use for something else, that may also be unsound.
+    ///
+    /// Ideally, a process using Wayland should call this once at the start of `main()`
+    /// before spawning other threads. [Self::connect_to_env_safe] may be used if this
+    /// is not practical.
+    pub unsafe fn connect_to_env() -> Result<Self, ConnectError> {
         let stream = if let Some(stream) = unsafe { stream_from_wayland_socket_var()? } {
             stream
         } else {
             stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?
         };
 
+        Self::from_socket(stream)
+    }
+
+    /// Connect to the Wayland server using the `WAYLAND_DISPLAY` env var
+    ///
+    /// Unlike [`Self::connect_to_env`], this does **not** consider the `WAYLAND_SOCKET`
+    /// variable, which makes this function safe to call in any context. Under a normal
+    /// Wayland compositor, using `WAYLAND_DISPLAY` is generally sufficient.
+    pub fn connect_to_env_safe() -> Result<Self, ConnectError> {
+        let stream = stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?;
         Self::from_socket(stream)
     }
 
