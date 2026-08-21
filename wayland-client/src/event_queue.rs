@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
+use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
 use std::sync::{Arc, Condvar, Mutex, atomic::Ordering};
 use std::task;
 
@@ -356,6 +356,13 @@ impl<State> AsFd for EventQueue<State> {
     /// Provides fd from [`Backend::poll_fd`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.conn.as_fd()
+    }
+}
+
+impl<State> AsRawFd for EventQueue<State> {
+    /// Provides fd from [`Backend::poll_fd`] for polling.
+    fn as_raw_fd(&self) -> RawFd {
+        self.conn.as_raw_fd()
     }
 }
 
