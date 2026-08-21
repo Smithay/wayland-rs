@@ -38,7 +38,7 @@
 //! #     ) {}
 //! # }
 //! // now you can bind the globals you need for your app
-//! let compositor: wl_compositor::WlCompositor = globals.bind_singleton(&queue.handle(), 4..=5, ()).unwrap();
+//! let compositor: wl_compositor::WlCompositor = globals.bind_singleton(4..=5, &queue.handle(), ()).unwrap();
 //! ```
 
 use std::{
@@ -150,8 +150,8 @@ impl GlobalList {
     /// the interface. The known maximum version is determined by the code generated using wayland-scanner.
     pub fn bind_singleton<I, State, U>(
         &self,
-        qh: &QueueHandle<State>,
         version: RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
         udata: U,
     ) -> Result<I, BindError>
     where
@@ -190,9 +190,9 @@ impl GlobalList {
     /// added globals.
     pub fn bind_specific<I, State, U>(
         &self,
-        qh: &QueueHandle<State>,
         name: u32,
         version: std::ops::RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
         udata: U,
     ) -> Result<I, BindError>
     where

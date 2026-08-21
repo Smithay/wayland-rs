@@ -52,8 +52,8 @@ fn client_global_helpers_init() {
     assert!(
         globals
             .bind_singleton::<wl_compositor::WlCompositor, _, _>(
-                &queue.handle(),
                 5..=5,
+                &queue.handle(),
                 wayc::NoopIgnore
             )
             .is_err()
@@ -62,8 +62,8 @@ fn client_global_helpers_init() {
     assert!(
         globals
             .bind_singleton::<wl_subcompositor::WlSubcompositor, _, _>(
-                &queue.handle(),
                 1..=1,
+                &queue.handle(),
                 wayc::NoopIgnore
             )
             .is_err()
@@ -72,8 +72,8 @@ fn client_global_helpers_init() {
     assert!(
         globals
             .bind_singleton::<wl_compositor::WlCompositor, _, _>(
-                &queue.handle(),
                 1..=5,
+                &queue.handle(),
                 wayc::NoopIgnore
             )
             .is_ok()
@@ -198,8 +198,8 @@ fn too_high_global_version() {
         <wl_compositor::WlCompositor as wayland_client::Proxy>::interface().version;
     // invoking bind with too high a target version should panic
     let _ = globals.bind_singleton::<wl_compositor::WlCompositor, _, _>(
-        &queue.handle(),
         1..=max_compositor_version + 1,
+        &queue.handle(),
         wayc::NoopIgnore,
     );
 }

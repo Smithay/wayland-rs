@@ -23,9 +23,9 @@ async fn main() {
     let qh = event_queue.handle();
 
     let wm_base =
-        globals.bind_singleton::<xdg_wm_base::XdgWmBase, _, _>(&qh, 1..=1, GlobalData).unwrap();
+        globals.bind_singleton::<xdg_wm_base::XdgWmBase, _, _>(1..=1, &qh, GlobalData).unwrap();
     let compositor = globals
-        .bind_singleton::<wl_compositor::WlCompositor, _, _>(&qh, 1..=1, NoopIgnore)
+        .bind_singleton::<wl_compositor::WlCompositor, _, _>(1..=1, &qh, NoopIgnore)
         .unwrap();
 
     let base_surface = compositor.create_surface(&qh, NoopIgnore);
@@ -36,12 +36,12 @@ async fn main() {
     for global in globals.contents().clone_list() {
         if global.interface == "wl_seat" {
             globals
-                .bind_specific::<wl_seat::WlSeat, _, _>(&qh, global.name, 1..=1, GlobalData)
+                .bind_specific::<wl_seat::WlSeat, _, _>(global.name, 1..=1, &qh, GlobalData)
                 .unwrap();
         }
     }
 
-    let shm = globals.bind_singleton::<wl_shm::WlShm, _, _>(&qh, 1..=1, NoopIgnore).unwrap();
+    let shm = globals.bind_singleton::<wl_shm::WlShm, _, _>(1..=1, &qh, NoopIgnore).unwrap();
 
     let (init_w, init_h) = (320, 240);
 
