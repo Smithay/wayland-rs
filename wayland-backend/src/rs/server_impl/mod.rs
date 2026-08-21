@@ -3,7 +3,7 @@
 use std::os::unix::io::OwnedFd;
 use std::{fmt, sync::Arc};
 
-use crate::protocol::{Interface, Message, same_interface};
+use crate::protocol::{Interface, Message, OwnedMessage, same_interface};
 
 mod client;
 mod common_poll;
@@ -121,7 +121,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: &Handle,
         _: &mut D,
         _: ClientId,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }

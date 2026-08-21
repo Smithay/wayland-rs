@@ -1,5 +1,5 @@
 use std::{
-    ffi::CString,
+    ffi::{CStr, CString},
     os::unix::{
         io::{AsFd, BorrowedFd, OwnedFd},
         net::UnixStream,
@@ -12,8 +12,8 @@ use crate::{
     debug,
     protocol::{
         ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, ProtocolError, check_for_signature, same_interface,
-        same_interface_or_anonymous,
+        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
+        same_interface, same_interface_or_anonymous,
     },
     rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
@@ -33,7 +33,8 @@ use super::{
     handle::PendingDestructor, registry::Registry,
 };
 
-type ArgSmallVec<Fd> = SmallVec<[Argument<ObjectId, Fd>; INLINE_ARGS]>;
+type OwnedArgSmallVec = SmallVec<[OwnedArgument<ObjectId>; INLINE_ARGS]>;
+type ArgSmallVec<'a> = SmallVec<[Argument<'a, ObjectId>; INLINE_ARGS]>;
 
 #[repr(u32)]
 #[allow(dead_code)]
@@ -120,7 +121,7 @@ impl<D> Client<D> {
 
     pub(crate) fn send_event(
         &mut self,
-        Message { sender_id: object_id, opcode, args }: Message<ObjectId, BorrowedFd>,
+        Message { sender_id: object_id, opcode, args }: Message<ObjectId>,
         pending_destructors: Option<&mut Vec<super::handle::PendingDestructor<D>>>,
     ) -> Result<(), InvalidId> {
         if self.killed {
@@ -138,7 +139,7 @@ impl<D> Client<D> {
             }
         };
 
-        if !check_for_signature(message_desc.signature, &args) {
+        if !check_for_signature(message_desc.signature, args) {
             panic!(
                 "Unexpected signature for event {}@{}.{}: expected {:?}, got {:?}.",
                 object.interface.name,
@@ -154,21 +155,21 @@ impl<D> Client<D> {
                 object.interface.name,
                 object_id.id.id,
                 message_desc.name,
-                &args,
+                args,
                 false,
             );
         }
 
-        let mut msg_args = SmallVec::with_capacity(args.len());
+        let mut msg_args = SmallVec::<[_; INLINE_ARGS]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.into_iter().enumerate() {
+        for (i, arg) in args.iter().enumerate() {
             msg_args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::Fd(f) => Argument::Fd(f),
+                Argument::Array(a) => Argument::Array(a.clone()),
+                Argument::Int(i) => Argument::Int(*i),
+                Argument::Uint(u) => Argument::Uint(*u),
+                Argument::Str(s) => Argument::Str(s.clone()),
+                Argument::Fixed(f) => Argument::Fixed(*f),
+                Argument::Fd(f) => Argument::Fd(*f),
                 Argument::NewId(o) => {
                     if o.id.id != 0 {
                         if o.id.client_id != self.id {
@@ -205,7 +206,7 @@ impl<D> Client<D> {
             });
         }
 
-        let msg = Message { sender_id: object_id.id.id, opcode, args: msg_args };
+        let msg = Message { sender_id: object_id.id.id, opcode, args: msg_args.as_slice() };
 
         if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
@@ -258,7 +259,7 @@ impl<D> Client<D> {
             .unwrap_or(Err(InvalidId))
     }
 
-    pub(crate) fn post_display_error(&mut self, code: DisplayError, message: CString) {
+    pub(crate) fn post_display_error(&mut self, code: DisplayError, message: &CStr) {
         self.post_error(
             InnerObjectId {
                 id: 1,
@@ -271,12 +272,7 @@ impl<D> Client<D> {
         )
     }
 
-    pub(crate) fn post_error(
-        &mut self,
-        object_id: InnerObjectId,
-        error_code: u32,
-        message: CString,
-    ) {
+    pub(crate) fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: &CStr) {
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(
@@ -344,9 +340,7 @@ impl<D> Client<D> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub(crate) fn next_request(
-        &mut self,
-    ) -> std::io::Result<(Message<u32, OwnedFd>, Object<Data<D>>)> {
+    pub(crate) fn next_request(&mut self) -> std::io::Result<(OwnedMessage<u32>, Object<Data<D>>)> {
         if self.killed {
             return Err(rustix::io::Errno::PIPE.into());
         }
@@ -424,13 +418,13 @@ impl<D> Client<D> {
 
     pub(crate) fn handle_display_request(
         &mut self,
-        message: Message<u32, OwnedFd>,
+        message: OwnedMessage<u32>,
         registry: &mut Registry<D>,
     ) {
         match message.opcode {
             // wl_display.sync(new id wl_callback)
             0 => {
-                if let [Argument::NewId(new_id)] = message.args[..] {
+                if let [OwnedArgument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let callback_obj = Object {
                         interface: &WL_CALLBACK_INTERFACE,
@@ -440,7 +434,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, callback_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                            &CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                         );
                         return;
                     }
@@ -460,7 +454,7 @@ impl<D> Client<D> {
             }
             // wl_display.get_registry(new id wl_registry)
             1 => {
-                if let [Argument::NewId(new_id)] = message.args[..] {
+                if let [OwnedArgument::NewId(new_id)] = message.args[..] {
                     let serial = self.next_serial();
                     let registry_obj = Object {
                         interface: &WL_REGISTRY_INTERFACE,
@@ -476,7 +470,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, registry_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                            &CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                         );
                         return;
                     }
@@ -489,7 +483,7 @@ impl<D> Client<D> {
                 // unkown opcode, kill the client
                 self.post_display_error(
                     DisplayError::InvalidMethod,
-                    CString::new(format!(
+                    &CString::new(format!(
                         "Unknown opcode {} for interface wl_display.",
                         message.opcode
                     ))
@@ -502,17 +496,17 @@ impl<D> Client<D> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn handle_registry_request(
         &mut self,
-        message: Message<u32, OwnedFd>,
+        message: OwnedMessage<u32>,
         registry: &mut Registry<D>,
     ) -> Option<(InnerClientId, InnerGlobalId, InnerObjectId, Arc<dyn GlobalHandler<D>>)> {
         match message.opcode {
             // wl_registry.bind(uint name, str interface, uint version, new id)
             0 => {
                 if let [
-                    Argument::Uint(name),
-                    Argument::Str(Some(ref interface_name)),
-                    Argument::Uint(version),
-                    Argument::NewId(new_id),
+                    OwnedArgument::Uint(name),
+                    OwnedArgument::Str(Some(ref interface_name)),
+                    OwnedArgument::Uint(version),
+                    OwnedArgument::NewId(new_id),
                 ] = message.args[..]
                 {
                     if let Some((interface, global_id, handler)) =
@@ -527,7 +521,7 @@ impl<D> Client<D> {
                         if let Err(()) = self.map.insert_at(new_id, object) {
                             self.post_display_error(
                                 DisplayError::InvalidObject,
-                                CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                                &CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
                             );
                             return None;
                         }
@@ -545,7 +539,7 @@ impl<D> Client<D> {
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!(
+                            &CString::new(format!(
                                 "Invalid binding of {} version {} for global {}.",
                                 interface_name.to_string_lossy(),
                                 version,
@@ -563,7 +557,7 @@ impl<D> Client<D> {
                 // unkown opcode, kill the client
                 self.post_display_error(
                     DisplayError::InvalidMethod,
-                    CString::new(format!(
+                    &CString::new(format!(
                         "Unknown opcode {} for interface wl_registry.",
                         message.opcode
                     ))
@@ -577,14 +571,14 @@ impl<D> Client<D> {
     pub(crate) fn process_request(
         &mut self,
         object: &Object<Data<D>>,
-        message: Message<u32, OwnedFd>,
-    ) -> Option<(ArgSmallVec<OwnedFd>, bool, Option<InnerObjectId>)> {
+        message: OwnedMessage<u32>,
+    ) -> Option<(OwnedArgSmallVec, bool, Option<InnerObjectId>)> {
         let message_desc = object.interface.requests.get(message.opcode as usize).unwrap();
 
         if message_desc.since > object.version {
             self.post_display_error(
                 DisplayError::InvalidMethod,
-                CString::new(format!(
+                &CString::new(format!(
                     "invalid method {} (since {} < {}), object {}#{}",
                     message.opcode,
                     object.version,
@@ -603,13 +597,13 @@ impl<D> Client<D> {
         let mut created_id = None;
         for (i, arg) in message.args.into_iter().enumerate() {
             new_args.push(match arg {
-                Argument::Array(a) => Argument::Array(a),
-                Argument::Int(i) => Argument::Int(i),
-                Argument::Uint(u) => Argument::Uint(u),
-                Argument::Str(s) => Argument::Str(s),
-                Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::Fd(f) => Argument::Fd(f),
-                Argument::Object(o) => {
+                OwnedArgument::Array(a) => OwnedArgument::Array(a),
+                OwnedArgument::Int(i) => OwnedArgument::Int(i),
+                OwnedArgument::Uint(u) => OwnedArgument::Uint(u),
+                OwnedArgument::Str(s) => OwnedArgument::Str(s),
+                OwnedArgument::Fixed(f) => OwnedArgument::Fixed(f),
+                OwnedArgument::Fd(f) => OwnedArgument::Fd(f),
+                OwnedArgument::Object(o) => {
                     let next_interface = arg_interfaces.next();
                     if o != 0 {
                         // Lookup the object to make the appropriate Id
@@ -618,7 +612,7 @@ impl<D> Client<D> {
                             None => {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
-                                    CString::new(format!("Unknown id: {o}.")).unwrap()
+                                    &CString::new(format!("Unknown id: {o}.")).unwrap()
                                 );
                                 return None;
                             }
@@ -627,7 +621,7 @@ impl<D> Client<D> {
                             if !same_interface_or_anonymous(next_interface, obj.interface) {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
-                                    CString::new(format!(
+                                    &CString::new(format!(
                                         "Invalid object {} in request {}.{}: expected {} but got {}.",
                                         o,
                                         object.interface.name,
@@ -639,13 +633,13 @@ impl<D> Client<D> {
                                 return None;
                             }
                         }
-                        Argument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        Argument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE }})
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!(
+                            &CString::new(format!(
                                 "Invalid null object in request {}.{}.",
                                 object.interface.name,
                                 message_desc.name,
@@ -654,7 +648,7 @@ impl<D> Client<D> {
                         return None;
                     }
                 }
-                Argument::NewId(new_id) => {
+                OwnedArgument::NewId(new_id) => {
                     // An object should be created
                     let child_interface = match message_desc.child_interface {
                         Some(iface) => iface,
@@ -679,12 +673,12 @@ impl<D> Client<D> {
                         // abort parsing, this is an unrecoverable error
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap()
+                            &CString::new(format!("Invalid new_id: {new_id}.")).unwrap()
                         );
                         return None;
                     }
 
-                    Argument::NewId(ObjectId { id: child_id })
+                    OwnedArgument::NewId(ObjectId { id: child_id })
                 }
             });
         }

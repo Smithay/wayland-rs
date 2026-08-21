@@ -57,7 +57,7 @@ macro_rules! message {
         $crate::protocol::Message {
             sender_id: $sender_id,
             opcode: $opcode,
-            args: $crate::smallvec::smallvec![$($args),*],
+            args: &[$($args),*],
         }
     }
 }

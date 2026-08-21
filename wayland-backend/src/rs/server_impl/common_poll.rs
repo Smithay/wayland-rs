@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    protocol::{Argument, Message, same_interface},
+    protocol::{Argument, Message, OwnedArgument, OwnedMessage, same_interface},
     rs::map::Object,
     types::server::InitError,
 };
@@ -254,7 +254,7 @@ impl<D> InnerBackend<D> {
                         &handle.clone(),
                         data,
                         ClientId { id: client_id.clone() },
-                        Message {
+                        OwnedMessage {
                             sender_id: ObjectId { id: object_id.clone() },
                             opcode,
                             args: arguments,
@@ -335,7 +335,7 @@ enum DispatchAction<D: 'static> {
         object: Object<Data<D>>,
         object_id: InnerObjectId,
         opcode: u16,
-        arguments: SmallVec<[Argument<ObjectId, OwnedFd>; 4]>,
+        arguments: SmallVec<[OwnedArgument<ObjectId>; 4]>,
         is_destructor: bool,
         created_id: Option<InnerObjectId>,
     },
