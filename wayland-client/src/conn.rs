@@ -39,56 +39,63 @@ pub struct Connection {
     pub(crate) backend: Backend,
 }
 
+unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, ConnectError> {
+    if let Ok(txt) = env::var("WAYLAND_SOCKET") {
+        // We should connect to the provided WAYLAND_SOCKET
+        let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+        // remove the variable so any child processes don't see it
+        // TODO: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::remove_var("WAYLAND_SOCKET") };
+        // set the CLOEXEC flag on this FD
+        let flags = rustix::io::fcntl_getfd(&fd);
+        let result = flags
+            .map(|f| f | rustix::io::FdFlags::CLOEXEC)
+            .and_then(|f| rustix::io::fcntl_setfd(&fd, f));
+        match result {
+            Ok(_) => {
+                // setting the O_CLOEXEC worked
+                Ok(Some(UnixStream::from(fd)))
+            }
+            Err(_) => {
+                // something went wrong in F_GETFD or F_SETFD
+                Err(ConnectError::InvalidFd)
+            }
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+fn stream_from_wayland_display_var() -> Option<UnixStream> {
+    let socket_name = env::var_os("WAYLAND_DISPLAY").map(Into::<PathBuf>::into)?;
+
+    let socket_path = if socket_name.is_absolute() {
+        socket_name
+    } else {
+        let mut socket_path = env::var_os("XDG_RUNTIME_DIR").map(Into::<PathBuf>::into)?;
+        if !socket_path.is_absolute() {
+            return None;
+        }
+        socket_path.push(socket_name);
+        socket_path
+    };
+
+    UnixStream::connect(socket_path).ok()
+}
+
 impl Connection {
     /// Try to connect to the Wayland server following the environment
     ///
     /// This is the standard way to initialize a Wayland connection.
     pub fn connect_to_env() -> Result<Self, ConnectError> {
-        let stream = if let Ok(txt) = env::var("WAYLAND_SOCKET") {
-            // We should connect to the provided WAYLAND_SOCKET
-            let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
-            let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-            // remove the variable so any child processes don't see it
-            // TODO: Audit that the environment access only happens in single-threaded code.
-            unsafe { env::remove_var("WAYLAND_SOCKET") };
-            // set the CLOEXEC flag on this FD
-            let flags = rustix::io::fcntl_getfd(&fd);
-            let result = flags
-                .map(|f| f | rustix::io::FdFlags::CLOEXEC)
-                .and_then(|f| rustix::io::fcntl_setfd(&fd, f));
-            match result {
-                Ok(_) => {
-                    // setting the O_CLOEXEC worked
-                    UnixStream::from(fd)
-                }
-                Err(_) => {
-                    // something went wrong in F_GETFD or F_SETFD
-                    return Err(ConnectError::InvalidFd);
-                }
-            }
+        let stream = if let Some(stream) = unsafe { stream_from_wayland_socket_var()? } {
+            stream
         } else {
-            let socket_name = env::var_os("WAYLAND_DISPLAY")
-                .map(Into::<PathBuf>::into)
-                .ok_or(ConnectError::NoCompositor)?;
-
-            let socket_path = if socket_name.is_absolute() {
-                socket_name
-            } else {
-                let mut socket_path = env::var_os("XDG_RUNTIME_DIR")
-                    .map(Into::<PathBuf>::into)
-                    .ok_or(ConnectError::NoCompositor)?;
-                if !socket_path.is_absolute() {
-                    return Err(ConnectError::NoCompositor);
-                }
-                socket_path.push(socket_name);
-                socket_path
-            };
-
-            UnixStream::connect(socket_path).map_err(|_| ConnectError::NoCompositor)?
+            stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?
         };
 
-        let backend = Backend::connect(stream).map_err(|_| ConnectError::NoWaylandLib)?;
-        Ok(Self { backend })
+        Self::from_socket(stream)
     }
 
     /// Initialize a Wayland connection from an already existing Unix stream
