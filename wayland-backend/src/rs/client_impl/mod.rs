@@ -3,7 +3,7 @@
 use std::{
     fmt,
     os::unix::{
-        io::{AsRawFd, BorrowedFd, OwnedFd},
+        io::{AsFd, AsRawFd, BorrowedFd, OwnedFd},
         net::UnixStream,
     },
     sync::{Arc, Condvar, Mutex, MutexGuard, Weak},
@@ -198,7 +198,7 @@ impl InnerBackend {
     }
 
     pub fn poll_fd(&self) -> BorrowedFd<'_> {
-        let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
+        let raw_fd = self.state.lock_protocol().socket.as_fd().as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
         unsafe { BorrowedFd::borrow_raw(raw_fd) }
@@ -223,7 +223,7 @@ impl InnerReadEventsGuard {
 
     /// Access the Wayland socket FD for polling
     pub fn connection_fd(&self) -> BorrowedFd<'_> {
-        let raw_fd = self.state.lock_protocol().socket.as_raw_fd();
+        let raw_fd = self.state.lock_protocol().socket.as_fd().as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
         unsafe { BorrowedFd::borrow_raw(raw_fd) }
