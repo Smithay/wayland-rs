@@ -24,6 +24,7 @@ wayland-protocols = { path = "../wayland-protocols", features = ["client"] }
 futures-channel = "0.3.16"
 futures-util = "0.3"
 tempfile = "3.2"
+tokio = {version = "1", features = ["macros", "rt-multi-thread", "net"] }
 
 [features]
 system = ["wayland-backend/client_system"]
