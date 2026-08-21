@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
 use std::mem::MaybeUninit;
-use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
+use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::os::unix::net::UnixStream;
 use std::slice;
 
@@ -113,12 +113,6 @@ impl From<UnixStream> for Socket {
 impl AsFd for Socket {
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.stream.as_fd()
-    }
-}
-
-impl AsRawFd for Socket {
-    fn as_raw_fd(&self) -> RawFd {
-        self.stream.as_raw_fd()
     }
 }
 
@@ -312,12 +306,6 @@ impl BufferedSocket {
     pub fn set_max_buffer_size(&mut self, max_buffer_size: Option<usize>) {
         // TODO: what if it decreases?
         self.max_buffer_size = max_buffer_size.map(round_max_buffer_size);
-    }
-}
-
-impl AsRawFd for BufferedSocket {
-    fn as_raw_fd(&self) -> RawFd {
-        self.socket.as_raw_fd()
     }
 }
 
