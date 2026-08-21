@@ -2,7 +2,8 @@ use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
     Connection, Dispatch, NoopIgnore, QueueHandle,
-    protocol::{wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_surface},
+    globals::{Global, GlobalList, GlobalListHandler, registry_queue_init},
+    protocol::{wl_buffer, wl_compositor, wl_keyboard, wl_seat, wl_shm, wl_surface},
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
@@ -12,20 +13,47 @@ struct GlobalData;
 fn main() {
     let conn = Connection::connect_to_env().unwrap();
 
-    let mut event_queue = conn.new_event_queue();
-    let qhandle = event_queue.handle();
+    let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();
+    let qh = event_queue.handle();
 
-    let display = conn.display();
-    display.get_registry(&qhandle, GlobalData);
+    let wm_base =
+        globals.bind_singleton::<xdg_wm_base::XdgWmBase, _, _>(&qh, 1..=1, GlobalData).unwrap();
+    let compositor = globals
+        .bind_singleton::<wl_compositor::WlCompositor, _, _>(&qh, 1..=1, NoopIgnore)
+        .unwrap();
 
-    let mut state = State {
-        running: true,
-        base_surface: None,
-        buffer: None,
-        wm_base: None,
-        xdg_surface: None,
-        configured: false,
-    };
+    let base_surface = compositor.create_surface(&qh, NoopIgnore);
+    let xdg_surface = wm_base.get_xdg_surface(&base_surface, &qh, GlobalData);
+    let xdg_toplevel = xdg_surface.get_toplevel(&qh, GlobalData);
+    xdg_toplevel.set_title("A fantastic window!".into());
+    base_surface.commit();
+
+    for global in globals.contents().clone_list() {
+        if global.interface == "wl_seat" {
+            globals
+                .bind_specific::<wl_seat::WlSeat, _, _>(&qh, global.name, 1..=1, GlobalData)
+                .unwrap();
+        }
+    }
+
+    let shm = globals.bind_singleton::<wl_shm::WlShm, _, _>(&qh, 1..=1, NoopIgnore).unwrap();
+
+    let (init_w, init_h) = (320, 240);
+
+    let mut file = tempfile::tempfile().unwrap();
+    draw(&mut file, (init_w, init_h));
+    let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, &qh, NoopIgnore);
+    let buffer = pool.create_buffer(
+        0,
+        init_w as i32,
+        init_h as i32,
+        (init_w * 4) as i32,
+        wl_shm::Format::Argb8888,
+        &qh,
+        NoopIgnore,
+    );
+
+    let mut state = State { running: true, base_surface, buffer, configured: false };
 
     println!("Starting the example window app, press <ESC> to quit.");
 
@@ -36,74 +64,23 @@ fn main() {
 
 struct State {
     running: bool,
-    base_surface: Option<wl_surface::WlSurface>,
-    buffer: Option<wl_buffer::WlBuffer>,
-    wm_base: Option<xdg_wm_base::XdgWmBase>,
-    xdg_surface: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
+    base_surface: wl_surface::WlSurface,
+    buffer: wl_buffer::WlBuffer,
     configured: bool,
 }
 
-impl Dispatch<wl_registry::WlRegistry, State> for GlobalData {
-    fn event(
-        &self,
-        state: &mut State,
-        registry: &wl_registry::WlRegistry,
-        event: wl_registry::Event,
-        _: &Connection,
-        qh: &QueueHandle<State>,
+impl GlobalListHandler for State {
+    fn runtime_add_global(
+        &mut self,
+        globals: &GlobalList,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        global: &Global,
     ) {
-        if let wl_registry::Event::Global { name, interface, .. } = event {
-            match &interface[..] {
-                "wl_compositor" => {
-                    let compositor =
-                        registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, NoopIgnore);
-                    let surface = compositor.create_surface(qh, NoopIgnore);
-                    state.base_surface = Some(surface);
-
-                    if state.wm_base.is_some() && state.xdg_surface.is_none() {
-                        state.init_xdg_surface(qh);
-                    }
-                }
-                "wl_shm" => {
-                    let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, NoopIgnore);
-
-                    let (init_w, init_h) = (320, 240);
-
-                    let mut file = tempfile::tempfile().unwrap();
-                    draw(&mut file, (init_w, init_h));
-                    let pool =
-                        shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, NoopIgnore);
-                    let buffer = pool.create_buffer(
-                        0,
-                        init_w as i32,
-                        init_h as i32,
-                        (init_w * 4) as i32,
-                        wl_shm::Format::Argb8888,
-                        qh,
-                        NoopIgnore,
-                    );
-                    state.buffer = Some(buffer.clone());
-
-                    if state.configured {
-                        let surface = state.base_surface.as_ref().unwrap();
-                        surface.attach(Some(&buffer), 0, 0);
-                        surface.commit();
-                    }
-                }
-                "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, GlobalData);
-                }
-                "xdg_wm_base" => {
-                    let wm_base =
-                        registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, GlobalData);
-                    state.wm_base = Some(wm_base);
-
-                    if state.base_surface.is_some() && state.xdg_surface.is_none() {
-                        state.init_xdg_surface(qh);
-                    }
-                }
-                _ => {}
-            }
+        if global.interface == "wl_seat" {
+            globals
+                .bind_specific::<wl_seat::WlSeat, _, _>(qh, global.name, 1..=1, GlobalData)
+                .unwrap();
         }
     }
 }
@@ -121,21 +98,6 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
         }
     }
     buf.flush().unwrap();
-}
-
-impl State {
-    fn init_xdg_surface(&mut self, qh: &QueueHandle<State>) {
-        let wm_base = self.wm_base.as_ref().unwrap();
-        let base_surface = self.base_surface.as_ref().unwrap();
-
-        let xdg_surface = wm_base.get_xdg_surface(base_surface, qh, GlobalData);
-        let toplevel = xdg_surface.get_toplevel(qh, GlobalData);
-        toplevel.set_title("A fantastic window!".into());
-
-        base_surface.commit();
-
-        self.xdg_surface = Some((xdg_surface, toplevel));
-    }
 }
 
 impl Dispatch<xdg_wm_base::XdgWmBase, State> for GlobalData {
@@ -164,12 +126,9 @@ impl Dispatch<xdg_surface::XdgSurface, State> for GlobalData {
     ) {
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(serial);
+            state.base_surface.attach(Some(&state.buffer), 0, 0);
+            state.base_surface.commit();
             state.configured = true;
-            let surface = state.base_surface.as_ref().unwrap();
-            if let Some(ref buffer) = state.buffer {
-                surface.attach(Some(buffer), 0, 0);
-                surface.commit();
-            }
         }
     }
 }
