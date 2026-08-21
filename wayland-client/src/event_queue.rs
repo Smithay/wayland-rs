@@ -72,7 +72,7 @@ use crate::{Connection, DispatchError, Proxy, conn::SyncData};
 ///         _proxy: &wl_registry::WlRegistry,
 ///         _event: wl_registry::Event,
 ///         _conn: &wayland_client::Connection,
-///         _qhandle: &wayland_client::QueueHandle<State>,
+///         _qh: &wayland_client::QueueHandle<State>,
 ///     ) {
 ///         // Here the delegate may handle incoming events as it pleases.
 ///
@@ -109,7 +109,7 @@ where
         proxy: &I,
         event: I::Event,
         conn: &Connection,
-        qhandle: &QueueHandle<State>,
+        qh: &QueueHandle<State>,
     );
 
     /// Method used to initialize the user-data of objects created by events
@@ -119,11 +119,7 @@ where
     ///
     /// [`event_created_child!()`]: crate::event_created_child!()
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn event_created_child(
-        &self,
-        opcode: u16,
-        _qhandle: &QueueHandle<State>,
-    ) -> Arc<dyn ObjectData> {
+    fn event_created_child(&self, opcode: u16, _qh: &QueueHandle<State>) -> Arc<dyn ObjectData> {
         panic!(
             "Missing event_created_child specialization for event opcode {} of {}",
             opcode,
@@ -145,7 +141,7 @@ where
 ///         event: FooEvent,
 ///         data: &FooUserData,
 ///         connhandle: &mut ConnectionHandle,
-///         qhandle: &QueueHandle<MyState>
+///         qh: &QueueHandle<MyState>
 ///     ) {
 ///         /* ... */
 ///     }
@@ -170,12 +166,12 @@ macro_rules! event_created_child {
         fn event_created_child(
             &self,
             opcode: u16,
-            qhandle: &$crate::QueueHandle<$selftype>
+            qh: &$crate::QueueHandle<$selftype>
         ) -> std::sync::Arc<dyn $crate::backend::ObjectData> {
             match opcode {
                 $(
                     $opcode => {
-                        qhandle.make_data::<$child_iface, _>({$child_udata})
+                        qh.make_data::<$child_iface, _>({$child_udata})
                     },
                 )*
                 _ => {
@@ -472,7 +468,7 @@ impl<State> EventQueue<State> {
 
     fn dispatching_impl(
         backend: &Connection,
-        qhandle: &QueueHandle<State>,
+        qh: &QueueHandle<State>,
         data: &mut State,
     ) -> Result<usize, DispatchError> {
         // This call will most of the time do nothing, but ensure that if the Connection is in guest mode
@@ -483,8 +479,8 @@ impl<State> EventQueue<State> {
         // lose events, and the potential socket error will be caught in other places anyway.
         let mut dispatched = backend.backend.dispatch_inner_queue().unwrap_or_default();
 
-        while let Some(QueueEvent(cb, msg, odata)) = Self::try_next(&qhandle.inner) {
-            cb(backend, msg, data, odata, qhandle)?;
+        while let Some(QueueEvent(cb, msg, odata)) = Self::try_next(&qh.inner) {
+            cb(backend, msg, data, odata, qh)?;
             dispatched += 1;
         }
         Ok(dispatched)
@@ -651,11 +647,11 @@ fn queue_callback<I: Proxy, U: Dispatch<I, State> + Send + Sync + 'static, State
     msg: Message<ObjectId, OwnedFd>,
     data: &mut State,
     odata: Arc<dyn ObjectData>,
-    qhandle: &QueueHandle<State>,
+    qh: &QueueHandle<State>,
 ) -> Result<(), DispatchError> {
     let (proxy, event) = I::parse_event(handle, msg)?;
     let udata: &U = odata.data_as_any().downcast_ref().expect("Wrong user_data value for object");
-    udata.event(data, &proxy, event, handle, qhandle);
+    udata.event(data, &proxy, event, handle, qh);
     Ok(())
 }
 

@@ -34,7 +34,7 @@
 //! #         proxy: &wl_compositor::WlCompositor,
 //! #         event: wl_compositor::Event,
 //! #         conn: &Connection,
-//! #         qhandle: &QueueHandle<State>,
+//! #         qh: &QueueHandle<State>,
 //! #     ) {}
 //! # }
 //! // now you can bind the globals you need for your app
