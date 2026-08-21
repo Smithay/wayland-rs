@@ -13,6 +13,8 @@
 - `GlobalList` now is updated with normal queueing, requires a `GlobalListHandler` implementation
 - Rename `GlobalList::bind` to `bind_singleton`
 - Replace `registry_queue_init` with `GlobalList::init`
+- `Connection::connect_to_env` is now marked `unsafe`. `connect_to_env_threadsafe` can be used if
+  invoked off the main thread, ignoring `WAYLAND_SOCKET`.
 
 #### Additions
 - Add `GlobalList::bind_specific`

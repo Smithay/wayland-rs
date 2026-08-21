@@ -17,7 +17,7 @@ struct GlobalData;
 
 #[tokio::main]
 async fn main() {
-    let conn = Connection::connect_to_env().unwrap();
+    let conn = unsafe { Connection::connect_to_env() }.unwrap();
 
     let event_queue = conn.new_event_queue();
     let qh = event_queue.handle();

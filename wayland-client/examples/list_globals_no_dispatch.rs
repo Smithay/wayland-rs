@@ -39,7 +39,8 @@ impl backend::ObjectData for RegistryData {
 fn main() {
     // Create our connection like the Dispatch example, except we store it in an Arc
     // to share with our registry object data.
-    let conn = Arc::new(Connection::connect_to_env().unwrap());
+    // SAFETY: Called at start of main before starting other threads
+    let conn = Arc::new(unsafe { Connection::connect_to_env() }.unwrap());
     let display = conn.display();
 
     let registry_data = Arc::new(RegistryData(conn.clone()));

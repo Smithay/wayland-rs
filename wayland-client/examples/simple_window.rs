@@ -11,7 +11,8 @@ use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_ba
 struct GlobalData;
 
 fn main() {
-    let conn = Connection::connect_to_env().unwrap();
+    // SAFETY: Called at start of main before starting other threads
+    let conn = unsafe { Connection::connect_to_env() }.unwrap();
 
     let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();

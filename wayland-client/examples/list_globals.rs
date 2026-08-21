@@ -36,7 +36,8 @@ impl Dispatch<wl_registry::WlRegistry, AppData> for () {
 fn main() {
     // Create a Wayland connection by connecting to the server through the
     // environment-provided configuration.
-    let conn = Connection::connect_to_env().unwrap();
+    // SAFETY: Called at start of main before starting other threads
+    let conn = unsafe { Connection::connect_to_env() }.unwrap();
 
     // Retrieve the WlDisplay Wayland object from the connection. This object is
     // the starting point of any Wayland program, from which all other objects will

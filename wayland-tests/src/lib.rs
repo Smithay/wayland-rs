@@ -62,7 +62,8 @@ impl<D> TestClient<D> {
     }
 
     pub fn new_from_env() -> TestClient<D> {
-        let conn = self::wayc::Connection::connect_to_env().expect("Failed to connect to server.");
+        let conn = unsafe { self::wayc::Connection::connect_to_env() }
+            .expect("Failed to connect to server.");
         let event_queue = conn.new_event_queue();
         let display = conn.display();
         TestClient { conn, display, event_queue }
