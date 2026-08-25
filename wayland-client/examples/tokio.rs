@@ -7,7 +7,7 @@ use std::{io::Write, os::unix::io::AsFd};
 use tokio::io::unix::AsyncFd;
 use wayland_client::{
     Connection, Dispatch, NoopIgnore, QueueHandle,
-    globals::{GlobalListHandler, registry_queue_init},
+    globals::{GlobalList, GlobalListHandler},
     protocol::{wl_buffer, wl_compositor, wl_pointer, wl_seat, wl_shm, wl_surface},
 };
 
@@ -19,8 +19,9 @@ struct GlobalData;
 async fn main() {
     let conn = Connection::connect_to_env().unwrap();
 
-    let (globals, event_queue) = registry_queue_init(&conn).unwrap();
+    let event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
+    let globals = GlobalList::init(&conn, &qh).unwrap();
 
     let wm_base =
         globals.bind_singleton::<xdg_wm_base::XdgWmBase, _, _>(1..=1, &qh, GlobalData).unwrap();
