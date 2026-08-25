@@ -133,14 +133,37 @@ where
 /// Use this macro inside the [`Dispatch`] implementation to override this method, to implement the
 /// initialization of the user data for event-created objects. The usage syntax is as follow:
 ///
-/// ```ignore
-/// impl Dispatch<WlFoo, FooUserData> for MyState {
+/// ```no_run
+/// # use wayland_client::{Connection, Dispatch, event_created_child, QueueHandle};
+/// # // Use `WlSurface` as a placeholder for other types
+/// # use wayland_client::protocol::wl_surface::{Event as FooEvent, WlSurface as WlFoo, WlSurface as WlBar};
+/// # struct MyState;
+/// # struct FooUserData;
+/// # struct BarUserData;
+/// # impl BarUserData {
+/// #     fn new() -> Self {
+/// #         Self
+/// #     }
+/// # }
+/// # impl Dispatch<WlBar, MyState> for BarUserData {
+/// #    fn event(
+/// #        &self,
+/// #        state: &mut MyState,
+/// #        proxy: &WlBar,
+/// #        event: FooEvent,
+/// #        conn: &Connection,
+/// #        qh: &QueueHandle<MyState>
+/// #    ) {
+/// #    }
+/// # }
+///
+/// impl Dispatch<WlFoo, MyState> for FooUserData {
 ///     fn event(
-///         &mut self,
+///         &self,
+///         state: &mut MyState,
 ///         proxy: &WlFoo,
 ///         event: FooEvent,
-///         data: &FooUserData,
-///         connhandle: &mut ConnectionHandle,
+///         conn: &Connection,
 ///         qh: &QueueHandle<MyState>
 ///     ) {
 ///         /* ... */
