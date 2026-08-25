@@ -12,6 +12,7 @@
 - `BindError` now includes the requested and available version, or interface name that failed to bind.
 - `GlobalList` now is updated with normal queueing, requires a `GlobalListHandler` implementation
 - Rename `GlobalList::bind` to `bind_singleton`
+- Replace `registry_queue_init` with `GlobalList::init`
 
 #### Additions
 - Add `GlobalList::bind_specific`

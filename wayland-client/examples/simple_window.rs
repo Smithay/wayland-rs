@@ -2,7 +2,7 @@ use std::{fs::File, os::unix::io::AsFd};
 
 use wayland_client::{
     Connection, Dispatch, NoopIgnore, QueueHandle,
-    globals::{Global, GlobalList, GlobalListHandler, registry_queue_init},
+    globals::{Global, GlobalList, GlobalListHandler},
     protocol::{wl_buffer, wl_compositor, wl_keyboard, wl_seat, wl_shm, wl_surface},
 };
 
@@ -13,8 +13,9 @@ struct GlobalData;
 fn main() {
     let conn = Connection::connect_to_env().unwrap();
 
-    let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();
+    let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
+    let globals = GlobalList::init(&conn, &qh).unwrap();
 
     let wm_base =
         globals.bind_singleton::<xdg_wm_base::XdgWmBase, _, _>(1..=1, &qh, GlobalData).unwrap();

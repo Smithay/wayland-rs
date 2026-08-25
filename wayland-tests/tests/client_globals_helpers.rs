@@ -10,7 +10,7 @@ use ways::protocol::wl_compositor::WlCompositor as ServerCompositor;
 use ways::protocol::wl_output::WlOutput as ServerOutput;
 use ways::protocol::wl_shell::WlShell as ServerShell;
 
-use wayc::globals::{Global, GlobalListHandler, registry_queue_init};
+use wayc::globals::{Global, GlobalList, GlobalListHandler};
 use wayc::protocol::{wl_compositor, wl_subcompositor};
 
 #[test]
@@ -36,7 +36,8 @@ fn client_global_helpers_init() {
         }
     });
 
-    let (globals, queue) = registry_queue_init::<ClientHandler>(&client.conn).unwrap();
+    let queue = client.conn.new_event_queue::<ClientHandler>();
+    let globals = GlobalList::init(&client.conn, &queue.handle()).unwrap();
 
     assert_eq!(
         globals.contents().clone_list(),
@@ -122,7 +123,8 @@ fn client_global_helpers_dynamic() {
         }
     });
 
-    let (globals, mut queue) = registry_queue_init::<ClientHandler>(&client.conn).unwrap();
+    let mut queue = client.conn.new_event_queue::<ClientHandler>();
+    let globals = GlobalList::init(&client.conn, &queue.handle()).unwrap();
 
     assert_eq!(
         globals.contents().clone_list(),
@@ -188,7 +190,8 @@ fn too_high_global_version() {
         }
     });
 
-    let (globals, queue) = registry_queue_init::<ClientHandler>(&client.conn).unwrap();
+    let queue = client.conn.new_event_queue::<ClientHandler>();
+    let globals = GlobalList::init(&client.conn, &queue.handle()).unwrap();
 
     // kill the server now to avoit a deadlock of the test, as we're about to panic
     kill_switch.store(true, Ordering::Release);

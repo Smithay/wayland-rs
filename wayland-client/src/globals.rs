@@ -4,8 +4,8 @@
 //! advertized by the compositor from the registry. Using the [`Dispatch`] mechanism for this task can be
 //! very unpractical, this is why this module provides a special helper for handling the registry.
 //!
-//! The entry point of this helper is the [`registry_queue_init`] function. Given a reference to your
-//! [`Connection`] it will create an [`EventQueue`], retrieve the initial list of globals, and register a
+//! The entry point of this helper is the [`GlobalList::init`] function. Given a reference to your
+//! [`Connection`] and a [`QueueHandle`], retrieve the initial list of globals, and register a
 //! handler using your provided `Dispatch<WlRegistry,_>` implementation for handling dynamic registry events.
 //!
 //! ## Example
@@ -13,7 +13,7 @@
 //! ```no_run
 //! use wayland_client::{
 //!     Connection, Dispatch, QueueHandle,
-//!     globals::{registry_queue_init, Global, GlobalListHandler},
+//!     globals::{Global, GlobalList, GlobalListHandler},
 //!     protocol::{wl_registry, wl_compositor},
 //! };
 //! # use std::sync::Mutex;
@@ -25,7 +25,8 @@
 //! }
 //!
 //! let conn = Connection::connect_to_env().unwrap();
-//! let (globals, queue) = registry_queue_init::<State>(&conn).unwrap();
+//! let mut queue = conn.new_event_queue();
+//! let globals = GlobalList::init(&conn, &queue.handle()).unwrap();
 //!
 //! # impl wayland_client::Dispatch<wl_compositor::WlCompositor, State> for () {
 //! #     fn event(
@@ -57,37 +58,12 @@ use wayland_backend::{
 };
 
 use crate::{
-    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
+    Connection, Dispatch, Proxy, QueueHandle,
     protocol::{wl_display, wl_fixes, wl_registry},
 };
 
-/// Initialize a new event queue with its associated registry and retrieve the initial list of globals
-///
-/// See [the module level documentation][self] for more.
-pub fn registry_queue_init<State>(
-    conn: &Connection,
-) -> Result<(GlobalList, EventQueue<State>), GlobalError>
-where
-    State: GlobalListHandler + 'static,
-{
-    let event_queue = conn.new_event_queue();
-    let display = conn.display();
-    let fixes = OnceLock::<wl_fixes::WlFixes>::new();
-
-    let data = Arc::new(RegistryState {
-        globals: GlobalListContents { contents: Default::default(), fixes },
-        handle: event_queue.handle(),
-        initial_roundtrip_done: AtomicBool::new(false),
-    });
-    let registry = display.send_constructor(wl_display::Request::GetRegistry {}, data.clone())?;
-    // We don't need to dispatch the event queue as for now nothing will be sent to it
-    conn.roundtrip()?;
-    data.initial_roundtrip_done.store(true, Ordering::Relaxed);
-    Ok((GlobalList { registry }, event_queue))
-}
-
 /// Handler for runtime global addition/removal in [`GlobalList`] created with
-/// [`registry_queue_init`]
+/// [`GlobalList::init`]
 pub trait GlobalListHandler: Sized {
     /// A global has been added dynamically after creation of the [`GlobalList`]
     ///
@@ -123,6 +99,32 @@ pub struct GlobalList {
 }
 
 impl GlobalList {
+    /// Initialize registry and retrieve the initial list of globals
+    ///
+    /// See [the module level documentation][self] for more.
+    pub fn init<State>(
+        conn: &Connection,
+        qh: &QueueHandle<State>,
+    ) -> Result<GlobalList, GlobalError>
+    where
+        State: GlobalListHandler + 'static,
+    {
+        let display = conn.display();
+        let fixes = OnceLock::<wl_fixes::WlFixes>::new();
+
+        let data = Arc::new(RegistryState {
+            globals: GlobalListContents { contents: Default::default(), fixes },
+            handle: qh.clone(),
+            initial_roundtrip_done: AtomicBool::new(false),
+        });
+        let registry =
+            display.send_constructor(wl_display::Request::GetRegistry {}, data.clone())?;
+        // We don't need to dispatch the event queue as for now nothing will be sent to it
+        conn.roundtrip()?;
+        data.initial_roundtrip_done.store(true, Ordering::Relaxed);
+        Ok(GlobalList { registry })
+    }
+
     /// Access the contents of the list of globals
     pub fn contents(&self) -> &GlobalListContents {
         self.registry.data::<GlobalListContents>().unwrap()
@@ -450,7 +452,7 @@ where
         msg: Message<ObjectId, OwnedFd>,
     ) -> Option<Arc<dyn ObjectData>> {
         // For initial roundtrip, update immediately without waiting for dispatch.
-        // So globals are available after `registry_queue_init` returns.
+        // So globals are available after `GlobalList::init` returns.
         // later, handle in `Dispatch` implementation.
         if !self.initial_roundtrip_done.load(Ordering::Relaxed) {
             let conn = Connection::from_backend(backend.clone());
