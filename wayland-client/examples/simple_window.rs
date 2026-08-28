@@ -30,13 +30,15 @@ fn main() {
     xdg_toplevel.set_title("A fantastic window!".into());
     base_surface.commit();
 
-    for global in globals.clone_list() {
-        if global.interface == "wl_seat" {
-            globals
-                .bind_specific::<wl_seat::WlSeat, _, _>(global.name, 1..=1, &qh, GlobalData)
-                .unwrap();
+    globals.with_contents(|contents| {
+        for global in contents.globals() {
+            if global.interface == "wl_seat" {
+                contents
+                    .bind_specific::<wl_seat::WlSeat, _, _>(global.name, 1..=1, &qh, GlobalData)
+                    .unwrap();
+            }
         }
-    }
+    });
 
     let shm = globals.bind_singleton::<wl_shm::WlShm, _, _>(1..=1, &qh, NoopIgnore).unwrap();
 

@@ -143,6 +143,11 @@ impl GlobalList {
         self.data().contents.lock().unwrap().clone()
     }
 
+    pub fn with_contents<T, F: FnOnce(&GlobalListContents) -> T>(&self, f: F) -> T {
+        let guard = self.data().contents.lock().unwrap();
+        f(&GlobalListContents { registry: &self.registry, globals: &guard })
+    }
+
     /// Binds a global, returning a new protocol object associated with the global.
     ///
     /// The `version` specifies the range of versions that should be bound. This function will guarantee the
@@ -186,14 +191,15 @@ impl GlobalList {
             );
         }
 
-        let guard = self.data().contents.lock().unwrap();
-        let global = guard
-            .iter()
-            // Find the global with the correct interface
-            .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
-            .ok_or(BindError::NotPresent(interface.name))?;
-
-        self.bind_inner(qh, global, version, udata)
+        self.with_contents(|contents| {
+            let global = contents
+                .globals
+                .iter()
+                // Find the global with the correct interface
+                .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
+                .ok_or(BindError::NotPresent(interface.name))?;
+            contents.bind_inner(qh, global, version, udata)
+        })
     }
 
     /// Binds a global, returning a new object associated with the global.
@@ -226,43 +232,16 @@ impl GlobalList {
             );
         }
 
-        let guard = self.data().contents.lock().unwrap();
-        let global = guard
-            .iter()
-            // Find the global with correct name and interface
-            .find(|global| global.name == name && global.interface == interface.name)
-            // TODO Error for not finding name, rather than interface?
-            .ok_or(BindError::NotPresent(interface.name))?;
-
-        self.bind_inner(qh, global, version, udata)
-    }
-
-    fn bind_inner<I, State, U>(
-        &self,
-        qh: &QueueHandle<State>,
-        global: &Global,
-        version: RangeInclusive<u32>,
-        udata: U,
-    ) -> Result<I, BindError>
-    where
-        I: Proxy + 'static,
-        State: 'static,
-        U: Dispatch<I, State> + Send + Sync + 'static,
-    {
-        // Test version requirements
-        if *version.start() > global.version {
-            return Err(BindError::UnsupportedVersion {
-                interface: I::interface().name,
-                requested: *version.start(),
-                available: global.version,
-            });
-        }
-
-        // To get the version to bind, take the lower of the version advertised by the server and the maximum
-        // requested version.
-        let negotiated_version = global.version.min(*version.end());
-
-        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+        self.with_contents(|contents| {
+            let global = contents
+                .globals
+                .iter()
+                // Find the global with correct name and interface
+                .find(|global| global.name == name && global.interface == interface.name)
+                // TODO Error for not finding name, rather than interface?
+                .ok_or(BindError::NotPresent(interface.name))?;
+            contents.bind_inner(qh, global, version, udata)
+        })
     }
 
     /// Returns the [`WlRegistry`][wl_registry] protocol object.
@@ -384,6 +363,79 @@ pub struct Global {
     /// This specifies the maximum version of the global that may be bound. This means any lower version of
     /// the global may be bound.
     pub version: u32,
+}
+
+pub struct GlobalListContents<'a> {
+    registry: &'a wl_registry::WlRegistry,
+    globals: &'a [Global],
+}
+
+impl<'a> GlobalListContents<'a> {
+    fn bind_inner<I, State, U>(
+        &self,
+        qh: &QueueHandle<State>,
+        global: &Global,
+        version: RangeInclusive<u32>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        // Test version requirements
+        if *version.start() > global.version {
+            return Err(BindError::UnsupportedVersion {
+                interface: I::interface().name,
+                requested: *version.start(),
+                available: global.version,
+            });
+        }
+
+        // To get the version to bind, take the lower of the version advertised by the server and the maximum
+        // requested version.
+        let negotiated_version = global.version.min(*version.end());
+
+        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+    }
+
+    pub fn globals(&self) -> &[Global] {
+        self.globals
+    }
+
+    pub fn bind_specific<I, State, U>(
+        &self,
+        name: u32,
+        version: std::ops::RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        let interface = I::interface();
+
+        if *version.end() > interface.version {
+            // This is a panic because it's a compile-time programmer error, not a runtime error.
+            panic!(
+                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
+                version.end(),
+                interface.name,
+                interface.version
+            );
+        }
+
+        let global = self
+            .globals
+            .iter()
+            // Find the global with correct name and interface
+            .find(|global| global.name == name && global.interface == interface.name)
+            // TODO Error for not finding name, rather than interface?
+            .ok_or(BindError::NotPresent(interface.name))?;
+        self.bind_inner(qh, global, version, udata)
+    }
 }
 
 #[derive(Debug)]
