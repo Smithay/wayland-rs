@@ -17,25 +17,14 @@ pub fn parse<S: Read>(stream: S) -> Protocol {
     parse_protocol(reader)
 }
 
-fn decode_utf8_or_panic(txt: Vec<u8>) -> String {
-    match String::from_utf8(txt) {
-        Ok(txt) => txt,
-        Err(e) => panic!("Invalid UTF8: '{}'", String::from_utf8_lossy(&e.into_bytes())),
-    }
+fn parse_bool(txt: &str) -> bool {
+    txt == "true"
 }
 
-fn parse_bool(txt: &[u8]) -> bool {
-    txt == b"true"
-}
-
-fn parse_or_panic<T: FromStr>(txt: &[u8]) -> T {
-    match std::str::from_utf8(txt).ok().and_then(|val| val.parse().ok()) {
+fn parse_or_panic<T: FromStr>(txt: &str) -> T {
+    match txt.parse().ok() {
         Some(version) => version,
-        None => panic!(
-            "Invalid value '{}' for parsing type '{}'",
-            String::from_utf8_lossy(txt),
-            std::any::type_name::<T>()
-        ),
+        None => panic!("Invalid value '{}' for parsing type '{}'", txt, std::any::type_name::<T>()),
     }
 }
 
@@ -47,13 +36,13 @@ fn init_protocol<R: BufRead>(reader: &mut Reader<R>) -> Protocol {
                 continue;
             }
             Ok(Event::Start(bytes)) => {
-                assert!(bytes.name().into_inner() == b"protocol", "Missing protocol toplevel tag");
+                assert!(bytes.name().into_inner() == "protocol", "Missing protocol toplevel tag");
                 if let Some(attr) = bytes
                     .attributes()
                     .filter_map(|res| res.ok())
-                    .find(|attr| attr.key.into_inner() == b"name")
+                    .find(|attr| attr.key.into_inner() == "name")
                 {
-                    return Protocol::new(decode_utf8_or_panic(attr.value.into_owned()));
+                    return Protocol::new(attr.value.into_owned());
                 } else {
                     panic!("Protocol must have a name");
                 }
@@ -71,26 +60,22 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => {
                 match bytes.name().into_inner() {
-                    b"copyright" => {
+                    "copyright" => {
                         // parse the copyright
                         let mut copyright = String::new();
                         loop {
                             match reader.read_event_into(&mut Vec::new()) {
                                 Ok(Event::Text(text)) => {
-                                    if let Ok(text) = text.decode() {
-                                        copyright.push_str(&text);
-                                    }
+                                    copyright.push_str(&text.xml10_content());
                                 }
                                 Ok(Event::CData(cdata)) => {
-                                    if let Ok(cdata) = String::from_utf8(cdata.into_inner().into())
-                                    {
-                                        copyright.push_str(&cdata);
-                                    }
+                                    copyright.push_str(&cdata.into_inner());
                                 }
                                 Ok(Event::GeneralRef(byte_ref)) => {
                                     if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
                                         copyright.push(c);
-                                    } else if let Ok(content) = byte_ref.xml10_content() {
+                                    } else {
+                                        let content = byte_ref.xml10_content();
                                         if let Some(s) =
                                             quick_xml::escape::resolve_xml_entity(&content)
                                         {
@@ -100,7 +85,7 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                                 }
                                 Ok(Event::End(bytes)) => {
                                     assert!(
-                                        bytes.name().into_inner() == "copyright".as_bytes(),
+                                        bytes.name().into_inner() == "copyright",
                                         "Ill-formed protocol file"
                                     );
                                     break;
@@ -113,27 +98,22 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
 
                         protocol.copyright = Some(copyright)
                     }
-                    b"interface" => {
+                    "interface" => {
                         protocol.interfaces.push(parse_interface(&mut reader, bytes.attributes()));
                     }
-                    b"description" => {
+                    "description" => {
                         protocol.description =
                             Some(parse_description(&mut reader, bytes.attributes()));
                     }
                     name => panic!(
                         "Ill-formed protocol file: unexpected token `{}` in protocol {}",
-                        String::from_utf8_lossy(name),
-                        protocol.name
+                        name, protocol.name
                     ),
                 }
             }
             Ok(Event::End(bytes)) => {
                 let name = bytes.name().into_inner();
-                assert!(
-                    name == b"protocol",
-                    "Unexpected closing token `{}`",
-                    String::from_utf8_lossy(name)
-                );
+                assert!(name == "protocol", "Unexpected closing token `{}`", name);
                 break;
             }
             // ignore comments
@@ -149,8 +129,8 @@ fn parse_interface<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Int
     let mut interface = Interface::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => interface.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"version" => interface.version = parse_or_panic(&attr.value),
+            "name" => interface.name = attr.value.into_owned(),
+            "version" => interface.version = parse_or_panic(&attr.value),
             _ => {}
         }
     }
@@ -158,15 +138,15 @@ fn parse_interface<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Int
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     interface.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                b"request" => interface.requests.push(parse_request(reader, bytes.attributes())),
-                b"event" => interface.events.push(parse_event(reader, bytes.attributes())),
-                b"enum" => interface.enums.push(parse_enum(reader, bytes.attributes())),
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                "request" => interface.requests.push(parse_request(reader, bytes.attributes())),
+                "event" => interface.events.push(parse_event(reader, bytes.attributes())),
+                "enum" => interface.enums.push(parse_enum(reader, bytes.attributes())),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"interface" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "interface" => break,
             _ => {}
         }
     }
@@ -177,11 +157,8 @@ fn parse_interface<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Int
 fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (String, String) {
     let mut summary = String::new();
     for attr in attrs.filter_map(|res| res.ok()) {
-        if attr.key.into_inner() == b"summary" {
-            summary = String::from_utf8_lossy(&attr.value)
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ");
+        if attr.key.into_inner() == "summary" {
+            summary = attr.value.split_whitespace().collect::<Vec<_>>().join(" ");
         }
     }
 
@@ -194,23 +171,22 @@ fn parse_description<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> (
                 if !description.is_empty() {
                     description.push_str("\n\n");
                 }
-                description.push_str(&bytes.decode().unwrap_or_default())
+                description.push_str(&bytes.xml10_content())
             }
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"description" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "description" => break,
             Ok(Event::Comment(_)) => {}
             Ok(Event::GeneralRef(byte_ref)) => {
                 if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
                     description.push(c);
-                } else if let Ok(content) = byte_ref.xml10_content() {
+                } else {
+                    let content = byte_ref.xml10_content();
                     if let Some(s) = quick_xml::escape::resolve_xml_entity(&content) {
                         description.push_str(s);
                     }
                 }
             }
             Ok(Event::CData(cdata)) => {
-                if let Ok(cdata) = String::from_utf8(cdata.into_inner().into()) {
-                    description.push_str(&cdata);
-                }
+                description.push_str(&cdata.into_inner());
             }
             e => panic!("Ill-formed protocol file: {e:?}"),
         }
@@ -223,9 +199,9 @@ fn parse_request<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Messa
     let mut request = Message::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => request.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"type" => request.typ = Some(parse_type(&attr.value)),
-            b"since" => request.since = parse_or_panic(&attr.value),
+            "name" => request.name = attr.value.into_owned(),
+            "type" => request.typ = Some(parse_type(&attr.value)),
+            "since" => request.since = parse_or_panic(&attr.value),
             _ => {}
         }
     }
@@ -233,13 +209,13 @@ fn parse_request<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Messa
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     request.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                b"arg" => request.args.push(parse_arg(reader, bytes.attributes())),
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                "arg" => request.args.push(parse_arg(reader, bytes.attributes())),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"request" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "request" => break,
             _ => {}
         }
     }
@@ -251,9 +227,9 @@ fn parse_enum<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Enum {
     let mut enu = Enum::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => enu.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"since" => enu.since = parse_or_panic(&attr.value),
-            b"bitfield" => enu.bitfield = parse_bool(&attr.value),
+            "name" => enu.name = attr.value.into_owned(),
+            "since" => enu.since = parse_or_panic(&attr.value),
+            "bitfield" => enu.bitfield = parse_bool(&attr.value),
             _ => {}
         }
     }
@@ -261,13 +237,13 @@ fn parse_enum<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Enum {
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     enu.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                b"entry" => enu.entries.push(parse_entry(reader, bytes.attributes())),
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                "entry" => enu.entries.push(parse_entry(reader, bytes.attributes())),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"enum" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "enum" => break,
             _ => {}
         }
     }
@@ -279,9 +255,9 @@ fn parse_event<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Message
     let mut event = Message::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => event.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"type" => event.typ = Some(parse_type(&attr.value)),
-            b"since" => event.since = parse_or_panic(&attr.value),
+            "name" => event.name = attr.value.into_owned(),
+            "type" => event.typ = Some(parse_type(&attr.value)),
+            "since" => event.since = parse_or_panic(&attr.value),
             _ => {}
         }
     }
@@ -289,13 +265,13 @@ fn parse_event<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Message
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     event.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                b"arg" => event.args.push(parse_arg(reader, bytes.attributes())),
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                "arg" => event.args.push(parse_arg(reader, bytes.attributes())),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"event" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "event" => break,
             _ => {}
         }
     }
@@ -303,8 +279,7 @@ fn parse_event<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Message
     event
 }
 
-fn parse_enum_relname_or_panic(txt: Vec<u8>) -> EnumRef {
-    let value = decode_utf8_or_panic(txt);
+fn parse_enum_relname_or_panic(value: String) -> EnumRef {
     let mut iter = value.rsplit('.');
     let name = iter.next().unwrap().to_string();
     let interface = iter.next().map(|s| s.to_string());
@@ -318,19 +293,14 @@ fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
     let mut arg = Arg::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => arg.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"type" => arg.typ = parse_type(&attr.value),
-            b"summary" => {
-                arg.summary = Some(
-                    String::from_utf8_lossy(&attr.value)
-                        .split_whitespace()
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                )
+            "name" => arg.name = attr.value.into_owned(),
+            "type" => arg.typ = parse_type(&attr.value),
+            "summary" => {
+                arg.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" "))
             }
-            b"interface" => arg.interface = Some(parse_or_panic(&attr.value)),
-            b"allow-null" => arg.allow_null = parse_bool(&attr.value),
-            b"enum" => arg.enum_ = Some(parse_enum_relname_or_panic(attr.value.into_owned())),
+            "interface" => arg.interface = Some(parse_or_panic(&attr.value)),
+            "allow-null" => arg.allow_null = parse_bool(&attr.value),
+            "enum" => arg.enum_ = Some(parse_enum_relname_or_panic(attr.value.into_owned())),
             _ => {}
         }
     }
@@ -338,12 +308,12 @@ fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     arg.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"arg" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "arg" => break,
             _ => {}
         }
     }
@@ -351,18 +321,18 @@ fn parse_arg<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Arg {
     arg
 }
 
-fn parse_type(txt: &[u8]) -> Type {
+fn parse_type(txt: &str) -> Type {
     match txt {
-        b"int" => Type::Int,
-        b"uint" => Type::Uint,
-        b"fixed" => Type::Fixed,
-        b"string" => Type::String,
-        b"object" => Type::Object,
-        b"new_id" => Type::NewId,
-        b"array" => Type::Array,
-        b"fd" => Type::Fd,
-        b"destructor" => Type::Destructor,
-        e => panic!("Unexpected type: {}", String::from_utf8_lossy(e)),
+        "int" => Type::Int,
+        "uint" => Type::Uint,
+        "fixed" => Type::Fixed,
+        "string" => Type::String,
+        "object" => Type::Object,
+        "new_id" => Type::NewId,
+        "array" => Type::Array,
+        "fd" => Type::Fd,
+        "destructor" => Type::Destructor,
+        e => panic!("Unexpected type: {}", e),
     }
 }
 
@@ -370,29 +340,21 @@ fn parse_entry<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Entry {
     let mut entry = Entry::new();
     for attr in attrs.filter_map(|res| res.ok()) {
         match attr.key.into_inner() {
-            b"name" => entry.name = decode_utf8_or_panic(attr.value.into_owned()),
-            b"value" => {
-                entry.value = if attr.value.starts_with(b"0x") {
-                    if let Some(val) = std::str::from_utf8(&attr.value[2..])
-                        .ok()
-                        .and_then(|s| u32::from_str_radix(s, 16).ok())
-                    {
+            "name" => entry.name = attr.value.into_owned(),
+            "value" => {
+                entry.value = if attr.value.starts_with("0x") {
+                    if let Some(val) = u32::from_str_radix(&attr.value[2..], 16).ok() {
                         val
                     } else {
-                        panic!("Invalid number: {}", String::from_utf8_lossy(&attr.value))
+                        panic!("Invalid number: {}", attr.value)
                     }
                 } else {
                     parse_or_panic(&attr.value)
                 };
             }
-            b"since" => entry.since = parse_or_panic(&attr.value),
-            b"summary" => {
-                entry.summary = Some(
-                    String::from_utf8_lossy(&attr.value)
-                        .split_whitespace()
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                )
+            "since" => entry.since = parse_or_panic(&attr.value),
+            "summary" => {
+                entry.summary = Some(attr.value.split_whitespace().collect::<Vec<_>>().join(" "))
             }
             _ => {}
         }
@@ -401,12 +363,12 @@ fn parse_entry<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Entry {
     loop {
         match reader.read_event_into(&mut Vec::new()) {
             Ok(Event::Start(bytes)) => match bytes.name().into_inner() {
-                b"description" => {
+                "description" => {
                     entry.description = Some(parse_description(reader, bytes.attributes()))
                 }
-                name => panic!("Unexpected token: `{}`", String::from_utf8_lossy(name)),
+                name => panic!("Unexpected token: `{}`", name),
             },
-            Ok(Event::End(bytes)) if bytes.name().into_inner() == b"entry" => break,
+            Ok(Event::End(bytes)) if bytes.name().into_inner() == "entry" => break,
             _ => {}
         }
     }
