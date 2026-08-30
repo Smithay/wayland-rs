@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Update `quick-xml` to 0.41
+- Update `quick-xml` to 0.42
 
 #### Breaking changes
 - Generate tuple struct for enums, and don't use `WEnum`
