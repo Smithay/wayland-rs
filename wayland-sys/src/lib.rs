@@ -31,13 +31,30 @@
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-// If compiling with neither the `client` or `server` feature (non-sensical but
-// it's what happens when running `cargo test --all` from the workspace root),
-// dlib isn't actually used. This is not an issue, so don't warn about it.
-#[allow(unused_imports)]
 #[cfg(any(feature = "client", feature = "server"))]
-#[macro_use]
-extern crate dlib;
+macro_rules! external_library {
+    ($structname:ident, $link:expr,
+        $(statics: $($(#[$sattr:meta])* $sname:ident: $stype:ty),+,)|*
+        $(functions: $($(#[$fattr:meta])* fn $fname:ident($($farg:ty),*) -> $fret:ty),+,)|*
+        $(varargs: $($(#[$vattr:meta])* fn $vname:ident($($vargs:ty),+) -> $vret:ty),+,)|*
+    ) => {
+        #[cfg(dlopen)]
+        dlib::dlopen_external_library!(
+            $structname,
+            $(statics: $($(#[$sattr])* $sname: $stype),+,)|*
+            $(functions: $($(#[$fattr])* fn $fname($($farg),*) -> $fret),+,)|*
+            $(varargs: $($(#[$vattr])* fn $vname($($vargs),+) -> $vret),+,)|*
+        );
+
+        #[cfg(not(dlopen))]
+        dlib::link_external_library!(
+            $link,
+            $(statics: $($(#[$sattr])* $sname: $stype),+,)|*
+            $(functions: $($(#[$fattr])* fn $fname($($farg),*) -> $fret),+,)|*
+            $(varargs: $($(#[$vattr])* fn $vname($($vargs),+) -> $vret),+,)|*
+        );
+    };
+}
 
 pub mod common;
 
@@ -58,7 +75,7 @@ pub use libc::{gid_t, pid_t, uid_t};
 // use the "dlopen" feature *on the crate invoking it* rather than
 // the "dlopen" feature of wayland-sys.
 
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 #[macro_export]
 macro_rules! ffi_dispatch(
     ($handle: expr, $func: ident $(, $arg: expr)* $(,)?) => (
@@ -66,7 +83,7 @@ macro_rules! ffi_dispatch(
     )
 );
 
-#[cfg(not(feature = "dlopen"))]
+#[cfg(not(dlopen))]
 #[macro_export]
 macro_rules! ffi_dispatch(
     ($handle: expr, $func: ident $(, $arg: expr)* $(,)?) => (
