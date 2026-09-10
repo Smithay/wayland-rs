@@ -43,6 +43,10 @@ unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, Connect
     if let Ok(txt) = env::var("WAYLAND_SOCKET") {
         // We should connect to the provided WAYLAND_SOCKET
         let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+        // Verify `fd` isn't negative, or stdin/out/err
+        if fd <= 2 {
+            return Err(ConnectError::InvalidFd);
+        }
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
         // remove the variable so any child processes don't see it
         // TODO: Audit that the environment access only happens in single-threaded code.
