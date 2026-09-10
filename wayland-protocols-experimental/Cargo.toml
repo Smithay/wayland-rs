@@ -30,3 +30,6 @@ server = ["wayland-server", "wayland-protocols/server"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.cargo]
+unused_dependencies = "allow"

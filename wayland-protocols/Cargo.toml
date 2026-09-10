@@ -42,3 +42,6 @@ unstable = []
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.cargo]
+unused_dependencies = "allow"
