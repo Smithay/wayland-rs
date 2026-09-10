@@ -32,3 +32,6 @@ libwayland_server_1_23 = ["libwayland_server_1_22"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.cargo]
+unused_dependencies = "allow"
