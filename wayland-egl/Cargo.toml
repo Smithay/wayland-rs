@@ -17,6 +17,7 @@ wayland-sys = { version = "0.31.11", path="../wayland-sys", features = ["egl"] }
 
 [features]
 default = ["wayland-backend"]
+wayland-backend = ["dep:wayland-backend"]
 dlopen = ["wayland-backend/dlopen"]
 
 [package.metadata.docs.rs]

@@ -34,8 +34,8 @@ wayland-server = { version = "0.31.13", path = "../wayland-server", optional = t
 bitflags = "2"
 
 [features]
-client = ["wayland-client"]
-server = ["wayland-server"]
+client = ["dep:wayland-client"]
+server = ["dep:wayland-server"]
 staging = []
 unstable = []
 
