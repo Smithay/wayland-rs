@@ -343,7 +343,7 @@ fn parse_entry<R: BufRead>(reader: &mut Reader<R>, attrs: Attributes) -> Entry {
             "name" => entry.name = attr.value.into_owned(),
             "value" => {
                 entry.value = if attr.value.starts_with("0x") {
-                    if let Some(val) = u32::from_str_radix(&attr.value[2..], 16).ok() {
+                    if let Ok(val) = u32::from_str_radix(&attr.value[2..], 16) {
                         val
                     } else {
                         panic!("Invalid number: {}", attr.value)
