@@ -10,7 +10,6 @@ keywords = ["wayland", "server", "compositor"]
 description = "Bindings to the standard C implementation of the wayland protocol, server side."
 edition = "2024"
 rust-version = "1.86"
-readme = "README.md"
 
 [dependencies]
 wayland-backend = { version = "0.3.15", path = "../wayland-backend" }

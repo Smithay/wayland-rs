@@ -10,7 +10,6 @@ description = "Generated API for the officials wayland protocol extensions"
 categories = ["gui", "api-bindings"]
 edition = "2024"
 rust-version = "1.86"
-readme = "README.md"
 include = [
     "/src/**/*.rs",
     "/Cargo.toml",

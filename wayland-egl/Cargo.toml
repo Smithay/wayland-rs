@@ -10,7 +10,6 @@ rust-version = "1.86"
 categories = ["gui", "api-bindings"]
 keywords = ["wayland", "client"]
 description = "Bindings to libwayland-egl."
-readme = "README.md"
 
 [dependencies]
 wayland-backend = { version = "0.3.15", path = "../wayland-backend", features = ["client_system"], optional = true }

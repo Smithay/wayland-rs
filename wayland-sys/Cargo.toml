@@ -9,7 +9,6 @@ license = "MIT"
 categories = ["external-ffi-bindings"]
 edition = "2024"
 rust-version = "1.86"
-readme = "README.md"
 
 [dependencies]
 dlib = { version = "0.5.3", optional = true }
