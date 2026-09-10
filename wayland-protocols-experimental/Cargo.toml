@@ -24,8 +24,8 @@ wayland-protocols = { version = "0.32.12", path = "../wayland-protocols", featur
 bitflags = "2"
 
 [features]
-client = ["wayland-client", "wayland-protocols/client"]
-server = ["wayland-server", "wayland-protocols/server"]
+client = ["dep:wayland-client", "wayland-protocols/client"]
+server = ["dep:wayland-server", "wayland-protocols/server"]
 
 [package.metadata.docs.rs]
 all-features = true

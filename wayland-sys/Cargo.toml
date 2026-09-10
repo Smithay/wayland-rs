@@ -20,11 +20,11 @@ log = { version = "0.4", optional = true }
 pkg-config = "0.3.7"
 
 [features]
-dlopen = ["once_cell"]
+dlopen = ["dep:once_cell"]
 client = ["dep:dlib", "dep:log"]
 cursor = ["client"]
 egl = ["client"]
-server = ["libc", "dep:dlib", "dep:log"]
+server = ["dep:libc", "dep:dlib", "dep:log"]
 libwayland_client_1_23 = []
 libwayland_server_1_22 = []
 libwayland_server_1_23 = ["libwayland_server_1_22"]
