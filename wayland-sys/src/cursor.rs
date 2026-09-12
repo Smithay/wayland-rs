@@ -3,7 +3,7 @@
 //! The created handle is named `wayland_cursor_handle()`.
 
 use crate::client::wl_proxy;
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 use once_cell::sync::Lazy;
 use std::os::raw::{c_char, c_int, c_uint};
 
@@ -40,7 +40,7 @@ external_library!(WaylandCursor, "wayland-cursor",
         fn wl_cursor_frame_and_duration(*mut wl_cursor, u32, *mut u32) -> c_int,
 );
 
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
     static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
         let versions = ["libwayland-cursor.so.0", "libwayland-cursor.so"];
@@ -61,7 +61,7 @@ pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
     WAYLAND_CURSOR_OPTION.as_ref()
 }
 
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn wayland_cursor_handle() -> &'static WaylandCursor {
     static WAYLAND_CURSOR_HANDLE: Lazy<&'static WaylandCursor> = Lazy::new(|| {
         wayland_cursor_option().expect("Library libwayland-cursor.so could not be loaded.")
@@ -70,11 +70,11 @@ pub fn wayland_cursor_handle() -> &'static WaylandCursor {
     &WAYLAND_CURSOR_HANDLE
 }
 
-#[cfg(not(feature = "dlopen"))]
+#[cfg(not(dlopen))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn is_lib_available() -> bool {
     wayland_cursor_option().is_some()
 }
