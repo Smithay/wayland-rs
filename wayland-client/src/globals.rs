@@ -113,7 +113,7 @@ impl GlobalList {
         let fixes = OnceLock::<wl_fixes::WlFixes>::new();
 
         let data = Arc::new(RegistryState {
-            globals: GlobalListContents { contents: Default::default(), fixes },
+            globals: GlobalListData { contents: Default::default(), fixes },
             handle: qh.clone(),
             initial_roundtrip_done: AtomicBool::new(false),
         });
@@ -125,9 +125,13 @@ impl GlobalList {
         Ok(GlobalList { registry })
     }
 
-    /// Access the contents of the list of globals
-    pub fn contents(&self) -> &GlobalListContents {
-        self.registry.data::<GlobalListContents>().unwrap()
+    fn data(&self) -> &GlobalListData {
+        self.registry.data::<GlobalListData>().unwrap()
+    }
+
+    pub fn with_contents<T, F: FnOnce(&GlobalListContents) -> T>(&self, f: F) -> T {
+        let guard = self.data().contents.lock().unwrap();
+        f(&GlobalListContents { registry: &self.registry, globals: &guard })
     }
 
     /// Binds a global, returning a new protocol object associated with the global.
@@ -173,15 +177,15 @@ impl GlobalList {
             );
         }
 
-        let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
-        let guard = globals.lock().unwrap();
-        let global = guard
-            .iter()
-            // Find the global with the correct interface
-            .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
-            .ok_or(BindError::NotPresent(interface.name))?;
-
-        self.bind_inner(qh, global, version, udata)
+        self.with_contents(|contents| {
+            let global = contents
+                .globals
+                .iter()
+                // Find the global with the correct interface
+                .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
+                .ok_or(BindError::NotPresent(interface.name))?;
+            contents.bind_inner(qh, global, version, udata)
+        })
     }
 
     /// Binds a global, returning a new object associated with the global.
@@ -214,44 +218,16 @@ impl GlobalList {
             );
         }
 
-        let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
-        let guard = globals.lock().unwrap();
-        let global = guard
-            .iter()
-            // Find the global with correct name and interface
-            .find(|global| global.name == name && global.interface == interface.name)
-            // TODO Error for not finding name, rather than interface?
-            .ok_or(BindError::NotPresent(interface.name))?;
-
-        self.bind_inner(qh, global, version, udata)
-    }
-
-    fn bind_inner<I, State, U>(
-        &self,
-        qh: &QueueHandle<State>,
-        global: &Global,
-        version: RangeInclusive<u32>,
-        udata: U,
-    ) -> Result<I, BindError>
-    where
-        I: Proxy + 'static,
-        State: 'static,
-        U: Dispatch<I, State> + Send + Sync + 'static,
-    {
-        // Test version requirements
-        if *version.start() > global.version {
-            return Err(BindError::UnsupportedVersion {
-                interface: I::interface().name,
-                requested: *version.start(),
-                available: global.version,
-            });
-        }
-
-        // To get the version to bind, take the lower of the version advertised by the server and the maximum
-        // requested version.
-        let negotiated_version = global.version.min(*version.end());
-
-        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+        self.with_contents(|contents| {
+            let global = contents
+                .globals
+                .iter()
+                // Find the global with correct name and interface
+                .find(|global| global.name == name && global.interface == interface.name)
+                // TODO Error for not finding name, rather than interface?
+                .ok_or(BindError::NotPresent(interface.name))?;
+            contents.bind_inner(qh, global, version, udata)
+        })
     }
 
     /// Returns the [`WlRegistry`][wl_registry] protocol object.
@@ -269,7 +245,7 @@ impl GlobalList {
     /// This might end up doing nothing if the compositor doesn't support `wl_fixes`
     /// in which case the registry cannot be destroyed without closing the connection.
     pub fn destroy(self) {
-        if let Some(fixes) = self.contents().fixes.get() {
+        if let Some(fixes) = self.data().fixes.get() {
             let id = self.registry.id();
             fixes.destroy_registry(&self.registry);
             if let Some(backend) = fixes.backend().upgrade() {
@@ -375,28 +351,86 @@ pub struct Global {
     pub version: u32,
 }
 
-/// A container representing the current contents of the list of globals
+pub struct GlobalListContents<'a> {
+    registry: &'a wl_registry::WlRegistry,
+    globals: &'a [Global],
+}
+
+impl<'a> GlobalListContents<'a> {
+    fn bind_inner<I, State, U>(
+        &self,
+        qh: &QueueHandle<State>,
+        global: &Global,
+        version: RangeInclusive<u32>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        // Test version requirements
+        if *version.start() > global.version {
+            return Err(BindError::UnsupportedVersion {
+                interface: I::interface().name,
+                requested: *version.start(),
+                available: global.version,
+            });
+        }
+
+        // To get the version to bind, take the lower of the version advertised by the server and the maximum
+        // requested version.
+        let negotiated_version = global.version.min(*version.end());
+
+        Ok(self.registry.bind(global.name, negotiated_version, qh, udata))
+    }
+
+    pub fn globals(&self) -> &[Global] {
+        self.globals
+    }
+
+    pub fn bind_specific<I, State, U>(
+        &self,
+        name: u32,
+        version: std::ops::RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
+        udata: U,
+    ) -> Result<I, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        let interface = I::interface();
+
+        if *version.end() > interface.version {
+            // This is a panic because it's a compile-time programmer error, not a runtime error.
+            panic!(
+                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
+                version.end(),
+                interface.name,
+                interface.version
+            );
+        }
+
+        let global = self
+            .globals
+            .iter()
+            // Find the global with correct name and interface
+            .find(|global| global.name == name && global.interface == interface.name)
+            // TODO Error for not finding name, rather than interface?
+            .ok_or(BindError::NotPresent(interface.name))?;
+        self.bind_inner(qh, global, version, udata)
+    }
+}
+
 #[derive(Debug)]
-pub struct GlobalListContents {
+struct GlobalListData {
     contents: Mutex<Vec<Global>>,
     fixes: OnceLock<wl_fixes::WlFixes>,
 }
 
-impl GlobalListContents {
-    /// Access the list of globals
-    ///
-    /// Your closure is invoked on the global list, and its return value is forwarded to the return value
-    /// of this function. This allows you to process the list without making a copy.
-    pub fn with_list<T, F: FnOnce(&[Global]) -> T>(&self, f: F) -> T {
-        let guard = self.contents.lock().unwrap();
-        f(&guard)
-    }
-
-    /// Get a copy of the contents of the list of globals.
-    pub fn clone_list(&self) -> Vec<Global> {
-        self.contents.lock().unwrap().clone()
-    }
-
+impl GlobalListData {
     fn add(&self, global: Global) {
         self.contents.lock().unwrap().push(global);
     }
@@ -408,7 +442,7 @@ impl GlobalListContents {
     }
 }
 
-impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListContents
+impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListData
 where
     D: GlobalListHandler,
 {
@@ -437,7 +471,7 @@ where
 }
 
 struct RegistryState<State> {
-    globals: GlobalListContents,
+    globals: GlobalListData,
     handle: QueueHandle<State>,
     initial_roundtrip_done: AtomicBool,
 }
@@ -484,7 +518,7 @@ where
                 .inner
                 .lock()
                 .unwrap()
-                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone())
+                .enqueue_event::<wl_registry::WlRegistry, GlobalListData>(msg, self.clone())
         }
 
         // We do not create any objects in this event handler.
