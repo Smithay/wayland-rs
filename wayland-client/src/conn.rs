@@ -1,6 +1,7 @@
 use std::{
     env, fmt,
     io::ErrorKind,
+    mem,
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
     os::unix::net::UnixStream,
     path::PathBuf,
@@ -42,7 +43,7 @@ pub struct Connection {
 unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, ConnectError> {
     if let Ok(txt) = env::var("WAYLAND_SOCKET") {
         // We should connect to the provided WAYLAND_SOCKET
-        let fd = txt.parse::<i32>().map_err(|_| ConnectError::InvalidFd)?;
+        let fd = txt.parse::<RawFd>().map_err(|_| ConnectError::InvalidFd)?;
         // Verify `fd` isn't negative, or stdin/out/err
         if fd <= 2 {
             return Err(ConnectError::InvalidFd);
@@ -51,21 +52,20 @@ unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, Connect
         // remove the variable so any child processes don't see it
         // TODO: Audit that the environment access only happens in single-threaded code.
         unsafe { env::remove_var("WAYLAND_SOCKET") };
-        // set the CLOEXEC flag on this FD
-        let flags = rustix::io::fcntl_getfd(&fd);
-        let result = flags
-            .map(|f| f | rustix::io::FdFlags::CLOEXEC)
-            .and_then(|f| rustix::io::fcntl_setfd(&fd, f));
-        match result {
-            Ok(_) => {
-                // setting the O_CLOEXEC worked
-                Ok(Some(UnixStream::from(fd)))
-            }
-            Err(_) => {
-                // something went wrong in F_GETFD or F_SETFD
-                Err(ConnectError::InvalidFd)
-            }
+        let Ok(flags) = rustix::io::fcntl_getfd(&fd) else {
+            // Failed to call `F_GETFD`; likely closed file descriptor
+            return Err(ConnectError::InvalidFd);
+        };
+        if flags.contains(rustix::io::FdFlags::CLOEXEC) {
+            // If `CLOEXEC` is already set, this is not the file descriptor
+            // passed by the parent process, or it has already been consumed.
+            return Err(ConnectError::InvalidFd);
         }
+        // set the `CLOEXEC` flag on this FD
+        rustix::io::fcntl_setfd(&fd, flags | rustix::io::FdFlags::CLOEXEC)
+            .map_err(|_| ConnectError::InvalidFd)?;
+        // setting the `CLOEXEC` flag worked
+        Ok(Some(UnixStream::from(fd)))
     } else {
         Ok(None)
     }
