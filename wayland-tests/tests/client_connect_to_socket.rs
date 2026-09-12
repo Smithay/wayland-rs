@@ -16,6 +16,9 @@ fn main() {
 
     let my_client = server.display.handle().insert_client(s1, Arc::new(DumbClientData)).unwrap();
 
+    let flags = rustix::io::fcntl_getfd(&s2).unwrap();
+    rustix::io::fcntl_setfd(&s2, flags & !rustix::io::FdFlags::CLOEXEC).unwrap();
+
     let fd2 = s2.into_raw_fd();
     // TODO: Audit that the environment access only happens in single-threaded code.
     unsafe { ::std::env::set_var("WAYLAND_SOCKET", format!("{fd2}")) };
