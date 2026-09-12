@@ -53,6 +53,8 @@ unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, Connect
         // TODO: Audit that the environment access only happens in single-threaded code.
         unsafe { env::remove_var("WAYLAND_SOCKET") };
         let Ok(flags) = rustix::io::fcntl_getfd(&fd) else {
+            // Don't call `close` on drop
+            mem::forget(fd);
             // Failed to call `F_GETFD`; likely closed file descriptor
             return Err(ConnectError::InvalidFd);
         };
