@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    ffi::CString,
+    ffi::{CStr, CString},
     fmt,
     os::unix::{
         io::{BorrowedFd, OwnedFd},
@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::protocol::{Interface, Message, ObjectInfo};
+use crate::protocol::{Interface, Message, ObjectInfo, OwnedMessage};
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
 
 use super::server_impl;
@@ -31,7 +31,7 @@ pub trait ObjectData<D>: Any + Send + Sync {
         handle: &Handle,
         data: &mut D,
         client_id: ClientId,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>>;
     /// Notification that the object has been destroyed and is no longer active
     fn destroyed(
@@ -381,7 +381,7 @@ impl Handle {
     /// - the message opcode must be valid for the sender interface
     /// - the argument list must match the prototype for the message associated with this opcode
     #[inline]
-    pub fn send_event(&self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.handle.send_event(msg)
     }
 
@@ -421,7 +421,7 @@ impl Handle {
 
     /// Posts a protocol error on an object. This will also disconnect the client which created the object.
     #[inline]
-    pub fn post_error(&self, object_id: ObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: ObjectId, error_code: u32, message: &CStr) {
         self.handle.post_error(object_id.id, error_code, message)
     }
 
@@ -627,7 +627,7 @@ impl<D> ObjectData<D> for DumbObjectData {
         _handle: &Handle,
         _data: &mut D,
         _client_id: ClientId,
-        _msg: Message<ObjectId, OwnedFd>,
+        _msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         unreachable!()
     }

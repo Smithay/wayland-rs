@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::ffi::CStr;
 use std::os::unix::io::{BorrowedFd, OwnedFd};
 
-use crate::protocol::{Argument, ArgumentType, Message};
+use crate::protocol::{Argument, ArgumentType, Message, OwnedArgument, OwnedMessage};
 
 use smallvec::SmallVec;
 
@@ -68,7 +68,7 @@ impl std::fmt::Display for MessageParseError {
 ///
 /// Any serialized Fd will be `dup()`-ed in the process
 pub fn write_to_buffers(
-    msg: &Message<u32, BorrowedFd>,
+    msg: &Message<u32>,
     payload: &mut [u8],
     fds: &mut Vec<OwnedFd>,
 ) -> Result<usize, MessageWriteError> {
@@ -112,12 +112,12 @@ pub fn write_to_buffers(
     let (header, mut payload) = payload.split_at_mut(2 * 4);
 
     // write the contents in the buffer
-    for arg in &msg.args {
+    for arg in msg.args {
         payload = match *arg {
             Argument::Int(i) => write_buf(i as u32, payload)?,
             Argument::Uint(u) => write_buf(u, payload)?,
             Argument::Fixed(f) => write_buf(f as u32, payload)?,
-            Argument::Str(Some(ref s)) => write_array_to_payload(s.as_bytes_with_nul(), payload)?,
+            Argument::Str(Some(ref s)) => write_array_to_payload(s.to_bytes_with_nul(), payload)?,
             Argument::Str(None) => write_array_to_payload(&[], payload)?,
             Argument::Object(o) => write_buf(o, payload)?,
             Argument::NewId(n) => write_buf(n, payload)?,
@@ -149,7 +149,7 @@ pub fn parse_message<'a>(
     raw: &'a [u8],
     signature: &[ArgumentType],
     fds: &mut VecDeque<OwnedFd>,
-) -> Result<(Message<u32, OwnedFd>, &'a [u8]), MessageParseError> {
+) -> Result<(OwnedMessage<u32>, &'a [u8]), MessageParseError> {
     // helper function to read arrays
     fn read_array_from_payload(
         array_len: usize,
@@ -191,7 +191,7 @@ pub fn parse_message<'a>(
             if let ArgumentType::Fd = *argtype {
                 // don't consume input but fd
                 if let Some(front) = fds.pop_front() {
-                    Ok(Argument::Fd(front))
+                    Ok(OwnedArgument::Fd(front))
                 } else {
                     Err(MessageParseError::MissingFD)
                 }
@@ -199,28 +199,28 @@ pub fn parse_message<'a>(
                 let (front, mut tail) = payload.split_at(4);
                 let front = u32::from_ne_bytes(front.try_into().unwrap());
                 let arg = match *argtype {
-                    ArgumentType::Int => Ok(Argument::Int(front as i32)),
-                    ArgumentType::Uint => Ok(Argument::Uint(front)),
-                    ArgumentType::Fixed => Ok(Argument::Fixed(front as i32)),
+                    ArgumentType::Int => Ok(OwnedArgument::Int(front as i32)),
+                    ArgumentType::Uint => Ok(OwnedArgument::Uint(front)),
+                    ArgumentType::Fixed => Ok(OwnedArgument::Fixed(front as i32)),
                     ArgumentType::Str(_) => {
                         read_array_from_payload(front as usize, tail).and_then(|(v, rest)| {
                             tail = rest;
                             if !v.is_empty() {
                                 match CStr::from_bytes_with_nul(v) {
-                                    Ok(s) => Ok(Argument::Str(Some(Box::new(s.into())))),
+                                    Ok(s) => Ok(OwnedArgument::Str(Some(Box::new(s.into())))),
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
                             } else {
-                                Ok(Argument::Str(None))
+                                Ok(OwnedArgument::Str(None))
                             }
                         })
                     }
-                    ArgumentType::Object(_) => Ok(Argument::Object(front)),
-                    ArgumentType::NewId => Ok(Argument::NewId(front)),
+                    ArgumentType::Object(_) => Ok(OwnedArgument::Object(front)),
+                    ArgumentType::NewId => Ok(OwnedArgument::NewId(front)),
                     ArgumentType::Array => {
                         read_array_from_payload(front as usize, tail).map(|(v, rest)| {
                             tail = rest;
-                            Argument::Array(Box::new(v.into()))
+                            OwnedArgument::Array(Box::new(v.into()))
                         })
                     }
                     ArgumentType::Fd => unreachable!(),
@@ -233,7 +233,7 @@ pub fn parse_message<'a>(
         })
         .collect::<Result<SmallVec<_>, MessageParseError>>()?;
 
-    let msg = Message { sender_id, opcode, args: arguments };
+    let msg = OwnedMessage { sender_id, opcode, args: arguments };
     Ok((msg, rest))
 }
 

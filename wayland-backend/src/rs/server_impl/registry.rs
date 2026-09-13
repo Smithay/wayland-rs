@@ -244,7 +244,8 @@ fn send_global_to<D>(
             0, // wl_registry.global
             [
                 Argument::Uint(global.id.id),
-                Argument::Str(Some(Box::new(CString::new(global.interface.name).unwrap()))),
+                // TODO needs \0 terminated str
+                Argument::Str(Some(Box::new(&CString::new(global.interface.name).unwrap()))),
                 Argument::Uint(global.version),
             ],
         ),

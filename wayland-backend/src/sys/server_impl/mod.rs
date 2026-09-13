@@ -17,7 +17,7 @@ use std::{
 
 use crate::protocol::{
     ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
-    check_for_signature, same_interface,
+    OwnedArgument, OwnedMessage, check_for_signature, same_interface,
 };
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
@@ -597,7 +597,7 @@ impl InnerHandle {
         }
     }
 
-    pub fn send_event(&self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId> {
+    pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.state.lock().unwrap().send_event(msg)
     }
 
@@ -691,7 +691,7 @@ impl InnerHandle {
         Ok(())
     }
 
-    pub fn post_error(&self, object_id: InnerObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: InnerObjectId, error_code: u32, message: &CStr) {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
@@ -900,8 +900,8 @@ pub(crate) trait ErasedState: Any {
         &self,
         id: InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
-    fn send_event(&mut self, msg: Message<ObjectId, BorrowedFd>) -> Result<(), InvalidId>;
-    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
+    fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
+    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: &CStr);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     #[cfg(feature = "libwayland_server_1_22")]
@@ -1107,7 +1107,7 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn send_event(
         &mut self,
-        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId, BorrowedFd>,
+        Message { sender_id: ObjectId { id }, opcode, args }: Message<ObjectId>,
     ) -> Result<(), InvalidId> {
         if !id.alive.load(Ordering::Acquire) || id.ptr.is_null() {
             return Err(InvalidId);
@@ -1246,7 +1246,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(())
     }
 
-    fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: CString) {
+    fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: &CStr) {
         if !id.alive.load(Ordering::Acquire) {
             return;
         }
@@ -1574,33 +1574,36 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
     };
 
     let mut parsed_args =
-        SmallVec::<[Argument<ObjectId, OwnedFd>; 4]>::with_capacity(message_desc.signature.len());
+        SmallVec::<[OwnedArgument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
     for (i, typ) in message_desc.signature.iter().enumerate() {
         match typ {
-            ArgumentType::Uint => parsed_args.push(Argument::Uint(unsafe { (*args.add(i)).u })),
-            ArgumentType::Int => parsed_args.push(Argument::Int(unsafe { (*args.add(i)).i })),
-            ArgumentType::Fixed => parsed_args.push(Argument::Fixed(unsafe { (*args.add(i)).f })),
-            ArgumentType::Fd => {
-                parsed_args.push(Argument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) }))
+            ArgumentType::Uint => {
+                parsed_args.push(OwnedArgument::Uint(unsafe { (*args.add(i)).u }))
             }
+            ArgumentType::Int => parsed_args.push(OwnedArgument::Int(unsafe { (*args.add(i)).i })),
+            ArgumentType::Fixed => {
+                parsed_args.push(OwnedArgument::Fixed(unsafe { (*args.add(i)).f }))
+            }
+            ArgumentType::Fd => parsed_args
+                .push(OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) })),
             ArgumentType::Array => {
                 let array = unsafe { &*((*args.add(i)).a) };
                 // Safety: the wl_array provided by libwayland is valid
                 let content =
                     unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
-                parsed_args.push(Argument::Array(Box::new(content.into())));
+                parsed_args.push(OwnedArgument::Array(Box::new(content.into())));
             }
             ArgumentType::Str(_) => {
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland is valid
                 if !ptr.is_null() {
                     let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(Argument::Str(Some(Box::new(cstr.into()))));
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
                 } else {
-                    parsed_args.push(Argument::Str(None));
+                    parsed_args.push(OwnedArgument::Str(None));
                 }
             }
             ArgumentType::Object(_) => {
@@ -1615,7 +1618,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     // libwayland-server.so checks nulls for us
                     InnerHandle::null_id()
                 };
-                parsed_args.push(Argument::Object(id))
+                parsed_args.push(OwnedArgument::Object(id))
             }
             ArgumentType::NewId => {
                 let new_id = unsafe { (*args.add(i)).n };
@@ -1641,9 +1644,9 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     let (child_id, child_data_ptr) =
                         unsafe { init_resource::<D>(resource, child_interface, None) };
                     created = Some((child_id.clone(), child_data_ptr));
-                    parsed_args.push(Argument::NewId(ObjectId { id: child_id }));
+                    parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(Argument::NewId(InnerHandle::null_id()))
+                    parsed_args.push(OwnedArgument::NewId(InnerHandle::null_id()))
                 }
             }
         }
@@ -1668,7 +1671,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
             &Handle { handle: InnerHandle { state: state_arc.clone() } },
             data,
             ClientId { id: client_id.clone() },
-            Message { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
+            OwnedMessage { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
         )
     });
 
@@ -1751,7 +1754,7 @@ impl<D> ObjectData<D> for UninitObjectData {
         _: &Handle,
         _: &mut D,
         _: ClientId,
-        msg: Message<ObjectId, OwnedFd>,
+        msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }
