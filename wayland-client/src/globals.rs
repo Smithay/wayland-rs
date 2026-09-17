@@ -184,7 +184,34 @@ impl GlobalList {
             .find(|Global { interface: interface_name, .. }| interface.name == interface_name)
             .ok_or(BindError::NotPresent(interface.name))?;
 
-        self.bind_inner(qh, global, version, udata)
+        self.bind_inner(global, version, qh, udata)
+    }
+
+    /// Binds all globals with a given interface.
+    ///
+    /// Typically for globals with multiple instances, this should be called at start,
+    /// globals added later should be handled in [`GlobalListHandler::runtime_add_global`]
+    /// using `[Self::bind_specific]`.
+    pub fn bind_all<I, State, U>(
+        &self,
+        version: std::ops::RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
+        mut make_udata: impl FnMut(&Global) -> U,
+    ) -> Result<Vec<I>, BindError>
+    where
+        I: Proxy + 'static,
+        State: 'static,
+        U: Dispatch<I, State> + Send + Sync + 'static,
+    {
+        let interface = I::interface();
+        assert_valid_interface_version(&version, interface);
+
+        let guard = self.data().contents.lock().unwrap();
+        guard
+            .iter()
+            .filter(|global| global.interface == interface.name)
+            .map(|global| self.bind_inner(global, version.clone(), qh, make_udata(global)))
+            .collect()
     }
 
     /// Binds a global, returning a new object associated with the global.
@@ -218,14 +245,14 @@ impl GlobalList {
             // TODO Error for not finding name, rather than interface?
             .ok_or(BindError::NotPresent(interface.name))?;
 
-        self.bind_inner(qh, global, version, udata)
+        self.bind_inner(global, version, qh, udata)
     }
 
     fn bind_inner<I, State, U>(
         &self,
-        qh: &QueueHandle<State>,
         global: &Global,
         version: RangeInclusive<u32>,
+        qh: &QueueHandle<State>,
         udata: U,
     ) -> Result<I, BindError>
     where
