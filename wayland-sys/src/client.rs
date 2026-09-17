@@ -5,7 +5,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 #[cfg(feature = "client")]
 use super::common::*;
 #[cfg(feature = "client")]
@@ -91,7 +91,7 @@ external_library!(WaylandClient, "wayland-client",
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn wayland_client_option() -> Option<&'static WaylandClient> {
-    static WAYLAND_CLIENT_OPTION: Lazy<Option<WaylandClient>> = Lazy::new(||{
+    static WAYLAND_CLIENT_OPTION: LazyLock<Option<WaylandClient>> = LazyLock::new(||{
         let versions = ["libwayland-client.so.0", "libwayland-client.so"];
         for ver in &versions {
             match unsafe { WaylandClient::open(ver) } {
@@ -111,7 +111,7 @@ pub fn wayland_client_option() -> Option<&'static WaylandClient> {
 
 #[cfg(all(feature = "client", feature = "dlopen"))]
 pub fn wayland_client_handle() -> &'static WaylandClient {
-    static WAYLAND_CLIENT_HANDLE: Lazy<&'static WaylandClient> = Lazy::new(|| wayland_client_option().expect("Library libwayland-client.so could not be loaded."));
+    static WAYLAND_CLIENT_HANDLE: LazyLock<&'static WaylandClient> = LazyLock::new(|| wayland_client_option().expect("Library libwayland-client.so could not be loaded."));
 
     &WAYLAND_CLIENT_HANDLE
 }

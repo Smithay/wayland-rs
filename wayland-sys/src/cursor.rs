@@ -3,9 +3,9 @@
 //! The created handle is named `wayland_cursor_handle()`.
 
 use crate::client::wl_proxy;
-#[cfg(feature = "dlopen")]
-use once_cell::sync::Lazy;
 use std::os::raw::{c_char, c_int, c_uint};
+#[cfg(feature = "dlopen")]
+use std::sync::LazyLock;
 
 pub enum wl_cursor_theme {}
 
@@ -42,7 +42,7 @@ external_library!(WaylandCursor, "wayland-cursor",
 
 #[cfg(feature = "dlopen")]
 pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
-    static WAYLAND_CURSOR_OPTION: Lazy<Option<WaylandCursor>> = Lazy::new(|| {
+    static WAYLAND_CURSOR_OPTION: LazyLock<Option<WaylandCursor>> = LazyLock::new(|| {
         let versions = ["libwayland-cursor.so.0", "libwayland-cursor.so"];
 
         for ver in &versions {
@@ -63,7 +63,7 @@ pub fn wayland_cursor_option() -> Option<&'static WaylandCursor> {
 
 #[cfg(feature = "dlopen")]
 pub fn wayland_cursor_handle() -> &'static WaylandCursor {
-    static WAYLAND_CURSOR_HANDLE: Lazy<&'static WaylandCursor> = Lazy::new(|| {
+    static WAYLAND_CURSOR_HANDLE: LazyLock<&'static WaylandCursor> = LazyLock::new(|| {
         wayland_cursor_option().expect("Library libwayland-cursor.so could not be loaded.")
     });
 
