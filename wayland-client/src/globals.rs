@@ -211,6 +211,8 @@ impl GlobalList {
         let guard = self.data().contents.lock().unwrap();
         let global = guard
             .iter()
+            // Optimize for `runtime_add_global` which will use the last entry
+            .rev()
             // Find the global with correct name and interface
             .find(|global| global.name == name && global.interface == interface.name)
             // TODO Error for not finding name, rather than interface?
