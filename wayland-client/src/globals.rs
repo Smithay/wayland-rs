@@ -54,7 +54,7 @@ use std::{
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, WaylandError},
-    protocol::Message,
+    protocol::{Interface, Message},
 };
 
 use crate::{
@@ -175,16 +175,7 @@ impl GlobalList {
         U: Dispatch<I, State> + Send + Sync + 'static,
     {
         let interface = I::interface();
-
-        if *version.end() > interface.version {
-            // This is a panic because it's a compile-time programmer error, not a runtime error.
-            panic!(
-                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
-                version.end(),
-                interface.name,
-                interface.version
-            );
-        }
+        assert_valid_interface_version(&version, interface);
 
         let guard = self.data().contents.lock().unwrap();
         let global = guard
@@ -215,16 +206,7 @@ impl GlobalList {
         U: Dispatch<I, State> + Send + Sync + 'static,
     {
         let interface = I::interface();
-
-        if *version.end() > interface.version {
-            // This is a panic because it's a compile-time programmer error, not a runtime error.
-            panic!(
-                "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
-                version.end(),
-                interface.name,
-                interface.version
-            );
-        }
+        assert_valid_interface_version(&version, interface);
 
         let guard = self.data().contents.lock().unwrap();
         let global = guard
@@ -491,5 +473,17 @@ where
 
     fn data_as_any(&self) -> &dyn std::any::Any {
         &self.data
+    }
+}
+
+fn assert_valid_interface_version(version: &RangeInclusive<u32>, interface: &'static Interface) {
+    if *version.end() > interface.version {
+        // This is a panic because it's a compile-time programmer error, not a runtime error.
+        panic!(
+            "Maximum version ({}) of {} was higher than the proxy's maximum version ({}); outdated wayland XML files?",
+            version.end(),
+            interface.name,
+            interface.version
+        );
     }
 }
