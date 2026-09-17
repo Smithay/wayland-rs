@@ -5,9 +5,9 @@
 //! The created handle is named `wayland_egl_handle()`.
 
 use crate::client::wl_proxy;
-#[cfg(feature = "dlopen")]
-use once_cell::sync::Lazy;
 use std::os::raw::c_int;
+#[cfg(feature = "dlopen")]
+use std::sync::LazyLock;
 
 pub enum wl_egl_window {}
 
@@ -21,7 +21,7 @@ external_library!(WaylandEgl, "wayland-egl",
 
 #[cfg(feature = "dlopen")]
 pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
-    static WAYLAND_EGL_OPTION: Lazy<Option<WaylandEgl>> = Lazy::new(|| {
+    static WAYLAND_EGL_OPTION: LazyLock<Option<WaylandEgl>> = LazyLock::new(|| {
         let versions = ["libwayland-egl.so.1", "libwayland-egl.so"];
 
         for ver in &versions {
@@ -42,8 +42,9 @@ pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
 
 #[cfg(feature = "dlopen")]
 pub fn wayland_egl_handle() -> &'static WaylandEgl {
-    static WAYLAND_EGL_HANDLE: Lazy<&'static WaylandEgl> =
-        Lazy::new(|| wayland_egl_option().expect("Library libwayland-egl.so could not be loaded."));
+    static WAYLAND_EGL_HANDLE: LazyLock<&'static WaylandEgl> = LazyLock::new(|| {
+        wayland_egl_option().expect("Library libwayland-egl.so could not be loaded.")
+    });
 
     &WAYLAND_EGL_HANDLE
 }

@@ -11,7 +11,7 @@ use libc::{gid_t, pid_t, uid_t};
 use std::os::raw::c_char;
 use std::os::raw::{c_int, c_void};
 #[cfg(all(feature = "server", feature = "dlopen"))]
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 pub enum wl_client {}
 pub enum wl_display {}
@@ -161,7 +161,7 @@ external_library!(WaylandServer, "wayland-server",
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
 pub fn wayland_server_option() -> Option<&'static WaylandServer> {
-    static WAYLAND_SERVER_OPTION: Lazy<Option<WaylandServer>> = Lazy::new(||{
+    static WAYLAND_SERVER_OPTION: LazyLock<Option<WaylandServer>> = LazyLock::new(||{
         let versions = ["libwayland-server.so.0", "libwayland-server.so"];
         for ver in &versions {
             match unsafe { WaylandServer::open(ver) } {
@@ -181,7 +181,7 @@ pub fn wayland_server_option() -> Option<&'static WaylandServer> {
 
 #[cfg(all(feature = "server", feature = "dlopen"))]
 pub fn wayland_server_handle() -> &'static WaylandServer {
-    static WAYLAND_SERVER_HANDLE: Lazy<&'static WaylandServer> = Lazy::new(|| wayland_server_option().expect("Library libwayland-server.so could not be loaded."));
+    static WAYLAND_SERVER_HANDLE: LazyLock<&'static WaylandServer> = LazyLock::new(|| wayland_server_option().expect("Library libwayland-server.so could not be loaded."));
 
     &WAYLAND_SERVER_HANDLE
 }
