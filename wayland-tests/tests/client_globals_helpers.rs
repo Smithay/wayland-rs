@@ -40,7 +40,7 @@ fn client_global_helpers_init() {
     let globals = GlobalList::init(&client.conn, &queue.handle()).unwrap();
 
     assert_eq!(
-        globals.contents().clone_list(),
+        globals.clone_list(),
         &[
             Global { name: 1, interface: "wl_compositor".into(), version: 4 },
             Global { name: 2, interface: "wl_output".into(), version: 2 },
@@ -127,7 +127,7 @@ fn client_global_helpers_dynamic() {
     let globals = GlobalList::init(&client.conn, &queue.handle()).unwrap();
 
     assert_eq!(
-        globals.contents().clone_list(),
+        globals.clone_list(),
         &[
             Global { name: 1, interface: "wl_compositor".into(), version: 4 },
             Global { name: 2, interface: "wl_shell".into(), version: 1 },
@@ -141,7 +141,7 @@ fn client_global_helpers_dynamic() {
     queue.blocking_dispatch(&mut state).unwrap();
     assert!(state.0);
     assert_eq!(
-        globals.contents().clone_list(),
+        globals.clone_list(),
         &[
             Global { name: 1, interface: "wl_compositor".into(), version: 4 },
             Global { name: 2, interface: "wl_shell".into(), version: 1 },
@@ -156,7 +156,7 @@ fn client_global_helpers_dynamic() {
     queue.blocking_dispatch(&mut state).unwrap();
     assert!(!state.0);
     assert_eq!(
-        globals.contents().clone_list(),
+        globals.clone_list(),
         &[
             Global { name: 1, interface: "wl_compositor".into(), version: 4 },
             Global { name: 2, interface: "wl_shell".into(), version: 1 },

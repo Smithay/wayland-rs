@@ -34,7 +34,7 @@ async fn main() {
     let _xdg_toplevel = xdg_surface.get_toplevel(&qh, GlobalData);
     base_surface.commit();
 
-    for global in globals.contents().clone_list() {
+    for global in globals.clone_list() {
         if global.interface == "wl_seat" {
             globals
                 .bind_specific::<wl_seat::WlSeat, _, _>(global.name, 1..=1, &qh, GlobalData)
