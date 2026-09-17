@@ -129,15 +129,6 @@ impl GlobalList {
         self.registry.data::<GlobalListData>().unwrap()
     }
 
-    /// Access the list of globals
-    ///
-    /// Your closure is invoked on the global list, and its return value is forwarded to the return value
-    /// of this function. This allows you to process the list without making a copy.
-    pub fn with_list<T, F: FnOnce(&[Global]) -> T>(&self, f: F) -> T {
-        let guard = self.data().contents.lock().unwrap();
-        f(&guard)
-    }
-
     /// Get a copy of the contents of the list of globals.
     pub fn clone_list(&self) -> Vec<Global> {
         self.data().contents.lock().unwrap().clone()
