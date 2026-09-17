@@ -113,7 +113,7 @@ impl GlobalList {
         let fixes = OnceLock::<wl_fixes::WlFixes>::new();
 
         let data = Arc::new(RegistryState {
-            globals: GlobalListContents { contents: Default::default(), fixes },
+            data: GlobalListData { contents: Default::default(), fixes },
             handle: qh.clone(),
             initial_roundtrip_done: AtomicBool::new(false),
         });
@@ -125,9 +125,22 @@ impl GlobalList {
         Ok(GlobalList { registry })
     }
 
-    /// Access the contents of the list of globals
-    pub fn contents(&self) -> &GlobalListContents {
-        self.registry.data::<GlobalListContents>().unwrap()
+    fn data(&self) -> &GlobalListData {
+        self.registry.data::<GlobalListData>().unwrap()
+    }
+
+    /// Access the list of globals
+    ///
+    /// Your closure is invoked on the global list, and its return value is forwarded to the return value
+    /// of this function. This allows you to process the list without making a copy.
+    pub fn with_list<T, F: FnOnce(&[Global]) -> T>(&self, f: F) -> T {
+        let guard = self.data().contents.lock().unwrap();
+        f(&guard)
+    }
+
+    /// Get a copy of the contents of the list of globals.
+    pub fn clone_list(&self) -> Vec<Global> {
+        self.data().contents.lock().unwrap().clone()
     }
 
     /// Binds a global, returning a new protocol object associated with the global.
@@ -173,8 +186,7 @@ impl GlobalList {
             );
         }
 
-        let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
-        let guard = globals.lock().unwrap();
+        let guard = self.data().contents.lock().unwrap();
         let global = guard
             .iter()
             // Find the global with the correct interface
@@ -214,8 +226,7 @@ impl GlobalList {
             );
         }
 
-        let globals = &self.registry.data::<GlobalListContents>().unwrap().contents;
-        let guard = globals.lock().unwrap();
+        let guard = self.data().contents.lock().unwrap();
         let global = guard
             .iter()
             // Find the global with correct name and interface
@@ -269,7 +280,7 @@ impl GlobalList {
     /// This might end up doing nothing if the compositor doesn't support `wl_fixes`
     /// in which case the registry cannot be destroyed without closing the connection.
     pub fn destroy(self) {
-        if let Some(fixes) = self.contents().fixes.get() {
+        if let Some(fixes) = self.data().fixes.get() {
             let id = self.registry.id();
             fixes.destroy_registry(&self.registry);
             if let Some(backend) = fixes.backend().upgrade() {
@@ -375,28 +386,13 @@ pub struct Global {
     pub version: u32,
 }
 
-/// A container representing the current contents of the list of globals
 #[derive(Debug)]
-pub struct GlobalListContents {
+struct GlobalListData {
     contents: Mutex<Vec<Global>>,
     fixes: OnceLock<wl_fixes::WlFixes>,
 }
 
-impl GlobalListContents {
-    /// Access the list of globals
-    ///
-    /// Your closure is invoked on the global list, and its return value is forwarded to the return value
-    /// of this function. This allows you to process the list without making a copy.
-    pub fn with_list<T, F: FnOnce(&[Global]) -> T>(&self, f: F) -> T {
-        let guard = self.contents.lock().unwrap();
-        f(&guard)
-    }
-
-    /// Get a copy of the contents of the list of globals.
-    pub fn clone_list(&self) -> Vec<Global> {
-        self.contents.lock().unwrap().clone()
-    }
-
+impl GlobalListData {
     fn add(&self, global: Global) {
         self.contents.lock().unwrap().push(global);
     }
@@ -408,7 +404,7 @@ impl GlobalListContents {
     }
 }
 
-impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListContents
+impl<D> Dispatch<wl_registry::WlRegistry, D> for GlobalListData
 where
     D: GlobalListHandler,
 {
@@ -437,7 +433,7 @@ where
 }
 
 struct RegistryState<State> {
-    globals: GlobalListContents,
+    data: GlobalListData,
     handle: QueueHandle<State>,
     initial_roundtrip_done: AtomicBool,
 }
@@ -462,7 +458,7 @@ where
                     wl_registry::Event::Global { name, interface, version } => {
                         let wl_fixes_ver = 1u32..=1;
                         if interface == "wl_fixes" && version >= *wl_fixes_ver.start() {
-                            let _ = self.globals.fixes.set(registry.bind(
+                            let _ = self.data.fixes.set(registry.bind(
                                 name,
                                 version.min(*wl_fixes_ver.end()),
                                 &self.handle,
@@ -470,11 +466,11 @@ where
                             ));
                         }
 
-                        self.globals.add(Global { name, interface, version });
+                        self.data.add(Global { name, interface, version });
                     }
 
                     wl_registry::Event::GlobalRemove { name: remove } => {
-                        self.globals.remove(remove);
+                        self.data.remove(remove);
                     }
                 }
             };
@@ -484,7 +480,7 @@ where
                 .inner
                 .lock()
                 .unwrap()
-                .enqueue_event::<wl_registry::WlRegistry, GlobalListContents>(msg, self.clone())
+                .enqueue_event::<wl_registry::WlRegistry, GlobalListData>(msg, self.clone())
         }
 
         // We do not create any objects in this event handler.
@@ -494,6 +490,6 @@ where
     fn destroyed(&self, _id: ObjectId) {}
 
     fn data_as_any(&self) -> &dyn std::any::Any {
-        &self.globals
+        &self.data
     }
 }
