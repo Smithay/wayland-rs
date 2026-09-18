@@ -48,7 +48,7 @@ macro_rules! impl_globalhandler {
                     .send_event(message!(
                         object_id.clone(),
                         2,
-                        [Argument::NewId(obj_2), Argument::Object(obj_1)]
+                        [Argument::NewId(obj_2.clone()), Argument::Object(obj_1)]
                     ))
                     .unwrap();
                 Arc::new(DoNothingData)
@@ -75,7 +75,7 @@ macro_rules! impl_client_objectdata {
                     if let [OwnedArgument::NewId(obj_1), OwnedArgument::Object(null_id)] =
                         &msg.args[..]
                     {
-                        let info = handle.info(obj_1.clone()).unwrap();
+                        let info = handle.info(obj_1).unwrap();
                         assert_eq!(info.id, 0xFF00_0000);
                         assert_eq!(info.interface.name, "quad");
                         assert!(null_id.is_null());
@@ -88,11 +88,11 @@ macro_rules! impl_client_objectdata {
                         &msg.args[..]
                     {
                         // check obj1
-                        let info = handle.info(obj_1.clone()).unwrap();
+                        let info = handle.info(obj_1).unwrap();
                         assert_eq!(info.id, 0xFF00_0000);
                         assert_eq!(info.interface.name, "quad");
                         // check obj2
-                        let info = handle.info(obj_2.clone()).unwrap();
+                        let info = handle.info(obj_2).unwrap();
                         assert_eq!(info.id, 0xFF00_0001);
                         assert_eq!(info.interface.name, "quad");
                     } else {

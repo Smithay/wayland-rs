@@ -216,7 +216,7 @@ impl Backend {
     ///
     /// Returns an error if the provided object ID is no longer valid.
     #[inline]
-    pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn info(&self, id: &ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.backend.info(id)
     }
 
@@ -261,7 +261,7 @@ impl Backend {
     /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
     /// object that is not managed by this backend (when multiple libraries share the same Wayland
     /// socket via `libwayland` if using the system backend).
-    pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+    pub fn get_data(&self, id: &ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         self.backend.get_data(id)
     }
 
@@ -270,7 +270,7 @@ impl Backend {
     /// Returns an error if the object ID is not longer valid or if it corresponds to a Wayland
     /// object that is not managed by this backend (when multiple libraries share the same Wayland
     /// socket via `libwayland` if using the system backend).
-    pub fn set_data(&self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
+    pub fn set_data(&self, id: &ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
         self.backend.set_data(id, data)
     }
 

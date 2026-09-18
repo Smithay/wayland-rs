@@ -501,7 +501,7 @@ impl InnerBackend {
         self.lock_state().last_error.clone()
     }
 
-    pub fn info(&self, ObjectId { id }: ObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn info(&self, ObjectId { id }: &ObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) || id.ptr.is_null()
         {
             return Err(InvalidId);
@@ -782,7 +782,7 @@ impl InnerBackend {
         Ok(child_id)
     }
 
-    pub fn get_data(&self, ObjectId { id }: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+    pub fn get_data(&self, ObjectId { id }: &ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
         let mut _guard = self.lock_state();
 
         if !id.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(false) {
@@ -804,7 +804,7 @@ impl InnerBackend {
 
     pub fn set_data(
         &self,
-        ObjectId { id }: ObjectId,
+        ObjectId { id }: &ObjectId,
         data: Arc<dyn ObjectData>,
     ) -> Result<(), InvalidId> {
         let mut _guard = self.lock_state();

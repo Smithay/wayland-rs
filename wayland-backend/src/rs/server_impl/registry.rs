@@ -118,7 +118,7 @@ impl<D> Registry<D> {
             return None;
         }
         if !target_global.handler.can_view(
-            ClientId { id: client.id.clone() },
+            ClientId { id: client.id },
             &client.data,
             GlobalId { id: target_global.id.clone() },
         ) {
@@ -152,7 +152,7 @@ impl<D> Registry<D> {
             global.disabled = true;
             // send the global_remove
             for registry in self.known_registries.iter().cloned() {
-                if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
+                if let Ok(client) = clients.get_client_mut(registry.client_id) {
                     let _ =
                         send_global_remove_to(client, global, ObjectId { id: registry.clone() });
                 }
@@ -193,7 +193,7 @@ impl<D> Registry<D> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
             if !global.disabled
                 && global.handler.can_view(
-                    ClientId { id: client.id.clone() },
+                    ClientId { id: client.id },
                     &client.data,
                     GlobalId { id: global.id.clone() },
                 )
@@ -215,10 +215,10 @@ impl<D> Registry<D> {
             return Err(InvalidId);
         }
         for registry in self.known_registries.iter().cloned() {
-            if let Ok(client) = clients.get_client_mut(registry.client_id.clone()) {
+            if let Ok(client) = clients.get_client_mut(registry.client_id) {
                 if !global.disabled
                     && global.handler.can_view(
-                        ClientId { id: client.id.clone() },
+                        ClientId { id: client.id },
                         &client.data,
                         GlobalId { id: global.id.clone() },
                     )

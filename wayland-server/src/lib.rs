@@ -147,7 +147,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     /// Returns [`None`] if the object is no longer alive.
     fn client(&self) -> Option<Client> {
         let handle = self.handle().upgrade()?;
-        let client_id = handle.get_client(self.id()).ok()?;
+        let client_id = handle.get_client(&self.id()).ok()?;
         let dh = DisplayHandle::from(handle);
         Client::from_id(&dh, client_id).ok()
     }
@@ -159,7 +159,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     #[inline]
     fn is_alive(&self) -> bool {
         if let Some(handle) = self.handle().upgrade() {
-            handle.object_info(self.id()).is_ok()
+            handle.object_info(&self.id()).is_ok()
         } else {
             false
         }
@@ -292,7 +292,7 @@ impl<I: Resource> Weak<I> {
     pub fn upgrade(&self) -> Result<I, InvalidId> {
         let handle = self.handle.upgrade().ok_or(InvalidId)?;
         // Check if the object has been destroyed
-        handle.object_info(self.id.clone())?;
+        handle.object_info(&self.id)?;
         let d_handle = DisplayHandle::from(handle);
         I::from_id(&d_handle, self.id.clone())
     }
@@ -307,7 +307,7 @@ impl<I: Resource> Weak<I> {
         let Some(handle) = self.handle.upgrade() else {
             return false;
         };
-        handle.object_info(self.id.clone()).is_ok()
+        handle.object_info(&self.id).is_ok()
     }
 
     /// The underlying [`ObjectId`]

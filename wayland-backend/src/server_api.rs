@@ -260,8 +260,8 @@ impl Handle {
     ///
     /// Returns an error if the provided object ID is no longer valid.
     #[inline]
-    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.handle.object_info(id.id)
+    pub fn object_info(&self, id: &ObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.handle.object_info(&id.id)
     }
 
     /// Initializes a connection with a client.
@@ -278,20 +278,20 @@ impl Handle {
 
     /// Returns the id of the client which owns the object.
     #[inline]
-    pub fn get_client(&self, id: ObjectId) -> Result<ClientId, InvalidId> {
-        self.handle.get_client(id.id)
+    pub fn get_client(&self, id: &ObjectId) -> Result<ClientId, InvalidId> {
+        self.handle.get_client(&id.id)
     }
 
     /// Returns the data associated with a client.
     #[inline]
-    pub fn get_client_data(&self, id: ClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
-        self.handle.get_client_data(id.id)
+    pub fn get_client_data(&self, id: &ClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+        self.handle.get_client_data(&id.id)
     }
 
     /// Retrive the [`Credentials`] of a client
     #[inline]
-    pub fn get_client_credentials(&self, id: ClientId) -> Result<Credentials, InvalidId> {
-        self.handle.get_client_credentials(id.id)
+    pub fn get_client_credentials(&self, id: &ClientId) -> Result<Credentials, InvalidId> {
+        self.handle.get_client_credentials(&id.id)
     }
 
     /// Invokes a closure for all clients connected to this server
@@ -389,18 +389,18 @@ impl Handle {
     #[inline]
     pub fn get_object_data<D: 'static>(
         &self,
-        id: ObjectId,
+        id: &ObjectId,
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
-        self.handle.get_object_data(id.id)
+        self.handle.get_object_data(&id.id)
     }
 
     /// Returns the data associated with an object as a `dyn Any`
     #[inline]
     pub fn get_object_data_any(
         &self,
-        id: ObjectId,
+        id: &ObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
-        self.handle.get_object_data_any(id.id)
+        self.handle.get_object_data_any(&id.id)
     }
 
     /// Sets the data associated with some object.
@@ -410,16 +410,16 @@ impl Handle {
     #[inline]
     pub fn set_object_data<D: 'static>(
         &self,
-        id: ObjectId,
+        id: &ObjectId,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
-        self.handle.set_object_data(id.id, data)
+        self.handle.set_object_data(&id.id, data)
     }
 
     /// Posts a protocol error on an object. This will also disconnect the client which created the object.
     #[inline]
-    pub fn post_error(&self, object_id: ObjectId, error_code: u32, message: CString) {
-        self.handle.post_error(object_id.id, error_code, message)
+    pub fn post_error(&self, object_id: &ObjectId, error_code: u32, message: CString) {
+        self.handle.post_error(&object_id.id, error_code, message)
     }
 
     /// Kills the connection to a client.

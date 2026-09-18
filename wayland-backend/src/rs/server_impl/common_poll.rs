@@ -152,7 +152,7 @@ impl<D> InnerBackend<D> {
         loop {
             let action = {
                 let state = &mut *state;
-                if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
+                if let Ok(client) = state.clients.get_client_mut(client_id) {
                     let (message, object) = match client.next_request() {
                         Ok(v) => v,
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -214,7 +214,7 @@ impl<D> InnerBackend<D> {
                             id: message.sender_id,
                             serial: object.data.serial,
                             interface: object.interface,
-                            client_id: client.id.clone(),
+                            client_id: client.id,
                         };
                         let opcode = message.opcode;
                         let (arguments, is_destructor, created_id) =
@@ -253,7 +253,7 @@ impl<D> InnerBackend<D> {
                     let ret = object.data.user_data.clone().request(
                         &handle.clone(),
                         data,
-                        ClientId { id: client_id.clone() },
+                        ClientId { id: client_id },
                         OwnedMessage {
                             sender_id: ObjectId { id: object_id.clone() },
                             opcode,
@@ -264,20 +264,20 @@ impl<D> InnerBackend<D> {
                         object.data.user_data.clone().destroyed(
                             &handle.clone(),
                             data,
-                            ClientId { id: client_id.clone() },
+                            ClientId { id: client_id },
                             ObjectId { id: object_id.clone() },
                         );
                     }
                     // acquire the lock again and continue
                     state = self.state.lock().unwrap();
                     if is_destructor {
-                        if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
+                        if let Ok(client) = state.clients.get_client_mut(client_id) {
                             client.send_delete_id(object_id);
                         }
                     }
                     match (created_id, ret) {
                         (Some(child_id), Some(child_data)) => {
-                            if let Ok(client) = state.clients.get_client_mut(client_id.clone()) {
+                            if let Ok(client) = state.clients.get_client_mut(client_id) {
                                 client
                                     .map
                                     .with(child_id.id, |obj| obj.data.user_data = child_data)
@@ -288,7 +288,7 @@ impl<D> InnerBackend<D> {
                         (Some(child_id), None) => {
                             // Allow the callback to not return any data if the client is already dead (typically
                             // if the callback provoked a protocol error)
-                            if let Ok(client) = state.clients.get_client(client_id.clone()) {
+                            if let Ok(client) = state.clients.get_client(client_id) {
                                 if !client.killed {
                                     panic!(
                                         "Callback creating object {child_id} did not provide any object data."
@@ -314,13 +314,13 @@ impl<D> InnerBackend<D> {
                     let child_data = handler.bind(
                         &handle.clone(),
                         data,
-                        ClientId { id: client.clone() },
+                        ClientId { id: client },
                         GlobalId { id: global },
                         ObjectId { id: object.clone() },
                     );
                     // acquire the lock again and continue
                     state = self.state.lock().unwrap();
-                    if let Ok(client) = state.clients.get_client_mut(client.clone()) {
+                    if let Ok(client) = state.clients.get_client_mut(client) {
                         client.map.with(object.id, |obj| obj.data.user_data = child_data).unwrap();
                     }
                 }

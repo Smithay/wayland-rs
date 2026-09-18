@@ -628,7 +628,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                         assert!(child_spec.is_none());
                         child_spec = Some(quote! { {
-                            let my_info = conn.object_info(self.id())?;
+                            let my_info = conn.object_info(&self.id())?;
                             Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version))
                         } });
                         vec![quote! { Argument::NewId(ObjectId::null()) }]

@@ -82,7 +82,7 @@ impl<D> Client<D> {
         )
         .unwrap();
 
-        data.initialized(ClientId { id: id.clone() });
+        data.initialized(ClientId { id });
 
         Self { socket, map, debug, id, killed: false, last_serial: 0, data }
     }
@@ -99,22 +99,22 @@ impl<D> Client<D> {
             version,
             data: Data { serial, user_data },
         });
-        InnerObjectId { id, serial, client_id: self.id.clone(), interface }
+        InnerObjectId { id, serial, client_id: self.id, interface }
     }
 
     pub(crate) fn destroy_object(
         &mut self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
         pending_destructors: &mut Vec<super::handle::PendingDestructor<D>>,
     ) -> Result<(), InvalidId> {
-        let object = self.get_object(id.clone())?;
-        pending_destructors.push((object.data.user_data.clone(), self.id.clone(), id.clone()));
+        let object = self.get_object(id)?;
+        pending_destructors.push((object.data.user_data.clone(), self.id, id.clone()));
         self.send_delete_id(id.clone());
         Ok(())
     }
 
-    pub(crate) fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
-        let object = self.get_object(id.clone())?;
+    pub(crate) fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+        let object = self.get_object(id)?;
         Ok(ObjectInfo { id: id.id, interface: object.interface, version: object.version })
     }
 
@@ -126,7 +126,7 @@ impl<D> Client<D> {
         if self.killed {
             return Ok(());
         }
-        let object = self.get_object(object_id.id.clone())?;
+        let object = self.get_object(&object_id.id)?;
 
         let message_desc = match object.interface.events.get(opcode as usize) {
             Some(msg) => msg,
@@ -174,7 +174,7 @@ impl<D> Client<D> {
                         if o.id.client_id != self.id {
                             panic!("Attempting to send an event with objects from wrong client.")
                         }
-                        let object = self.get_object(o.id.clone())?;
+                        let object = self.get_object(&o.id)?;
                         let child_interface = match message_desc.child_interface {
                             Some(iface) => iface,
                             None => panic!("Trying to send event {}@{}.{} which creates an object without specifying its interface, this is unsupported.", object_id.id.interface.name, object_id.id, message_desc.name),
@@ -193,7 +193,7 @@ impl<D> Client<D> {
                         if o.id.client_id != self.id {
                             panic!("Attempting to send an event with objects from wrong client.")
                         }
-                        let arg_object = self.get_object(o.id.clone())?;
+                        let arg_object = self.get_object(&o.id)?;
                         if !same_interface_or_anonymous(next_interface, arg_object.interface) {
                             panic!("Event {}@{}.{} expects an object argument of interface {} but {} was provided instead.", object.interface.name, object_id.id, message_desc.name, next_interface.name, arg_object.interface.name);
                         }
@@ -214,7 +214,7 @@ impl<D> Client<D> {
         // Handle destruction if relevant
         if message_desc.is_destructor {
             if let Some(vec) = pending_destructors {
-                vec.push((object.data.user_data.clone(), self.id.clone(), object_id.id.clone()));
+                vec.push((object.data.user_data.clone(), self.id, object_id.id.clone()));
             }
             self.send_delete_id(object_id.id);
         }
@@ -235,7 +235,7 @@ impl<D> Client<D> {
 
     pub(crate) fn get_object_data(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let object = self.get_object(id)?;
         Ok(object.data.user_data)
@@ -243,7 +243,7 @@ impl<D> Client<D> {
 
     pub(crate) fn set_object_data(
         &mut self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
         self.map
@@ -260,10 +260,10 @@ impl<D> Client<D> {
 
     pub(crate) fn post_display_error(&mut self, code: DisplayError, message: CString) {
         self.post_error(
-            InnerObjectId {
+            &InnerObjectId {
                 id: 1,
                 interface: &WL_DISPLAY_INTERFACE,
-                client_id: self.id.clone(),
+                client_id: self.id,
                 serial: 0,
             },
             code as u32,
@@ -273,7 +273,7 @@ impl<D> Client<D> {
 
     pub(crate) fn post_error(
         &mut self,
-        object_id: InnerObjectId,
+        object_id: &InnerObjectId,
         error_code: u32,
         message: CString,
     ) {
@@ -285,7 +285,7 @@ impl<D> Client<D> {
                     id: InnerObjectId {
                         id: 1,
                         interface: &WL_DISPLAY_INTERFACE,
-                        client_id: self.id.clone(),
+                        client_id: self.id,
                         serial: 0
                     }
                 },
@@ -324,7 +324,7 @@ impl<D> Client<D> {
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {
         self.killed = true;
-        self.data.disconnected(ClientId { id: self.id.clone() }, reason);
+        self.data.disconnected(ClientId { id: self.id }, reason);
     }
 
     pub(crate) fn flush(&mut self) -> std::io::Result<()> {
@@ -332,14 +332,9 @@ impl<D> Client<D> {
     }
 
     pub(crate) fn all_objects(&self) -> impl Iterator<Item = ObjectId> + '_ {
-        let client_id = self.id.clone();
+        let client_id = self.id;
         self.map.all_objects().map(move |(id, obj)| ObjectId {
-            id: InnerObjectId {
-                id,
-                client_id: client_id.clone(),
-                interface: obj.interface,
-                serial: obj.data.serial,
-            },
+            id: InnerObjectId { id, client_id, interface: obj.interface, serial: obj.data.serial },
         })
     }
 
@@ -387,7 +382,7 @@ impl<D> Client<D> {
         }
     }
 
-    pub(crate) fn get_object(&self, id: InnerObjectId) -> Result<Object<Data<D>>, InvalidId> {
+    pub(crate) fn get_object(&self, id: &InnerObjectId) -> Result<Object<Data<D>>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
             return Err(InvalidId);
@@ -399,7 +394,7 @@ impl<D> Client<D> {
         let object = self.map.find(pid).ok_or(InvalidId)?;
         Ok(InnerObjectId {
             id: pid,
-            client_id: self.id.clone(),
+            client_id: self.id,
             serial: object.data.serial,
             interface: object.interface,
         })
@@ -409,11 +404,11 @@ impl<D> Client<D> {
         pending_destructors.extend(self.map.all_objects().map(|(id, obj)| {
             (
                 obj.data.user_data.clone(),
-                self.id.clone(),
+                self.id,
                 InnerObjectId {
                     id,
                     serial: obj.data.serial,
-                    client_id: self.id.clone(),
+                    client_id: self.id,
                     interface: obj.interface,
                 },
             )
@@ -445,7 +440,7 @@ impl<D> Client<D> {
                     let cb_id = ObjectId {
                         id: InnerObjectId {
                             id: new_id,
-                            client_id: self.id.clone(),
+                            client_id: self.id,
                             serial,
                             interface: &WL_CALLBACK_INTERFACE,
                         },
@@ -468,7 +463,7 @@ impl<D> Client<D> {
                     let registry_id = InnerObjectId {
                         id: new_id,
                         serial,
-                        client_id: self.id.clone(),
+                        client_id: self.id,
                         interface: &WL_REGISTRY_INTERFACE,
                     };
                     if let Err(()) = self.map.insert_at(new_id, registry_obj) {
@@ -530,14 +525,9 @@ impl<D> Client<D> {
                             return None;
                         }
                         Some((
-                            self.id.clone(),
+                            self.id,
                             global_id,
-                            InnerObjectId {
-                                id: new_id,
-                                client_id: self.id.clone(),
-                                interface,
-                                serial,
-                            },
+                            InnerObjectId { id: new_id, client_id: self.id, interface, serial },
                             handler.clone(),
                         ))
                     } else {
@@ -637,9 +627,9 @@ impl<D> Client<D> {
                                 return None;
                             }
                         }
-                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id.clone(), serial: obj.data.serial, interface: obj.interface }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id.clone(), serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE }})
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
@@ -670,7 +660,7 @@ impl<D> Client<D> {
                         }
                     };
 
-                    let child_id = InnerObjectId { id: new_id, client_id: self.id.clone(), serial: child_obj.data.serial, interface: child_obj.interface };
+                    let child_id = InnerObjectId { id: new_id, client_id: self.id, serial: child_obj.data.serial, interface: child_obj.interface };
                     created_id = Some(child_id.clone());
 
                     if let Err(()) = self.map.insert_at(new_id, child_obj) {
@@ -726,7 +716,7 @@ impl<D> ClientStore<D> {
 
         let id = InnerClientId { id: id as u32, serial };
 
-        *place = Some(Client::new(stream, id.clone(), self.debug, data, buffer_size));
+        *place = Some(Client::new(stream, id, self.debug, data, buffer_size));
 
         id
     }
@@ -776,7 +766,7 @@ impl<D> ClientStore<D> {
 
     pub(crate) fn all_clients_id(&self) -> impl Iterator<Item = ClientId> + '_ {
         self.clients.iter().flat_map(|opt| {
-            opt.as_ref().filter(|c| !c.killed).map(|client| ClientId { id: client.id.clone() })
+            opt.as_ref().filter(|c| !c.killed).map(|client| ClientId { id: client.id })
         })
     }
 }

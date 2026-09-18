@@ -137,8 +137,8 @@ fn dead_resources() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    assert!(server.display.handle().get_object_data(server_ddata.outputs[0].id()).is_ok());
-    assert!(server.display.handle().get_object_data(server_ddata.outputs[1].id()).is_ok());
+    assert!(server.display.handle().get_object_data(&server_ddata.outputs[0].id()).is_ok());
+    assert!(server.display.handle().get_object_data(&server_ddata.outputs[1].id()).is_ok());
 
     let cloned = server_ddata.outputs[0].clone();
 
@@ -146,9 +146,9 @@ fn dead_resources() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    assert!(server.display.handle().get_object_data(server_ddata.outputs[0].id()).is_err());
-    assert!(server.display.handle().get_object_data(server_ddata.outputs[1].id()).is_ok());
-    assert!(server.display.handle().get_object_data(cloned.id()).is_err());
+    assert!(server.display.handle().get_object_data(&server_ddata.outputs[0].id()).is_err());
+    assert!(server.display.handle().get_object_data(&server_ddata.outputs[1].id()).is_ok());
+    assert!(server.display.handle().get_object_data(&cloned.id()).is_err());
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn get_resource() {
 
     // try to retrieve the resource
     // its id should be 3 (1 is wl_display and 2 is wl_registry)
-    let client = server.display.handle().get_client(server_ddata.outputs[0].id()).unwrap();
+    let client = server.display.handle().get_client(&server_ddata.outputs[0].id()).unwrap();
     // wrong interface fails
     assert!(
         client
