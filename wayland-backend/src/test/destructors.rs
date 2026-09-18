@@ -17,7 +17,7 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
+                _: &$server_backend::ClientId,
                 _: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 None
@@ -27,8 +27,8 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::ObjectId,
             ) {
                 self.0.store(true, Ordering::Release);
             }
@@ -39,9 +39,9 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::GlobalId,
-                _: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::GlobalId,
+                _: &$server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 self
             }
@@ -64,7 +64,7 @@ macro_rules! impl_client_objectdata {
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 None
             }
-            fn destroyed(&self, _object_id: $client_backend::ObjectId) {
+            fn destroyed(&self, _object_id: &$client_backend::ObjectId) {
                 self.0.store(true, Ordering::Release);
             }
         }
@@ -195,11 +195,11 @@ struct ServerClientData(AtomicBool);
 macro_rules! impl_server_clientdata {
     ($server_backend:tt) => {
         impl $server_backend::ClientData for ServerClientData {
-            fn initialized(&self, _: $server_backend::ClientId) {}
+            fn initialized(&self, _: &$server_backend::ClientId) {}
 
             fn disconnected(
                 &self,
-                _: $server_backend::ClientId,
+                _: &$server_backend::ClientId,
                 _: crate::types::server::DisconnectReason,
             ) {
                 self.0.store(true, Ordering::Release);

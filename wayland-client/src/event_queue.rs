@@ -706,7 +706,7 @@ where
         new_data
     }
 
-    fn destroyed(&self, _: ObjectId) {}
+    fn destroyed(&self, _: &ObjectId) {}
 
     fn data_as_any(&self) -> &dyn Any {
         &self.udata

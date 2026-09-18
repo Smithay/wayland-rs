@@ -227,5 +227,5 @@ impl wayc::backend::ObjectData for SyncData {
         None
     }
 
-    fn destroyed(&self, _: wayc::backend::ObjectId) {}
+    fn destroyed(&self, _: &wayc::backend::ObjectId) {}
 }

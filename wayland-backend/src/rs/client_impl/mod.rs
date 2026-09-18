@@ -310,7 +310,7 @@ impl InnerBackend {
                 Ok(())
             })
             .unwrap()?;
-        object.data.user_data.destroyed(id.clone());
+        object.data.user_data.destroyed(id);
         Ok(())
     }
 
@@ -488,7 +488,7 @@ impl InnerBackend {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            object.data.user_data.destroyed(ObjectId { id });
+            object.data.user_data.destroyed(&ObjectId { id });
         }
         if let Some((child_id, child_serial, child_interface)) = child {
             Ok(ObjectId {
@@ -818,7 +818,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            receiver.data.user_data.destroyed(ObjectId {
+            receiver.data.user_data.destroyed(&ObjectId {
                 id: InnerObjectId {
                     id: message.sender_id,
                     serial: receiver.data.serial,

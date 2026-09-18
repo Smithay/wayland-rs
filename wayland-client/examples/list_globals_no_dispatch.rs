@@ -30,7 +30,7 @@ impl backend::ObjectData for RegistryData {
 
     // This method is called whenever the object is destroyed. In the case of our registry,
     // however, there is no way to destroy it, so we will mark it as unreachable.
-    fn destroyed(&self, _: wayland_backend::client::ObjectId) {
+    fn destroyed(&self, _: &wayland_backend::client::ObjectId) {
         unreachable!();
     }
 }

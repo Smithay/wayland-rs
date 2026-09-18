@@ -549,7 +549,7 @@ impl InnerBackend {
             alive.store(false, Ordering::Release);
             guard.known_proxies.remove(&id.id.ptr);
             drop(guard);
-            udata.data.destroyed(id.clone());
+            udata.data.destroyed(id);
         }
 
         unsafe {

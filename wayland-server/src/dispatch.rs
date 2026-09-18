@@ -110,7 +110,7 @@ pub trait Dispatch<I: Resource, State> {
     fn destroyed(
         &self,
         _state: &mut State,
-        _client: wayland_backend::server::ClientId,
+        _client: &wayland_backend::server::ClientId,
         _resource: &I,
     ) {
     }
@@ -216,11 +216,11 @@ impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'stati
         self: Arc<Self>,
         handle: &wayland_backend::server::Handle,
         data: &mut D,
-        client_id: wayland_backend::server::ClientId,
+        client_id: &wayland_backend::server::ClientId,
         msg: wayland_backend::protocol::OwnedMessage<wayland_backend::server::ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         let dhandle = DisplayHandle::from(handle.clone());
-        let client = match Client::from_id(&dhandle, client_id) {
+        let client = match Client::from_id(&dhandle, client_id.clone()) {
             Ok(v) => v,
             Err(_) => {
                 crate::log_error!("Receiving a request from a dead client ?!");
@@ -235,7 +235,7 @@ impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'stati
             Err(e) => {
                 crate::log_warn!("Dispatching error encountered: {e:?}, killing client.");
                 handle.kill_client(
-                    client.id().clone(),
+                    client.id(),
                     DisconnectReason::ProtocolError(ProtocolError {
                         code: 1,
                         object_id: 0,
@@ -269,11 +269,11 @@ impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'stati
         self: Arc<Self>,
         handle: &wayland_backend::server::Handle,
         data: &mut D,
-        client_id: ClientId,
-        object_id: ObjectId,
+        client_id: &ClientId,
+        object_id: &ObjectId,
     ) {
         let dhandle = DisplayHandle::from(handle.clone());
-        let mut resource = I::from_id(&dhandle, object_id).unwrap();
+        let mut resource = I::from_id(&dhandle, object_id.clone()).unwrap();
 
         // Proxy::from_id will return an inert protocol object wrapper inside of ObjectData::destroyed,
         // therefore manually initialize the data associated with protocol object wrapper.

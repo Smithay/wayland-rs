@@ -119,9 +119,9 @@ fn client_destructor_cleanup() {
 struct DestructorClientData(Arc<AtomicBool>);
 
 impl ways::backend::ClientData for DestructorClientData {
-    fn initialized(&self, _: ways::backend::ClientId) {}
+    fn initialized(&self, _: &ways::backend::ClientId) {}
 
-    fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {
+    fn disconnected(&self, _: &ways::backend::ClientId, _: ways::backend::DisconnectReason) {
         self.0.store(true, Ordering::Release)
     }
 }
@@ -160,7 +160,7 @@ impl ways::Dispatch<ways::protocol::wl_output::WlOutput, ServerHandler> for Serv
     fn destroyed(
         &self,
         _: &mut ServerHandler,
-        _: ways::backend::ClientId,
+        _: &ways::backend::ClientId,
         _resource: &ways::protocol::wl_output::WlOutput,
     ) {
         self.0.store(true, Ordering::Release);

@@ -379,7 +379,7 @@ impl<D> InnerBackend<D> {
         })
     }
 
-    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<&ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
@@ -402,7 +402,7 @@ impl<D> InnerBackend<D> {
     pub fn dispatch_client(
         &self,
         data: &mut D,
-        _client_id: InnerClientId,
+        _client_id: &InnerClientId,
     ) -> std::io::Result<usize> {
         self.dispatch_all_clients(data)
     }
@@ -420,7 +420,7 @@ impl<D> InnerBackend<D> {
             std::mem::take(&mut self.state.lock().unwrap().pending_destructors);
         for (object, client_id, object_id) in pending_destructors {
             let handle = self.handle();
-            object.clone().destroyed(&handle, data, client_id, object_id);
+            object.clone().destroyed(&handle, data, &client_id, &object_id);
         }
 
         if ret < 0 { Err(std::io::Error::last_os_error()) } else { Ok(ret as usize) }
@@ -511,21 +511,21 @@ impl InnerHandle {
         self.state.lock().unwrap().get_client_credentials(id)
     }
 
-    pub fn with_all_clients(&self, mut f: impl FnMut(ClientId)) {
+    pub fn with_all_clients(&self, mut f: impl FnMut(&ClientId)) {
         self.state.lock().unwrap().with_all_clients(&mut f)
     }
 
     pub fn with_all_objects_for(
         &self,
-        client_id: InnerClientId,
-        mut f: impl FnMut(ObjectId),
+        client_id: &InnerClientId,
+        mut f: impl FnMut(&ObjectId),
     ) -> Result<(), InvalidId> {
         self.state.lock().unwrap().with_all_objects_for(client_id, &mut f)
     }
 
     pub fn object_for_protocol_id(
         &self,
-        client_id: InnerClientId,
+        client_id: &InnerClientId,
         interface: &'static Interface,
         protocol_id: u32,
     ) -> Result<ObjectId, InvalidId> {
@@ -534,7 +534,7 @@ impl InnerHandle {
 
     pub fn create_object<D: 'static>(
         &self,
-        client: InnerClientId,
+        client: &InnerClientId,
         interface: &'static Interface,
         version: u32,
         data: Arc<dyn ObjectData<D>>,
@@ -695,7 +695,7 @@ impl InnerHandle {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
-    pub fn kill_client(&self, client_id: InnerClientId, reason: DisconnectReason) {
+    pub fn kill_client(&self, client_id: &InnerClientId, reason: DisconnectReason) {
         self.state.lock().unwrap().kill_client(client_id, reason)
     }
 
@@ -763,7 +763,7 @@ impl InnerHandle {
         id
     }
 
-    pub fn disable_global<D: 'static>(&self, id: InnerGlobalId) {
+    pub fn disable_global<D: 'static>(&self, id: &InnerGlobalId) {
         // check that `D` is correct
         {
             let mut state = self.state.lock().unwrap();
@@ -793,13 +793,13 @@ impl InnerHandle {
         }
     }
 
-    pub fn remove_global<D: 'static>(&self, id: InnerGlobalId) {
+    pub fn remove_global<D: 'static>(&self, id: &InnerGlobalId) {
         {
             let mut state = self.state.lock().unwrap();
             let state = (&mut *state as &mut dyn Any)
                 .downcast_mut::<State<D>>()
                 .expect("Wrong type parameter passed to Handle::remove_global().");
-            state.known_globals.retain(|g| g != &id);
+            state.known_globals.retain(|g| g != id);
         }
 
         if !id.alive.load(Ordering::Acquire) {
@@ -817,19 +817,19 @@ impl InnerHandle {
         });
     }
 
-    pub fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
+    pub fn global_info(&self, id: &InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         self.state.lock().unwrap().global_info(id)
     }
 
     #[cfg(feature = "libwayland_server_1_22")]
-    pub fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
+    pub fn global_name(&self, global: &InnerGlobalId, client: &InnerClientId) -> Option<u32> {
         self.state.lock().unwrap().global_name(global, client)
     }
 
     /// Returns the handler which manages the visibility and notifies when a client has bound the global.
     pub fn get_global_handler<D: 'static>(
         &self,
-        id: InnerGlobalId,
+        id: &InnerGlobalId,
     ) -> Result<Arc<dyn GlobalHandler<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
@@ -848,7 +848,7 @@ impl InnerHandle {
         Ok(udata.handler.clone())
     }
 
-    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<&ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
@@ -865,7 +865,7 @@ impl InnerHandle {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    pub fn set_client_max_buffer_size(&self, client: InnerClientId, max_buffer_size: usize) {
+    pub fn set_client_max_buffer_size(&self, client: &InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
     }
 
@@ -884,15 +884,15 @@ pub(crate) trait ErasedState: Any {
     fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId>;
     fn get_client_credentials(&self, id: &InnerClientId) -> Result<Credentials, InvalidId>;
     fn get_client_data(&self, id: &InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
-    fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
+    fn with_all_clients(&self, f: &mut dyn FnMut(&ClientId));
     fn with_all_objects_for(
         &self,
-        client_id: InnerClientId,
-        f: &mut dyn FnMut(ObjectId),
+        client_id: &InnerClientId,
+        f: &mut dyn FnMut(&ObjectId),
     ) -> Result<(), InvalidId>;
     fn object_for_protocol_id(
         &self,
-        client_id: InnerClientId,
+        client_id: &InnerClientId,
         interface: &'static Interface,
         protocol_id: u32,
     ) -> Result<ObjectId, InvalidId>;
@@ -902,14 +902,14 @@ pub(crate) trait ErasedState: Any {
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
     fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString);
-    fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
-    fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
+    fn kill_client(&mut self, client_id: &InnerClientId, reason: DisconnectReason);
+    fn global_info(&self, id: &InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     #[cfg(feature = "libwayland_server_1_22")]
-    fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
+    fn global_name(&self, global: &InnerGlobalId, client: &InnerClientId) -> Option<u32>;
     fn is_known_global(&self, global_ptr: *const wl_global) -> bool;
-    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()>;
+    fn flush(&mut self, client: Option<&ClientId>) -> std::io::Result<()>;
     #[cfg(feature = "libwayland_server_1_23")]
-    fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize);
+    fn set_client_max_buffer_size(&mut self, client: &InnerClientId, max_buffer_size: usize);
     fn display_ptr(&self) -> *mut wl_display;
 }
 
@@ -994,7 +994,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(creds)
     }
 
-    fn with_all_clients(&self, f: &mut dyn FnMut(ClientId)) {
+    fn with_all_clients(&self, f: &mut dyn FnMut(&ClientId)) {
         let mut client_list = unsafe {
             ffi_dispatch!(wayland_server_handle(), wl_display_get_client_list, self.display)
         };
@@ -1003,7 +1003,7 @@ impl<D: 'static> ErasedState for State<D> {
                 let client =
                     ffi_dispatch!(wayland_server_handle(), wl_client_from_link, client_list);
                 if let Some(id) = client_id_from_ptr(client) {
-                    f(ClientId { id })
+                    f(&ClientId { id })
                 }
 
                 client_list = (*client_list).next;
@@ -1013,8 +1013,8 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn with_all_objects_for(
         &self,
-        client_id: InnerClientId,
-        mut f: &mut dyn FnMut(ObjectId),
+        client_id: &InnerClientId,
+        mut f: &mut dyn FnMut(&ObjectId),
     ) -> Result<(), InvalidId> {
         if !client_id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
@@ -1054,7 +1054,7 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn object_for_protocol_id(
         &self,
-        client_id: InnerClientId,
+        client_id: &InnerClientId,
         interface: &'static Interface,
         protocol_id: u32,
     ) -> Result<ObjectId, InvalidId> {
@@ -1269,14 +1269,14 @@ impl<D: 'static> ErasedState for State<D> {
         }
     }
 
-    fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason) {
+    fn kill_client(&mut self, client_id: &InnerClientId, reason: DisconnectReason) {
         if !client_id.alive.load(Ordering::Acquire) {
             return;
         }
         if let Some(udata) = unsafe { client_user_data(client_id.ptr) } {
             let udata = unsafe { &*udata };
             udata.alive.store(false, Ordering::Release);
-            udata.data.disconnected(ClientId { id: client_id.clone() }, reason);
+            udata.data.disconnected(&ClientId { id: client_id.clone() }, reason);
         }
 
         // wl_client_destroy invokes destructors
@@ -1285,7 +1285,7 @@ impl<D: 'static> ErasedState for State<D> {
         });
     }
 
-    fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
+    fn global_info(&self, id: &InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -1302,7 +1302,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     #[cfg(feature = "libwayland_server_1_22")]
-    fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32> {
+    fn global_name(&self, global: &InnerGlobalId, client: &InnerClientId) -> Option<u32> {
         if !global.alive.load(Ordering::Acquire) {
             return None;
         }
@@ -1322,7 +1322,7 @@ impl<D: 'static> ErasedState for State<D> {
         self.known_globals.iter().any(|ginfo| std::ptr::eq(ginfo.ptr, global_ptr))
     }
 
-    fn flush(&mut self, client: Option<ClientId>) -> std::io::Result<()> {
+    fn flush(&mut self, client: Option<&ClientId>) -> std::io::Result<()> {
         if let Some(ClientId { id: client_id }) = client {
             if client_id.alive.load(Ordering::Acquire) {
                 unsafe { ffi_dispatch!(wayland_server_handle(), wl_client_flush, client_id.ptr) }
@@ -1352,7 +1352,7 @@ impl<D: 'static> ErasedState for State<D> {
     }
 
     #[cfg(feature = "libwayland_server_1_23")]
-    fn set_client_max_buffer_size(&mut self, client: InnerClientId, max_buffer_size: usize) {
+    fn set_client_max_buffer_size(&mut self, client: &InnerClientId, max_buffer_size: usize) {
         if client.alive.load(Ordering::Acquire) {
             unsafe {
                 ffi_dispatch!(
@@ -1423,7 +1423,7 @@ unsafe extern "C" fn client_destroy_notify(listener: *mut wl_listener, client_pt
     if data.alive.load(Ordering::Acquire) {
         data.alive.store(false, Ordering::Release);
         data.data.disconnected(
-            ClientId {
+            &ClientId {
                 id: InnerClientId { ptr: client_ptr as *mut wl_client, alive: data.alive.clone() },
             },
             DisconnectReason::ConnectionClosed,
@@ -1468,9 +1468,9 @@ unsafe extern "C" fn global_bind<D: 'static>(
         let obj_data = global_udata.handler.clone().bind(
             &Handle { handle: InnerHandle { state: state_arc.clone() } },
             data,
-            ClientId { id: client_id },
-            GlobalId { id: global_id },
-            ObjectId { id: object_id },
+            &ClientId { id: client_id },
+            &GlobalId { id: global_id },
+            &ObjectId { id: object_id },
         );
         // Safety: udata was just created, it is valid
         unsafe { (*udata).data = obj_data };
@@ -1517,9 +1517,9 @@ unsafe extern "C" fn global_filter<D: 'static>(
         InnerGlobalId { ptr: global as *mut wl_global, alive: global_udata.alive.clone() };
 
     global_udata.handler.can_view(
-        ClientId { id: client_id },
+        &ClientId { id: client_id },
         &client_udata.data,
-        GlobalId { id: global_id },
+        &GlobalId { id: global_id },
     )
 }
 
@@ -1670,7 +1670,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
         udata.data.clone().request(
             &Handle { handle: InnerHandle { state: state_arc.clone() } },
             data,
-            ClientId { id: client_id.clone() },
+            &ClientId { id: client_id.clone() },
             OwnedMessage { sender_id: object_id.clone(), opcode: opcode as u16, args: parsed_args },
         )
     });
@@ -1723,8 +1723,8 @@ unsafe extern "C" fn resource_destructor<D: 'static>(resource: *mut wl_resource)
             udata.data.destroyed(
                 &Handle { handle: InnerHandle { state: state_arc.clone() } },
                 data,
-                ClientId { id: client_id },
-                ObjectId { id: object_id },
+                &ClientId { id: client_id },
+                &ObjectId { id: object_id },
             );
         });
     } else {
@@ -1753,14 +1753,14 @@ impl<D> ObjectData<D> for UninitObjectData {
         self: Arc<Self>,
         _: &Handle,
         _: &mut D,
-        _: ClientId,
+        _: &ClientId,
         msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: ClientId, _: ObjectId) {}
+    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: &ClientId, _: &ObjectId) {}
 
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

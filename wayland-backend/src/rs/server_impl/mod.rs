@@ -15,7 +15,7 @@ pub use handle::{InnerHandle, WeakInnerHandle};
 
 use super::server::*;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct InnerObjectId {
     id: u32,
     serial: u32,
@@ -92,7 +92,7 @@ impl InnerClientId {
 }
 
 /// The ID of a global
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct InnerGlobalId {
     id: u32,
     serial: u32,
@@ -119,14 +119,14 @@ impl<D> ObjectData<D> for UninitObjectData {
         self: Arc<Self>,
         _: &Handle,
         _: &mut D,
-        _: ClientId,
+        _: &ClientId,
         msg: OwnedMessage<ObjectId>,
     ) -> Option<Arc<dyn ObjectData<D>>> {
         panic!("Received a message on an uninitialized object: {msg:?}");
     }
 
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: ClientId, _: ObjectId) {}
+    fn destroyed(self: Arc<Self>, _: &Handle, _: &mut D, _: &ClientId, _: &ObjectId) {}
 
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -125,5 +125,5 @@ impl wayc::backend::ObjectData for CustomObjectData {
         None
     }
 
-    fn destroyed(&self, _object_id: wayc::backend::ObjectId) {}
+    fn destroyed(&self, _object_id: &wayc::backend::ObjectId) {}
 }

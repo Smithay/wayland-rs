@@ -82,7 +82,7 @@ impl<D> Client<D> {
         )
         .unwrap();
 
-        data.initialized(ClientId { id });
+        data.initialized(&ClientId { id });
 
         Self { socket, map, debug, id, killed: false, last_serial: 0, data }
     }
@@ -108,8 +108,8 @@ impl<D> Client<D> {
         pending_destructors: &mut Vec<super::handle::PendingDestructor<D>>,
     ) -> Result<(), InvalidId> {
         let object = self.get_object(id)?;
-        pending_destructors.push((object.data.user_data.clone(), self.id, id.clone()));
-        self.send_delete_id(id.clone());
+        pending_destructors.push((object.data.user_data.clone(), self.id, *id));
+        self.send_delete_id(*id);
         Ok(())
     }
 
@@ -214,7 +214,7 @@ impl<D> Client<D> {
         // Handle destruction if relevant
         if message_desc.is_destructor {
             if let Some(vec) = pending_destructors {
-                vec.push((object.data.user_data.clone(), self.id, object_id.id.clone()));
+                vec.push((object.data.user_data.clone(), self.id, object_id.id));
             }
             self.send_delete_id(object_id.id);
         }
@@ -291,7 +291,7 @@ impl<D> Client<D> {
                 },
                 0, // wl_display.error
                 [
-                    Argument::Object(ObjectId { id: object_id.clone() }),
+                    Argument::Object(ObjectId { id: *object_id }),
                     Argument::Uint(error_code),
                     Argument::Str(Some(Box::new(message))),
                 ],
@@ -324,7 +324,7 @@ impl<D> Client<D> {
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {
         self.killed = true;
-        self.data.disconnected(ClientId { id: self.id }, reason);
+        self.data.disconnected(&ClientId { id: self.id }, reason);
     }
 
     pub(crate) fn flush(&mut self) -> std::io::Result<()> {
@@ -661,7 +661,7 @@ impl<D> Client<D> {
                     };
 
                     let child_id = InnerObjectId { id: new_id, client_id: self.id, serial: child_obj.data.serial, interface: child_obj.interface };
-                    created_id = Some(child_id.clone());
+                    created_id = Some(child_id);
 
                     if let Err(()) = self.map.insert_at(new_id, child_obj) {
                         // abort parsing, this is an unrecoverable error

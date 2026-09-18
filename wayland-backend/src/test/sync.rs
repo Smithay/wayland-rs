@@ -15,7 +15,7 @@ impl client_rs::ObjectData for SyncData {
         None
     }
 
-    fn destroyed(&self, _: client_rs::ObjectId) {}
+    fn destroyed(&self, _: &client_rs::ObjectId) {}
 }
 
 impl client_sys::ObjectData for SyncData {
@@ -30,7 +30,7 @@ impl client_sys::ObjectData for SyncData {
         None
     }
 
-    fn destroyed(&self, _: client_sys::ObjectId) {}
+    fn destroyed(&self, _: &client_sys::ObjectId) {}
 }
 
 // send a wl_display.sync request and receive the response

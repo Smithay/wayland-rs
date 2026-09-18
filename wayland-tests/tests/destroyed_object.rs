@@ -85,7 +85,7 @@ impl wayc::backend::ObjectData for DestroyTestUdata {
         None
     }
 
-    fn destroyed(&self, id: wayc::backend::ObjectId) {
+    fn destroyed(&self, id: &wayc::backend::ObjectId) {
         assert!(!self.destroyed.load(Ordering::Relaxed));
         assert!(!id.is_null());
         // `destroyed()` is called with object already marked as not alive, or it
