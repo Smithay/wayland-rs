@@ -10,7 +10,7 @@ use libc::{gid_t, pid_t, uid_t};
 #[cfg(feature = "server")]
 use std::os::raw::c_char;
 use std::os::raw::{c_int, c_void};
-#[cfg(all(feature = "server", feature = "dlopen"))]
+#[cfg(all(feature = "server", dlopen))]
 use std::sync::LazyLock;
 
 pub enum wl_client {}
@@ -159,7 +159,7 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_resource_post_error(*mut wl_resource, u32, *const c_char) -> (),
 );
 
-#[cfg(all(feature = "server", feature = "dlopen"))]
+#[cfg(all(feature = "server", dlopen))]
 pub fn wayland_server_option() -> Option<&'static WaylandServer> {
     static WAYLAND_SERVER_OPTION: LazyLock<Option<WaylandServer>> = LazyLock::new(||{
         let versions = ["libwayland-server.so.0", "libwayland-server.so"];
@@ -179,18 +179,18 @@ pub fn wayland_server_option() -> Option<&'static WaylandServer> {
     WAYLAND_SERVER_OPTION.as_ref()
 }
 
-#[cfg(all(feature = "server", feature = "dlopen"))]
+#[cfg(all(feature = "server", dlopen))]
 pub fn wayland_server_handle() -> &'static WaylandServer {
     static WAYLAND_SERVER_HANDLE: LazyLock<&'static WaylandServer> = LazyLock::new(|| wayland_server_option().expect("Library libwayland-server.so could not be loaded."));
 
     &WAYLAND_SERVER_HANDLE
 }
 
-#[cfg(all(feature = "server", not(feature = "dlopen")))]
+#[cfg(all(feature = "server", not(dlopen)))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(all(feature = "server", feature = "dlopen"))]
+#[cfg(all(feature = "server", dlopen))]
 pub fn is_lib_available() -> bool {
     wayland_server_option().is_some()
 }
@@ -198,9 +198,10 @@ pub fn is_lib_available() -> bool {
 #[cfg(feature = "server")]
 pub mod signal {
     #![allow(clippy::cast_ptr_alignment, clippy::missing_safety_doc)]
-    #[cfg(feature = "dlopen")]
+    use crate::ffi_dispatch;
+    #[cfg(dlopen)]
     use super::wayland_server_handle as wsh;
-    #[cfg(not(feature = "dlopen"))]
+    #[cfg(not(dlopen))]
     use super::{wl_list_init, wl_list_insert};
     use super::{wl_listener, wl_notify_func_t, wl_signal};
     use crate::common::wl_list;
@@ -237,17 +238,19 @@ pub mod signal {
 
     pub unsafe fn wl_signal_init(signal: *mut wl_signal) {
         // Safety: signal is a valid initialized wl_signal
-        ffi_dispatch!(wsh(), wl_list_init, unsafe { &mut (*signal).listener_list });
+        unsafe { ffi_dispatch!(wsh(), wl_list_init, &mut (*signal).listener_list) };
     }
 
     pub unsafe fn wl_signal_add(signal: *mut wl_signal, listener: *mut wl_listener) {
         // Safety: signal and listener are valid pointers
-        ffi_dispatch!(
-            wsh(),
-            wl_list_insert,
-            unsafe { (*signal).listener_list.prev },
-            unsafe { &mut (*listener).link }
-        )
+        unsafe {
+            ffi_dispatch!(
+                wsh(),
+                wl_list_insert,
+                (*signal).listener_list.prev,
+                &mut (*listener).link
+            )
+        }
     }
 
     pub unsafe fn wl_signal_get(
