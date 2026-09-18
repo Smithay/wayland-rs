@@ -603,14 +603,14 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 Type::Fixed => vec![quote! { Argument::Fixed((#arg_name * 256.) as i32) }],
                 Type::Object => if arg.allow_null {
                     if side == Side::Server {
-                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj)) } else { Argument::Object(ObjectId::null()) } }]
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Resource::id(&obj).clone()) } else { Argument::Object(ObjectId::null()) } }]
                     } else {
-                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj)) } else { Argument::Object(ObjectId::null()) } }]
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::Object(Proxy::id(&obj).clone()) } else { Argument::Object(ObjectId::null()) } }]
                     }
                 } else if side == Side::Server {
-                    vec![quote!{ Argument::Object(Resource::id(&#arg_name)) }]
+                    vec![quote!{ Argument::Object(Resource::id(&#arg_name).clone()) }]
                 } else {
-                    vec![quote!{ Argument::Object(Proxy::id(&#arg_name)) }]
+                    vec![quote!{ Argument::Object(Proxy::id(&#arg_name).clone()) }]
                 },
                 Type::Array => if arg.allow_null {
                     vec![quote! { if let Some(array) = #arg_name { Argument::Array(Box::new(array)) } else { Argument::Array(Box::new(Vec::new()))}}]
@@ -628,7 +628,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         let created_iface_type = Ident::new(&snake_to_camel(created_interface), Span::call_site());
                         assert!(child_spec.is_none());
                         child_spec = Some(quote! { {
-                            let my_info = conn.object_info(&self.id())?;
+                            let my_info = conn.object_info(self.id())?;
                             Some((super::#created_iface_mod::#created_iface_type::interface(), my_info.version))
                         } });
                         vec![quote! { Argument::NewId(ObjectId::null()) }]
@@ -652,9 +652,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                 } else {
                     // server-side NewId is the same as Object
                     if arg.allow_null {
-                        vec![quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj)) } else { Argument::NewId(ObjectId::null()) } }]
+                        vec![quote! { if let Some(obj) = #arg_name { Argument::NewId(Resource::id(&obj).clone()) } else { Argument::NewId(ObjectId::null()) } }]
                     } else {
-                        vec![quote!{ Argument::NewId(Resource::id(&#arg_name)) }]
+                        vec![quote!{ Argument::NewId(Resource::id(&#arg_name).clone()) }]
                     }
                 },
                 Type::Destructor => panic!("Argument {}.{}.{} has type destructor ?!", interface.name, msg.name, arg.name),

@@ -68,7 +68,7 @@ fn destroy_object_objectdata() {
     roundtrip(&mut client, &mut server, &mut (), &mut ()).unwrap();
     assert!(callback_data.destroyed.load(Ordering::Relaxed));
     assert!(!registry_data.destroyed.load(Ordering::Relaxed));
-    backend.destroy_object(&registry.id()).unwrap();
+    backend.destroy_object(registry.id()).unwrap();
 }
 
 struct DestroyTestUdata {

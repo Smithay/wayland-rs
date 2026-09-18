@@ -45,7 +45,7 @@ fn data_offer() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let server_dd = server_ddata.data_device.take().unwrap();
-    let s_client = server.display.handle().get_client(&server_dd.id()).unwrap();
+    let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     let offer = s_client
         .create_resource::<ServerDO, (), ServerHandler>(
             &server.display.handle(),
@@ -92,7 +92,7 @@ fn server_id_reuse() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let server_dd = server_ddata.data_device.take().unwrap();
-    let s_client = server.display.handle().get_client(&server_dd.id()).unwrap();
+    let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     // Send a first data offer, ID should be 0xFF000000
     let offer = s_client
         .create_resource::<ServerDO, (), ServerHandler>(
@@ -174,7 +174,7 @@ fn server_created_race() {
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
     let server_dd = server_ddata.data_device.take().unwrap();
-    let s_client = server.display.handle().get_client(&server_dd.id()).unwrap();
+    let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     // Send a first data offer, ID should be 0xFF000000
     let offer = s_client
         .create_resource::<ServerDO, (), ServerHandler>(
@@ -317,7 +317,7 @@ fn creation_destruction_queue_dispatch_race() {
     //
     // In that case the wayland-client event queues dispatch the event anyway, but the receiver proxy will be dead
 
-    let s_client = server.display.handle().get_client(&server_dd.id()).unwrap();
+    let s_client = server.display.handle().get_client(server_dd.id()).unwrap();
     let offer = s_client
         .create_resource::<ServerDO, (), ServerHandler>(
             &server.display.handle(),
@@ -373,7 +373,7 @@ impl wayc::Dispatch<wayc::protocol::wl_data_device::WlDataDevice, ClientHandler>
         conn: &wayc::Connection,
         _: &wayc::QueueHandle<ClientHandler>,
     ) {
-        if conn.object_info(&data_device.id()).is_err() {
+        if conn.object_info(data_device.id()).is_err() {
             state.received_dead = true;
         }
         match event {

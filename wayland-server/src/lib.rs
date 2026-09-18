@@ -140,14 +140,14 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     fn interface() -> &'static Interface;
 
     /// The ID of this object
-    fn id(&self) -> ObjectId;
+    fn id(&self) -> &ObjectId;
 
     /// The client owning this object
     ///
     /// Returns [`None`] if the object is no longer alive.
     fn client(&self) -> Option<Client> {
         let handle = self.handle().upgrade()?;
-        let client_id = handle.get_client(&self.id()).ok()?;
+        let client_id = handle.get_client(self.id()).ok()?;
         let dh = DisplayHandle::from(handle);
         Client::from_id(&dh, client_id).ok()
     }
@@ -159,7 +159,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     #[inline]
     fn is_alive(&self) -> bool {
         if let Some(handle) = self.handle().upgrade() {
-            handle.object_info(&self.id()).is_ok()
+            handle.object_info(self.id()).is_ok()
         } else {
             false
         }
@@ -235,7 +235,11 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     /// to be sure to avoid reference cycles that would cause memory leaks.
     #[inline]
     fn downgrade(&self) -> Weak<Self> {
-        Weak { handle: self.handle().clone(), id: self.id(), _iface: std::marker::PhantomData }
+        Weak {
+            handle: self.handle().clone(),
+            id: self.id().clone(),
+            _iface: std::marker::PhantomData,
+        }
     }
 
     #[doc(hidden)]
@@ -311,8 +315,8 @@ impl<I: Resource> Weak<I> {
     }
 
     /// The underlying [`ObjectId`]
-    pub fn id(&self) -> ObjectId {
-        self.id.clone()
+    pub fn id(&self) -> &ObjectId {
+        &self.id
     }
 }
 
@@ -335,6 +339,6 @@ impl<I> Hash for Weak<I> {
 impl<I: Resource> PartialEq<I> for Weak<I> {
     #[inline]
     fn eq(&self, other: &I) -> bool {
-        self.id == other.id()
+        self.id == *other.id()
     }
 }

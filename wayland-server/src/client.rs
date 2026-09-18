@@ -21,8 +21,8 @@ impl Client {
     }
 
     /// The backend [`ClientId`] of this client
-    pub fn id(&self) -> ClientId {
-        self.id.clone()
+    pub fn id(&self) -> &ClientId {
+        &self.id
     }
 
     /// Access the data associated to this client

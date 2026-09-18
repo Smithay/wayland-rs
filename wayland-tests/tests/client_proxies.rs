@@ -130,16 +130,16 @@ fn dead_proxies() {
     let output2 = output.clone();
 
     assert!(output == output2);
-    assert!(client.conn.object_info(&output.id()).is_ok());
-    assert!(client.conn.object_info(&output2.id()).is_ok());
+    assert!(client.conn.object_info(output.id()).is_ok());
+    assert!(client.conn.object_info(output2.id()).is_ok());
 
     // kill the output
     output.release();
 
     // dead proxies are still equal
     assert!(output == output2);
-    assert!(client.conn.object_info(&output.id()).is_err());
-    assert!(client.conn.object_info(&output2.id()).is_err());
+    assert!(client.conn.object_info(output.id()).is_err());
+    assert!(client.conn.object_info(output2.id()).is_err());
 }
 
 #[test]
@@ -221,7 +221,7 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ServerHandler> 
         if let ways::protocol::wl_compositor::Request::CreateSurface { id } = request {
             let surface = data_init.init(id, ());
             let output = state.output.clone().unwrap();
-            assert!(dhandle.object_info(&output.id()).is_ok());
+            assert!(dhandle.object_info(output.id()).is_ok());
             surface.enter(&output);
         }
     }
@@ -275,7 +275,7 @@ impl wayc::Dispatch<wayc::protocol::wl_surface::WlSurface, ClientHandler> for ()
         _: &wayc::QueueHandle<ClientHandler>,
     ) {
         if let wayc::protocol::wl_surface::Event::Enter { output } = event {
-            assert!(conn.get_object_data(&output.id()).is_err());
+            assert!(conn.get_object_data(output.id()).is_err());
             state.entered = true;
         } else {
             panic!("Unexpected event: {event:?}");

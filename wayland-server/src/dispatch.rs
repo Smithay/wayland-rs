@@ -235,7 +235,7 @@ impl<I: Resource + 'static, D: 'static, U: Dispatch<I, D> + Send + Sync + 'stati
             Err(e) => {
                 crate::log_warn!("Dispatching error encountered: {e:?}, killing client.");
                 handle.kill_client(
-                    client.id(),
+                    client.id().clone(),
                     DisconnectReason::ProtocolError(ProtocolError {
                         code: 1,
                         object_id: 0,

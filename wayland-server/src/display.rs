@@ -183,7 +183,7 @@ impl DisplayHandle {
     /// This is intended to be a low-level method. See [`Resource::post_error()`], for a more convenient
     /// method.
     pub fn post_error<I: Resource>(&self, resource: &I, code: u32, error: String) {
-        self.handle.post_error(&resource.id(), code, std::ffi::CString::new(error).unwrap())
+        self.handle.post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
     }
 
     /// Access the object data associated with this object
