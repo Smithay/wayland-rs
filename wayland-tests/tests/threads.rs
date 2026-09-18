@@ -14,7 +14,7 @@ fn test_thread_destroy_object() {
     let backend = client.conn.backend();
 
     for _ in 0..10 {
-        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
+        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id().clone();
 
         let barrier = Barrier::new(2);
         thread::scope(|s| {
@@ -48,13 +48,13 @@ fn test_thread_destroy_display() {
                 barrier.wait();
                 for _ in 0..100 {
                     // get_data on the display should succeed
-                    let _ = backend.get_data(&display_id);
+                    let _ = backend.get_data(display_id);
                 }
             });
 
             barrier.wait();
             // destroy_object on the display should return InvalidId
-            assert!(backend.destroy_object(&display_id).is_err());
+            assert!(backend.destroy_object(display_id).is_err());
         });
     }
 }
@@ -68,7 +68,7 @@ fn test_thread_destroys() {
     let backend = client.conn.backend();
 
     for _ in 0..10000 {
-        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
+        let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id().clone();
 
         let barrier = Barrier::new(2);
         thread::scope(|s| {
@@ -93,7 +93,7 @@ fn test_set_data() {
     let qh = client.event_queue.handle();
     let backend = client.conn.backend();
 
-    let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
+    let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id().clone();
 
     backend
         .get_data(&cb_id.clone())

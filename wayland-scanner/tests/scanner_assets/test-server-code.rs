@@ -92,7 +92,7 @@ pub mod wl_registry {
     impl PartialEq<Weak<WlRegistry>> for WlRegistry {
         #[inline]
         fn eq(&self, other: &Weak<WlRegistry>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlRegistry {
@@ -115,8 +115,8 @@ pub mod wl_registry {
             &super::WL_REGISTRY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -261,7 +261,7 @@ pub mod wl_callback {
     impl PartialEq<Weak<WlCallback>> for WlCallback {
         #[inline]
         fn eq(&self, other: &Weak<WlCallback>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlCallback {
@@ -284,8 +284,8 @@ pub mod wl_callback {
             &super::WL_CALLBACK_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -517,7 +517,7 @@ pub mod test_global {
     impl PartialEq<Weak<TestGlobal>> for TestGlobal {
         #[inline]
         fn eq(&self, other: &Weak<TestGlobal>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for TestGlobal {
@@ -540,8 +540,8 @@ pub mod test_global {
             &super::TEST_GLOBAL_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -885,7 +885,7 @@ pub mod test_global {
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::Object(Resource::id(&sec)));
+                        vec.push(Argument::Object(Resource::id(&sec).clone()));
                         vec
                     },
                 }),
@@ -894,9 +894,9 @@ pub mod test_global {
                     opcode: 2u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::NewId(Resource::id(&new_quad)));
+                        vec.push(Argument::NewId(Resource::id(&new_quad).clone()));
                         vec.push(if let Some(obj) = old_quad {
-                            Argument::Object(Resource::id(&obj))
+                            Argument::Object(Resource::id(&obj).clone())
                         } else {
                             Argument::Object(ObjectId::null())
                         });
@@ -1017,7 +1017,7 @@ pub mod secondary {
     impl PartialEq<Weak<Secondary>> for Secondary {
         #[inline]
         fn eq(&self, other: &Weak<Secondary>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Secondary {
@@ -1040,8 +1040,8 @@ pub mod secondary {
             &super::SECONDARY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -1170,7 +1170,7 @@ pub mod tertiary {
     impl PartialEq<Weak<Tertiary>> for Tertiary {
         #[inline]
         fn eq(&self, other: &Weak<Tertiary>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Tertiary {
@@ -1193,8 +1193,8 @@ pub mod tertiary {
             &super::TERTIARY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -1323,7 +1323,7 @@ pub mod quad {
     impl PartialEq<Weak<Quad>> for Quad {
         #[inline]
         fn eq(&self, other: &Weak<Quad>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Quad {
@@ -1346,8 +1346,8 @@ pub mod quad {
             &super::QUAD_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {

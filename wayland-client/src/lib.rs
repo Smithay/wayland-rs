@@ -230,7 +230,7 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized + 'static {
     fn interface() -> &'static Interface;
 
     /// The ID of this object
-    fn id(&self) -> ObjectId;
+    fn id(&self) -> &ObjectId;
 
     /// The version of this object
     fn version(&self) -> u32;
@@ -238,7 +238,7 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized + 'static {
     /// Checks if the Wayland object associated with this proxy is still alive
     fn is_alive(&self) -> bool {
         if let Some(backend) = self.backend().upgrade() {
-            backend.info(&self.id()).is_ok()
+            backend.info(self.id()).is_ok()
         } else {
             false
         }
@@ -326,7 +326,11 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized + 'static {
     /// This can be of use if you need to store proxies in the used data of other objects and want
     /// to be sure to avoid reference cycles that would cause memory leaks.
     fn downgrade(&self) -> Weak<Self> {
-        Weak { backend: self.backend().clone(), id: self.id(), _iface: std::marker::PhantomData }
+        Weak {
+            backend: self.backend().clone(),
+            id: self.id().clone(),
+            _iface: std::marker::PhantomData,
+        }
     }
 }
 
@@ -400,8 +404,8 @@ impl<I: Proxy> Weak<I> {
     }
 
     /// The underlying [`ObjectId`]
-    pub fn id(&self) -> ObjectId {
-        self.id.clone()
+    pub fn id(&self) -> &ObjectId {
+        &self.id
     }
 }
 
@@ -421,6 +425,6 @@ impl<I> Hash for Weak<I> {
 
 impl<I: Proxy> PartialEq<I> for Weak<I> {
     fn eq(&self, other: &I) -> bool {
-        self.id == other.id()
+        self.id == *other.id()
     }
 }

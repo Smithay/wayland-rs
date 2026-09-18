@@ -285,7 +285,7 @@ impl GlobalList {
             let id = self.registry.id();
             fixes.destroy_registry(&self.registry);
             if let Some(backend) = fixes.backend().upgrade() {
-                backend.destroy_object(&id).unwrap();
+                backend.destroy_object(id).unwrap();
             }
             fixes.destroy();
         }

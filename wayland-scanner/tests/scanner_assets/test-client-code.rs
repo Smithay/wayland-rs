@@ -151,7 +151,7 @@ pub mod wl_display {
     impl std::cmp::Eq for WlDisplay {}
     impl PartialEq<Weak<WlDisplay>> for WlDisplay {
         fn eq(&self, other: &Weak<WlDisplay>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlDisplay {
@@ -172,8 +172,8 @@ pub mod wl_display {
             &super::WL_DISPLAY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -258,7 +258,7 @@ pub mod wl_display {
             match msg {
                 Request::Sync {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(&self.id())?;
+                        let my_info = conn.object_info(self.id())?;
                         Some((super::wl_callback::WlCallback::interface(), my_info.version))
                     };
                     let args = {
@@ -270,7 +270,7 @@ pub mod wl_display {
                 }
                 Request::GetRegistry {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(&self.id())?;
+                        let my_info = conn.object_info(self.id())?;
                         Some((super::wl_registry::WlRegistry::interface(), my_info.version))
                     };
                     let args = {
@@ -411,7 +411,7 @@ pub mod wl_registry {
     impl std::cmp::Eq for WlRegistry {}
     impl PartialEq<Weak<WlRegistry>> for WlRegistry {
         fn eq(&self, other: &Weak<WlRegistry>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlRegistry {
@@ -432,8 +432,8 @@ pub mod wl_registry {
             &super::WL_REGISTRY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -621,7 +621,7 @@ pub mod wl_callback {
     impl std::cmp::Eq for WlCallback {}
     impl PartialEq<Weak<WlCallback>> for WlCallback {
         fn eq(&self, other: &Weak<WlCallback>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for WlCallback {
@@ -642,8 +642,8 @@ pub mod wl_callback {
             &super::WL_CALLBACK_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -860,7 +860,7 @@ pub mod test_global {
     impl std::cmp::Eq for TestGlobal {}
     impl PartialEq<Weak<TestGlobal>> for TestGlobal {
         fn eq(&self, other: &Weak<TestGlobal>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for TestGlobal {
@@ -881,8 +881,8 @@ pub mod test_global {
             &super::TEST_GLOBAL_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -1066,7 +1066,7 @@ pub mod test_global {
                 }
                 Request::GetSecondary {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(&self.id())?;
+                        let my_info = conn.object_info(self.id())?;
                         Some((super::secondary::Secondary::interface(), my_info.version))
                     };
                     let args = {
@@ -1078,7 +1078,7 @@ pub mod test_global {
                 }
                 Request::GetTertiary {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(&self.id())?;
+                        let my_info = conn.object_info(self.id())?;
                         Some((super::tertiary::Tertiary::interface(), my_info.version))
                     };
                     let args = {
@@ -1092,9 +1092,9 @@ pub mod test_global {
                     let child_spec = None;
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::Object(Proxy::id(&sec)));
+                        vec.push(Argument::Object(Proxy::id(&sec).clone()));
                         vec.push(if let Some(obj) = ter {
-                            Argument::Object(Proxy::id(&obj))
+                            Argument::Object(Proxy::id(&obj).clone())
                         } else {
                             Argument::Object(ObjectId::null())
                         });
@@ -1113,29 +1113,29 @@ pub mod test_global {
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(if let Some(obj) = sec {
-                            Argument::Object(Proxy::id(&obj))
+                            Argument::Object(Proxy::id(&obj).clone())
                         } else {
                             Argument::Object(ObjectId::null())
                         });
-                        vec.push(Argument::Object(Proxy::id(&ter)));
+                        vec.push(Argument::Object(Proxy::id(&ter).clone()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
                 }
                 Request::NewidAndAllowNull { sec, ter } => {
                     let child_spec = {
-                        let my_info = conn.object_info(&self.id())?;
+                        let my_info = conn.object_info(self.id())?;
                         Some((super::quad::Quad::interface(), my_info.version))
                     };
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec.push(if let Some(obj) = sec {
-                            Argument::Object(Proxy::id(&obj))
+                            Argument::Object(Proxy::id(&obj).clone())
                         } else {
                             Argument::Object(ObjectId::null())
                         });
-                        vec.push(Argument::Object(Proxy::id(&ter)));
+                        vec.push(Argument::Object(Proxy::id(&ter).clone()));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
@@ -1330,7 +1330,7 @@ pub mod secondary {
     impl std::cmp::Eq for Secondary {}
     impl PartialEq<Weak<Secondary>> for Secondary {
         fn eq(&self, other: &Weak<Secondary>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Secondary {
@@ -1351,8 +1351,8 @@ pub mod secondary {
             &super::SECONDARY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -1479,7 +1479,7 @@ pub mod tertiary {
     impl std::cmp::Eq for Tertiary {}
     impl PartialEq<Weak<Tertiary>> for Tertiary {
         fn eq(&self, other: &Weak<Tertiary>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Tertiary {
@@ -1500,8 +1500,8 @@ pub mod tertiary {
             &super::TERTIARY_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {
@@ -1628,7 +1628,7 @@ pub mod quad {
     impl std::cmp::Eq for Quad {}
     impl PartialEq<Weak<Quad>> for Quad {
         fn eq(&self, other: &Weak<Quad>) -> bool {
-            self.id == other.id()
+            self.id == *other.id()
         }
     }
     impl std::borrow::Borrow<ObjectId> for Quad {
@@ -1649,8 +1649,8 @@ pub mod quad {
             &super::QUAD_INTERFACE
         }
         #[inline]
-        fn id(&self) -> ObjectId {
-            self.id.clone()
+        fn id(&self) -> &ObjectId {
+            &self.id
         }
         #[inline]
         fn version(&self) -> u32 {

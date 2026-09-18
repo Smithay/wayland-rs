@@ -87,7 +87,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
             impl PartialEq<Weak<#iface_name>> for #iface_name {
                 fn eq(&self, other: &Weak<#iface_name>) -> bool {
-                    self.id == other.id()
+                    self.id == *other.id()
                 }
             }
 
@@ -113,8 +113,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                 }
 
                 #[inline]
-                fn id(&self) -> ObjectId {
-                    self.id.clone()
+                fn id(&self) -> &ObjectId {
+                    &self.id
                 }
 
                 #[inline]
