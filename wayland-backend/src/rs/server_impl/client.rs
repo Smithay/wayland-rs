@@ -11,9 +11,9 @@ use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     debug,
     protocol::{
-        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
-        same_interface, same_interface_or_anonymous,
+        AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message, ObjectInfo,
+        OwnedArgument, OwnedMessage, ProtocolError, check_for_signature, same_interface,
+        same_interface_or_anonymous,
     },
     rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
@@ -629,7 +629,7 @@ impl<D> Client<D> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(super::InnerHandle::null_id())
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,

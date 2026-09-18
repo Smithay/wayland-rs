@@ -33,6 +33,9 @@ impl InnerObjectId {
     }
 
     pub fn same_client_as(&self, other: &Self) -> bool {
+        if self.is_null() || other.is_null() {
+            return false;
+        }
         self.client_id == other.client_id
     }
 
