@@ -104,7 +104,7 @@ fn client_global_helpers_dynamic() {
         loop {
             if let Ok(()) = rx.try_recv() {
                 if let Some(id) = output.take() {
-                    server.display.handle().remove_global::<ServerHandler>(id);
+                    server.display.handle().remove_global::<ServerHandler>(&id);
                 } else {
                     // create the global
                     output = Some(

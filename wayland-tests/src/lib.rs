@@ -121,14 +121,14 @@ impl wayc::backend::ObjectData for SyncData {
         None
     }
 
-    fn destroyed(&self, _: wayc::backend::ObjectId) {}
+    fn destroyed(&self, _: &wayc::backend::ObjectId) {}
 }
 
 pub struct DumbClientData;
 
 impl ways::backend::ClientData for DumbClientData {
-    fn initialized(&self, _: ways::backend::ClientId) {}
-    fn disconnected(&self, _: ways::backend::ClientId, _: ways::backend::DisconnectReason) {}
+    fn initialized(&self, _: &ways::backend::ClientId) {}
+    fn disconnected(&self, _: &ways::backend::ClientId, _: ways::backend::DisconnectReason) {}
 }
 
 #[macro_export]

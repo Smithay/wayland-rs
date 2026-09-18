@@ -17,11 +17,11 @@ impl server_rs::GlobalHandler<()> for ServerData<server_rs::ObjectId> {
         self: Arc<Self>,
         _: &server_rs::Handle,
         _: &mut (),
-        _: server_rs::ClientId,
-        _: server_rs::GlobalId,
-        object_id: server_rs::ObjectId,
+        _: &server_rs::ClientId,
+        _: &server_rs::GlobalId,
+        object_id: &server_rs::ObjectId,
     ) -> Arc<dyn server_rs::ObjectData<()>> {
-        *(self.0.lock().unwrap()) = Some(object_id);
+        *(self.0.lock().unwrap()) = Some(object_id.clone());
         Arc::new(DoNothingData)
     }
 }
@@ -31,11 +31,11 @@ impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
         self: Arc<Self>,
         _: &server_sys::Handle,
         _: &mut (),
-        _: server_sys::ClientId,
-        _: server_sys::GlobalId,
-        object_id: server_sys::ObjectId,
+        _: &server_sys::ClientId,
+        _: &server_sys::GlobalId,
+        object_id: &server_sys::ObjectId,
     ) -> Arc<dyn server_sys::ObjectData<()>> {
-        *(self.0.lock().unwrap()) = Some(object_id);
+        *(self.0.lock().unwrap()) = Some(object_id.clone());
         Arc::new(DoNothingData)
     }
 }
@@ -193,9 +193,9 @@ impl server_rs::GlobalHandler<()> for ProtocolErrorServerData {
         self: Arc<Self>,
         _: &server_rs::Handle,
         _: &mut (),
-        _: server_rs::ClientId,
-        _: server_rs::GlobalId,
-        _: server_rs::ObjectId,
+        _: &server_rs::ClientId,
+        _: &server_rs::GlobalId,
+        _: &server_rs::ObjectId,
     ) -> Arc<dyn server_rs::ObjectData<()>> {
         Arc::new(ProtocolErrorServerData)
     }
@@ -206,9 +206,9 @@ impl server_sys::GlobalHandler<()> for ProtocolErrorServerData {
         self: Arc<Self>,
         _: &server_sys::Handle,
         _: &mut (),
-        _: server_sys::ClientId,
-        _: server_sys::GlobalId,
-        _: server_sys::ObjectId,
+        _: &server_sys::ClientId,
+        _: &server_sys::GlobalId,
+        _: &server_sys::ObjectId,
     ) -> Arc<dyn server_sys::ObjectData<()>> {
         Arc::new(ProtocolErrorServerData)
     }
@@ -219,7 +219,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         self: Arc<Self>,
         handle: &server_rs::Handle,
         _: &mut D,
-        _: server_rs::ClientId,
+        _: &server_rs::ClientId,
         msg: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
         handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
@@ -230,8 +230,8 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         self: Arc<Self>,
         _handle: &server_rs::Handle,
         _: &mut D,
-        _: server_rs::ClientId,
-        _: server_rs::ObjectId,
+        _: &server_rs::ClientId,
+        _: &server_rs::ObjectId,
     ) {
     }
 }
@@ -241,7 +241,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         self: Arc<Self>,
         handle: &server_sys::Handle,
         _: &mut D,
-        _: server_sys::ClientId,
+        _: &server_sys::ClientId,
         msg: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
         handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
@@ -252,8 +252,8 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         self: Arc<Self>,
         _handle: &server_sys::Handle,
         _: &mut D,
-        _: server_sys::ClientId,
-        _: server_sys::ObjectId,
+        _: &server_sys::ClientId,
+        _: &server_sys::ObjectId,
     ) {
     }
 }

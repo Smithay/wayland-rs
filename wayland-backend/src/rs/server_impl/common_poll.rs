@@ -51,7 +51,7 @@ impl<D> InnerBackend<D> {
         Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
     }
 
-    pub fn flush(&self, client: Option<ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<&ClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
@@ -69,9 +69,9 @@ impl<D> InnerBackend<D> {
     pub fn dispatch_client(
         &self,
         data: &mut D,
-        client_id: InnerClientId,
+        client_id: &InnerClientId,
     ) -> std::io::Result<usize> {
-        let ret = self.dispatch_events_for(data, client_id);
+        let ret = self.dispatch_events_for(data, *client_id);
         let cleanup = self.state.lock().unwrap().cleanup();
         cleanup(&self.handle(), data);
         ret
@@ -253,9 +253,9 @@ impl<D> InnerBackend<D> {
                     let ret = object.data.user_data.clone().request(
                         &handle.clone(),
                         data,
-                        ClientId { id: client_id },
+                        &ClientId { id: client_id },
                         OwnedMessage {
-                            sender_id: ObjectId { id: object_id.clone() },
+                            sender_id: ObjectId { id: object_id },
                             opcode,
                             args: arguments,
                         },
@@ -264,8 +264,8 @@ impl<D> InnerBackend<D> {
                         object.data.user_data.clone().destroyed(
                             &handle.clone(),
                             data,
-                            ClientId { id: client_id },
-                            ObjectId { id: object_id.clone() },
+                            &ClientId { id: client_id },
+                            &ObjectId { id: object_id },
                         );
                     }
                     // acquire the lock again and continue
@@ -314,9 +314,9 @@ impl<D> InnerBackend<D> {
                     let child_data = handler.bind(
                         &handle.clone(),
                         data,
-                        ClientId { id: client },
-                        GlobalId { id: global },
-                        ObjectId { id: object.clone() },
+                        &ClientId { id: client },
+                        &GlobalId { id: global },
+                        &ObjectId { id: object },
                     );
                     // acquire the lock again and continue
                     state = self.state.lock().unwrap();

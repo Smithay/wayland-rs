@@ -34,7 +34,7 @@ pub trait ObjectData: AsAny + Any + Send + Sync {
     ) -> Option<Arc<dyn ObjectData>>;
 
     /// Notification that the object has been destroyed and is no longer active
-    fn destroyed(&self, object_id: ObjectId);
+    fn destroyed(&self, object_id: &ObjectId);
 
     /// Helper for forwarding a Debug implementation of your `ObjectData` type
     ///
@@ -367,7 +367,7 @@ impl ObjectData for DumbObjectData {
     }
 
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn destroyed(&self, _object_id: ObjectId) {
+    fn destroyed(&self, _object_id: &ObjectId) {
         unreachable!()
     }
 }
@@ -385,7 +385,7 @@ impl ObjectData for UninitObjectData {
     }
 
     #[cfg_attr(unstable_coverage, coverage(off))]
-    fn destroyed(&self, _object_id: ObjectId) {}
+    fn destroyed(&self, _object_id: &ObjectId) {}
 
     #[cfg_attr(unstable_coverage, coverage(off))]
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -14,14 +14,14 @@ macro_rules! impl_globalhandler {
                 self: Arc<Self>,
                 handle: &$server_backend::Handle,
                 _: &mut (),
-                client: $server_backend::ClientId,
-                _: $server_backend::GlobalId,
-                object_id: $server_backend::ObjectId,
+                client: &$server_backend::ClientId,
+                _: &$server_backend::GlobalId,
+                object_id: &$server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 // send the first event with a newid & a null object
                 let obj_1 = handle
                     .create_object::<()>(
-                        client.clone(),
+                        &client,
                         &interfaces::QUAD_INTERFACE,
                         3,
                         Arc::new(DoNothingData),
@@ -102,7 +102,7 @@ macro_rules! impl_client_objectdata {
                 }
                 Some(self)
             }
-            fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
+            fn destroyed(&self, _object_id: &$client_backend::ObjectId) {}
         }
     };
 }

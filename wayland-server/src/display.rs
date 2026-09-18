@@ -140,7 +140,7 @@ impl DisplayHandle {
     /// Clients will be notified of the global removal, and it will not be advertized to new clients. However
     /// the state associated with this global is not freed, so clients which already know about it can still
     /// bind it.
-    pub fn disable_global<State: 'static>(&self, id: GlobalId) {
+    pub fn disable_global<State: 'static>(&self, id: &GlobalId) {
         self.handle.disable_global::<State>(id)
     }
 
@@ -154,7 +154,7 @@ impl DisplayHandle {
     /// the global is getting removed, to avoid a race where a client would be killed because it bound a global
     /// at the same as the server decided to remove it. After the global has been disabled for some time (like
     /// a few seconds) it should be safe to actually remove it.
-    pub fn remove_global<State: 'static>(&self, id: GlobalId) {
+    pub fn remove_global<State: 'static>(&self, id: &GlobalId) {
         self.handle.remove_global::<State>(id)
     }
 

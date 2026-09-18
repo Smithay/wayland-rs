@@ -149,7 +149,7 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
         let handle = self.handle().upgrade()?;
         let client_id = handle.get_client(self.id()).ok()?;
         let dh = DisplayHandle::from(handle);
-        Client::from_id(&dh, client_id).ok()
+        Client::from_id(&dh, client_id.clone()).ok()
     }
 
     /// The version of this object

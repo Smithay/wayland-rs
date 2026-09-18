@@ -68,9 +68,9 @@ impl<D> Registry<D> {
 
         let id = InnerGlobalId { id: id as u32 + 1, serial };
 
-        *place = Some(Global { id: id.clone(), interface, version, handler, disabled: false });
+        *place = Some(Global { id, interface, version, handler, disabled: false });
 
-        self.send_global_to_all(id.clone(), clients).unwrap();
+        self.send_global_to_all(id, clients).unwrap();
 
         id
     }
@@ -118,14 +118,14 @@ impl<D> Registry<D> {
             return None;
         }
         if !target_global.handler.can_view(
-            ClientId { id: client.id },
+            &ClientId { id: client.id },
             &client.data,
-            GlobalId { id: target_global.id.clone() },
+            &GlobalId { id: target_global.id },
         ) {
             return None;
         }
 
-        Some((target_global.interface, target_global.id.clone(), target_global.handler.clone()))
+        Some((target_global.interface, target_global.id, target_global.handler.clone()))
     }
 
     pub(crate) fn cleanup(
@@ -153,8 +153,7 @@ impl<D> Registry<D> {
             // send the global_remove
             for registry in self.known_registries.iter().cloned() {
                 if let Ok(client) = clients.get_client_mut(registry.client_id) {
-                    let _ =
-                        send_global_remove_to(client, global, ObjectId { id: registry.clone() });
+                    let _ = send_global_remove_to(client, global, ObjectId { id: registry });
                 }
             }
         }
@@ -166,7 +165,7 @@ impl<D> Registry<D> {
         clients: &mut ClientStore<D>,
     ) -> Option<Global<D>> {
         // disable the global if not already disabled
-        self.disable_global(id.clone(), clients);
+        self.disable_global(id, clients);
         // now remove it if the id is still valid
         if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
             if place.as_ref().map(|g| g.id == id).unwrap_or(false) { place.take() } else { None }
@@ -180,7 +179,7 @@ impl<D> Registry<D> {
         registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
-        self.send_all_globals_to(registry.clone(), client)?;
+        self.send_all_globals_to(registry, client)?;
         self.known_registries.push(registry);
         Ok(())
     }
@@ -193,13 +192,13 @@ impl<D> Registry<D> {
         for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
             if !global.disabled
                 && global.handler.can_view(
-                    ClientId { id: client.id },
+                    &ClientId { id: client.id },
                     &client.data,
-                    GlobalId { id: global.id.clone() },
+                    &GlobalId { id: global.id },
                 )
             {
                 // fail the whole send on error, there is no point in trying further on a failing client
-                send_global_to(client, global, ObjectId { id: registry.clone() })?;
+                send_global_to(client, global, ObjectId { id: registry })?;
             }
         }
         Ok(())
@@ -214,17 +213,17 @@ impl<D> Registry<D> {
         if global.disabled {
             return Err(InvalidId);
         }
-        for registry in self.known_registries.iter().cloned() {
+        for registry in self.known_registries.iter().copied() {
             if let Ok(client) = clients.get_client_mut(registry.client_id) {
                 if !global.disabled
                     && global.handler.can_view(
-                        ClientId { id: client.id },
+                        &ClientId { id: client.id },
                         &client.data,
-                        GlobalId { id: global.id.clone() },
+                        &GlobalId { id: global.id },
                     )
                 {
                     // don't fail the whole send for a single erroring client
-                    let _ = send_global_to(client, global, ObjectId { id: registry.clone() });
+                    let _ = send_global_to(client, global, ObjectId { id: registry });
                 }
             }
         }

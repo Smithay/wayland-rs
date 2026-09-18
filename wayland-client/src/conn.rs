@@ -349,5 +349,5 @@ impl ObjectData for SyncData {
         None
     }
 
-    fn destroyed(&self, _: ObjectId) {}
+    fn destroyed(&self, _: &ObjectId) {}
 }

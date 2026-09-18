@@ -16,7 +16,7 @@ macro_rules! serverdata_impls {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
+                _: &$server_backend::ClientId,
                 msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 assert_eq!(msg.opcode, 0);
@@ -50,8 +50,8 @@ macro_rules! serverdata_impls {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::ObjectId,
             ) {
             }
         }
@@ -61,14 +61,14 @@ macro_rules! serverdata_impls {
                 self: Arc<Self>,
                 handle: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::GlobalId,
-                object_id: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::GlobalId,
+                object_id: &$server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 let stdout = io::stdout().lock();
                 handle
                     .send_event(message!(
-                        object_id,
+                        object_id.clone(),
                         0,
                         [
                             Argument::Uint(1337),
@@ -127,7 +127,7 @@ macro_rules! clientdata_impls {
                 self.0.store(true, Ordering::SeqCst);
                 None
             }
-            fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
+            fn destroyed(&self, _object_id: &$client_backend::ObjectId) {}
         }
     };
 }

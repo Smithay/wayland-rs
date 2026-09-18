@@ -485,5 +485,5 @@ impl ObjectData for IgnoreObjectData {
     ) -> Option<Arc<dyn ObjectData>> {
         None
     }
-    fn destroyed(&self, _: wayland_client::backend::ObjectId) {}
+    fn destroyed(&self, _: &wayland_client::backend::ObjectId) {}
 }

@@ -108,9 +108,9 @@ impl<D> server_rs::GlobalHandler<D> for DoNothingData {
         self: Arc<Self>,
         _: &server_rs::Handle,
         _: &mut D,
-        _: server_rs::ClientId,
-        _: server_rs::GlobalId,
-        _: server_rs::ObjectId,
+        _: &server_rs::ClientId,
+        _: &server_rs::GlobalId,
+        _: &server_rs::ObjectId,
     ) -> Arc<dyn server_rs::ObjectData<D>> {
         self
     }
@@ -121,9 +121,9 @@ impl<D> server_sys::GlobalHandler<D> for DoNothingData {
         self: Arc<Self>,
         _: &server_sys::Handle,
         _: &mut D,
-        _: server_sys::ClientId,
-        _: server_sys::GlobalId,
-        _: server_sys::ObjectId,
+        _: &server_sys::ClientId,
+        _: &server_sys::GlobalId,
+        _: &server_sys::ObjectId,
     ) -> Arc<dyn server_sys::ObjectData<D>> {
         self
     }
@@ -136,7 +136,7 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
         self: Arc<Self>,
         _: &server_rs::Handle,
         _: &mut D,
-        _: server_rs::ClientId,
+        _: &server_rs::ClientId,
         _: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
         None
@@ -146,8 +146,8 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
         self: Arc<Self>,
         _handle: &server_rs::Handle,
         _: &mut D,
-        _: server_rs::ClientId,
-        _: server_rs::ObjectId,
+        _: &server_rs::ClientId,
+        _: &server_rs::ObjectId,
     ) {
     }
 }
@@ -157,7 +157,7 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
         self: Arc<Self>,
         _: &server_sys::Handle,
         _: &mut D,
-        _: server_sys::ClientId,
+        _: &server_sys::ClientId,
         _: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
         None
@@ -167,8 +167,8 @@ impl<D> server_sys::ObjectData<D> for DoNothingData {
         self: Arc<Self>,
         _handle: &server_sys::Handle,
         _: &mut D,
-        _: server_sys::ClientId,
-        _: server_sys::ObjectId,
+        _: &server_sys::ClientId,
+        _: &server_sys::ObjectId,
     ) {
     }
 }
@@ -184,7 +184,7 @@ impl client_rs::ObjectData for DoNothingData {
         None
     }
 
-    fn destroyed(&self, _: client_rs::ObjectId) {}
+    fn destroyed(&self, _: &client_rs::ObjectId) {}
 }
 
 impl client_sys::ObjectData for DoNothingData {
@@ -196,5 +196,5 @@ impl client_sys::ObjectData for DoNothingData {
         None
     }
 
-    fn destroyed(&self, _: client_sys::ObjectId) {}
+    fn destroyed(&self, _: &client_sys::ObjectId) {}
 }

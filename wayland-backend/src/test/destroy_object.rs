@@ -13,7 +13,7 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _handle: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
+                _: &$server_backend::ClientId,
                 _msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 Some(self)
@@ -23,8 +23,8 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::ObjectId,
             ) {
             }
         }
@@ -34,9 +34,9 @@ macro_rules! impl_server_objectdata {
                 self: Arc<Self>,
                 _: &$server_backend::Handle,
                 _: &mut (),
-                _: $server_backend::ClientId,
-                _: $server_backend::GlobalId,
-                _: $server_backend::ObjectId,
+                _: &$server_backend::ClientId,
+                _: &$server_backend::GlobalId,
+                _: &$server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
                 self
             }
@@ -59,7 +59,7 @@ macro_rules! impl_client_objectdata {
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 None
             }
-            fn destroyed(&self, _object_id: $client_backend::ObjectId) {}
+            fn destroyed(&self, _object_id: &$client_backend::ObjectId) {}
         }
     };
 }

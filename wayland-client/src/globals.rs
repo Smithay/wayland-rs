@@ -488,7 +488,7 @@ where
         None
     }
 
-    fn destroyed(&self, _id: ObjectId) {}
+    fn destroyed(&self, _id: &ObjectId) {}
 
     fn data_as_any(&self) -> &dyn std::any::Any {
         &self.data

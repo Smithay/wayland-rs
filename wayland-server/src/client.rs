@@ -63,7 +63,7 @@ impl Client {
         D: 'static,
     {
         let id = handle.handle.create_object::<D>(
-            self.id.clone(),
+            &self.id,
             I::interface(),
             version,
             Arc::new(ResourceData::<I, U>::new(user_data)),
@@ -85,8 +85,7 @@ impl Client {
         version: u32,
         obj_data: Arc<dyn ObjectData<D>>,
     ) -> Result<I, InvalidId> {
-        let id =
-            handle.handle.create_object::<D>(self.id.clone(), I::interface(), version, obj_data)?;
+        let id = handle.handle.create_object::<D>(&self.id, I::interface(), version, obj_data)?;
         I::from_id(handle, id)
     }
 
@@ -100,13 +99,13 @@ impl Client {
         protocol_id: u32,
     ) -> Result<I, InvalidId> {
         let object_id =
-            handle.handle.object_for_protocol_id(self.id.clone(), I::interface(), protocol_id)?;
+            handle.handle.object_for_protocol_id(&self.id, I::interface(), protocol_id)?;
         I::from_id(handle, object_id)
     }
 
     /// Kill this client by triggering a protocol error
     pub fn kill(&self, handle: &DisplayHandle, error: ProtocolError) {
-        handle.handle.kill_client(self.id.clone(), DisconnectReason::ProtocolError(error))
+        handle.handle.kill_client(&self.id, DisconnectReason::ProtocolError(error))
     }
 
     /// Get the name of the global for given client.
@@ -114,15 +113,15 @@ impl Client {
     pub fn global_name(
         &self,
         handle: &DisplayHandle,
-        global: crate::backend::GlobalId,
+        global: &crate::backend::GlobalId,
     ) -> Option<u32> {
-        handle.handle.global_name(global, self.id.clone())
+        handle.handle.global_name(global, &self.id)
     }
 
     /// Set maximum buffer size for client.
     #[cfg(feature = "libwayland_1_23")]
     pub fn set_max_buffer_size(&self, handle: &DisplayHandle, max_buffer_size: usize) {
-        handle.handle.set_client_max_buffer_size(self.id.clone(), max_buffer_size);
+        handle.handle.set_client_max_buffer_size(&self.id, max_buffer_size);
     }
 }
 
