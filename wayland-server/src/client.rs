@@ -16,7 +16,7 @@ pub struct Client {
 
 impl Client {
     pub(crate) fn from_id(handle: &DisplayHandle, id: ClientId) -> Result<Self, InvalidId> {
-        let data = handle.handle.get_client_data(id.clone())?;
+        let data = handle.handle.get_client_data(&id)?;
         Ok(Self { id, data })
     }
 
@@ -43,7 +43,7 @@ impl Client {
         &self,
         handle: &DisplayHandle,
     ) -> Result<crate::backend::Credentials, InvalidId> {
-        handle.handle.get_client_credentials(self.id.clone())
+        handle.handle.get_client_credentials(&self.id)
     }
 
     /// Create a new Wayland object in the protocol state of this client

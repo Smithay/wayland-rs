@@ -19,7 +19,7 @@ macro_rules! impl_server_objectdata {
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
                 if msg.opcode == 1 {
                     assert_eq!(
-                        handle.object_info(msg.sender_id.clone()).unwrap().interface.name,
+                        handle.object_info(&msg.sender_id).unwrap().interface.name,
                         "test_global"
                     );
                     if let [OwnedArgument::NewId(secondary)] = &msg.args[..] {
@@ -38,7 +38,7 @@ macro_rules! impl_server_objectdata {
                     return Some(self);
                 } else if msg.opcode == 3 {
                     assert_eq!(
-                        handle.object_info(msg.sender_id).unwrap().interface.name,
+                        handle.object_info(&msg.sender_id).unwrap().interface.name,
                         "test_global"
                     );
                     if let [
@@ -48,14 +48,14 @@ macro_rules! impl_server_objectdata {
                     ] = &msg.args[..]
                     {
                         assert_eq!(
-                            handle.object_info(secondary.clone()).unwrap().interface.name,
+                            handle.object_info(secondary).unwrap().interface.name,
                             "secondary"
                         );
                         if *u == 1 {
                             assert!(tertiary.is_null());
                         } else if *u == 2 {
                             assert_eq!(
-                                handle.object_info(tertiary.clone()).unwrap().interface.name,
+                                handle.object_info(tertiary).unwrap().interface.name,
                                 "tertiary"
                             );
                             self.0.store(true, Ordering::SeqCst);
@@ -121,7 +121,7 @@ macro_rules! impl_client_objectdata {
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
                 assert_eq!(msg.opcode, 1);
                 if let [OwnedArgument::Object(secondary)] = &msg.args[..] {
-                    let info = handle.info(secondary.clone()).unwrap();
+                    let info = handle.info(&secondary).unwrap();
                     assert_eq!(info.id, 4);
                     assert_eq!(info.interface.name, "secondary");
                 } else {

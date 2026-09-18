@@ -135,8 +135,8 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                         return Err(InvalidId);
                     }
-                    let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-                    let data = conn.get_object_data(id.clone()).ok();
+                    let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+                    let data = conn.get_object_data(&id).ok();
                     let backend = conn.backend().downgrade();
                     Ok(#iface_name { id, data, version, backend })
                 }

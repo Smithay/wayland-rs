@@ -276,8 +276,8 @@ impl InnerBackend {
         self.state.lock_protocol().last_error.clone()
     }
 
-    pub fn info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
-        let object = self.state.lock_protocol().get_object(id.id.clone())?;
+    pub fn info(&self, id: &ObjectId) -> Result<ObjectInfo, InvalidId> {
+        let object = self.state.lock_protocol().get_object(&id.id)?;
         if object.data.client_destroyed {
             Err(InvalidId)
         } else {
@@ -291,7 +291,7 @@ impl InnerBackend {
 
     pub fn destroy_object(&self, id: &ObjectId) -> Result<(), InvalidId> {
         let mut guard = self.state.lock_protocol();
-        let object = guard.get_object(id.id.clone())?;
+        let object = guard.get_object(&id.id)?;
 
         // Do not allow destroying the display object; it uses DumbObjectData whose
         // destroyed() panics, and the display lifecycle is managed by the connection
@@ -321,7 +321,7 @@ impl InnerBackend {
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
         let mut guard = self.state.lock_protocol();
-        let object = guard.get_object(id.clone())?;
+        let object = guard.get_object(&id)?;
 
         let message_desc = match object.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -459,7 +459,7 @@ impl InnerBackend {
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     if o.id.id != 0 {
-                        let arg_object = guard.get_object(o.id.clone())?;
+                        let arg_object = guard.get_object(&o.id)?;
                         if arg_object.data.client_destroyed {
                             return Err(InvalidId);
                         }
@@ -503,12 +503,12 @@ impl InnerBackend {
         }
     }
 
-    pub fn get_data(&self, id: ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
-        let object = self.state.lock_protocol().get_object(id.id)?;
+    pub fn get_data(&self, id: &ObjectId) -> Result<Arc<dyn ObjectData>, InvalidId> {
+        let object = self.state.lock_protocol().get_object(&id.id)?;
         Ok(object.data.user_data)
     }
 
-    pub fn set_data(&self, id: ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
+    pub fn set_data(&self, id: &ObjectId, data: Arc<dyn ObjectData>) -> Result<(), InvalidId> {
         self.state
             .lock_protocol()
             .map
@@ -563,7 +563,7 @@ impl ProtocolState {
         }
     }
 
-    fn get_object(&self, id: InnerObjectId) -> Result<Object<Data>, InvalidId> {
+    fn get_object(&self, id: &InnerObjectId) -> Result<Object<Data>, InvalidId> {
         let object = self.map.find(id.id).ok_or(InvalidId)?;
         if object.data.serial != id.serial {
             return Err(InvalidId);

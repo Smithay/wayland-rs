@@ -112,7 +112,7 @@ impl DisplayHandle {
     }
 
     /// Retrieve the [`Client`] which owns the object represented by the given ID
-    pub fn get_client(&self, id: ObjectId) -> Result<Client, InvalidId> {
+    pub fn get_client(&self, id: &ObjectId) -> Result<Client, InvalidId> {
         let client_id = self.handle.get_client(id)?;
         Client::from_id(self, client_id)
     }
@@ -161,7 +161,7 @@ impl DisplayHandle {
     /// Access the protocol information for a Wayland object
     ///
     /// Returns an error if the object is no longer valid.
-    pub fn object_info(&self, id: ObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn object_info(&self, id: &ObjectId) -> Result<ObjectInfo, InvalidId> {
         self.handle.object_info(id)
     }
 
@@ -183,7 +183,7 @@ impl DisplayHandle {
     /// This is intended to be a low-level method. See [`Resource::post_error()`], for a more convenient
     /// method.
     pub fn post_error<I: Resource>(&self, resource: &I, code: u32, error: String) {
-        self.handle.post_error(resource.id(), code, std::ffi::CString::new(error).unwrap())
+        self.handle.post_error(&resource.id(), code, std::ffi::CString::new(error).unwrap())
     }
 
     /// Access the object data associated with this object
@@ -192,7 +192,7 @@ impl DisplayHandle {
     /// method.
     pub fn get_object_data(
         &self,
-        id: ObjectId,
+        id: &ObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync + 'static>, InvalidId> {
         self.handle.get_object_data_any(id)
     }

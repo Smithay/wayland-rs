@@ -190,8 +190,8 @@ pub mod wl_display {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(WlDisplay { id, data, version, backend })
         }
@@ -258,7 +258,7 @@ pub mod wl_display {
             match msg {
                 Request::Sync {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(self.id())?;
+                        let my_info = conn.object_info(&self.id())?;
                         Some((super::wl_callback::WlCallback::interface(), my_info.version))
                     };
                     let args = {
@@ -270,7 +270,7 @@ pub mod wl_display {
                 }
                 Request::GetRegistry {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(self.id())?;
+                        let my_info = conn.object_info(&self.id())?;
                         Some((super::wl_registry::WlRegistry::interface(), my_info.version))
                     };
                     let args = {
@@ -450,8 +450,8 @@ pub mod wl_registry {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(WlRegistry { id, data, version, backend })
         }
@@ -660,8 +660,8 @@ pub mod wl_callback {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(WlCallback { id, data, version, backend })
         }
@@ -899,8 +899,8 @@ pub mod test_global {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(TestGlobal { id, data, version, backend })
         }
@@ -1066,7 +1066,7 @@ pub mod test_global {
                 }
                 Request::GetSecondary {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(self.id())?;
+                        let my_info = conn.object_info(&self.id())?;
                         Some((super::secondary::Secondary::interface(), my_info.version))
                     };
                     let args = {
@@ -1078,7 +1078,7 @@ pub mod test_global {
                 }
                 Request::GetTertiary {} => {
                     let child_spec = {
-                        let my_info = conn.object_info(self.id())?;
+                        let my_info = conn.object_info(&self.id())?;
                         Some((super::tertiary::Tertiary::interface(), my_info.version))
                     };
                     let args = {
@@ -1124,7 +1124,7 @@ pub mod test_global {
                 }
                 Request::NewidAndAllowNull { sec, ter } => {
                     let child_spec = {
-                        let my_info = conn.object_info(self.id())?;
+                        let my_info = conn.object_info(&self.id())?;
                         Some((super::quad::Quad::interface(), my_info.version))
                     };
                     let args = {
@@ -1369,8 +1369,8 @@ pub mod secondary {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(Secondary { id, data, version, backend })
         }
@@ -1518,8 +1518,8 @@ pub mod tertiary {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(Tertiary { id, data, version, backend })
         }
@@ -1667,8 +1667,8 @@ pub mod quad {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             let backend = conn.backend().downgrade();
             Ok(Quad { id, data, version, backend })
         }

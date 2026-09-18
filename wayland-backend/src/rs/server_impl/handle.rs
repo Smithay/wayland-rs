@@ -117,7 +117,7 @@ impl InnerHandle {
         WeakInnerHandle { state: Arc::downgrade(&self.state) }
     }
 
-    pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         self.state.lock().unwrap().object_info(id)
     }
 
@@ -129,16 +129,16 @@ impl InnerHandle {
         self.state.lock().unwrap().insert_client(stream, data)
     }
 
-    pub fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
+    pub fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId> {
         self.state.lock().unwrap().get_client(id)
     }
 
-    pub fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
-        self.state.lock().unwrap().get_client_data(id)
+    pub fn get_client_data(&self, id: &InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+        self.state.lock().unwrap().get_client_data(*id)
     }
 
-    pub fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
-        self.state.lock().unwrap().get_client_credentials(id)
+    pub fn get_client_credentials(&self, id: &InnerClientId) -> Result<Credentials, InvalidId> {
+        self.state.lock().unwrap().get_client_credentials(*id)
     }
 
     pub fn with_all_clients(&self, mut f: impl FnMut(ClientId)) {
@@ -182,8 +182,8 @@ impl InnerHandle {
         let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::destroy_object().");
-        let client = state.clients.get_client_mut(id.id.client_id.clone())?;
-        client.destroy_object(id.id.clone(), &mut state.pending_destructors)
+        let client = state.clients.get_client_mut(id.id.client_id)?;
+        client.destroy_object(&id.id, &mut state.pending_destructors)
     }
 
     pub fn null_id() -> ObjectId {
@@ -203,35 +203,35 @@ impl InnerHandle {
 
     pub fn get_object_data<D: 'static>(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
         let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::get_object_data().");
-        state.clients.get_client(id.client_id.clone())?.get_object_data(id)
+        state.clients.get_client(id.client_id)?.get_object_data(id)
     }
 
     pub fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
         self.state.lock().unwrap().get_object_data_any(id)
     }
 
     pub fn set_object_data<D: 'static>(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
         let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
             .expect("Wrong type parameter passed to Handle::set_object_data().");
-        state.clients.get_client_mut(id.client_id.clone())?.set_object_data(id, data)
+        state.clients.get_client_mut(id.client_id)?.set_object_data(id, data)
     }
 
-    pub fn post_error(&self, object_id: InnerObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: CString) {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
@@ -309,13 +309,13 @@ impl InnerHandle {
 }
 
 pub(crate) trait ErasedState: Any {
-    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
+    fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &mut self,
         stream: UnixStream,
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId>;
-    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
+    fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId>;
     fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
     fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
     fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
@@ -332,10 +332,10 @@ pub(crate) trait ErasedState: Any {
     ) -> Result<ObjectId, InvalidId>;
     fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
-    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn global_name(&self, global: InnerGlobalId, client: InnerClientId) -> Option<u32>;
@@ -345,8 +345,8 @@ pub(crate) trait ErasedState: Any {
 }
 
 impl<D> ErasedState for State<D> {
-    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
-        self.clients.get_client(id.client_id.clone())?.object_info(id)
+    fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+        self.clients.get_client(id.client_id)?.object_info(id)
     }
 
     fn insert_client(
@@ -355,7 +355,7 @@ impl<D> ErasedState for State<D> {
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId> {
         let id = self.clients.create_client(stream, data, self.default_max_buffer_size);
-        let client = self.clients.get_client(id.clone()).unwrap();
+        let client = self.clients.get_client(id).unwrap();
 
         // register the client to the internal epoll
         #[cfg(any(target_os = "linux", target_os = "android", target_os = "redox"))]
@@ -399,8 +399,8 @@ impl<D> ErasedState for State<D> {
         }
     }
 
-    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
-        if self.clients.get_client(id.client_id.clone()).is_ok() {
+    fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId> {
+        if self.clients.get_client(id.client_id).is_ok() {
             Ok(ClientId { id: id.client_id })
         } else {
             Err(InvalidId)
@@ -452,22 +452,22 @@ impl<D> ErasedState for State<D> {
 
     fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId> {
         self.clients
-            .get_client(id.client_id.clone())?
+            .get_client(id.client_id)?
             .get_object_data(id)
             .map(|arc| -> Arc<dyn Any + Send + Sync> { arc })
     }
 
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
         self.clients
-            .get_client_mut(msg.sender_id.id.client_id.clone())?
+            .get_client_mut(msg.sender_id.id.client_id)?
             .send_event(msg, Some(&mut self.pending_destructors))
     }
 
-    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString) {
-        if let Ok(client) = self.clients.get_client_mut(object_id.client_id.clone()) {
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString) {
+        if let Ok(client) = self.clients.get_client_mut(object_id.client_id) {
             client.post_error(object_id, error_code, message)
         }
     }
@@ -482,7 +482,7 @@ impl<D> ErasedState for State<D> {
     }
 
     fn global_name(&self, global_id: InnerGlobalId, client_id: InnerClientId) -> Option<u32> {
-        let client = self.clients.get_client(client_id.clone()).ok()?;
+        let client = self.clients.get_client(client_id).ok()?;
         let handler = self.registry.get_handler(global_id.clone()).ok()?;
         let name = global_id.id;
 

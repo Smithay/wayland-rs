@@ -91,7 +91,7 @@ expand_test!(protocol_error, {
     let oid = object_id.lock().unwrap().clone().unwrap();
 
     // post the error
-    server.handle().post_error(oid, 42, CString::new("I don't like you.".as_bytes()).unwrap());
+    server.handle().post_error(&oid, 42, CString::new("I don't like you.".as_bytes()).unwrap());
 
     server.flush(None).unwrap();
     let ret = client.prepare_read().unwrap().read();
@@ -222,7 +222,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         _: server_rs::ClientId,
         msg: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
-        handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None
     }
 
@@ -244,7 +244,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         _: server_sys::ClientId,
         msg: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
-        handle.post_error(msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
         None
     }
 

@@ -238,7 +238,7 @@ pub trait Proxy: Clone + std::fmt::Debug + Sized + 'static {
     /// Checks if the Wayland object associated with this proxy is still alive
     fn is_alive(&self) -> bool {
         if let Some(backend) = self.backend().upgrade() {
-            backend.info(self.id()).is_ok()
+            backend.info(&self.id()).is_ok()
         } else {
             false
         }
@@ -394,7 +394,7 @@ impl<I: Proxy> Weak<I> {
     pub fn upgrade(&self) -> Result<I, InvalidId> {
         let backend = self.backend.upgrade().ok_or(InvalidId)?;
         // Check if the object has been destroyed
-        backend.info(self.id.clone())?;
+        backend.info(&self.id)?;
         let conn = Connection::from_backend(backend);
         I::from_id(&conn, self.id.clone())
     }

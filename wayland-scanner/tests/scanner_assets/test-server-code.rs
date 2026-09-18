@@ -134,8 +134,8 @@ pub mod wl_registry {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(WlRegistry { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(
@@ -303,8 +303,8 @@ pub mod wl_callback {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(WlCallback { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(
@@ -559,8 +559,8 @@ pub mod test_global {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(TestGlobal { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(
@@ -1059,8 +1059,8 @@ pub mod secondary {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(Secondary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(
@@ -1212,8 +1212,8 @@ pub mod tertiary {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(Tertiary { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(
@@ -1365,8 +1365,8 @@ pub mod quad {
             if !same_interface(id.interface(), Self::interface()) && !id.is_null() {
                 return Err(InvalidId);
             }
-            let version = conn.object_info(id.clone()).map(|info| info.version).unwrap_or(0);
-            let data = conn.get_object_data(id.clone()).ok();
+            let version = conn.object_info(&id).map(|info| info.version).unwrap_or(0);
+            let data = conn.get_object_data(&id).ok();
             Ok(Quad { id, data, version, handle: conn.backend_handle().downgrade() })
         }
         fn parse_request(

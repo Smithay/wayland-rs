@@ -21,7 +21,7 @@ fn test_thread_destroy_object() {
             s.spawn(|| {
                 barrier.wait();
                 for _ in 0..100 {
-                    let _ = backend.get_data(cb_id.clone());
+                    let _ = backend.get_data(&cb_id);
                 }
             });
 
@@ -48,7 +48,7 @@ fn test_thread_destroy_display() {
                 barrier.wait();
                 for _ in 0..100 {
                     // get_data on the display should succeed
-                    let _ = backend.get_data(display_id.clone());
+                    let _ = backend.get_data(&display_id);
                 }
             });
 
@@ -96,19 +96,19 @@ fn test_set_data() {
     let cb_id = client.display.sync(&qh, wayc::NoopIgnore).id();
 
     backend
-        .get_data(cb_id.clone())
+        .get_data(&cb_id.clone())
         .unwrap()
         .data_as_any()
         .downcast_ref::<wayc::NoopIgnore>()
         .unwrap();
     backend
-        .get_data(cb_id.clone())
+        .get_data(&cb_id.clone())
         .unwrap()
         .data_as_any()
         .downcast_ref::<wayc::NoopIgnore>()
         .unwrap();
-    backend.set_data(cb_id.clone(), Arc::new(CustomObjectData)).unwrap();
-    let data = backend.get_data(cb_id.clone()).unwrap();
+    backend.set_data(&cb_id, Arc::new(CustomObjectData)).unwrap();
+    let data = backend.get_data(&cb_id).unwrap();
     let data = data.data_as_any();
     assert!(data.downcast_ref::<wayc::NoopIgnore>().is_none());
     data.downcast_ref::<CustomObjectData>().unwrap();

@@ -75,7 +75,7 @@ impl std::hash::Hash for InnerObjectId {
 }
 
 /// An id of a client connected to the server.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct InnerClientId {
     id: u32,
     serial: u32,

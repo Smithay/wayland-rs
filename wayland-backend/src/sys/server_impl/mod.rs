@@ -487,7 +487,7 @@ impl InnerHandle {
         WeakInnerHandle { state: Arc::downgrade(&self.state) }
     }
 
-    pub fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+    pub fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         self.state.lock().unwrap().object_info(id)
     }
 
@@ -499,15 +499,15 @@ impl InnerHandle {
         self.state.lock().unwrap().insert_client(stream, data)
     }
 
-    pub fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
+    pub fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId> {
         self.state.lock().unwrap().get_client(id)
     }
 
-    pub fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+    pub fn get_client_data(&self, id: &InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
         self.state.lock().unwrap().get_client_data(id)
     }
 
-    pub fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
+    pub fn get_client_credentials(&self, id: &InnerClientId) -> Result<Credentials, InvalidId> {
         self.state.lock().unwrap().get_client_credentials(id)
     }
 
@@ -603,7 +603,7 @@ impl InnerHandle {
 
     pub fn get_object_data<D: 'static>(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn ObjectData<D>>, InvalidId> {
         let mut state = self.state.lock().unwrap();
         // Keep this guard alive while the code is run to protect the C state
@@ -643,14 +643,14 @@ impl InnerHandle {
 
     pub fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
         self.state.lock().unwrap().get_object_data_any(id)
     }
 
     pub fn set_object_data<D: 'static>(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
         data: Arc<dyn ObjectData<D>>,
     ) -> Result<(), InvalidId> {
         let mut state = self.state.lock().unwrap();
@@ -691,7 +691,7 @@ impl InnerHandle {
         Ok(())
     }
 
-    pub fn post_error(&self, object_id: InnerObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: CString) {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
@@ -875,15 +875,15 @@ impl InnerHandle {
 }
 
 pub(crate) trait ErasedState: Any {
-    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId>;
+    fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId>;
     fn insert_client(
         &self,
         stream: UnixStream,
         data: Arc<dyn ClientData>,
     ) -> std::io::Result<InnerClientId>;
-    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId>;
-    fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId>;
-    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
+    fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId>;
+    fn get_client_credentials(&self, id: &InnerClientId) -> Result<Credentials, InvalidId>;
+    fn get_client_data(&self, id: &InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId>;
     fn with_all_clients(&self, f: &mut dyn FnMut(ClientId));
     fn with_all_objects_for(
         &self,
@@ -898,10 +898,10 @@ pub(crate) trait ErasedState: Any {
     ) -> Result<ObjectId, InvalidId>;
     fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
-    fn post_error(&mut self, object_id: InnerObjectId, error_code: u32, message: CString);
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString);
     fn kill_client(&mut self, client_id: InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     #[cfg(feature = "libwayland_server_1_22")]
@@ -914,7 +914,7 @@ pub(crate) trait ErasedState: Any {
 }
 
 impl<D: 'static> ErasedState for State<D> {
-    fn object_info(&self, id: InnerObjectId) -> Result<ObjectInfo, InvalidId> {
+    fn object_info(&self, id: &InnerObjectId) -> Result<ObjectInfo, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -947,7 +947,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(unsafe { init_client(ret, data) })
     }
 
-    fn get_client(&self, id: InnerObjectId) -> Result<ClientId, InvalidId> {
+    fn get_client(&self, id: &InnerObjectId) -> Result<ClientId, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -958,7 +958,7 @@ impl<D: 'static> ErasedState for State<D> {
         }
     }
 
-    fn get_client_data(&self, id: InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
+    fn get_client_data(&self, id: &InnerClientId) -> Result<Arc<dyn ClientData>, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -973,7 +973,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(data.data.clone())
     }
 
-    fn get_client_credentials(&self, id: InnerClientId) -> Result<Credentials, InvalidId> {
+    fn get_client_credentials(&self, id: &InnerClientId) -> Result<Credentials, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
         }
@@ -1073,7 +1073,7 @@ impl<D: 'static> ErasedState for State<D> {
 
     fn get_object_data_any(
         &self,
-        id: InnerObjectId,
+        id: &InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId> {
         if !id.alive.load(Ordering::Acquire) {
             return Err(InvalidId);
@@ -1153,8 +1153,8 @@ impl<D: 'static> ErasedState for State<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if self.get_client(id.clone()).unwrap().id.ptr
-                            != self.get_client(o.id.clone()).unwrap().id.ptr
+                        if self.get_client(&id).unwrap().id.ptr
+                            != self.get_client(&o.id).unwrap().id.ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
@@ -1186,8 +1186,8 @@ impl<D: 'static> ErasedState for State<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if self.get_client(id.clone()).unwrap().id.ptr
-                            != self.get_client(o.id.clone()).unwrap().id.ptr
+                        if self.get_client(&id).unwrap().id.ptr
+                            != self.get_client(&o.id).unwrap().id.ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
                         }
@@ -1246,7 +1246,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(())
     }
 
-    fn post_error(&mut self, id: InnerObjectId, error_code: u32, message: CString) {
+    fn post_error(&mut self, id: &InnerObjectId, error_code: u32, message: CString) {
         if !id.alive.load(Ordering::Acquire) {
             return;
         }

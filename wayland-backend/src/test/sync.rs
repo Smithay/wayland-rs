@@ -64,7 +64,7 @@ expand_test!(sync, {
     client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.get_data(sync_id).is_err());
+    assert!(client.get_data(&sync_id).is_err());
 });
 
 expand_test!(panic test_bad_placeholder, {
@@ -97,7 +97,7 @@ expand_test!(panic test_bad_placeholder, {
     client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.get_data(sync_id).is_err());
+    assert!(client.get_data(&sync_id).is_err());
 });
 
 expand_test!(panic test_bad_signature, {
@@ -126,5 +126,5 @@ expand_test!(panic test_bad_signature, {
     client.prepare_read().unwrap().read().unwrap();
     assert!(sync_data.0.load(Ordering::SeqCst));
     // and the sync object should be dead
-    assert!(client.get_data(sync_id).is_err());
+    assert!(client.get_data(&sync_id).is_err());
 });
