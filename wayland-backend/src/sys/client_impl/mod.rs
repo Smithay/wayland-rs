@@ -983,14 +983,7 @@ unsafe extern "C" fn dispatcher_func(
                             // If arg has object been destroyed in another thread, treat the same
                             // way as a argument received as `NULL` from libwayland.
                             // TODO Add a test for this
-                            parsed_args.push(OwnedArgument::Object(ObjectId {
-                                id: InnerObjectId {
-                                    alive: None,
-                                    id: 0,
-                                    ptr: std::ptr::null_mut(),
-                                    interface: &ANONYMOUS_INTERFACE,
-                                },
-                            }));
+                            parsed_args.push(OwnedArgument::Object(InnerBackend::null_id()));
                             continue;
                         };
                         if !same_interface(next_interface, obj_udata.interface) {
@@ -1024,14 +1017,7 @@ unsafe extern "C" fn dispatcher_func(
                     }
                 } else {
                     // libwayland-client.so checks nulls for us
-                    parsed_args.push(OwnedArgument::Object(ObjectId {
-                        id: InnerObjectId {
-                            alive: None,
-                            id: 0,
-                            ptr: std::ptr::null_mut(),
-                            interface: &ANONYMOUS_INTERFACE,
-                        },
-                    }))
+                    parsed_args.push(OwnedArgument::Object(InnerBackend::null_id()))
                 }
             }
             ArgumentType::NewId => {
@@ -1069,14 +1055,7 @@ unsafe extern "C" fn dispatcher_func(
                     );
                     parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(OwnedArgument::NewId(ObjectId {
-                        id: InnerObjectId {
-                            id: 0,
-                            ptr: std::ptr::null_mut(),
-                            alive: None,
-                            interface: &ANONYMOUS_INTERFACE,
-                        },
-                    }))
+                    parsed_args.push(OwnedArgument::NewId(InnerBackend::null_id()));
                 }
             }
         }

@@ -719,7 +719,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, serial: obj.data.serial, interface: obj.interface }})
                     } else {
-                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(InnerBackend::null_id())
                     }
                 }
                 OwnedArgument::NewId(new_id) => {
