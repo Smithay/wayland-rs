@@ -143,14 +143,14 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn inert(backend: WeakBackend) -> Self {
-                    #iface_name { id: ObjectId::null(), data: None, version: 0, backend }
+                    #iface_name { id: ObjectId::null().clone(), data: None, version: 0, backend }
                 }
 
                 fn parse_event(conn: &Connection, msg: OwnedMessage<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
                     #parse_body
                 }
 
-                fn write_request<'a>(&self, conn: &Connection, msg: Self::Request<'a>) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+                fn write_request<'r, 'a: 'r, 'b: 'r>(&'a self, conn: &Connection, msg: Self::Request<'b>) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
                     #write_body
                 }
             }
@@ -193,7 +193,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Type::Int => quote! { i32 },
                     Type::Fixed => quote! { f64 },
                     Type::String => if arg.allow_null { quote!{ Option<String> } } else { quote!{ String } },
-                    Type::Array => if arg.allow_null { quote!{ Option<Vec<u8>> } } else { quote!{ Vec<u8> } },
+                    Type::Array => if arg.allow_null { quote!{ Option<&[u8]> } } else { quote!{ &[u8] } },
                     Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },
                     Type::Object => {
                         let iface = arg.interface.as_ref().unwrap();
@@ -221,12 +221,6 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Some(quote! { #arg_name: (I::interface(), version) })
                 } else {
                     None
-                }
-            } else if arg.typ == Type::Object {
-                if arg.allow_null {
-                    Some(quote! { #arg_name: #arg_name.cloned() })
-                } else {
-                    Some(quote! { #arg_name: #arg_name.clone() })
                 }
             } else {
                 Some(quote! { #arg_name })

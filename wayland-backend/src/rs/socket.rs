@@ -402,7 +402,7 @@ mod tests {
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
     fn assert_eq_msgs(msg1: Message<'_, u32>, msg2: OwnedMessage<u32>) {
-        assert_eq!(msg1.sender_id, msg2.sender_id);
+        assert_eq!(*msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
@@ -417,15 +417,15 @@ mod tests {
     #[test]
     fn write_read_cycle() {
         let msg = Message {
-            sender_id: 42,
+            sender_id: &42,
             opcode: 7,
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
                 Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
-                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
-                Argument::Object(88),
-                Argument::NewId(56),
+                Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
+                Argument::Object(&88),
+                Argument::NewId(&56),
                 Argument::Int(-25),
             ],
         };
@@ -464,7 +464,7 @@ mod tests {
         let stdin = io::stdin().lock();
         let stdout = io::stdout().lock();
         let msg = Message {
-            sender_id: 42,
+            sender_id: &42,
             opcode: 7,
             args: smallvec![Argument::Fd(stdin.as_fd()), Argument::Fd(stdout.as_fd()),],
         };
@@ -496,7 +496,7 @@ mod tests {
         let stderr = io::stderr().lock();
         let messages = vec![
             Message {
-                sender_id: 42,
+                sender_id: &42,
                 opcode: 0,
                 args: smallvec![
                     Argument::Int(42),
@@ -504,12 +504,12 @@ mod tests {
                 ],
             },
             Message {
-                sender_id: 42,
+                sender_id: &42,
                 opcode: 1,
                 args: smallvec![Argument::Fd(stdin.as_fd()), Argument::Fd(stdout.as_fd()),],
             },
             Message {
-                sender_id: 42,
+                sender_id: &42,
                 opcode: 2,
                 args: smallvec![Argument::Uint(3), Argument::Fd(stderr.as_fd()),],
             },
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn parse_with_string_len_multiple_of_4() {
         let msg = Message {
-            sender_id: 2,
+            sender_id: &2,
             opcode: 0,
             args: smallvec![
                 Argument::Uint(18),

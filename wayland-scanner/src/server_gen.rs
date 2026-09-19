@@ -158,7 +158,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #parse_body
                 }
 
-                fn write_event<'a>(&self, conn: &DisplayHandle, msg: Self::Event<'a>) -> Result<Message<'a, ObjectId>, InvalidId> {
+                fn write_event<'r, 'a: 'r, 'b: 'r>(&'a self, conn: &DisplayHandle, msg: Self::Event<'b>) -> Result<Message<'r, ObjectId>, InvalidId> {
                     #write_body
                 }
 
@@ -207,9 +207,9 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                         }
                         Type::Array => {
                             if arg.allow_null {
-                                quote! { Option<Vec<u8>> }
+                                quote! { Option<&[u8]> }
                             } else {
-                                quote! { Vec<u8> }
+                                quote! { &[u8] }
                             }
                         }
                         Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },
@@ -237,12 +237,6 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 if arg.enum_.is_some() {
                     Some(quote! { #arg_name: #arg_name })
-                } else if arg.typ == Type::Object || arg.typ == Type::NewId {
-                    if arg.allow_null {
-                        Some(quote! { #arg_name: #arg_name.cloned() })
-                    } else {
-                        Some(quote! { #arg_name: #arg_name.clone() })
-                    }
                 } else {
                     Some(quote! { #arg_name })
                 }

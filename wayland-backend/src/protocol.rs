@@ -109,9 +109,9 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Uint(val) => Argument::Uint(*val),
             Self::Fixed(val) => Argument::Fixed(*val),
             Self::Str(val) => Argument::Str(val.clone()),
-            Self::Object(val) => Argument::Object(val.clone()),
-            Self::NewId(val) => Argument::NewId(val.clone()),
-            Self::Array(val) => Argument::Array(val.clone()),
+            Self::Object(val) => Argument::Object(val),
+            Self::NewId(val) => Argument::NewId(val),
+            Self::Array(val) => Argument::Array(Box::new(val)),
             Self::Fd(val) => Argument::Fd(val.as_fd()),
         }
     }
@@ -135,14 +135,14 @@ pub enum Argument<'a, Id> {
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
     Str(Option<Box<CString>>),
     /// Id of a wayland object
-    Object(Id),
+    Object(&'a Id),
     /// Id of a newly created wayland object
-    NewId(Id),
+    NewId(&'a Id),
     /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
-    Array(Box<Vec<u8>>),
+    Array(Box<&'a [u8]>),
     /// A file descriptor argument. Represented by a [`BorrowedFd`].
     Fd(BorrowedFd<'a>),
 }
@@ -400,7 +400,7 @@ impl<Id: Clone> OwnedMessage<Id> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Message<'a, Id> {
     /// The id of the object that sent the message.
-    pub sender_id: Id,
+    pub sender_id: &'a Id,
     /// The opcode of the message.
     pub opcode: u16,
     /// The arguments of the message.
@@ -451,4 +451,18 @@ pub(crate) fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argume
 #[allow(dead_code)]
 pub(crate) fn same_interface_or_anonymous(a: &'static Interface, b: &'static Interface) -> bool {
     same_interface(a, b) || same_interface(a, &ANONYMOUS_INTERFACE)
+}
+
+#[cfg(test)]
+mod test {
+    use std::mem;
+
+    use super::*;
+
+    #[test]
+    fn test_argument_size() {
+        // Shouldn't be larger than a pointer, plus a discriminant of same size
+        assert!(mem::size_of::<Argument<'_, usize>>() <= 2 * mem::size_of::<usize>());
+        assert!(mem::size_of::<OwnedArgument<usize>>() <= 2 * mem::size_of::<usize>());
+    }
 }

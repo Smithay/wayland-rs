@@ -11,9 +11,9 @@ use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
     debug,
     protocol::{
-        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
-        same_interface, same_interface_or_anonymous,
+        AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message, ObjectInfo,
+        OwnedArgument, OwnedMessage, ProtocolError, check_for_signature, same_interface,
+        same_interface_or_anonymous,
     },
     rs::map::SERVER_ID_LIMIT,
     types::server::{DisconnectReason, InvalidId},
@@ -185,7 +185,7 @@ impl<D> Client<D> {
                     } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
                     }
-                    Argument::Object(o.id.id)
+                    Argument::Object(&o.id.id)
                 },
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -200,12 +200,12 @@ impl<D> Client<D> {
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                             panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
                     }
-                    Argument::Object(o.id.id)
+                    Argument::Object(&o.id.id)
                 }
             });
         }
 
-        let msg = Message { sender_id: object_id.id.id, opcode, args: msg_args };
+        let msg = Message { sender_id: &object_id.id.id, opcode, args: msg_args };
 
         if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
@@ -225,7 +225,7 @@ impl<D> Client<D> {
     pub(crate) fn send_delete_id(&mut self, object_id: InnerObjectId) {
         // We should only send delete_id for objects in the client ID space
         if object_id.id < SERVER_ID_LIMIT {
-            let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
+            let msg = message!(&1, 1, [Argument::Uint(object_id.id)]);
             if self.socket.write_message(&msg).is_err() {
                 self.kill(DisconnectReason::ConnectionClosed);
             }
@@ -277,11 +277,12 @@ impl<D> Client<D> {
         error_code: u32,
         message: CString,
     ) {
+        let object = ObjectId { id: *object_id };
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(
             message!(
-                ObjectId {
+                &ObjectId {
                     id: InnerObjectId {
                         id: 1,
                         interface: &WL_DISPLAY_INTERFACE,
@@ -291,7 +292,7 @@ impl<D> Client<D> {
                 },
                 0, // wl_display.error
                 [
-                    Argument::Object(ObjectId { id: *object_id }),
+                    Argument::Object(&object),
                     Argument::Uint(error_code),
                     Argument::Str(Some(Box::new(message))),
                 ],
@@ -446,7 +447,7 @@ impl<D> Client<D> {
                         },
                     };
                     // send wl_callback.done(0) this callback does not have any meaningful destructor to run, we can ignore it
-                    self.send_event(message!(cb_id, 0, [Argument::Uint(0)]), None).unwrap();
+                    self.send_event(message!(&cb_id, 0, [Argument::Uint(0)]), None).unwrap();
                 } else {
                     unreachable!()
                 }
@@ -629,7 +630,7 @@ impl<D> Client<D> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        OwnedArgument::Object(ObjectId { id: InnerObjectId { id: 0, client_id: self.id, serial: 0, interface: &ANONYMOUS_INTERFACE }})
+                        OwnedArgument::Object(super::InnerHandle::null_id().clone())
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,

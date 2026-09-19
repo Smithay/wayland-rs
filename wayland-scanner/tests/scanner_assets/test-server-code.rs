@@ -144,14 +144,14 @@ pub mod wl_registry {
         ) -> Result<(Self, Self::Request), DispatchError> {
             unimplemented!("`wl_registry` is implemented internally in `wayland-server`")
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::Global { name, interface, version } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -164,7 +164,7 @@ pub mod wl_registry {
                     },
                 }),
                 Event::GlobalRemove { name } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -321,14 +321,14 @@ pub mod wl_callback {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::Done { callback_data } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -472,16 +472,16 @@ pub mod test_global {
             #[doc = "a fixed point number"]
             fixed_point: f64,
             #[doc = "an array"]
-            number_array: Vec<u8>,
+            number_array: &'a [u8],
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
         #[doc = "acking the creation of a secondary"]
-        AckSecondary { sec: super::secondary::Secondary },
+        AckSecondary { sec: &'a super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
-        CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
+        CycleQuad { new_quad: &'a super::quad::Quad, old_quad: Option<&'a super::quad::Quad> },
         #[doc(hidden)]
         __phantom_lifetime {
             phantom: std::marker::PhantomData<&'a ()>,
@@ -855,11 +855,11 @@ pub mod test_global {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -869,7 +869,7 @@ pub mod test_global {
                     some_text,
                     file_descriptor,
                 } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: smallvec::SmallVec::from_vec(vec![
                         Argument::Uint(unsigned_int),
@@ -881,22 +881,22 @@ pub mod test_global {
                     ]),
                 }),
                 Event::AckSecondary { sec } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::Object(Resource::id(&sec).clone()));
+                        vec.push(Argument::Object(Resource::id(sec)));
                         vec
                     },
                 }),
                 Event::CycleQuad { new_quad, old_quad } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 2u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::NewId(Resource::id(&new_quad).clone()));
+                        vec.push(Argument::NewId(Resource::id(new_quad)));
                         vec.push(if let Some(obj) = old_quad {
-                            Argument::Object(Resource::id(&obj).clone())
+                            Argument::Object(Resource::id(obj))
                         } else {
                             Argument::Object(ObjectId::null())
                         });
@@ -921,7 +921,7 @@ pub mod test_global {
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
-            number_array: Vec<u8>,
+            number_array: &[u8],
             some_text: String,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
@@ -937,7 +937,7 @@ pub mod test_global {
         #[doc = "acking the creation of a secondary"]
         #[allow(clippy::too_many_arguments)]
         pub fn ack_secondary(&self, sec: &super::secondary::Secondary) {
-            let _ = self.send_event(Event::AckSecondary { sec: sec.clone() });
+            let _ = self.send_event(Event::AckSecondary { sec });
         }
         #[doc = "create a new quad optionally replacing a previous one"]
         #[allow(clippy::too_many_arguments)]
@@ -946,10 +946,7 @@ pub mod test_global {
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = self.send_event(Event::CycleQuad {
-                new_quad: new_quad.clone(),
-                old_quad: old_quad.cloned(),
-            });
+            let _ = self.send_event(Event::CycleQuad { new_quad, old_quad });
         }
     }
 }
@@ -1088,11 +1085,11 @@ pub mod secondary {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1241,11 +1238,11 @@ pub mod tertiary {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1394,11 +1391,11 @@ pub mod quad {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }

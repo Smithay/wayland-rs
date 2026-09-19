@@ -68,13 +68,13 @@ macro_rules! serverdata_impls {
                 let stdout = io::stdout().lock();
                 handle
                     .send_event(message!(
-                        object_id.clone(),
+                        &object_id,
                         0,
                         [
                             Argument::Uint(1337),
                             Argument::Int(-53),
                             Argument::Fixed(9823),
-                            Argument::Array(Box::new(vec![10, 20, 30, 40, 50, 60, 70, 80, 90])),
+                            Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
                             Argument::Str(Some(Box::new(
                                 CString::new("I want cake".as_bytes()).unwrap()
                             ))),
@@ -152,7 +152,7 @@ expand_test!(many_args, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
+            message!(&client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -161,7 +161,7 @@ expand_test!(many_args, {
     let test_global_id = client
         .send_request(
             message!(
-                registry_id,
+                &registry_id,
                 0,
                 [
                     Argument::Uint(1),
@@ -188,13 +188,13 @@ expand_test!(many_args, {
     client
         .send_request(
             message!(
-                test_global_id,
+                &test_global_id,
                 0,
                 [
                     Argument::Uint(42),
                     Argument::Int(-13),
                     Argument::Fixed(4589),
-                    Argument::Array(Box::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9])),
+                    Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
                     Argument::Str(Some(Box::new(
                         CString::new("I like trains".as_bytes()).unwrap()
                     ))),

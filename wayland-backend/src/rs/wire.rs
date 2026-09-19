@@ -119,8 +119,8 @@ pub fn write_to_buffers(
             Argument::Fixed(f) => write_buf(f as u32, payload)?,
             Argument::Str(Some(ref s)) => write_array_to_payload(s.to_bytes_with_nul(), payload)?,
             Argument::Str(None) => write_array_to_payload(&[], payload)?,
-            Argument::Object(o) => write_buf(o, payload)?,
-            Argument::NewId(n) => write_buf(n, payload)?,
+            Argument::Object(o) => write_buf(*o, payload)?,
+            Argument::NewId(n) => write_buf(*n, payload)?,
             Argument::Array(ref a) => write_array_to_payload(a, payload)?,
             Argument::Fd(fd) => {
                 let dup_fd = fd.try_clone_to_owned().map_err(MessageWriteError::DupFdFailed)?;
@@ -258,15 +258,15 @@ mod tests {
         let mut fd_buffer = Vec::new();
 
         let msg = Message {
-            sender_id: 42,
+            sender_id: &42,
             opcode: 7,
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
                 Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
-                Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
-                Argument::Object(88),
-                Argument::NewId(56),
+                Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
+                Argument::Object(&88),
+                Argument::NewId(&56),
                 Argument::Int(-25),
             ],
         };
