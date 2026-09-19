@@ -207,9 +207,9 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                         }
                         Type::Array => {
                             if arg.allow_null {
-                                quote! { Option<Vec<u8>> }
+                                quote! { Option<&[u8]> }
                             } else {
-                                quote! { Vec<u8> }
+                                quote! { &[u8] }
                             }
                         }
                         Type::Fd => quote! { ::std::os::unix::io::BorrowedFd<'_> },

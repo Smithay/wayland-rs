@@ -769,7 +769,7 @@ pub mod test_global {
             #[doc = "a fixed point number"]
             fixed_point: f64,
             #[doc = "an array"]
-            number_array: Vec<u8>,
+            number_array: &'a [u8],
             #[doc = "some text"]
             some_text: String,
             #[doc = "a file descriptor"]
@@ -1159,7 +1159,7 @@ pub mod test_global {
             unsigned_int: u32,
             signed_int: i32,
             fixed_point: f64,
-            number_array: Vec<u8>,
+            number_array: &[u8],
             some_text: String,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
