@@ -237,12 +237,6 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
                 if arg.enum_.is_some() {
                     Some(quote! { #arg_name: #arg_name })
-                } else if arg.typ == Type::Object || arg.typ == Type::NewId {
-                    if arg.allow_null {
-                        Some(quote! { #arg_name: #arg_name.cloned() })
-                    } else {
-                        Some(quote! { #arg_name: #arg_name.clone() })
-                    }
                 } else {
                     Some(quote! { #arg_name })
                 }

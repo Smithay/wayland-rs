@@ -479,9 +479,9 @@ pub mod test_global {
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
         #[doc = "acking the creation of a secondary"]
-        AckSecondary { sec: super::secondary::Secondary },
+        AckSecondary { sec: &'a super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
-        CycleQuad { new_quad: super::quad::Quad, old_quad: Option<super::quad::Quad> },
+        CycleQuad { new_quad: &'a super::quad::Quad, old_quad: Option<&'a super::quad::Quad> },
         #[doc(hidden)]
         __phantom_lifetime {
             phantom: std::marker::PhantomData<&'a ()>,
@@ -885,7 +885,7 @@ pub mod test_global {
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::Object(Resource::id(&sec).clone()));
+                        vec.push(Argument::Object(Resource::id(sec)));
                         vec
                     },
                 }),
@@ -894,9 +894,9 @@ pub mod test_global {
                     opcode: 2u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::NewId(Resource::id(&new_quad).clone()));
+                        vec.push(Argument::NewId(Resource::id(new_quad)));
                         vec.push(if let Some(obj) = old_quad {
-                            Argument::Object(Resource::id(&obj).clone())
+                            Argument::Object(Resource::id(obj))
                         } else {
                             Argument::Object(ObjectId::null())
                         });
@@ -937,7 +937,7 @@ pub mod test_global {
         #[doc = "acking the creation of a secondary"]
         #[allow(clippy::too_many_arguments)]
         pub fn ack_secondary(&self, sec: &super::secondary::Secondary) {
-            let _ = self.send_event(Event::AckSecondary { sec: sec.clone() });
+            let _ = self.send_event(Event::AckSecondary { sec });
         }
         #[doc = "create a new quad optionally replacing a previous one"]
         #[allow(clippy::too_many_arguments)]
@@ -946,10 +946,7 @@ pub mod test_global {
             new_quad: &super::quad::Quad,
             old_quad: Option<&super::quad::Quad>,
         ) {
-            let _ = self.send_event(Event::CycleQuad {
-                new_quad: new_quad.clone(),
-                old_quad: old_quad.cloned(),
-            });
+            let _ = self.send_event(Event::CycleQuad { new_quad, old_quad });
         }
     }
 }

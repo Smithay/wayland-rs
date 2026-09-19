@@ -424,8 +424,8 @@ mod tests {
                 Argument::Fixed(-89),
                 Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
                 Argument::Array(vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into()),
-                Argument::Object(88),
-                Argument::NewId(56),
+                Argument::Object(&88),
+                Argument::NewId(&56),
                 Argument::Int(-25),
             ],
         };

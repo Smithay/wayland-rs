@@ -541,8 +541,9 @@ impl InnerBackend {
         Ok(ObjectInfo { id: u32::from(proxy.id), interface: proxy.interface, version })
     }
 
-    pub fn null_id() -> ObjectId {
-        ObjectId { id: InnerObjectId::Null }
+    pub fn null_id() -> &'static ObjectId {
+        static NULL: ObjectId = ObjectId { id: InnerObjectId::Null };
+        &NULL
     }
 
     fn destroy_object_inner(&self, mut guard: MutexGuard<ConnectionState>, id: &ObjectId) {
@@ -722,7 +723,7 @@ impl InnerBackend {
                 }
                 Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
-                Argument::Object(ref o) => {
+                Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Proxy(p) = &o.id {
                         if !p.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
@@ -817,7 +818,7 @@ impl InnerBackend {
 
             unsafe { self.manage_object_internal(child_interface, ret, data, &mut guard) }
         } else {
-            Self::null_id()
+            Self::null_id().clone()
         };
 
         if message_desc.is_destructor {
@@ -1047,7 +1048,8 @@ unsafe extern "C" fn dispatcher_func(
                             // If arg has object been destroyed in another thread, treat the same
                             // way as a argument received as `NULL` from libwayland.
                             // TODO Add a test for this
-                            parsed_args.push(OwnedArgument::Object(InnerBackend::null_id()));
+                            parsed_args
+                                .push(OwnedArgument::Object(InnerBackend::null_id().clone()));
                             continue;
                         };
                         if !same_interface(next_interface, obj_udata.interface) {
@@ -1081,7 +1083,7 @@ unsafe extern "C" fn dispatcher_func(
                     }
                 } else {
                     // libwayland-client.so checks nulls for us
-                    parsed_args.push(OwnedArgument::Object(InnerBackend::null_id()))
+                    parsed_args.push(OwnedArgument::Object(InnerBackend::null_id().clone()))
                 }
             }
             ArgumentType::NewId => {
@@ -1124,7 +1126,7 @@ unsafe extern "C" fn dispatcher_func(
                     );
                     parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(OwnedArgument::NewId(InnerBackend::null_id()));
+                    parsed_args.push(OwnedArgument::NewId(InnerBackend::null_id().clone()));
                 }
             }
         }

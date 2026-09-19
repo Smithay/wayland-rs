@@ -268,6 +268,9 @@ impl Drop for InnerReadEventsGuard {
 }
 
 impl InnerBackend {
+    pub const NULL_ID: ObjectId =
+        ObjectId { id: InnerObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE } };
+
     pub fn display_id(&self) -> ObjectId {
         ObjectId { id: InnerObjectId { serial: 0, id: 1, interface: &WL_DISPLAY_INTERFACE } }
     }
@@ -285,8 +288,10 @@ impl InnerBackend {
         }
     }
 
-    pub fn null_id() -> ObjectId {
-        ObjectId { id: InnerObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE } }
+    pub fn null_id() -> &'static ObjectId {
+        static NULL: ObjectId =
+            ObjectId { id: InnerObjectId { serial: 0, id: 0, interface: &ANONYMOUS_INTERFACE } };
+        &NULL
     }
 
     pub fn destroy_object(&self, id: &ObjectId) -> Result<(), InvalidId> {
@@ -415,14 +420,18 @@ impl InnerBackend {
             None
         };
 
+        let child_object = child.map(|(id, serial, interface)| ObjectId {
+            id: InnerObjectId { id, serial, interface },
+        });
+
         // Prepare the message in a debug-compatible way
         let args = args.into_iter().map(|arg| {
             if let Argument::NewId(ObjectId { id: p }) = arg {
                 if p.id != 0 {
                     panic!("The newid provided when sending request {}@{}.{} is not a placeholder.", object.interface.name, id.id, message_desc.name);
                 }
-                if let Some((child_id, child_serial, child_interface)) = child {
-                    Argument::NewId(ObjectId { id: InnerObjectId { id: child_id, serial: child_serial, interface: child_interface}})
+                if let Some(child_object) = child_object.as_ref() {
+                    Argument::NewId(child_object)
                 } else {
                     unreachable!();
                 }
@@ -454,7 +463,7 @@ impl InnerBackend {
                 Argument::Uint(u) => Argument::Uint(u),
                 Argument::Str(s) => Argument::Str(s),
                 Argument::Fixed(f) => Argument::Fixed(f),
-                Argument::NewId(nid) => Argument::NewId(nid.id.id),
+                Argument::NewId(nid) => Argument::NewId(&nid.id.id),
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -469,7 +478,7 @@ impl InnerBackend {
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                         panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, id.id, message_desc.name);
                     }
-                    Argument::Object(o.id.id)
+                    Argument::Object(&o.id.id)
                 }
             });
         }
@@ -499,7 +508,7 @@ impl InnerBackend {
                 },
             })
         } else {
-            Ok(Self::null_id())
+            Ok(Self::NULL_ID)
         }
     }
 
@@ -719,7 +728,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, serial: obj.data.serial, interface: obj.interface }})
                     } else {
-                        OwnedArgument::Object(InnerBackend::null_id())
+                        OwnedArgument::Object(InnerBackend::null_id().clone())
                     }
                 }
                 OwnedArgument::NewId(new_id) => {

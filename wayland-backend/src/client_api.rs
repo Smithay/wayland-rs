@@ -116,7 +116,7 @@ impl ObjectId {
     ///
     /// See [`Backend::send_request()`] for details.
     #[inline]
-    pub fn null() -> ObjectId {
+    pub fn null() -> &'static ObjectId {
         client_impl::InnerBackend::null_id()
     }
 
