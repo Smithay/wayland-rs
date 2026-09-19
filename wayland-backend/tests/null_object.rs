@@ -7,8 +7,7 @@ fn rs_client_null_object_request() {
 
     let (sock, _sock2) = UnixStream::pair().unwrap();
     let backend = Backend::connect(sock).unwrap();
-    let null_obj = ObjectId::null();
-    let message = Message { sender_id: null_obj.clone(), opcode: 42, args: Default::default() };
+    let message = Message { sender_id: ObjectId::null(), opcode: 42, args: Default::default() };
     assert_eq!(backend.send_request(message, None, None), Err(InvalidId));
 }
 
@@ -19,8 +18,7 @@ fn sys_client_null_object_request() {
 
     let (sock, _sock2) = UnixStream::pair().unwrap();
     let backend = Backend::connect(sock).unwrap();
-    let null_obj = ObjectId::null();
-    let message = Message { sender_id: null_obj.clone(), opcode: 42, args: Default::default() };
+    let message = Message { sender_id: ObjectId::null(), opcode: 42, args: Default::default() };
     assert_eq!(backend.send_request(message, None, None), Err(InvalidId));
 }
 

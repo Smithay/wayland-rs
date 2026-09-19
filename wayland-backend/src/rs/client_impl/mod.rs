@@ -326,7 +326,7 @@ impl InnerBackend {
         child_spec: Option<(&'static Interface, u32)>,
     ) -> Result<ObjectId, InvalidId> {
         let mut guard = self.state.lock_protocol();
-        let object = guard.get_object(&id)?;
+        let object = guard.get_object(id)?;
 
         let message_desc = match object.interface.requests.get(opcode as usize) {
             Some(msg) => msg,
@@ -483,7 +483,7 @@ impl InnerBackend {
             });
         }
 
-        let msg = Message { sender_id: id.id, opcode, args: msg_args };
+        let msg = Message { sender_id: &id.id, opcode, args: msg_args };
 
         if let Err(err) = guard.socket.write_message(&msg) {
             guard.last_error = Some(WaylandError::Io(err));
@@ -497,7 +497,7 @@ impl InnerBackend {
                     obj.data.client_destroyed = true;
                 })
                 .unwrap();
-            object.data.user_data.destroyed(&ObjectId { id });
+            object.data.user_data.destroyed(&ObjectId { id: id.clone() });
         }
         if let Some((child_id, child_serial, child_interface)) = child {
             Ok(ObjectId {

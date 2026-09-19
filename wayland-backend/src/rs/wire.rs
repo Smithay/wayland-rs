@@ -258,7 +258,7 @@ mod tests {
         let mut fd_buffer = Vec::new();
 
         let msg = Message {
-            sender_id: 42,
+            sender_id: &42,
             opcode: 7,
             args: smallvec![
                 Argument::Uint(3),

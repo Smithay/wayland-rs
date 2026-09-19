@@ -400,7 +400,7 @@ impl<Id: Clone> OwnedMessage<Id> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Message<'a, Id> {
     /// The id of the object that sent the message.
-    pub sender_id: Id,
+    pub sender_id: &'a Id,
     /// The opcode of the message.
     pub opcode: u16,
     /// The arguments of the message.

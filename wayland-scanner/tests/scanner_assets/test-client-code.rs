@@ -250,11 +250,11 @@ pub mod wl_display {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Sync {} => {
                     let child_spec = {
@@ -266,7 +266,7 @@ pub mod wl_display {
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::GetRegistry {} => {
                     let child_spec = {
@@ -278,7 +278,7 @@ pub mod wl_display {
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 1u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -510,11 +510,11 @@ pub mod wl_registry {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Bind { name, id } => {
                     let child_spec = Some((id.0, id.1));
@@ -528,7 +528,7 @@ pub mod wl_registry {
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -694,11 +694,11 @@ pub mod wl_callback {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1046,11 +1046,11 @@ pub mod test_global {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::ManyArgs {
                     unsigned_int,
@@ -1069,7 +1069,7 @@ pub mod test_global {
                         Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
                         Argument::Fd(file_descriptor),
                     ]);
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::GetSecondary {} => {
                     let child_spec = {
@@ -1081,7 +1081,7 @@ pub mod test_global {
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 1u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 1u16, args }, child_spec))
                 }
                 Request::GetTertiary {} => {
                     let child_spec = {
@@ -1093,7 +1093,7 @@ pub mod test_global {
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 2u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 2u16, args }, child_spec))
                 }
                 Request::Link { sec, ter, time } => {
                     let child_spec = None;
@@ -1108,12 +1108,12 @@ pub mod test_global {
                         vec.push(Argument::Uint(time));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 3u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 3u16, args }, child_spec))
                 }
                 Request::Destroy {} => {
                     let child_spec = None;
                     let args = smallvec::SmallVec::new();
-                    Ok((Message { sender_id: self.id.clone(), opcode: 4u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 4u16, args }, child_spec))
                 }
                 Request::ReverseLink { sec, ter } => {
                     let child_spec = None;
@@ -1127,7 +1127,7 @@ pub mod test_global {
                         vec.push(Argument::Object(Proxy::id(ter)));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 5u16, args }, child_spec))
                 }
                 Request::NewidAndAllowNull { sec, ter } => {
                     let child_spec = {
@@ -1145,7 +1145,7 @@ pub mod test_global {
                         vec.push(Argument::Object(Proxy::id(ter)));
                         vec
                     };
-                    Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 6u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1391,16 +1391,16 @@ pub mod secondary {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;
                     let args = smallvec::SmallVec::new();
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1540,16 +1540,16 @@ pub mod tertiary {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;
                     let args = smallvec::SmallVec::new();
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1689,16 +1689,16 @@ pub mod quad {
                 }),
             }
         }
-        fn write_request<'a>(
-            &self,
+        fn write_request<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &Connection,
-            msg: Self::Request<'a>,
-        ) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+            msg: Self::Request<'b>,
+        ) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
             match msg {
                 Request::Destroy {} => {
                     let child_spec = None;
                     let args = smallvec::SmallVec::new();
-                    Ok((Message { sender_id: self.id.clone(), opcode: 0u16, args }, child_spec))
+                    Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::__phantom_lifetime { never, .. } => match never {},
             }
