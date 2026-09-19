@@ -109,8 +109,8 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Uint(val) => Argument::Uint(*val),
             Self::Fixed(val) => Argument::Fixed(*val),
             Self::Str(val) => Argument::Str(val.clone()),
-            Self::Object(val) => Argument::Object(val.clone()),
-            Self::NewId(val) => Argument::NewId(val.clone()),
+            Self::Object(val) => Argument::Object(val),
+            Self::NewId(val) => Argument::NewId(val),
             Self::Array(val) => Argument::Array(val.clone()),
             Self::Fd(val) => Argument::Fd(val.as_fd()),
         }
@@ -135,9 +135,9 @@ pub enum Argument<'a, Id> {
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
     Str(Option<Box<CString>>),
     /// Id of a wayland object
-    Object(Id),
+    Object(&'a Id),
     /// Id of a newly created wayland object
-    NewId(Id),
+    NewId(&'a Id),
     /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance

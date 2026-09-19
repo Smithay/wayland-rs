@@ -185,7 +185,7 @@ impl<D> Client<D> {
                     } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!("Request {}@{}.{} expects an non-null newid argument.", object.interface.name, object_id.id, message_desc.name);
                     }
-                    Argument::Object(o.id.id)
+                    Argument::Object(&o.id.id)
                 },
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -200,7 +200,7 @@ impl<D> Client<D> {
                     } else if !matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
                             panic!("Request {}@{}.{} expects an non-null object argument.", object.interface.name, object_id.id, message_desc.name);
                     }
-                    Argument::Object(o.id.id)
+                    Argument::Object(&o.id.id)
                 }
             });
         }
@@ -277,6 +277,7 @@ impl<D> Client<D> {
         error_code: u32,
         message: CString,
     ) {
+        let object = ObjectId { id: *object_id };
         let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(
@@ -291,7 +292,7 @@ impl<D> Client<D> {
                 },
                 0, // wl_display.error
                 [
-                    Argument::Object(ObjectId { id: *object_id }),
+                    Argument::Object(&object),
                     Argument::Uint(error_code),
                     Argument::Str(Some(Box::new(message))),
                 ],
@@ -629,7 +630,7 @@ impl<D> Client<D> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        OwnedArgument::Object(super::InnerHandle::null_id())
+                        OwnedArgument::Object(super::InnerHandle::null_id().clone())
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,

@@ -197,7 +197,7 @@ pub mod wl_display {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            WlDisplay { id: ObjectId::null(), data: None, version: 0, backend }
+            WlDisplay { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -457,7 +457,7 @@ pub mod wl_registry {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            WlRegistry { id: ObjectId::null(), data: None, version: 0, backend }
+            WlRegistry { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -667,7 +667,7 @@ pub mod wl_callback {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            WlCallback { id: ObjectId::null(), data: None, version: 0, backend }
+            WlCallback { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -780,15 +780,22 @@ pub mod test_global {
         #[doc = "Only available since version 3 of the interface"]
         GetTertiary {},
         #[doc = "link a secondary and a tertiary\n\n\n\nOnly available since version 3 of the interface"]
-        Link { sec: super::secondary::Secondary, ter: Option<super::tertiary::Tertiary>, time: u32 },
+        Link {
+            sec: &'a super::secondary::Secondary,
+            ter: Option<&'a super::tertiary::Tertiary>,
+            time: u32,
+        },
         #[doc = "This is a destructor, once sent this object cannot be used any longer.\nOnly available since version 4 of the interface"]
         Destroy,
         #[doc = "reverse link a secondary and a tertiary\n\n\n\nOnly available since version 5 of the interface"]
-        ReverseLink { sec: Option<super::secondary::Secondary>, ter: super::tertiary::Tertiary },
+        ReverseLink {
+            sec: Option<&'a super::secondary::Secondary>,
+            ter: &'a super::tertiary::Tertiary,
+        },
         #[doc = "a newid request that also takes allow null arg\n\n\n\nOnly available since version 5 of the interface"]
         NewidAndAllowNull {
-            sec: Option<super::secondary::Secondary>,
-            ter: super::tertiary::Tertiary,
+            sec: Option<&'a super::secondary::Secondary>,
+            ter: &'a super::tertiary::Tertiary,
         },
         #[doc(hidden)]
         __phantom_lifetime {
@@ -906,7 +913,7 @@ pub mod test_global {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            TestGlobal { id: ObjectId::null(), data: None, version: 0, backend }
+            TestGlobal { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1092,9 +1099,9 @@ pub mod test_global {
                     let child_spec = None;
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
-                        vec.push(Argument::Object(Proxy::id(&sec).clone()));
+                        vec.push(Argument::Object(Proxy::id(sec)));
                         vec.push(if let Some(obj) = ter {
-                            Argument::Object(Proxy::id(&obj).clone())
+                            Argument::Object(Proxy::id(obj))
                         } else {
                             Argument::Object(ObjectId::null())
                         });
@@ -1113,11 +1120,11 @@ pub mod test_global {
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(if let Some(obj) = sec {
-                            Argument::Object(Proxy::id(&obj).clone())
+                            Argument::Object(Proxy::id(obj))
                         } else {
                             Argument::Object(ObjectId::null())
                         });
-                        vec.push(Argument::Object(Proxy::id(&ter).clone()));
+                        vec.push(Argument::Object(Proxy::id(ter)));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 5u16, args }, child_spec))
@@ -1131,11 +1138,11 @@ pub mod test_global {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec.push(if let Some(obj) = sec {
-                            Argument::Object(Proxy::id(&obj).clone())
+                            Argument::Object(Proxy::id(obj))
                         } else {
                             Argument::Object(ObjectId::null())
                         });
-                        vec.push(Argument::Object(Proxy::id(&ter).clone()));
+                        vec.push(Argument::Object(Proxy::id(ter)));
                         vec
                     };
                     Ok((Message { sender_id: self.id.clone(), opcode: 6u16, args }, child_spec))
@@ -1217,11 +1224,7 @@ pub mod test_global {
                 None => return,
             };
             let conn = Connection::from_backend(backend);
-            let _ = conn.send_request(
-                self,
-                Request::Link { sec: sec.clone(), ter: ter.cloned(), time },
-                None,
-            );
+            let _ = conn.send_request(self, Request::Link { sec, ter, time }, None);
         }
         #[allow(clippy::too_many_arguments)]
         pub fn destroy(&self) {
@@ -1244,11 +1247,7 @@ pub mod test_global {
                 None => return,
             };
             let conn = Connection::from_backend(backend);
-            let _ = conn.send_request(
-                self,
-                Request::ReverseLink { sec: sec.cloned(), ter: ter.clone() },
-                None,
-            );
+            let _ = conn.send_request(self, Request::ReverseLink { sec, ter }, None);
         }
         #[doc = "a newid request that also takes allow null arg"]
         #[allow(clippy::too_many_arguments)]
@@ -1263,7 +1262,7 @@ pub mod test_global {
             U: Dispatch<super::quad::Quad, D> + Send + Sync + 'static,
         {
             self.send_constructor(
-                Request::NewidAndAllowNull { sec: sec.cloned(), ter: ter.clone() },
+                Request::NewidAndAllowNull { sec, ter },
                 qh.make_data::<super::quad::Quad, U>(udata),
             )
             .unwrap_or_else(|_| Proxy::inert(self.backend.clone()))
@@ -1376,7 +1375,7 @@ pub mod secondary {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            Secondary { id: ObjectId::null(), data: None, version: 0, backend }
+            Secondary { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1525,7 +1524,7 @@ pub mod tertiary {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            Tertiary { id: ObjectId::null(), data: None, version: 0, backend }
+            Tertiary { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,
@@ -1674,7 +1673,7 @@ pub mod quad {
         }
         #[inline]
         fn inert(backend: WeakBackend) -> Self {
-            Quad { id: ObjectId::null(), data: None, version: 0, backend }
+            Quad { id: ObjectId::null().clone(), data: None, version: 0, backend }
         }
         fn parse_event(
             conn: &Connection,

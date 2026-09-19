@@ -186,15 +186,16 @@ impl InnerHandle {
         client.destroy_object(&id.id, &mut state.pending_destructors)
     }
 
-    pub fn null_id() -> ObjectId {
-        ObjectId {
+    pub fn null_id() -> &'static ObjectId {
+        static NULL: ObjectId = ObjectId {
             id: InnerObjectId {
                 id: 0,
                 serial: 0,
                 client_id: InnerClientId { id: 0, serial: 0 },
                 interface: &ANONYMOUS_INTERFACE,
             },
-        }
+        };
+        &NULL
     }
 
     pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {

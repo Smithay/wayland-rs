@@ -124,7 +124,7 @@ expand_test!(client_wrong_id, {
             sender_id: 1, // wl_display
             opcode: 1,    // wl_registry
             args: smallvec::smallvec![
-                Argument::NewId(3), // should be 2
+                Argument::NewId(&3), // should be 2
             ],
         })
         .unwrap();
@@ -341,7 +341,7 @@ expand_test!(protocol_version_check, {
         .write_message(&Message {
             sender_id: 1,
             opcode: 1,
-            args: smallvec::smallvec![Argument::NewId(2),],
+            args: smallvec::smallvec![Argument::NewId(&2),],
         })
         .unwrap();
     socket.flush().unwrap();
@@ -358,7 +358,7 @@ expand_test!(protocol_version_check, {
                     CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap()
                 ))),
                 Argument::Uint(2),
-                Argument::NewId(3),
+                Argument::NewId(&3),
             ],
         })
         .unwrap();
@@ -370,7 +370,7 @@ expand_test!(protocol_version_check, {
         .write_message(&Message {
             sender_id: 3,
             opcode: 2,
-            args: smallvec::smallvec![Argument::NewId(4),],
+            args: smallvec::smallvec![Argument::NewId(&4),],
         })
         .unwrap();
     socket.flush().unwrap();
