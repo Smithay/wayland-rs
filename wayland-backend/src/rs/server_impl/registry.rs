@@ -239,7 +239,7 @@ fn send_global_to<D>(
 ) -> Result<(), InvalidId> {
     client.send_event(
         message!(
-            registry,
+            &registry,
             0, // wl_registry.global
             [
                 Argument::Uint(global.id.id),
@@ -260,7 +260,7 @@ fn send_global_remove_to<D>(
 ) -> Result<(), InvalidId> {
     client.send_event(
         message!(
-            registry,
+            &registry,
             1, // wl_registry.global_remove
             [Argument::Uint(global.id.id)],
         ),

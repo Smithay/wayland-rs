@@ -1213,7 +1213,7 @@ impl<D: 'static> ErasedState for State<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if self.get_client(&id).unwrap().id.ptr
+                        if self.get_client(id).unwrap().id.ptr
                             != self.get_client(&o.id).unwrap().id.ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");
@@ -1249,7 +1249,7 @@ impl<D: 'static> ErasedState for State<D> {
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
-                        if self.get_client(&id).unwrap().id.ptr
+                        if self.get_client(id).unwrap().id.ptr
                             != self.get_client(&o.id).unwrap().id.ptr
                         {
                             panic!("Attempting to send an event with objects from wrong client.");

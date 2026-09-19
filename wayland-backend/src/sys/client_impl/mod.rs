@@ -822,7 +822,7 @@ impl InnerBackend {
         };
 
         if message_desc.is_destructor {
-            self.destroy_object_inner(guard, &ObjectId { id })
+            self.destroy_object_inner(guard, &ObjectId { id: id.clone() })
         }
 
         Ok(child_id)

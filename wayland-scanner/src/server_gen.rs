@@ -158,7 +158,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #parse_body
                 }
 
-                fn write_event<'a>(&self, conn: &DisplayHandle, msg: Self::Event<'a>) -> Result<Message<'a, ObjectId>, InvalidId> {
+                fn write_event<'r, 'a: 'r, 'b: 'r>(&'a self, conn: &DisplayHandle, msg: Self::Event<'b>) -> Result<Message<'r, ObjectId>, InvalidId> {
                     #write_body
                 }
 

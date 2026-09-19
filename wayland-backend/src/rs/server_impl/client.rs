@@ -205,7 +205,7 @@ impl<D> Client<D> {
             });
         }
 
-        let msg = Message { sender_id: object_id.id.id, opcode, args: msg_args };
+        let msg = Message { sender_id: &object_id.id.id, opcode, args: msg_args };
 
         if self.socket.write_message(&msg).is_err() {
             self.kill(DisconnectReason::ConnectionClosed);
@@ -225,7 +225,7 @@ impl<D> Client<D> {
     pub(crate) fn send_delete_id(&mut self, object_id: InnerObjectId) {
         // We should only send delete_id for objects in the client ID space
         if object_id.id < SERVER_ID_LIMIT {
-            let msg = message!(1, 1, [Argument::Uint(object_id.id)]);
+            let msg = message!(&1, 1, [Argument::Uint(object_id.id)]);
             if self.socket.write_message(&msg).is_err() {
                 self.kill(DisconnectReason::ConnectionClosed);
             }
@@ -282,7 +282,7 @@ impl<D> Client<D> {
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(
             message!(
-                ObjectId {
+                &ObjectId {
                     id: InnerObjectId {
                         id: 1,
                         interface: &WL_DISPLAY_INTERFACE,
@@ -447,7 +447,7 @@ impl<D> Client<D> {
                         },
                     };
                     // send wl_callback.done(0) this callback does not have any meaningful destructor to run, we can ignore it
-                    self.send_event(message!(cb_id, 0, [Argument::Uint(0)]), None).unwrap();
+                    self.send_event(message!(&cb_id, 0, [Argument::Uint(0)]), None).unwrap();
                 } else {
                     unreachable!()
                 }
