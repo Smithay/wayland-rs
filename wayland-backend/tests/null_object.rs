@@ -8,7 +8,7 @@ fn rs_client_null_object_request() {
     let (sock, _sock2) = UnixStream::pair().unwrap();
     let backend = Backend::connect(sock).unwrap();
     let null_obj = ObjectId::null();
-    let message = Message { sender_id: null_obj, opcode: 42, args: Default::default() };
+    let message = Message { sender_id: null_obj.clone(), opcode: 42, args: Default::default() };
     assert_eq!(backend.send_request(message, None, None), Err(InvalidId));
 }
 
@@ -20,7 +20,7 @@ fn sys_client_null_object_request() {
     let (sock, _sock2) = UnixStream::pair().unwrap();
     let backend = Backend::connect(sock).unwrap();
     let null_obj = ObjectId::null();
-    let message = Message { sender_id: null_obj, opcode: 42, args: Default::default() };
+    let message = Message { sender_id: null_obj.clone(), opcode: 42, args: Default::default() };
     assert_eq!(backend.send_request(message, None, None), Err(InvalidId));
 }
 
@@ -28,7 +28,7 @@ fn sys_client_null_object_request() {
 fn rs_server_null_client_eq() {
     assert!(
         !wayland_backend::rs::server::ObjectId::null()
-            .same_client_as(&wayland_backend::rs::server::ObjectId::null())
+            .same_client_as(wayland_backend::rs::server::ObjectId::null())
     );
 }
 
@@ -37,6 +37,6 @@ fn rs_server_null_client_eq() {
 fn sys_server_null_client_eq() {
     assert!(
         !wayland_backend::sys::server::ObjectId::null()
-            .same_client_as(&wayland_backend::sys::server::ObjectId::null())
+            .same_client_as(wayland_backend::sys::server::ObjectId::null())
     );
 }

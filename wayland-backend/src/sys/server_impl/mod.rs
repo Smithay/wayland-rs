@@ -614,8 +614,9 @@ impl InnerHandle {
         Ok(())
     }
 
-    pub fn null_id() -> ObjectId {
-        ObjectId { id: InnerObjectId::Null }
+    pub fn null_id() -> &'static ObjectId {
+        static NULL: ObjectId = ObjectId { id: InnerObjectId::Null };
+        &NULL
     }
 
     pub fn send_event(&self, msg: Message<ObjectId>) -> Result<(), InvalidId> {
@@ -1204,7 +1205,7 @@ impl<D: 'static> ErasedState for State<D> {
                 }
                 Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
                 Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
-                Argument::Object(ref o) => {
+                Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
                         if !r.alive.load(Ordering::Acquire) {
@@ -1241,7 +1242,7 @@ impl<D: 'static> ErasedState for State<D> {
                     };
                     argument_list.push(wl_argument { o: ptr as *const _ })
                 }
-                Argument::NewId(ref o) => {
+                Argument::NewId(o) => {
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
                         if !r.alive.load(Ordering::Acquire) {
                             unsafe { free_arrays(message_desc.signature, &argument_list) };
@@ -1698,7 +1699,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     }
                 } else {
                     // libwayland-server.so checks nulls for us
-                    InnerHandle::null_id()
+                    InnerHandle::null_id().clone()
                 };
                 parsed_args.push(OwnedArgument::Object(id))
             }
@@ -1728,7 +1729,7 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                     created = Some((child_id.clone(), child_data_ptr));
                     parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
                 } else {
-                    parsed_args.push(OwnedArgument::NewId(InnerHandle::null_id()))
+                    parsed_args.push(OwnedArgument::NewId(InnerHandle::null_id().clone()))
                 }
             }
         }

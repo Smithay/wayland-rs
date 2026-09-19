@@ -149,7 +149,7 @@ impl ObjectId {
     ///
     /// This object ID is always invalid, and should be used for events with an optional `Object` argument.
     #[inline]
-    pub fn null() -> ObjectId {
+    pub fn null() -> &'static ObjectId {
         server_impl::InnerHandle::null_id()
     }
 

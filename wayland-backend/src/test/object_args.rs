@@ -24,11 +24,7 @@ macro_rules! impl_server_objectdata {
                     );
                     if let [OwnedArgument::NewId(secondary)] = &msg.args[..] {
                         handle
-                            .send_event(message!(
-                                msg.sender_id,
-                                1,
-                                [Argument::Object(secondary.clone())]
-                            ))
+                            .send_event(message!(msg.sender_id, 1, [Argument::Object(secondary)]))
                             .unwrap();
                         return Some(self);
                     } else {
@@ -209,7 +205,7 @@ expand_test!(create_objects, {
                 test_global_id.clone(),
                 3,
                 [
-                    Argument::Object(secondary_id.clone()),
+                    Argument::Object(&secondary_id),
                     Argument::Object(client_backend::ObjectId::null()),
                     Argument::Uint(1),
                 ],
@@ -223,7 +219,11 @@ expand_test!(create_objects, {
             message!(
                 test_global_id,
                 3,
-                [Argument::Object(secondary_id), Argument::Object(tertiary_id), Argument::Uint(2)],
+                [
+                    Argument::Object(&secondary_id),
+                    Argument::Object(&tertiary_id),
+                    Argument::Uint(2)
+                ],
             ),
             None,
             None,
@@ -291,7 +291,7 @@ expand_test!(panic bad_interface, {
             message!(
                 test_global_id,
                 3,
-                [Argument::Object(tertiary_id), Argument::Object(secondary_id), Argument::Uint(42)],
+                [Argument::Object(&tertiary_id), Argument::Object(&secondary_id), Argument::Uint(42)],
             ),
             None,
             None,
@@ -416,7 +416,7 @@ expand_test!(null_obj_followed_by_interface, {
                 5,
                 [
                     Argument::Object(client_backend::ObjectId::null()),
-                    Argument::Object(tertiary_id),
+                    Argument::Object(&tertiary_id),
                 ],
             ),
             None,
@@ -486,7 +486,7 @@ expand_test!(new_id_null_and_non_null, {
                 [
                     Argument::NewId(client_backend::ObjectId::null()),
                     Argument::Object(client_backend::ObjectId::null()),
-                    Argument::Object(tertiary_id),
+                    Argument::Object(&tertiary_id),
                 ],
             ),
             Some(Arc::new(DoNothingData)),

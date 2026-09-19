@@ -32,7 +32,7 @@ macro_rules! impl_globalhandler {
                     .send_event(message!(
                         object_id.clone(),
                         2,
-                        [Argument::NewId(obj_1.clone()), Argument::Object(null_id)],
+                        [Argument::NewId(&obj_1), Argument::Object(null_id)],
                     ))
                     .unwrap();
                 // send the second
@@ -48,7 +48,7 @@ macro_rules! impl_globalhandler {
                     .send_event(message!(
                         object_id.clone(),
                         2,
-                        [Argument::NewId(obj_2.clone()), Argument::Object(obj_1)]
+                        [Argument::NewId(&obj_2), Argument::Object(&obj_1)]
                     ))
                     .unwrap();
                 Arc::new(DoNothingData)

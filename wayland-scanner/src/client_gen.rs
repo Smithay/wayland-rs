@@ -143,7 +143,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
 
                 #[inline]
                 fn inert(backend: WeakBackend) -> Self {
-                    #iface_name { id: ObjectId::null(), data: None, version: 0, backend }
+                    #iface_name { id: ObjectId::null().clone(), data: None, version: 0, backend }
                 }
 
                 fn parse_event(conn: &Connection, msg: OwnedMessage<ObjectId>) -> Result<(Self, Self::Event), DispatchError> {
@@ -221,12 +221,6 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                     Some(quote! { #arg_name: (I::interface(), version) })
                 } else {
                     None
-                }
-            } else if arg.typ == Type::Object {
-                if arg.allow_null {
-                    Some(quote! { #arg_name: #arg_name.cloned() })
-                } else {
-                    Some(quote! { #arg_name: #arg_name.clone() })
                 }
             } else {
                 Some(quote! { #arg_name })
