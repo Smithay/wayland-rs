@@ -277,7 +277,13 @@ pub(crate) fn gen_message_enum(
                         Type::Int => quote! { i32 },
                         Type::Fixed => quote! { f64 },
                         Type::String => quote! { String },
-                        Type::Array => quote! { Vec<u8> },
+                        Type::Array => {
+                            if receiver {
+                                quote! { Vec<u8> }
+                            } else {
+                                quote! { &'a [u8] }
+                            }
+                        }
                         Type::Fd => {
                             if receiver {
                                 quote! { OwnedFd }
