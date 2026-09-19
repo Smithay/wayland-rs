@@ -452,3 +452,17 @@ pub(crate) fn check_for_signature<Id>(signature: &[ArgumentType], args: &[Argume
 pub(crate) fn same_interface_or_anonymous(a: &'static Interface, b: &'static Interface) -> bool {
     same_interface(a, b) || same_interface(a, &ANONYMOUS_INTERFACE)
 }
+
+#[cfg(test)]
+mod test {
+    use std::mem;
+
+    use super::*;
+
+    #[test]
+    fn test_argument_size() {
+        // Shouldn't be larger than a pointer, plus a discriminant of same size
+        assert!(mem::size_of::<Argument<'_, usize>>() <= 2 * mem::size_of::<usize>());
+        assert!(mem::size_of::<OwnedArgument<usize>>() <= 2 * mem::size_of::<usize>());
+    }
+}
