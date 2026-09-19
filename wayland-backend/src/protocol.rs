@@ -111,7 +111,7 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Str(val) => Argument::Str(val.clone()),
             Self::Object(val) => Argument::Object(val),
             Self::NewId(val) => Argument::NewId(val),
-            Self::Array(val) => Argument::Array(val.clone()),
+            Self::Array(val) => Argument::Array(Box::new(val)),
             Self::Fd(val) => Argument::Fd(val.as_fd()),
         }
     }
@@ -142,7 +142,7 @@ pub enum Argument<'a, Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
-    Array(Box<Vec<u8>>),
+    Array(Box<&'a [u8]>),
     /// A file descriptor argument. Represented by a [`BorrowedFd`].
     Fd(BorrowedFd<'a>),
 }

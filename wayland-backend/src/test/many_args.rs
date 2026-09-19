@@ -74,7 +74,7 @@ macro_rules! serverdata_impls {
                             Argument::Uint(1337),
                             Argument::Int(-53),
                             Argument::Fixed(9823),
-                            Argument::Array(Box::new(vec![10, 20, 30, 40, 50, 60, 70, 80, 90])),
+                            Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
                             Argument::Str(Some(Box::new(
                                 CString::new("I want cake".as_bytes()).unwrap()
                             ))),
@@ -194,7 +194,7 @@ expand_test!(many_args, {
                     Argument::Uint(42),
                     Argument::Int(-13),
                     Argument::Fixed(4589),
-                    Argument::Array(Box::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9])),
+                    Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
                     Argument::Str(Some(Box::new(
                         CString::new("I like trains".as_bytes()).unwrap()
                     ))),
