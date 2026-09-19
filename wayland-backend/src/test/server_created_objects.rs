@@ -30,7 +30,7 @@ macro_rules! impl_globalhandler {
                 let null_id = $server_backend::ObjectId::null();
                 handle
                     .send_event(message!(
-                        object_id.clone(),
+                        object_id,
                         2,
                         [Argument::NewId(&obj_1), Argument::Object(null_id)],
                     ))
@@ -46,7 +46,7 @@ macro_rules! impl_globalhandler {
                     .unwrap();
                 handle
                     .send_event(message!(
-                        object_id.clone(),
+                        object_id,
                         2,
                         [Argument::NewId(&obj_2), Argument::Object(&obj_1)]
                     ))
@@ -125,7 +125,7 @@ expand_test!(server_created_object, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
+            message!(&client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -134,7 +134,7 @@ expand_test!(server_created_object, {
     let _test_global_id = client
         .send_request(
             message!(
-                registry_id,
+                &registry_id,
                 0,
                 [
                     Argument::Uint(1),

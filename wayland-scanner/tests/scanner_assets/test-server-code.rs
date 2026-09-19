@@ -144,14 +144,14 @@ pub mod wl_registry {
         ) -> Result<(Self, Self::Request), DispatchError> {
             unimplemented!("`wl_registry` is implemented internally in `wayland-server`")
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::Global { name, interface, version } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -164,7 +164,7 @@ pub mod wl_registry {
                     },
                 }),
                 Event::GlobalRemove { name } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -321,14 +321,14 @@ pub mod wl_callback {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::Done { callback_data } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -855,11 +855,11 @@ pub mod test_global {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::ManyArgsEvt {
                     unsigned_int,
@@ -869,7 +869,7 @@ pub mod test_global {
                     some_text,
                     file_descriptor,
                 } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 0u16,
                     args: smallvec::SmallVec::from_vec(vec![
                         Argument::Uint(unsigned_int),
@@ -881,7 +881,7 @@ pub mod test_global {
                     ]),
                 }),
                 Event::AckSecondary { sec } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 1u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -890,7 +890,7 @@ pub mod test_global {
                     },
                 }),
                 Event::CycleQuad { new_quad, old_quad } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: 2u16,
                     args: {
                         let mut vec = smallvec::SmallVec::new();
@@ -1085,11 +1085,11 @@ pub mod secondary {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1238,11 +1238,11 @@ pub mod tertiary {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
@@ -1391,11 +1391,11 @@ pub mod quad {
                 }),
             }
         }
-        fn write_event<'a>(
-            &self,
+        fn write_event<'r, 'a: 'r, 'b: 'r>(
+            &'a self,
             conn: &DisplayHandle,
-            msg: Self::Event<'a>,
-        ) -> Result<Message<'a, ObjectId>, InvalidId> {
+            msg: Self::Event<'b>,
+        ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
                 Event::__phantom_lifetime { never, .. } => match never {},
             }

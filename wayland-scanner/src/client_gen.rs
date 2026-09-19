@@ -150,7 +150,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
                     #parse_body
                 }
 
-                fn write_request<'a>(&self, conn: &Connection, msg: Self::Request<'a>) -> Result<(Message<'a, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
+                fn write_request<'r, 'a: 'r, 'b: 'r>(&'a self, conn: &Connection, msg: Self::Request<'b>) -> Result<(Message<'r, ObjectId>, Option<(&'static Interface, u32)>), InvalidId> {
                     #write_body
                 }
             }

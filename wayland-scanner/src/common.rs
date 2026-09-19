@@ -692,7 +692,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     let child_spec = #child_spec;
                     let args = #args;
                     Ok((Message {
-                        sender_id: self.id.clone(),
+                        sender_id: &self.id,
                         opcode: #opcode,
                         args
                     }, child_spec))
@@ -701,7 +701,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
         } else {
             quote! {
                 #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
-                    sender_id: self.id.clone(),
+                    sender_id: &self.id,
                     opcode: #opcode,
                     args: #args,
                 })

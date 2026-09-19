@@ -89,7 +89,7 @@ expand_test!(destructor_request, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
+            message!(&client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -98,7 +98,7 @@ expand_test!(destructor_request, {
     let test_global_id = client
         .send_request(
             message!(
-                registry_id,
+                &registry_id,
                 0,
                 [
                     Argument::Uint(1),
@@ -117,7 +117,7 @@ expand_test!(destructor_request, {
     client
         .send_request(
             message!(
-                test_global_id,
+                &test_global_id,
                 4, // destroy
                 []
             ),
@@ -150,7 +150,7 @@ expand_test!(destructor_cleanup, {
     let client_display = client.display_id();
     let registry_id = client
         .send_request(
-            message!(client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
+            message!(&client_display, 1, [Argument::NewId(client_backend::ObjectId::null())],),
             Some(Arc::new(DoNothingData)),
             Some((&interfaces::WL_REGISTRY_INTERFACE, 1)),
         )
@@ -159,7 +159,7 @@ expand_test!(destructor_cleanup, {
     client
         .send_request(
             message!(
-                registry_id,
+                &registry_id,
                 0,
                 [
                     Argument::Uint(1),
