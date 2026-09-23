@@ -302,9 +302,17 @@ pub(crate) fn gen_message_enum(
                                     quote! { &'a super::#iface_mod::#iface_type }
                                 }
                             } else if side == Side::Client {
-                                quote! { super::wayland_client::ObjectId }
+                                if receiver {
+                                    quote! { super::wayland_client::ObjectId }
+                                } else {
+                                    quote! { &'a super::wayland_client::ObjectId }
+                                }
                             } else {
-                                quote! { super::wayland_server::ObjectId }
+                                if receiver {
+                                    quote! { super::wayland_server::ObjectId }
+                                } else {
+                                    quote! { &'a super::wayland_server::ObjectId }
+                                }
                             }
                         }
                         Type::NewId if !receiver && side == Side::Client => {
