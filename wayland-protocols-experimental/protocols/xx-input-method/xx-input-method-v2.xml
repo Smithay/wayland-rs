@@ -427,7 +427,7 @@
     </request>
   </interface>
 
-  <interface name="xx_input_popup_surface_v2" version="1">
+  <interface name="xx_input_popup_surface_v2" version="2">
     <description summary="popup surface">
       An input method popup surface is a short-lived, temporary surface.
       It is meant as an area to show suggestions, candidates, or for other input-related uses.
@@ -615,6 +615,34 @@
       </description>
       <arg name="token" type="uint" summary="reposition request token"/>
     </event>
+
+    <enum name="popup_position_mode" since="2">
+      <description summary="popup positioning mode">
+        How the compositor positions the popup relative to the text input
+        cursor rectangle.
+      </description>
+      <entry name="follow_cursor" value="0"
+             summary="follow the cursor rectangle"/>
+      <entry name="start_of_preedit" value="1"
+             summary="anchor at the start of the preedit"/>
+    </enum>
+
+    <request name="set_popup_position_mode" since="2">
+      <description summary="set popup positioning mode">
+        Sets the popup positioning mode.
+
+        In follow_cursor mode (the default), the popup tracks the text input
+        cursor rectangle.
+
+        In start_of_preedit mode, the popup is positioned relative to the
+        start of the current preedit rather than the cursor within it.
+
+        This state takes effect immediately and does not require a
+        wl_surface.commit.
+      </description>
+      <arg name="mode" type="uint" enum="popup_position_mode"
+           summary="positioning mode"/>
+    </request>
     
     <request name="destroy" type="destructor">
       <description summary="remove the popup">

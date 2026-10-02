@@ -16,11 +16,11 @@ rust-version = "1.86"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wayland-scanner = { version = "0.31.10", path = "../wayland-scanner" }
-wayland-backend = { version = "0.3.15", path = "../wayland-backend" }
-wayland-client = { version = "0.31.14", path = "../wayland-client", optional = true }
-wayland-server = { version = "0.31.13", path = "../wayland-server", optional = true }
-wayland-protocols = { version = "0.32.12", path = "../wayland-protocols", features=["unstable"] }
+wayland-scanner = { version = "0.31.10" }
+wayland-backend = { version = "0.3.15" }
+wayland-client = { version = "0.31.14", optional = true }
+wayland-server = { version = "0.31.14", optional = true }
+wayland-protocols = { version = "0.32.13", features = ["unstable"] }
 bitflags = "2"
 
 [features]
