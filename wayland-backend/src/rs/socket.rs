@@ -539,7 +539,7 @@ mod tests {
             recv_msgs.push(message);
         }
         assert_eq!(recv_msgs.len(), 3);
-        for (msg1, msg2) in messages.into_iter().zip(recv_msgs) {
+        for (msg1, msg2) in messages.into_iter().zip(recv_msgs.into_iter()) {
             assert_eq_msgs(msg1, msg2);
         }
     }
