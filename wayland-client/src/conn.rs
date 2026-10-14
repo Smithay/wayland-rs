@@ -6,8 +6,8 @@ use std::{
     os::unix::net::UnixStream,
     path::PathBuf,
     sync::{
-        Arc,
         atomic::{AtomicBool, Ordering},
+        Arc,
     },
 };
 
@@ -16,7 +16,7 @@ use wayland_backend::{
     protocol::{ObjectInfo, ProtocolError},
 };
 
-use crate::{EventQueue, Proxy, protocol::wl_display::WlDisplay};
+use crate::{protocol::wl_display::WlDisplay, EventQueue, Proxy};
 
 /// The Wayland connection
 ///
@@ -111,13 +111,20 @@ impl Connection {
     /// before spawning other threads. [Self::connect_to_env_threadsafe] may be used if this
     /// is not practical.
     pub unsafe fn connect_to_env() -> Result<Self, ConnectError> {
-        let stream = if let Some(stream) = unsafe { stream_from_wayland_socket_var()? } {
-            stream
-        } else {
-            stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?
-        };
+        #[cfg(target_os = "haiku")]
+        {
+            Self::connect_to_env_threadsafe()
+        }
+        #[cfg(not(target_os = "haiku"))]
+        {
+            let stream = if let Some(stream) = unsafe { stream_from_wayland_socket_var()? } {
+                stream
+            } else {
+                stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?
+            };
 
-        Self::from_socket(stream)
+            Self::from_socket(stream)
+        }
     }
 
     /// Connect to the Wayland server using the `WAYLAND_DISPLAY` env var
@@ -126,8 +133,16 @@ impl Connection {
     /// variable, which makes this function safe to call in any context. Under a normal
     /// Wayland compositor, using `WAYLAND_DISPLAY` is generally sufficient.
     pub fn connect_to_env_threadsafe() -> Result<Self, ConnectError> {
-        let stream = stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?;
-        Self::from_socket(stream)
+        #[cfg(target_os = "haiku")]
+        {
+            let backend = Backend::connect_in_process().map_err(|_| ConnectError::NoWaylandLib)?;
+            Ok(Self { backend })
+        }
+        #[cfg(not(target_os = "haiku"))]
+        {
+            let stream = stream_from_wayland_display_var().ok_or(ConnectError::NoCompositor)?;
+            Self::from_socket(stream)
+        }
     }
 
     /// Initialize a Wayland connection from an already existing Unix stream

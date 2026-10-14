@@ -75,6 +75,7 @@ use std::{
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
 pub mod sys;
 
+#[cfg(not(all(target_os = "haiku", feature = "client_system", feature = "server_system")))]
 pub mod rs;
 
 #[cfg(not(feature = "client_system"))]
