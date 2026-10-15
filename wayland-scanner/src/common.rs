@@ -262,117 +262,133 @@ pub(crate) fn gen_message_enum(
 
             let doc_attr = to_doc_attr(&docs);
             let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
-            let msg_variant_decl =
-                if msg.args.is_empty() {
-                    msg_name.into_token_stream()
-                } else {
-                    let fields = msg.args.iter().flat_map(|arg| {
-                let field_name =
-                    format_ident!("{}{}", if is_keyword(&arg.name) { "_" } else { "" }, arg.name);
-                let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
-                    enum_relname(enum_ref)
-                } else {
-                    match arg.typ {
-                        Type::Uint => quote! { u32 },
-                        Type::Int => quote! { i32 },
-                        Type::Fixed => quote! { f64 },
-                        Type::String => quote! { String },
-                        Type::Array => {
-                            if receiver {
-                                quote! { Vec<u8> }
-                            } else {
-                                quote! { &'a [u8] }
-                            }
-                        }
-                        Type::Fd => {
-                            if receiver {
-                                quote! { OwnedFd }
-                            } else {
-                                quote! { std::os::unix::io::BorrowedFd<'a> }
-                            }
-                        }
-                        Type::Object => {
-                            if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(iface, Span::call_site());
-                                let iface_type =
-                                    Ident::new(&snake_to_camel(iface), Span::call_site());
+            let msg_variant_decl = if msg.args.is_empty() {
+                msg_name.into_token_stream()
+            } else {
+                let fields = msg.args.iter().flat_map(|arg| {
+                    let field_name = format_ident!(
+                        "{}{}",
+                        if is_keyword(&arg.name) { "_" } else { "" },
+                        arg.name
+                    );
+                    let field_type_inner = if let Some(enum_ref) = &arg.enum_ {
+                        enum_relname(enum_ref)
+                    } else {
+                        match arg.typ {
+                            Type::Uint => quote! { u32 },
+                            Type::Int => quote! { i32 },
+                            Type::Fixed => quote! { f64 },
+                            Type::String => {
                                 if receiver {
-                                    quote! { super::#iface_mod::#iface_type }
+                                    quote! { String }
                                 } else {
-                                    quote! { &'a super::#iface_mod::#iface_type }
-                                }
-                            } else if side == Side::Client {
-                                if receiver {
-                                    quote! { super::wayland_client::ObjectId }
-                                } else {
-                                    quote! { &'a super::wayland_client::ObjectId }
-                                }
-                            } else {
-                                if receiver {
-                                    quote! { super::wayland_server::ObjectId }
-                                } else {
-                                    quote! { &'a super::wayland_server::ObjectId }
+                                    quote! { &'a str }
                                 }
                             }
-                        }
-                        Type::NewId if !receiver && side == Side::Client => {
-                            // Client-side sending does not have a pre-existing object
-                            // so skip serializing it
-                            if arg.interface.is_some() {
-                                return None;
-                            } else {
-                                quote! { (&'static Interface, u32) }
-                            }
-                        }
-                        Type::NewId => {
-                            if let Some(ref iface) = arg.interface {
-                                let iface_mod = Ident::new(iface, Span::call_site());
-                                let iface_type =
-                                    Ident::new(&snake_to_camel(iface), Span::call_site());
-                                if receiver && side == Side::Server {
-                                    quote! { New<super::#iface_mod::#iface_type> }
-                                } else if receiver {
-                                    quote! { super::#iface_mod::#iface_type }
+                            Type::Array => {
+                                if receiver {
+                                    quote! { Vec<u8> }
                                 } else {
-                                    quote! { &'a super::#iface_mod::#iface_type }
+                                    quote! { &'a [u8] }
                                 }
-                            } else {
+                            }
+                            Type::Fd => {
+                                if receiver {
+                                    quote! { OwnedFd }
+                                } else {
+                                    quote! { std::os::unix::io::BorrowedFd<'a> }
+                                }
+                            }
+                            Type::Object => {
+                                if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type =
+                                        Ident::new(&snake_to_camel(iface), Span::call_site());
+                                    if receiver {
+                                        quote! { super::#iface_mod::#iface_type }
+                                    } else {
+                                        quote! { &'a super::#iface_mod::#iface_type }
+                                    }
+                                } else if side == Side::Client {
+                                    if receiver {
+                                        quote! { super::wayland_client::ObjectId }
+                                    } else {
+                                        quote! { &'a super::wayland_client::ObjectId }
+                                    }
+                                } else {
+                                    if receiver {
+                                        quote! { super::wayland_server::ObjectId }
+                                    } else {
+                                        quote! { &'a super::wayland_server::ObjectId }
+                                    }
+                                }
+                            }
+                            Type::NewId if !receiver && side == Side::Client => {
+                                // Client-side sending does not have a pre-existing object
+                                // so skip serializing it
+                                if arg.interface.is_some() {
+                                    return None;
+                                } else {
+                                    quote! { (&'static Interface, u32) }
+                                }
+                            }
+                            Type::NewId => {
+                                if let Some(ref iface) = arg.interface {
+                                    let iface_mod = Ident::new(iface, Span::call_site());
+                                    let iface_type =
+                                        Ident::new(&snake_to_camel(iface), Span::call_site());
+                                    if receiver && side == Side::Server {
+                                        quote! { New<super::#iface_mod::#iface_type> }
+                                    } else if receiver {
+                                        quote! { super::#iface_mod::#iface_type }
+                                    } else {
+                                        quote! { &'a super::#iface_mod::#iface_type }
+                                    }
                                 // bind-like function
-                                if side == Side::Client {
-                                    quote! { (String, u32, super::wayland_client::ObjectId) }
                                 } else {
-                                    quote! { (String, u32, super::wayland_server::ObjectId) }
+                                    let object_id_ty = if side == Side::Client {
+                                        quote! { super::wayland_client::ObjectId }
+                                    } else {
+                                        quote! { super::wayland_server::ObjectId }
+                                    };
+
+                                    if receiver {
+                                        quote! { (String, u32, #object_id_ty) }
+                                    } else {
+                                        quote! { (&'a str, u32, #object_id_ty) }
+                                    }
                                 }
                             }
+                            Type::Destructor => {
+                                panic!("An argument cannot have type \"destructor\".")
+                            }
                         }
-                        Type::Destructor => panic!("An argument cannot have type \"destructor\"."),
+                    };
+
+                    let field_type = if arg.allow_null {
+                        quote! { Option<#field_type_inner> }
+                    } else {
+                        field_type_inner.into_token_stream()
+                    };
+
+                    let doc_attr = arg
+                        .description
+                        .as_ref()
+                        .map(description_to_doc_attr)
+                        .or_else(|| arg.summary.as_ref().map(|s| to_doc_attr(s)));
+
+                    Some(quote! {
+                        #doc_attr
+                        #field_name: #field_type
+                    })
+                });
+
+                quote! {
+                    #msg_name {
+                        #(#fields,)*
                     }
-                };
-
-                let field_type = if arg.allow_null {
-                    quote! { Option<#field_type_inner> }
-                } else {
-                    field_type_inner.into_token_stream()
-                };
-
-                let doc_attr = arg
-                    .description
-                    .as_ref()
-                    .map(description_to_doc_attr)
-                    .or_else(|| arg.summary.as_ref().map(|s| to_doc_attr(s)));
-
-                Some(quote! {
-                    #doc_attr
-                    #field_name: #field_type
-                })
-            });
-
-                    quote! {
-                        #msg_name {
-                            #(#fields,)*
-                        }
-                    }
-                };
+                }
+            };
 
             quote! {
                 #doc_attr
@@ -483,11 +499,11 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
                     Type::String => {
                         if arg.allow_null {
                             quote! {
-                                #arg_name: #arg_name.as_ref().map(|s| String::from_utf8_lossy(s.as_bytes()).into_owned())
+                                #arg_name: #arg_name.map(|s| *s)
                             }
                         } else {
                             quote! {
-                                #arg_name: String::from_utf8_lossy(#arg_name.as_ref().unwrap().as_bytes()).into_owned()
+                                #arg_name: *#arg_name.unwrap()
                             }
                         }
                     },
@@ -638,9 +654,9 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                     vec![quote! { Argument::Array(Box::new(#arg_name)) }]
                 },
                 Type::String => if arg.allow_null {
-                    vec![quote! { Argument::Str(#arg_name.map(|s| Box::new(std::ffi::CString::new(s).unwrap()))) }]
+                    vec![quote! { Argument::Str(#arg_name.map(|s| Box::new(s))) }]
                 } else {
-                    vec![quote! { Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name).unwrap()))) }]
+                    vec![quote! { Argument::Str(Some(Box::new(#arg_name))) }]
                 },
                 Type::NewId => if side == Side::Client {
                     if let Some(ref created_interface) = arg.interface {
@@ -659,7 +675,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
                         });
                         vec![
                             quote! {
-                                Argument::Str(Some(Box::new(std::ffi::CString::new(#arg_name.0.name).unwrap())))
+                                Argument::Str(Some(Box::new(#arg_name.0.name)))
                             },
                             quote! {
                                 Argument::Uint(#arg_name.1)

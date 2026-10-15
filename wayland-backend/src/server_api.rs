@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    ffi::CString,
     fmt,
     os::unix::{io::BorrowedFd, net::UnixStream},
     sync::Arc,
@@ -418,7 +417,7 @@ impl Handle {
 
     /// Posts a protocol error on an object. This will also disconnect the client which created the object.
     #[inline]
-    pub fn post_error(&self, object_id: &ObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: &ObjectId, error_code: u32, message: &str) {
         self.handle.post_error(&object_id.id, error_code, message)
     }
 

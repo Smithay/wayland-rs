@@ -1,5 +1,4 @@
 use std::{
-    ffi::{CStr, CString},
     io,
     os::unix::io::AsFd,
     sync::atomic::{AtomicBool, Ordering},
@@ -33,7 +32,7 @@ macro_rules! serverdata_impls {
                     assert_eq!(*i, -13);
                     assert_eq!(*f, 4589);
                     assert_eq!(&**a, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                    assert_eq!(&***s, CStr::from_bytes_with_nul(b"I like trains\0").unwrap());
+                    assert_eq!(&***s, "I like trains");
                     // compare the fd to stdin
                     let stat1 = rustix::fs::fstat(&fd).unwrap();
                     let stat2 = rustix::fs::fstat(std::io::stdin()).unwrap();
@@ -75,9 +74,7 @@ macro_rules! serverdata_impls {
                             Argument::Int(-53),
                             Argument::Fixed(9823),
                             Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
-                            Argument::Str(Some(Box::new(
-                                CString::new("I want cake".as_bytes()).unwrap()
-                            ))),
+                            Argument::Str(Some(Box::new("I want cake"))),
                             Argument::Fd(stdout.as_fd()),
                         ],
                     ))
@@ -115,7 +112,7 @@ macro_rules! clientdata_impls {
                     assert_eq!(*i, -53);
                     assert_eq!(*f, 9823);
                     assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
-                    assert_eq!(&***s, CStr::from_bytes_with_nul(b"I want cake\0").unwrap());
+                    assert_eq!(&***s, "I want cake");
                     // compare the fd to stdout
                     let stat1 = rustix::fs::fstat(&fd).unwrap();
                     let stat2 = rustix::fs::fstat(std::io::stdout()).unwrap();
@@ -165,9 +162,7 @@ expand_test!(many_args, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(1),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -195,9 +190,7 @@ expand_test!(many_args, {
                     Argument::Int(-13),
                     Argument::Fixed(4589),
                     Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
-                    Argument::Str(Some(Box::new(
-                        CString::new("I like trains".as_bytes()).unwrap()
-                    ))),
+                    Argument::Str(Some(Box::new("I like trains"))),
                     Argument::Fd(stdin.as_fd()),
                 ],
             ),

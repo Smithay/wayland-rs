@@ -606,7 +606,7 @@ impl ProtocolState {
                             .map(|obj| obj.interface.name)
                             .unwrap_or("<unknown>")
                             .into(),
-                        message: message.to_string_lossy().into(),
+                        message: (**message).to_owned(),
                     });
                     return Err(self.store_and_return_error(err));
                 } else {
