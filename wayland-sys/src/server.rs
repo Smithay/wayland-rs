@@ -26,6 +26,7 @@ pub type wl_event_loop_timer_func_t = unsafe extern "C" fn(*mut c_void) -> c_int
 pub type wl_event_loop_signal_func_t = unsafe extern "C" fn(c_int, *mut c_void) -> c_int;
 pub type wl_event_loop_idle_func_t = unsafe extern "C" fn(*mut c_void) -> ();
 pub type wl_global_bind_func_t = unsafe extern "C" fn(*mut wl_client, *mut c_void, u32, u32) -> ();
+pub type wl_global_withdrawn_func_t = unsafe extern "C" fn (*mut wl_global) -> ();
 pub type wl_notify_func_t = unsafe extern "C" fn(*mut wl_listener, *mut c_void) -> ();
 pub type wl_resource_destroy_func_t = unsafe extern "C" fn(*mut wl_resource) -> ();
 pub type wl_display_global_filter_func_t =
@@ -103,12 +104,17 @@ external_library!(WaylandServer, "wayland-server",
         fn wl_event_source_timer_update(*mut wl_event_source, c_int) -> c_int,
         fn wl_event_source_remove(*mut wl_event_source) -> c_int,
         fn wl_event_source_check(*mut wl_event_source) -> (),
+    // wl_fixes
+        #[cfg(feature = "libwayland_server_1_26")]
+        fn wl_fixes_handle_ack_global_remove(*mut wl_resource, *mut wl_resource, u32) -> (),
     // wl_global
         fn wl_global_remove(*mut wl_global) -> (),
         fn wl_global_destroy(*mut wl_global) -> (),
         #[cfg(feature = "libwayland_server_1_22")]
         fn wl_global_get_name(*mut wl_global, *mut wl_client) -> u32,
         fn wl_global_get_user_data(*const wl_global) -> *mut c_void,
+        #[cfg(feature = "libwayland_server_1_26")]
+        fn wl_global_set_withdrawn_listener(*mut wl_global, wl_global_withdrawn_func_t) -> (),
     // wl_resource
         fn wl_resource_post_event_array(*mut wl_resource, u32, *mut wl_argument) -> (),
         fn wl_resource_queue_event_array(*mut wl_resource, u32, *mut wl_argument) -> (),
