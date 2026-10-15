@@ -61,6 +61,10 @@ impl<I: Resource + 'static, D: 'static, U: GlobalDispatch<I, D> + Send + Sync + 
             },
         }
     }
+
+    fn withdrawn(&self, _: &GlobalId) {
+        self.data.withdrawn();
+    }
 }
 
 struct ProtocolErrorData;
@@ -117,4 +121,6 @@ pub trait GlobalDispatch<I: Resource, State> {
     fn can_view(&self, _client: &Client) -> bool {
         true
     }
+
+    fn withdrawn(&self) {}
 }

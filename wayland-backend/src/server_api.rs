@@ -91,6 +91,9 @@ pub trait GlobalHandler<D>: Any + Send + Sync {
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlobalHandler").finish_non_exhaustive()
     }
+
+    // TODO add data arg?
+    fn withdrawn(&self, _global_id: &GlobalId) {}
 }
 
 impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
