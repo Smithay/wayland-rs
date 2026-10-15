@@ -88,19 +88,28 @@ pub fn write_to_buffers(
     fn write_array_to_payload<'a>(
         array: &[u8],
         payload: &'a mut [u8],
+        append_nul: bool,
     ) -> Result<&'a mut [u8], MessageWriteError> {
+        let mut len = array.len();
+        if append_nul {
+            len += 1;
+        }
+
         // size header
-        let payload = write_buf(array.len() as u32, payload)?;
+        let payload = write_buf(len as u32, payload)?;
 
         // Handle padding
-        let len = next_multiple_of(array.len(), 4);
+        let padded_len = next_multiple_of(len, 4);
 
-        if payload.len() < len {
+        if payload.len() < padded_len {
             return Err(MessageWriteError::BufferTooSmall);
         }
 
-        let (buffer_slice, rest) = payload.split_at_mut(len);
+        let (buffer_slice, rest) = payload.split_at_mut(padded_len);
         buffer_slice[..array.len()].copy_from_slice(array);
+        if append_nul {
+            buffer_slice[array.len()] = b'0';
+        }
         Ok(rest)
     }
 
@@ -117,11 +126,11 @@ pub fn write_to_buffers(
             Argument::Int(i) => write_buf(i as u32, payload)?,
             Argument::Uint(u) => write_buf(u, payload)?,
             Argument::Fixed(f) => write_buf(f as u32, payload)?,
-            Argument::Str(Some(ref s)) => write_array_to_payload(s.to_bytes_with_nul(), payload)?,
-            Argument::Str(None) => write_array_to_payload(&[], payload)?,
+            Argument::Str(Some(ref s)) => write_array_to_payload(s.as_bytes(), payload, true)?,
+            Argument::Str(None) => write_array_to_payload(&[], payload, false)?,
             Argument::Object(o) => write_buf(*o, payload)?,
             Argument::NewId(n) => write_buf(*n, payload)?,
-            Argument::Array(ref a) => write_array_to_payload(a, payload)?,
+            Argument::Array(ref a) => write_array_to_payload(a, payload, false)?,
             Argument::Fd(fd) => {
                 let dup_fd = fd.try_clone_to_owned().map_err(MessageWriteError::DupFdFailed)?;
                 fds.push(dup_fd);
@@ -207,7 +216,14 @@ pub fn parse_message<'a>(
                             tail = rest;
                             if !v.is_empty() {
                                 match CStr::from_bytes_with_nul(v) {
-                                    Ok(s) => Ok(OwnedArgument::Str(Some(Box::new(s.into())))),
+                                    Ok(s) => {
+                                        if let Ok(s) = s.to_str() {
+                                            Ok(OwnedArgument::Str(Some(Box::new(s.to_owned()))))
+                                        } else {
+                                            // TODO specfic error for invalid UTF-8?
+                                            Err(MessageParseError::Malformed)
+                                        }
+                                    }
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
                             } else {

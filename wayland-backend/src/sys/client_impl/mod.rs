@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashSet,
-    ffi::CStr,
+    ffi::{CStr, CString},
     num::NonZero,
     os::raw::{c_int, c_void},
     os::unix::{
@@ -705,6 +705,7 @@ impl InnerBackend {
         let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
 
         // check that all input objects are valid and create the [wl_argument]
+        let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.iter().enumerate() {
@@ -721,7 +722,12 @@ impl InnerBackend {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => {
+                    // XXX unwrap
+                    let s = CString::new((**s).to_owned()).unwrap();
+                    argument_list.push(wl_argument { s: s.as_ptr() });
+                    c_strs.push(s);
+                }
                 Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -1011,7 +1017,12 @@ unsafe extern "C" fn dispatcher_func(
                 // Safety: the c-string provided by libwayland must be valid
                 if !ptr.is_null() {
                     let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
+                    let Ok(s) = cstr.to_str() else {
+                        crate::log_error!("Invalid UTF-8 in Wayland argument: {:?}", cstr);
+                        // TODO make sure any fds are closed?
+                        return -1;
+                    };
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s.to_owned()))));
                 } else {
                     parsed_args.push(OwnedArgument::Str(None));
                 }

@@ -1,7 +1,7 @@
 //! Types and utilities for manipulating the Wayland protocol
 
 use std::{
-    ffi::{CStr, CString},
+    ffi::CStr,
     os::unix::io::{AsRawFd, BorrowedFd, OwnedFd},
 };
 
@@ -69,7 +69,7 @@ pub enum OwnedArgument<Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Option<Box<CString>>),
+    Str(Option<Box<String>>),
     /// Id of a wayland object
     Object(Id),
     /// Id of a newly created wayland object
@@ -133,7 +133,7 @@ pub enum Argument<'a, Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Option<Box<CString>>),
+    Str(Option<Box<&'a str>>),
     /// Id of a wayland object
     Object(&'a Id),
     /// Id of a newly created wayland object
