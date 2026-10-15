@@ -50,7 +50,7 @@ impl<I: Resource + 'static, D: 'static, U: GlobalDispatch<I, D> + Send + Sync + 
             Some(data) => data,
             None => match protocol_error {
                 Some((code, msg)) => {
-                    resource.post_error(code, msg);
+                    resource.post_error(code, &msg);
                     Arc::new(ProtocolErrorData)
                 }
 

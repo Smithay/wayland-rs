@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashSet,
-    ffi::CStr,
+    ffi::{CStr, CString},
     num::NonZero,
     os::raw::{c_int, c_void},
     os::unix::{
@@ -705,6 +705,7 @@ impl InnerBackend {
         let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
 
         // check that all input objects are valid and create the [wl_argument]
+        let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.iter().enumerate() {
@@ -721,7 +722,12 @@ impl InnerBackend {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => {
+                    // Panic if string contains internal \0 byte
+                    let s = CString::new((**s).to_owned()).unwrap();
+                    argument_list.push(wl_argument { s: s.as_ptr() });
+                    c_strs.push(s);
+                }
                 Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -1010,8 +1016,9 @@ unsafe extern "C" fn dispatcher_func(
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland must be valid
                 if !ptr.is_null() {
-                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
+                    // TODO: Should we error on invalid UTF-8?
+                    let s = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_string_lossy();
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s.into_owned()))));
                 } else {
                     parsed_args.push(OwnedArgument::Str(None));
                 }

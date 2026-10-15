@@ -725,7 +725,7 @@ impl InnerHandle {
         Ok(())
     }
 
-    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: &str) {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
@@ -935,7 +935,7 @@ pub(crate) trait ErasedState: Any {
         id: &InnerObjectId,
     ) -> Result<Arc<dyn std::any::Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
-    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString);
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: &str);
     fn kill_client(&mut self, client_id: &InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: &InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     #[cfg(feature = "libwayland_server_1_22")]
@@ -1187,6 +1187,7 @@ impl<D: 'static> ErasedState for State<D> {
             );
         }
 
+        let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.iter().enumerate() {
@@ -1203,7 +1204,12 @@ impl<D: 'static> ErasedState for State<D> {
                     });
                     argument_list.push(wl_argument { a: Box::into_raw(a) })
                 }
-                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
+                Argument::Str(Some(ref s)) => {
+                    // Panic if string contains internal \0 byte
+                    let s = CString::new((**s).to_owned()).unwrap();
+                    argument_list.push(wl_argument { s: s.as_ptr() });
+                    c_strs.push(s);
+                }
                 Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -1316,7 +1322,7 @@ impl<D: 'static> ErasedState for State<D> {
         Ok(())
     }
 
-    fn post_error(&mut self, id: &InnerObjectId, error_code: u32, message: CString) {
+    fn post_error(&mut self, id: &InnerObjectId, error_code: u32, message: &str) {
         let InnerObjectId::Resource(resource) = id else {
             return;
         };
@@ -1331,6 +1337,9 @@ impl<D: 'static> ErasedState for State<D> {
         let client_id = unsafe { client_id_from_ptr(client) }.unwrap();
         // mark the client as dead
         client_id.alive.store(false, Ordering::Release);
+
+        // Panic if string contains internal \0 byte
+        let message = CString::new(message.to_owned()).unwrap();
 
         unsafe {
             ffi_dispatch!(
@@ -1684,7 +1693,9 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
                 // Safety: the c-string provided by libwayland is valid
                 if !ptr.is_null() {
                     let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
+                    // TODO: Should we error on invalid UTF-8?
+                    let s = cstr.to_string_lossy().into_owned();
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s))));
                 } else {
                     parsed_args.push(OwnedArgument::Str(None));
                 }
