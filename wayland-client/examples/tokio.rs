@@ -60,7 +60,7 @@ async fn main() {
 
     let mut state = State { running: true, base_surface, buffer, configured: false };
 
-    let mut event_queue = AsyncFd::new(event_queue).unwrap();
+    let mut event_queue = unsafe { AsyncFd::register(event_queue) }.unwrap();
     while state.running {
         // Prepare read before polling file descritor
         // (Needed for synchronization if multiple threads are reading)
