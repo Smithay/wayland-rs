@@ -34,7 +34,7 @@ pub enum ArgumentType {
     Uint,
     /// A signed fixed point number with 1/256 precision
     Fixed,
-    /// A string. This is represented as a [`CString`] in a message.
+    /// A string. This is represented as a [`String`] in a message.
     Str(AllowNull),
     /// Id of a wayland object
     Object(AllowNull),
