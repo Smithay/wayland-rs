@@ -49,7 +49,7 @@ pub mod wl_registry {
             #[doc = "numeric name of the global object"]
             name: u32,
             #[doc = "interface implemented by the object"]
-            interface: String,
+            interface: &'a str,
             #[doc = "interface version"]
             version: u32,
         },
@@ -156,9 +156,7 @@ pub mod wl_registry {
                     args: {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::Uint(name));
-                        vec.push(Argument::Str(Some(Box::new(
-                            std::ffi::CString::new(interface).unwrap(),
-                        ))));
+                        vec.push(Argument::Str(Some(Box::new(interface))));
                         vec.push(Argument::Uint(version));
                         vec
                     },
@@ -185,7 +183,7 @@ pub mod wl_registry {
     impl WlRegistry {
         #[doc = "announce global object\n\nNotify the client of global objects.\n\nThe event notifies the client that a global object with\nthe given name is now available, and it implements the\ngiven version of the given interface."]
         #[allow(clippy::too_many_arguments)]
-        pub fn global(&self, name: u32, interface: String, version: u32) {
+        pub fn global(&self, name: u32, interface: &str, version: u32) {
             let _ = self.send_event(Event::Global { name, interface, version });
         }
         #[doc = "announce removal of global object\n\nNotify the client of removed global objects.\n\nThis event notifies the client that the global identified\nby name is no longer available.  If the client bound to\nthe global using the bind request, the client should now\ndestroy that object.\n\nThe object remains valid and requests to the object will be\nignored until the client destroys it, to avoid races between\nthe global going away and a client sending a request to it."]
@@ -474,7 +472,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: &'a [u8],
             #[doc = "some text"]
-            some_text: String,
+            some_text: &'a str,
             #[doc = "a file descriptor"]
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
@@ -876,7 +874,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
+                        Argument::Str(Some(Box::new(some_text))),
                         Argument::Fd(file_descriptor),
                     ]),
                 }),
@@ -922,7 +920,7 @@ pub mod test_global {
             signed_int: i32,
             fixed_point: f64,
             number_array: &[u8],
-            some_text: String,
+            some_text: &str,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let _ = self.send_event(Event::ManyArgsEvt {

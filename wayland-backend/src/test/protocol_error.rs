@@ -1,7 +1,4 @@
-use std::{
-    ffi::CString,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use crate::rs::{
     DEFAULT_MAX_BUFFER_SIZE,
@@ -72,9 +69,7 @@ expand_test!(protocol_error, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -91,7 +86,7 @@ expand_test!(protocol_error, {
     let oid = object_id.lock().unwrap().clone().unwrap();
 
     // post the error
-    server.handle().post_error(&oid, 42, CString::new("I don't like you.".as_bytes()).unwrap());
+    server.handle().post_error(&oid, 42, "I don't like you.");
 
     server.flush(None).unwrap();
     let ret = client.prepare_read().unwrap().read();
@@ -222,7 +217,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
         _: &server_rs::ClientId,
         msg: OwnedMessage<server_rs::ObjectId>,
     ) -> Option<Arc<dyn server_rs::ObjectData<D>>> {
-        handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        handle.post_error(&msg.sender_id, 0, "I don't like you.");
         None
     }
 
@@ -244,7 +239,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
         _: &server_sys::ClientId,
         msg: OwnedMessage<server_sys::ObjectId>,
     ) -> Option<Arc<dyn server_sys::ObjectData<D>>> {
-        handle.post_error(&msg.sender_id, 0, CString::new("I don't like you.".as_bytes()).unwrap());
+        handle.post_error(&msg.sender_id, 0, "I don't like you.");
         None
     }
 
@@ -290,9 +285,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -354,9 +347,7 @@ expand_test!(protocol_version_check, {
             opcode: 0,
             args: smallvec::smallvec![
                 Argument::Uint(1),
-                Argument::Str(Some(Box::new(
-                    CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap()
-                ))),
+                Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                 Argument::Uint(2),
                 Argument::NewId(&3),
             ],

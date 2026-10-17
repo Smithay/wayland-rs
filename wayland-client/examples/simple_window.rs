@@ -27,7 +27,7 @@ fn main() {
     let base_surface = compositor.create_surface(&qh, NoopIgnore);
     let xdg_surface = wm_base.get_xdg_surface(&base_surface, &qh, GlobalData);
     let xdg_toplevel = xdg_surface.get_toplevel(&qh, GlobalData);
-    xdg_toplevel.set_title("A fantastic window!".into());
+    xdg_toplevel.set_title("A fantastic window!");
     base_surface.commit();
 
     globals.bind_all::<wl_seat::WlSeat, _, _>(1..=1, &qh, |_| GlobalData).unwrap();
