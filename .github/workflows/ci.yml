@@ -287,6 +287,9 @@ jobs:
       - name: System dependencies
         run: sudo apt-get install libwayland-dev
 
+      - name: Update libwayland-server0 to newer release
+        run: wget http://mirrors.kernel.org/ubuntu/pool/main/w/wayland/libwayland-server0_1.26.0-1_amd64.deb && sudo dpkg -i libwayland-server0_1.26.0-1_amd64.deb
+
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
