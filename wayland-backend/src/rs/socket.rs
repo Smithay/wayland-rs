@@ -385,7 +385,6 @@ mod tests {
     use super::*;
     use crate::protocol::{AllowNull, Argument, ArgumentType, Message, OwnedArgument};
 
-    use std::ffi::CString;
     use std::io;
     use std::os::unix::io::BorrowedFd;
 
@@ -422,7 +421,7 @@ mod tests {
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
+                Argument::Str(Some(Box::new("I like trains!"))),
                 Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
                 Argument::Object(&88),
                 Argument::NewId(&56),
@@ -498,10 +497,7 @@ mod tests {
             Message {
                 sender_id: &42,
                 opcode: 0,
-                args: smallvec![
-                    Argument::Int(42),
-                    Argument::Str(Some(Box::new(CString::new(&b"I like trains"[..]).unwrap()))),
-                ],
+                args: smallvec![Argument::Int(42), Argument::Str(Some(Box::new("I like trains"))),],
             },
             Message {
                 sender_id: &42,
@@ -551,7 +547,7 @@ mod tests {
             opcode: 0,
             args: smallvec![
                 Argument::Uint(18),
-                Argument::Str(Some(Box::new(CString::new(&b"wl_shell"[..]).unwrap()))),
+                Argument::Str(Some(Box::new("wl_shell"))),
                 Argument::Uint(1),
             ],
         };

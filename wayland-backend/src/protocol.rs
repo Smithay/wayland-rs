@@ -108,7 +108,7 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Int(val) => Argument::Int(*val),
             Self::Uint(val) => Argument::Uint(*val),
             Self::Fixed(val) => Argument::Fixed(*val),
-            Self::Str(val) => Argument::Str(val.clone()),
+            Self::Str(val) => Argument::Str(val.as_ref().map(|s| Box::new(s.as_str()))),
             Self::Object(val) => Argument::Object(val),
             Self::NewId(val) => Argument::NewId(val),
             Self::Array(val) => Argument::Array(Box::new(val)),

@@ -266,7 +266,6 @@ mod tests {
     use super::*;
     use crate::protocol::AllowNull;
     use smallvec::smallvec;
-    use std::ffi::CString;
 
     #[test]
     fn into_from_raw_cycle() {
@@ -279,7 +278,7 @@ mod tests {
             args: smallvec![
                 Argument::Uint(3),
                 Argument::Fixed(-89),
-                Argument::Str(Some(Box::new(CString::new(&b"I like trains!"[..]).unwrap()))),
+                Argument::Str(Some(Box::new("I like trains!"))),
                 Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
                 Argument::Object(&88),
                 Argument::NewId(&56),
