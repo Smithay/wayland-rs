@@ -108,7 +108,7 @@ pub fn write_to_buffers(
         let (buffer_slice, rest) = payload.split_at_mut(padded_len);
         buffer_slice[..array.len()].copy_from_slice(array);
         if append_nul {
-            buffer_slice[array.len()] = b'0';
+            buffer_slice[array.len()] = b'\0';
         }
         Ok(rest)
     }
