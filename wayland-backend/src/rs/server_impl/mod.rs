@@ -2,18 +2,30 @@
 
 use std::{fmt, sync::Arc};
 
-use crate::protocol::{Interface, OwnedMessage, same_interface};
+use crate::protocol::{ANONYMOUS_INTERFACE, Interface, OwnedMessage, same_interface};
 
 mod client;
 mod common_poll;
 mod handle;
+pub(crate) use handle::State; // XXX?
 mod registry;
 
 pub use crate::types::server::Credentials;
 pub use common_poll::InnerBackend;
-pub use handle::{InnerHandle, WeakInnerHandle};
 
 use super::server::*;
+
+pub fn null_id() -> &'static ObjectId {
+    static NULL: ObjectId = ObjectId {
+        id: InnerObjectId {
+            id: 0,
+            serial: 0,
+            client_id: InnerClientId { id: 0, serial: 0 },
+            interface: &ANONYMOUS_INTERFACE,
+        },
+    };
+    &NULL
+}
 
 #[derive(Clone, Copy)]
 pub struct InnerObjectId {
