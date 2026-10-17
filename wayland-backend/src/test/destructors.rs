@@ -74,6 +74,22 @@ macro_rules! impl_client_objectdata {
 impl_client_objectdata!(client_rs);
 impl_client_objectdata!(client_sys);
 
+expand_test!(global_handler_lifetime, {
+    let server = server_backend::Backend::<()>::new().unwrap();
+    let handle = server.handle();
+    let data = Arc::new(DoNothingData);
+    let weak_data = Arc::downgrade(&data);
+    let global = handle.create_global::<()>(&interfaces::TEST_GLOBAL_INTERFACE, 3, data);
+
+    drop(handle.get_global_handler::<()>(&global).unwrap());
+
+    assert!(weak_data.upgrade().is_some());
+
+    handle.remove_global::<()>(&global);
+
+    assert!(weak_data.upgrade().is_none());
+});
+
 expand_test!(destructor_request, {
     let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
     let server = server_backend::Backend::new().unwrap();
