@@ -521,9 +521,7 @@ pub mod wl_registry {
                     let args = {
                         let mut vec = smallvec::SmallVec::new();
                         vec.push(Argument::Uint(name));
-                        vec.push(Argument::Str(Some(Box::new(
-                            std::ffi::CString::new(id.0.name).unwrap(),
-                        ))));
+                        vec.push(Argument::Str(Some(Box::new(id.0.name))));
                         vec.push(Argument::Uint(id.1));
                         vec.push(Argument::NewId(ObjectId::null()));
                         vec
@@ -771,7 +769,7 @@ pub mod test_global {
             #[doc = "an array"]
             number_array: &'a [u8],
             #[doc = "some text"]
-            some_text: String,
+            some_text: &'a str,
             #[doc = "a file descriptor"]
             file_descriptor: std::os::unix::io::BorrowedFd<'a>,
         },
@@ -1066,7 +1064,7 @@ pub mod test_global {
                         Argument::Int(signed_int),
                         Argument::Fixed((fixed_point * 256.) as i32),
                         Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
+                        Argument::Str(Some(Box::new(some_text))),
                         Argument::Fd(file_descriptor),
                     ]);
                     Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
@@ -1160,7 +1158,7 @@ pub mod test_global {
             signed_int: i32,
             fixed_point: f64,
             number_array: &[u8],
-            some_text: String,
+            some_text: &str,
             file_descriptor: ::std::os::unix::io::BorrowedFd<'_>,
         ) {
             let backend = match self.backend.upgrade() {
