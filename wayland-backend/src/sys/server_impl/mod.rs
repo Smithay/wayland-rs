@@ -17,8 +17,8 @@ use std::{
 };
 
 use crate::protocol::{
-    ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
-    OwnedArgument, OwnedMessage, check_for_signature, same_interface,
+    ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
+    ObjectInfo, OwnedArgument, OwnedMessage, check_for_signature, same_interface,
 };
 use scoped_tls::scoped_thread_local;
 use smallvec::SmallVec;
@@ -1187,7 +1187,7 @@ impl<D: 'static> ErasedState for State<D> {
             );
         }
 
-        let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
+        let mut argument_list = SmallVec::<[wl_argument; INLINE_ARGS]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.iter().enumerate() {
             match *arg {
@@ -1656,8 +1656,9 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
         }
     };
 
-    let mut parsed_args =
-        SmallVec::<[OwnedArgument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
+    let mut parsed_args = SmallVec::<[OwnedArgument<ObjectId>; INLINE_ARGS]>::with_capacity(
+        message_desc.signature.len(),
+    );
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed

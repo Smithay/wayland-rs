@@ -21,8 +21,9 @@ use crate::{
     debug,
     debug::has_debug_client_env,
     protocol::{
-        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
-        OwnedArgument, OwnedMessage, ProtocolError, check_for_signature, same_interface,
+        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
+        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
+        same_interface,
     },
 };
 use scoped_tls::scoped_thread_local;
@@ -983,8 +984,9 @@ unsafe extern "C" fn dispatcher_func(
         }
     };
 
-    let mut parsed_args =
-        SmallVec::<[OwnedArgument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
+    let mut parsed_args = SmallVec::<[OwnedArgument<ObjectId>; INLINE_ARGS]>::with_capacity(
+        message_desc.signature.len(),
+    );
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed

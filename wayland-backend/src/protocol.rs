@@ -368,9 +368,11 @@ pub struct ProtocolError {
 /// Number of arguments that are stocked inline in a `Message` before allocating
 ///
 /// This is a ad-hoc number trying to reach a good balance between avoiding too many allocations
-/// and keeping the stack size of `Message` small.
+/// and keeping the stack size of `Message` small. It is large enough that frequent events such as
+/// `zwp_relative_pointer_v1.relative_motion` (6 arguments, sent for every mouse motion) and
+/// `wl_keyboard.modifiers` (5 arguments) are dispatched without a heap allocation.
 // Note: Keep in sync with `wayland_scanner::common::gen_write_body`.
-pub const INLINE_ARGS: usize = 4;
+pub const INLINE_ARGS: usize = 8;
 
 /// Represents a message that has been sent from some object.
 #[derive(Debug, PartialEq, Eq)]
@@ -464,5 +466,14 @@ mod test {
         // Shouldn't be larger than a pointer, plus a discriminant of same size
         assert!(mem::size_of::<Argument<'_, usize>>() <= 2 * mem::size_of::<usize>());
         assert!(mem::size_of::<OwnedArgument<usize>>() <= 2 * mem::size_of::<usize>());
+    }
+
+    #[test]
+    fn test_frequent_events_fit_inline() {
+        // `zwp_relative_pointer_v1.relative_motion` is sent for every mouse motion and carries
+        // 6 arguments; `wl_output.geometry` carries 8. Neither may need a heap allocation.
+        let args: smallvec::SmallVec<[OwnedArgument<usize>; INLINE_ARGS]> =
+            (0..8).map(OwnedArgument::Uint).collect();
+        assert!(!args.spilled());
     }
 }

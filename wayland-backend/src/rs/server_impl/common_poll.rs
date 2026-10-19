@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
-    protocol::{OwnedArgument, OwnedMessage, same_interface},
+    protocol::{INLINE_ARGS, OwnedArgument, OwnedMessage, same_interface},
     rs::map::Object,
     types::server::InitError,
 };
@@ -335,7 +335,7 @@ enum DispatchAction<D: 'static> {
         object: Object<Data<D>>,
         object_id: InnerObjectId,
         opcode: u16,
-        arguments: SmallVec<[OwnedArgument<ObjectId>; 4]>,
+        arguments: SmallVec<[OwnedArgument<ObjectId>; INLINE_ARGS]>,
         is_destructor: bool,
         created_id: Option<InnerObjectId>,
     },
