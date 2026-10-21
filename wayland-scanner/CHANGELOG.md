@@ -6,7 +6,7 @@
 
 #### Breaking changes
 - Generate tuple struct for enums, and don't use `WEnum`
-- Generated bindings now use `&[u8]` in arguments instead of `Vec<u8>`
+- Generated bindings now use `&[u8]`/`&str` in arguments instead of `Vec<u8>`/`String`
 
 #### Additions
 - Add `available_since()` method for enums
