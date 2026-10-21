@@ -684,7 +684,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
             quote! {
                 smallvec::SmallVec::new()
             }
-        } else if msg.args.len() <= 4 {
+        } else if msg.args.len() <= 8 {
             // Note: Keep in sync with `wayland_backend::protocol::INLINE_ARGS`.
             // Fits in SmallVec inline capacity
             quote! { {

@@ -1061,14 +1061,18 @@ pub mod test_global {
                     file_descriptor,
                 } => {
                     let child_spec = None;
-                    let args = smallvec::SmallVec::from_vec(vec![
-                        Argument::Uint(unsigned_int),
-                        Argument::Int(signed_int),
-                        Argument::Fixed((fixed_point * 256.) as i32),
-                        Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(std::ffi::CString::new(some_text).unwrap()))),
-                        Argument::Fd(file_descriptor),
-                    ]);
+                    let args = {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(unsigned_int));
+                        vec.push(Argument::Int(signed_int));
+                        vec.push(Argument::Fixed((fixed_point * 256.) as i32));
+                        vec.push(Argument::Array(Box::new(number_array)));
+                        vec.push(Argument::Str(Some(Box::new(
+                            std::ffi::CString::new(some_text).unwrap(),
+                        ))));
+                        vec.push(Argument::Fd(file_descriptor));
+                        vec
+                    };
                     Ok((Message { sender_id: &self.id, opcode: 0u16, args }, child_spec))
                 }
                 Request::GetSecondary {} => {
