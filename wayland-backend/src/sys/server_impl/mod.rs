@@ -876,8 +876,8 @@ impl InnerHandle {
         }
 
         let udata = unsafe {
-            Box::from_raw(ffi_dispatch!(wayland_server_handle(), wl_global_get_user_data, id.ptr)
-                as *mut GlobalUserData<D>)
+            &*(ffi_dispatch!(wayland_server_handle(), wl_global_get_user_data, id.ptr)
+                as *const GlobalUserData<D>)
         };
         Ok(udata.handler.clone())
     }
