@@ -12,7 +12,8 @@
 - Do not use `downcast_rs` traits in API
 - Remove depreacted raw-window-handle 0.5 support
 - Split `Message`/`Argument` to have `OwnedMessage`/`OwnedArgument`
-- Use `&ObjectId`/`&ClientId` in arguments instead of `ObjectId`/`ClientId`
+- Use `&ObjectId`/`&ClientId`/`&str`/`&[u8]` in arguments instead of
+  `ObjectId`/`ClientId`/`String`/`Vec<u8>`
 
 #### Bugfixes
 - client/sys: Fix deadlock if `Backend` is used in `ObjectData::destroyed`
