@@ -1016,9 +1016,13 @@ unsafe extern "C" fn dispatcher_func(
                 let ptr = unsafe { (*args.add(i)).s };
                 // Safety: the c-string provided by libwayland must be valid
                 if !ptr.is_null() {
-                    // TODO: Should we error on invalid UTF-8?
-                    let s = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_string_lossy();
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s.into_owned()))));
+                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
+                    let Ok(s) = cstr.to_str() else {
+                        crate::log_error!("Invalid UTF-8 in Wayland argument: {:?}", cstr);
+                        // TODO make sure any fds are closed?
+                        return -1;
+                    };
+                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s.to_owned()))));
                 } else {
                     parsed_args.push(OwnedArgument::Str(None));
                 }
