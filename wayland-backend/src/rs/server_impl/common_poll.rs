@@ -4,8 +4,8 @@ use std::{
 };
 
 use super::{
-    ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId, InnerHandle,
-    InnerObjectId, ObjectId, handle::State,
+    ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId, InnerObjectId,
+    ObjectId, handle::State,
 };
 use crate::{
     core_interfaces::{WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
@@ -51,12 +51,12 @@ impl<D> InnerBackend<D> {
         Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
     }
 
-    pub fn flush(&self, client: Option<&ClientId>) -> std::io::Result<()> {
+    pub fn flush(&self, client: Option<&InnerClientId>) -> std::io::Result<()> {
         self.state.lock().unwrap().flush(client)
     }
 
     pub fn handle(&self) -> Handle {
-        Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
+        Handle { handle: self.state.clone() as Arc<_> }
     }
 
     pub fn poll_fd(&self) -> BorrowedFd<'_> {

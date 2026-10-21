@@ -630,7 +630,7 @@ impl<D> Client<D> {
                         }
                         OwnedArgument::Object(ObjectId { id: InnerObjectId { id: o, client_id: self.id, serial: obj.data.serial, interface: obj.interface }})
                     } else if matches!(message_desc.signature[i], ArgumentType::Object(AllowNull::Yes)) {
-                        OwnedArgument::Object(super::InnerHandle::null_id().clone())
+                        OwnedArgument::Object(super::null_id().clone())
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
