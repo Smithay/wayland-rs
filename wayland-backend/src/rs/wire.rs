@@ -217,9 +217,12 @@ pub fn parse_message<'a>(
                             if !v.is_empty() {
                                 match CStr::from_bytes_with_nul(v) {
                                     Ok(s) => {
-                                        // TODO: Should we error on invalid UTF-8?
-                                        let s = s.to_string_lossy().into_owned();
-                                        Ok(OwnedArgument::Str(Some(Box::new(s))))
+                                        if let Ok(s) = s.to_str() {
+                                            Ok(OwnedArgument::Str(Some(Box::new(s.to_owned()))))
+                                        } else {
+                                            // TODO specfic error for invalid UTF-8?
+                                            Err(MessageParseError::Malformed)
+                                        }
                                     }
                                     Err(_) => Err(MessageParseError::Malformed),
                                 }
