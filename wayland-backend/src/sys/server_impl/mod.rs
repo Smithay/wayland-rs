@@ -6,7 +6,7 @@ use std::{
     num::{NonZero, NonZeroU32},
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd},
+        io::{AsRawFd, BorrowedFd, IntoRawFd},
         net::UnixStream,
     },
     ptr::{self, NonNull},
@@ -1665,86 +1665,65 @@ unsafe extern "C" fn resource_dispatcher<D: 'static>(
         }
     };
 
-    let mut parsed_args =
-        SmallVec::<[OwnedArgument<ObjectId>; 4]>::with_capacity(message_desc.signature.len());
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
-    for (i, typ) in message_desc.signature.iter().enumerate() {
-        match typ {
-            ArgumentType::Uint => {
-                parsed_args.push(OwnedArgument::Uint(unsafe { (*args.add(i)).u }))
-            }
-            ArgumentType::Int => parsed_args.push(OwnedArgument::Int(unsafe { (*args.add(i)).i })),
-            ArgumentType::Fixed => {
-                parsed_args.push(OwnedArgument::Fixed(unsafe { (*args.add(i)).f }))
-            }
-            ArgumentType::Fd => parsed_args
-                .push(OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) })),
-            ArgumentType::Array => {
-                let array = unsafe { &*((*args.add(i)).a) };
-                // Safety: the wl_array provided by libwayland is valid
-                let content =
-                    unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
-                parsed_args.push(OwnedArgument::Array(Box::new(content.into())));
-            }
-            ArgumentType::Str(_) => {
-                let ptr = unsafe { (*args.add(i)).s };
-                // Safety: the c-string provided by libwayland is valid
-                if !ptr.is_null() {
-                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    // TODO: Should we error on invalid UTF-8?
-                    let s = cstr.to_string_lossy().into_owned();
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(s))));
-                } else {
-                    parsed_args.push(OwnedArgument::Str(None));
-                }
-            }
-            ArgumentType::Object(_) => {
-                let obj = unsafe { (*args.add(i)).o as *mut wl_resource };
-                let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
-                let id = if let Some(obj) = NonNull::new(obj) {
-                    ObjectId {
-                        id: unsafe { InnerObjectId::from_ptr(Some(next_interface), obj) }
-                            .expect("Received an invalid ID when parsing a message."),
-                    }
-                } else {
-                    // libwayland-server.so checks nulls for us
-                    InnerHandle::null_id().clone()
-                };
-                parsed_args.push(OwnedArgument::Object(id))
-            }
-            ArgumentType::NewId => {
-                let new_id = unsafe { (*args.add(i)).n };
-                // create the object
-                if new_id != 0 {
-                    let child_interface = match message_desc.child_interface {
-                        Some(iface) => iface,
-                        None => panic!(
-                            "Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.",
-                            udata.interface.name, resource_id, message_desc.name
-                        ),
+    let args = unsafe { std::slice::from_raw_parts(args, message_desc.signature.len()) };
+    let Ok(parsed_args) = message_desc.signature.iter().zip(args)
+        .map(|(typ, arg)| {
+            Ok(match unsafe { super::parse_arg(typ, arg) } {
+                OwnedArgument::Uint(value) => OwnedArgument::Uint(value),
+                OwnedArgument::Int(value) => OwnedArgument::Int(value),
+                OwnedArgument::Fixed(value) => OwnedArgument::Fixed(value),
+                OwnedArgument::Fd(value) => OwnedArgument::Fd(value),
+                OwnedArgument::Array(value) => OwnedArgument::Array(value),
+                OwnedArgument::Str(value) => OwnedArgument::Str(value),
+                OwnedArgument::Object(obj) => {
+                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
+                    let id = if let Some(obj) = obj {
+                        ObjectId {
+                            id: unsafe { InnerObjectId::from_ptr(Some(next_interface), obj) }
+                                .expect("Received an invalid ID when parsing a message."),
+                        }
+                    } else {
+                        // libwayland-server.so checks nulls for us
+                        InnerHandle::null_id().clone()
                     };
-                    // create the object
-                    let resource = ffi_dispatch!(
-                        wayland_server_handle(),
-                        wl_resource_create,
-                        client,
-                        &child_interface.c_interface.unwrap().0,
-                        version,
-                        new_id
-                    );
-                    // Safety: the resource has just been created and is valid
-                    let (child_id, child_data_ptr) =
-                        unsafe { init_resource::<D>(resource, child_interface, None) };
-                    created = Some((child_id.clone(), child_data_ptr));
-                    parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
-                } else {
-                    parsed_args.push(OwnedArgument::NewId(InnerHandle::null_id().clone()))
+                    OwnedArgument::Object(id)
                 }
-            }
-        }
-    }
+                OwnedArgument::NewId(new_id) => {
+                    // create the object
+                    if let Some(new_id) = new_id {
+                        let child_interface = match message_desc.child_interface {
+                            Some(iface) => iface,
+                            None => panic!(
+                                "Received request {}@{}.{} which creates an object without specifying its interface, this is unsupported.",
+                                udata.interface.name, resource_id, message_desc.name
+                            ),
+                        };
+                        // create the object
+                        let resource = ffi_dispatch!(
+                            wayland_server_handle(),
+                            wl_resource_create,
+                            client,
+                            &child_interface.c_interface.unwrap().0,
+                            version,
+                            new_id.get()
+                        );
+                        // Safety: the resource has just been created and is valid
+                        let (child_id, child_data_ptr) =
+                            unsafe { init_resource::<D>(resource, child_interface, None) };
+                        created = Some((child_id.clone(), child_data_ptr));
+                        OwnedArgument::NewId(ObjectId { id: child_id })
+                    } else {
+                        OwnedArgument::NewId(InnerHandle::null_id().clone())
+                    }
+                }
+            })
+        }).collect::<Result<SmallVec<_>, ()>>()
+    else {
+        return -1;
+    };
 
     let object_id = ObjectId {
         id: InnerObjectId::Resource(Resource {
