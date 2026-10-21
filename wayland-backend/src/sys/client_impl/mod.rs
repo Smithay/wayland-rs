@@ -30,7 +30,7 @@ use smallvec::SmallVec;
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
 
-use super::{RUST_MANAGED, free_arrays};
+use super::RUST_MANAGED;
 
 use super::client::*;
 
@@ -706,10 +706,10 @@ impl InnerBackend {
 
         // check that all input objects are valid and create the [wl_argument]
         let mut c_strs = SmallVec::<[CString; 4]>::new();
-        let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
+        let mut argument_list = super::SerializedArgs::new(message_desc.signature);
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.into_iter().enumerate() {
-            let arg = match arg {
+            argument_list.add(match arg {
                 Argument::Uint(u) => Argument::Uint(u),
                 Argument::Int(i) => Argument::Int(i),
                 Argument::Fixed(f) => Argument::Fixed(f),
@@ -720,7 +720,6 @@ impl InnerBackend {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Proxy(p) = &o.id {
                         if !p.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
-                            unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
                         if !same_interface(next_interface, p.interface) {
@@ -748,8 +747,7 @@ impl InnerBackend {
                     Argument::Object(ptr)
                 }
                 Argument::NewId(_) => Argument::NewId(&None),
-            };
-            argument_list.push(super::serialize_arg(arg, &mut c_strs));
+            }, &mut c_strs);
         }
 
         let ret = if child_spec.is_none() {
@@ -759,7 +757,7 @@ impl InnerBackend {
                     wl_proxy_marshal_array,
                     proxy.ptr.as_ptr(),
                     opcode as u32,
-                    argument_list.as_mut_ptr(),
+                    argument_list.args.as_mut_ptr(),
                 )
             }
             std::ptr::null_mut()
@@ -777,7 +775,7 @@ impl InnerBackend {
                     wl_proxy_marshal_array_constructor_versioned,
                     wrapped_ptr,
                     opcode as u32,
-                    argument_list.as_mut_ptr(),
+                    argument_list.args.as_mut_ptr(),
                     child_interface_ptr,
                     child_version
                 );
@@ -785,10 +783,6 @@ impl InnerBackend {
                 ret
             }
         };
-
-        unsafe {
-            free_arrays(message_desc.signature, &argument_list);
-        }
 
         if ret.is_null() && child_spec.is_some() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");

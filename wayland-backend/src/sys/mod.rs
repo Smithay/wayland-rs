@@ -25,16 +25,6 @@ mod server_impl;
 /// This static serves no purpose other than existing at a stable address.
 static RUST_MANAGED: u8 = 42;
 
-unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
-    for (typ, arg) in signature.iter().zip(arglist.iter()) {
-        if let ArgumentType::Array = typ {
-            // Safety: the arglist provided arglist must be valid for associated signature
-            // and contains pointers to boxed arrays as appropriate
-            let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
-        }
-    }
-}
-
 /// Client-side implementation of a Wayland protocol backend using `libwayland`
 ///
 /// Entrypoints are:
@@ -268,32 +258,59 @@ unsafe fn parse_arg<O>(
     }
 }
 
-fn serialize_arg<O>(
-    arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>,
-    c_strs: &mut SmallVec<[CString; 4]>,
-) -> wl_argument {
-    match arg {
-        Argument::Uint(u) => wl_argument { u },
-        Argument::Int(i) => wl_argument { i },
-        Argument::Fixed(f) => wl_argument { f },
-        Argument::Fd(h) => wl_argument { h: h.as_raw_fd() },
-        Argument::Array(ref a) => {
-            let a =
-                Box::new(wl_array { size: a.len(), alloc: a.len(), data: a.as_ptr() as *mut _ });
-            wl_argument { a: Box::into_raw(a) }
+struct SerializedArgs {
+    signature: &'static [ArgumentType],
+    args: SmallVec<[wl_argument; 4]>,
+}
+
+impl SerializedArgs {
+    fn new(signature: &'static [ArgumentType]) -> Self {
+        Self { signature, args: SmallVec::<[wl_argument; 4]>::with_capacity(signature.len()) }
+    }
+
+    fn add<O>(
+        &mut self,
+        arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>,
+        c_strs: &mut SmallVec<[CString; 4]>,
+    ) {
+        self.args.push(match arg {
+            Argument::Uint(u) => wl_argument { u },
+            Argument::Int(i) => wl_argument { i },
+            Argument::Fixed(f) => wl_argument { f },
+            Argument::Fd(h) => wl_argument { h: h.as_raw_fd() },
+            Argument::Array(ref a) => {
+                let a = Box::new(wl_array {
+                    size: a.len(),
+                    alloc: a.len(),
+                    data: a.as_ptr() as *mut _,
+                });
+                wl_argument { a: Box::into_raw(a) }
+            }
+            Argument::Str(Some(ref s)) => {
+                // Panic if string contains internal \0 byte
+                let s = CString::new((**s).to_owned()).unwrap();
+                let ptr = s.as_ptr();
+                c_strs.push(s);
+                wl_argument { s: ptr }
+            }
+            Argument::Str(None) => wl_argument { s: std::ptr::null() },
+            Argument::Object(o) => {
+                wl_argument { o: o.map_or_else(ptr::null, |o| o.as_ptr()) as *const _ }
+            }
+            Argument::NewId(n) => wl_argument { n: n.map_or(0, |n| n.get()) },
+        });
+    }
+}
+
+impl Drop for SerializedArgs {
+    fn drop(&mut self) {
+        for (typ, arg) in self.signature.iter().zip(self.args.iter()) {
+            if let ArgumentType::Array = typ {
+                // Safety: the arglist provided arglist must be valid for associated signature
+                // and contains pointers to boxed arrays as appropriate
+                let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
+            }
         }
-        Argument::Str(Some(ref s)) => {
-            // Panic if string contains internal \0 byte
-            let s = CString::new((**s).to_owned()).unwrap();
-            let ptr = s.as_ptr();
-            c_strs.push(s);
-            wl_argument { s: ptr }
-        }
-        Argument::Str(None) => wl_argument { s: std::ptr::null() },
-        Argument::Object(o) => {
-            wl_argument { o: o.map_or_else(ptr::null, |o| o.as_ptr()) as *const _ }
-        }
-        Argument::NewId(n) => wl_argument { n: n.map_or(0, |n| n.get()) },
     }
 }
 

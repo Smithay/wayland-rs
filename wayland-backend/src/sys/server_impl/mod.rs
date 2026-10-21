@@ -25,7 +25,7 @@ use smallvec::SmallVec;
 
 use wayland_sys::{common::*, ffi_dispatch, server::*};
 
-use super::{RUST_MANAGED, free_arrays, server::*};
+use super::{RUST_MANAGED, server::*};
 
 #[allow(unused_imports)]
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
@@ -1188,10 +1188,10 @@ impl<D: 'static> ErasedState for State<D> {
         }
 
         let mut c_strs = SmallVec::<[CString; 4]>::new();
-        let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
+        let mut argument_list = super::SerializedArgs::new(message_desc.signature);
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.into_iter().enumerate() {
-            let arg = match arg {
+            argument_list.add(match arg {
                 Argument::Uint(u) => Argument::Uint(u),
                 Argument::Int(i) => Argument::Int(i),
                 Argument::Fixed(f) => Argument::Fixed(f),
@@ -1202,7 +1202,6 @@ impl<D: 'static> ErasedState for State<D> {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
                         if !r.alive.load(Ordering::Acquire) {
-                            unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
@@ -1238,7 +1237,6 @@ impl<D: 'static> ErasedState for State<D> {
                 Argument::NewId(o) => {
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
                         if !r.alive.load(Ordering::Acquire) {
-                            unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
                         // check that the object belongs to the right client
@@ -1276,8 +1274,7 @@ impl<D: 'static> ErasedState for State<D> {
                     // libwayland-server provides new ID as pointer in .o field, not integer in .n field
                     Argument::Object(ptr)
                 }
-            };
-            argument_list.push(super::serialize_arg(arg, &mut c_strs));
+            }, &mut c_strs);
         }
 
         unsafe {
@@ -1286,12 +1283,8 @@ impl<D: 'static> ErasedState for State<D> {
                 wl_resource_post_event_array,
                 resource.ptr.as_ptr(),
                 opcode as u32,
-                argument_list.as_mut_ptr()
+                argument_list.args.as_mut_ptr()
             );
-        }
-
-        unsafe {
-            free_arrays(message_desc.signature, &argument_list);
         }
 
         if message_desc.is_destructor {
