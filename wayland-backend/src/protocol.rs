@@ -58,7 +58,7 @@ impl ArgumentType {
 /// Enum of possible argument of the protocol
 #[derive(Debug)]
 #[allow(clippy::box_collection)]
-pub enum OwnedArgument<Id> {
+pub enum OwnedArgument<Id, NewId = Id> {
     /// An integer argument. Represented by a [`i32`].
     Int(i32),
     /// An unsigned integer argument. Represented by a [`u32`].
@@ -73,7 +73,7 @@ pub enum OwnedArgument<Id> {
     /// Id of a wayland object
     Object(Id),
     /// Id of a newly created wayland object
-    NewId(Id),
+    NewId(NewId),
     /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance

@@ -1,12 +1,14 @@
 //! Implementations of the Wayland backends using the system `libwayland`
 
+use std::num::NonZeroU32;
+use std::os::unix::io::{FromRawFd, OwnedFd};
 use std::ptr::NonNull;
 use std::sync::Arc;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
 
-use crate::protocol::{ArgumentType, Interface};
+use crate::protocol::{ArgumentType, Interface, OwnedArgument};
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
 use std::ffi::c_void;
@@ -230,5 +232,36 @@ impl server::Handle {
     /// Access the underlying `*mut wl_display` pointer
     pub fn display_ptr(&self) -> *mut c_void {
         self.handle.display_ptr().cast()
+    }
+}
+
+unsafe fn parse_arg<O>(
+    typ: &ArgumentType,
+    arg: &wl_argument,
+) -> OwnedArgument<Option<NonNull<O>>, Option<NonZeroU32>> {
+    match typ {
+        ArgumentType::Uint => OwnedArgument::Uint(unsafe { arg.u }),
+        ArgumentType::Int => OwnedArgument::Int(unsafe { arg.i }),
+        ArgumentType::Fixed => OwnedArgument::Fixed(unsafe { arg.f }),
+        ArgumentType::Fd => OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd(arg.h) }),
+        ArgumentType::Array => {
+            let array = unsafe { &*arg.a };
+            // Safety: the array provided by libwayland must be valid
+            let content = unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
+            OwnedArgument::Array(Box::new(content.into()))
+        }
+        ArgumentType::Str(_) => {
+            let ptr = unsafe { arg.s };
+            // Safety: the c-string provided by libwayland must be valid
+            OwnedArgument::Str(if !ptr.is_null() {
+                // TODO: Should we error on invalid UTF-8?
+                let s = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_string_lossy();
+                Some(Box::new(s.into_owned()))
+            } else {
+                None
+            })
+        }
+        ArgumentType::Object(_) => OwnedArgument::Object(NonNull::new(unsafe { arg.o as *mut O })),
+        ArgumentType::NewId => OwnedArgument::NewId(NonZeroU32::new(unsafe { arg.n })),
     }
 }
