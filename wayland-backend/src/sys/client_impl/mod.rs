@@ -6,7 +6,7 @@ use std::{
     num::NonZero,
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{AsRawFd, BorrowedFd, IntoRawFd},
+        io::{BorrowedFd, IntoRawFd},
         net::UnixStream,
     },
     ptr::{self, NonNull},
@@ -708,27 +708,14 @@ impl InnerBackend {
         let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().enumerate() {
-            match *arg {
-                Argument::Uint(u) => argument_list.push(wl_argument { u }),
-                Argument::Int(i) => argument_list.push(wl_argument { i }),
-                Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h: h.as_raw_fd() }),
-                Argument::Array(ref a) => {
-                    let a = Box::new(wl_array {
-                        size: a.len(),
-                        alloc: a.len(),
-                        data: a.as_ptr() as *mut _,
-                    });
-                    argument_list.push(wl_argument { a: Box::into_raw(a) })
-                }
-                Argument::Str(Some(ref s)) => {
-                    // Panic if string contains internal \0 byte
-                    let s = CString::new((**s).to_owned()).unwrap();
-                    argument_list.push(wl_argument { s: s.as_ptr() });
-                    c_strs.push(s);
-                }
-                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
+        for (i, arg) in args.into_iter().enumerate() {
+            let arg = match arg {
+                Argument::Uint(u) => Argument::Uint(u),
+                Argument::Int(i) => Argument::Int(i),
+                Argument::Fixed(f) => Argument::Fixed(f),
+                Argument::Fd(h) => Argument::Fd(h),
+                Argument::Array(a) => Argument::Array(a),
+                Argument::Str(s) => Argument::Str(s),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Proxy(p) = &o.id {
@@ -746,7 +733,7 @@ impl InnerBackend {
                                 p.interface.name
                             );
                         }
-                        p.ptr.as_ptr()
+                        super::cast_non_null_ref(&p.ptr)
                     } else if !matches!(
                         message_desc.signature[i],
                         ArgumentType::Object(AllowNull::Yes)
@@ -756,12 +743,13 @@ impl InnerBackend {
                             proxy.interface.name, proxy.id, message_desc.name
                         )
                     } else {
-                        ptr::null()
+                        &None
                     };
-                    argument_list.push(wl_argument { o: ptr as *const _ })
+                    Argument::Object(ptr)
                 }
-                Argument::NewId(_) => argument_list.push(wl_argument { n: 0 }),
-            }
+                Argument::NewId(_) => Argument::NewId(&None),
+            };
+            argument_list.push(super::serialize_arg(arg, &mut c_strs));
         }
 
         let ret = if child_spec.is_none() {

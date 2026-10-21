@@ -1,14 +1,16 @@
 //! Implementations of the Wayland backends using the system `libwayland`
 
+use smallvec::SmallVec;
+use std::ffi::CString;
 use std::num::NonZeroU32;
-use std::os::unix::io::{FromRawFd, OwnedFd};
-use std::ptr::NonNull;
+use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
+use std::ptr::{self, NonNull};
 use std::sync::Arc;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
 
-use crate::protocol::{ArgumentType, Interface, OwnedArgument};
+use crate::protocol::{Argument, ArgumentType, Interface, OwnedArgument};
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
 use std::ffi::c_void;
@@ -264,4 +266,38 @@ unsafe fn parse_arg<O>(
         ArgumentType::Object(_) => OwnedArgument::Object(NonNull::new(unsafe { arg.o as *mut O })),
         ArgumentType::NewId => OwnedArgument::NewId(NonZeroU32::new(unsafe { arg.n })),
     }
+}
+
+fn serialize_arg<O>(
+    arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>,
+    c_strs: &mut SmallVec<[CString; 4]>,
+) -> wl_argument {
+    match arg {
+        Argument::Uint(u) => wl_argument { u },
+        Argument::Int(i) => wl_argument { i },
+        Argument::Fixed(f) => wl_argument { f },
+        Argument::Fd(h) => wl_argument { h: h.as_raw_fd() },
+        Argument::Array(ref a) => {
+            let a =
+                Box::new(wl_array { size: a.len(), alloc: a.len(), data: a.as_ptr() as *mut _ });
+            wl_argument { a: Box::into_raw(a) }
+        }
+        Argument::Str(Some(ref s)) => {
+            // Panic if string contains internal \0 byte
+            let s = CString::new((**s).to_owned()).unwrap();
+            let ptr = s.as_ptr();
+            c_strs.push(s);
+            wl_argument { s: ptr }
+        }
+        Argument::Str(None) => wl_argument { s: std::ptr::null() },
+        Argument::Object(o) => {
+            wl_argument { o: o.map_or_else(ptr::null, |o| o.as_ptr()) as *const _ }
+        }
+        Argument::NewId(n) => wl_argument { n: n.map_or(0, |n| n.get()) },
+    }
+}
+
+fn cast_non_null_ref<T>(ptr: &NonNull<T>) -> &Option<NonNull<T>> {
+    // SAFETY: `Option<NonNull<T>>` is guaranteed to have same repr as `NonNull<T>`
+    unsafe { &*(ptr as *const _ as *const _) }
 }

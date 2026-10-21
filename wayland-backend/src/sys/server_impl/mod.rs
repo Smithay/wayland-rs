@@ -6,10 +6,10 @@ use std::{
     num::{NonZero, NonZeroU32},
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{AsRawFd, BorrowedFd, IntoRawFd},
+        io::{BorrowedFd, IntoRawFd},
         net::UnixStream,
     },
-    ptr::{self, NonNull},
+    ptr::NonNull,
     sync::{
         Arc, Mutex, Weak,
         atomic::{AtomicBool, Ordering},
@@ -1190,27 +1190,14 @@ impl<D: 'static> ErasedState for State<D> {
         let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().enumerate() {
-            match *arg {
-                Argument::Uint(u) => argument_list.push(wl_argument { u }),
-                Argument::Int(i) => argument_list.push(wl_argument { i }),
-                Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h: h.as_raw_fd() }),
-                Argument::Array(ref a) => {
-                    let a = Box::new(wl_array {
-                        size: a.len(),
-                        alloc: a.len(),
-                        data: a.as_ptr() as *mut _,
-                    });
-                    argument_list.push(wl_argument { a: Box::into_raw(a) })
-                }
-                Argument::Str(Some(ref s)) => {
-                    // Panic if string contains internal \0 byte
-                    let s = CString::new((**s).to_owned()).unwrap();
-                    argument_list.push(wl_argument { s: s.as_ptr() });
-                    c_strs.push(s);
-                }
-                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
+        for (i, arg) in args.into_iter().enumerate() {
+            let arg = match arg {
+                Argument::Uint(u) => Argument::Uint(u),
+                Argument::Int(i) => Argument::Int(i),
+                Argument::Fixed(f) => Argument::Fixed(f),
+                Argument::Fd(h) => Argument::Fd(h),
+                Argument::Array(a) => Argument::Array(a),
+                Argument::Str(s) => Argument::Str(s),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
@@ -1234,7 +1221,7 @@ impl<D: 'static> ErasedState for State<D> {
                                 r.interface.name
                             );
                         }
-                        r.ptr.as_ptr()
+                        super::cast_non_null_ref(&r.ptr)
                     } else if !matches!(
                         message_desc.signature[i],
                         ArgumentType::Object(AllowNull::Yes)
@@ -1244,9 +1231,9 @@ impl<D: 'static> ErasedState for State<D> {
                             resource.interface.name, resource.id, message_desc.name
                         )
                     } else {
-                        ptr::null()
+                        &None
                     };
-                    argument_list.push(wl_argument { o: ptr as *const _ })
+                    Argument::Object(ptr)
                 }
                 Argument::NewId(o) => {
                     let ptr = if let InnerObjectId::Resource(r) = &o.id {
@@ -1277,18 +1264,20 @@ impl<D: 'static> ErasedState for State<D> {
                                 r.interface.name
                             );
                         }
-                        r.ptr.as_ptr()
+                        super::cast_non_null_ref(&r.ptr)
                     } else if !matches!(message_desc.signature[i], ArgumentType::NewId) {
                         panic!(
                             "Event {}@{}.{} expects an non-null object argument.",
                             resource.interface.name, resource.id, message_desc.name
                         )
                     } else {
-                        ptr::null()
+                        &None
                     };
-                    argument_list.push(wl_argument { o: ptr as *const _ })
+                    // libwayland-server provides new ID as pointer in .o field, not integer in .n field
+                    Argument::Object(ptr)
                 }
-            }
+            };
+            argument_list.push(super::serialize_arg(arg, &mut c_strs));
         }
 
         unsafe {
