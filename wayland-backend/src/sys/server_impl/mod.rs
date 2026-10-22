@@ -1187,7 +1187,6 @@ impl<D: 'static> ErasedState for State<D> {
             );
         }
 
-        let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = super::SerializedArgs::new(message_desc.signature);
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.into_iter().enumerate() {
@@ -1274,7 +1273,7 @@ impl<D: 'static> ErasedState for State<D> {
                     // libwayland-server provides new ID as pointer in .o field, not integer in .n field
                     Argument::Object(ptr)
                 }
-            }, &mut c_strs);
+            });
         }
 
         unsafe {

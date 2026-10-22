@@ -268,11 +268,7 @@ impl SerializedArgs {
         Self { signature, args: SmallVec::<[wl_argument; 4]>::with_capacity(signature.len()) }
     }
 
-    fn add<O>(
-        &mut self,
-        arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>,
-        c_strs: &mut SmallVec<[CString; 4]>,
-    ) {
+    fn add<O>(&mut self, arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>) {
         self.args.push(match arg {
             Argument::Uint(u) => wl_argument { u },
             Argument::Int(i) => wl_argument { i },
@@ -289,9 +285,7 @@ impl SerializedArgs {
             Argument::Str(Some(ref s)) => {
                 // Panic if string contains internal \0 byte
                 let s = CString::new((**s).to_owned()).unwrap();
-                let ptr = s.as_ptr();
-                c_strs.push(s);
-                wl_argument { s: ptr }
+                wl_argument { s: s.into_raw() }
             }
             Argument::Str(None) => wl_argument { s: std::ptr::null() },
             Argument::Object(o) => {
@@ -305,10 +299,15 @@ impl SerializedArgs {
 impl Drop for SerializedArgs {
     fn drop(&mut self) {
         for (typ, arg) in self.signature.iter().zip(self.args.iter()) {
+            // Safety: the arglist provided arglist must be valid for associated signature
+            // and contains pointers to boxed arrays/cstrings as appropriate
             if let ArgumentType::Array = typ {
-                // Safety: the arglist provided arglist must be valid for associated signature
-                // and contains pointers to boxed arrays as appropriate
                 let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
+            } else if let ArgumentType::Str(_) = typ {
+                let ptr = unsafe { arg.s };
+                if !ptr.is_null() {
+                    let _ = unsafe { CString::from_raw(ptr as *mut _) };
+                }
             }
         }
     }
