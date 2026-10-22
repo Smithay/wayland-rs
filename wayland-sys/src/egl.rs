@@ -6,7 +6,7 @@
 
 use crate::client::wl_proxy;
 use std::os::raw::c_int;
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 use std::sync::LazyLock;
 
 pub enum wl_egl_window {}
@@ -19,7 +19,7 @@ external_library!(WaylandEgl, "wayland-egl",
         fn wl_egl_window_get_attached_size(*mut wl_egl_window, *mut c_int, *mut c_int) -> (),
 );
 
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
     static WAYLAND_EGL_OPTION: LazyLock<Option<WaylandEgl>> = LazyLock::new(|| {
         let versions = ["libwayland-egl.so.1", "libwayland-egl.so"];
@@ -40,7 +40,7 @@ pub fn wayland_egl_option() -> Option<&'static WaylandEgl> {
     WAYLAND_EGL_OPTION.as_ref()
 }
 
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn wayland_egl_handle() -> &'static WaylandEgl {
     static WAYLAND_EGL_HANDLE: LazyLock<&'static WaylandEgl> = LazyLock::new(|| {
         wayland_egl_option().expect("Library libwayland-egl.so could not be loaded.")
@@ -49,11 +49,11 @@ pub fn wayland_egl_handle() -> &'static WaylandEgl {
     &WAYLAND_EGL_HANDLE
 }
 
-#[cfg(not(feature = "dlopen"))]
+#[cfg(not(dlopen))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(feature = "dlopen")]
+#[cfg(dlopen)]
 pub fn is_lib_available() -> bool {
     wayland_egl_option().is_some()
 }

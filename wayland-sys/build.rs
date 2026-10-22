@@ -1,7 +1,13 @@
 use pkg_config::Config;
 
 fn main() {
-    if std::env::var_os("CARGO_FEATURE_DLOPEN").is_some() {
+    println!("cargo:rustc-check-cfg=cfg(dlopen)");
+    println!("cargo:rerun-if-env-changed=FORCE_NO_DLOPEN");
+
+    if std::env::var_os("CARGO_FEATURE_DLOPEN").is_some()
+        && std::env::var("FORCE_NO_DLOPEN").map_or(true, |v| v != "1")
+    {
+        println!("cargo:rustc-cfg=dlopen");
         // Do not link to anything
         return;
     }
