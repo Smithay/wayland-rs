@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashSet,
-    ffi::{CStr, CString},
+    ffi::CStr,
     num::NonZero,
     os::raw::{c_int, c_void},
     os::unix::{
@@ -705,7 +705,6 @@ impl InnerBackend {
         let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
 
         // check that all input objects are valid and create the [wl_argument]
-        let mut c_strs = SmallVec::<[CString; 4]>::new();
         let mut argument_list = super::SerializedArgs::new(message_desc.signature);
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
         for (i, arg) in args.into_iter().enumerate() {
@@ -747,7 +746,7 @@ impl InnerBackend {
                     Argument::Object(ptr)
                 }
                 Argument::NewId(_) => Argument::NewId(&None),
-            }, &mut c_strs);
+            });
         }
 
         let ret = if child_spec.is_none() {
