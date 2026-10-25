@@ -57,6 +57,17 @@ impl Message {
             .iter()
             .all(|a| !((a.typ == Type::Object || a.typ == Type::NewId) && a.interface.is_some()))
     }
+
+    pub fn cfg_attr(&self) -> Option<TokenStream> {
+        let cfg_restriction = self
+            .typ
+            .iter()
+            .copied()
+            .chain(self.args.iter().map(|arg| arg.typ))
+            .filter_map(Type::cfg_restriction)
+            .reduce(|x, y| x + y);
+        cfg_restriction.map(CfgRestriction::attr)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -155,6 +166,35 @@ impl Type {
             Type::Object => quote!(Object),
             Type::NewId => quote!(NewId),
             Type::Destructor => panic!("Destructor is not a valid argument type."),
+        }
+    }
+
+    pub fn cfg_restriction(self) -> Option<CfgRestriction> {
+        match self {
+            Type::Fd => Some(CfgRestriction::Unix),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum CfgRestriction {
+    Unix,
+}
+
+impl CfgRestriction {
+    pub fn attr(self) -> TokenStream {
+        match self {
+            CfgRestriction::Unix => quote! { #[cfg(unix)] },
+        }
+    }
+}
+
+impl std::ops::Add for CfgRestriction {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (CfgRestriction::Unix, CfgRestriction::Unix) => CfgRestriction::Unix,
         }
     }
 }

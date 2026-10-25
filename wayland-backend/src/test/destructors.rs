@@ -47,6 +47,7 @@ macro_rules! impl_server_objectdata {
 }
 
 impl_server_objectdata!(server_rs);
+#[cfg(unix)]
 impl_server_objectdata!(server_sys);
 
 struct ClientData(AtomicBool);
@@ -69,10 +70,11 @@ macro_rules! impl_client_objectdata {
 }
 
 impl_client_objectdata!(client_rs);
+#[cfg(unix)]
 impl_client_objectdata!(client_sys);
 
 expand_test!(destructor_request, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -131,7 +133,7 @@ expand_test!(destructor_request, {
 });
 
 expand_test!(destructor_cleanup, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -201,10 +203,11 @@ macro_rules! impl_server_clientdata {
     };
 }
 impl_server_clientdata!(server_rs);
+#[cfg(unix)]
 impl_server_clientdata!(server_sys);
 
 expand_test!(destructor_client_cleanup, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let client_data = Arc::new(ServerClientData(AtomicBool::new(false)));
     let _client_id = server.handle().insert_client(rx, client_data.clone()).unwrap();

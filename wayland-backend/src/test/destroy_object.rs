@@ -43,6 +43,7 @@ macro_rules! impl_server_objectdata {
 }
 
 impl_server_objectdata!(server_rs);
+#[cfg(unix)]
 impl_server_objectdata!(server_sys);
 
 struct ClientData(());
@@ -63,11 +64,12 @@ macro_rules! impl_client_objectdata {
 }
 
 impl_client_objectdata!(client_rs);
+#[cfg(unix)]
 impl_client_objectdata!(client_sys);
 
 // create a global and destroy it
 expand_test!(destroy_global, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -113,7 +115,7 @@ expand_test!(destroy_global, {
 });
 
 expand_test!(destroy_twice, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -160,7 +162,7 @@ expand_test!(destroy_twice, {
 });
 
 expand_test!(destroy_flush_destroy, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -214,7 +216,7 @@ expand_test!(destroy_flush_destroy, {
 });
 
 expand_test!(destroy_then_message, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();

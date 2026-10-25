@@ -2,9 +2,15 @@
 
 use std::sync::Arc;
 
+#[cfg(unix)]
+pub(crate) use std::os::unix::net::UnixStream;
+#[cfg(windows)]
+pub(crate) use std::os::windows::net::UnixStream;
+
 use crate::protocol::{Argument, Message, OwnedArgument, OwnedMessage};
 
 use crate::rs::{client as client_rs, server as server_rs};
+#[cfg(unix)]
 use crate::sys::{client as client_sys, server as server_sys};
 
 macro_rules! expand_test {
@@ -16,8 +22,11 @@ macro_rules! expand_test {
     };
     (__list_expand, $panic:tt, $test_name:ident, $test_body:tt) => {
         expand_test!(__expand, $panic, $test_name, client_rs, server_rs, $test_body);
+        #[cfg(unix)]
         expand_test!(__expand, $panic, $test_name, client_sys, server_rs, $test_body);
+        #[cfg(unix)]
         expand_test!(__expand, $panic, $test_name, client_rs, server_sys, $test_body);
+        #[cfg(unix)]
         expand_test!(__expand, $panic, $test_name, client_sys, server_sys, $test_body);
     };
     (__expand, __panic, $test_name: ident, $client_backend: ty, $server_backend: ident, $test_body: tt) => {
@@ -74,6 +83,7 @@ fn send_sync_client_rs() {
     ensure_both::<client_rs::ObjectId>();
 }
 
+#[cfg(unix)]
 #[allow(dead_code)]
 fn send_sync_client_sys() {
     ensure_both::<client_sys::Backend>();
@@ -88,6 +98,7 @@ fn send_sync_server_rs() {
     ensure_both::<server_rs::ClientId>();
 }
 
+#[cfg(unix)]
 #[allow(dead_code)]
 fn send_sync_server_sys() {
     ensure_both::<server_sys::Backend<()>>();
@@ -116,6 +127,7 @@ impl<D> server_rs::GlobalHandler<D> for DoNothingData {
     }
 }
 
+#[cfg(unix)]
 impl<D> server_sys::GlobalHandler<D> for DoNothingData {
     fn bind(
         self: Arc<Self>,
@@ -152,6 +164,7 @@ impl<D> server_rs::ObjectData<D> for DoNothingData {
     }
 }
 
+#[cfg(unix)]
 impl<D> server_sys::ObjectData<D> for DoNothingData {
     fn request(
         self: Arc<Self>,
@@ -187,6 +200,7 @@ impl client_rs::ObjectData for DoNothingData {
     fn destroyed(&self, _: &client_rs::ObjectId) {}
 }
 
+#[cfg(unix)]
 impl client_sys::ObjectData for DoNothingData {
     fn event(
         self: Arc<Self>,
@@ -197,4 +211,33 @@ impl client_sys::ObjectData for DoNothingData {
     }
 
     fn destroyed(&self, _: &client_sys::ObjectId) {}
+}
+
+pub(crate) trait UnixStreamExt {
+    fn pair_named(file: &str, line: u32) -> std::io::Result<(UnixStream, UnixStream)>;
+}
+
+#[cfg(unix)]
+impl UnixStreamExt for UnixStream {
+    fn pair_named(_file: &str, _line: u32) -> std::io::Result<(UnixStream, UnixStream)> {
+        UnixStream::pair()
+    }
+}
+
+#[cfg(windows)]
+impl UnixStreamExt for UnixStream {
+    fn pair_named(file: &str, line: u32) -> std::io::Result<(UnixStream, UnixStream)> {
+        let file = std::path::Path::new(file);
+        let file = file.file_stem().unwrap().display();
+        let path = std::path::PathBuf::from(format!("stream-{file}-{line}.sock"));
+        if path.exists() {
+            std::fs::remove_file(&path)?;
+        }
+        let rx_listener = std::os::windows::net::UnixListener::bind(&path)?;
+        let tx = UnixStream::connect_addr(&rx_listener.local_addr()?)?;
+        tx.set_nonblocking(true)?;
+        let (rx, _) = rx_listener.accept()?;
+        rx.set_nonblocking(true)?;
+        Ok((tx, rx))
+    }
 }

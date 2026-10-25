@@ -1,12 +1,15 @@
-use std::{
-    any::Any,
-    fmt,
-    os::unix::{io::BorrowedFd, net::UnixStream},
-    sync::Arc,
-};
+use std::{any::Any, fmt, sync::Arc};
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
 
 #[cfg(doc)]
 use std::io::ErrorKind::WouldBlock;
+
+use rustix::fd::BorrowedFd;
 
 use crate::protocol::{Interface, Message, ObjectInfo, OwnedMessage};
 

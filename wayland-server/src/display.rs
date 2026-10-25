@@ -1,8 +1,13 @@
-use std::{
-    os::unix::io::{AsFd, BorrowedFd},
-    os::unix::net::UnixStream,
-    sync::Arc,
+use std::sync::Arc;
+
+#[cfg(unix)]
+use std::os::unix::{
+    io::{AsFd, BorrowedFd},
+    net::UnixStream,
 };
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
 
 use wayland_backend::{
     protocol::ObjectInfo,
@@ -70,6 +75,7 @@ impl<State: 'static> Display<State> {
     }
 }
 
+#[cfg(unix)]
 impl<State> AsFd for Display<State> {
     /// Provides fd from [`Backend::poll_fd`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {

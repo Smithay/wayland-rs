@@ -46,6 +46,7 @@
 #![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(windows, feature(windows_unix_domain_sockets))]
 
 /// Reexport of the `smallvec` crate, which is part of `wayland-backend`'s public API.
 pub extern crate smallvec;
@@ -72,7 +73,7 @@ use std::{
     eprintln as log_error, eprintln as log_warn, eprintln as log_info, eprintln as log_debug,
 };
 
-#[cfg(any(test, feature = "client_system", feature = "server_system"))]
+#[cfg(any(all(test, unix), feature = "client_system", feature = "server_system"))]
 pub mod sys;
 
 pub mod rs;

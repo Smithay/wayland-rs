@@ -1,10 +1,12 @@
-use std::{
-    os::unix::{
-        io::{AsFd, BorrowedFd},
-        net::UnixStream,
-    },
-    sync::Arc,
-};
+use std::sync::Arc;
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
+
+use rustix::fd::{AsFd, BorrowedFd};
 
 use crate::{
     core_interfaces::{WL_CALLBACK_INTERFACE, WL_DISPLAY_INTERFACE, WL_REGISTRY_INTERFACE},
@@ -167,6 +169,7 @@ impl<D> Client<D> {
                 Argument::Uint(u) => Argument::Uint(*u),
                 Argument::Str(s) => Argument::Str(s.clone()),
                 Argument::Fixed(f) => Argument::Fixed(*f),
+                #[cfg(unix)]
                 Argument::Fd(f) => Argument::Fd(*f),
                 Argument::NewId(o) => {
                     if o.id.id != 0 {
@@ -313,7 +316,14 @@ impl<D> Client<D> {
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     // for now this only works on linux
     pub(crate) fn get_credentials(&self) -> Credentials {
-        Credentials { pid: 0, uid: 0, gid: 0 }
+        Credentials {
+            #[cfg(not(windows))]
+            pid: 0,
+            #[cfg(not(windows))]
+            uid: 0,
+            #[cfg(not(windows))]
+            gid: 0,
+        }
     }
 
     pub(crate) fn kill(&mut self, reason: DisconnectReason) {
@@ -335,7 +345,10 @@ impl<D> Client<D> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn next_request(&mut self) -> std::io::Result<(OwnedMessage<u32>, Object<Data<D>>)> {
         if self.killed {
+            #[cfg(not(windows))]
             return Err(rustix::io::Errno::PIPE.into());
+            #[cfg(windows)]
+            return Err(rustix::io::Errno::CONNRESET.into());
         }
         loop {
             let map = &self.map;
@@ -357,7 +370,10 @@ impl<D> Client<D> {
                 }
                 Err(MessageParseError::Malformed) => {
                     self.kill(DisconnectReason::ConnectionClosed);
+                    #[cfg(not(any(windows, target_os = "l4re")))]
                     return Err(rustix::io::Errno::PROTO.into());
+                    #[cfg(any(windows, target_os = "l4re"))]
+                    return Err(rustix::io::Errno::INVAL.into());
                 }
             };
 
@@ -578,6 +594,7 @@ impl<D> Client<D> {
                 OwnedArgument::Uint(u) => OwnedArgument::Uint(u),
                 OwnedArgument::Str(s) => OwnedArgument::Str(s),
                 OwnedArgument::Fixed(f) => OwnedArgument::Fixed(f),
+                #[cfg(unix)]
                 OwnedArgument::Fd(f) => OwnedArgument::Fd(f),
                 OwnedArgument::Object(o) => {
                     let next_interface = arg_interfaces.next();

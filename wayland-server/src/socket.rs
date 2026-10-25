@@ -3,16 +3,24 @@ use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     io,
-    os::unix::{
-        fs::OpenOptionsExt,
-        io::{AsFd, AsRawFd, BorrowedFd, RawFd},
-        net::{UnixListener, UnixStream},
-        prelude::MetadataExt,
-    },
     path::{Path, PathBuf},
 };
 
+#[cfg(unix)]
+use std::os::unix::{
+    fs::OpenOptionsExt,
+    io::{AsFd, BorrowedFd},
+    net::{UnixListener, UnixStream},
+    prelude::MetadataExt,
+};
+
+#[cfg(windows)]
+use std::os::windows::net::{UnixListener, UnixStream};
+
+#[cfg(unix)]
 use rustix::fs::{FlockOperation, flock};
+
+use rustix::fd::{AsRawFd, RawFd};
 
 /// An utility representing a unix socket on which your compositor is listening for new clients
 #[derive(Debug)]
@@ -78,17 +86,15 @@ impl ListeningSocket {
         //
         // https://gitlab.freedesktop.org/libbsd/libbsd/-/blob/73b25a8f871b3a20f6ff76679358540f95d7dbfd/src/flopen.c#L71
         loop {
+            let mut options = File::options();
+            options.create(true).truncate(true).read(true).write(true);
+            #[cfg(unix)]
+            options.mode(0o600);
             // open the lockfile
-            _lock = File::options()
-                .create(true)
-                .truncate(true)
-                .read(true)
-                .write(true)
-                .mode(0o660)
-                .open(&lock_path)
-                .map_err(|_| BindError::PermissionDenied)?;
+            _lock = options.open(&lock_path).map_err(|_| BindError::PermissionDenied)?;
 
             // lock the lockfile
+            #[cfg(unix)]
             if flock(&_lock, FlockOperation::NonBlockingLockExclusive).is_err() {
                 return Err(BindError::AlreadyInUse);
             }
@@ -109,7 +115,12 @@ impl ListeningSocket {
                 Err(err) => return Err(BindError::Io(err)),
             };
 
-            if fd_meta.dev() == on_disk_meta.dev() && fd_meta.ino() == on_disk_meta.ino() {
+            #[cfg(unix)]
+            let valid = fd_meta.dev() == on_disk_meta.dev() && fd_meta.ino() == on_disk_meta.ino();
+            #[cfg(windows)]
+            let valid = true;
+
+            if valid {
                 break;
             }
         }
@@ -176,6 +187,7 @@ impl AsRawFd for ListeningSocket {
     }
 }
 
+#[cfg(unix)]
 impl AsFd for ListeningSocket {
     /// Returns a file descriptor that may be polled for readiness.
     ///

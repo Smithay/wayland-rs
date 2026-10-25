@@ -2,12 +2,16 @@
 
 use std::{
     fmt,
-    os::unix::{
-        io::{AsFd, AsRawFd, BorrowedFd},
-        net::UnixStream,
-    },
     sync::{Arc, Condvar, Mutex, MutexGuard, Weak},
 };
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
+
+use rustix::fd::{AsFd, AsRawFd, BorrowedFd};
 
 use crate::{
     core_interfaces::WL_DISPLAY_INTERFACE,
@@ -150,6 +154,7 @@ impl InnerBackend {
     }
 
     pub fn connect(stream: UnixStream) -> Result<Self, NoWaylandLib> {
+        let _ = stream.set_nonblocking(true);
         let socket = BufferedSocket::new(Socket::from(stream), None);
         let mut map = ObjectMap::new();
         map.insert_at(
@@ -464,6 +469,7 @@ impl InnerBackend {
                 Argument::Str(s) => Argument::Str(s),
                 Argument::Fixed(f) => Argument::Fixed(f),
                 Argument::NewId(nid) => Argument::NewId(&nid.id.id),
+                #[cfg(unix)]
                 Argument::Fd(f) => Argument::Fd(f),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
@@ -696,6 +702,7 @@ fn dispatch_events(state: Arc<ConnectionState>) -> Result<usize, WaylandError> {
                 OwnedArgument::Uint(u) => OwnedArgument::Uint(u),
                 OwnedArgument::Str(s) => OwnedArgument::Str(s),
                 OwnedArgument::Fixed(f) => OwnedArgument::Fixed(f),
+                #[cfg(unix)]
                 OwnedArgument::Fd(f) => OwnedArgument::Fd(f),
                 OwnedArgument::Object(o) => {
                     if o != 0 {

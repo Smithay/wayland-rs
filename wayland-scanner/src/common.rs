@@ -204,25 +204,31 @@ impl ToTokens for Enum {
 
 pub(crate) fn gen_msg_constants(requests: &[Message], events: &[Message]) -> TokenStream {
     let req_constants = requests.iter().enumerate().map(|(opcode, msg)| {
+        let cfg_attr = msg.cfg_attr();
         let since_cstname = format_ident!("REQ_{}_SINCE", msg.name.to_ascii_uppercase());
         let opcode_cstname = format_ident!("REQ_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
         let opcode = opcode as u16;
         quote! {
+            #cfg_attr
             /// The minimal object version supporting this request
             pub const #since_cstname: u32 = #since;
+            #cfg_attr
             /// The wire opcode for this request
             pub const #opcode_cstname: u16 = #opcode;
         }
     });
     let evt_constants = events.iter().enumerate().map(|(opcode, msg)| {
+        let cfg_attr = msg.cfg_attr();
         let since_cstname = format_ident!("EVT_{}_SINCE", msg.name.to_ascii_uppercase());
         let opcode_cstname = format_ident!("EVT_{}_OPCODE", msg.name.to_ascii_uppercase());
         let since = msg.since;
         let opcode = opcode as u16;
         quote! {
+            #cfg_attr
             /// The minimal object version supporting this event
             pub const #since_cstname: u32 = #since;
+            #cfg_attr
             /// The wire opcode for this event
             pub const #opcode_cstname: u16 = #opcode;
         }
@@ -260,6 +266,7 @@ pub(crate) fn gen_message_enum(
                     .unwrap();
             }
 
+            let cfg_attr = msg.cfg_attr();
             let doc_attr = to_doc_attr(&docs);
             let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
             let msg_variant_decl = if msg.args.is_empty() {
@@ -391,6 +398,7 @@ pub(crate) fn gen_message_enum(
             };
 
             quote! {
+                #cfg_attr
                 #doc_attr
                 #msg_variant_decl
             }
@@ -398,14 +406,17 @@ pub(crate) fn gen_message_enum(
         .collect::<Vec<_>>();
 
     let opcodes = messages.iter().enumerate().map(|(opcode, msg)| {
+        let cfg_attr = msg.cfg_attr();
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
         let opcode = opcode as u16;
         if msg.args.is_empty() {
             quote! {
+                #cfg_attr
                 #name::#msg_name => #opcode
             }
         } else {
             quote! {
+                #cfg_attr
                 #name::#msg_name { .. } => #opcode
             }
         }
@@ -465,6 +476,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
     );
 
     let match_arms = msgs.iter().enumerate().map(|(opcode, msg)| {
+        let cfg_attr = msg.cfg_attr();
         let opcode = opcode as u16;
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
         let args_pat = msg.args.iter().map(|arg| {
@@ -586,6 +598,7 @@ pub(crate) fn gen_parse_body(interface: &Interface, side: Side) -> TokenStream {
         });
 
         quote! {
+            #cfg_attr
             #opcode => {
                 if let (#(#args_pat),*) = (#(#args_iter),*) {
                     Ok((me, #msg_type::#msg_name { #(#arg_names),* }))
@@ -619,6 +632,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
         Span::call_site(),
     );
     let arms = msgs.iter().enumerate().map(|(opcode, msg)| {
+        let cfg_attr = msg.cfg_attr();
         let msg_name = Ident::new(&snake_to_camel(&msg.name), Span::call_site());
         let opcode = opcode as u16;
         let arg_names = msg.args.iter().flat_map(|arg| {
@@ -718,6 +732,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
         if side == Side::Client {
             let child_spec = child_spec.unwrap_or_else(|| quote! { None });
             quote! {
+                #cfg_attr
                 #msg_type::#msg_name { #(#arg_names),* } => {
                     let child_spec = #child_spec;
                     let args = #args;
@@ -730,6 +745,7 @@ pub(crate) fn gen_write_body(interface: &Interface, side: Side) -> TokenStream {
             }
         } else {
             quote! {
+                #cfg_attr
                 #msg_type::#msg_name { #(#arg_names),* } => Ok(Message {
                     sender_id: &self.id,
                     opcode: #opcode,

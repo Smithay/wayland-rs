@@ -2,6 +2,7 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::marker::PhantomData;
+#[cfg(unix)]
 use std::os::unix::io::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use std::sync::{Arc, Condvar, Mutex, atomic::Ordering};
 use std::task;
@@ -371,6 +372,7 @@ impl<State> std::fmt::Debug for EventQueue<State> {
     }
 }
 
+#[cfg(unix)]
 impl<State> AsFd for EventQueue<State> {
     /// Provides fd from [`Backend::poll_fd`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {
@@ -378,6 +380,7 @@ impl<State> AsFd for EventQueue<State> {
     }
 }
 
+#[cfg(unix)]
 impl<State> AsRawFd for EventQueue<State> {
     /// Provides fd from [`Backend::poll_fd`] for polling.
     fn as_raw_fd(&self) -> RawFd {
@@ -451,7 +454,14 @@ impl<State> EventQueue<State> {
                 crate::protocol::wl_display::Request::Sync {},
                 Some(done.clone()),
             )
-            .map_err(|_| WaylandError::Io(rustix::io::Errno::PIPE.into()))?;
+            .map_err(|_| {
+                WaylandError::Io(
+                    #[cfg(unix)]
+                    rustix::io::Errno::PIPE.into(),
+                    #[cfg(windows)]
+                    rustix::io::Errno::CONNRESET.into(),
+                )
+            })?;
 
         let mut dispatched = 0;
 

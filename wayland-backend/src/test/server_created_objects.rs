@@ -55,6 +55,7 @@ macro_rules! impl_globalhandler {
 }
 
 impl_globalhandler!(server_rs);
+#[cfg(unix)]
 impl_globalhandler!(server_sys);
 
 struct ClientData(AtomicU32);
@@ -105,10 +106,11 @@ macro_rules! impl_client_objectdata {
 }
 
 impl_client_objectdata!(client_rs);
+#[cfg(unix)]
 impl_client_objectdata!(client_sys);
 
 expand_test!(server_created_object, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();

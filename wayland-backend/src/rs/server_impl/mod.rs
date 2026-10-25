@@ -84,6 +84,7 @@ pub struct InnerClientId {
     serial: u32,
 }
 
+#[cfg(unix)]
 impl InnerClientId {
     fn as_u64(&self) -> u64 {
         ((self.id as u64) << 32) + self.serial as u64

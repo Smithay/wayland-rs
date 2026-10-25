@@ -1,7 +1,9 @@
-use std::{
-    os::unix::io::{AsRawFd, BorrowedFd},
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
+
+#[cfg(unix)]
+use std::os::unix::io::{AsRawFd, BorrowedFd};
+#[cfg(windows)]
+use std::os::windows::io::{AsRawSocket, AsSocket, OwnedSocket};
 
 use super::{
     ClientId, Data, GlobalHandler, GlobalId, Handle, InnerClientId, InnerGlobalId, InnerHandle,
@@ -13,6 +15,9 @@ use crate::{
     rs::map::Object,
     types::server::InitError,
 };
+
+#[cfg(windows)]
+use rustix::event::{PollFd, Timespec, poll};
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "redox"))]
 use rustix::event::{Timespec, epoll};
@@ -48,7 +53,12 @@ impl<D> InnerBackend<D> {
         ))]
         let poll_fd = kqueue().map_err(Into::into).map_err(InitError::Io)?;
 
-        Ok(Self { state: Arc::new(Mutex::new(State::new(poll_fd))) })
+        Ok(Self {
+            state: Arc::new(Mutex::new(State::new(
+                #[cfg(unix)]
+                poll_fd,
+            ))),
+        })
     }
 
     pub fn flush(&self, client: Option<&ClientId>) -> std::io::Result<()> {
@@ -59,11 +69,31 @@ impl<D> InnerBackend<D> {
         Handle { handle: InnerHandle { state: self.state.clone() as Arc<_> } }
     }
 
+    #[cfg(unix)]
     pub fn poll_fd(&self) -> BorrowedFd<'_> {
         let raw_fd = self.state.lock().unwrap().poll_fd.as_raw_fd();
         // This allows the lifetime of the BorrowedFd to be tied to &self rather than the lock guard,
         // which is the real safety concern
         unsafe { BorrowedFd::borrow_raw(raw_fd) }
+    }
+
+    #[cfg(windows)]
+    pub fn poll_clients(&self) -> std::collections::HashMap<InnerClientId, OwnedSocket> {
+        let state = self.state.lock().unwrap();
+        state
+            .clients
+            .all_clients_id()
+            .filter_map(|client| {
+                state.poll_fds.get(&client.id).map(|socket| {
+                    (
+                        client.id,
+                        socket
+                            .try_clone()
+                            .expect("cloning owned sockets should be easy right? right?"),
+                    )
+                })
+            })
+            .collect()
     }
 
     pub fn dispatch_client(
@@ -141,6 +171,45 @@ impl<D> InnerBackend<D> {
         Ok(dispatched)
     }
 
+    #[cfg(windows)]
+    pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
+        use rustix::event::PollFlags;
+
+        let mut dispatched = 0;
+        loop {
+            let poll_clients = self.poll_clients();
+            if poll_clients.is_empty() {
+                break;
+            }
+            let mut poll_fds: Vec<PollFd> =
+                poll_clients.values().map(|fd| PollFd::new(fd, PollFlags::IN)).collect();
+            let nevents = poll(&mut poll_fds, Some(&Timespec::default()))?;
+
+            if nevents == 0 {
+                break;
+            }
+
+            for poll_fd in &*poll_fds {
+                let ready_events = poll_fd.revents();
+                if !ready_events.is_empty() {
+                    let fd = poll_fd.as_socket();
+                    let client = poll_clients.iter().find_map(|(client, socket)| {
+                        socket.as_raw_socket().eq(&fd.as_raw_socket()).then_some(client)
+                    });
+                    if let Some(client) = client {
+                        if let Ok(count) = self.dispatch_events_for(data, *client) {
+                            dispatched += count;
+                        }
+                    }
+                }
+            }
+            let cleanup = self.state.lock().unwrap().cleanup();
+            cleanup(&self.handle(), data);
+        }
+
+        Ok(dispatched)
+    }
+
     pub(crate) fn dispatch_events_for(
         &self,
         data: &mut D,
@@ -194,6 +263,12 @@ impl<D> InnerBackend<D> {
                                     kevent(&state.poll_fd, &[evt], events, None).map(|_| ())?;
                                 }
                             }
+
+                            #[cfg(windows)]
+                            {
+                                state.poll_fds.remove(&client_id);
+                            }
+
                             return Err(e);
                         }
                     };

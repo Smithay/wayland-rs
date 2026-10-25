@@ -8,6 +8,7 @@ pub mod wl_registry {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -203,6 +204,7 @@ pub mod wl_callback {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this event"]
@@ -361,10 +363,13 @@ pub mod test_global {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
+    #[cfg(unix)]
     #[doc = r" The minimal object version supporting this request"]
     pub const REQ_MANY_ARGS_SINCE: u32 = 1u32;
+    #[cfg(unix)]
     #[doc = r" The wire opcode for this request"]
     pub const REQ_MANY_ARGS_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this request"]
@@ -391,8 +396,14 @@ pub mod test_global {
     pub const REQ_NEWID_AND_ALLOW_NULL_SINCE: u32 = 5u32;
     #[doc = r" The wire opcode for this request"]
     pub const REQ_NEWID_AND_ALLOW_NULL_OPCODE: u16 = 6u16;
+    #[doc = r" The minimal object version supporting this request"]
+    pub const REQ_ALMOST_AS_MANY_ARGS_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this request"]
+    pub const REQ_ALMOST_AS_MANY_ARGS_OPCODE: u16 = 7u16;
+    #[cfg(unix)]
     #[doc = r" The minimal object version supporting this event"]
     pub const EVT_MANY_ARGS_EVT_SINCE: u32 = 1u32;
+    #[cfg(unix)]
     #[doc = r" The wire opcode for this event"]
     pub const EVT_MANY_ARGS_EVT_OPCODE: u16 = 0u16;
     #[doc = r" The minimal object version supporting this event"]
@@ -403,9 +414,14 @@ pub mod test_global {
     pub const EVT_CYCLE_QUAD_SINCE: u32 = 1u32;
     #[doc = r" The wire opcode for this event"]
     pub const EVT_CYCLE_QUAD_OPCODE: u16 = 2u16;
+    #[doc = r" The minimal object version supporting this event"]
+    pub const EVT_ALMOST_AS_MANY_ARGS_EVT_SINCE: u32 = 1u32;
+    #[doc = r" The wire opcode for this event"]
+    pub const EVT_ALMOST_AS_MANY_ARGS_EVT_OPCODE: u16 = 3u16;
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Request {
+        #[cfg(unix)]
         #[doc = "a request with every possible non-object arg"]
         ManyArgs {
             #[doc = "an unsigned int"]
@@ -443,11 +459,25 @@ pub mod test_global {
             sec: Option<super::secondary::Secondary>,
             ter: super::tertiary::Tertiary,
         },
+        #[doc = "a request with every possible non-object non-file-descriptor arg"]
+        AlmostAsManyArgs {
+            #[doc = "an unsigned int"]
+            unsigned_int: u32,
+            #[doc = "a singed int"]
+            signed_int: i32,
+            #[doc = "a fixed point number"]
+            fixed_point: f64,
+            #[doc = "an array"]
+            number_array: Vec<u8>,
+            #[doc = "some text"]
+            some_text: String,
+        },
     }
     impl Request {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
+                #[cfg(unix)]
                 Request::ManyArgs { .. } => 0u16,
                 Request::GetSecondary { .. } => 1u16,
                 Request::GetTertiary { .. } => 2u16,
@@ -455,12 +485,14 @@ pub mod test_global {
                 Request::Destroy => 4u16,
                 Request::ReverseLink { .. } => 5u16,
                 Request::NewidAndAllowNull { .. } => 6u16,
+                Request::AlmostAsManyArgs { .. } => 7u16,
             }
         }
     }
     #[derive(Debug)]
     #[non_exhaustive]
     pub enum Event<'a> {
+        #[cfg(unix)]
         #[doc = "an event with every possible non-object arg"]
         ManyArgsEvt {
             #[doc = "an unsigned int"]
@@ -480,6 +512,19 @@ pub mod test_global {
         AckSecondary { sec: &'a super::secondary::Secondary },
         #[doc = "create a new quad optionally replacing a previous one"]
         CycleQuad { new_quad: &'a super::quad::Quad, old_quad: Option<&'a super::quad::Quad> },
+        #[doc = "an event with every possible non-object non-file-descriptor arg"]
+        AlmostAsManyArgsEvt {
+            #[doc = "an unsigned int"]
+            unsigned_int: u32,
+            #[doc = "a singed int"]
+            signed_int: i32,
+            #[doc = "a fixed point number"]
+            fixed_point: f64,
+            #[doc = "an array"]
+            number_array: &'a [u8],
+            #[doc = "some text"]
+            some_text: &'a str,
+        },
         #[doc(hidden)]
         __phantom_lifetime {
             phantom: std::marker::PhantomData<&'a ()>,
@@ -490,9 +535,11 @@ pub mod test_global {
         #[doc = "Get the opcode number of this message"]
         pub fn opcode(&self) -> u16 {
             match *self {
+                #[cfg(unix)]
                 Event::ManyArgsEvt { .. } => 0u16,
                 Event::AckSecondary { .. } => 1u16,
                 Event::CycleQuad { .. } => 2u16,
+                Event::AlmostAsManyArgsEvt { .. } => 3u16,
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
@@ -568,6 +615,7 @@ pub mod test_global {
             let me = Self::from_id(conn, msg.sender_id.clone()).unwrap();
             let mut arg_iter = msg.args.into_iter();
             match msg.opcode {
+                #[cfg(unix)]
                 0u16 => {
                     if let (
                         Some(OwnedArgument::Uint(unsigned_int)),
@@ -843,6 +891,38 @@ pub mod test_global {
                         })
                     }
                 }
+                7u16 => {
+                    if let (
+                        Some(OwnedArgument::Uint(unsigned_int)),
+                        Some(OwnedArgument::Int(signed_int)),
+                        Some(OwnedArgument::Fixed(fixed_point)),
+                        Some(OwnedArgument::Array(number_array)),
+                        Some(OwnedArgument::Str(some_text)),
+                    ) = (
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                        arg_iter.next(),
+                    ) {
+                        Ok((
+                            me,
+                            Request::AlmostAsManyArgs {
+                                unsigned_int,
+                                signed_int,
+                                fixed_point: (fixed_point as f64) / 256.,
+                                number_array: *number_array,
+                                some_text: *some_text.unwrap(),
+                            },
+                        ))
+                    } else {
+                        Err(DispatchError::BadMessage {
+                            sender_id: msg.sender_id,
+                            interface: Self::interface().name,
+                            opcode: msg.opcode,
+                        })
+                    }
+                }
                 _ => Err(DispatchError::BadMessage {
                     sender_id: msg.sender_id,
                     interface: Self::interface().name,
@@ -856,6 +936,7 @@ pub mod test_global {
             msg: Self::Event<'b>,
         ) -> Result<Message<'r, ObjectId>, InvalidId> {
             match msg {
+                #[cfg(unix)]
                 Event::ManyArgsEvt {
                     unsigned_int,
                     signed_int,
@@ -898,6 +979,23 @@ pub mod test_global {
                         vec
                     },
                 }),
+                Event::AlmostAsManyArgsEvt {
+                    unsigned_int,
+                    signed_int,
+                    fixed_point,
+                    number_array,
+                    some_text,
+                } => Ok(Message {
+                    sender_id: &self.id,
+                    opcode: 3u16,
+                    args: smallvec::SmallVec::from_vec(vec![
+                        Argument::Uint(unsigned_int),
+                        Argument::Int(signed_int),
+                        Argument::Fixed((fixed_point * 256.) as i32),
+                        Argument::Array(Box::new(number_array)),
+                        Argument::Str(Some(Box::new(some_text))),
+                    ]),
+                }),
                 Event::__phantom_lifetime { never, .. } => match never {},
             }
         }
@@ -909,6 +1007,7 @@ pub mod test_global {
         }
     }
     impl TestGlobal {
+        #[cfg(unix)]
         #[doc = "an event with every possible non-object arg"]
         #[allow(clippy::too_many_arguments)]
         pub fn many_args_evt(
@@ -943,6 +1042,24 @@ pub mod test_global {
         ) {
             let _ = self.send_event(Event::CycleQuad { new_quad, old_quad });
         }
+        #[doc = "an event with every possible non-object non-file-descriptor arg"]
+        #[allow(clippy::too_many_arguments)]
+        pub fn almost_as_many_args_evt(
+            &self,
+            unsigned_int: u32,
+            signed_int: i32,
+            fixed_point: f64,
+            number_array: &[u8],
+            some_text: &str,
+        ) {
+            let _ = self.send_event(Event::AlmostAsManyArgsEvt {
+                unsigned_int,
+                signed_int,
+                fixed_point,
+                number_array,
+                some_text,
+            });
+        }
     }
 }
 pub mod secondary {
@@ -954,6 +1071,7 @@ pub mod secondary {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -1107,6 +1225,7 @@ pub mod tertiary {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]
@@ -1260,6 +1379,7 @@ pub mod quad {
             smallvec,
         },
     };
+    #[cfg(unix)]
     use std::os::unix::io::OwnedFd;
     use std::sync::Arc;
     #[doc = r" The minimal object version supporting this request"]

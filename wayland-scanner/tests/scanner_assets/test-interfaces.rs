@@ -238,6 +238,22 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
                 child_interface: Some(&QUAD_INTERFACE),
                 arg_interfaces: &[&SECONDARY_INTERFACE, &TERTIARY_INTERFACE],
             },
+            wayland_backend::protocol::MessageDesc {
+                name: "almost_as_many_args",
+                signature: &[
+                    wayland_backend::protocol::ArgumentType::Uint,
+                    wayland_backend::protocol::ArgumentType::Int,
+                    wayland_backend::protocol::ArgumentType::Fixed,
+                    wayland_backend::protocol::ArgumentType::Array,
+                    wayland_backend::protocol::ArgumentType::Str(
+                        wayland_backend::protocol::AllowNull::No,
+                    ),
+                ],
+                since: 1u32,
+                is_destructor: false,
+                child_interface: None,
+                arg_interfaces: &[],
+            },
         ],
         events: &[
             wayland_backend::protocol::MessageDesc {
@@ -280,10 +296,26 @@ pub static TEST_GLOBAL_INTERFACE: wayland_backend::protocol::Interface =
                 child_interface: Some(&QUAD_INTERFACE),
                 arg_interfaces: &[&QUAD_INTERFACE],
             },
+            wayland_backend::protocol::MessageDesc {
+                name: "almost_as_many_args_evt",
+                signature: &[
+                    wayland_backend::protocol::ArgumentType::Uint,
+                    wayland_backend::protocol::ArgumentType::Int,
+                    wayland_backend::protocol::ArgumentType::Fixed,
+                    wayland_backend::protocol::ArgumentType::Array,
+                    wayland_backend::protocol::ArgumentType::Str(
+                        wayland_backend::protocol::AllowNull::No,
+                    ),
+                ],
+                since: 1u32,
+                is_destructor: false,
+                child_interface: None,
+                arg_interfaces: &[],
+            },
         ],
         c_interface: Some(unsafe { &test_global_interface }),
     };
-static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
+static test_global_requests: [wayland_backend::protocol::CWlMessage; 8] = [
     wayland_backend::protocol::CWlMessage::new(c"many_args", c"uifash", &types_null),
     wayland_backend::protocol::CWlMessage::new(
         c"get_secondary",
@@ -311,8 +343,9 @@ static test_global_requests: [wayland_backend::protocol::CWlMessage; 7] = [
         c"5n?oo",
         &[Some(&quad_interface), Some(&secondary_interface), Some(&tertiary_interface)],
     ),
+    wayland_backend::protocol::CWlMessage::new(c"almost_as_many_args", c"uifas", &types_null),
 ];
-static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
+static test_global_events: [wayland_backend::protocol::CWlMessage; 4] = [
     wayland_backend::protocol::CWlMessage::new(c"many_args_evt", c"uifash", &types_null),
     wayland_backend::protocol::CWlMessage::new(
         c"ack_secondary",
@@ -324,6 +357,7 @@ static test_global_events: [wayland_backend::protocol::CWlMessage; 3] = [
         c"n?o",
         &[Some(&quad_interface), Some(&quad_interface)],
     ),
+    wayland_backend::protocol::CWlMessage::new(c"almost_as_many_args_evt", c"uifas", &types_null),
 ];
 pub static test_global_interface: wayland_backend::protocol::CWlInterface =
     wayland_backend::protocol::CWlInterface::new(

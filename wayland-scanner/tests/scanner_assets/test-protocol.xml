@@ -213,6 +213,15 @@
       <arg name="ter" type="object" interface="tertiary" />
     </request>
 
+    <request name="almost_as_many_args">
+      <description summary="a request with every possible non-object non-file-descriptor arg"></description>
+      <arg name="unsigned_int" type="uint" summary="an unsigned int" />
+      <arg name="signed_int" type="int" summary="a singed int" />
+      <arg name="fixed_point" type="fixed" summary="a fixed point number" />
+      <arg name="number_array" type="array" summary="an array" />
+      <arg name="some_text" type="string" summary="some text" />
+    </request>
+
     <event name="many_args_evt">
       <description summary="an event with every possible non-object arg"></description>
       <arg name="unsigned_int" type="uint" summary="an unsigned int" />
@@ -232,6 +241,15 @@
       <description summary="create a new quad optionally replacing a previous one"></description>
       <arg name="new_quad" type="new_id" interface="quad" />
       <arg name="old_quad" type="object" interface="quad" allow-null="true" />
+    </event>
+
+    <event name="almost_as_many_args_evt">
+      <description summary="an event with every possible non-object non-file-descriptor arg"></description>
+      <arg name="unsigned_int" type="uint" summary="an unsigned int" />
+      <arg name="signed_int" type="int" summary="a singed int" />
+      <arg name="fixed_point" type="fixed" summary="a fixed point number" />
+      <arg name="number_array" type="array" summary="an array" />
+      <arg name="some_text" type="string" summary="some text" />
     </event>
   </interface>
 

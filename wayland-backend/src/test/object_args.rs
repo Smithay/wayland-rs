@@ -100,6 +100,7 @@ macro_rules! impl_server_objectdata {
 }
 
 impl_server_objectdata!(server_rs);
+#[cfg(unix)]
 impl_server_objectdata!(server_sys);
 
 struct ClientData(AtomicBool);
@@ -129,11 +130,12 @@ macro_rules! impl_client_objectdata {
 }
 
 impl_client_objectdata!(client_rs);
+#[cfg(unix)]
 impl_client_objectdata!(client_sys);
 
 // create a global and create objects
 expand_test!(create_objects, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -227,7 +229,7 @@ expand_test!(create_objects, {
 });
 
 expand_test!(panic bad_interface, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -287,7 +289,7 @@ expand_test!(panic bad_interface, {
 });
 
 expand_test!(panic double_null, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -344,7 +346,7 @@ expand_test!(panic double_null, {
 });
 
 expand_test!(null_obj_followed_by_interface, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -407,7 +409,7 @@ expand_test!(null_obj_followed_by_interface, {
 });
 
 expand_test!(new_id_null_and_non_null, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();

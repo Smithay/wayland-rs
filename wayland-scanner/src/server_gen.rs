@@ -62,6 +62,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         #mod_doc
         pub mod #mod_name {
             use std::sync::Arc;
+            #[cfg(unix)]
             use std::os::unix::io::OwnedFd;
 
             use super::wayland_server::{
@@ -243,8 +244,10 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             });
 
             let doc_attr = request.description.as_ref().map(description_to_doc_attr);
+            let cfg_attr = request.cfg_attr();
 
             quote! {
+                #cfg_attr
                 #doc_attr
                 #[allow(clippy::too_many_arguments)]
                 pub fn #method_name(&self, #(#fn_args),*) {

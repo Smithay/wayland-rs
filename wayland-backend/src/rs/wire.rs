@@ -1,7 +1,9 @@
 //! Types and routines used to manipulate arguments from the wire format
 
+#[cfg(unix)]
 use std::collections::VecDeque;
 use std::ffi::CStr;
+#[cfg(unix)]
 use std::os::unix::io::OwnedFd;
 
 use crate::protocol::{Argument, ArgumentType, Message, OwnedArgument, OwnedMessage};
@@ -13,6 +15,7 @@ use smallvec::SmallVec;
 pub enum MessageWriteError {
     /// The buffer is too small to hold the message contents
     BufferTooSmall,
+    #[cfg_attr(not(unix), allow(dead_code))]
     /// The message contains a FD that could not be dup-ed
     DupFdFailed(std::io::Error),
 }
@@ -39,6 +42,7 @@ impl std::fmt::Display for MessageWriteError {
 /// Error generated when trying to deserialize a message from buffers
 #[derive(Debug, Clone)]
 pub enum MessageParseError {
+    #[cfg_attr(not(unix), allow(dead_code))]
     /// The message references a FD but the buffer FD is empty
     MissingFD,
     /// More data is needed to deserialize the message
@@ -70,7 +74,7 @@ impl std::fmt::Display for MessageParseError {
 pub fn write_to_buffers(
     msg: &Message<u32>,
     payload: &mut [u8],
-    fds: &mut Vec<OwnedFd>,
+    #[cfg(unix)] fds: &mut Vec<OwnedFd>,
 ) -> Result<usize, MessageWriteError> {
     let orig_payload_len = payload.len();
     // Helper function to write a u32 or a RawFd to its buffer
@@ -131,6 +135,7 @@ pub fn write_to_buffers(
             Argument::Object(o) => write_buf(*o, payload)?,
             Argument::NewId(n) => write_buf(*n, payload)?,
             Argument::Array(ref a) => write_array_to_payload(a, payload, false)?,
+            #[cfg(unix)]
             Argument::Fd(fd) => {
                 let dup_fd = fd.try_clone_to_owned().map_err(MessageWriteError::DupFdFailed)?;
                 fds.push(dup_fd);
@@ -157,7 +162,7 @@ pub fn write_to_buffers(
 pub fn parse_message<'a>(
     raw: &'a [u8],
     signature: &[ArgumentType],
-    fds: &mut VecDeque<OwnedFd>,
+    #[cfg(unix)] fds: &mut VecDeque<OwnedFd>,
 ) -> Result<(OwnedMessage<u32>, &'a [u8]), MessageParseError> {
     // helper function to read arrays
     fn read_array_from_payload(
@@ -186,7 +191,9 @@ pub fn parse_message<'a>(
         return Err(MessageParseError::MissingData);
     }
 
+    #[cfg(unix)]
     let fd_len = signature.iter().filter(|x| matches!(x, ArgumentType::Fd)).count();
+    #[cfg(unix)]
     if fd_len > fds.len() {
         return Err(MessageParseError::MissingFD);
     }
@@ -197,14 +204,16 @@ pub fn parse_message<'a>(
     let arguments = signature
         .iter()
         .map(|argtype| {
+            #[cfg(unix)]
             if let ArgumentType::Fd = *argtype {
                 // don't consume input but fd
-                if let Some(front) = fds.pop_front() {
+                return if let Some(front) = fds.pop_front() {
                     Ok(OwnedArgument::Fd(front))
                 } else {
                     Err(MessageParseError::MissingFD)
-                }
-            } else if payload.len() >= 4 {
+                };
+            }
+            if payload.len() >= 4 {
                 let (front, mut tail) = payload.split_at(4);
                 let front = u32::from_ne_bytes(front.try_into().unwrap());
                 let arg = match *argtype {
@@ -267,6 +276,7 @@ mod tests {
     #[test]
     fn into_from_raw_cycle() {
         let mut bytes_buffer = vec![0; 1024];
+        #[cfg(unix)]
         let mut fd_buffer = Vec::new();
 
         let msg = Message {
@@ -283,8 +293,15 @@ mod tests {
             ],
         };
         // write the message to the buffers
-        write_to_buffers(&msg, &mut bytes_buffer[..], &mut fd_buffer).unwrap();
+        write_to_buffers(
+            &msg,
+            &mut bytes_buffer[..],
+            #[cfg(unix)]
+            &mut fd_buffer,
+        )
+        .unwrap();
         // read them back
+        #[cfg(unix)]
         let mut fd_buffer = VecDeque::from(fd_buffer);
         let (rebuilt, _) = parse_message(
             &bytes_buffer[..],
@@ -297,6 +314,7 @@ mod tests {
                 ArgumentType::NewId,
                 ArgumentType::Int,
             ],
+            #[cfg(unix)]
             &mut fd_buffer,
         )
         .unwrap();

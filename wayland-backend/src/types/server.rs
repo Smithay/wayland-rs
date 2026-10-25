@@ -65,10 +65,13 @@ pub enum DisconnectReason {
 /// Holds the client credentials
 #[derive(Debug, Clone, Copy)]
 pub struct Credentials {
+    #[cfg(not(windows))]
     /// pid of the client
     pub pid: rustix::process::RawPid,
+    #[cfg(not(windows))]
     /// uid of the client
     pub uid: rustix::process::RawUid,
+    #[cfg(not(windows))]
     /// gid of the client
     pub gid: rustix::process::RawGid,
 }

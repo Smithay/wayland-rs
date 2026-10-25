@@ -1,9 +1,10 @@
-use std::{
-    any::Any,
-    fmt,
-    os::unix::{io::BorrowedFd, net::UnixStream},
-    sync::Arc,
-};
+use std::{any::Any, fmt, sync::Arc};
+
+#[cfg(unix)]
+use std::os::unix::{io::BorrowedFd, net::UnixStream};
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
 
 use crate::protocol::{Interface, Message, ObjectInfo, OwnedMessage};
 pub use crate::types::server::{Credentials, DisconnectReason, GlobalInfo, InitError, InvalidId};
@@ -561,6 +562,7 @@ impl<D> Backend<D> {
         self.backend.handle()
     }
 
+    #[cfg(unix)]
     /// Returns the underlying file descriptor.
     ///
     /// The file descriptor may be monitored for activity with a polling mechanism such as epoll or kqueue.
@@ -571,6 +573,15 @@ impl<D> Backend<D> {
     #[inline]
     pub fn poll_fd(&self) -> BorrowedFd<'_> {
         self.backend.poll_fd()
+    }
+
+    #[cfg(windows)]
+    #[inline]
+    pub fn poll_clients(
+        &self,
+    ) -> std::collections::HashMap<server_impl::InnerClientId, std::os::windows::io::OwnedSocket>
+    {
+        self.backend.poll_clients()
     }
 
     /// Dispatches all pending messages from the specified client.

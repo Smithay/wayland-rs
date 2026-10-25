@@ -53,6 +53,7 @@ fn generate_objects_for(interface: &Interface) -> TokenStream {
         #mod_doc
         pub mod #mod_name {
             use std::sync::Arc;
+            #[cfg(unix)]
             use std::os::unix::io::OwnedFd;
 
             use super::wayland_client::{
@@ -231,6 +232,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
             .description
             .as_ref()
             .map(description_to_doc_attr);
+        let cfg_attr = request.cfg_attr();
 
         match created_interface {
             Some(Some(created_interface)) => {
@@ -240,6 +242,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
+                    #cfg_attr
                     pub fn #method_name<U, D: 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> super::#created_iface_mod::#created_iface_type
                     where
                         U: Dispatch<super::#created_iface_mod::#created_iface_type, D> + Send + Sync + 'static
@@ -258,6 +261,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
+                    #cfg_attr
                     pub fn #method_name<I: Proxy + 'static, U, D: 'static>(&self, #(#fn_args,)* qh: &QueueHandle<D>, udata: U) -> I
                     where
                         U: Dispatch<I, D> + Send + Sync + 'static
@@ -276,6 +280,7 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                 quote! {
                     #doc_attr
                     #[allow(clippy::too_many_arguments)]
+                    #cfg_attr
                     pub fn #method_name(&self, #(#fn_args),*) {
                         let backend = match self.backend.upgrade() {
                             Some(b) => b,

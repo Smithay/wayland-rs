@@ -1,23 +1,41 @@
 //! Wayland socket manipulation
 
+#[cfg(unix)]
 use std::collections::VecDeque;
-use std::io::{ErrorKind, IoSlice, IoSliceMut, Result as IoResult};
+use std::io::{ErrorKind, Result as IoResult};
+#[cfg(unix)]
+use std::io::{IoSlice, IoSliceMut};
+#[cfg(unix)]
 use std::mem::MaybeUninit;
-use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
-use std::os::unix::net::UnixStream;
+#[cfg(unix)]
 use std::slice;
 
+#[cfg(unix)]
+use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+#[cfg(windows)]
+use std::os::windows::io::{AsSocket, BorrowedSocket};
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
+
 use rustix::io::retry_on_intr;
+use rustix::net::{RecvFlags, SendFlags, send};
+
+#[cfg(unix)]
 use rustix::net::{
-    RecvAncillaryBuffer, RecvAncillaryMessage, RecvFlags, SendAncillaryBuffer,
-    SendAncillaryMessage, SendFlags, recvmsg, send, sendmsg,
+    RecvAncillaryBuffer, RecvAncillaryMessage, SendAncillaryBuffer, SendAncillaryMessage, send,
 };
+
+#[cfg(windows)]
+use rustix::net::recv;
 
 use crate::protocol::{ArgumentType, Message, OwnedMessage};
 use crate::rs::DEFAULT_MAX_BUFFER_SIZE;
 
 use super::wire::{MessageParseError, MessageWriteError, parse_message, write_to_buffers};
 
+#[cfg(unix)]
 /// Maximum number of FD that can be sent in a single socket message
 pub const MAX_FDS_OUT: usize = 28;
 /// Maximum number of bytes that can be sent in a single socket message
@@ -41,12 +59,15 @@ impl Socket {
     /// The `fds` slice should not be longer than `MAX_FDS_OUT`, and the `bytes`
     /// slice should not be longer than `MAX_BYTES_OUT` otherwise the receiving
     /// end may lose some data.
-    pub fn send_msg(&self, bytes: &[u8], fds: &[OwnedFd]) -> IoResult<usize> {
-        #[cfg(not(any(target_os = "macos", target_os = "redox")))]
+    pub fn send_msg(&self, bytes: &[u8], #[cfg(unix)] fds: &[OwnedFd]) -> IoResult<usize> {
+        #[cfg(not(any(target_os = "macos", target_os = "redox", windows)))]
         let flags = SendFlags::DONTWAIT | SendFlags::NOSIGNAL;
         #[cfg(any(target_os = "macos", target_os = "redox"))]
         let flags = SendFlags::DONTWAIT;
+        #[cfg(windows)]
+        let flags = SendFlags::empty();
 
+        #[cfg(unix)]
         if !fds.is_empty() {
             let iov = [IoSlice::new(bytes)];
             let mut cmsg_space =
@@ -55,10 +76,9 @@ impl Socket {
             let fds =
                 unsafe { slice::from_raw_parts(fds.as_ptr() as *const BorrowedFd, fds.len()) };
             cmsg_buffer.push(SendAncillaryMessage::ScmRights(fds));
-            Ok(retry_on_intr(|| sendmsg(self, &iov, &mut cmsg_buffer, flags))?)
-        } else {
-            Ok(retry_on_intr(|| send(self, bytes, flags))?)
+            return Ok(retry_on_intr(|| sendmsg(self, &iov, &mut cmsg_buffer, flags))?);
         }
+        Ok(retry_on_intr(|| send(self, bytes, flags))?)
     }
 
     /// Receive a single message from the socket
@@ -72,17 +92,30 @@ impl Socket {
     /// The `buffer` slice should be at least `MAX_BYTES_OUT` long and the `fds`
     /// slice `MAX_FDS_OUT` long, otherwise some data of the received message may
     /// be lost.
-    pub fn rcv_msg(&self, buffer: &mut [u8], fds: &mut VecDeque<OwnedFd>) -> IoResult<usize> {
-        #[cfg(not(any(target_os = "macos", target_os = "redox")))]
+    pub fn rcv_msg(
+        &self,
+        buffer: &mut [u8],
+        #[cfg(unix)] fds: &mut VecDeque<OwnedFd>,
+    ) -> IoResult<usize> {
+        #[cfg(not(any(target_os = "macos", target_os = "redox", windows)))]
         let flags = RecvFlags::DONTWAIT | RecvFlags::CMSG_CLOEXEC;
         #[cfg(any(target_os = "macos", target_os = "redox"))]
         let flags = RecvFlags::DONTWAIT;
+        #[cfg(windows)]
+        let flags = RecvFlags::empty();
 
+        #[cfg(unix)]
         let mut cmsg_space = [MaybeUninit::uninit(); rustix::cmsg_space!(ScmRights(MAX_FDS_OUT))];
+        #[cfg(unix)]
         let mut cmsg_buffer = RecvAncillaryBuffer::new(&mut cmsg_space);
+        #[cfg(unix)]
         let mut iov = [IoSliceMut::new(buffer)];
+        #[cfg(unix)]
         let msg = retry_on_intr(|| recvmsg(&self.stream, &mut iov[..], &mut cmsg_buffer, flags))?;
+        #[cfg(windows)]
+        let (_, bytes) = retry_on_intr(move || recv(&self.stream, &mut buffer[..], flags))?;
 
+        #[cfg(unix)]
         let received_fds = cmsg_buffer
             .drain()
             .filter_map(|cmsg| match cmsg {
@@ -90,6 +123,7 @@ impl Socket {
                 _ => None,
             })
             .flatten();
+        #[cfg(unix)]
         fds.extend(received_fds);
         #[cfg(any(target_os = "macos", target_os = "redox"))]
         for fd in fds.iter() {
@@ -97,7 +131,10 @@ impl Socket {
                 let _ = rustix::io::fcntl_setfd(fd, flags | rustix::io::FdFlags::CLOEXEC);
             }
         }
-        Ok(msg.bytes)
+        #[cfg(unix)]
+        return Ok(msg.bytes);
+        #[cfg(windows)]
+        return Ok(bytes);
     }
 }
 
@@ -106,13 +143,22 @@ impl From<UnixStream> for Socket {
         // macOS doesn't have MSG_NOSIGNAL, but has SO_NOSIGPIPE instead
         #[cfg(target_os = "macos")]
         let _ = rustix::net::sockopt::set_socket_nosigpipe(&stream, true);
+        stream.set_nonblocking(true).expect("could not set UnixStream to nonblocking");
         Self { stream }
     }
 }
 
+#[cfg(unix)]
 impl AsFd for Socket {
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.stream.as_fd()
+    }
+}
+
+#[cfg(windows)]
+impl AsSocket for Socket {
+    fn as_socket(&self) -> BorrowedSocket<'_> {
+        self.stream.as_socket()
     }
 }
 
@@ -126,8 +172,10 @@ impl AsFd for Socket {
 pub struct BufferedSocket {
     socket: Socket,
     in_data: Buffer<u8>,
+    #[cfg(unix)]
     in_fds: VecDeque<OwnedFd>,
     out_data: Buffer<u8>,
+    #[cfg(unix)]
     out_fds: Vec<OwnedFd>,
     max_buffer_size: Option<usize>,
 }
@@ -138,8 +186,10 @@ impl BufferedSocket {
         Self {
             socket,
             in_data: Buffer::new(DEFAULT_MAX_BUFFER_SIZE),
+            #[cfg(unix)]
             in_fds: VecDeque::new(),
             out_data: Buffer::new(DEFAULT_MAX_BUFFER_SIZE),
+            #[cfg(unix)]
             out_fds: Vec::new(),
             max_buffer_size: max_buffer_size.map(round_max_buffer_size),
         }
@@ -148,13 +198,17 @@ impl BufferedSocket {
     /// Flush the contents of the outgoing buffer into the socket
     pub fn flush(&mut self) -> IoResult<()> {
         let bytes = self.out_data.get_contents();
+        #[cfg(unix)]
         let fds = &self.out_fds;
         let mut written_bytes = 0;
+        #[cfg(unix)]
         let mut written_fds = 0;
         let mut ret = Ok(());
         while written_bytes < bytes.len() {
             let mut bytes_to_write = &bytes[written_bytes..];
+            #[cfg(unix)]
             let mut fds_to_write = &fds[written_fds..];
+            #[cfg(unix)]
             if fds_to_write.len() > MAX_FDS_OUT {
                 // While we need to send more than MAX_FDS_OUT fds,
                 // send them with separate send_msg calls in MAX_FDS_OUT sized chunks
@@ -170,16 +224,26 @@ impl BufferedSocket {
                 // as self.out_data has a fixed MAX_BYTES_OUT size and cannot grow.
                 bytes_to_write = &bytes_to_write[..MAX_BYTES_OUT];
             }
-            match self.socket.send_msg(bytes_to_write, fds_to_write) {
+            match self.socket.send_msg(
+                bytes_to_write,
+                #[cfg(unix)]
+                fds_to_write,
+            ) {
                 Ok(0) => {
                     // This branch should be unreachable because
                     // a non-zero sized send or sendmsg should never return 0
-                    written_fds += fds_to_write.len();
+                    #[cfg(unix)]
+                    {
+                        written_fds += fds_to_write.len();
+                    }
                     break;
                 }
                 Ok(count) => {
                     written_bytes += count;
-                    written_fds += fds_to_write.len();
+                    #[cfg(unix)]
+                    {
+                        written_fds += fds_to_write.len();
+                    }
                 }
                 Err(error) => {
                     ret = Err(error);
@@ -191,6 +255,7 @@ impl BufferedSocket {
         // remove the data and the fds which were sent form the outgoing buffers
         self.out_data.offset(written_bytes);
         self.out_data.move_to_front();
+        #[cfg(unix)]
         self.out_fds.drain(..written_fds);
         ret
     }
@@ -203,14 +268,21 @@ impl BufferedSocket {
     // if false is returned, it means there is not enough space
     // in the buffer
     fn attempt_write_message(&mut self, msg: &Message<u32>) -> IoResult<bool> {
+        #[cfg(unix)]
         let fds_len = self.out_fds.len();
         loop {
-            match write_to_buffers(msg, self.out_data.get_writable_storage(), &mut self.out_fds) {
+            match write_to_buffers(
+                msg,
+                self.out_data.get_writable_storage(),
+                #[cfg(unix)]
+                &mut self.out_fds,
+            ) {
                 Ok(bytes_out) => {
                     self.out_data.advance(bytes_out);
                     return Ok(true);
                 }
                 Err(MessageWriteError::BufferTooSmall) => {
+                    #[cfg(unix)]
                     self.out_fds.truncate(fds_len);
                     if self.max_buffer_size.is_some_and(|s| s <= self.out_data.storage.len()) {
                         return Ok(false);
@@ -242,7 +314,10 @@ impl BufferedSocket {
             if !self.attempt_write_message(msg)? {
                 // If this fails again, this means the message is too big
                 // to be transmitted at all
+                #[cfg(unix)]
                 return Err(rustix::io::Errno::TOOBIG.into());
+                #[cfg(windows)]
+                return Err(rustix::io::Errno::MSGSIZE.into());
             }
         }
         Ok(())
@@ -256,11 +331,18 @@ impl BufferedSocket {
         // receive a message
         let in_bytes = {
             let bytes = self.in_data.get_writable_storage();
-            self.socket.rcv_msg(bytes, &mut self.in_fds)?
+            self.socket.rcv_msg(
+                bytes,
+                #[cfg(unix)]
+                &mut self.in_fds,
+            )?
         };
         if in_bytes == 0 {
             // the other end of the socket was closed
+            #[cfg(unix)]
             return Err(rustix::io::Errno::PIPE.into());
+            #[cfg(windows)]
+            return Err(rustix::io::Errno::CONNRESET.into());
         }
         // advance the storage
         self.in_data.advance(in_bytes);
@@ -288,7 +370,12 @@ impl BufferedSocket {
             let word_2 = u32::from_ne_bytes([data[4], data[5], data[6], data[7]]);
             let opcode = (word_2 & 0x0000_FFFF) as u16;
             if let Some(sig) = signature(object_id, opcode) {
-                match parse_message(data, sig, &mut self.in_fds) {
+                match parse_message(
+                    data,
+                    sig,
+                    #[cfg(unix)]
+                    &mut self.in_fds,
+                ) {
                     Ok((msg, rest_data)) => (msg, data.len() - rest_data.len()),
                     Err(e) => return Err(e),
                 }
@@ -309,9 +396,17 @@ impl BufferedSocket {
     }
 }
 
+#[cfg(unix)]
 impl AsFd for BufferedSocket {
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.socket.as_fd()
+    }
+}
+
+#[cfg(windows)]
+impl AsSocket for BufferedSocket {
+    fn as_socket(&self) -> BorrowedSocket<'_> {
+        self.socket.as_socket()
     }
 }
 
@@ -383,13 +478,19 @@ fn round_max_buffer_size(max_buffer_size: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{AllowNull, Argument, ArgumentType, Message, OwnedArgument};
+    #[cfg(unix)]
+    use crate::protocol::OwnedArgument;
+    use crate::protocol::{AllowNull, Argument, ArgumentType, Message};
+    use crate::test::{UnixStream, UnixStreamExt};
 
+    #[cfg(unix)]
     use std::io;
+    #[cfg(unix)]
     use std::os::unix::io::BorrowedFd;
 
     use smallvec::smallvec;
 
+    #[cfg(unix)]
     fn same_file(a: BorrowedFd, b: BorrowedFd) -> bool {
         let stat1 = rustix::fs::fstat(a).unwrap();
         let stat2 = rustix::fs::fstat(b).unwrap();
@@ -400,16 +501,17 @@ mod tests {
     //
     // if arguments contain FDs, check that the fd point to
     // the same file, rather than are the same number.
-    fn assert_eq_msgs(msg1: Message<'_, u32>, msg2: OwnedMessage<u32>) {
+    fn assert_eq_msgs(msg1: Message<u32>, msg2: OwnedMessage<u32>) {
         assert_eq!(*msg1.sender_id, msg2.sender_id);
         assert_eq!(msg1.opcode, msg2.opcode);
         assert_eq!(msg1.args.len(), msg2.args.len());
         for (arg1, arg2) in msg1.args.iter().zip(msg2.args.iter()) {
+            #[cfg(unix)]
             if let (Argument::Fd(fd1), OwnedArgument::Fd(fd2)) = (arg1, arg2) {
                 assert!(same_file(fd1.as_fd(), fd2.as_fd()));
-            } else {
-                assert_eq!(*arg1, arg2.as_argument());
+                continue;
             }
+            assert_eq!(*arg1, arg2.as_argument());
         }
     }
 
@@ -429,7 +531,7 @@ mod tests {
             ],
         };
 
-        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let (client, server) = UnixStream::pair_named(file!(), line!()).unwrap();
         let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
         let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
@@ -459,6 +561,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn write_read_cycle_fd() {
         let stdin = io::stdin().lock();
         let stdout = io::stdout().lock();
@@ -490,8 +593,11 @@ mod tests {
 
     #[test]
     fn write_read_cycle_multiple() {
+        #[cfg(unix)]
         let stdin = io::stderr().lock();
+        #[cfg(unix)]
         let stdout = io::stderr().lock();
+        #[cfg(unix)]
         let stderr = io::stderr().lock();
         let messages = vec![
             Message {
@@ -499,11 +605,13 @@ mod tests {
                 opcode: 0,
                 args: smallvec![Argument::Int(42), Argument::Str(Some(Box::new("I like trains"))),],
             },
+            #[cfg(unix)]
             Message {
                 sender_id: &42,
                 opcode: 1,
                 args: smallvec![Argument::Fd(stdin.as_fd()), Argument::Fd(stdout.as_fd()),],
             },
+            #[cfg(unix)]
             Message {
                 sender_id: &42,
                 opcode: 2,
@@ -513,11 +621,13 @@ mod tests {
 
         static SIGNATURES: &[&[ArgumentType]] = &[
             &[ArgumentType::Int, ArgumentType::Str(AllowNull::No)],
+            #[cfg(unix)]
             &[ArgumentType::Fd, ArgumentType::Fd],
+            #[cfg(unix)]
             &[ArgumentType::Uint, ArgumentType::Fd],
         ];
 
-        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let (client, server) = UnixStream::pair_named(file!(), line!()).unwrap();
         let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
         let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 
@@ -534,7 +644,7 @@ mod tests {
         }) {
             recv_msgs.push(message);
         }
-        assert_eq!(recv_msgs.len(), 3);
+        assert_eq!(recv_msgs.len(), messages.len());
         for (msg1, msg2) in messages.into_iter().zip(recv_msgs) {
             assert_eq_msgs(msg1, msg2);
         }
@@ -552,7 +662,7 @@ mod tests {
             ],
         };
 
-        let (client, server) = ::std::os::unix::net::UnixStream::pair().unwrap();
+        let (client, server) = UnixStream::pair_named(file!(), line!()).unwrap();
         let mut client = BufferedSocket::new(Socket::from(client), Some(DEFAULT_MAX_BUFFER_SIZE));
         let mut server = BufferedSocket::new(Socket::from(server), Some(DEFAULT_MAX_BUFFER_SIZE));
 

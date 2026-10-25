@@ -1,8 +1,7 @@
-use std::{
-    io,
-    os::unix::io::AsFd,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+#[cfg(unix)]
+use std::{io, os::unix::io::AsFd};
 
 use super::*;
 
@@ -18,28 +17,54 @@ macro_rules! serverdata_impls {
                 _: &$server_backend::ClientId,
                 msg: OwnedMessage<$server_backend::ObjectId>,
             ) -> Option<Arc<dyn $server_backend::ObjectData<()>>> {
-                assert_eq!(msg.opcode, 0);
-                if let [
-                    OwnedArgument::Uint(u),
-                    OwnedArgument::Int(i),
-                    OwnedArgument::Fixed(f),
-                    OwnedArgument::Array(a),
-                    OwnedArgument::Str(Some(s)),
-                    OwnedArgument::Fd(fd),
-                ] = &msg.args[..]
+                #[cfg_attr(windows, allow(unused_variables))]
+                let (u, i, f, a, s, fd) = match (msg.opcode, &msg.args[..]) {
+                    #[cfg(unix)]
+                    (
+                        0,
+                        [
+                            OwnedArgument::Uint(u),
+                            OwnedArgument::Int(i),
+                            OwnedArgument::Fixed(f),
+                            OwnedArgument::Array(a),
+                            OwnedArgument::Str(Some(s)),
+                            OwnedArgument::Fd(fd),
+                        ],
+                    ) => (u, i, f, a, s, Some(fd)),
+                    (
+                        7,
+                        [
+                            OwnedArgument::Uint(u),
+                            OwnedArgument::Int(i),
+                            OwnedArgument::Fixed(f),
+                            OwnedArgument::Array(a),
+                            OwnedArgument::Str(Some(s)),
+                        ],
+                    ) => (
+                        u,
+                        i,
+                        f,
+                        a,
+                        s,
+                        #[cfg(unix)]
+                        None,
+                        #[cfg(windows)]
+                        Option::<()>::None,
+                    ),
+                    _ => panic!("Bad argument list !"),
+                };
+                assert_eq!(*u, 42);
+                assert_eq!(*i, -13);
+                assert_eq!(*f, 4589);
+                assert_eq!(&**a, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                assert_eq!(&***s, "I like trains");
+                #[cfg(unix)]
                 {
-                    assert_eq!(*u, 42);
-                    assert_eq!(*i, -13);
-                    assert_eq!(*f, 4589);
-                    assert_eq!(&**a, &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
-                    assert_eq!(&***s, "I like trains");
                     // compare the fd to stdin
                     let stat1 = rustix::fs::fstat(&fd).unwrap();
                     let stat2 = rustix::fs::fstat(std::io::stdin()).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);
-                } else {
-                    panic!("Bad argument list !")
                 }
                 self.0.store(true, Ordering::SeqCst);
                 None
@@ -64,20 +89,36 @@ macro_rules! serverdata_impls {
                 _: &$server_backend::GlobalId,
                 object_id: &$server_backend::ObjectId,
             ) -> Arc<dyn $server_backend::ObjectData<()>> {
+                #[cfg(unix)]
                 let stdout = io::stdout().lock();
                 handle
-                    .send_event(message!(
-                        &object_id,
-                        0,
-                        [
-                            Argument::Uint(1337),
-                            Argument::Int(-53),
-                            Argument::Fixed(9823),
-                            Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
-                            Argument::Str(Some(Box::new("I want cake"))),
-                            Argument::Fd(stdout.as_fd()),
-                        ],
-                    ))
+                    .send_event(
+                        #[cfg(unix)]
+                        message!(
+                            &object_id,
+                            0,
+                            [
+                                Argument::Uint(1337),
+                                Argument::Int(-53),
+                                Argument::Fixed(9823),
+                                Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
+                                Argument::Str(Some(Box::new("I want cake"))),
+                                Argument::Fd(stdout.as_fd()),
+                            ],
+                        ),
+                        #[cfg(windows)]
+                        message!(
+                            &object_id,
+                            3,
+                            [
+                                Argument::Uint(1337),
+                                Argument::Int(-53),
+                                Argument::Fixed(9823),
+                                Argument::Array(Box::new(&[10, 20, 30, 40, 50, 60, 70, 80, 90])),
+                                Argument::Str(Some(Box::new("I want cake"))),
+                            ],
+                        ),
+                    )
                     .unwrap();
                 self
             }
@@ -86,6 +127,7 @@ macro_rules! serverdata_impls {
 }
 
 serverdata_impls!(server_rs);
+#[cfg(unix)]
 serverdata_impls!(server_sys);
 
 struct ClientData(AtomicBool);
@@ -98,28 +140,54 @@ macro_rules! clientdata_impls {
                 _handle: &$client_backend::Backend,
                 msg: OwnedMessage<$client_backend::ObjectId>,
             ) -> Option<Arc<dyn $client_backend::ObjectData>> {
-                assert_eq!(msg.opcode, 0);
-                if let [
-                    OwnedArgument::Uint(u),
-                    OwnedArgument::Int(i),
-                    OwnedArgument::Fixed(f),
-                    OwnedArgument::Array(a),
-                    OwnedArgument::Str(Some(s)),
-                    OwnedArgument::Fd(fd),
-                ] = &msg.args[..]
-                {
-                    assert_eq!(*u, 1337);
-                    assert_eq!(*i, -53);
-                    assert_eq!(*f, 9823);
-                    assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
-                    assert_eq!(&***s, "I want cake");
+                #[cfg_attr(windows, allow(unused_variables))]
+                let (u, i, f, a, s, fd) = match (msg.opcode, &msg.args[..]) {
+                    #[cfg(unix)]
+                    (
+                        0,
+                        [
+                            OwnedArgument::Uint(u),
+                            OwnedArgument::Int(i),
+                            OwnedArgument::Fixed(f),
+                            OwnedArgument::Array(a),
+                            OwnedArgument::Str(Some(s)),
+                            OwnedArgument::Fd(fd),
+                        ],
+                    ) => (u, i, f, a, s, Some(fd)),
+                    (
+                        3,
+                        [
+                            OwnedArgument::Uint(u),
+                            OwnedArgument::Int(i),
+                            OwnedArgument::Fixed(f),
+                            OwnedArgument::Array(a),
+                            OwnedArgument::Str(Some(s)),
+                        ],
+                    ) => (
+                        u,
+                        i,
+                        f,
+                        a,
+                        s,
+                        #[cfg(unix)]
+                        None,
+                        #[cfg(windows)]
+                        Option::<()>::None,
+                    ),
+                    _ => panic!("Bad argument list !"),
+                };
+                assert_eq!(*u, 1337);
+                assert_eq!(*i, -53);
+                assert_eq!(*f, 9823);
+                assert_eq!(&**a, &[10, 20, 30, 40, 50, 60, 70, 80, 90]);
+                assert_eq!(&***s, "I want cake");
+                #[cfg(unix)]
+                if let Some(fd) = fd {
                     // compare the fd to stdout
                     let stat1 = rustix::fs::fstat(&fd).unwrap();
                     let stat2 = rustix::fs::fstat(std::io::stdout()).unwrap();
                     assert_eq!(stat1.st_dev, stat2.st_dev);
                     assert_eq!(stat1.st_ino, stat2.st_ino);
-                } else {
-                    panic!("Bad argument list !")
                 }
                 self.0.store(true, Ordering::SeqCst);
                 None
@@ -130,11 +198,12 @@ macro_rules! clientdata_impls {
 }
 
 clientdata_impls!(client_rs);
+#[cfg(unix)]
 clientdata_impls!(client_sys);
 
 // create a global and send the many_args method
 expand_test!(many_args, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -179,25 +248,34 @@ expand_test!(many_args, {
     assert!(client_data.0.load(Ordering::SeqCst));
 
     // send the many_args request
+    #[cfg(unix)]
     let stdin = io::stdin().lock();
-    client
-        .send_request(
-            message!(
-                &test_global_id,
-                0,
-                [
-                    Argument::Uint(42),
-                    Argument::Int(-13),
-                    Argument::Fixed(4589),
-                    Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
-                    Argument::Str(Some(Box::new("I like trains"))),
-                    Argument::Fd(stdin.as_fd()),
-                ],
-            ),
-            None,
-            None,
-        )
-        .unwrap();
+    #[cfg(unix)]
+    let message = message!(
+        &test_global_id,
+        0,
+        [
+            Argument::Uint(42),
+            Argument::Int(-13),
+            Argument::Fixed(4589),
+            Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
+            Argument::Str(Some(Box::new("I like trains"))),
+            Argument::Fd(stdin.as_fd()),
+        ],
+    );
+    #[cfg(windows)]
+    let message = message!(
+        &test_global_id,
+        7,
+        [
+            Argument::Uint(42),
+            Argument::Int(-13),
+            Argument::Fixed(4589),
+            Argument::Array(Box::new(&[1, 2, 3, 4, 5, 6, 7, 8, 9])),
+            Argument::Str(Some(Box::new("I like trains"))),
+        ],
+    );
+    client.send_request(message, None, None).unwrap();
     client.flush().unwrap();
 
     server.dispatch_all_clients(&mut ()).unwrap();

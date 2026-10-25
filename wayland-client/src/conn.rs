@@ -2,14 +2,20 @@ use std::{
     env, fmt,
     io::ErrorKind,
     mem,
-    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
-    os::unix::net::UnixStream,
     path::PathBuf,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
 };
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+#[cfg(windows)]
+use std::os::windows::net::UnixStream;
+
+use rustix::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 
 use wayland_backend::{
     client::{Backend, InvalidId, ObjectData, ObjectId, ReadEventsGuard, WaylandError},
@@ -52,25 +58,27 @@ unsafe fn stream_from_wayland_socket_var() -> Result<Option<UnixStream>, Connect
         // remove the variable so any child processes don't see it
         // TODO: Audit that the environment access only happens in single-threaded code.
         unsafe { env::remove_var("WAYLAND_SOCKET") };
+        #[cfg(unix)]
         let Ok(flags) = rustix::io::fcntl_getfd(&fd) else {
             // Don't call `close` on drop
             mem::forget(fd);
             // Failed to call `F_GETFD`; likely closed file descriptor
             return Err(ConnectError::InvalidFd);
         };
+        #[cfg(unix)]
         if flags.contains(rustix::io::FdFlags::CLOEXEC) {
             // If `CLOEXEC` is already set, this is not the file descriptor
             // passed by the parent process, or it has already been consumed.
             return Err(ConnectError::InvalidFd);
         }
         // set the `CLOEXEC` flag on this FD
+        #[cfg(unix)]
         rustix::io::fcntl_setfd(&fd, flags | rustix::io::FdFlags::CLOEXEC)
             .map_err(|_| ConnectError::InvalidFd)?;
         // setting the `CLOEXEC` flag worked
-        Ok(Some(UnixStream::from(fd)))
-    } else {
-        Ok(None)
+        return Ok(Some(unsafe { UnixStream::from_raw_fd(fd.as_raw_fd()) }));
     }
+    Ok(None)
 }
 
 fn stream_from_wayland_display_var() -> Option<UnixStream> {
@@ -193,7 +201,14 @@ impl Connection {
             crate::protocol::wl_display::Request::Sync {},
             Some(done.clone()),
         )
-        .map_err(|_| WaylandError::Io(rustix::io::Errno::PIPE.into()))?;
+        .map_err(|_| {
+            WaylandError::Io(
+                #[cfg(unix)]
+                rustix::io::Errno::PIPE.into(),
+                #[cfg(windows)]
+                rustix::io::Errno::CONNRESET.into(),
+            )
+        })?;
 
         let mut dispatched = 0;
 
@@ -263,16 +278,16 @@ impl Connection {
 
 pub(crate) fn blocking_read(guard: ReadEventsGuard) -> Result<usize, WaylandError> {
     let fd = guard.connection_fd();
-    let mut fds = [rustix::event::PollFd::new(
-        &fd,
-        rustix::event::PollFlags::IN | rustix::event::PollFlags::ERR,
-    )];
+    let events = rustix::event::PollFlags::IN;
+    #[cfg(unix)]
+    let events = events | rustix::event::PollFlags::ERR;
+    let mut fds = [rustix::event::PollFd::new(&fd, events)];
 
     loop {
         match rustix::event::poll(&mut fds, None) {
             Ok(_) => break,
             Err(rustix::io::Errno::INTR) => continue,
-            Err(e) => return Err(WaylandError::Io(e.into())),
+            Err(e) => return Err(WaylandError::Io(e.into())).expect("inner blocking_read oops"),
         }
     }
 
@@ -316,6 +331,7 @@ impl fmt::Display for ConnectError {
     }
 }
 
+#[cfg(unix)]
 impl AsFd for Connection {
     /// Provides fd from [`Backend::poll_fd()`] for polling.
     fn as_fd(&self) -> BorrowedFd<'_> {
@@ -323,6 +339,7 @@ impl AsFd for Connection {
     }
 }
 
+#[cfg(unix)]
 impl AsRawFd for Connection {
     /// Provides fd from [`Backend::poll_fd()`] for polling.
     fn as_raw_fd(&self) -> RawFd {

@@ -1,19 +1,16 @@
 //! Types and utilities for manipulating the Wayland protocol
 
-use std::{
-    ffi::CStr,
-    os::unix::io::{AsRawFd, BorrowedFd, OwnedFd},
-};
+use std::ffi::CStr;
 
-#[cfg(any(test, feature = "client_system", feature = "server_system"))]
+#[cfg(any(all(test, unix), feature = "client_system", feature = "server_system"))]
 use wayland_sys::common::{wl_interface, wl_message};
 
 // Zero-size placeholder with same auto traits, for consistency
-#[cfg(not(any(test, feature = "client_system", feature = "server_system")))]
+#[cfg(not(any(all(test, unix), feature = "client_system", feature = "server_system")))]
 #[allow(non_camel_case_types)]
 type wl_interface = std::marker::PhantomData<*const ()>;
 #[allow(non_camel_case_types)]
-#[cfg(not(any(test, feature = "client_system", feature = "server_system")))]
+#[cfg(not(any(all(test, unix), feature = "client_system", feature = "server_system")))]
 type wl_message = std::marker::PhantomData<*const ()>;
 
 /// Describes whether an argument may have a null value.
@@ -42,7 +39,7 @@ pub enum ArgumentType {
     NewId,
     /// `Vec<u8>`
     Array,
-    /// A file descriptor argument. Represented by a [`RawFd`].
+    /// A file descriptor argument. Represented by a [`RawFd`] on Unix; unsupported on Windows.
     ///
     /// [`RawFd`]: std::os::fd::RawFd
     Fd,
@@ -79,6 +76,7 @@ pub enum OwnedArgument<Id, NewId = Id> {
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
     Array(Box<Vec<u8>>),
+    #[cfg(unix)]
     /// A file descriptor argument. Represented by a [`OwnedFd`].
     Fd(OwnedFd),
 }
@@ -94,6 +92,7 @@ impl<Id: PartialEq> PartialEq for OwnedArgument<Id> {
             (Self::NewId(a), Self::NewId(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => a == b,
             // Owned file descriptors must be different
+            #[cfg(unix)]
             (Self::Fd(_), Self::Fd(_)) => false,
             _ => false,
         }
@@ -103,6 +102,7 @@ impl<Id: PartialEq> PartialEq for OwnedArgument<Id> {
 impl<Id: Clone> OwnedArgument<Id> {
     #[cfg(test)]
     pub(crate) fn as_argument(&self) -> Argument<'_, Id> {
+        #[cfg(unix)]
         use std::os::fd::AsFd;
         match self {
             Self::Int(val) => Argument::Int(*val),
@@ -112,6 +112,7 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Object(val) => Argument::Object(val),
             Self::NewId(val) => Argument::NewId(val),
             Self::Array(val) => Argument::Array(Box::new(val)),
+            #[cfg(unix)]
             Self::Fd(val) => Argument::Fd(val.as_fd()),
         }
     }
@@ -143,6 +144,7 @@ pub enum Argument<'a, Id, NewId = Id> {
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `array` arguments are pretty rare in the protocol.
     Array(Box<&'a [u8]>),
+    #[cfg(unix)]
     /// A file descriptor argument. Represented by a [`BorrowedFd`].
     Fd(BorrowedFd<'a>),
 }
@@ -158,6 +160,7 @@ impl<'a, Id> Argument<'a, Id> {
             Self::Object(_) => ArgumentType::Object(AllowNull::Yes),
             Self::NewId(_) => ArgumentType::NewId,
             Self::Array(_) => ArgumentType::Array,
+            #[cfg(unix)]
             Self::Fd(_) => ArgumentType::Fd,
         }
     }
@@ -173,6 +176,7 @@ impl<'a, Id: PartialEq> PartialEq for Argument<'a, Id> {
             (Self::Object(a), Self::Object(b)) => a == b,
             (Self::NewId(a), Self::NewId(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => a == b,
+            #[cfg(unix)]
             (Self::Fd(a), Self::Fd(b)) => a.as_raw_fd() == b.as_raw_fd(),
             _ => false,
         }
@@ -192,6 +196,7 @@ impl<'a, Id: std::fmt::Display> std::fmt::Display for Argument<'a, Id> {
             Self::Object(value) => write!(f, "{value}"),
             Self::NewId(value) => write!(f, "{value}"),
             Self::Array(value) => write!(f, "{value:?}"),
+            #[cfg(unix)]
             Self::Fd(value) => write!(f, "{}", value.as_raw_fd()),
         }
     }
@@ -208,6 +213,7 @@ impl<Id: std::fmt::Display> std::fmt::Display for OwnedArgument<Id> {
             Self::Object(value) => write!(f, "{value}"),
             Self::NewId(value) => write!(f, "{value}"),
             Self::Array(value) => write!(f, "{value:?}"),
+            #[cfg(unix)]
             Self::Fd(value) => write!(f, "{}", value.as_raw_fd()),
         }
     }
@@ -240,7 +246,7 @@ unsafe impl Sync for CWlInterface {}
 
 impl CWlInterface {
     /// Construct a `wl_interface` to store in a static
-    #[cfg(any(test, feature = "client_system", feature = "server_system"))]
+    #[cfg(any(all(test, unix), feature = "client_system", feature = "server_system"))]
     pub const fn new(
         name: &'static CStr,
         version: u32,
@@ -258,7 +264,7 @@ impl CWlInterface {
     }
 
     /// Construct a `wl_interface` to store in a static
-    #[cfg(not(any(test, feature = "client_system", feature = "server_system")))]
+    #[cfg(not(any(all(test, unix), feature = "client_system", feature = "server_system")))]
     pub const fn new(
         name: &'static CStr,
         version: u32,
@@ -279,7 +285,7 @@ unsafe impl Sync for CWlMessage {}
 
 impl CWlMessage {
     /// Construct a `wl_message` to store in a static
-    #[cfg(any(test, feature = "client_system", feature = "server_system"))]
+    #[cfg(any(all(test, unix), feature = "client_system", feature = "server_system"))]
     pub const fn new(
         name: &'static CStr,
         signature: &'static CStr,
@@ -294,7 +300,7 @@ impl CWlMessage {
     }
 
     /// Construct a `wl_message` to store in a static
-    #[cfg(not(any(test, feature = "client_system", feature = "server_system")))]
+    #[cfg(not(any(all(test, unix), feature = "client_system", feature = "server_system")))]
     pub const fn new(
         name: &'static CStr,
         signature: &'static CStr,

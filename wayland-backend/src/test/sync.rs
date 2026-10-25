@@ -18,6 +18,7 @@ impl client_rs::ObjectData for SyncData {
     fn destroyed(&self, _: &client_rs::ObjectId) {}
 }
 
+#[cfg(unix)]
 impl client_sys::ObjectData for SyncData {
     fn event(
         self: Arc<Self>,
@@ -34,8 +35,8 @@ impl client_sys::ObjectData for SyncData {
 }
 
 // send a wl_display.sync request and receive the response
-expand_test!(sync, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+expand_test!(test_sync, {
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -68,7 +69,7 @@ expand_test!(sync, {
 });
 
 expand_test!(panic test_bad_placeholder, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -101,7 +102,7 @@ expand_test!(panic test_bad_placeholder, {
 });
 
 expand_test!(panic test_bad_signature, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();

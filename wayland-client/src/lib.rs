@@ -165,6 +165,7 @@
 #![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 // Doc feature labels can be tested locally by running RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc -p <crate>
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(windows, feature(windows_unix_domain_sockets))]
 
 use std::{
     fmt,

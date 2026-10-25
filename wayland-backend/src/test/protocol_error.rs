@@ -23,6 +23,7 @@ impl server_rs::GlobalHandler<()> for ServerData<server_rs::ObjectId> {
     }
 }
 
+#[cfg(unix)]
 impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
     fn bind(
         self: Arc<Self>,
@@ -38,7 +39,7 @@ impl server_sys::GlobalHandler<()> for ServerData<server_sys::ObjectId> {
 }
 
 expand_test!(protocol_error, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -108,7 +109,7 @@ expand_test!(protocol_error, {
 });
 
 expand_test!(client_wrong_id, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
@@ -134,7 +135,7 @@ expand_test!(client_wrong_id, {
 });
 
 expand_test!(client_wrong_opcode, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
@@ -158,7 +159,7 @@ expand_test!(client_wrong_opcode, {
 });
 
 expand_test!(client_wrong_sender, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::<()>::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 
@@ -196,6 +197,7 @@ impl server_rs::GlobalHandler<()> for ProtocolErrorServerData {
     }
 }
 
+#[cfg(unix)]
 impl server_sys::GlobalHandler<()> for ProtocolErrorServerData {
     fn bind(
         self: Arc<Self>,
@@ -231,6 +233,7 @@ impl<D> server_rs::ObjectData<D> for ProtocolErrorServerData {
     }
 }
 
+#[cfg(unix)]
 impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
     fn request(
         self: Arc<Self>,
@@ -254,7 +257,7 @@ impl<D> server_sys::ObjectData<D> for ProtocolErrorServerData {
 }
 
 expand_test!(protocol_error_in_request_without_object_init, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
     let client = client_backend::Backend::connect(tx).unwrap();
@@ -315,7 +318,7 @@ expand_test!(protocol_error_in_request_without_object_init, {
 });
 
 expand_test!(protocol_version_check, {
-    let (tx, rx) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (tx, rx) = UnixStream::pair_named(file!(), line!()).unwrap();
     let server = server_backend::Backend::new().unwrap();
     let _client_id = server.handle().insert_client(rx, Arc::new(())).unwrap();
 

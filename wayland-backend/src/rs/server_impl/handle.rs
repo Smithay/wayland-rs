@@ -1,9 +1,14 @@
 use std::{
     any::Any,
-    os::unix::io::OwnedFd,
-    os::unix::net::UnixStream,
     sync::{Arc, Mutex, Weak},
 };
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+#[cfg(windows)]
+use std::{collections::HashMap, os::windows::net::UnixStream};
+
+use rustix::fd::{AsFd, OwnedFd};
 
 use crate::{
     protocol::{ANONYMOUS_INTERFACE, Interface, Message, ObjectInfo, same_interface},
@@ -18,24 +23,37 @@ use super::{
 
 pub(crate) type PendingDestructor<D> = (Arc<dyn ObjectData<D>>, InnerClientId, InnerObjectId);
 
-#[derive(Debug)]
+#[cfg_attr(unix, derive(Debug))]
 pub struct State<D: 'static> {
     pub(crate) clients: ClientStore<D>,
     pub(crate) registry: Registry<D>,
     pub(crate) pending_destructors: Vec<PendingDestructor<D>>,
+    #[cfg(unix)]
     pub(crate) poll_fd: OwnedFd,
+    #[cfg(windows)]
+    pub(crate) poll_fds: HashMap<InnerClientId, OwnedFd>,
     pub(crate) default_max_buffer_size: usize,
 }
 
+#[cfg(windows)]
+impl<D> std::fmt::Debug for State<D> {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 impl<D> State<D> {
-    pub(crate) fn new(poll_fd: OwnedFd) -> Self {
+    pub(crate) fn new(#[cfg(unix)] poll_fd: OwnedFd) -> Self {
         let debug =
             matches!(std::env::var_os("WAYLAND_DEBUG"), Some(str) if str == "1" || str == "server");
         Self {
             clients: ClientStore::new(debug),
             registry: Registry::new(),
             pending_destructors: Vec::new(),
+            #[cfg(unix)]
             poll_fd,
+            #[cfg(windows)]
+            poll_fds: HashMap::new(),
             default_max_buffer_size: DEFAULT_MAX_BUFFER_SIZE,
         }
     }
@@ -388,6 +406,14 @@ impl<D> ErasedState for State<D> {
 
             let events: &mut [Event] = &mut [];
             unsafe { kevent(&self.poll_fd, &[evt], events, None).map(|_| ()) }
+        };
+
+        #[cfg(windows)]
+        let ret = {
+            // TODO figure out what the hell to do here
+            client.as_fd().try_clone_to_owned().map(|socket| {
+                self.poll_fds.insert(id, socket);
+            })
         };
 
         match ret {
