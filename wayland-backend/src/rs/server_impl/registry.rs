@@ -1,7 +1,4 @@
-use std::{
-    ffi::{CStr, CString},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use crate::protocol::{Argument, Interface};
 use crate::types::server::{GlobalInfo, InvalidId};
@@ -104,14 +101,14 @@ impl<D> Registry<D> {
         &self,
         client: &Client<D>,
         name: u32,
-        interface_name: &CStr,
+        interface_name: &str,
         version: u32,
     ) -> Option<(&'static Interface, InnerGlobalId, Arc<dyn GlobalHandler<D>>)> {
         if name == 0 || version == 0 {
             return None;
         }
         let target_global = self.globals.get((name - 1) as usize).and_then(|o| o.as_ref())?;
-        if target_global.interface.name.as_bytes() != interface_name.to_bytes() {
+        if target_global.interface.name != interface_name {
             return None;
         }
         if target_global.version < version {
@@ -243,7 +240,7 @@ fn send_global_to<D>(
             0, // wl_registry.global
             [
                 Argument::Uint(global.id.id),
-                Argument::Str(Some(Box::new(CString::new(global.interface.name).unwrap()))),
+                Argument::Str(Some(Box::new(global.interface.name))),
                 Argument::Uint(global.version),
             ],
         ),

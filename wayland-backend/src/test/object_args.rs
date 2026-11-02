@@ -1,7 +1,4 @@
-use std::{
-    ffi::CString,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
 
@@ -164,9 +161,7 @@ expand_test!(create_objects, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -260,7 +255,7 @@ expand_test!(panic bad_interface, {
                 [
                     Argument::Uint(1),
                     Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                        interfaces::TEST_GLOBAL_INTERFACE.name,
                     ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
@@ -320,7 +315,7 @@ expand_test!(panic double_null, {
                 [
                     Argument::Uint(1),
                     Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
+                        interfaces::TEST_GLOBAL_INTERFACE.name,
                     ))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
@@ -376,9 +371,7 @@ expand_test!(null_obj_followed_by_interface, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -441,9 +434,7 @@ expand_test!(new_id_null_and_non_null, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(5),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],

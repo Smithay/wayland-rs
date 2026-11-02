@@ -49,17 +49,23 @@ use std::borrow::Cow;
 use std::env;
 use std::fmt::Debug;
 use std::fs::File;
-use std::io::{Error as IoError, Read, Result as IoResult, Seek, SeekFrom, Write};
+use std::io::{Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::ops::{Deref, Index};
 use std::os::unix::io::{AsFd, OwnedFd};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use rustix::fs::Mode;
+// `shm_open` is only used as a fallback and doesn't exist in Bionic (Android).
+#[cfg(not(target_os = "android"))]
+use {
+    rustix::fs::Mode,
+    rustix::shm,
+    std::io::Error as IoError,
+    std::time::{SystemTime, UNIX_EPOCH},
+};
+
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use rustix::fs::{MemfdFlags, memfd_create};
 use rustix::io::Errno;
-use rustix::shm;
 
 use wayland_client::backend::{InvalidId, ObjectData, WeakBackend};
 use wayland_client::protocol::wl_buffer::WlBuffer;
@@ -445,32 +451,38 @@ fn create_shm_fd() -> IoResult<OwnedFd> {
         }
     }
 
-    // Fallback to using shm_open.
-    let sys_time = SystemTime::now();
-    let mut mem_file_handle = format!(
-        "/wayland-cursor-rs-{}",
-        sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
-    );
-    loop {
-        match shm::open(
-            mem_file_handle.as_str(),
-            shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR,
-            Mode::RUSR | Mode::WUSR,
-        ) {
-            Ok(fd) => match shm::unlink(mem_file_handle.as_str()) {
-                Ok(_) => return Ok(fd),
+    #[cfg(target_os = "android")]
+    return Err(Errno::NOSYS.into());
+
+    #[cfg(not(target_os = "android"))]
+    {
+        // Fallback to using shm_open.
+        let sys_time = SystemTime::now();
+        let mut mem_file_handle = format!(
+            "/wayland-cursor-rs-{}",
+            sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+        );
+        loop {
+            match shm::open(
+                mem_file_handle.as_str(),
+                shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR,
+                Mode::RUSR | Mode::WUSR,
+            ) {
+                Ok(fd) => match shm::unlink(mem_file_handle.as_str()) {
+                    Ok(_) => return Ok(fd),
+                    Err(errno) => return Err(IoError::from(errno)),
+                },
+                Err(Errno::EXIST) => {
+                    // If a file with that handle exists then change the handle
+                    mem_file_handle = format!(
+                        "/wayland-cursor-rs-{}",
+                        sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
+                    );
+                    continue;
+                }
+                Err(Errno::INTR) => continue,
                 Err(errno) => return Err(IoError::from(errno)),
-            },
-            Err(Errno::EXIST) => {
-                // If a file with that handle exists then change the handle
-                mem_file_handle = format!(
-                    "/wayland-cursor-rs-{}",
-                    sys_time.duration_since(UNIX_EPOCH).unwrap().subsec_nanos()
-                );
-                continue;
             }
-            Err(Errno::INTR) => continue,
-            Err(errno) => return Err(IoError::from(errno)),
         }
     }
 }

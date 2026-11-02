@@ -200,9 +200,9 @@ fn gen_methods(interface: &Interface) -> TokenStream {
                         Type::Fixed => quote! { f64 },
                         Type::String => {
                             if arg.allow_null {
-                                quote! { Option<String> }
+                                quote! { Option<&str> }
                             } else {
-                                quote! { String }
+                                quote! { &str }
                             }
                         }
                         Type::Array => {

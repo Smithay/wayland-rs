@@ -6,7 +6,7 @@ use std::{
     num::NonZero,
     os::raw::{c_int, c_void},
     os::unix::{
-        io::{AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd},
+        io::{BorrowedFd, IntoRawFd},
         net::UnixStream,
     },
     ptr::{self, NonNull},
@@ -21,9 +21,8 @@ use crate::{
     debug,
     debug::has_debug_client_env,
     protocol::{
-        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, INLINE_ARGS, Interface, Message,
-        ObjectInfo, OwnedArgument, OwnedMessage, ProtocolError, check_for_signature,
-        same_interface,
+        ANONYMOUS_INTERFACE, AllowNull, Argument, ArgumentType, Interface, Message, ObjectInfo,
+        OwnedArgument, OwnedMessage, ProtocolError, check_for_signature, same_interface,
     },
 };
 use scoped_tls::scoped_thread_local;
@@ -31,7 +30,7 @@ use smallvec::SmallVec;
 
 use wayland_sys::{client::*, common::*, ffi_dispatch};
 
-use super::{RUST_MANAGED, free_arrays};
+use super::RUST_MANAGED;
 
 use super::client::*;
 
@@ -706,29 +705,20 @@ impl InnerBackend {
         let child_version = child_spec.as_ref().map(|(_, v)| *v).unwrap_or(parent_version);
 
         // check that all input objects are valid and create the [wl_argument]
-        let mut argument_list = SmallVec::<[wl_argument; 4]>::with_capacity(args.len());
+        let mut argument_list = super::SerializedArgs::new(message_desc.signature);
         let mut arg_interfaces = message_desc.arg_interfaces.iter();
-        for (i, arg) in args.iter().enumerate() {
-            match *arg {
-                Argument::Uint(u) => argument_list.push(wl_argument { u }),
-                Argument::Int(i) => argument_list.push(wl_argument { i }),
-                Argument::Fixed(f) => argument_list.push(wl_argument { f }),
-                Argument::Fd(h) => argument_list.push(wl_argument { h: h.as_raw_fd() }),
-                Argument::Array(ref a) => {
-                    let a = Box::new(wl_array {
-                        size: a.len(),
-                        alloc: a.len(),
-                        data: a.as_ptr() as *mut _,
-                    });
-                    argument_list.push(wl_argument { a: Box::into_raw(a) })
-                }
-                Argument::Str(Some(ref s)) => argument_list.push(wl_argument { s: s.as_ptr() }),
-                Argument::Str(None) => argument_list.push(wl_argument { s: std::ptr::null() }),
+        for (i, arg) in args.into_iter().enumerate() {
+            argument_list.add(match arg {
+                Argument::Uint(u) => Argument::Uint(u),
+                Argument::Int(i) => Argument::Int(i),
+                Argument::Fixed(f) => Argument::Fixed(f),
+                Argument::Fd(h) => Argument::Fd(h),
+                Argument::Array(a) => Argument::Array(a),
+                Argument::Str(s) => Argument::Str(s),
                 Argument::Object(o) => {
                     let next_interface = arg_interfaces.next().unwrap();
                     let ptr = if let InnerObjectId::Proxy(p) = &o.id {
                         if !p.alive.as_ref().map(|a| a.load(Ordering::Acquire)).unwrap_or(true) {
-                            unsafe { free_arrays(message_desc.signature, &argument_list) };
                             return Err(InvalidId);
                         }
                         if !same_interface(next_interface, p.interface) {
@@ -741,7 +731,7 @@ impl InnerBackend {
                                 p.interface.name
                             );
                         }
-                        p.ptr.as_ptr()
+                        super::cast_non_null_ref(&p.ptr)
                     } else if !matches!(
                         message_desc.signature[i],
                         ArgumentType::Object(AllowNull::Yes)
@@ -751,12 +741,12 @@ impl InnerBackend {
                             proxy.interface.name, proxy.id, message_desc.name
                         )
                     } else {
-                        ptr::null()
+                        &None
                     };
-                    argument_list.push(wl_argument { o: ptr as *const _ })
+                    Argument::Object(ptr)
                 }
-                Argument::NewId(_) => argument_list.push(wl_argument { n: 0 }),
-            }
+                Argument::NewId(_) => Argument::NewId(&None),
+            });
         }
 
         let ret = if child_spec.is_none() {
@@ -766,7 +756,7 @@ impl InnerBackend {
                     wl_proxy_marshal_array,
                     proxy.ptr.as_ptr(),
                     opcode as u32,
-                    argument_list.as_mut_ptr(),
+                    argument_list.args.as_mut_ptr(),
                 )
             }
             std::ptr::null_mut()
@@ -784,7 +774,7 @@ impl InnerBackend {
                     wl_proxy_marshal_array_constructor_versioned,
                     wrapped_ptr,
                     opcode as u32,
-                    argument_list.as_mut_ptr(),
+                    argument_list.args.as_mut_ptr(),
                     child_interface_ptr,
                     child_version
                 );
@@ -792,10 +782,6 @@ impl InnerBackend {
                 ret
             }
         };
-
-        unsafe {
-            free_arrays(message_desc.signature, &argument_list);
-        }
 
         if ret.is_null() && child_spec.is_some() {
             panic!("[wayland-backend-sys] libwayland reported an allocation failure.");
@@ -984,114 +970,27 @@ unsafe extern "C" fn dispatcher_func(
         }
     };
 
-    let mut parsed_args = SmallVec::<[OwnedArgument<ObjectId>; INLINE_ARGS]>::with_capacity(
-        message_desc.signature.len(),
-    );
     let mut arg_interfaces = message_desc.arg_interfaces.iter().copied();
     let mut created = None;
     // Safety (args deference): the args array provided by libwayland is well-formed
-    for (i, typ) in message_desc.signature.iter().enumerate() {
-        match typ {
-            ArgumentType::Uint => {
-                parsed_args.push(OwnedArgument::Uint(unsafe { (*args.add(i)).u }))
-            }
-            ArgumentType::Int => parsed_args.push(OwnedArgument::Int(unsafe { (*args.add(i)).i })),
-            ArgumentType::Fixed => {
-                parsed_args.push(OwnedArgument::Fixed(unsafe { (*args.add(i)).f }))
-            }
-            ArgumentType::Fd => parsed_args
-                .push(OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd((*args.add(i)).h) })),
-            ArgumentType::Array => {
-                let array = unsafe { &*((*args.add(i)).a) };
-                // Safety: the array provided by libwayland must be valid
-                let content =
-                    unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
-                parsed_args.push(OwnedArgument::Array(Box::new(content.into())));
-            }
-            ArgumentType::Str(_) => {
-                let ptr = unsafe { (*args.add(i)).s };
-                // Safety: the c-string provided by libwayland must be valid
-                if !ptr.is_null() {
-                    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
-                    parsed_args.push(OwnedArgument::Str(Some(Box::new(cstr.into()))));
-                } else {
-                    parsed_args.push(OwnedArgument::Str(None));
-                }
-            }
-            ArgumentType::Object(_) => {
-                let obj = unsafe { (*args.add(i)).o as *mut wl_proxy };
-                if let Some(obj) = NonNull::new(obj) {
-                    // retrieve the object relevant info
-                    let obj_id =
-                        ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, obj.as_ptr());
-                    // check if this is a local or distant proxy
-                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
-                    let listener =
-                        ffi_dispatch!(wayland_client_handle(), wl_proxy_get_listener, obj.as_ptr());
-                    if ptr::eq(listener, &RUST_MANAGED as *const u8 as *const c_void) {
-                        let Some(obj_udata) = BACKEND.with(|backend| {
-                            let _guard = backend.backend.lock_state();
-                            // SAFETY: the object is rust-managed, its user-data must be valid
-                            // If another thread calls `wl_proxy_destroy()`, the proxy will still be valid due to ref
-                            // counting in libwayland. But we may get a `NULL` user data.
-                            let udata = unsafe {
-                                ffi_dispatch!(
-                                    wayland_client_handle(),
-                                    wl_proxy_get_user_data,
-                                    obj.as_ptr()
-                                )
-                            };
-                            if !udata.is_null() {
-                                Some(unsafe { &mut *(udata as *mut ProxyUserData) }.clone())
-                            } else {
-                                None
-                            }
-                        }) else {
-                            // If arg has object been destroyed in another thread, treat the same
-                            // way as a argument received as `NULL` from libwayland.
-                            // TODO Add a test for this
-                            parsed_args
-                                .push(OwnedArgument::Object(InnerBackend::null_id().clone()));
-                            continue;
-                        };
-                        if !same_interface(next_interface, obj_udata.interface) {
-                            crate::log_error!(
-                                "Received object {}@{} in {}.{} but expected interface {}.",
-                                obj_udata.interface.name,
-                                obj_id,
-                                udata.interface.name,
-                                message_desc.name,
-                                next_interface.name,
-                            );
-                            return -1;
-                        }
-                        parsed_args.push(OwnedArgument::Object(ObjectId {
-                            id: InnerObjectId::Proxy(Proxy {
-                                alive: Some(obj_udata.alive.clone()),
-                                ptr: obj,
-                                id: NonZero::new(obj_id).unwrap(),
-                                interface: obj_udata.interface,
-                            }),
-                        }));
-                    } else {
-                        parsed_args.push(OwnedArgument::Object(ObjectId {
-                            id: InnerObjectId::Proxy(Proxy {
-                                alive: None,
-                                id: NonZero::new(obj_id).unwrap(),
-                                ptr: obj,
-                                interface: next_interface,
-                            }),
-                        }));
-                    }
-                } else {
-                    // libwayland-client.so checks nulls for us
-                    parsed_args.push(OwnedArgument::Object(InnerBackend::null_id().clone()))
-                }
-            }
-            ArgumentType::NewId => {
-                let obj = unsafe { (*args.add(i)).o as *mut wl_proxy };
+    let args = unsafe { std::slice::from_raw_parts(args, message_desc.signature.len()) };
+    let Ok(parsed_args) = message_desc
+        .signature
+        .iter()
+        .zip(args)
+        .map(|(typ, arg)| {
+            // libwayland-client provides new ID as pointer in .o field, not integer in .n field
+            let is_new_id = matches!(typ, ArgumentType::NewId);
+            let parse_typ = if is_new_id { &ArgumentType::Object(AllowNull::Yes) } else { typ };
+            Ok(match unsafe { super::parse_arg(parse_typ, arg) } {
+                OwnedArgument::Uint(value) => OwnedArgument::Uint(value),
+                OwnedArgument::Int(value) => OwnedArgument::Int(value),
+                OwnedArgument::Fixed(value) => OwnedArgument::Fixed(value),
+                OwnedArgument::Fd(value) => OwnedArgument::Fd(value),
+                OwnedArgument::Array(value) => OwnedArgument::Array(value),
+                OwnedArgument::Str(value) => OwnedArgument::Str(value),
                 // this is a newid, it needs to be initialized
-                if let Some(obj) = NonNull::new(obj) {
+                OwnedArgument::Object(Some(obj)) if is_new_id => {
                     let child_interface = message_desc.child_interface.unwrap_or_else(|| {
                         crate::log_warn!(
                             "Event {}.{} creates an anonymous object.",
@@ -1126,13 +1025,85 @@ unsafe extern "C" fn dispatcher_func(
                         &RUST_MANAGED as *const u8 as *const c_void,
                         child_udata as *mut c_void
                     );
-                    parsed_args.push(OwnedArgument::NewId(ObjectId { id: child_id }));
-                } else {
-                    parsed_args.push(OwnedArgument::NewId(InnerBackend::null_id().clone()));
+                    OwnedArgument::NewId(ObjectId { id: child_id })
                 }
-            }
-        }
-    }
+                OwnedArgument::Object(None) if is_new_id => {
+                    OwnedArgument::NewId(InnerBackend::null_id().clone())
+                }
+                OwnedArgument::Object(Some(obj)) => {
+                    // retrieve the object relevant info
+                    let obj_id =
+                        ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, obj.as_ptr());
+                    // check if this is a local or distant proxy
+                    let next_interface = arg_interfaces.next().unwrap_or(&ANONYMOUS_INTERFACE);
+                    let listener =
+                        ffi_dispatch!(wayland_client_handle(), wl_proxy_get_listener, obj.as_ptr());
+                    if ptr::eq(listener, &RUST_MANAGED as *const u8 as *const c_void) {
+                        let Some(obj_udata) = BACKEND.with(|backend| {
+                            let _guard = backend.backend.lock_state();
+                            // SAFETY: the object is rust-managed, its user-data must be valid
+                            // If another thread calls `wl_proxy_destroy()`, the proxy will still be valid due to ref
+                            // counting in libwayland. But we may get a `NULL` user data.
+                            let udata = unsafe {
+                                ffi_dispatch!(
+                                    wayland_client_handle(),
+                                    wl_proxy_get_user_data,
+                                    obj.as_ptr()
+                                )
+                            };
+                            if !udata.is_null() {
+                                Some(unsafe { &mut *(udata as *mut ProxyUserData) }.clone())
+                            } else {
+                                None
+                            }
+                        }) else {
+                            // If arg has object been destroyed in another thread, treat the same
+                            // way as a argument received as `NULL` from libwayland.
+                            // TODO Add a test for this
+                            return Ok(OwnedArgument::Object(InnerBackend::null_id().clone()));
+                        };
+                        if !same_interface(next_interface, obj_udata.interface) {
+                            crate::log_error!(
+                                "Received object {}@{} in {}.{} but expected interface {}.",
+                                obj_udata.interface.name,
+                                obj_id,
+                                udata.interface.name,
+                                message_desc.name,
+                                next_interface.name,
+                            );
+                            return Err(());
+                        }
+                        OwnedArgument::Object(ObjectId {
+                            id: InnerObjectId::Proxy(Proxy {
+                                alive: Some(obj_udata.alive.clone()),
+                                ptr: obj,
+                                id: NonZero::new(obj_id).unwrap(),
+                                interface: obj_udata.interface,
+                            }),
+                        })
+                    } else {
+                        OwnedArgument::Object(ObjectId {
+                            id: InnerObjectId::Proxy(Proxy {
+                                alive: None,
+                                id: NonZero::new(obj_id).unwrap(),
+                                ptr: obj,
+                                interface: next_interface,
+                            }),
+                        })
+                    }
+                }
+                OwnedArgument::Object(None) => {
+                    let _next_interface = arg_interfaces.next();
+                    // libwayland-client.so checks nulls for us
+                    OwnedArgument::Object(InnerBackend::null_id().clone())
+                }
+                OwnedArgument::NewId(_) => unreachable!(),
+            })
+        })
+        .collect::<Result<SmallVec<_>, ()>>()
+    else {
+        return -1;
+    };
 
     let proxy_id = ffi_dispatch!(wayland_client_handle(), wl_proxy_get_id, proxy);
     let id = ObjectId {

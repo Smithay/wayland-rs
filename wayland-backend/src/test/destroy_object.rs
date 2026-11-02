@@ -1,5 +1,3 @@
-use std::ffi::CString;
-
 use crate::types::client::InvalidId;
 
 use super::*;
@@ -97,9 +95,7 @@ expand_test!(destroy_global, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -145,9 +141,7 @@ expand_test!(destroy_twice, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -194,9 +188,7 @@ expand_test!(destroy_flush_destroy, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
@@ -250,9 +242,7 @@ expand_test!(destroy_then_message, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(3),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],

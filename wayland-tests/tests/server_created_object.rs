@@ -188,7 +188,7 @@ fn server_created_race() {
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
-    offer.offer("text".into());
+    offer.offer("text");
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -197,7 +197,7 @@ fn server_created_race() {
     // now the client will conccurently destroy the object as the server sends an event to it
     // this should not crash and the events to the zombie object should be silently dropped
 
-    offer.offer("utf8".into());
+    offer.offer("utf8");
     let client_do = client_ddata.data_offer.take().unwrap();
     client_do.destroy();
 
@@ -246,7 +246,7 @@ fn creation_destruction_race() {
     // server sends a newid event to dd1 while dd1 gets destroyed
     client_dd1.release();
 
-    let s_client = server.display.handle().get_client(&s_dd1.id()).unwrap();
+    let s_client = server.display.handle().get_client(s_dd1.id()).unwrap();
     // Send a first NewID
     let offer1 = s_client
         .create_resource::<ServerDO, (), ServerHandler>(
@@ -258,7 +258,7 @@ fn creation_destruction_race() {
     s_dd1.data_offer(&offer1);
     // this message should not crash the client, even though it is send to
     // a object that has never been implemented
-    offer1.offer("text".into());
+    offer1.offer("text");
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 
@@ -274,7 +274,7 @@ fn creation_destruction_race() {
         .unwrap();
     s_dd2.data_offer(&offer2);
 
-    offer2.offer("utf8".into());
+    offer2.offer("utf8");
 
     roundtrip(&mut client, &mut server, &mut client_ddata, &mut server_ddata).unwrap();
 

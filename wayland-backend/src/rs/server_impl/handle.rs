@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    ffi::CString,
     os::unix::io::OwnedFd,
     os::unix::net::UnixStream,
     sync::{Arc, Mutex, Weak},
@@ -232,7 +231,7 @@ impl InnerHandle {
         state.clients.get_client_mut(id.client_id)?.set_object_data(id, data)
     }
 
-    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: CString) {
+    pub fn post_error(&self, object_id: &InnerObjectId, error_code: u32, message: &str) {
         self.state.lock().unwrap().post_error(object_id, error_code, message)
     }
 
@@ -336,7 +335,7 @@ pub(crate) trait ErasedState: Any {
         id: &InnerObjectId,
     ) -> Result<Arc<dyn Any + Send + Sync>, InvalidId>;
     fn send_event(&mut self, msg: Message<ObjectId>) -> Result<(), InvalidId>;
-    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString);
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: &str);
     fn kill_client(&mut self, client_id: &InnerClientId, reason: DisconnectReason);
     fn global_info(&self, id: &InnerGlobalId) -> Result<GlobalInfo, InvalidId>;
     fn global_name(&self, global: &InnerGlobalId, client: &InnerClientId) -> Option<u32>;
@@ -467,7 +466,7 @@ impl<D> ErasedState for State<D> {
             .send_event(msg, Some(&mut self.pending_destructors))
     }
 
-    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: CString) {
+    fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: &str) {
         if let Ok(client) = self.clients.get_client_mut(object_id.client_id) {
             client.post_error(object_id, error_code, message)
         }

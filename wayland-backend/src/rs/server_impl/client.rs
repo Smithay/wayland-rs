@@ -1,5 +1,4 @@
 use std::{
-    ffi::CString,
     os::unix::{
         io::{AsFd, BorrowedFd},
         net::UnixStream,
@@ -258,7 +257,7 @@ impl<D> Client<D> {
             .unwrap_or(Err(InvalidId))
     }
 
-    pub(crate) fn post_display_error(&mut self, code: DisplayError, message: CString) {
+    pub(crate) fn post_display_error(&mut self, code: DisplayError, message: &str) {
         self.post_error(
             &InnerObjectId {
                 id: 1,
@@ -271,14 +270,8 @@ impl<D> Client<D> {
         )
     }
 
-    pub(crate) fn post_error(
-        &mut self,
-        object_id: &InnerObjectId,
-        error_code: u32,
-        message: CString,
-    ) {
+    pub(crate) fn post_error(&mut self, object_id: &InnerObjectId, error_code: u32, message: &str) {
         let object = ObjectId { id: *object_id };
-        let converted_message = message.to_string_lossy().into();
         // errors are ignored, as the client will be killed anyway
         let _ = self.send_event(
             message!(
@@ -305,7 +298,7 @@ impl<D> Client<D> {
             code: error_code,
             object_id: object_id.id,
             object_interface: object_id.interface.name.into(),
-            message: converted_message,
+            message: message.to_owned(),
         }));
     }
 
@@ -434,7 +427,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, callback_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                            &format!("Invalid new_id: {new_id}."),
                         );
                         return;
                     }
@@ -470,7 +463,7 @@ impl<D> Client<D> {
                     if let Err(()) = self.map.insert_at(new_id, registry_obj) {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                            &format!("Invalid new_id: {new_id}."),
                         );
                         return;
                     }
@@ -483,11 +476,7 @@ impl<D> Client<D> {
                 // unkown opcode, kill the client
                 self.post_display_error(
                     DisplayError::InvalidMethod,
-                    CString::new(format!(
-                        "Unknown opcode {} for interface wl_display.",
-                        message.opcode
-                    ))
-                    .unwrap(),
+                    &format!("Unknown opcode {} for interface wl_display.", message.opcode),
                 );
             }
         }
@@ -521,7 +510,7 @@ impl<D> Client<D> {
                         if let Err(()) = self.map.insert_at(new_id, object) {
                             self.post_display_error(
                                 DisplayError::InvalidObject,
-                                CString::new(format!("Invalid new_id: {new_id}.")).unwrap(),
+                                &format!("Invalid new_id: {new_id}."),
                             );
                             return None;
                         }
@@ -534,13 +523,10 @@ impl<D> Client<D> {
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!(
+                            &format!(
                                 "Invalid binding of {} version {} for global {}.",
-                                interface_name.to_string_lossy(),
-                                version,
-                                name
-                            ))
-                            .unwrap(),
+                                interface_name, version, name
+                            ),
                         );
                         None
                     }
@@ -552,11 +538,7 @@ impl<D> Client<D> {
                 // unkown opcode, kill the client
                 self.post_display_error(
                     DisplayError::InvalidMethod,
-                    CString::new(format!(
-                        "Unknown opcode {} for interface wl_registry.",
-                        message.opcode
-                    ))
-                    .unwrap(),
+                    &format!("Unknown opcode {} for interface wl_registry.", message.opcode),
                 );
                 None
             }
@@ -573,15 +555,14 @@ impl<D> Client<D> {
         if message_desc.since > object.version {
             self.post_display_error(
                 DisplayError::InvalidMethod,
-                CString::new(format!(
+                &format!(
                     "invalid method {} (since {} < {}), object {}#{}",
                     message.opcode,
                     object.version,
                     message_desc.since,
                     object.interface.name,
                     message.sender_id
-                ))
-                .unwrap(),
+                ),
             );
             return None;
         }
@@ -607,7 +588,7 @@ impl<D> Client<D> {
                             None => {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
-                                    CString::new(format!("Unknown id: {o}.")).unwrap()
+                                    &format!("Unknown id: {o}.")
                                 );
                                 return None;
                             }
@@ -616,14 +597,14 @@ impl<D> Client<D> {
                             if !same_interface_or_anonymous(next_interface, obj.interface) {
                                 self.post_display_error(
                                     DisplayError::InvalidObject,
-                                    CString::new(format!(
+                                    &format!(
                                         "Invalid object {} in request {}.{}: expected {} but got {}.",
                                         o,
                                         object.interface.name,
                                         message_desc.name,
                                         next_interface.name,
                                         obj.interface.name,
-                                    )).unwrap()
+                                    )
                                 );
                                 return None;
                             }
@@ -634,11 +615,11 @@ impl<D> Client<D> {
                     } else {
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!(
+                            &format!(
                                 "Invalid null object in request {}.{}.",
                                 object.interface.name,
                                 message_desc.name,
-                            )).unwrap()
+                            )
                         );
                         return None;
                     }
@@ -668,7 +649,7 @@ impl<D> Client<D> {
                         // abort parsing, this is an unrecoverable error
                         self.post_display_error(
                             DisplayError::InvalidObject,
-                            CString::new(format!("Invalid new_id: {new_id}.")).unwrap()
+                            &format!("Invalid new_id: {new_id}.")
                         );
                         return None;
                     }

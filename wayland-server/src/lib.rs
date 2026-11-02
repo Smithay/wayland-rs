@@ -201,9 +201,9 @@ pub trait Resource: Clone + std::fmt::Debug + Sized + 'static {
     ///
     /// A protocol error is fatal to the Wayland connection, and the client will be disconnected.
     #[inline]
-    fn post_error(&self, code: impl Into<u32>, error: impl Into<String>) {
+    fn post_error(&self, code: impl Into<u32>, error: &str) {
         if let Some(dh) = self.handle().upgrade().map(DisplayHandle::from) {
-            dh.post_error(self, code.into(), error.into());
+            dh.post_error(self, code.into(), error);
         }
     }
 

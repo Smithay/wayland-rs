@@ -1,12 +1,16 @@
 //! Implementations of the Wayland backends using the system `libwayland`
 
-use std::ptr::NonNull;
+use smallvec::SmallVec;
+use std::ffi::CString;
+use std::num::NonZeroU32;
+use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
+use std::ptr::{self, NonNull};
 use std::sync::Arc;
 
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
 
-use crate::protocol::{ArgumentType, Interface};
+use crate::protocol::{Argument, ArgumentType, INLINE_ARGS, Interface, OwnedArgument};
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
 use std::ffi::c_void;
@@ -20,16 +24,6 @@ mod server_impl;
 ///
 /// This static serves no purpose other than existing at a stable address.
 static RUST_MANAGED: u8 = 42;
-
-unsafe fn free_arrays(signature: &[ArgumentType], arglist: &[wl_argument]) {
-    for (typ, arg) in signature.iter().zip(arglist.iter()) {
-        if let ArgumentType::Array = typ {
-            // Safety: the arglist provided arglist must be valid for associated signature
-            // and contains pointers to boxed arrays as appropriate
-            let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
-        }
-    }
-}
 
 /// Client-side implementation of a Wayland protocol backend using `libwayland`
 ///
@@ -231,4 +225,98 @@ impl server::Handle {
     pub fn display_ptr(&self) -> *mut c_void {
         self.handle.display_ptr().cast()
     }
+}
+
+unsafe fn parse_arg<O>(
+    typ: &ArgumentType,
+    arg: &wl_argument,
+) -> OwnedArgument<Option<NonNull<O>>, Option<NonZeroU32>> {
+    match typ {
+        ArgumentType::Uint => OwnedArgument::Uint(unsafe { arg.u }),
+        ArgumentType::Int => OwnedArgument::Int(unsafe { arg.i }),
+        ArgumentType::Fixed => OwnedArgument::Fixed(unsafe { arg.f }),
+        ArgumentType::Fd => OwnedArgument::Fd(unsafe { OwnedFd::from_raw_fd(arg.h) }),
+        ArgumentType::Array => {
+            let array = unsafe { &*arg.a };
+            // Safety: the array provided by libwayland must be valid
+            let content = unsafe { std::slice::from_raw_parts(array.data as *mut u8, array.size) };
+            OwnedArgument::Array(Box::new(content.into()))
+        }
+        ArgumentType::Str(_) => {
+            let ptr = unsafe { arg.s };
+            // Safety: the c-string provided by libwayland must be valid
+            OwnedArgument::Str(if !ptr.is_null() {
+                // TODO: Should we error on invalid UTF-8?
+                let s = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_string_lossy();
+                Some(Box::new(s.into_owned()))
+            } else {
+                None
+            })
+        }
+        ArgumentType::Object(_) => OwnedArgument::Object(NonNull::new(unsafe { arg.o as *mut O })),
+        ArgumentType::NewId => OwnedArgument::NewId(NonZeroU32::new(unsafe { arg.n })),
+    }
+}
+
+struct SerializedArgs {
+    signature: &'static [ArgumentType],
+    args: SmallVec<[wl_argument; INLINE_ARGS]>,
+}
+
+impl SerializedArgs {
+    fn new(signature: &'static [ArgumentType]) -> Self {
+        Self {
+            signature,
+            args: SmallVec::<[wl_argument; INLINE_ARGS]>::with_capacity(signature.len()),
+        }
+    }
+
+    fn add<O>(&mut self, arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>) {
+        self.args.push(match arg {
+            Argument::Uint(u) => wl_argument { u },
+            Argument::Int(i) => wl_argument { i },
+            Argument::Fixed(f) => wl_argument { f },
+            Argument::Fd(h) => wl_argument { h: h.as_raw_fd() },
+            Argument::Array(ref a) => {
+                let a = Box::new(wl_array {
+                    size: a.len(),
+                    alloc: a.len(),
+                    data: a.as_ptr() as *mut _,
+                });
+                wl_argument { a: Box::into_raw(a) }
+            }
+            Argument::Str(Some(ref s)) => {
+                // Panic if string contains internal \0 byte
+                let s = CString::new((**s).to_owned()).unwrap();
+                wl_argument { s: s.into_raw() }
+            }
+            Argument::Str(None) => wl_argument { s: std::ptr::null() },
+            Argument::Object(o) => {
+                wl_argument { o: o.map_or_else(ptr::null, |o| o.as_ptr()) as *const _ }
+            }
+            Argument::NewId(n) => wl_argument { n: n.map_or(0, |n| n.get()) },
+        });
+    }
+}
+
+impl Drop for SerializedArgs {
+    fn drop(&mut self) {
+        for (typ, arg) in self.signature.iter().zip(self.args.iter()) {
+            // Safety: the arglist provided arglist must be valid for associated signature
+            // and contains pointers to boxed arrays/cstrings as appropriate
+            if let ArgumentType::Array = typ {
+                let _ = unsafe { Box::from_raw(arg.a as *mut wl_array) };
+            } else if let ArgumentType::Str(_) = typ {
+                let ptr = unsafe { arg.s };
+                if !ptr.is_null() {
+                    let _ = unsafe { CString::from_raw(ptr as *mut _) };
+                }
+            }
+        }
+    }
+}
+
+fn cast_non_null_ref<T>(ptr: &NonNull<T>) -> &Option<NonNull<T>> {
+    // SAFETY: `Option<NonNull<T>>` is guaranteed to have same repr as `NonNull<T>`
+    unsafe { &*(ptr as *const _ as *const _) }
 }

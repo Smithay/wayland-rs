@@ -1,7 +1,7 @@
 //! Types and utilities for manipulating the Wayland protocol
 
 use std::{
-    ffi::{CStr, CString},
+    ffi::CStr,
     os::unix::io::{AsRawFd, BorrowedFd, OwnedFd},
 };
 
@@ -34,7 +34,7 @@ pub enum ArgumentType {
     Uint,
     /// A signed fixed point number with 1/256 precision
     Fixed,
-    /// A string. This is represented as a [`CString`] in a message.
+    /// A string. This is represented as a [`String`] in a message.
     Str(AllowNull),
     /// Id of a wayland object
     Object(AllowNull),
@@ -58,7 +58,7 @@ impl ArgumentType {
 /// Enum of possible argument of the protocol
 #[derive(Debug)]
 #[allow(clippy::box_collection)]
-pub enum OwnedArgument<Id> {
+pub enum OwnedArgument<Id, NewId = Id> {
     /// An integer argument. Represented by a [`i32`].
     Int(i32),
     /// An unsigned integer argument. Represented by a [`u32`].
@@ -69,11 +69,11 @@ pub enum OwnedArgument<Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Option<Box<CString>>),
+    Str(Option<Box<String>>),
     /// Id of a wayland object
     Object(Id),
     /// Id of a newly created wayland object
-    NewId(Id),
+    NewId(NewId),
     /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
@@ -108,7 +108,7 @@ impl<Id: Clone> OwnedArgument<Id> {
             Self::Int(val) => Argument::Int(*val),
             Self::Uint(val) => Argument::Uint(*val),
             Self::Fixed(val) => Argument::Fixed(*val),
-            Self::Str(val) => Argument::Str(val.clone()),
+            Self::Str(val) => Argument::Str(val.as_ref().map(|s| Box::new(s.as_str()))),
             Self::Object(val) => Argument::Object(val),
             Self::NewId(val) => Argument::NewId(val),
             Self::Array(val) => Argument::Array(Box::new(val)),
@@ -122,7 +122,7 @@ impl<Id: Eq> Eq for OwnedArgument<Id> {}
 /// Enum of possible argument of the protocol
 #[derive(Debug, Clone)]
 #[allow(clippy::box_collection)]
-pub enum Argument<'a, Id> {
+pub enum Argument<'a, Id, NewId = Id> {
     /// An integer argument. Represented by a [`i32`].
     Int(i32),
     /// An unsigned integer argument. Represented by a [`u32`].
@@ -133,11 +133,11 @@ pub enum Argument<'a, Id> {
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance
     /// impact is negligible as `string` arguments are pretty rare in the protocol.
-    Str(Option<Box<CString>>),
+    Str(Option<Box<&'a str>>),
     /// Id of a wayland object
     Object(&'a Id),
     /// Id of a newly created wayland object
-    NewId(&'a Id),
+    NewId(&'a NewId),
     /// `Vec<u8>`
     ///
     /// The value is boxed to reduce the stack size of Argument. The performance

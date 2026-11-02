@@ -1,7 +1,4 @@
-use std::{
-    ffi::CString,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::*;
 
@@ -138,9 +135,7 @@ expand_test!(server_created_object, {
                 0,
                 [
                     Argument::Uint(1),
-                    Argument::Str(Some(Box::new(
-                        CString::new(interfaces::TEST_GLOBAL_INTERFACE.name.as_bytes()).unwrap(),
-                    ))),
+                    Argument::Str(Some(Box::new(interfaces::TEST_GLOBAL_INTERFACE.name))),
                     Argument::Uint(1),
                     Argument::NewId(client_backend::ObjectId::null()),
                 ],
