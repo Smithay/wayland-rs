@@ -469,9 +469,9 @@ mod test {
     }
 
     #[test]
-    fn test_frequent_events_fit_inline() {
-        // `zwp_relative_pointer_v1.relative_motion` is sent for every mouse motion and carries
-        // 6 arguments; `wl_output.geometry` carries 8. Neither may need a heap allocation.
+    fn test_eight_args_fit_inline() {
+        // `zwp_relative_pointer_v1.relative_motion` (6 arguments, sent for every mouse motion)
+        // and `wl_keyboard.modifiers` (5 arguments) must not need a heap allocation.
         let args: smallvec::SmallVec<[OwnedArgument<usize>; INLINE_ARGS]> =
             (0..8).map(OwnedArgument::Uint).collect();
         assert!(!args.spilled());
