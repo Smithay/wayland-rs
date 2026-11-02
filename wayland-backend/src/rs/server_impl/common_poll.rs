@@ -330,6 +330,11 @@ impl<D> InnerBackend<D> {
     }
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "short-lived local built once per request; boxing `arguments` would bring back the \
+              heap allocation that `INLINE_ARGS` avoids"
+)]
 enum DispatchAction<D: 'static> {
     Request {
         object: Object<Data<D>>,
