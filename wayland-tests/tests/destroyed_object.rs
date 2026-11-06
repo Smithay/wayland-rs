@@ -98,6 +98,55 @@ impl wayc::backend::ObjectData for DestroyTestUdata {
     }
 }
 
+#[test]
+fn destroyed_object_in_nonnull_arg() {
+    let mut server = TestServer::new();
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_compositor::WlCompositor, _>(1, ());
+    server
+        .display
+        .handle()
+        .create_global::<ServerHandler, ways::protocol::wl_subcompositor::WlSubcompositor, _>(
+            1,
+            (),
+        );
+
+    let (_, mut client) = server.add_client();
+    let mut client_ddata = ClientHandler::default();
+    let registry =
+        client.display.get_registry(&client.event_queue.handle(), globals::GlobalListData);
+    let qh = client.event_queue.handle();
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
+
+    let compositor = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_compositor::WlCompositor, _, _>(
+            &qh,
+            &registry,
+            1..=1,
+            wayc::Noop,
+        )
+        .unwrap();
+    let subcompositor = client_ddata
+        .globals
+        .bind::<wayc::protocol::wl_subcompositor::WlSubcompositor, _, _>(
+            &qh,
+            &registry,
+            1..=1,
+            wayc::Noop,
+        )
+        .unwrap();
+    let surface = compositor.create_surface(&qh, wayc::NoopIgnore);
+    let parent_surface = compositor.create_surface(&qh, wayc::NoopIgnore);
+    surface.destroy();
+    subcompositor.get_subsurface(&surface, &parent_surface, &qh, wayc::Noop);
+
+    roundtrip(&mut client, &mut server, &mut client_ddata, &mut ServerHandler).unwrap();
+}
+
 struct ServerHandler;
 
 impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ServerHandler> for () {
@@ -125,12 +174,40 @@ impl ways::Dispatch<ways::protocol::wl_compositor::WlCompositor, ServerHandler> 
     }
 }
 
+impl ways::Dispatch<ways::protocol::wl_subcompositor::WlSubcompositor, ServerHandler> for () {
+    fn request(
+        &self,
+        _state: &mut ServerHandler,
+        _: &ways::Client,
+        _: &ways::protocol::wl_subcompositor::WlSubcompositor,
+        request: ways::protocol::wl_subcompositor::Request,
+        _: &ways::DisplayHandle,
+        _data_init: &mut ways::DataInit<'_, ServerHandler>,
+    ) {
+        match request {
+            ways::protocol::wl_subcompositor::Request::GetSubsurface {
+                id: _,
+                surface: _,
+                parent: _,
+            } => {
+                panic!("subsurface creation on destroy object");
+            }
+            ways::protocol::wl_subcompositor::Request::Destroy => {}
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+}
+
 server_ignore_impl!(ServerHandler => [
     ways::protocol::wl_region::WlRegion,
-    ways::protocol::wl_surface::WlSurface
+    ways::protocol::wl_surface::WlSurface,
+    ways::protocol::wl_subsurface::WlSubsurface
 ]);
 server_ignore_global_impl!(ServerHandler => [
-    ways::protocol::wl_compositor::WlCompositor
+    ways::protocol::wl_compositor::WlCompositor,
+    ways::protocol::wl_subcompositor::WlSubcompositor
 ]);
 
 #[derive(Default)]
