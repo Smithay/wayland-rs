@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::protocol::{Argument, Interface};
@@ -14,6 +15,8 @@ use super::{
     we must subtract 1 to it before indexing the vec
 */
 
+struct GlobalOffer {}
+
 #[derive(Debug)]
 pub(crate) struct Global<D: 'static> {
     id: InnerGlobalId,
@@ -21,6 +24,8 @@ pub(crate) struct Global<D: 'static> {
     version: u32,
     handler: Arc<dyn GlobalHandler<D>>,
     disabled: bool,
+    // List of registries is has been advertised on
+    offers: HashSet<InnerObjectId>,
 }
 
 #[derive(Debug)]
@@ -65,7 +70,14 @@ impl<D> Registry<D> {
 
         let id = InnerGlobalId { id: id as u32 + 1, serial };
 
-        *place = Some(Global { id, interface, version, handler, disabled: false });
+        *place = Some(Global {
+            id,
+            interface,
+            version,
+            handler,
+            disabled: false,
+            offers: HashSet::new(),
+        });
 
         self.send_global_to_all(id, clients).unwrap();
 
@@ -73,11 +85,7 @@ impl<D> Registry<D> {
     }
 
     fn get_global(&self, id: InnerGlobalId) -> Result<&Global<D>, InvalidId> {
-        self.globals
-            .get(id.id as usize - 1)
-            .and_then(|o| o.as_ref())
-            .filter(|o| o.id == id)
-            .ok_or(InvalidId)
+        self.globals.get(id.id as usize - 1).and_then(|o| o.as_ref()).ok_or(InvalidId)
     }
 
     pub(crate) fn get_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
@@ -136,12 +144,12 @@ impl<D> Registry<D> {
             !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
                 && !pending_destructors.iter().any(|(_, _, id)| id == obj_id)
         })
+        // TODO cleanup offers
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
-        let global = match self.globals.get_mut(id.id as usize - 1) {
-            Some(&mut Some(ref mut g)) if g.id == id => g,
-            _ => return,
+        let Ok(global) = get_global_mut(&mut self.globals, id) else {
+            return;
         };
 
         // Do nothing if the global is already disabled
@@ -153,6 +161,7 @@ impl<D> Registry<D> {
                     let _ = send_global_remove_to(client, global, ObjectId { id: registry });
                 }
             }
+            // TODO remove now if there are no offers
         }
     }
 
@@ -164,11 +173,7 @@ impl<D> Registry<D> {
         // disable the global if not already disabled
         self.disable_global(id, clients);
         // now remove it if the id is still valid
-        if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
-            if place.as_ref().map(|g| g.id == id).unwrap_or(false) { place.take() } else { None }
-        } else {
-            None
-        }
+        self.globals.get_mut(id.id as usize - 1).and_then(Option::take)
     }
 
     pub(crate) fn new_registry(
@@ -182,11 +187,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_all_globals_to(
-        &self,
+        &mut self,
         registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
-        for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
+        for global in self.globals.iter_mut().flat_map(|opt| opt.as_mut()) {
             if !global.disabled
                 && global.handler.can_view(
                     &ClientId { id: client.id },
@@ -202,11 +207,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_global_to_all(
-        &self,
+        &mut self,
         global_id: InnerGlobalId,
         clients: &mut ClientStore<D>,
     ) -> Result<(), InvalidId> {
-        let global = self.get_global(global_id)?;
+        let global = get_global_mut(&mut self.globals, global_id)?;
         if global.disabled {
             return Err(InvalidId);
         }
@@ -228,10 +233,17 @@ impl<D> Registry<D> {
     }
 }
 
+fn get_global_mut<D>(
+    globals: &mut [Option<Global<D>>],
+    id: InnerGlobalId,
+) -> Result<&mut Global<D>, InvalidId> {
+    globals.get_mut(id.id as usize - 1).and_then(|o| o.as_mut()).ok_or(InvalidId)
+}
+
 #[inline]
 fn send_global_to<D>(
     client: &mut Client<D>,
-    global: &Global<D>,
+    global: &mut Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
     client.send_event(
@@ -246,7 +258,9 @@ fn send_global_to<D>(
         ),
         // This is not a destructor event
         None,
-    )
+    )?;
+    global.offers.insert(registry.id);
+    Ok(())
 }
 
 #[inline]

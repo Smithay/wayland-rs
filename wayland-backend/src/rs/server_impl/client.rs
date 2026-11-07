@@ -704,20 +704,14 @@ impl<D> ClientStore<D> {
     }
 
     pub(crate) fn get_client(&self, id: InnerClientId) -> Result<&Client<D>, InvalidId> {
-        match self.clients.get(id.id as usize) {
-            Some(Some(client)) if client.id == id => Ok(client),
-            _ => Err(InvalidId),
-        }
+        self.clients.get(id.id as usize).and_then(|c| c.as_ref()).ok_or(InvalidId)
     }
 
     pub(crate) fn get_client_mut(
         &mut self,
         id: InnerClientId,
     ) -> Result<&mut Client<D>, InvalidId> {
-        match self.clients.get_mut(id.id as usize) {
-            Some(&mut Some(ref mut client)) if client.id == id => Ok(client),
-            _ => Err(InvalidId),
-        }
+        self.clients.get_mut(id.id as usize).and_then(|c| c.as_mut()).ok_or(InvalidId)
     }
 
     pub(crate) fn cleanup(
