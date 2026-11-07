@@ -187,11 +187,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_all_globals_to(
-        &self,
+        &mut self,
         registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
-        for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
+        for global in self.globals.iter_mut().flat_map(|opt| opt.as_mut()) {
             if !global.disabled
                 && global.handler.can_view(
                     &ClientId { id: client.id },
@@ -207,11 +207,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_global_to_all(
-        &self,
+        &mut self,
         global_id: InnerGlobalId,
         clients: &mut ClientStore<D>,
     ) -> Result<(), InvalidId> {
-        let global = self.get_global(global_id)?;
+        let global = get_global_mut(&mut self.globals, global_id)?;
         if global.disabled {
             return Err(InvalidId);
         }
@@ -243,7 +243,7 @@ fn get_global_mut<D>(
 #[inline]
 fn send_global_to<D>(
     client: &mut Client<D>,
-    global: &Global<D>,
+    global: &mut Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
     // TODO add to offer list
