@@ -135,7 +135,7 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
-        let Some(Some(global)) = self.globals.get_mut(id.id as usize - 1) else {
+        let Ok(global) = get_global_mut(&mut self.globals, id) else {
             return;
         };
 
@@ -217,6 +217,13 @@ impl<D> Registry<D> {
         }
         Ok(())
     }
+}
+
+fn get_global_mut<D>(
+    globals: &mut [Option<Global<D>>],
+    id: InnerGlobalId,
+) -> Result<&mut Global<D>, InvalidId> {
+    globals.get_mut(id.id as usize - 1).and_then(|o| o.as_mut()).ok_or(InvalidId)
 }
 
 #[inline]
