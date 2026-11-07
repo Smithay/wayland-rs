@@ -246,7 +246,6 @@ fn send_global_to<D>(
     global: &mut Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
-    // TODO add to offer list
     client.send_event(
         message!(
             &registry,
@@ -259,7 +258,9 @@ fn send_global_to<D>(
         ),
         // This is not a destructor event
         None,
-    )
+    )?;
+    global.offers.insert(registry.id);
+    Ok(())
 }
 
 #[inline]
