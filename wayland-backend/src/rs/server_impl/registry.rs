@@ -73,11 +73,7 @@ impl<D> Registry<D> {
     }
 
     fn get_global(&self, id: InnerGlobalId) -> Result<&Global<D>, InvalidId> {
-        self.globals
-            .get(id.id as usize - 1)
-            .and_then(|o| o.as_ref())
-            .filter(|o| o.id == id)
-            .ok_or(InvalidId)
+        self.globals.get(id.id as usize - 1).and_then(|o| o.as_ref()).ok_or(InvalidId)
     }
 
     pub(crate) fn get_info(&self, id: InnerGlobalId) -> Result<GlobalInfo, InvalidId> {
@@ -139,9 +135,8 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
-        let global = match self.globals.get_mut(id.id as usize - 1) {
-            Some(&mut Some(ref mut g)) if g.id == id => g,
-            _ => return,
+        let Some(Some(global)) = self.globals.get_mut(id.id as usize - 1) else {
+            return;
         };
 
         // Do nothing if the global is already disabled
@@ -164,11 +159,7 @@ impl<D> Registry<D> {
         // disable the global if not already disabled
         self.disable_global(id, clients);
         // now remove it if the id is still valid
-        if let Some(place) = self.globals.get_mut(id.id as usize - 1) {
-            if place.as_ref().map(|g| g.id == id).unwrap_or(false) { place.take() } else { None }
-        } else {
-            None
-        }
+        self.globals.get_mut(id.id as usize - 1).and_then(Option::take)
     }
 
     pub(crate) fn new_registry(
