@@ -1598,9 +1598,7 @@ unsafe extern "C" fn global_filter<D: 'static>(
 }
 
 #[cfg(feature = "libwayland_server_1_26")]
-unsafe extern "C" fn global_withdrawn<D: 'static>(
-    global: *mut wl_global,
-) {
+unsafe extern "C" fn global_withdrawn<D: 'static>(global: *mut wl_global) {
     // Safety: if we are invoked here, the global is a global client initialized by us
     let global_udata = unsafe {
         &*(ffi_dispatch!(wayland_server_handle(), wl_global_get_user_data, global)
@@ -1610,9 +1608,7 @@ unsafe extern "C" fn global_withdrawn<D: 'static>(
     let global_id =
         InnerGlobalId { ptr: global as *mut wl_global, alive: global_udata.alive.clone() };
 
-    global_udata.handler.withdrawn(
-        &GlobalId { id: global_id },
-    )
+    global_udata.handler.withdrawn(&GlobalId { id: global_id })
 }
 
 unsafe fn init_resource<D: 'static>(

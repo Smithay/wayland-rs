@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::protocol::{Argument, Interface};
@@ -14,6 +15,8 @@ use super::{
     we must subtract 1 to it before indexing the vec
 */
 
+struct GlobalOffer {}
+
 #[derive(Debug)]
 pub(crate) struct Global<D: 'static> {
     id: InnerGlobalId,
@@ -21,6 +24,8 @@ pub(crate) struct Global<D: 'static> {
     version: u32,
     handler: Arc<dyn GlobalHandler<D>>,
     disabled: bool,
+    // List of registries is has been advertised on
+    offers: HashSet<InnerObjectId>,
 }
 
 #[derive(Debug)]
@@ -65,7 +70,14 @@ impl<D> Registry<D> {
 
         let id = InnerGlobalId { id: id as u32 + 1, serial };
 
-        *place = Some(Global { id, interface, version, handler, disabled: false });
+        *place = Some(Global {
+            id,
+            interface,
+            version,
+            handler,
+            disabled: false,
+            offers: HashSet::new(),
+        });
 
         self.send_global_to_all(id, clients).unwrap();
 
@@ -132,6 +144,7 @@ impl<D> Registry<D> {
             !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
                 && !pending_destructors.iter().any(|(_, _, id)| id == obj_id)
         })
+        // TODO cleanup offers
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
@@ -148,6 +161,7 @@ impl<D> Registry<D> {
                     let _ = send_global_remove_to(client, global, ObjectId { id: registry });
                 }
             }
+            // TODO remove now if there are no offers
         }
     }
 
@@ -232,6 +246,7 @@ fn send_global_to<D>(
     global: &Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
+    // TODO add to offer list
     client.send_event(
         message!(
             &registry,
