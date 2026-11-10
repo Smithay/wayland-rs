@@ -15,8 +15,6 @@ use super::{
     we must subtract 1 to it before indexing the vec
 */
 
-struct GlobalOffer {}
-
 #[derive(Debug)]
 pub(crate) struct Global<D: 'static> {
     id: InnerGlobalId,
