@@ -1629,8 +1629,7 @@ unsafe extern "C" fn global_withdrawn<D: 'static>(global: *mut wl_global) {
             as *mut GlobalUserData<D>)
     };
 
-    let global_id =
-        InnerGlobalId { ptr: global as *mut wl_global, alive: global_udata.alive.clone() };
+    let global_id = InnerGlobalId { ptr: global, alive: global_udata.alive.clone() };
 
     global_udata.handler.withdrawn(&GlobalId { id: global_id })
 }
