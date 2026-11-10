@@ -139,8 +139,16 @@ impl<D> Registry<D> {
         // Remote registries with client id matching any dead clients, or object
         // id matching pending destructors.
         self.known_registries.retain(|obj_id| {
-            !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
-                && !pending_destructors.iter().any(|(_, _, id)| id == obj_id)
+            let removed = !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
+                && !pending_destructors.iter().any(|(_, _, id)| id == obj_id);
+            if removed {
+                for global in self.globals.iter_mut().flat_map(|opt| opt.as_mut()) {
+                    if global.offers.remove(obj_id) && global.offers.is_empty() {
+                        global.handler.withdrawn(&GlobalId { id: global.id });
+                    }
+                }
+            }
+            removed
         })
         // TODO cleanup offers
     }
@@ -159,7 +167,9 @@ impl<D> Registry<D> {
                     let _ = send_global_remove_to(client, global, ObjectId { id: registry });
                 }
             }
-            // TODO remove now if there are no offers
+            if global.offers.is_empty() {
+                global.handler.withdrawn(&GlobalId { id: global.id });
+            }
         }
     }
 
@@ -241,7 +251,9 @@ impl<D> Registry<D> {
             .get_mut(global_name as usize - 1)
             .and_then(|o| o.as_mut())
             .ok_or(InvalidId)?;
-        let _ = global.offers.remove(wl_registry);
+        if global.offers.remove(wl_registry) && global.offers.is_empty() {
+            global.handler.withdrawn(&GlobalId { id: global.id });
+        }
         Ok(())
     }
 }

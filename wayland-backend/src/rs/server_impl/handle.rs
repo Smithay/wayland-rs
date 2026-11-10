@@ -529,7 +529,6 @@ impl<D> ErasedState for State<D> {
         wl_registry: &InnerObjectId,
         global_name: u32,
     ) -> Result<(), InvalidId> {
-        self.registry.remove_offer(wl_registry, global_name);
-        Ok(())
+        self.registry.remove_offer(wl_registry, global_name)
     }
 }
