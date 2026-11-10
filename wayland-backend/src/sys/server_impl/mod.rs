@@ -913,6 +913,30 @@ impl InnerHandle {
         self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
     }
 
+    #[cfg(feature = "libwayland_server_1_23")]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        let (InnerObjectId::Resource(wl_fixes), InnerObjectId::Resource(wl_registry)) =
+            (wl_fixes, wl_registry)
+        else {
+            return Err(InvalidId);
+        };
+        unsafe {
+            ffi_dispatch!(
+                wayland_server_handle(),
+                wl_fixes_handle_ack_global_remove,
+                wl_fixes.ptr.as_ptr(),
+                wl_registry.ptr.as_ptr(),
+                global_name
+            );
+        }
+        Ok(())
+    }
+
     pub fn display_ptr(&self) -> *mut wl_display {
         self.state.lock().unwrap().display_ptr()
     }

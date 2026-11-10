@@ -306,6 +306,17 @@ impl InnerHandle {
     pub fn set_client_max_buffer_size(&self, client: &InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
     }
+
+    #[allow(dead_code)]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        // TODO
+        Ok(())
+    }
 }
 
 pub(crate) trait ErasedState: Any {

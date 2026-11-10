@@ -529,6 +529,16 @@ impl Handle {
     pub fn set_client_max_buffer_size(&self, client: &ClientId, max_buffer_size: usize) {
         self.handle.set_client_max_buffer_size(&client.id, max_buffer_size);
     }
+
+    #[cfg(feature = "libwayland_server_1_26")]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &ObjectId,
+        wl_registry: &ObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        self.handle.handle_ack_global_remove(&wl_fixes.id, &wl_registry.id, global_name)
+    }
 }
 
 /// A backend object that represents the state of a wayland server.
