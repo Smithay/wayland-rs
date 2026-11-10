@@ -231,6 +231,21 @@ impl<D> Registry<D> {
         }
         Ok(())
     }
+
+    pub(crate) fn remove_offer(
+        &mut self,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        // XXX use get_global_mut?
+        let global = self
+            .globals
+            .get_mut(global_name as usize - 1)
+            .and_then(|o| o.as_mut())
+            .ok_or(InvalidId)?;
+        let _ = global.offers.remove(wl_registry);
+        Ok(())
+    }
 }
 
 fn get_global_mut<D>(
