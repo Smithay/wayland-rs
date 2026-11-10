@@ -62,8 +62,8 @@ impl<I: Resource + 'static, D: 'static, U: GlobalDispatch<I, D> + Send + Sync + 
         }
     }
 
-    fn withdrawn(&self, _: &GlobalId) {
-        self.data.withdrawn();
+    fn withdrawn(&self, global_id: &GlobalId) {
+        self.data.withdrawn(global_id);
     }
 }
 
@@ -122,5 +122,5 @@ pub trait GlobalDispatch<I: Resource, State> {
         true
     }
 
-    fn withdrawn(&self) {}
+    fn withdrawn(&self, _global_id: &GlobalId) {}
 }
