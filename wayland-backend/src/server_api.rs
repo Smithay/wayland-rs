@@ -91,6 +91,7 @@ pub trait GlobalHandler<D>: Any + Send + Sync {
         f.debug_struct("GlobalHandler").finish_non_exhaustive()
     }
 
+    /// Clients have acknowleged global disabling, and it is safe to remove.
     // TODO add data arg?
     fn withdrawn(&self, _global_id: &GlobalId) {}
 }
@@ -530,6 +531,7 @@ impl Handle {
         self.handle.set_client_max_buffer_size(&client.id, max_buffer_size);
     }
 
+    /// Handle `wl_fixes.ack_global_remove` request
     #[cfg(feature = "libwayland_server_1_26")]
     pub fn handle_ack_global_remove(
         &self,
