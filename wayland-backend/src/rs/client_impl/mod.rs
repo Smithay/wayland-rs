@@ -335,18 +335,37 @@ impl InnerBackend {
             }
         };
 
+        if !check_for_signature(message_desc.signature, &args) {
+            panic!(
+                "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
+                object.interface.name, id.id, message_desc.name, message_desc.signature, args
+            );
+        }
+
         if object.data.client_destroyed {
             if guard.debug {
                 debug::print_send_message(id.interface.name, id.id, message_desc.name, &args, true);
             }
             return Err(InvalidId);
         }
-
-        if !check_for_signature(message_desc.signature, &args) {
-            panic!(
-                "Unexpected signature for request {}@{}.{}: expected {:?}, got {:?}.",
-                object.interface.name, id.id, message_desc.name, message_desc.signature, args
-            );
+        for arg in &args {
+            if let Argument::Object(o) = arg {
+                if o.id.id != 0 {
+                    let arg_object = guard.get_object(&o.id)?;
+                    if arg_object.data.client_destroyed {
+                        if guard.debug {
+                            debug::print_send_message(
+                                id.interface.name,
+                                id.id,
+                                message_desc.name,
+                                &args,
+                                true,
+                            );
+                        }
+                        return Err(InvalidId);
+                    }
+                }
+            }
         }
 
         // Prepare the child object
