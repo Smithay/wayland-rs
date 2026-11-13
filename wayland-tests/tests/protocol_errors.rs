@@ -1,5 +1,6 @@
-// XXX: Fix on newer libwayland-client: https://github.com/Smithay/wayland-rs/issues/876
-#![cfg(not(feature = "libwayland_client_1_23"))]
+// TODO: Update when https://gitlab.freedesktop.org/wayland/wayland/-/merge_requests/567
+// is merged, or another fix.
+#![cfg(not(feature = "client_system"))]
 
 use wayland_tests::{
     TestServer, globals, roundtrip, server_ignore_global_impl, server_ignore_impl, wayc, ways,
