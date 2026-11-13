@@ -1315,7 +1315,10 @@ impl<D: 'static> ErasedState for State<D> {
         let client = unsafe {
             ffi_dispatch!(wayland_server_handle(), wl_resource_get_client, resource.ptr.as_ptr())
         };
-        let client_id = unsafe { client_id_from_ptr(client) }.unwrap();
+        let Some(client_id) = (unsafe { client_id_from_ptr(client) }) else {
+            // The client may already be destroyed during cleanup.
+            return;
+        };
         // mark the client as dead
         client_id.alive.store(false, Ordering::Release);
 
