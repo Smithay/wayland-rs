@@ -266,11 +266,7 @@ expand_test!(destroy_then_message, {
 
     assert_eq!(
         client.send_request(
-            message!(
-                &test_global_id,
-                2,
-                [Argument::Object(client_backend::ObjectId::null()), Argument::Uint(1),],
-            ),
+            message!(&test_global_id, 2, [Argument::NewId(client_backend::ObjectId::null())],),
             None,
             None,
         ),
