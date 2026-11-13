@@ -28,3 +28,4 @@ harness = false
 [[test]]
 name = "client_connect_to_socket"
 harness = false
+
