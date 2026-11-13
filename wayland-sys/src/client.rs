@@ -4,7 +4,7 @@
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
-#[cfg(all(feature = "client", feature = "dlopen"))]
+#[cfg(all(feature = "client", dlopen))]
 use std::sync::LazyLock;
 #[cfg(feature = "client")]
 use super::common::*;
@@ -89,7 +89,7 @@ external_library!(WaylandClient, "wayland-client",
         fn wl_proxy_marshal(*mut wl_proxy, u32) -> (),
 );
 
-#[cfg(all(feature = "client", feature = "dlopen"))]
+#[cfg(all(feature = "client", dlopen))]
 pub fn wayland_client_option() -> Option<&'static WaylandClient> {
     static WAYLAND_CLIENT_OPTION: LazyLock<Option<WaylandClient>> = LazyLock::new(||{
         let versions = ["libwayland-client.so.0", "libwayland-client.so"];
@@ -109,18 +109,18 @@ pub fn wayland_client_option() -> Option<&'static WaylandClient> {
     WAYLAND_CLIENT_OPTION.as_ref()
 }
 
-#[cfg(all(feature = "client", feature = "dlopen"))]
+#[cfg(all(feature = "client", dlopen))]
 pub fn wayland_client_handle() -> &'static WaylandClient {
     static WAYLAND_CLIENT_HANDLE: LazyLock<&'static WaylandClient> = LazyLock::new(|| wayland_client_option().expect("Library libwayland-client.so could not be loaded."));
 
     &WAYLAND_CLIENT_HANDLE
 }
 
-#[cfg(all(feature = "client", not(feature = "dlopen")))]
+#[cfg(all(feature = "client", not(dlopen)))]
 pub fn is_lib_available() -> bool {
     true
 }
-#[cfg(all(feature = "client", feature = "dlopen"))]
+#[cfg(all(feature = "client", dlopen))]
 pub fn is_lib_available() -> bool {
     wayland_client_option().is_some()
 }
