@@ -10,7 +10,7 @@ use std::sync::Arc;
 use wayland_sys::client::wl_proxy;
 use wayland_sys::common::{wl_argument, wl_array};
 
-use crate::protocol::{Argument, ArgumentType, Interface, OwnedArgument};
+use crate::protocol::{Argument, ArgumentType, INLINE_ARGS, Interface, OwnedArgument};
 
 #[cfg(any(test, feature = "client_system", feature = "server_system"))]
 use std::ffi::c_void;
@@ -260,12 +260,15 @@ unsafe fn parse_arg<O>(
 
 struct SerializedArgs {
     signature: &'static [ArgumentType],
-    args: SmallVec<[wl_argument; 4]>,
+    args: SmallVec<[wl_argument; INLINE_ARGS]>,
 }
 
 impl SerializedArgs {
     fn new(signature: &'static [ArgumentType]) -> Self {
-        Self { signature, args: SmallVec::<[wl_argument; 4]>::with_capacity(signature.len()) }
+        Self {
+            signature,
+            args: SmallVec::<[wl_argument; INLINE_ARGS]>::with_capacity(signature.len()),
+        }
     }
 
     fn add<O>(&mut self, arg: Argument<Option<NonNull<O>>, Option<NonZeroU32>>) {

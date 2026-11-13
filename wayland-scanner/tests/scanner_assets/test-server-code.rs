@@ -866,14 +866,16 @@ pub mod test_global {
                 } => Ok(Message {
                     sender_id: &self.id,
                     opcode: 0u16,
-                    args: smallvec::SmallVec::from_vec(vec![
-                        Argument::Uint(unsigned_int),
-                        Argument::Int(signed_int),
-                        Argument::Fixed((fixed_point * 256.) as i32),
-                        Argument::Array(Box::new(number_array)),
-                        Argument::Str(Some(Box::new(some_text))),
-                        Argument::Fd(file_descriptor),
-                    ]),
+                    args: {
+                        let mut vec = smallvec::SmallVec::new();
+                        vec.push(Argument::Uint(unsigned_int));
+                        vec.push(Argument::Int(signed_int));
+                        vec.push(Argument::Fixed((fixed_point * 256.) as i32));
+                        vec.push(Argument::Array(Box::new(number_array)));
+                        vec.push(Argument::Str(Some(Box::new(some_text))));
+                        vec.push(Argument::Fd(file_descriptor));
+                        vec
+                    },
                 }),
                 Event::AckSecondary { sec } => Ok(Message {
                     sender_id: &self.id,
