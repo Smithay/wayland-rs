@@ -90,6 +90,10 @@ pub trait GlobalHandler<D>: Any + Send + Sync {
     fn debug(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlobalHandler").finish_non_exhaustive()
     }
+
+    /// Clients have acknowleged global disabling, and it is safe to remove.
+    // TODO add data arg?
+    fn withdrawn(&self, _global_id: &GlobalId) {}
 }
 
 impl<D: 'static> std::fmt::Debug for dyn GlobalHandler<D> {
@@ -525,6 +529,17 @@ impl Handle {
     #[cfg(feature = "libwayland_server_1_23")]
     pub fn set_client_max_buffer_size(&self, client: &ClientId, max_buffer_size: usize) {
         self.handle.set_client_max_buffer_size(&client.id, max_buffer_size);
+    }
+
+    /// Handle `wl_fixes.ack_global_remove` request
+    #[cfg(feature = "libwayland_server_1_26")]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &ObjectId,
+        wl_registry: &ObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        self.handle.handle_ack_global_remove(&wl_fixes.id, &wl_registry.id, global_name)
     }
 }
 

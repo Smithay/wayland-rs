@@ -306,6 +306,16 @@ impl InnerHandle {
     pub fn set_client_max_buffer_size(&self, client: &InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
     }
+
+    #[allow(dead_code)]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        self.state.lock().unwrap().handle_ack_global_remove(wl_fixes, wl_registry, global_name)
+    }
 }
 
 pub(crate) trait ErasedState: Any {
@@ -342,6 +352,12 @@ pub(crate) trait ErasedState: Any {
     fn flush(&mut self, client: Option<&ClientId>) -> std::io::Result<()>;
     fn set_default_max_buffer_size(&mut self, max_buffer_size: usize);
     fn set_client_max_buffer_size(&mut self, client: &InnerClientId, max_buffer_size: usize);
+    fn handle_ack_global_remove(
+        &mut self,
+        wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId>;
 }
 
 impl<D> ErasedState for State<D> {
@@ -505,5 +521,14 @@ impl<D> ErasedState for State<D> {
 
     fn set_client_max_buffer_size(&mut self, client: &InnerClientId, max_buffer_size: usize) {
         self.set_client_max_buffer_size(client, max_buffer_size)
+    }
+
+    fn handle_ack_global_remove(
+        &mut self,
+        _wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        self.registry.remove_offer(wl_registry, global_name)
     }
 }

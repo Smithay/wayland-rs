@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::protocol::{Argument, Interface};
@@ -21,6 +22,8 @@ pub(crate) struct Global<D: 'static> {
     version: u32,
     handler: Arc<dyn GlobalHandler<D>>,
     disabled: bool,
+    // List of registries is has been advertised on
+    offers: HashSet<InnerObjectId>,
 }
 
 #[derive(Debug)]
@@ -65,7 +68,14 @@ impl<D> Registry<D> {
 
         let id = InnerGlobalId { id: id as u32 + 1, serial };
 
-        *place = Some(Global { id, interface, version, handler, disabled: false });
+        *place = Some(Global {
+            id,
+            interface,
+            version,
+            handler,
+            disabled: false,
+            offers: HashSet::new(),
+        });
 
         self.send_global_to_all(id, clients).unwrap();
 
@@ -129,9 +139,18 @@ impl<D> Registry<D> {
         // Remote registries with client id matching any dead clients, or object
         // id matching pending destructors.
         self.known_registries.retain(|obj_id| {
-            !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
-                && !pending_destructors.iter().any(|(_, _, id)| id == obj_id)
+            let removed = !dead_clients.iter().any(|cid| cid.id == obj_id.client_id)
+                && !pending_destructors.iter().any(|(_, _, id)| id == obj_id);
+            if removed {
+                for global in self.globals.iter_mut().flat_map(|opt| opt.as_mut()) {
+                    if global.offers.remove(obj_id) && global.offers.is_empty() {
+                        global.handler.withdrawn(&GlobalId { id: global.id });
+                    }
+                }
+            }
+            removed
         })
+        // TODO cleanup offers
     }
 
     pub(crate) fn disable_global(&mut self, id: InnerGlobalId, clients: &mut ClientStore<D>) {
@@ -147,6 +166,9 @@ impl<D> Registry<D> {
                 if let Ok(client) = clients.get_client_mut(registry.client_id) {
                     let _ = send_global_remove_to(client, global, ObjectId { id: registry });
                 }
+            }
+            if global.offers.is_empty() {
+                global.handler.withdrawn(&GlobalId { id: global.id });
             }
         }
     }
@@ -173,11 +195,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_all_globals_to(
-        &self,
+        &mut self,
         registry: InnerObjectId,
         client: &mut Client<D>,
     ) -> Result<(), InvalidId> {
-        for global in self.globals.iter().flat_map(|opt| opt.as_ref()) {
+        for global in self.globals.iter_mut().flat_map(|opt| opt.as_mut()) {
             if !global.disabled
                 && global.handler.can_view(
                     &ClientId { id: client.id },
@@ -193,11 +215,11 @@ impl<D> Registry<D> {
     }
 
     pub(crate) fn send_global_to_all(
-        &self,
+        &mut self,
         global_id: InnerGlobalId,
         clients: &mut ClientStore<D>,
     ) -> Result<(), InvalidId> {
-        let global = self.get_global(global_id)?;
+        let global = get_global_mut(&mut self.globals, global_id)?;
         if global.disabled {
             return Err(InvalidId);
         }
@@ -217,6 +239,23 @@ impl<D> Registry<D> {
         }
         Ok(())
     }
+
+    pub(crate) fn remove_offer(
+        &mut self,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        // XXX use get_global_mut?
+        let global = self
+            .globals
+            .get_mut(global_name as usize - 1)
+            .and_then(|o| o.as_mut())
+            .ok_or(InvalidId)?;
+        if global.offers.remove(wl_registry) && global.offers.is_empty() {
+            global.handler.withdrawn(&GlobalId { id: global.id });
+        }
+        Ok(())
+    }
 }
 
 fn get_global_mut<D>(
@@ -229,7 +268,7 @@ fn get_global_mut<D>(
 #[inline]
 fn send_global_to<D>(
     client: &mut Client<D>,
-    global: &Global<D>,
+    global: &mut Global<D>,
     registry: ObjectId,
 ) -> Result<(), InvalidId> {
     client.send_event(
@@ -244,7 +283,9 @@ fn send_global_to<D>(
         ),
         // This is not a destructor event
         None,
-    )
+    )?;
+    global.offers.insert(registry.id);
+    Ok(())
 }
 
 #[inline]

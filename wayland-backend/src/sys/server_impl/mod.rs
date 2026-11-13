@@ -787,6 +787,16 @@ impl InnerHandle {
             (*udata).ptr = ret;
         }
 
+        #[cfg(feature = "libwayland_server_1_26")]
+        HANDLE.set(&(self.state.clone(), std::ptr::null_mut()), || unsafe {
+            ffi_dispatch!(
+                wayland_server_handle(),
+                wl_global_set_withdrawn_listener,
+                ret,
+                global_withdrawn::<D>,
+            )
+        });
+
         let mut state = self.state.lock().unwrap();
         let state = (&mut *state as &mut dyn Any)
             .downcast_mut::<State<D>>()
@@ -901,6 +911,30 @@ impl InnerHandle {
     #[cfg(feature = "libwayland_server_1_23")]
     pub fn set_client_max_buffer_size(&self, client: &InnerClientId, max_buffer_size: usize) {
         self.state.lock().unwrap().set_client_max_buffer_size(client, max_buffer_size)
+    }
+
+    #[cfg(feature = "libwayland_server_1_23")]
+    pub fn handle_ack_global_remove(
+        &self,
+        wl_fixes: &InnerObjectId,
+        wl_registry: &InnerObjectId,
+        global_name: u32,
+    ) -> Result<(), InvalidId> {
+        let (InnerObjectId::Resource(wl_fixes), InnerObjectId::Resource(wl_registry)) =
+            (wl_fixes, wl_registry)
+        else {
+            return Err(InvalidId);
+        };
+        unsafe {
+            ffi_dispatch!(
+                wayland_server_handle(),
+                wl_fixes_handle_ack_global_remove,
+                wl_fixes.ptr.as_ptr(),
+                wl_registry.ptr.as_ptr(),
+                global_name
+            );
+        }
+        Ok(())
     }
 
     pub fn display_ptr(&self) -> *mut wl_display {
@@ -1585,6 +1619,19 @@ unsafe extern "C" fn global_filter<D: 'static>(
         &client_udata.data,
         &GlobalId { id: global_id },
     )
+}
+
+#[cfg(feature = "libwayland_server_1_26")]
+unsafe extern "C" fn global_withdrawn<D: 'static>(global: *mut wl_global) {
+    // Safety: if we are invoked here, the global is a global client initialized by us
+    let global_udata = unsafe {
+        &*(ffi_dispatch!(wayland_server_handle(), wl_global_get_user_data, global)
+            as *mut GlobalUserData<D>)
+    };
+
+    let global_id = InnerGlobalId { ptr: global, alive: global_udata.alive.clone() };
+
+    global_udata.handler.withdrawn(&GlobalId { id: global_id })
 }
 
 unsafe fn init_resource<D: 'static>(
