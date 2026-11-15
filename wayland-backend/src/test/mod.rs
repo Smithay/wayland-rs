@@ -56,6 +56,7 @@ mod interfaces {
 
 mod destroy_object;
 mod destructors;
+mod id_reuse;
 mod many_args;
 mod object_args;
 mod protocol_error;

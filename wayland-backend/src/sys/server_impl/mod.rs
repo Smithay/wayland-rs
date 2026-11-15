@@ -435,10 +435,28 @@ impl<D> InnerBackend<D> {
     pub fn dispatch_all_clients(&self, data: &mut D) -> std::io::Result<usize> {
         let state = self.state.clone() as Arc<Mutex<dyn ErasedState + Send>>;
         let display = self.display_ptr;
-        let ret = HANDLE.set(&(state, data as *mut _ as *mut c_void), || unsafe {
-            let evl_ptr =
-                ffi_dispatch!(wayland_server_handle(), wl_display_get_event_loop, display);
-            ffi_dispatch!(wayland_server_handle(), wl_event_loop_dispatch, evl_ptr, 0)
+        // Queue ObjectData::destroyed until after the whole dispatch batch.
+        // Without PENDING_DESTRUCTORS set here, resource_destructor runs
+        // destroyed / frees ResourceUserData mid-batch. A client that destroys
+        // an object and reuses that protocol id in the same flush (Chromium
+        // wp_image_description_* / get_information) then UAFs in
+        // resource_dispatcher. See Smithay/wayland-rs#949.
+        //
+        // SAFETY: take a raw pointer to `pending_destructors` then unlock before
+        // entering libwayland. Holding the mutex across dispatch deadlocks when
+        // request handlers lock Handle. Only this thread pushes via
+        // resource_destructor while PENDING_DESTRUCTORS is set, and only this
+        // function takes the vec after dispatch returns.
+        let pending_ptr = {
+            let mut guard = self.state.lock().unwrap();
+            &mut guard.pending_destructors as *mut Vec<PendingDestructor<D>> as *mut c_void
+        };
+        let ret = HANDLE.set(&(state, data as *mut _ as *mut c_void), || {
+            PENDING_DESTRUCTORS.set(&pending_ptr, || unsafe {
+                let evl_ptr =
+                    ffi_dispatch!(wayland_server_handle(), wl_display_get_event_loop, display);
+                ffi_dispatch!(wayland_server_handle(), wl_event_loop_dispatch, evl_ptr, 0)
+            })
         });
 
         let pending_destructors =
