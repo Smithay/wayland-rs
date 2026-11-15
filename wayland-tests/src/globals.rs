@@ -47,7 +47,9 @@ where
                 me.globals.push(GlobalDescription { name, interface, version });
             }
             wl_registry::Event::GlobalRemove { name } => {
+                let len = me.globals.len();
                 me.globals.retain(|desc| desc.name != name);
+                assert_ne!(me.globals.len(), len, "global_remove for unknown global {name}");
             }
             _ => {
                 unreachable!()

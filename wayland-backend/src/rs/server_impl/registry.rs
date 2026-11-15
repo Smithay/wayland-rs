@@ -142,10 +142,16 @@ impl<D> Registry<D> {
         // Do nothing if the global is already disabled
         if !global.disabled {
             global.disabled = true;
-            // send the global_remove
+            // send the global_remove to the clients that could see the global
             for registry in self.known_registries.iter().cloned() {
                 if let Ok(client) = clients.get_client_mut(registry.client_id) {
-                    let _ = send_global_remove_to(client, global, ObjectId { id: registry });
+                    if global.handler.can_view(
+                        &ClientId { id: client.id },
+                        &client.data,
+                        &GlobalId { id: global.id },
+                    ) {
+                        let _ = send_global_remove_to(client, global, ObjectId { id: registry });
+                    }
                 }
             }
         }
