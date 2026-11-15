@@ -22,6 +22,8 @@
 - client/sys: Make `ReadEventsGuard` impl `Send+Sync`, like `rs` backend
 - client/sys: Fix double mutex lock in `set_data`
 - client/rs: Don't return `WouldBlock` on `ReadEventsGuard::read`, like `sys`
+- server/rs: Only send `wl_registry.global_remove` to clients for which `can_view`
+  is true, like `sys`
 
 #### Changes
 - rs: Log dates with format matching `libwayland` 1.26
