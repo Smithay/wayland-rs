@@ -22,6 +22,9 @@
 - client/sys: Make `ReadEventsGuard` impl `Send+Sync`, like `rs` backend
 - client/sys: Fix double mutex lock in `set_data`
 - client/rs: Don't return `WouldBlock` on `ReadEventsGuard::read`, like `sys`
+- server/sys: Defer `ObjectData::destroyed` until after `wl_event_loop_dispatch`
+  returns so destroy + same-id reuse in one batch cannot UAF `ResourceUserData`
+  (Chromium `wp_image_description_*`; Smithay/wayland-rs#949)
 
 #### Changes
 - rs: Log dates with format matching `libwayland` 1.26
